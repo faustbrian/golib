@@ -540,6 +540,14 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 	); resourceOf(err) != verkletree.ResourceTemporaryBytes {
 		t.Fatalf("witness temporary budget error = %v", err)
 	}
+	preflightLimits := publicWitnessLimits()
+	preflightLimits.MaxTemporaryBytes = 383
+	if _, err := verkletree.NewWitness(
+		context.Background(), proof, []verkletree.Update{{}}, postRoot,
+		preflightLimits,
+	); resourceOf(err) != verkletree.ResourceTemporaryBytes {
+		t.Fatalf("witness temporary preflight precedence error = %v", err)
+	}
 	exactLimits := publicWitnessLimits()
 	exactLimits.MaxUpdates = 1
 	exactLimits.MaxTemporaryBytes = 384
