@@ -69,9 +69,9 @@ func (id ID) valid() bool {
 	}
 	switch id.kind {
 	case IDString:
-		return len(trimmed) > 0 && trimmed[0] == '"'
+		return trimmed[0] == '"'
 	case IDNumber:
-		return len(trimmed) > 0 && (trimmed[0] == '-' || (trimmed[0] >= '0' && trimmed[0] <= '9'))
+		return trimmed[0] == '-' || (trimmed[0] >= '0' && trimmed[0] <= '9')
 	case IDNull:
 		return bytes.Equal(trimmed, []byte("null"))
 	default:
@@ -188,7 +188,7 @@ func canonicalNumber(value string) string {
 	if exponentSign == 0 {
 		return numberSign + trimmed
 	}
-	if exponentSign < 0 {
+	if exponentSign == -1 {
 		exponentDigits = "-" + exponentDigits
 	}
 	return numberSign + trimmed + "e" + exponentDigits
@@ -199,11 +199,11 @@ func addSignedDecimalInt(sign int, digits string, adjustment int) (int, string) 
 		return sign, digits
 	}
 	adjustmentSign := 1
-	if adjustment < 0 {
-		adjustmentSign = -1
-		adjustment = -adjustment
-	}
 	adjustmentDigits := strconv.Itoa(adjustment)
+	if strings.HasPrefix(adjustmentDigits, "-") {
+		adjustmentSign = -1
+		adjustmentDigits = strings.TrimPrefix(adjustmentDigits, "-")
+	}
 	if sign == 0 {
 		return adjustmentSign, adjustmentDigits
 	}
@@ -214,7 +214,7 @@ func addSignedDecimalInt(sign int, digits string, adjustment int) (int, string) 
 	if comparison == 0 {
 		return 0, "0"
 	}
-	if comparison > 0 {
+	if comparison == 1 {
 		return sign, subtractDecimalMagnitudes(digits, adjustmentDigits)
 	}
 	return adjustmentSign, subtractDecimalMagnitudes(adjustmentDigits, digits)

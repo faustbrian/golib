@@ -53,7 +53,9 @@ type HTTPTransportOption func(*HTTPTransport)
 // policy remain caller-owned.
 func WithHTTPClient(client *http.Client) HTTPTransportOption {
 	return func(transport *HTTPTransport) {
-		if client != nil {
+		switch client {
+		case nil:
+		default:
 			transport.client = client
 		}
 	}
@@ -96,7 +98,9 @@ func NewHTTPTransport(endpoint string, options ...HTTPTransportOption) (*HTTPTra
 		maxResponseBytes: defaultMaxResponseBytes,
 	}
 	for _, option := range options {
-		if option != nil {
+		switch option {
+		case nil:
+		default:
 			option(transport)
 		}
 	}

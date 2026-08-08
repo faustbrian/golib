@@ -1432,6 +1432,9 @@ All notable changes to this project are documented here. The format is based on
 
 - Keep module-archive tests scoped to files shipped with the JSON-RPC module;
   repository-root workflow policy remains owned by the root verification gate.
+- Strengthen protocol, transport, dispatcher-hook, and named-parameter boundary
+  verification so every viable JSON-RPC mutation is detected without timeout
+  or equivalent boundary predicates.
 
 ## [1.0.0] - 2026-07-14
 
