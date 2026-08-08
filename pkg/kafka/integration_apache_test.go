@@ -1348,6 +1348,287 @@ func TestApacheKafkaCooperativeTransactionRebalance(t *testing.T) {
 	)
 }
 
+func TestApacheKafkaTransactionProcessorRepeatedCooperativeChurn(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
+	t.Run("minimum-3.7.2", func(t *testing.T) {
+		proveApacheKafkaTransactionProcessorRepeatedCooperativeChurn(
+			t,
+			apacheKafkaMinimumImage,
+			"3.7.2",
+			false,
+		)
+	})
+	t.Run("current-4.3.1", func(t *testing.T) {
+		proveApacheKafkaTransactionProcessorRepeatedCooperativeChurn(
+			t,
+			apacheKafkaImage,
+			"4.3.1",
+			true,
+		)
+	})
+}
+
+func proveApacheKafkaTransactionProcessorRepeatedCooperativeChurn(
+	t *testing.T,
+	image string,
+	version string,
+	includeShareCoordinator bool,
+) {
+	t.Helper()
+
+	const (
+		anchorClient = "golib-apache-transaction-churn-anchor"
+		churnCycles  = 5
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+
+	cluster := startApacheKafkaClusterWithImage(
+		t,
+		ctx,
+		image,
+		includeShareCoordinator,
+	)
+	cluster.observeFailureState(t)
+	cluster.assertRuntimeVersion(t, ctx, version)
+	brokers := cluster.brokers(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+
+	prefix := fmt.Sprintf(
+		"golib-apache-transaction-churn-%d",
+		time.Now().UnixNano(),
+	)
+	sourceTopic := prefix + "-source"
+	outputTopic := prefix + "-output"
+	groupID := prefix + "-group"
+	createApacheKafkaTopic(t, ctx, brokers, sourceTopic, 2)
+	createApacheKafkaTopic(t, ctx, brokers, outputTopic, 1)
+
+	sourceProducer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-apache-transaction-churn-source",
+		AllowedTopics: []string{sourceTopic},
+		KeyPolicy:     kafka.KeyRequired,
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct transaction churn source producer: %v", err)
+	}
+	sourceProducerClosed := false
+	defer func() {
+		if !sourceProducerClosed {
+			_ = sourceProducer.Close()
+		}
+	}()
+
+	anchor := newApacheKafkaRebalanceProcessor(
+		t,
+		brokers,
+		sourceTopic,
+		outputTopic,
+		groupID,
+		prefix+"-anchor-transaction",
+		anchorClient,
+		kafka.BalanceCooperativeSticky,
+	)
+	anchorClosed := false
+	defer func() {
+		if !anchorClosed {
+			_ = anchor.Close()
+		}
+	}()
+
+	type churnRun struct {
+		result    kafka.TransactionPollResult
+		err       error
+		partition int32
+		aborted   int
+	}
+	runOnce := func(
+		processor *kafka.TransactionProcessor,
+	) <-chan churnRun {
+		done := make(chan churnRun, 1)
+		go func() {
+			const maximumAttempts = 10
+			run := churnRun{}
+			for attempt := 0; attempt < maximumAttempts; attempt++ {
+				run.partition = -1
+				run.result, run.err = processor.RunOnce(
+					ctx,
+					kafka.TransactionHandlerFunc(func(
+						handlerCtx context.Context,
+						record kafka.ConsumedRecord,
+						transaction kafka.Transaction,
+					) error {
+						run.partition = record.Partition
+
+						return transaction.Publish(handlerCtx, kafka.ProducerRecord{
+							Topic: outputTopic,
+							Key:   record.Key,
+							Value: append([]byte("processed-"), record.Value...),
+						})
+					}),
+				)
+				if run.result == (kafka.TransactionPollResult{}) &&
+					run.err == nil {
+					continue
+				}
+				if errors.Is(run.err, kafka.ErrTransactionNotCommitted) &&
+					run.result == (kafka.TransactionPollResult{
+						Polled: 1, Processed: 1, Published: 1,
+					}) {
+					run.aborted++
+					continue
+				}
+
+				break
+			}
+			done <- run
+		}()
+
+		return done
+	}
+
+	wantCommits := map[kafka.TopicPartition]int64{
+		{Topic: sourceTopic, Partition: 0}: 0,
+		{Topic: sourceTopic, Partition: 1}: 0,
+	}
+	for cycle := range churnCycles {
+		peerClient := fmt.Sprintf(
+			"golib-apache-transaction-churn-peer-%d",
+			cycle,
+		)
+		peer := newApacheKafkaRebalanceProcessor(
+			t,
+			brokers,
+			sourceTopic,
+			outputTopic,
+			groupID,
+			fmt.Sprintf("%s-peer-%d-transaction", prefix, cycle),
+			peerClient,
+			kafka.BalanceCooperativeSticky,
+		)
+		peerClosed := false
+		defer func() {
+			if !peerClosed {
+				_ = peer.Close()
+			}
+		}()
+
+		anchorResult := runOnce(anchor)
+		peerResult := runOnce(peer)
+		waitForApacheKafkaConsumerGroupState(
+			t,
+			ctx,
+			brokers,
+			groupID,
+			sourceTopic,
+			"cooperative-sticky",
+			[]string{anchorClient, peerClient},
+		)
+
+		publishApacheKafkaPartitionRecords(
+			t,
+			ctx,
+			sourceProducer,
+			sourceTopic,
+			int64(cycle),
+		)
+		runs := []churnRun{<-anchorResult, <-peerResult}
+		processedPartitions := map[int32]bool{}
+		for _, run := range runs {
+			if run.err != nil ||
+				run.result != (kafka.TransactionPollResult{
+					Polled: 1, Processed: 1, Published: 1, Committed: true,
+				}) ||
+				run.partition < 0 || run.partition > 1 ||
+				processedPartitions[run.partition] {
+				t.Fatalf(
+					"transaction churn cycle %d run = "+
+						"(%#v, %v, partition %d, aborted %d)",
+					cycle,
+					run.result,
+					run.err,
+					run.partition,
+					run.aborted,
+				)
+			}
+			processedPartitions[run.partition] = true
+		}
+		if !processedPartitions[0] || !processedPartitions[1] {
+			t.Fatalf(
+				"transaction churn cycle %d partitions = %#v",
+				cycle,
+				processedPartitions,
+			)
+		}
+
+		wantOffset := int64(cycle + 1)
+		wantCommits[kafka.TopicPartition{
+			Topic: sourceTopic, Partition: 0,
+		}] = wantOffset
+		wantCommits[kafka.TopicPartition{
+			Topic: sourceTopic, Partition: 1,
+		}] = wantOffset
+		assertApacheKafkaGroupCommits(
+			t,
+			ctx,
+			brokers,
+			groupID,
+			wantCommits,
+		)
+
+		if err := peer.Close(); err != nil {
+			t.Fatalf("close transaction churn peer %d: %v", cycle, err)
+		}
+		peerClosed = true
+		waitForApacheKafkaConsumerGroupState(
+			t,
+			ctx,
+			brokers,
+			groupID,
+			sourceTopic,
+			"cooperative-sticky",
+			[]string{anchorClient},
+		)
+	}
+
+	if err := sourceProducer.Close(); err != nil {
+		t.Fatalf("close transaction churn source producer: %v", err)
+	}
+	sourceProducerClosed = true
+	if err := anchor.Close(); err != nil {
+		t.Fatalf("close transaction churn anchor: %v", err)
+	}
+	anchorClosed = true
+	waitForApacheKafkaGroupMembers(t, ctx, brokers, groupID, 0)
+
+	wantValues := make([]string, 0, churnCycles*2)
+	for cycle := range churnCycles {
+		for partition := range int32(2) {
+			wantValues = append(wantValues, fmt.Sprintf(
+				"processed-partition-%d-offset-%d",
+				partition,
+				cycle,
+			))
+		}
+	}
+	values := consumeExactTransactionValues(
+		t,
+		brokers,
+		outputTopic,
+		kgo.ReadCommitted(),
+		len(wantValues),
+	)
+	slices.Sort(values)
+	slices.Sort(wantValues)
+	if !slices.Equal(values, wantValues) {
+		t.Fatalf("read-committed transaction churn values = %q", values)
+	}
+}
+
 func TestApacheKafkaConsumerRollingBalanceMigration(t *testing.T) {
 	runKafkaBrokerIntegration(t)
 

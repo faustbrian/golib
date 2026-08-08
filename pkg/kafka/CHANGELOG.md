@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove five repeated cooperative transaction-processor membership cycles
+  against minimum Apache Kafka 3.7.2 and current 4.3.1 with exact partition
+  ownership, bounded retry of safe rebalance aborts, source-offset settlement,
+  and read-committed output cardinality
 - prove five repeated cooperative join, settlement, leave, and survivor
   reacquisition cycles against minimum Apache Kafka 3.7.2 and current 4.3.1
   three-broker clusters with exact one-copy partition ownership and

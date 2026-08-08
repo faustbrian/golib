@@ -2010,6 +2010,66 @@ func consumeTransactionValues(
 	return values
 }
 
+func consumeExactTransactionValues(
+	t *testing.T,
+	brokers []string,
+	topic string,
+	isolation kgo.IsolationLevel,
+	want int,
+) []string {
+	t.Helper()
+
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(brokers...),
+		kgo.ClientID("golib-compatibility-exact-transaction-reader"),
+		kgo.ConsumePartitions(map[string]map[int32]kgo.Offset{
+			topic: {0: kgo.NewOffset().AtStart()},
+		}),
+		kgo.FetchIsolationLevel(isolation),
+		kgo.DialTimeout(10*time.Second),
+	)
+	if err != nil {
+		t.Fatalf("construct exact transaction reader: %v", err)
+	}
+	defer client.Close()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	values := make([]string, 0, want)
+	for len(values) < want {
+		fetches := client.PollRecords(ctx, want-len(values))
+		if err := fetches.Err(); err != nil {
+			t.Fatalf("read exact transaction records: %v", err)
+		}
+		for _, record := range fetches.Records() {
+			values = append(values, string(record.Value))
+		}
+	}
+
+	quiescenceCtx, cancelQuiescence := context.WithTimeout(
+		context.Background(),
+		2*time.Second,
+	)
+	defer cancelQuiescence()
+	for {
+		extra := client.PollRecords(quiescenceCtx, 1)
+		if records := extra.Records(); len(records) != 0 {
+			t.Fatalf("read %d unexpected transaction records", len(records))
+		}
+		if err := extra.Err(); err != nil {
+			if errors.Is(err, context.DeadlineExceeded) {
+				break
+			}
+			t.Fatalf("verify exact transaction record count: %v", err)
+		}
+		if context.Cause(quiescenceCtx) != nil {
+			break
+		}
+	}
+
+	return values
+}
+
 func proveBatchPolicy(
 	t *testing.T,
 	ctx context.Context,
