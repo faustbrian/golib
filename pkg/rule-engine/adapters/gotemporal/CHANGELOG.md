@@ -28,3 +28,5 @@ All notable changes to this module are documented here.
 - Add an allocation-aware benchmark for exact period-membership evaluation.
 - Add bounded fuzz coverage for hostile period and instant encodings with
   interval-membership oracle checks.
+- Assert that otherwise valid period and instant payloads are rejected when
+  their required temporal type tags are absent.

@@ -63,6 +63,7 @@ func TestTemporalOperatorTruthAndFailureTable(t *testing.T) {
 
 	invalidPeriods := []ruleengine.Value{
 		ruleengine.Int(1),
+		ruleengine.String("2026-07-19T10:00:00Z|2026-07-19T11:00:00Z|[)"),
 		ruleengine.String(periodPrefix + "invalid"),
 		ruleengine.String(periodPrefix + "invalid|2026-07-19T10:00:00Z|[)"),
 		ruleengine.String(periodPrefix + "2026-07-19T10:00:00Z|invalid|[)"),
@@ -86,6 +87,7 @@ func TestTemporalOperatorTruthAndFailureTable(t *testing.T) {
 	}
 	for _, invalid := range []ruleengine.Value{
 		ruleengine.Int(1),
+		ruleengine.String("2026-07-19T10:00:00Z"),
 		ruleengine.String(instantPrefix + "invalid"),
 	} {
 		if _, err := operators[5].Evaluate(context.Background(), Period(period), invalid); err == nil {
