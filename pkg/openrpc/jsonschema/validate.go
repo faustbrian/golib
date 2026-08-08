@@ -239,7 +239,7 @@ func collectIssues(current *validator.ValidationError, limit int, issues *[]Issu
 			if len(*issues) >= limit {
 				return limit
 			}
-			total += collectIssues(cause, limit, issues)
+			total = total + collectIssues(cause, limit, issues)
 		}
 		return total
 	}

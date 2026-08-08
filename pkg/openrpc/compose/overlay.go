@@ -124,13 +124,11 @@ func mergePatch(target any, patch map[string]any) any {
 	for name, patchValue := range patch {
 		if patchValue == nil {
 			delete(targetObject, name)
-			continue
-		}
-		if patchObject, object := patchValue.(map[string]any); object {
+		} else if patchObject, object := patchValue.(map[string]any); object {
 			targetObject[name] = mergePatch(targetObject[name], patchObject)
-			continue
+		} else {
+			targetObject[name] = patchValue
 		}
-		targetObject[name] = patchValue
 	}
 	return targetObject
 }

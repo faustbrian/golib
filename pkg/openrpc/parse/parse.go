@@ -514,7 +514,10 @@ func parseReferenceObject(object map[string]json.RawMessage, pointer string) (op
 
 func parseOptionalTags(object map[string]json.RawMessage, options Options, pointer string) ([]openrpc.TagOrReference, bool, error) {
 	entries, present, err := optionalRawArray(object, "tags", options.MaxTags, ErrTagLimit, pointer)
-	if err != nil || !present {
+	if err != nil {
+		return nil, present, err
+	}
+	if !present {
 		return nil, present, err
 	}
 	values := make([]openrpc.TagOrReference, len(entries))
@@ -586,7 +589,10 @@ func parseTagObject(object map[string]json.RawMessage, options Options, pointer 
 
 func parseOptionalErrors(object map[string]json.RawMessage, options Options, pointer string) ([]openrpc.ErrorOrReference, bool, error) {
 	entries, present, err := optionalRawArray(object, "errors", options.MaxErrors, ErrErrorLimit, pointer)
-	if err != nil || !present {
+	if err != nil {
+		return nil, present, err
+	}
+	if !present {
 		return nil, present, err
 	}
 	values := make([]openrpc.ErrorOrReference, len(entries))
@@ -652,7 +658,10 @@ func parseErrorObject(object map[string]json.RawMessage, options Options, pointe
 
 func parseOptionalLinks(object map[string]json.RawMessage, options Options, pointer string) ([]openrpc.LinkOrReference, bool, error) {
 	entries, present, err := optionalRawArray(object, "links", options.MaxLinks, ErrLinkLimit, pointer)
-	if err != nil || !present {
+	if err != nil {
+		return nil, present, err
+	}
+	if !present {
 		return nil, present, err
 	}
 	values := make([]openrpc.LinkOrReference, len(entries))
@@ -728,7 +737,10 @@ func parseLinkObject(object map[string]json.RawMessage, options Options, pointer
 
 func parseOptionalExamplePairings(object map[string]json.RawMessage, options Options, pointer string) ([]openrpc.ExamplePairingOrReference, bool, error) {
 	entries, present, err := optionalRawArray(object, "examples", options.MaxExamples, ErrExampleLimit, pointer)
-	if err != nil || !present {
+	if err != nil {
+		return nil, present, err
+	}
+	if !present {
 		return nil, present, err
 	}
 	values := make([]openrpc.ExamplePairingOrReference, len(entries))
@@ -903,7 +915,10 @@ func parseOptionalServers(object map[string]json.RawMessage, name string, option
 		return nil, false, nil
 	}
 	var entries []json.RawMessage
-	if err := json.Unmarshal(raw, &entries); err != nil || entries == nil {
+	if err := json.Unmarshal(raw, &entries); err != nil {
+		return nil, false, at(pointer, ErrInvalidObject)
+	}
+	if entries == nil {
 		return nil, false, at(pointer, ErrInvalidObject)
 	}
 	if len(entries) > options.MaxServers {
@@ -1178,12 +1193,11 @@ func collectFields(object map[string]json.RawMessage, known map[string]struct{},
 		field := openrpc.Field{Name: name, Value: value}
 		if extensible && strings.HasPrefix(name, "x-") {
 			extensions = append(extensions, field)
-			continue
-		}
-		if options.UnknownFields == RejectUnknownFields {
+		} else if options.UnknownFields == RejectUnknownFields {
 			return openrpc.Fields{}, openrpc.Fields{}, at(pointer+"/"+escape(name), ErrUnknownField)
+		} else {
+			unknown = append(unknown, field)
 		}
-		unknown = append(unknown, field)
 	}
 	exts, _ := openrpc.NewExtensions(extensions...)
 	unknownFields, _ := openrpc.NewUnknownFields(unknown...)
@@ -1203,7 +1217,10 @@ func collectFieldsAllowAdditional(
 
 func decodeObject(raw []byte) (map[string]json.RawMessage, error) {
 	var object map[string]json.RawMessage
-	if err := json.Unmarshal(raw, &object); err != nil || object == nil {
+	if err := json.Unmarshal(raw, &object); err != nil {
+		return nil, ErrInvalidObject
+	}
+	if object == nil {
 		return nil, ErrInvalidObject
 	}
 	return object, nil
@@ -1268,7 +1285,10 @@ func optionalRawArray(object map[string]json.RawMessage, name string, limit int,
 		return nil, false, nil
 	}
 	var values []json.RawMessage
-	if err := json.Unmarshal(raw, &values); err != nil || values == nil {
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return nil, false, at(pointer, ErrInvalidObject)
+	}
+	if values == nil {
 		return nil, false, at(pointer, ErrInvalidObject)
 	}
 	if len(values) > limit {
@@ -1283,7 +1303,10 @@ func optionalStringArray(object map[string]json.RawMessage, name string, pointer
 		return nil, false, nil
 	}
 	var values []string
-	if err := json.Unmarshal(raw, &values); err != nil || values == nil {
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return nil, false, at(pointer, ErrInvalidObject)
+	}
+	if values == nil {
 		return nil, false, at(pointer, ErrInvalidObject)
 	}
 	return values, true, nil
@@ -1295,7 +1318,10 @@ func requiredArray(object map[string]json.RawMessage, name string, pointer strin
 		return nil, err
 	}
 	var values []json.RawMessage
-	if err := json.Unmarshal(raw, &values); err != nil || values == nil {
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return nil, at(pointer, ErrInvalidObject)
+	}
+	if values == nil {
 		return nil, at(pointer, ErrInvalidObject)
 	}
 	return values, nil

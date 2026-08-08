@@ -141,14 +141,16 @@ func alignServerURLWithNormativeSemantics(document any) {
 func rewriteMetaDialect(value any) {
 	switch typed := value.(type) {
 	case map[string]any:
-		if dialect, ok := typed["$schema"].(string); ok &&
-			strings.TrimSuffix(dialect, "/") == "https://meta.json-schema.tools" {
-			typed["$schema"] = "http://json-schema.org/draft-07/schema#"
+		if dialect, ok := typed["$schema"].(string); ok {
+			if strings.TrimSuffix(dialect, "/") == "https://meta.json-schema.tools" {
+				typed["$schema"] = "http://json-schema.org/draft-07/schema#"
+			}
 		}
-		if reference, ok := typed["$ref"].(string); ok &&
-			strings.HasPrefix(reference, "https://meta.json-schema.tools") {
-			suffix := strings.TrimPrefix(reference, "https://meta.json-schema.tools")
-			typed["$ref"] = "https://meta.json-schema.tools/" + strings.TrimPrefix(suffix, "/")
+		if reference, ok := typed["$ref"].(string); ok {
+			if strings.HasPrefix(reference, "https://meta.json-schema.tools") {
+				suffix := strings.TrimPrefix(reference, "https://meta.json-schema.tools")
+				typed["$ref"] = "https://meta.json-schema.tools/" + strings.TrimPrefix(suffix, "/")
+			}
 		}
 		for _, child := range typed {
 			rewriteMetaDialect(child)

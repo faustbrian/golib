@@ -49,10 +49,16 @@ func TestFSStoreMapsOnlyURIsBelowExplicitBase(t *testing.T) {
 		t.Fatalf("Load = %s, error = %v", loaded, err)
 	}
 	for _, uri := range []string{
+		"https://[::1",
+		"http://example.com/assets/schemas/value.json",
 		"https://other.example/assets/schemas/value.json",
 		"https://example.com/private.json",
+		"https://user@example.com/assets/schemas/value.json",
+		"https://example.com/assets/schemas/value.json?version=1",
+		"https://example.com/assets/schemas/value.json#value",
 		"https://example.com/assets/%2e%2e/private.json",
 		"https://example.com/assets/schemas%2fvalue.json",
+		"https://example.com/assets/schemas/../schemas/value.json",
 	} {
 		if _, err := store.Load(context.Background(), uri, 1024); !errors.Is(err, reference.ErrStoreURI) {
 			t.Errorf("Load(%q) error = %v", uri, err)

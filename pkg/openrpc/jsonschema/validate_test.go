@@ -166,6 +166,13 @@ func TestCompileBoundsExplicitSchemaResources(t *testing.T) {
 	if _, err := jsonschema.Compile(root, options); !errors.Is(err, jsonschema.ErrValidationPolicy) {
 		t.Fatalf("aggregate schema byte error = %v", err)
 	}
+
+	options.MaxResources = 2
+	options.Resources["https://example.com/two.json"] = resource
+	options.MaxSchemaBytes = len(root.Bytes()) + 2*len(resource.Bytes()) - 1
+	if _, err := jsonschema.Compile(root, options); !errors.Is(err, jsonschema.ErrValidationPolicy) {
+		t.Fatalf("multi-resource aggregate schema byte error = %v", err)
+	}
 }
 
 func TestCompileRejectsInvalidResourcePolicies(t *testing.T) {

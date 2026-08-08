@@ -54,6 +54,7 @@ type Store struct {
 	client       *http.Client
 	policy       Policy
 	allowedHosts map[string]struct{}
+	lookupIPAddr func(context.Context, string) ([]net.IPAddr, error)
 }
 
 // New constructs an isolated client with compression disabled, safe DNS/IP
@@ -64,7 +65,11 @@ func New(policy Policy) (*Store, error) {
 		return nil, ErrPolicy
 	}
 	policy.AllowedHosts = append([]string(nil), policy.AllowedHosts...)
-	store := &Store{policy: policy, allowedHosts: make(map[string]struct{}, len(policy.AllowedHosts))}
+	store := &Store{
+		policy:       policy,
+		allowedHosts: make(map[string]struct{}, len(policy.AllowedHosts)),
+		lookupIPAddr: net.DefaultResolver.LookupIPAddr,
+	}
 	for _, host := range policy.AllowedHosts {
 		host = strings.ToLower(strings.TrimSuffix(host, "."))
 		if host == "" || strings.ContainsAny(host, "/:@") {
@@ -152,11 +157,22 @@ func (store *Store) Load(ctx context.Context, documentURI string, maxBytes int) 
 }
 
 func (store *Store) authorize(target *url.URL) error {
-	schemeAllowed := target != nil && (target.Scheme == "https" ||
-		(store.policy.AllowHTTP && target.Scheme == "http"))
-	if target == nil || target.User != nil || target.Fragment != "" ||
-		!schemeAllowed {
+	if target == nil {
 		return ErrURIDenied
+	}
+	if target.User != nil {
+		return ErrURIDenied
+	}
+	if target.Fragment != "" {
+		return ErrURIDenied
+	}
+	if target.Scheme != "https" {
+		if target.Scheme != "http" {
+			return ErrURIDenied
+		}
+		if !store.policy.AllowHTTP {
+			return ErrURIDenied
+		}
 	}
 	host := strings.ToLower(strings.TrimSuffix(target.Hostname(), "."))
 	if host == "" {
@@ -174,8 +190,11 @@ func (store *Store) dialContext(dialer *net.Dialer) func(context.Context, string
 		if err != nil {
 			return nil, ErrAddressDenied
 		}
-		addresses, err := net.DefaultResolver.LookupIPAddr(ctx, host)
-		if err != nil || len(addresses) == 0 {
+		addresses, err := store.lookupIPAddr(ctx, host)
+		if err != nil {
+			return nil, ErrRequest
+		}
+		if len(addresses) == 0 {
 			return nil, ErrRequest
 		}
 		for _, address := range addresses {
@@ -194,7 +213,20 @@ func (store *Store) dialContext(dialer *net.Dialer) func(context.Context, string
 }
 
 func deniedAddress(address net.IP) bool {
-	return !address.IsGlobalUnicast() || address.IsPrivate() || address.IsLoopback() ||
-		address.IsLinkLocalUnicast() || address.IsLinkLocalMulticast() ||
-		address.IsMulticast() || address.IsUnspecified()
+	if address.IsPrivate() {
+		return true
+	}
+	if address.IsLoopback() {
+		return true
+	}
+	if address.IsLinkLocalUnicast() {
+		return true
+	}
+	if address.IsLinkLocalMulticast() {
+		return true
+	}
+	if address.IsMulticast() {
+		return true
+	}
+	return !address.IsGlobalUnicast()
 }

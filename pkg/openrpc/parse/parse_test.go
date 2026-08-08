@@ -37,7 +37,7 @@ func TestDecodeUnknownFieldsUsesExplicitMode(t *testing.T) {
 
 	input := []byte(`{
 		"openrpc":"1.4.1",
-		"info":{"title":"Example","version":"1","future":true,"x-owner":null},
+		"info":{"title":"Example","version":"1","x-owner":null,"z-future":true},
 		"methods":[]
 	}`)
 	_, err := parse.Decode(input, parse.DefaultOptions())

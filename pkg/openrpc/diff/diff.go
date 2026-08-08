@@ -255,7 +255,7 @@ func compareRootSurfaces(before openrpc.Document, after openrpc.Document) ([]Cha
 	for _, kind := range unionNames(beforeComponents, afterComponents) {
 		oldEntries := rawObject(beforeComponents[kind])
 		newEntries := rawObject(afterComponents[kind])
-		count += len(oldEntries) + len(newEntries)
+		count = count + len(oldEntries) + len(newEntries)
 		for _, name := range unionNames(oldEntries, newEntries) {
 			oldValue, existed := oldEntries[name]
 			newValue, exists := newEntries[name]
@@ -284,8 +284,10 @@ func rawMethodsByName(document openrpc.Document) map[string]map[string]json.RawM
 	result := make(map[string]map[string]json.RawMessage)
 	for _, method := range methods {
 		var name string
-		if json.Unmarshal(method["name"], &name) == nil && name != "" {
-			result[name] = method
+		if err := json.Unmarshal(method["name"], &name); err == nil {
+			if name != "" {
+				result[name] = method
+			}
 		}
 	}
 	return result
@@ -420,7 +422,13 @@ func sameParameterOrder(before []openrpc.ContentDescriptorOrReference, after []o
 	for index := range before {
 		oldDescriptor, oldOK := before[index].Descriptor()
 		newDescriptor, newOK := after[index].Descriptor()
-		if !oldOK || !newOK || oldDescriptor.Name() != newDescriptor.Name() {
+		if !oldOK {
+			return false
+		}
+		if !newOK {
+			return false
+		}
+		if oldDescriptor.Name() != newDescriptor.Name() {
 			return false
 		}
 	}

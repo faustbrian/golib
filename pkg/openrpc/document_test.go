@@ -74,6 +74,33 @@ func TestDocumentPreservesEmptyMethodsAndServerDefault(t *testing.T) {
 	}
 }
 
+func TestDocumentPreservesExplicitEmptyServers(t *testing.T) {
+	t.Parallel()
+
+	version, err := openrpc.ParseVersion("1.4.1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := openrpc.NewInfo(openrpc.InfoInput{Title: "API", Version: "1"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	inputs := []openrpc.DocumentInput{
+		{Version: version, Info: &info, Methods: []openrpc.MethodOrReference{}, Servers: []openrpc.Server{}},
+		{Version: version, Info: &info, Methods: []openrpc.MethodOrReference{}, HasServers: true},
+	}
+	for _, input := range inputs {
+		document, documentErr := openrpc.NewDocument(input)
+		if documentErr != nil {
+			t.Fatal(documentErr)
+		}
+		servers, present := document.Servers()
+		if !present || len(servers) != 0 {
+			t.Fatalf("Servers() = (%#v, %t), want an explicitly present empty array", servers, present)
+		}
+	}
+}
+
 func TestComponentsOwnReusableMaps(t *testing.T) {
 	t.Parallel()
 

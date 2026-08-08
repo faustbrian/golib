@@ -129,7 +129,7 @@ func Parse(source string, policy Policy) (Template, error) {
 				return Template{}, ErrInvalidExpression
 			}
 		}
-		offset += len(literal)
+		offset = offset + len(literal)
 		parts = append(parts, part{literal: literal})
 	}
 	return Template{source: source, parts: parts, policy: policy}, nil
@@ -141,7 +141,10 @@ func (template Template) String() string { return template.source }
 // Evaluate deterministically evaluates template against context. A template
 // consisting of exactly one expression preserves the referenced JSON type.
 func (template Template) Evaluate(context Context) (jsonvalue.Value, error) {
-	if len(template.parts) == 0 || !validPolicy(template.policy) {
+	if len(template.parts) == 0 {
+		return jsonvalue.Value{}, ErrInvalidExpression
+	}
+	if !validPolicy(template.policy) {
 		return jsonvalue.Value{}, ErrInvalidExpression
 	}
 	remainingNodes := template.policy.MaxNodes

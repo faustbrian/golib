@@ -132,70 +132,79 @@ func Document(ctx context.Context, document openrpc.Document, options Options) R
 	}
 	seenMethods := make(map[string]bool, len(methodCounts))
 	for index, union := range methods {
-		if engine.stop || engine.canceled() {
+		if engine.stop {
+			return engine.report()
+		}
+		if engine.canceled() {
 			return engine.report()
 		}
 		method, ok := union.Method()
-		if !ok {
-			continue
+		if ok {
+			if seenMethods[method.Name()] {
+				engine.add(Diagnostic{
+					Code:          CodeDuplicateMethodName,
+					Pointer:       pointer("methods", index, "name"),
+					Severity:      SeverityError,
+					Specification: methodSpecification,
+					Message:       "method names must be unique",
+				})
+			}
+			seenMethods[method.Name()] = true
 		}
-		if seenMethods[method.Name()] {
-			engine.add(Diagnostic{
-				Code:          CodeDuplicateMethodName,
-				Pointer:       pointer("methods", index, "name"),
-				Severity:      SeverityError,
-				Specification: methodSpecification,
-				Message:       "method names must be unique",
-			})
-		}
-		seenMethods[method.Name()] = true
 	}
 
 	for index, union := range methods {
-		if engine.stop || engine.canceled() {
+		if engine.stop {
+			return engine.report()
+		}
+		if engine.canceled() {
 			return engine.report()
 		}
 		method, ok := union.Method()
-		if !ok {
-			continue
-		}
-		engine.validateParameters(index, method)
-		engine.validateErrors(index, method)
-		engine.validateLinks("#/methods/"+itoa(index)+"/links", method.Links, methodCounts)
-		if servers, present := method.Servers(); present {
-			for serverIndex, server := range servers {
-				engine.validateServer(pointer("methods", index, "servers", serverIndex), server)
+		if ok {
+			engine.validateParameters(index, method)
+			engine.validateErrors(index, method)
+			engine.validateLinks("#/methods/"+itoa(index)+"/links", method.Links, methodCounts)
+			if servers, present := method.Servers(); present {
+				for serverIndex, server := range servers {
+					engine.validateServer(pointer("methods", index, "servers", serverIndex), server)
+				}
 			}
 		}
 	}
 
-	if components, ok := document.Components(); ok && !engine.stop {
-		if errorsMap, present := components.Errors(); present {
-			for _, name := range sortedNames(errorsMap) {
-				engine.validateErrorMessage(
-					"#/components/errors/"+escape(name)+"/message", errorsMap[name],
-				)
-			}
-		}
-		if links, present := components.Links(); present {
-			names := sortedNames(links)
-			for _, name := range names {
-				if engine.stop || engine.canceled() {
-					break
+	if components, ok := document.Components(); ok {
+		if !engine.stop {
+			if errorsMap, present := components.Errors(); present {
+				for _, name := range sortedNames(errorsMap) {
+					engine.validateErrorMessage(
+						"#/components/errors/"+escape(name)+"/message", errorsMap[name],
+					)
 				}
-				engine.validateLink(
-					"#/components/links/"+escape(name),
-					links[name],
-					methodCounts,
-				)
 			}
-		}
-		if pairings, present := components.ExamplePairings(); present {
-			for _, name := range sortedNames(pairings) {
-				engine.validateExamplePairingReferences(
-					"#/components/examplePairings/"+escape(name),
-					pairings[name],
-				)
+			if links, present := components.Links(); present {
+				names := sortedNames(links)
+				for _, name := range names {
+					if engine.stop {
+						return engine.report()
+					}
+					if engine.canceled() {
+						return engine.report()
+					}
+					engine.validateLink(
+						"#/components/links/"+escape(name),
+						links[name],
+						methodCounts,
+					)
+				}
+			}
+			if pairings, present := components.ExamplePairings(); present {
+				for _, name := range sortedNames(pairings) {
+					engine.validateExamplePairingReferences(
+						"#/components/examplePairings/"+escape(name),
+						pairings[name],
+					)
+				}
 			}
 		}
 	}
@@ -226,20 +235,18 @@ func (validator *validator) validateMetadata(document openrpc.Document) {
 	}
 	for methodIndex, union := range document.Methods() {
 		method, inline := union.Method()
-		if !inline {
-			continue
-		}
-		if docs, present := method.ExternalDocs(); present && !validAbsoluteURI(docs.URL()) {
-			validator.add(formatDiagnostic(pointer("methods", methodIndex, "externalDocs", "url"), "external documentation URL must be an absolute URI"))
-		}
-		if tags, present := method.Tags(); present {
-			for tagIndex, union := range tags {
-				tag, inline := union.Tag()
-				if !inline {
-					continue
-				}
-				if docs, present := tag.ExternalDocs(); present && !validAbsoluteURI(docs.URL()) {
-					validator.add(formatDiagnostic(pointer("methods", methodIndex, "tags", tagIndex, "externalDocs", "url"), "external documentation URL must be an absolute URI"))
+		if inline {
+			if docs, present := method.ExternalDocs(); present && !validAbsoluteURI(docs.URL()) {
+				validator.add(formatDiagnostic(pointer("methods", methodIndex, "externalDocs", "url"), "external documentation URL must be an absolute URI"))
+			}
+			if tags, present := method.Tags(); present {
+				for tagIndex, union := range tags {
+					tag, inline := union.Tag()
+					if inline {
+						if docs, present := tag.ExternalDocs(); present && !validAbsoluteURI(docs.URL()) {
+							validator.add(formatDiagnostic(pointer("methods", methodIndex, "tags", tagIndex, "externalDocs", "url"), "external documentation URL must be an absolute URI"))
+						}
+					}
 				}
 			}
 		}
@@ -262,7 +269,13 @@ func validEmail(input string) bool {
 
 func validAbsoluteURI(input string) bool {
 	parsed, err := url.Parse(input)
-	return err == nil && utf8.ValidString(input) && parsed.IsAbs()
+	if err != nil {
+		return false
+	}
+	if !utf8.ValidString(input) {
+		return false
+	}
+	return parsed.IsAbs()
 }
 
 func formatDiagnostic(pointer string, message string) Diagnostic {
@@ -280,50 +293,46 @@ func (validator *validator) validateMethodReferences(methods []openrpc.MethodOrR
 		base := pointer("methods", methodIndex)
 		if reference, ok := union.Reference(); ok {
 			validator.validateReference(base+"/$ref", reference)
-			continue
-		}
-		method, ok := union.Method()
-		if !ok {
-			continue
-		}
-		if tags, present := method.Tags(); present {
-			for index, value := range tags {
-				if reference, ok := value.Reference(); ok {
-					validator.validateReference(base+"/tags/"+itoa(index)+"/$ref", reference)
+		} else if method, ok := union.Method(); ok {
+			if tags, present := method.Tags(); present {
+				for index, value := range tags {
+					if reference, ok := value.Reference(); ok {
+						validator.validateReference(base+"/tags/"+itoa(index)+"/$ref", reference)
+					}
 				}
 			}
-		}
-		for index, value := range method.Params() {
-			if reference, ok := value.Reference(); ok {
-				validator.validateReference(base+"/params/"+itoa(index)+"/$ref", reference)
-			}
-		}
-		if result, present := method.Result(); present {
-			if reference, ok := result.Reference(); ok {
-				validator.validateReference(base+"/result/$ref", reference)
-			}
-		}
-		if values, present := method.Errors(); present {
-			for index, value := range values {
+			for index, value := range method.Params() {
 				if reference, ok := value.Reference(); ok {
-					validator.validateReference(base+"/errors/"+itoa(index)+"/$ref", reference)
+					validator.validateReference(base+"/params/"+itoa(index)+"/$ref", reference)
 				}
 			}
-		}
-		if values, present := method.Links(); present {
-			for index, value := range values {
-				if reference, ok := value.Reference(); ok {
-					validator.validateReference(base+"/links/"+itoa(index)+"/$ref", reference)
+			if result, present := method.Result(); present {
+				if reference, ok := result.Reference(); ok {
+					validator.validateReference(base+"/result/$ref", reference)
 				}
 			}
-		}
-		if values, present := method.Examples(); present {
-			for index, value := range values {
-				pairingBase := base + "/examples/" + itoa(index)
-				if reference, ok := value.Reference(); ok {
-					validator.validateReference(pairingBase+"/$ref", reference)
-				} else if pairing, ok := value.ExamplePairing(); ok {
-					validator.validateExamplePairingReferences(pairingBase, pairing)
+			if values, present := method.Errors(); present {
+				for index, value := range values {
+					if reference, ok := value.Reference(); ok {
+						validator.validateReference(base+"/errors/"+itoa(index)+"/$ref", reference)
+					}
+				}
+			}
+			if values, present := method.Links(); present {
+				for index, value := range values {
+					if reference, ok := value.Reference(); ok {
+						validator.validateReference(base+"/links/"+itoa(index)+"/$ref", reference)
+					}
+				}
+			}
+			if values, present := method.Examples(); present {
+				for index, value := range values {
+					pairingBase := base + "/examples/" + itoa(index)
+					if reference, ok := value.Reference(); ok {
+						validator.validateReference(pairingBase+"/$ref", reference)
+					} else if pairing, ok := value.ExamplePairing(); ok {
+						validator.validateExamplePairingReferences(pairingBase, pairing)
+					}
 				}
 			}
 		}
@@ -375,35 +384,37 @@ func (validator *validator) validateParameters(methodIndex int, method openrpc.M
 	seen := make(map[string]bool)
 	optionalSeen := false
 	for index, union := range method.Params() {
-		if validator.stop || validator.canceled() {
+		if validator.stop {
+			return
+		}
+		if validator.canceled() {
 			return
 		}
 		descriptor, ok := union.Descriptor()
-		if !ok {
-			continue
-		}
-		if seen[descriptor.Name()] {
-			validator.add(Diagnostic{
-				Code:          CodeDuplicateParameterName,
-				Pointer:       pointer("methods", methodIndex, "params", index, "name"),
-				Severity:      SeverityError,
-				Specification: methodSpecification,
-				Message:       "parameter names must be unique",
-			})
-		}
-		seen[descriptor.Name()] = true
-		if descriptor.RequiredOrDefault() {
-			if optionalSeen {
+		if ok {
+			if seen[descriptor.Name()] {
 				validator.add(Diagnostic{
-					Code:          CodeRequiredParameterOrder,
-					Pointer:       pointer("methods", methodIndex, "params", index, "required"),
+					Code:          CodeDuplicateParameterName,
+					Pointer:       pointer("methods", methodIndex, "params", index, "name"),
 					Severity:      SeverityError,
 					Specification: methodSpecification,
-					Message:       "required parameters must precede optional parameters",
+					Message:       "parameter names must be unique",
 				})
 			}
-		} else {
-			optionalSeen = true
+			seen[descriptor.Name()] = true
+			if descriptor.RequiredOrDefault() {
+				if optionalSeen {
+					validator.add(Diagnostic{
+						Code:          CodeRequiredParameterOrder,
+						Pointer:       pointer("methods", methodIndex, "params", index, "required"),
+						Severity:      SeverityError,
+						Specification: methodSpecification,
+						Message:       "required parameters must precede optional parameters",
+					})
+				}
+			} else {
+				optionalSeen = true
+			}
 		}
 	}
 }
@@ -415,27 +426,29 @@ func (validator *validator) validateErrors(methodIndex int, method openrpc.Metho
 	}
 	seen := make(map[string]bool)
 	for index, union := range errorsList {
-		if validator.stop || validator.canceled() {
+		if validator.stop {
+			return
+		}
+		if validator.canceled() {
 			return
 		}
 		object, ok := union.Error()
-		if !ok {
-			continue
+		if ok {
+			validator.validateErrorMessage(
+				pointer("methods", methodIndex, "errors", index, "message"), object,
+			)
+			code := object.Code().String()
+			if seen[code] {
+				validator.add(Diagnostic{
+					Code:          CodeDuplicateErrorCode,
+					Pointer:       pointer("methods", methodIndex, "errors", index, "code"),
+					Severity:      SeverityError,
+					Specification: methodSpecification,
+					Message:       "method error codes must be unique",
+				})
+			}
+			seen[code] = true
 		}
-		validator.validateErrorMessage(
-			pointer("methods", methodIndex, "errors", index, "message"), object,
-		)
-		code := object.Code().String()
-		if seen[code] {
-			validator.add(Diagnostic{
-				Code:          CodeDuplicateErrorCode,
-				Pointer:       pointer("methods", methodIndex, "errors", index, "code"),
-				Severity:      SeverityError,
-				Specification: methodSpecification,
-				Message:       "method error codes must be unique",
-			})
-		}
-		seen[code] = true
 	}
 }
 
@@ -463,8 +476,10 @@ func conciseSentence(message string) bool {
 			continue
 		}
 		remainder := strings.TrimSpace(trimmed[index+1:])
-		if remainder != "" && !strings.ContainsRune(".!?", rune(remainder[0])) {
-			return false
+		if remainder != "" {
+			if !strings.ContainsRune(".!?", rune(remainder[0])) {
+				return false
+			}
 		}
 	}
 	return true
@@ -476,14 +491,16 @@ func (validator *validator) validateLinks(base string, getter func() ([]openrpc.
 		return
 	}
 	for index, union := range links {
-		if validator.stop || validator.canceled() {
+		if validator.stop {
+			return
+		}
+		if validator.canceled() {
 			return
 		}
 		link, ok := union.Link()
-		if !ok {
-			continue
+		if ok {
+			validator.validateLink(base+"/"+itoa(index), link, methodCounts)
 		}
-		validator.validateLink(base+"/"+itoa(index), link, methodCounts)
 	}
 }
 

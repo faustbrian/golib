@@ -275,7 +275,7 @@ func (resolver *Resolver) load(ctx context.Context, documentURI string, state *r
 	if len(data) > remaining {
 		return jsonvalue.Value{}, ErrResolveLimit
 	}
-	state.fetchedBytes += len(data)
+	state.fetchedBytes = state.fetchedBytes + len(data)
 	state.fetchedDocs++
 	document, err := jsonvalue.Parse(data, resolver.policy.JSON)
 	if err != nil {
@@ -296,7 +296,10 @@ func referenceAlias(value jsonvalue.Value) (string, bool, error) {
 		return "", false, nil
 	}
 	var alias string
-	if err := json.Unmarshal(raw, &alias); err != nil || alias == "" {
+	if err := json.Unmarshal(raw, &alias); err != nil {
+		return "", false, ErrInvalidReference
+	}
+	if alias == "" {
 		return "", false, ErrInvalidReference
 	}
 	return alias, true, nil

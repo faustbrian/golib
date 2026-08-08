@@ -27,6 +27,28 @@ Ordinary descriptive text.`
 	}
 }
 
+func TestNormativeSentencesDoesNotMistakePartialPreambles(t *testing.T) {
+	t.Parallel()
+
+	input := "The key words include MUST.\n" +
+		"Interpreted as SHOULD.\n" +
+		"Ordinary prose. Values MAY vary."
+	statements := normativeSentences("spec.md", input)
+	want := []string{
+		"The key words include MUST.",
+		"Interpreted as SHOULD.",
+		"Values MAY vary.",
+	}
+	if len(statements) != len(want) {
+		t.Fatalf("statements = %#v, want %q", statements, want)
+	}
+	for index, text := range want {
+		if statements[index].Text != text {
+			t.Errorf("statements[%d] = %q, want %q", index, statements[index].Text, text)
+		}
+	}
+}
+
 func TestNormativeSentencesPreservesLinksCodeAndVersions(t *testing.T) {
 	t.Parallel()
 
@@ -118,6 +140,40 @@ func TestGenerateMatricesProducesTraceableRows(t *testing.T) {
 	}
 }
 
+func TestSchemaDescriptionsContinueAfterDescriptionFields(t *testing.T) {
+	t.Parallel()
+
+	descriptions := schemaDescriptions(map[string]any{
+		"description": "Root values MUST be stable.",
+		"nested": map[string]any{
+			"description": "Nested values SHOULD be stable.",
+		},
+	})
+	if len(descriptions) != 2 {
+		t.Fatalf("descriptions = %#v, want root and nested descriptions", descriptions)
+	}
+	if descriptions[0].Source != "schema.json#/description" ||
+		descriptions[1].Source != "schema.json#/nested/description" {
+		t.Fatalf("description sources = %#v", descriptions)
+	}
+}
+
+func TestOrderedFieldsIgnoresMalformedAndDuplicateRequiredEntries(t *testing.T) {
+	t.Parallel()
+
+	properties := map[string]any{"alpha": map[string]any{}, "name": map[string]any{}}
+	fields := orderedFields(properties, []any{1, "name", "name"})
+	want := []string{"name", "alpha"}
+	if len(fields) != len(want) {
+		t.Fatalf("fields = %#v, want %#v", fields, want)
+	}
+	for index, field := range want {
+		if fields[index] != field {
+			t.Fatalf("fields = %#v, want %#v", fields, want)
+		}
+	}
+}
+
 func TestApplyFieldEvidenceRequiresCompleteExactObjectCoverage(t *testing.T) {
 	t.Parallel()
 
@@ -133,12 +189,25 @@ func TestApplyFieldEvidenceRequiresCompleteExactObjectCoverage(t *testing.T) {
 	}
 	for _, invalid := range [][]byte{
 		[]byte("invalid\n"),
+		[]byte("object\tmodel\tvalidation\tevidence\tstatus\n"),
+		[]byte("wrong\theader\twith\tfive\tcolumns\n#\ta\tb\tc\tcomplete\n"),
 		[]byte("object\tmodel\tvalidation\tevidence\tstatus\nother\ta\tb\tc\tcomplete\n"),
+		[]byte("object\tmodel\tvalidation\tevidence\tstatus\n\ta\tb\tc\tcomplete\n"),
 		[]byte("object\tmodel\tvalidation\tevidence\tstatus\n#\ta\tb\tc\tpartial\n"),
+		[]byte("object\tmodel\tvalidation\tevidence\tstatus\n#\ta\tb\tc\tcomplete\textra\n"),
 	} {
 		if _, err := ApplyFieldEvidence(inventory, invalid); err == nil {
 			t.Fatalf("ApplyFieldEvidence accepted %q", invalid)
 		}
+	}
+	wrongHeader := []byte(strings.Replace(
+		string(inventory),
+		"object\tfield\tshape\trequired\tnullable\tdefault\textensions\tunknownFields\tmodel\tvalidation\tevidence\tstatus",
+		"wrong\tfield\tshape\trequired\tnullable\tdefault\textensions\tunknownFields\tmodel\tvalidation\tevidence\tstatus",
+		1,
+	))
+	if _, err := ApplyFieldEvidence(wrongHeader, review); err == nil {
+		t.Fatal("ApplyFieldEvidence accepted a populated inventory with the wrong header")
 	}
 }
 
@@ -157,8 +226,12 @@ func TestApplyNormativeEvidenceRequiresCompleteExactCoverage(t *testing.T) {
 	}
 	for _, invalid := range [][]byte{
 		[]byte("invalid\n"),
+		[]byte("id\timplementation\tevidence\tstatus\tnotes\n"),
+		[]byte("wrong\theader\twith\tfive\tcolumns\nORPC-1.4-0001\ta\tb\tcomplete\tnote\n"),
 		[]byte("id\timplementation\tevidence\tstatus\tnotes\nother\ta\tb\tcomplete\tnote\n"),
+		[]byte("id\timplementation\tevidence\tstatus\tnotes\n\ta\tb\tcomplete\tnote\n"),
 		[]byte("id\timplementation\tevidence\tstatus\tnotes\nORPC-1.4-0001\ta\tb\tpartial\tnote\n"),
+		[]byte("id\timplementation\tevidence\tstatus\tnotes\nORPC-1.4-0001\ta\tb\tcomplete\tnote\textra\n"),
 	} {
 		if _, err := ApplyNormativeEvidence(inventory, invalid); err == nil {
 			t.Fatalf("ApplyNormativeEvidence accepted %q", invalid)
@@ -170,6 +243,16 @@ func TestApplyNormativeEvidenceRequiresCompleteExactCoverage(t *testing.T) {
 	}
 	if _, err := ApplyNormativeEvidence([]byte("invalid\n"), review); err == nil {
 		t.Fatal("ApplyNormativeEvidence accepted invalid inventory header")
+	}
+	if _, err := ApplyNormativeEvidence(
+		[]byte("id\tsource\tline\tlevel\trequirement\timplementation\tevidence\tstatus\n"), review,
+	); err == nil {
+		t.Fatal("ApplyNormativeEvidence accepted an inventory without rows")
+	}
+	if _, err := ApplyNormativeEvidence(
+		[]byte("wrong\theader\twith\teight\tcolumns\tfor\tthe\tinventory\nORPC-1.4-0001\tspec.md\t1\tMUST\tValues MUST be unique.\t\t\tunimplemented\n"), review,
+	); err == nil {
+		t.Fatal("ApplyNormativeEvidence accepted an invalid populated inventory header")
 	}
 	badRow := []byte("id\tsource\tline\tlevel\trequirement\timplementation\tevidence\tstatus\ninvalid\n")
 	if _, err := ApplyNormativeEvidence(badRow, review); err == nil {

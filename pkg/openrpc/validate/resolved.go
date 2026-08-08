@@ -60,7 +60,10 @@ func ResolveDocument(
 	resolver *reference.Resolver,
 	options ResolvedOptions,
 ) (openrpc.Document, Report) {
-	if ctx == nil || resolver == nil {
+	if ctx == nil {
+		return openrpc.Document{}, resolutionFailure("#")
+	}
+	if resolver == nil {
 		return openrpc.Document{}, resolutionFailure("#")
 	}
 	encoded, err := openrpc.MarshalCanonical(document)
@@ -97,26 +100,75 @@ func ResolveDocument(
 func openRPCReferencePath(path []string) bool {
 	switch len(path) {
 	case 2:
-		return path[0] == "methods" && arrayIndex(path[1])
+		if path[0] != "methods" {
+			return false
+		}
+		return arrayIndex(path[1])
 	case 3:
-		return path[0] == "methods" && arrayIndex(path[1]) && path[2] == "result"
+		if path[0] != "methods" {
+			return false
+		}
+		if !arrayIndex(path[1]) {
+			return false
+		}
+		return path[2] == "result"
 	case 4:
-		if path[0] == "methods" && arrayIndex(path[1]) {
-			return arrayIndex(path[3]) &&
-				oneOf(path[2], "tags", "params", "errors", "links", "examples")
+		if path[0] == "methods" {
+			if !arrayIndex(path[1]) {
+				return false
+			}
+			if !arrayIndex(path[3]) {
+				return false
+			}
+			return oneOf(path[2], "tags", "params", "errors", "links", "examples")
 		}
-		return path[0] == "components" && path[1] == "examplePairings" &&
-			path[3] == "result"
+		if path[0] != "components" {
+			return false
+		}
+		if path[1] != "examplePairings" {
+			return false
+		}
+		return path[3] == "result"
 	case 5:
-		if path[0] == "methods" && arrayIndex(path[1]) {
-			return path[2] == "examples" && arrayIndex(path[3]) && path[4] == "result"
+		if path[0] == "methods" {
+			if !arrayIndex(path[1]) {
+				return false
+			}
+			if path[2] != "examples" {
+				return false
+			}
+			if !arrayIndex(path[3]) {
+				return false
+			}
+			return path[4] == "result"
 		}
-		return path[0] == "components" && path[1] == "examplePairings" &&
-			path[3] == "params" && arrayIndex(path[4])
+		if path[0] != "components" {
+			return false
+		}
+		if path[1] != "examplePairings" {
+			return false
+		}
+		if path[3] != "params" {
+			return false
+		}
+		return arrayIndex(path[4])
 	case 6:
-		return path[0] == "methods" && arrayIndex(path[1]) &&
-			path[2] == "examples" && arrayIndex(path[3]) &&
-			path[4] == "params" && arrayIndex(path[5])
+		if path[0] != "methods" {
+			return false
+		}
+		if !arrayIndex(path[1]) {
+			return false
+		}
+		if path[2] != "examples" {
+			return false
+		}
+		if !arrayIndex(path[3]) {
+			return false
+		}
+		if path[4] != "params" {
+			return false
+		}
+		return arrayIndex(path[5])
 	default:
 		return false
 	}

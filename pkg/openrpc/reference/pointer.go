@@ -156,7 +156,10 @@ func (pointer Pointer) arrayIndex(token string) (int, error) {
 		return 0, ErrPointerLimit
 	}
 	for _, character := range token {
-		if character < '0' || character > '9' {
+		if character < '0' {
+			return 0, ErrPointerTarget
+		}
+		if character > '9' {
 			return 0, ErrPointerTarget
 		}
 	}

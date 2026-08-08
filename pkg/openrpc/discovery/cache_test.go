@@ -6,6 +6,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	openrpc "github.com/faustbrian/golib/pkg/openrpc"
 	"github.com/faustbrian/golib/pkg/openrpc/discovery"
@@ -17,6 +18,7 @@ func TestCacheDeduplicatesConcurrentDiscoveryAndInvalidatesExplicitly(t *testing
 	var calls atomic.Int64
 	entered := make(chan struct{})
 	release := make(chan struct{})
+	t.Cleanup(func() { closeSignal(release) })
 	provider := discovery.ProviderFunc(func(ctx context.Context) (openrpc.Document, error) {
 		if calls.Add(1) == 1 {
 			close(entered)
@@ -50,9 +52,14 @@ func TestCacheDeduplicatesConcurrentDiscoveryAndInvalidatesExplicitly(t *testing
 			errors <- discoverErr
 		}()
 	}
-	<-entered
-	close(release)
-	group.Wait()
+	awaitSignal(t, entered, "provider entry")
+	closeSignal(release)
+	groupDone := make(chan struct{})
+	go func() {
+		group.Wait()
+		close(groupDone)
+	}()
+	awaitSignal(t, groupDone, "concurrent callers")
 	close(results)
 	close(errors)
 	for err := range errors {
@@ -87,6 +94,7 @@ func TestCacheWaiterCanCancelWithoutCancelingSharedDiscovery(t *testing.T) {
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
+	t.Cleanup(func() { closeSignal(release) })
 	service, err := discovery.NewService(discovery.ProviderFunc(func(ctx context.Context) (openrpc.Document, error) {
 		close(entered)
 		select {
@@ -108,7 +116,7 @@ func TestCacheWaiterCanCancelWithoutCancelingSharedDiscovery(t *testing.T) {
 		_, discoverErr := cache.Discover(context.Background())
 		leaderDone <- discoverErr
 	}()
-	<-entered
+	awaitSignal(t, entered, "leader provider entry")
 	baseContext, cancel := context.WithCancel(context.Background())
 	ctx := &checkedContext{Context: baseContext, checked: make(chan struct{})}
 	waiterDone := make(chan error, 1)
@@ -116,13 +124,13 @@ func TestCacheWaiterCanCancelWithoutCancelingSharedDiscovery(t *testing.T) {
 		_, discoverErr := cache.Discover(ctx)
 		waiterDone <- discoverErr
 	}()
-	<-ctx.checked
+	awaitSignal(t, ctx.checked, "waiter context check")
 	cancel()
-	if err := <-waiterDone; !errors.Is(err, context.Canceled) {
+	if err := awaitError(t, waiterDone, "canceled waiter"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("waiter error = %v", err)
 	}
-	close(release)
-	if err := <-leaderDone; err != nil {
+	closeSignal(release)
+	if err := awaitError(t, leaderDone, "leader completion"); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -132,6 +140,7 @@ func TestCacheWaiterUsesCompletedSharedDiscovery(t *testing.T) {
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
+	t.Cleanup(func() { closeSignal(release) })
 	var calls atomic.Int64
 	service, err := discovery.NewService(discovery.ProviderFunc(func(context.Context) (openrpc.Document, error) {
 		calls.Add(1)
@@ -152,7 +161,7 @@ func TestCacheWaiterUsesCompletedSharedDiscovery(t *testing.T) {
 		_, discoverErr := cache.Discover(context.Background())
 		leaderDone <- discoverErr
 	}()
-	<-entered
+	awaitSignal(t, entered, "leader provider entry")
 
 	waiterContext := &doneObservedContext{
 		Context:  context.Background(),
@@ -163,13 +172,13 @@ func TestCacheWaiterUsesCompletedSharedDiscovery(t *testing.T) {
 		_, discoverErr := cache.Discover(waiterContext)
 		waiterDone <- discoverErr
 	}()
-	<-waiterContext.observed
-	close(release)
+	awaitSignal(t, waiterContext.observed, "waiter completion observation")
+	closeSignal(release)
 
-	if err := <-leaderDone; err != nil {
+	if err := awaitError(t, leaderDone, "leader completion"); err != nil {
 		t.Fatal(err)
 	}
-	if err := <-waiterDone; err != nil {
+	if err := awaitError(t, waiterDone, "waiter completion"); err != nil {
 		t.Fatal(err)
 	}
 	if calls.Load() != 1 {
@@ -262,6 +271,7 @@ func TestCacheDoesNotPublishRefreshInvalidatedInFlight(t *testing.T) {
 
 	entered := make(chan struct{})
 	release := make(chan struct{})
+	t.Cleanup(func() { closeSignal(release) })
 	var calls atomic.Int64
 	service, err := discovery.NewService(discovery.ProviderFunc(func(context.Context) (openrpc.Document, error) {
 		call := calls.Add(1)
@@ -283,10 +293,10 @@ func TestCacheDoesNotPublishRefreshInvalidatedInFlight(t *testing.T) {
 		_, discoverErr := cache.Discover(context.Background())
 		done <- discoverErr
 	}()
-	<-entered
+	awaitSignal(t, entered, "invalidated provider entry")
 	cache.Invalidate()
-	close(release)
-	if err := <-done; err != nil {
+	closeSignal(release)
+	if err := awaitError(t, done, "invalidated refresh completion"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := cache.Discover(context.Background()); err != nil {
@@ -294,5 +304,39 @@ func TestCacheDoesNotPublishRefreshInvalidatedInFlight(t *testing.T) {
 	}
 	if calls.Load() != 2 {
 		t.Fatalf("provider calls = %d, want 2", calls.Load())
+	}
+}
+
+func awaitSignal(t *testing.T, signal <-chan struct{}, operation string) {
+	t.Helper()
+
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-signal:
+	case <-timer.C:
+		t.Fatalf("timed out waiting for %s", operation)
+	}
+}
+
+func awaitError(t *testing.T, result <-chan error, operation string) error {
+	t.Helper()
+
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	select {
+	case err := <-result:
+		return err
+	case <-timer.C:
+		t.Fatalf("timed out waiting for %s", operation)
+		return nil
+	}
+}
+
+func closeSignal(signal chan struct{}) {
+	select {
+	case <-signal:
+	default:
+		close(signal)
 	}
 }

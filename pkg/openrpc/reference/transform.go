@@ -95,7 +95,13 @@ func DereferenceSelected(
 	policy TransformPolicy,
 	selector Selector,
 ) (jsonvalue.Value, error) {
-	if resolver == nil || ctx == nil || !validTransformPolicy(policy) {
+	if resolver == nil {
+		return jsonvalue.Value{}, ErrTransformPolicy
+	}
+	if ctx == nil {
+		return jsonvalue.Value{}, ErrTransformPolicy
+	}
+	if !validTransformPolicy(policy) {
 		return jsonvalue.Value{}, ErrTransformPolicy
 	}
 	if err := ctx.Err(); err != nil {
@@ -160,7 +166,10 @@ func (walk *transformWalk) value(value any, documentURI string, depth int, path 
 			selected := walk.selector == nil || walk.selector.Dereference(append([]string(nil), path...))
 			if selected {
 				input, ok := raw.(string)
-				if !ok || input == "" {
+				if !ok {
+					return nil, transformError(path, ErrInvalidReference)
+				}
+				if input == "" {
 					return nil, transformError(path, ErrInvalidReference)
 				}
 				resolved, err := walk.reference(input, documentURI, depth, path)

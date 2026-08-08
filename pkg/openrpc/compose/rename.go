@@ -76,7 +76,7 @@ func RenameComponents(
 		if !validComponentKind(kind) {
 			return openrpc.Document{}, ErrInvalidRename
 		}
-		count += len(names)
+		count = count + len(names)
 	}
 	if count > options.MaxRenames {
 		return openrpc.Document{}, ErrRenameLimit

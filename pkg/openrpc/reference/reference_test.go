@@ -60,6 +60,15 @@ func TestReferenceExposesJSONPointerFragment(t *testing.T) {
 	if err != nil || pointer.String() != "" {
 		t.Fatalf("root TargetPointer() = %q, error = %v", pointer.String(), err)
 	}
+
+	emptyFragment, err := reference.Parse("schema.json#", reference.DefaultPolicy())
+	if err != nil {
+		t.Fatal(err)
+	}
+	pointer, err = emptyFragment.TargetPointer(reference.DefaultPointerPolicy())
+	if err != nil || pointer.String() != "" {
+		t.Fatalf("empty-fragment TargetPointer() = %q, error = %v", pointer.String(), err)
+	}
 }
 
 func TestReferenceRejectsMalformedValuesAndBases(t *testing.T) {
@@ -84,6 +93,9 @@ func TestReferenceRejectsMalformedValuesAndBases(t *testing.T) {
 	}
 	if _, err := parsed.ResolveAgainst("relative/base.json"); !errors.Is(err, reference.ErrInvalidBase) {
 		t.Fatalf("ResolveAgainst error = %v", err)
+	}
+	if _, err := parsed.ResolveAgainst(string([]byte{0xff})); !errors.Is(err, reference.ErrInvalidBase) {
+		t.Fatalf("ResolveAgainst invalid UTF-8 error = %v", err)
 	}
 }
 

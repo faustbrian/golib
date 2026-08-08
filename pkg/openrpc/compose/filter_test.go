@@ -43,7 +43,10 @@ func TestFilterMethodsHandlesReferencesByExplicitPolicy(t *testing.T) {
 	info := document.Info()
 	document, err = openrpc.NewDocument(openrpc.DocumentInput{
 		Version: document.Version(), Info: &info,
-		Methods: append(document.Methods(), openrpc.MethodReference(reference)),
+		Methods: append(
+			[]openrpc.MethodOrReference{openrpc.MethodReference(reference)},
+			document.Methods()...,
+		),
 	})
 	if err != nil {
 		t.Fatal(err)

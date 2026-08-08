@@ -51,7 +51,10 @@ func CompareResolved(
 		}
 		return Report{changes: unresolved}
 	}
-	if !beforeReport.Valid() || !afterReport.Valid() {
+	if !beforeReport.Valid() {
+		return Report{err: ErrResolvedComparison}
+	}
+	if !afterReport.Valid() {
 		return Report{err: ErrResolvedComparison}
 	}
 	return Compare(ctx, resolvedBefore, resolvedAfter, options)
@@ -60,14 +63,13 @@ func CompareResolved(
 func resolutionChanges(side string, report validate.Report) []Change {
 	changes := make([]Change, 0)
 	for _, diagnostic := range report.Diagnostics() {
-		if diagnostic.Code != validate.CodeReferenceResolution {
-			continue
+		if diagnostic.Code == validate.CodeReferenceResolution {
+			changes = append(changes, Change{
+				Code: CodeUnresolvedReference, Classification: Conditional,
+				Pointer: diagnostic.Pointer,
+				Message: side + " reference could not be resolved",
+			})
 		}
-		changes = append(changes, Change{
-			Code: CodeUnresolvedReference, Classification: Conditional,
-			Pointer: diagnostic.Pointer,
-			Message: side + " reference could not be resolved",
-		})
 	}
 	return changes
 }

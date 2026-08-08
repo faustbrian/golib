@@ -86,7 +86,7 @@ func Merge(ctx context.Context, documents []openrpc.Document, options MergeOptio
 			if err != nil {
 				return openrpc.Document{}, err
 			}
-			componentCount += added
+			componentCount = componentCount + added
 			if componentCount > options.MaxComponents {
 				return openrpc.Document{}, ErrMergeLimit
 			}
@@ -136,7 +136,7 @@ func (accumulator *componentAccumulator) merge(value openrpc.Components, policy 
 	var err error
 	if values, present := value.Schemas(); present {
 		accumulator.hasSchemas = true
-		count += len(values)
+		count = count + len(values)
 		accumulator.schemas, err = mergeComponentMap(accumulator.schemas, values, policy)
 		if err != nil {
 			return 0, err
@@ -144,7 +144,7 @@ func (accumulator *componentAccumulator) merge(value openrpc.Components, policy 
 	}
 	if values, present := value.Links(); present {
 		accumulator.hasLinks = true
-		count += len(values)
+		count = count + len(values)
 		accumulator.links, err = mergeComponentMap(accumulator.links, values, policy)
 		if err != nil {
 			return 0, err
@@ -152,7 +152,7 @@ func (accumulator *componentAccumulator) merge(value openrpc.Components, policy 
 	}
 	if values, present := value.Errors(); present {
 		accumulator.hasErrors = true
-		count += len(values)
+		count = count + len(values)
 		accumulator.errors, err = mergeComponentMap(accumulator.errors, values, policy)
 		if err != nil {
 			return 0, err
@@ -160,7 +160,7 @@ func (accumulator *componentAccumulator) merge(value openrpc.Components, policy 
 	}
 	if values, present := value.Examples(); present {
 		accumulator.hasExamples = true
-		count += len(values)
+		count = count + len(values)
 		accumulator.examples, err = mergeComponentMap(accumulator.examples, values, policy)
 		if err != nil {
 			return 0, err
@@ -168,7 +168,7 @@ func (accumulator *componentAccumulator) merge(value openrpc.Components, policy 
 	}
 	if values, present := value.ExamplePairings(); present {
 		accumulator.hasPairings = true
-		count += len(values)
+		count = count + len(values)
 		accumulator.pairings, err = mergeComponentMap(accumulator.pairings, values, policy)
 		if err != nil {
 			return 0, err
@@ -176,7 +176,7 @@ func (accumulator *componentAccumulator) merge(value openrpc.Components, policy 
 	}
 	if values, present := value.ContentDescriptors(); present {
 		accumulator.hasDescriptors = true
-		count += len(values)
+		count = count + len(values)
 		accumulator.descriptors, err = mergeComponentMap(accumulator.descriptors, values, policy)
 		if err != nil {
 			return 0, err
@@ -184,7 +184,7 @@ func (accumulator *componentAccumulator) merge(value openrpc.Components, policy 
 	}
 	if values, present := value.Tags(); present {
 		accumulator.hasTags = true
-		count += len(values)
+		count = count + len(values)
 		accumulator.tags, err = mergeComponentMap(accumulator.tags, values, policy)
 		if err != nil {
 			return 0, err

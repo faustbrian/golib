@@ -95,15 +95,38 @@ func (store *FSStore) Load(ctx context.Context, documentURI string, maxBytes int
 		return nil, err
 	}
 	target, err := url.Parse(documentURI)
-	if err != nil || target.Fragment != "" || target.RawQuery != "" ||
-		target.User != nil || target.RawPath != "" ||
-		!strings.EqualFold(target.Scheme, store.base.Scheme) ||
-		!strings.EqualFold(target.Host, store.base.Host) ||
-		!strings.HasPrefix(target.Path, store.base.Path) {
+	if err != nil {
+		return nil, ErrStoreURI
+	}
+	if target.Fragment != "" {
+		return nil, ErrStoreURI
+	}
+	if target.RawQuery != "" {
+		return nil, ErrStoreURI
+	}
+	if target.User != nil {
+		return nil, ErrStoreURI
+	}
+	if target.RawPath != "" {
+		return nil, ErrStoreURI
+	}
+	if !strings.EqualFold(target.Scheme, store.base.Scheme) {
+		return nil, ErrStoreURI
+	}
+	if !strings.EqualFold(target.Host, store.base.Host) {
+		return nil, ErrStoreURI
+	}
+	if !strings.HasPrefix(target.Path, store.base.Path) {
 		return nil, ErrStoreURI
 	}
 	relative := strings.TrimPrefix(target.Path, store.base.Path)
-	if relative == "" || path.Clean(relative) != relative || !fs.ValidPath(relative) {
+	if relative == "" {
+		return nil, ErrStoreURI
+	}
+	if path.Clean(relative) != relative {
+		return nil, ErrStoreURI
+	}
+	if !fs.ValidPath(relative) {
 		return nil, ErrStoreURI
 	}
 	file, err := store.filesystem.Open(relative)

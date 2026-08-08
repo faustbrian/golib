@@ -147,6 +147,19 @@ func TestMergeCombinesEveryComponentRegistry(t *testing.T) {
 	assertRegistrySize("tags", len(tags), present)
 }
 
+func TestMergeCountsEveryComponentRegistryAgainstTheLimit(t *testing.T) {
+	t.Parallel()
+
+	document := documentWithComponents(t, completeComponents(t, "only"))
+	options := compose.DefaultMergeOptions()
+	options.MaxComponents = 6
+	if _, err := compose.Merge(
+		context.Background(), []openrpc.Document{document}, options,
+	); !errors.Is(err, compose.ErrMergeLimit) {
+		t.Fatalf("seven component entries with limit six error = %v", err)
+	}
+}
+
 func TestMergeRejectsInvalidOptionsAndResourceLimits(t *testing.T) {
 	t.Parallel()
 

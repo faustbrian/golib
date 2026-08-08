@@ -91,7 +91,19 @@ func TestCompareCoversExactBoundsAndLoopCancellation(t *testing.T) {
 	if report := Compare(context.Background(), before, twoComponents, options); !errors.Is(report.Err(), ErrInvalidOptions) {
 		t.Fatalf("component bound error = %v", report.Err())
 	}
+	splitComponents := diffDocument(t, `{"openrpc":"1.4.1","info":{"title":"x","version":"1"},"methods":[],"components":{"schemas":{"one":true},"errors":{"one":{"code":1,"message":"x"}}}}`)
+	if report := Compare(context.Background(), emptyDocument, splitComponents, options); !errors.Is(report.Err(), ErrInvalidOptions) {
+		t.Fatalf("cross-registry component bound error = %v", report.Err())
+	}
+	oneSchema := diffDocument(t, `{"openrpc":"1.4.1","info":{"title":"x","version":"1"},"methods":[],"components":{"schemas":{"one":true}}}`)
+	oneError := diffDocument(t, `{"openrpc":"1.4.1","info":{"title":"x","version":"1"},"methods":[],"components":{"errors":{"one":{"code":1,"message":"x"}}}}`)
+	if _, count := compareRootSurfaces(oneSchema, oneError); count != 2 {
+		t.Fatalf("cross-document component count = %d, want 2", count)
+	}
 	withReferences := diffDocument(t, `{"openrpc":"1.4.1","info":{"title":"x","version":"1"},"methods":[{"$ref":"#/one"},{"$ref":"#/two"}]}`)
+	if methods := rawMethodsByName(withReferences); len(methods) != 0 {
+		t.Fatalf("method references entered inline method map: %#v", methods)
+	}
 	if report := Compare(context.Background(), withReferences, emptyDocument, DefaultOptions()); len(report.Changes()) != 2 {
 		t.Fatalf("method reference changes = %#v", report.Changes())
 	}
@@ -137,8 +149,14 @@ func TestSurfaceHelpersCoverEveryChangeShape(t *testing.T) {
 	if changes := compareMethodSurfaces("#/methods/x", before, nil); len(changes) == 0 || changes[0].Code != CodeResultRemoved {
 		t.Fatalf("removed result changes = %#v", changes)
 	}
+	if changes := compareMethodSurfaces("#/methods/x", before, before); len(changes) != 0 {
+		t.Fatalf("identical surface changes = %#v", changes)
+	}
 	if changes := appendFieldChange(nil, nil, map[string]json.RawMessage{"field": json.RawMessage(`1`)}, "field", CodeServersChanged, Breaking, "#", "changed"); len(changes) != 1 {
 		t.Fatalf("field presence changes = %#v", changes)
+	}
+	if changes := appendFieldChange(nil, before, before, "servers", CodeServersChanged, Breaking, "#", "changed"); len(changes) != 0 {
+		t.Fatalf("identical field changes = %#v", changes)
 	}
 }
 
@@ -187,6 +205,29 @@ func TestParameterHelpersCoverRequiredSchemaAndReferences(t *testing.T) {
 	}
 	if !sameParameterOrder(before.Params(), before.Params()) {
 		t.Fatal("identical parameter order differed")
+	}
+	if sameParameterOrder(before.Params(), withReference.Params()) || sameParameterOrder(withReference.Params(), before.Params()) {
+		t.Fatal("mixed descriptor and reference parameters compared equal")
+	}
+	byPosition := openrpc.ParamStructureByPosition
+	positionBefore, err := openrpc.NewMethod(openrpc.MethodInput{
+		Name: "m", Params: before.Params(), ParamStructure: &byPosition,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	byName := openrpc.ParamStructureByName
+	nameAfter, err := openrpc.NewMethod(openrpc.MethodInput{
+		Name: "m", Params: []openrpc.ContentDescriptorOrReference{
+			openrpc.ContentDescriptorValue(requiredValue),
+			openrpc.ContentDescriptorValue(optional),
+		}, ParamStructure: &byName,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changes := compareParameters("#/methods/m", positionBefore, nameAfter); len(changes) != 1 || changes[0].Code != CodeParameterOrderChanged {
+		t.Fatalf("one-sided positional changes = %#v", changes)
 	}
 	empty, err := openrpc.NewMethod(openrpc.MethodInput{Name: "m", Params: []openrpc.ContentDescriptorOrReference{}})
 	if err != nil {
@@ -237,6 +278,13 @@ func TestResolvedComparisonCoversInvalidOptionsAndTruncation(t *testing.T) {
 	report = CompareResolved(context.Background(), invalid, invalid, "memory:/root.json", "memory:/root.json", resolver, resolvedOptions, DefaultOptions())
 	if !errors.Is(report.Err(), ErrResolvedComparison) {
 		t.Fatalf("invalid resolved document error = %v", report.Err())
+	}
+	valid := diffDocument(t, `{"openrpc":"1.4.1","info":{"title":"x","version":"1"},"methods":[]}`)
+	for _, documents := range [][2]openrpc.Document{{invalid, valid}, {valid, invalid}} {
+		report = CompareResolved(context.Background(), documents[0], documents[1], "memory:/root.json", "memory:/root.json", resolver, resolvedOptions, DefaultOptions())
+		if !errors.Is(report.Err(), ErrResolvedComparison) {
+			t.Fatalf("one-sided invalid resolved document error = %v", report.Err())
+		}
 	}
 	validation := validate.Document(context.Background(), invalid, validate.DefaultOptions())
 	if changes := resolutionChanges("before", validation); len(changes) != 0 {

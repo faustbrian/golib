@@ -62,41 +62,40 @@ func (resolver *Resolver) Resources(
 			return nil, err
 		}
 		documentURI := uriWithoutFragment(resolved)
-		if documentURI == rootURI {
-			continue
-		}
-		if _, duplicate := seen[documentURI]; duplicate {
-			continue
-		}
-		seen[documentURI] = struct{}{}
-		document, exists := state.documents[documentURI]
-		if !exists {
-			document, err = resolver.load(ctx, documentURI, &state)
+		if documentURI != rootURI {
+			if _, duplicate := seen[documentURI]; duplicate {
+				continue
+			}
+			seen[documentURI] = struct{}{}
+			document, exists := state.documents[documentURI]
+			if !exists {
+				document, err = resolver.load(ctx, documentURI, &state)
+				if err != nil {
+					return nil, err
+				}
+				state.documents[documentURI] = document
+			}
+			references, aliases, err := resourceReferences(
+				document,
+				documentURI,
+				resolver.policy.MaxDepth,
+				resolver.policy.MaxReferences-referenceCount,
+			)
 			if err != nil {
-				return nil, err
+				if errors.Is(err, ErrResolveLimit) {
+					return nil, ErrResolveLimit
+				}
+				return nil, ErrInvalidDocument
 			}
-			state.documents[documentURI] = document
-		}
-		references, aliases, err := resourceReferences(
-			document,
-			documentURI,
-			resolver.policy.MaxDepth,
-			resolver.policy.MaxReferences-referenceCount,
-		)
-		if err != nil {
-			if errors.Is(err, ErrResolveLimit) {
-				return nil, ErrResolveLimit
+			referenceCount = referenceCount + len(references)
+			for _, alias := range aliases {
+				seen[alias] = struct{}{}
 			}
-			return nil, ErrInvalidDocument
-		}
-		referenceCount += len(references)
-		for _, alias := range aliases {
-			seen[alias] = struct{}{}
-		}
-		for _, reference := range references {
-			queue = append(queue, resourceRequest{
-				base: reference.base, ref: reference.ref, depth: request.depth + 1,
-			})
+			for _, reference := range references {
+				queue = append(queue, resourceRequest{
+					base: reference.base, ref: reference.ref, depth: request.depth + 1,
+				})
+			}
 		}
 	}
 	delete(state.documents, rootURI)
@@ -152,19 +151,23 @@ func walkResourceReferences(
 	switch typed := value.(type) {
 	case map[string]any:
 		currentBase := base
-		if identifier, ok := typed["$id"].(string); ok && identifier != "" {
-			resolved, err := resolveResourceReference(base, identifier)
-			if err != nil {
-				return err
+		if identifier, ok := typed["$id"].(string); ok {
+			if identifier != "" {
+				resolved, err := resolveResourceReference(base, identifier)
+				if err != nil {
+					return err
+				}
+				currentBase = resolved.String()
+				*aliases = append(*aliases, uriWithoutFragment(resolved))
 			}
-			currentBase = resolved.String()
-			*aliases = append(*aliases, uriWithoutFragment(resolved))
 		}
-		if reference, ok := typed["$ref"].(string); ok && reference != "" {
-			if len(*references) >= maxReferences {
-				return ErrResolveLimit
+		if reference, ok := typed["$ref"].(string); ok {
+			if reference != "" {
+				if len(*references) >= maxReferences {
+					return ErrResolveLimit
+				}
+				*references = append(*references, locatedReference{base: currentBase, ref: reference})
 			}
-			*references = append(*references, locatedReference{base: currentBase, ref: reference})
 		}
 		keys := make([]string, 0, len(typed))
 		for key := range typed {

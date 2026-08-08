@@ -44,6 +44,17 @@ func TestDiagnosticHelpersHandleEmptyInputs(t *testing.T) {
 	if total := collectIssues(bounded, 2, &issues); total != 2 || len(issues) != 2 {
 		t.Fatalf("collectIssues bounded = %d, %#v", total, issues)
 	}
+	issues = nil
+	leaf := validationErr
+	for len(leaf.Causes) != 0 {
+		leaf = leaf.Causes[0]
+	}
+	unbounded := &validator.ValidationError{Causes: []*validator.ValidationError{
+		leaf, leaf,
+	}}
+	if total := collectIssues(unbounded, 3, &issues); total != 2 || len(issues) != 2 {
+		t.Fatalf("collectIssues complete total = %d, %#v", total, issues)
+	}
 	compiledValidator, err := Compile(
 		Schema{value: mustJSONValue(t, `true`), boolean: true, boolValue: true},
 		DefaultValidationOptions(),

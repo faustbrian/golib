@@ -100,8 +100,21 @@ func TestResolvedPathSelectionAndFailures(t *testing.T) {
 		}
 	}
 	for _, path := range [][]string{
-		nil, {"methods", "-1"}, {"methods", "00"},
-		{"methods", "0", "name"}, {"methods", "0", "params", "x"},
+		nil, {"components", "0"}, {"methods", "-1"}, {"methods", "00"},
+		{"components", "0", "result"}, {"methods", "x", "result"},
+		{"methods", "0", "name"}, {"other", "x", "y", "result"},
+		{"methods", "x", "params", "0"}, {"methods", "0", "params", "x"},
+		{"other", "x", "y", "params", "0"},
+		{"methods", "x", "examples", "0", "result"},
+		{"methods", "0", "other", "0", "result"},
+		{"methods", "0", "examples", "x", "result"},
+		{"components", "schemas", "x", "params", "0"},
+		{"components", "examplePairings", "x", "other", "0"},
+		{"other", "0", "examples", "0", "params", "0"},
+		{"methods", "x", "examples", "0", "params", "0"},
+		{"methods", "0", "other", "0", "params", "0"},
+		{"methods", "0", "examples", "x", "params", "0"},
+		{"methods", "0", "examples", "0", "other", "0"},
 		{"methods", "0", "examples", "0", "params", "x"},
 		{"components", "schemas", "x", "result"},
 		{"components", "examplePairings", "x", "other"},
@@ -173,6 +186,9 @@ func TestResolvedSchemaTraversalAndReportMerging(t *testing.T) {
 	if _, err := resolveSchemaURI("relative", "child"); !errors.Is(err, reference.ErrInvalidBase) {
 		t.Fatalf("relative schema base error = %v", err)
 	}
+	if _, err := resolveSchemaURI("%", "child"); !errors.Is(err, reference.ErrInvalidBase) {
+		t.Fatalf("malformed schema base error = %v", err)
+	}
 	if _, err := resolveSchemaURI("https://example.com/root", "%"); err == nil {
 		t.Fatal("invalid schema reference succeeded")
 	}
@@ -199,6 +215,10 @@ func TestResolvedSchemaTraversalAndReportMerging(t *testing.T) {
 	empty := mergeValidationReports(Report{}, additional, options)
 	if len(empty.diagnostics) != 1 {
 		t.Fatalf("fail-fast additional report = %#v", empty)
+	}
+	truncated := mergeValidationReports(Report{}, Report{truncated: true}, DefaultOptions())
+	if !truncated.truncated {
+		t.Fatalf("additional truncation was lost: %#v", truncated)
 	}
 }
 
@@ -425,6 +445,42 @@ func TestDocumentCoversReferencedUnionsServersAndComponents(t *testing.T) {
 	engine.validateMethodReferences([]openrpc.MethodOrReference{{}})
 	engine.validateParameters(0, openrpc.Method{})
 	engine.validateErrors(0, openrpc.Method{})
+	method, ok := document.Methods()[0].Method()
+	if !ok {
+		t.Fatal("inline method missing")
+	}
+	stopped := validator{ctx: context.Background(), options: DefaultOptions(), stop: true}
+	stopped.validateParameters(0, method)
+}
+
+func TestDocumentHonorsEveryCancellationCheckpoint(t *testing.T) {
+	document := mustDocument(t, `{
+		"openrpc":"1.4.1","info":{"title":"x","version":"1"},
+		"methods":[
+			{"$ref":"#/components/methods/one"},
+			{"$ref":"#/components/methods/two"}
+		],
+		"components":{"links":{"one":{"method":"missing"}}}
+	}`)
+	baseline := newCheckpointContext(0)
+	Document(baseline, document, DefaultOptions())
+	if baseline.calls == 0 {
+		t.Fatal("validation did not observe cancellation")
+	}
+	for checkpoint := 1; checkpoint <= baseline.calls; checkpoint++ {
+		ctx := newCheckpointContext(checkpoint)
+		report := Document(ctx, document, DefaultOptions())
+		found := false
+		for _, diagnostic := range report.diagnostics {
+			if diagnostic.Code == CodeCanceled {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("checkpoint %d/%d did not report cancellation: %#v", checkpoint, baseline.calls, report)
+		}
+	}
 }
 
 func TestValidatorServerAndRuntimeValueBranches(t *testing.T) {
@@ -561,7 +617,8 @@ func TestValidatorInternalBoundaries(t *testing.T) {
 		t.Fatal("concise sentence boundaries failed")
 	}
 	if !validEmail("a@example.com") || validEmail("Name <a@example.com>") ||
-		!validAbsoluteURI("https://example.com") || validAbsoluteURI("relative") {
+		!validAbsoluteURI("https://example.com") || validAbsoluteURI("relative") || validAbsoluteURI("%") ||
+		validAbsoluteURI(string([]byte{0xff})) {
 		t.Fatal("format helpers failed")
 	}
 }
@@ -597,6 +654,31 @@ func canceledContext() context.Context {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	return ctx
+}
+
+type checkpointContext struct {
+	context.Context
+	calls      int
+	cancelAt   int
+	done       chan struct{}
+	doneClosed bool
+}
+
+func newCheckpointContext(cancelAt int) *checkpointContext {
+	return &checkpointContext{
+		Context:  context.Background(),
+		cancelAt: cancelAt,
+		done:     make(chan struct{}),
+	}
+}
+
+func (ctx *checkpointContext) Done() <-chan struct{} {
+	ctx.calls++
+	if ctx.cancelAt > 0 && ctx.calls >= ctx.cancelAt && !ctx.doneClosed {
+		close(ctx.done)
+		ctx.doneClosed = true
+	}
+	return ctx.done
 }
 
 func explicitNilContext() context.Context { return nil }

@@ -106,7 +106,13 @@ func (reference Reference) ResolveAgainst(base string) (Reference, error) {
 	if reference.uri == nil {
 		return Reference{}, ErrInvalidReference
 	}
-	if base == "" || !utf8.ValidString(base) || containsURIControl(base) {
+	if base == "" {
+		return Reference{}, ErrInvalidBase
+	}
+	if !utf8.ValidString(base) {
+		return Reference{}, ErrInvalidBase
+	}
+	if containsURIControl(base) {
 		return Reference{}, ErrInvalidBase
 	}
 	parsedBase, err := url.Parse(base)
@@ -130,7 +136,10 @@ func (reference Reference) TargetPointer(policy PointerPolicy) (Pointer, error) 
 	if reference.uri == nil {
 		return Pointer{}, ErrInvalidReference
 	}
-	if !reference.hasFragment || reference.fragment == "" {
+	if !reference.hasFragment {
+		return ParsePointer("", policy)
+	}
+	if reference.fragment == "" {
 		return ParsePointer("", policy)
 	}
 	pointer, err := ParseFragment("#"+reference.fragment, policy)

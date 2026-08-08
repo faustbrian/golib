@@ -66,6 +66,10 @@ func TestParserAndEvaluatorCoverEveryBoundary(t *testing.T) {
 	if _, err := zero.Evaluate(context); !errors.Is(err, ErrInvalidExpression) {
 		t.Fatalf("zero template error = %v", err)
 	}
+	invalidPolicy := Template{parts: []part{{literal: "value"}}}
+	if _, err := invalidPolicy.Evaluate(context); !errors.Is(err, ErrInvalidExpression) {
+		t.Fatalf("invalid template policy error = %v", err)
+	}
 	template, err := Parse("${large}", withOutputLimit(policy, 4))
 	if err != nil {
 		t.Fatal(err)

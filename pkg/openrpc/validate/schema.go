@@ -50,25 +50,24 @@ func (validator *validator) validateSchemasUsing(
 
 	for methodIndex, union := range document.Methods() {
 		method, inline := union.Method()
-		if !inline {
-			continue
-		}
-		for parameterIndex, parameterUnion := range method.Params() {
-			if descriptor, inline := parameterUnion.Descriptor(); inline {
-				validator.validateSchema(
-					pointer("methods", methodIndex, "params", parameterIndex, "schema"),
-					descriptor.Schema(), componentSchemas,
-					base, resources, preserveExternal,
-				)
+		if inline {
+			for parameterIndex, parameterUnion := range method.Params() {
+				if descriptor, inline := parameterUnion.Descriptor(); inline {
+					validator.validateSchema(
+						pointer("methods", methodIndex, "params", parameterIndex, "schema"),
+						descriptor.Schema(), componentSchemas,
+						base, resources, preserveExternal,
+					)
+				}
 			}
-		}
-		if resultUnion, present := method.Result(); present {
-			if descriptor, inline := resultUnion.Descriptor(); inline {
-				validator.validateSchema(
-					pointer("methods", methodIndex, "result", "schema"),
-					descriptor.Schema(), componentSchemas,
-					base, resources, preserveExternal,
-				)
+			if resultUnion, present := method.Result(); present {
+				if descriptor, inline := resultUnion.Descriptor(); inline {
+					validator.validateSchema(
+						pointer("methods", methodIndex, "result", "schema"),
+						descriptor.Schema(), componentSchemas,
+						base, resources, preserveExternal,
+					)
+				}
 			}
 		}
 	}
@@ -82,7 +81,10 @@ func (validator *validator) validateSchema(
 	resources map[string]jsonschema.Schema,
 	preserveExternal bool,
 ) {
-	if validator.stop || validator.canceled() {
+	if validator.stop {
+		return
+	}
+	if validator.canceled() {
 		return
 	}
 	wrapped, err := schemaCompilationUnit(schema, components, preserveExternal)

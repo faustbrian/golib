@@ -42,6 +42,10 @@ func TestResolverCoversInputErrorsCancellationAndLoadFailures(t *testing.T) {
 	if _, err := resolver.Resolve(context.Background(), invalidAlias, "https://example.com/root", "#/bad"); !errors.Is(err, ErrInvalidReference) {
 		t.Fatalf("non-string alias error = %v", err)
 	}
+	emptyAlias := referenceValue(t, `{"bad":{"$ref":""}}`)
+	if _, err := resolver.Resolve(context.Background(), emptyAlias, "https://example.com/root", "#/bad"); !errors.Is(err, ErrInvalidReference) {
+		t.Fatalf("empty alias error = %v", err)
+	}
 	ctx := &referenceCountingContext{Context: context.Background(), remaining: 1}
 	if _, err := resolver.Resolve(ctx, root, "https://example.com/root", "#/value"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("resolve loop cancellation error = %v", err)
@@ -276,6 +280,17 @@ func TestTransformCoversInvalidReferencesDepthAndInternalHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := DereferenceSelected(context.Background(), nil, referenceValue(t, `{}`), "https://example.com/root", DefaultTransformPolicy(), nil); !errors.Is(err, ErrTransformPolicy) {
+		t.Fatalf("nil transform resolver error = %v", err)
+	}
+	if _, err := DereferenceSelected(explicitNilContext(), resolver, referenceValue(t, `{}`), "https://example.com/root", DefaultTransformPolicy(), nil); !errors.Is(err, ErrTransformPolicy) {
+		t.Fatalf("nil transform context error = %v", err)
+	}
+	invalidPolicy := DefaultTransformPolicy()
+	invalidPolicy.MaxDepth = 0
+	if _, err := DereferenceSelected(context.Background(), resolver, referenceValue(t, `{}`), "https://example.com/root", invalidPolicy, nil); !errors.Is(err, ErrTransformPolicy) {
+		t.Fatalf("invalid transform policy error = %v", err)
+	}
 	if _, err := Dereference(context.Background(), resolver, referenceValue(t, `{}`), "relative", DefaultTransformPolicy()); !errors.Is(err, ErrInvalidBase) {
 		t.Fatalf("transform base error = %v", err)
 	}
@@ -418,6 +433,10 @@ func TestReferencePolicyMutationBoundaries(t *testing.T) {
 
 	if Internal != 1 || ExternalRelative != 2 || ExternalAbsolute != 3 {
 		t.Fatal("reference kind values changed")
+	}
+	pointer := Pointer{maxIndexDigits: 2}
+	if _, err := pointer.arrayIndex("/"); !errors.Is(err, ErrPointerTarget) {
+		t.Fatalf("punctuation array index error = %v", err)
 	}
 	store, err := NewMemoryStore(map[string][]byte{"https://example.com/a": []byte(`{}`)})
 	if err != nil {

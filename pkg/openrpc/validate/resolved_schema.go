@@ -134,16 +134,22 @@ func walkSchemaReferenceValues(
 		return
 	}
 	currentBase := base
-	if identifier, ok := typed["$id"].(string); ok && identifier != "" {
-		if resolved, err := resolveSchemaURI(base, identifier); err == nil {
-			currentBase = resolved
+	if identifier, ok := typed["$id"].(string); ok {
+		if identifier != "" {
+			if resolved, err := resolveSchemaURI(base, identifier); err == nil {
+				currentBase = resolved
+			}
 		}
 	}
-	if ref, ok := typed["$ref"].(string); ok && ref != "" && !strings.HasPrefix(ref, "#") {
-		if resolved, err := resolveSchemaURI(currentBase, ref); err == nil {
-			ref = resolved
+	if ref, ok := typed["$ref"].(string); ok {
+		if ref != "" {
+			if !strings.HasPrefix(ref, "#") {
+				if resolved, err := resolveSchemaURI(currentBase, ref); err == nil {
+					ref = resolved
+				}
+				*locations = append(*locations, schemaReferenceLocation{pointer: pointer, ref: ref})
+			}
 		}
-		*locations = append(*locations, schemaReferenceLocation{pointer: pointer, ref: ref})
 	}
 	for _, keyword := range []string{
 		"additionalItems", "additionalProperties", "contains", "else", "if",
@@ -187,7 +193,10 @@ func walkSchemaArrayReferences(value any, pointer string, base string, locations
 
 func resolveSchemaURI(base string, input string) (string, error) {
 	baseURI, err := url.Parse(base)
-	if err != nil || !baseURI.IsAbs() {
+	if err != nil {
+		return "", reference.ErrInvalidBase
+	}
+	if !baseURI.IsAbs() {
 		return "", reference.ErrInvalidBase
 	}
 	referenceURI, err := url.Parse(input)
@@ -206,20 +215,21 @@ func mergeValidationReports(base Report, additional Report, options Options) Rep
 		seen[string(diagnostic.Code)+"\x00"+diagnostic.Pointer] = struct{}{}
 	}
 	merged := append([]Diagnostic(nil), base.diagnostics...)
-	truncated := base.truncated || additional.truncated
+	truncated := base.truncated
+	if additional.truncated {
+		truncated = true
+	}
 	for _, diagnostic := range additional.diagnostics {
 		key := string(diagnostic.Code) + "\x00" + diagnostic.Pointer
-		if _, duplicate := seen[key]; duplicate {
-			continue
-		}
-		if len(merged) >= options.MaxDiagnostics {
-			truncated = true
-			break
-		}
-		seen[key] = struct{}{}
-		merged = append(merged, diagnostic)
-		if options.Mode == FailFast {
-			break
+		if _, duplicate := seen[key]; !duplicate {
+			if len(merged) >= options.MaxDiagnostics {
+				return Report{diagnostics: merged, truncated: true}
+			}
+			seen[key] = struct{}{}
+			merged = append(merged, diagnostic)
+			if options.Mode == FailFast {
+				return Report{diagnostics: merged, truncated: truncated}
+			}
 		}
 	}
 	return Report{diagnostics: merged, truncated: truncated}

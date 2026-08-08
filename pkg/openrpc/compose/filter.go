@@ -71,17 +71,17 @@ func FilterMethods(
 			if options.KeepReferences {
 				filtered = append(filtered, union)
 			}
-			continue
-		}
-		visible, err := predicate.Visible(ctx, method)
-		if err != nil {
-			if contextErr := ctx.Err(); contextErr != nil {
-				return openrpc.Document{}, contextErr
+		} else {
+			visible, err := predicate.Visible(ctx, method)
+			if err != nil {
+				if contextErr := ctx.Err(); contextErr != nil {
+					return openrpc.Document{}, contextErr
+				}
+				return openrpc.Document{}, ErrFilterPolicy
 			}
-			return openrpc.Document{}, ErrFilterPolicy
-		}
-		if visible {
-			filtered = append(filtered, union)
+			if visible {
+				filtered = append(filtered, union)
+			}
 		}
 	}
 	return copyDocumentWithMethods(document, filtered)
