@@ -78,13 +78,15 @@ stateless engine only when the additional setup memory and workers are
 intentional.
 
 Proof bytes are untrusted input. `DecodeProof` establishes canonical syntax and
-ownership only. Obtain `Proof.Root()` and `Proof.Claims(ctx)`, compare the root
-with the exact trusted root and the claim keys with the exact requested key
-set, and call `ProofEngine.Verify` before accepting any claim. When the caller
-requires a particular claim kind or value, compare that expectation too;
-otherwise the verified claim kind and value are authenticated outputs.
-Accepting any root or key set carried by an otherwise valid proof permits
-application-level replay. A verification error is not an absence result.
+ownership only. Call `ProofEngine.VerifyForKeys` with the exact trusted root and
+requested key set before accepting any claim. The method canonicalizes the
+unordered expected keys, rejects duplicates, omission, surplus disclosure,
+and cross-root or cross-key replay, then verifies every opening. When the
+caller requires a particular claim kind or value, compare that expectation
+too; otherwise the verified claim kind and value are authenticated outputs.
+The lower-level `ProofEngine.Verify` checks the self-contained proof but does
+not supply the caller's external root or key expectation. A verification error
+is not an absence result.
 
 `Proof.Claims` returns an owned canonical copy. `Claim.Value` distinguishes a
 membership value from an absence claim, including present all-zero values.

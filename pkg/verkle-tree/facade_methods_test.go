@@ -342,6 +342,56 @@ func TestFacadeProofRejectsEveryInvalidOwnershipState(t *testing.T) {
 	if _, err := forged.Root(); !errors.Is(err, ErrInvalidProof) {
 		t.Fatalf("forged root = %v", err)
 	}
+	expectationLimits := ProofExpectationLimits{
+		MaxKeys:           1,
+		MaxTemporaryBytes: proofExpectationWorkingBytes,
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(), forged, snapshotRoot, []Key{{}},
+		expectationLimits, testFacadeProofVerificationLimits(),
+	); !errors.Is(err, ErrInvalidProof) {
+		t.Fatalf("forged expected proof = %v", err)
+	}
+	invalidFlagEngine := engine
+	invalidFlagEngine.valid = false
+	missingValueEngine := engine
+	missingValueEngine.value = nil
+	invalidProfileEngine := engine
+	invalidProfileEngine.profile = Profile{}
+	for _, test := range []struct {
+		label  string
+		engine ProofEngine
+	}{
+		{label: "invalid flag", engine: invalidFlagEngine},
+		{label: "missing value", engine: missingValueEngine},
+		{label: "invalid profile", engine: invalidProfileEngine},
+	} {
+		if err := test.engine.VerifyForKeys(
+			context.Background(), proof, snapshotRoot, []Key{{}},
+			expectationLimits, testFacadeProofVerificationLimits(),
+		); !errors.Is(err, ErrInvalidProofEngine) {
+			t.Fatalf("%s expected verify = %v", test.label, err)
+		}
+	}
+	for _, test := range []struct {
+		remaining int
+		label     string
+	}{
+		{remaining: 1, label: "expected-key copy"},
+		{remaining: 2, label: "claim-set copy"},
+		{remaining: 4, label: "claim comparison"},
+	} {
+		if err := engine.VerifyForKeys(
+			&cancellingContext{remaining: test.remaining},
+			proof,
+			snapshotRoot,
+			[]Key{{}},
+			expectationLimits,
+			testFacadeProofVerificationLimits(),
+		); !errors.Is(err, ErrCancelled) {
+			t.Fatalf("%s cancellation = %v", test.label, err)
+		}
+	}
 	forgedEngine := ProofEngine{value: &authstate.ProofEngine{}, valid: true}
 	if _, err := forgedEngine.Prove(
 		context.Background(),
@@ -384,6 +434,16 @@ func TestFacadeProofRejectsEveryInvalidOwnershipState(t *testing.T) {
 			testFacadeProofVerificationLimits(),
 		); !errors.Is(err, ErrInvalidProofEngine) {
 			t.Fatalf("partial engine verify = %v", err)
+		}
+		if err := partial.VerifyForKeys(
+			context.Background(),
+			proof,
+			snapshotRoot,
+			[]Key{{}},
+			expectationLimits,
+			testFacadeProofVerificationLimits(),
+		); !errors.Is(err, ErrInvalidProofEngine) {
+			t.Fatalf("partial expected verify = %v", err)
 		}
 	}
 	exactKeyLimits := testFacadeProofGenerationLimits()

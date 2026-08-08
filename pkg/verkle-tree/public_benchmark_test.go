@@ -89,6 +89,10 @@ func BenchmarkPublicSnapshotOperations(b *testing.B) {
 func BenchmarkPublicProofOperations(b *testing.B) {
 	ctx := context.Background()
 	snapshot := benchmarkPublicState(b)
+	trustedRoot, err := snapshot.Root()
+	if err != nil {
+		b.Fatalf("prepare trusted root: %v", err)
+	}
 	engine, err := verkletree.NewProofEngine(
 		ctx,
 		verkletree.BandersnatchIPA256V0(),
@@ -144,6 +148,26 @@ func BenchmarkPublicProofOperations(b *testing.B) {
 	})
 	b.Run("verify-aggregate-8", func(b *testing.B) {
 		benchmarkPublicVerify(b, engine, aggregateProof, len(aggregateBytes))
+	})
+	b.Run("verify-aggregate-8-for-keys", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			if err := engine.VerifyForKeys(
+				ctx,
+				aggregateProof,
+				trustedRoot,
+				aggregate,
+				verkletree.ProofExpectationLimits{
+					MaxKeys:           64,
+					MaxTemporaryBytes: 1 << 20,
+				},
+				publicProofVerificationLimits(),
+			); err != nil {
+				b.Fatal(err)
+			}
+		}
+		b.ReportMetric(float64(len(aggregateBytes)), "proof-bytes/op")
+		benchmarkPublicReportThroughput(b)
 	})
 	b.Run("verify-aggregate-8-parallel", func(b *testing.B) {
 		b.ReportAllocs()

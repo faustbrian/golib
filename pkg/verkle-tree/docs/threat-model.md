@@ -241,7 +241,10 @@ It binds the complete canonical statement digest and one fixed nonzero anchor,
 consolidates identical commitment/index openings, and rejects conflicting
 vectors or evaluations, changed roots or claimed values, malformed proofs,
 partial opening sets, resource exhaustion, and cancellation observed by owned
-work. Verification is independent from mutable tree state. The pinned backend
+work. The public `VerifyForKeys` entry point additionally compares the proof
+against the caller's trusted root and exact unordered key set before entering
+proof arithmetic, rejecting application-level cross-root and cross-key replay.
+Verification is independent from mutable tree state. The pinned backend
 does not accept a context once aggregate proof arithmetic begins and chooses
 `runtime.NumCPU()` workers internally; preflight and post-call cancellation
 checks do not stop that in-flight work. One proof-engine instance admits only

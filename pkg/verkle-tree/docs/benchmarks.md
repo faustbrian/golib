@@ -6,6 +6,7 @@ The public pre-v1 benchmark matrix exercises complete package entry points for
 ordered 32-entry root construction, immutable lookup, insert, update, delete,
 mixed batch application, single membership and non-membership proof generation
 and verification, eight-key aggregate proof generation and verification,
+trusted-root and exact-key-set aggregate verification,
 canonical proof encoding and decoding, truncated-proof rejection, and two-key
 stateless-witness container construction, encoding, decoding, verification,
 and application. Shared immutable snapshot reads and aggregate-proof
@@ -221,7 +222,8 @@ Environment:
 
 - Date: 2026-08-01; public API, bound proof-engine, stateless-witness,
   canonical whole-snapshot, and storage-recovery rows refreshed 2026-08-03;
-  stateless-engine initialization rows added 2026-08-08
+  stateless-engine initialization, trusted-expectation verification, and
+  topology-transition rows added 2026-08-08
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -267,6 +269,7 @@ nanoseconds per operation.
 | Verify one-key non-membership proof | 2108917, 2269334, 2120041, 2032500, 2098542 | 474.2, 440.7, 471.7, 492.0, 476.5 | 898 | 287680-287928 | 1048-1053 |
 | Generate eight-key aggregate proof | 17427833, 16802209, 16720167, 16717833, 16652791 | 57.38, 59.52, 59.81, 59.82, 60.05 | 2193 | 5011040-5014784 | 4981-5010 |
 | Verify eight-key aggregate proof | 2289875, 2249208, 2236084, 2176417, 2199334 | 436.7, 444.6, 447.2, 459.5, 454.7 | 2193 | 421040-421536 | 1078-1088 |
+| Verify eight-key aggregate proof for trusted root and keys | 8976958, 5308917, 5922000, 4335333, 6029292 | 111.4, 188.4, 168.9, 230.7, 165.9 | 2193 | 324848-325360 | 1081-1092 |
 | Verify eight-key aggregate proof in parallel | 5385238, 5362990, 8107587, 6090237, 7293846 | 185.7, 186.5, 123.3, 164.2, 137.1 | 2193 | 416229-416265 | 1072-1073 |
 | Encode eight-key aggregate proof | 18666, 15791, 15000, 12959, 16459 | 53573, 63327, 66667, 77166, 60757 | 2193 | 2304 | 1 |
 | Decode eight-key aggregate proof | 248541, 256959, 242875, 243292, 239709 | 4023, 3892, 4117, 4110, 4172 | 2193 | 25768-25864 | 40-42 |

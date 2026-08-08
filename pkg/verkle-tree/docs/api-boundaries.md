@@ -258,9 +258,12 @@ verifier. It rejects changed roots or values, incomplete or surplus paths,
 conflicting shared openings, invalid proofs, cancellation, and exhausted
 resource budgets. The engine is immutable and concurrency safe. The root
 package exposes it through a fixed-profile facade that owns canonical proof
-bytes and independently verifies decoded proofs. The API remains pre-v1
-while the backend cannot stop proof arithmetic after cancellation and witness
-and storage contracts remain incomplete.
+bytes and independently verifies decoded proofs. `VerifyForKeys` additionally
+requires the caller's trusted root and exact unordered key set before proof
+arithmetic, so omission, surplus disclosure, and cross-root or cross-key replay
+fail closed inside the verifier boundary. The API remains pre-v1
+while the backend cannot stop proof arithmetic after cancellation and no
+concrete production storage adapter is supplied.
 
 The internal stateless updater verifies that proof first and requires one exact
 authenticated old claim for every distinct update. A delete that removes a

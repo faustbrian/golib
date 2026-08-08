@@ -13,6 +13,7 @@ import (
 const (
 	maxPublicProofQueries          = uint32(65_536)
 	maxPublicQueuedProofOperations = uint32(65_536)
+	proofExpectationWorkingBytes   = uint64(256)
 )
 
 // OpeningLimits bounds setup and fixed-profile aggregate-opening work.
@@ -107,6 +108,15 @@ type ProofVerificationLimits struct {
 	VerifierQueries VerifierQueryLimits
 }
 
+// ProofExpectationLimits bounds comparison with a caller-trusted root and
+// requested key set before cryptographic proof verification.
+type ProofExpectationLimits struct {
+	// MaxKeys bounds both expected keys and claims retained by the proof.
+	MaxKeys uint32
+	// MaxTemporaryBytes bounds conservative key-set comparison scratch.
+	MaxTemporaryBytes uint64
+}
+
 // ProofEncodingLimits bounds canonical proof serialization.
 type ProofEncodingLimits struct {
 	// MaxProofBytes bounds the complete canonical proof encoding.
@@ -191,6 +201,16 @@ func (limits VerifierQueryLimits) validate() error {
 
 func (limits ProofVerificationLimits) validate() error {
 	return limits.VerifierQueries.validate()
+}
+
+func (limits ProofExpectationLimits) validate() error {
+	if limits.MaxKeys == 0 ||
+		limits.MaxKeys > maxPublicProofQueries ||
+		limits.MaxTemporaryBytes == 0 {
+		return ErrInvalidLimits
+	}
+
+	return nil
 }
 
 func (limits ProofEncodingLimits) validate() error {
@@ -450,6 +470,107 @@ func (engine ProofEngine) Verify(
 	}
 
 	return nil
+}
+
+// VerifyForKeys rejects a proof unless it authenticates the exact trusted
+// root and unordered distinct requested key set, then independently verifies
+// every bound opening. Values and absence claims remain available through
+// Proof.Claims after successful verification.
+func (engine ProofEngine) VerifyForKeys(
+	ctx context.Context,
+	proof Proof,
+	trustedRoot Root,
+	keys []Key,
+	expectationLimits ProofExpectationLimits,
+	verificationLimits ProofVerificationLimits,
+) error {
+	if !engine.valid {
+		return ErrInvalidProofEngine
+	}
+	if engine.value == nil {
+		return ErrInvalidProofEngine
+	}
+	if engine.profile.Validate() != nil {
+		return ErrInvalidProofEngine
+	}
+	if !proof.valid {
+		return ErrInvalidProof
+	}
+	if err := checkPublicContext(ctx); err != nil {
+		return err
+	}
+	if err := expectationLimits.validate(); err != nil {
+		return err
+	}
+	if err := verificationLimits.validate(); err != nil {
+		return err
+	}
+	_, err := trustedRoot.Profile()
+	if err != nil {
+		return ErrInvalidRoot
+	}
+	proofRoot, err := proof.Root()
+	if err != nil {
+		return ErrInvalidProof
+	}
+	trustedBytes, _ := trustedRoot.Bytes()
+	proofBytes, _ := proofRoot.Bytes()
+	if trustedBytes != proofBytes {
+		return fmt.Errorf("verify proof expectation: %w", ErrVerification)
+	}
+	claimSet, _ := proof.value.Claims()
+	claimCount, _ := claimSet.Count()
+	if uint64(len(keys)) > uint64(expectationLimits.MaxKeys) {
+		return newPublicResourceError(
+			ResourceKeys,
+			uint64(expectationLimits.MaxKeys),
+			uint64(len(keys)),
+		)
+	}
+	if claimCount > expectationLimits.MaxKeys {
+		return newPublicResourceError(
+			ResourceKeys,
+			uint64(expectationLimits.MaxKeys),
+			uint64(claimCount),
+		)
+	}
+	if uint64(len(keys)) != uint64(claimCount) {
+		return fmt.Errorf("verify proof expectation: %w", ErrVerification)
+	}
+	temporaryBytes := uint64(claimCount) * proofExpectationWorkingBytes
+	if temporaryBytes > expectationLimits.MaxTemporaryBytes {
+		return newPublicResourceError(
+			ResourceTemporaryBytes,
+			expectationLimits.MaxTemporaryBytes,
+			temporaryBytes,
+		)
+	}
+	expected := make(map[Key]struct{}, len(keys))
+	for index := range keys {
+		if err := checkPublicContext(ctx); err != nil {
+			return err
+		}
+		if _, exists := expected[keys[index]]; exists {
+			return ErrDuplicateKey
+		}
+		expected[keys[index]] = struct{}{}
+	}
+	claims, err := claimSet.Claims(ctx)
+	if err != nil {
+		return translateProofError("compare proof keys", err, false)
+	}
+	for index := range claims {
+		if err := checkPublicContext(ctx); err != nil {
+			return err
+		}
+		key, _ := claims[index].Key()
+		publicKey := Key(key)
+		if _, exists := expected[publicKey]; !exists {
+			return fmt.Errorf("verify proof expectation: %w", ErrVerification)
+		}
+		delete(expected, publicKey)
+	}
+	return engine.Verify(ctx, proof, verificationLimits)
 }
 
 // DecodeProof validates and defensively owns one canonical proof encoding.

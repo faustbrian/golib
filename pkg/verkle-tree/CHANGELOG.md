@@ -48,6 +48,9 @@ All notable changes to `verkle-tree` will be documented in this file.
 
 ### Added
 
+- Add bounded proof verification against a caller-trusted root and exact
+  unordered key set, rejecting cross-root and cross-key replay, omitted or
+  surplus disclosure, and duplicate expectations before proof arithmetic.
 - Add hostile canonical-witness fuzz application through complete proof
   verification, post-state derivation, and claimed-root comparison.
 - Add hostile persisted root-node fuzz loading through complete bounded

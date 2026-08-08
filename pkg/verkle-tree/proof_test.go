@@ -121,6 +121,263 @@ func TestPublicProofEngineGeneratesCanonicalVerifiableProofs(t *testing.T) {
 	}
 }
 
+func TestPublicProofEngineVerifiesTrustedRootAndKeySet(t *testing.T) {
+	t.Parallel()
+
+	present := publicKey(0, 0)
+	absent := publicKey(1, 0)
+	snapshot, err := verkletree.NewSnapshot(
+		context.Background(),
+		verkletree.BandersnatchIPA256V0(),
+		[]verkletree.Entry{{Key: present, Value: publicValue(7)}},
+		publicSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new snapshot: %v", err)
+	}
+	trustedRoot, err := snapshot.Root()
+	if err != nil {
+		t.Fatalf("trusted root: %v", err)
+	}
+	engine, err := verkletree.NewProofEngine(
+		context.Background(),
+		verkletree.BandersnatchIPA256V0(),
+		publicOpeningLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new proof engine: %v", err)
+	}
+	proof, err := engine.Prove(
+		context.Background(),
+		snapshot,
+		[]verkletree.Key{present, absent},
+		publicProofGenerationLimits(),
+	)
+	if err != nil {
+		t.Fatalf("prove: %v", err)
+	}
+	expectationLimits := verkletree.ProofExpectationLimits{
+		MaxKeys:           4,
+		MaxTemporaryBytes: 1 << 10,
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{absent, present},
+		expectationLimits,
+		publicProofVerificationLimits(),
+	); err != nil {
+		t.Fatalf("verify trusted root and keys: %v", err)
+	}
+
+	otherSnapshot, err := verkletree.NewSnapshot(
+		context.Background(),
+		verkletree.BandersnatchIPA256V0(),
+		[]verkletree.Entry{{Key: present, Value: publicValue(8)}},
+		publicSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new replay snapshot: %v", err)
+	}
+	otherRoot, err := otherSnapshot.Root()
+	if err != nil {
+		t.Fatalf("replay root: %v", err)
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		otherRoot,
+		[]verkletree.Key{present, absent},
+		expectationLimits,
+		publicProofVerificationLimits(),
+	); !errors.Is(err, verkletree.ErrVerification) {
+		t.Fatalf("cross-root replay error = %v", err)
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present, publicKey(2, 0)},
+		expectationLimits,
+		publicProofVerificationLimits(),
+	); !errors.Is(err, verkletree.ErrVerification) {
+		t.Fatalf("cross-key replay error = %v", err)
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present},
+		expectationLimits,
+		publicProofVerificationLimits(),
+	); !errors.Is(err, verkletree.ErrVerification) {
+		t.Fatalf("omitted key error = %v", err)
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present, absent, publicKey(2, 0)},
+		expectationLimits,
+		publicProofVerificationLimits(),
+	); !errors.Is(err, verkletree.ErrVerification) {
+		t.Fatalf("surplus key error = %v", err)
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present, present},
+		expectationLimits,
+		publicProofVerificationLimits(),
+	); !errors.Is(err, verkletree.ErrDuplicateKey) {
+		t.Fatalf("duplicate key error = %v", err)
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		verkletree.Root{},
+		[]verkletree.Key{present, absent},
+		expectationLimits,
+		publicProofVerificationLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidRoot) {
+		t.Fatalf("invalid trusted root error = %v", err)
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present, absent},
+		verkletree.ProofExpectationLimits{},
+		publicProofVerificationLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidLimits) {
+		t.Fatalf("invalid expectation limits error = %v", err)
+	}
+	for _, test := range []struct {
+		name   string
+		limits verkletree.ProofExpectationLimits
+	}{
+		{
+			name: "zero keys",
+			limits: verkletree.ProofExpectationLimits{
+				MaxTemporaryBytes: 1 << 10,
+			},
+		},
+		{
+			name: "excess keys",
+			limits: verkletree.ProofExpectationLimits{
+				MaxKeys:           65_537,
+				MaxTemporaryBytes: 1 << 10,
+			},
+		},
+		{
+			name: "zero temporary bytes",
+			limits: verkletree.ProofExpectationLimits{
+				MaxKeys: 4,
+			},
+		},
+	} {
+		if err := engine.VerifyForKeys(
+			context.Background(),
+			proof,
+			trustedRoot,
+			[]verkletree.Key{present, absent},
+			test.limits,
+			publicProofVerificationLimits(),
+		); !errors.Is(err, verkletree.ErrInvalidLimits) {
+			t.Fatalf("%s expectation limits error = %v", test.name, err)
+		}
+	}
+	boundaryLimits := expectationLimits
+	boundaryLimits.MaxKeys = 65_536
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present, absent},
+		boundaryLimits,
+		publicProofVerificationLimits(),
+	); err != nil {
+		t.Fatalf("exact maximum expectation limit: %v", err)
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present, absent},
+		expectationLimits,
+		verkletree.ProofVerificationLimits{},
+	); !errors.Is(err, verkletree.ErrInvalidLimits) {
+		t.Fatalf("invalid verification limits error = %v", err)
+	}
+	keyLimits := expectationLimits
+	keyLimits.MaxKeys = 1
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present, absent},
+		keyLimits,
+		publicProofVerificationLimits(),
+	); resourceOf(err) != verkletree.ResourceKeys {
+		t.Fatalf("expected-key resource error = %v", err)
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present},
+		keyLimits,
+		publicProofVerificationLimits(),
+	); resourceOf(err) != verkletree.ResourceKeys {
+		t.Fatalf("proof-claim resource error = %v", err)
+	}
+	temporaryLimits := expectationLimits
+	temporaryLimits.MaxTemporaryBytes = 511
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present, absent},
+		temporaryLimits,
+		publicProofVerificationLimits(),
+	); resourceOf(err) != verkletree.ResourceTemporaryBytes {
+		t.Fatalf("expectation temporary resource error = %v", err)
+	}
+	var nilContext context.Context
+	if err := engine.VerifyForKeys(
+		nilContext,
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present, absent},
+		expectationLimits,
+		publicProofVerificationLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidContext) {
+		t.Fatalf("nil context error = %v", err)
+	}
+	if err := (verkletree.ProofEngine{}).VerifyForKeys(
+		context.Background(),
+		proof,
+		trustedRoot,
+		[]verkletree.Key{present, absent},
+		expectationLimits,
+		publicProofVerificationLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidProofEngine) {
+		t.Fatalf("zero engine error = %v", err)
+	}
+	if err := engine.VerifyForKeys(
+		context.Background(),
+		verkletree.Proof{},
+		trustedRoot,
+		[]verkletree.Key{present, absent},
+		expectationLimits,
+		publicProofVerificationLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidProof) {
+		t.Fatalf("zero proof error = %v", err)
+	}
+}
+
 func TestPublicProofEngineProvesCanonicalEmptyRootNonMembership(t *testing.T) {
 	t.Parallel()
 

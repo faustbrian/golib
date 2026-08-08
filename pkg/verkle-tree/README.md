@@ -128,10 +128,14 @@ if err != nil {
 _, _ = restored.Root()
 ```
 
-Proof generation and verification use `NewProofEngine`, `Prove`, `Verify`,
-`Proof.Bytes`, and `DecodeProof`. They require separate explicit opening,
-generation, verification, encoding, and decoding limits because each stage has
-different hostile-input amplification.
+Proof generation and verification use `NewProofEngine`, `Prove`,
+`VerifyForKeys`, `Proof.Bytes`, and `DecodeProof`. `VerifyForKeys` is the safe
+application entry point: it accepts the caller-trusted root and exact requested
+key set, rejects replay or omitted/surplus claims before proof arithmetic, and
+then verifies every opening. The lower-level `Verify` method validates only the
+self-contained proof statement. These operations require separate explicit
+opening, expectation, generation, verification, encoding, and decoding limits
+because each stage has different hostile-input amplification.
 
 For a stateless transition, the producer calls `ProofEngine.ProveUpdates` to
 derive and prove the complete canonical pre-state key set, obtains the expected
