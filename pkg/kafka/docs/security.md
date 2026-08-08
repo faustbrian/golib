@@ -114,10 +114,12 @@ The fixtures prove:
   explicitly authorized group result beside a separate
   `GroupAuthorizationFailed` result with stable `ErrorAuthorization`
   classification and no password disclosure; and
-- live SCRAM-SHA-256 and SCRAM-SHA-512 credential replacement: one producer
-  per mechanism crosses Kafka's three-second broker-enforced reauthentication
-  lifetime, invokes the package provider again, delivers with the replacement
-  credential, and rejects the retired credential on a new connection; and
+- live SCRAM-SHA-256 and SCRAM-SHA-512 credential replacement: three
+  independent producers per mechanism cross Kafka's three-second
+  broker-enforced reauthentication lifetime through three successive
+  replacements, invoke every package provider again, preserve every
+  acknowledged record, and reject every retired credential on a new
+  connection; and
 - live mTLS client-certificate renewal: one producer observes Kafka's
   broker-enforced idle disconnect, invokes the package provider with a
   separately issued replacement certificate signed by the same CA, reconnects,
@@ -128,11 +130,11 @@ The fixtures prove:
   reconnects again after the retired root is removed; a new client trusting
   only the retired root is rejected.
 
-This proves interoperability only with the pinned Apache fixture. Prolonged
-multi-client credential-rotation stress, PLAIN replacement, JWKS refresh and
-signing-key rollover, transactional-ID authorization failures, ACL changes
-during live traffic, and managed-service authentication
-remain separate required evidence. The fixture does not use Kafka's
+This proves interoperability only with the pinned Apache fixture. Multi-client
+mTLS and OAuth rotation stress, PLAIN replacement, JWKS refresh and signing-key
+rollover, transactional-ID authorization failures, ACL changes during live
+traffic, and managed-service authentication remain separate required evidence.
+The fixture does not use Kafka's
 non-production unsecured OAUTHBEARER implementation and does not claim
 compatibility with a particular OAuth identity provider.
 

@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove three independent producers per SCRAM mechanism survive three
+  successive broker credential replacements, refresh every provider, preserve
+  every acknowledged record, and reject every retired credential
 - extend equivalent authenticated producer evidence to SCRAM-SHA-256 and
   SCRAM-SHA-512 plus signed-JWT OAUTHBEARER over verified TLS 1.3 for the
   package policy, raw franz-go, and Sarama, retaining 3,000 warmed deliveries,

@@ -406,16 +406,18 @@ Kafka 4.3.1 fixtures prove verified TLS 1.2 and 1.3, mutual TLS, PLAIN,
 SCRAM-SHA-256, SCRAM-SHA-512, and signed-JWT OAUTHBEARER through the package's
 producer, consumer, inspector, and provider-backed authentication policies.
 An authenticated but ACL-denied principal also proves producer and inspector
-authorization failures. A live SCRAM-SHA-256 producer additionally refreshes
-its credential provider after broker-enforced reauthentication and rejects the
-retired secret. A compact-only Apache topic also proves replay fails closed on
-a missing requested offset while the broker log start remains unchanged. A
-three-process consumer fixture proves the documented eager-to-cooperative
-rolling protocol transition with exact partition ownership. The Apache
+authorization failures. Three independent producers for each SCRAM mechanism
+cross broker-enforced reauthentication through three successive credential
+replacements, refresh every provider, verify every acknowledged record, and
+reject every retired secret. A compact-only Apache topic also proves replay
+fails closed on a missing requested offset while the broker log start remains
+unchanged. A three-process consumer fixture proves the documented
+eager-to-cooperative rolling protocol transition with exact partition
+ownership. The Apache
 fixtures assert the runtime version; the failure fixture proves one bounded
 leader/ISR failure and recovery scenario. They are not the complete managed
-service, rotation-stress, compatibility, or chaos matrix. Exact inputs and
-remaining evidence gaps are recorded in the
+service, cross-mechanism rotation, compatibility, or chaos matrix. Exact
+inputs and remaining evidence gaps are recorded in the
 [compatibility matrix](docs/compatibility.md). Security reports follow
 [SECURITY.md](SECURITY.md). The module is licensed under the [MIT
 License](LICENSE).

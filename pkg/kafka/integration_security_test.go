@@ -724,6 +724,10 @@ func proveApacheKafkaLiveSCRAMCredentialRotation(
 	buildAuthentication func(kafka.UsernamePasswordProvider) kafka.Authentication,
 ) {
 	t.Helper()
+	const (
+		clientCount   = 3
+		rotationCount = 3
+	)
 
 	topic := fmt.Sprintf("golib-scram-rotation-%s-%d", username, time.Now().UnixNano())
 	createSecureKafkaTopic(
@@ -737,105 +741,180 @@ func proveApacheKafkaLiveSCRAMCredentialRotation(
 
 	var currentPassword atomic.Value
 	currentPassword.Store(initialPassword)
-	var providerCalls atomic.Int64
-	security := kafka.ClientSecurity{
-		TLS: broker.serverTLSConfig(),
-		Authentication: buildAuthentication(
-			kafka.UsernamePasswordProviderFunc(func(
-				context.Context,
-			) (kafka.UsernamePassword, error) {
-				providerCalls.Add(1)
-				return kafka.UsernamePassword{
-					Username: username,
-					Password: []byte(currentPassword.Load().(string)),
-				}, nil
-			}),
-		),
-		CredentialTimeout: time.Second,
+	type rotatingClient struct {
+		producer      *kafka.Producer
+		providerCalls *atomic.Int64
 	}
-	producer, err := kafka.NewProducer(kafka.ProducerConfig{
-		Brokers:         []string{broker.endpoint},
-		ClientID:        "golib-scram-rotation-producer-" + username,
-		AllowedTopics:   []string{topic},
-		DeliveryTimeout: 3 * time.Second,
-		RequestTimeout:  2 * time.Second,
-		ShutdownTimeout: 4 * time.Second,
-		Security:        security,
-	})
-	if err != nil {
-		t.Fatalf("construct rotating SCRAM producer: %v", err)
-	}
-	initial := producer.PublishRecord(ctx, kafka.ProducerRecord{
-		Topic: topic,
-		Key:   []byte("before-rotation"),
-		Value: []byte("before-rotation"),
-	})
-	if initial.Err != nil {
-		_ = producer.Close()
-		t.Fatalf("initial SCRAM delivery: %v", initial.Err)
-	}
-	baselineCalls := providerCalls.Load()
-	if baselineCalls == 0 {
-		_ = producer.Close()
-		t.Fatal("initial SCRAM credential provider was not used")
-	}
-
-	oldPassword := initialPassword
-	newPassword := randomSecureKafkaCredential(t)
-	alterSecureKafkaSCRAMCredential(
-		t,
-		ctx,
-		broker,
-		adminMechanism,
-		username,
-		newPassword,
-		mechanism,
-	)
-	currentPassword.Store(newPassword)
-
-	rotationCtx, cancelRotation := context.WithTimeout(ctx, 12*time.Second)
-	defer cancelRotation()
-	ticker := time.NewTicker(100 * time.Millisecond)
-	defer ticker.Stop()
-	var lastErr error
-	for attempt := 1; ; attempt++ {
-		select {
-		case <-rotationCtx.Done():
-			_ = producer.Close()
-			t.Fatalf(
-				"SCRAM provider was not refreshed after %d calls: %v",
-				providerCalls.Load(),
-				lastErr,
-			)
-		case <-ticker.C:
+	clients := make([]rotatingClient, 0, clientCount)
+	expectedValues := make([]string, 0, clientCount*(rotationCount+1))
+	for clientIndex := range clientCount {
+		providerCalls := &atomic.Int64{}
+		security := kafka.ClientSecurity{
+			TLS: broker.serverTLSConfig(),
+			Authentication: buildAuthentication(
+				kafka.UsernamePasswordProviderFunc(func(
+					context.Context,
+				) (kafka.UsernamePassword, error) {
+					providerCalls.Add(1)
+					return kafka.UsernamePassword{
+						Username: username,
+						Password: []byte(currentPassword.Load().(string)),
+					}, nil
+				}),
+			),
+			CredentialTimeout: time.Second,
 		}
-		result := producer.PublishRecord(rotationCtx, kafka.ProducerRecord{
-			Topic: topic,
-			Key:   []byte(fmt.Sprintf("after-rotation-%d", attempt)),
-			Value: []byte("after-rotation"),
+		producer, err := kafka.NewProducer(kafka.ProducerConfig{
+			Brokers: []string{broker.endpoint},
+			ClientID: fmt.Sprintf(
+				"golib-scram-rotation-producer-%s-%d",
+				username,
+				clientIndex,
+			),
+			AllowedTopics:   []string{topic},
+			DeliveryTimeout: 3 * time.Second,
+			RequestTimeout:  2 * time.Second,
+			ShutdownTimeout: 4 * time.Second,
+			Security:        security,
 		})
-		lastErr = result.Err
-		if providerCalls.Load() > baselineCalls && result.Err == nil {
-			break
+		if err != nil {
+			t.Fatalf("construct rotating SCRAM producer %d: %v", clientIndex, err)
 		}
-	}
-	if err := producer.Close(); err != nil {
-		t.Fatalf("close rotating SCRAM producer: %v", err)
+		t.Cleanup(func() { _ = producer.Close() })
+		value := fmt.Sprintf("client-%d-before-rotation", clientIndex)
+		initial := producer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic: topic,
+			Key:   []byte(value),
+			Value: []byte(value),
+		})
+		if initial.Err != nil {
+			t.Fatalf("initial SCRAM delivery for client %d: %v", clientIndex, initial.Err)
+		}
+		baselineCalls := providerCalls.Load()
+		if baselineCalls == 0 {
+			t.Fatalf("initial SCRAM provider %d was not used", clientIndex)
+		}
+		clients = append(clients, rotatingClient{
+			producer:      producer,
+			providerCalls: providerCalls,
+		})
+		expectedValues = append(expectedValues, value)
 	}
 
-	retiredSecurity, _ := usernamePasswordSecurity(
+	retiredPasswords := make([]string, 0, rotationCount)
+	for rotation := 1; rotation <= rotationCount; rotation++ {
+		retiredPasswords = append(
+			retiredPasswords,
+			currentPassword.Load().(string),
+		)
+		newPassword := randomSecureKafkaCredential(t)
+		alterSecureKafkaSCRAMCredential(
+			t,
+			ctx,
+			broker,
+			adminMechanism,
+			username,
+			newPassword,
+			mechanism,
+		)
+		currentPassword.Store(newPassword)
+
+		for clientIndex := range clients {
+			client := &clients[clientIndex]
+			baselineCalls := client.providerCalls.Load()
+			rotationCtx, cancelRotation := context.WithTimeout(ctx, 15*time.Second)
+			ticker := time.NewTicker(100 * time.Millisecond)
+			var lastErr error
+			for attempt := 1; ; attempt++ {
+				select {
+				case <-rotationCtx.Done():
+					ticker.Stop()
+					cancelRotation()
+					t.Fatalf(
+						"SCRAM provider %d did not refresh during rotation %d after %d calls: %v",
+						clientIndex,
+						rotation,
+						client.providerCalls.Load(),
+						lastErr,
+					)
+				case <-ticker.C:
+				}
+				value := fmt.Sprintf(
+					"client-%d-rotation-%d-attempt-%d",
+					clientIndex,
+					rotation,
+					attempt,
+				)
+				result := client.producer.PublishRecord(
+					rotationCtx,
+					kafka.ProducerRecord{
+						Topic: topic,
+						Key:   []byte(value),
+						Value: []byte(value),
+					},
+				)
+				lastErr = result.Err
+				if result.Err == nil {
+					expectedValues = append(expectedValues, value)
+				}
+				if client.providerCalls.Load() > baselineCalls &&
+					result.Err == nil {
+					break
+				}
+			}
+			ticker.Stop()
+			cancelRotation()
+		}
+	}
+	for clientIndex := range clients {
+		if err := clients[clientIndex].producer.Close(); err != nil {
+			t.Fatalf("close rotating SCRAM producer %d: %v", clientIndex, err)
+		}
+	}
+
+	currentSecurity, _ := usernamePasswordSecurity(
 		broker,
 		username,
-		oldPassword,
+		currentPassword.Load().(string),
 		buildAuthentication,
 	)
-	assertSecureKafkaHealthFailure(
+	values := consumeSecureRecords(
 		t,
 		ctx,
 		broker.endpoint,
-		retiredSecurity,
-		[]string{oldPassword},
+		topic,
+		"golib-scram-rotation-group-"+username,
+		len(expectedValues),
+		currentSecurity,
 	)
+	if len(values) != len(expectedValues) {
+		t.Fatalf("SCRAM rotation values = %d, want %d", len(values), len(expectedValues))
+	}
+	for index := range expectedValues {
+		if values[index] != expectedValues[index] {
+			t.Fatalf(
+				"SCRAM rotation value %d = %q, want %q",
+				index,
+				values[index],
+				expectedValues[index],
+			)
+		}
+	}
+	for _, retiredPassword := range retiredPasswords {
+		retiredSecurity, _ := usernamePasswordSecurity(
+			broker,
+			username,
+			retiredPassword,
+			buildAuthentication,
+		)
+		assertSecureKafkaHealthFailure(
+			t,
+			ctx,
+			broker.endpoint,
+			retiredSecurity,
+			[]string{retiredPassword},
+		)
+	}
 }
 
 func TestApacheKafkaReplayCompactionGapCompatibility(t *testing.T) {
