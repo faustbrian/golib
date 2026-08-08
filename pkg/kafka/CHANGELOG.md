@@ -6,6 +6,11 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add payload-free `Producer.Diagnostic` and
+  `TransactionProcessor.Diagnostic` snapshots for local admission, transaction,
+  shutdown, fatal-category, client-termination, and franz-go buffered-output
+  state without exposing retained errors or implying broker-coordinator health;
+  producer health now derives the configured request timeout
 - add bounded KIP-848 consumer-protocol group inspection with group,
   assignment, and member epochs; current and target assignments; subscription,
   static-instance, rack, client, and member-type state; stable committed

@@ -2349,6 +2349,100 @@ func TestProducerOperationAccountingTracksAdmissionAndCompletion(t *testing.T) {
 	}
 }
 
+func TestProducerDiagnosticReportsBoundedLocalState(t *testing.T) {
+	backend := &recordingProducerBackend{
+		bufferedRecords: 3,
+		bufferedBytes:   2_048,
+	}
+	producer := &Producer{client: backend, limits: DefaultMessageLimits()}
+
+	diagnostic := producer.Diagnostic()
+	if !diagnostic.Accepting || diagnostic.TransactionsEnabled ||
+		diagnostic.TransactionActive || diagnostic.MaintenanceActive ||
+		diagnostic.Closed || diagnostic.ShutdownComplete || diagnostic.Fatal ||
+		diagnostic.FatalCategory != ErrorUnknown ||
+		diagnostic.InFlightOperations != 0 ||
+		diagnostic.AdmissionsInProgress != 0 ||
+		diagnostic.BufferedRecords != 3 || diagnostic.BufferedBytes != 2_048 {
+		t.Fatalf("initial Diagnostic() = %#v", diagnostic)
+	}
+
+	transactional := transactionalProducer(backend)
+	if err := transactional.RunTransaction(t.Context(), func(Transaction) error {
+		diagnostic = transactional.Diagnostic()
+		if diagnostic.Accepting || !diagnostic.TransactionsEnabled ||
+			!diagnostic.TransactionActive || diagnostic.Fatal {
+			t.Fatalf("transaction Diagnostic() = %#v", diagnostic)
+		}
+
+		return nil
+	}); err != nil {
+		t.Fatalf("RunTransaction() error = %v", err)
+	}
+
+	transactional.terminate(kerr.ProducerFenced)
+	diagnostic = transactional.Diagnostic()
+	if diagnostic.Accepting || !diagnostic.Closed ||
+		!diagnostic.ShutdownComplete || !diagnostic.Fatal ||
+		diagnostic.FatalCategory != ErrorFenced {
+		t.Fatalf("fatal Diagnostic() = %#v", diagnostic)
+	}
+}
+
+func TestProducerDiagnosticTracksMaintenanceAndShutdown(t *testing.T) {
+	backend := &recordingProducerBackend{
+		flushStarted: make(chan struct{}),
+		flushRelease: make(chan struct{}),
+	}
+	producer := &Producer{client: backend}
+	drainDone := make(chan error, 1)
+	go func() {
+		drainDone <- producer.Drain(t.Context())
+	}()
+	<-backend.flushStarted
+
+	diagnostic := producer.Diagnostic()
+	if diagnostic.Accepting || !diagnostic.MaintenanceActive ||
+		diagnostic.Closed || diagnostic.ShutdownComplete || diagnostic.Fatal {
+		t.Fatalf("draining Diagnostic() = %#v", diagnostic)
+	}
+	close(backend.flushRelease)
+	if err := <-drainDone; err != nil {
+		t.Fatalf("Drain() error = %v", err)
+	}
+
+	if err := producer.Shutdown(t.Context()); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+	diagnostic = producer.Diagnostic()
+	if diagnostic.Accepting || diagnostic.MaintenanceActive ||
+		!diagnostic.Closed || !diagnostic.ShutdownComplete || diagnostic.Fatal {
+		t.Fatalf("closed Diagnostic() = %#v", diagnostic)
+	}
+}
+
+func TestProducerHealthDerivesConfiguredRequestBound(t *testing.T) {
+	backend := &recordingProducerBackend{
+		ping: func(ctx context.Context) error {
+			<-ctx.Done()
+
+			return ctx.Err()
+		},
+	}
+	producer := &Producer{
+		client:         backend,
+		requestTimeout: 10 * time.Millisecond,
+	}
+	startedAt := time.Now()
+	err := producer.Health(context.Background())
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("Health() error = %v, want deadline exceeded", err)
+	}
+	if duration := time.Since(startedAt); duration > time.Second {
+		t.Fatalf("Health() duration = %s, want bounded", duration)
+	}
+}
+
 func closeProducerForTest(t *testing.T, producer *Producer) {
 	t.Helper()
 	if err := producer.Close(); err != nil {
@@ -2363,6 +2457,7 @@ type recordingProducerBackend struct {
 	deliveryErr             error
 	deliveryErrors          []error
 	healthErr               error
+	ping                    func(context.Context) error
 	beginErr                error
 	abortErr                error
 	endErr                  error
@@ -2389,7 +2484,17 @@ type recordingProducerBackend struct {
 	closeRelease            chan struct{}
 	closeSignalOnce         sync.Once
 	omitDeliveries          bool
+	bufferedRecords         int64
+	bufferedBytes           int64
 	produceSync             func(context.Context, ...*kgo.Record) kgo.ProduceResults
+}
+
+func (backend *recordingProducerBackend) BufferedProduceRecords() int64 {
+	return backend.bufferedRecords
+}
+
+func (backend *recordingProducerBackend) BufferedProduceBytes() int64 {
+	return backend.bufferedBytes
 }
 
 func (backend *recordingProducerBackend) ProduceSync(
@@ -2455,7 +2560,11 @@ func (backend *recordingProducerBackend) completeAsyncMissing(index int, err err
 	backend.asyncPromises[index](nil, err)
 }
 
-func (backend *recordingProducerBackend) Ping(context.Context) error {
+func (backend *recordingProducerBackend) Ping(ctx context.Context) error {
+	if backend.ping != nil {
+		return backend.ping(ctx)
+	}
+
 	return backend.healthErr
 }
 

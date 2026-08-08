@@ -1213,6 +1213,135 @@ func TestTransactionProcessorRunLifecycle(t *testing.T) {
 	}
 }
 
+func TestTransactionProcessorDiagnosticReportsBoundedLocalState(t *testing.T) {
+	backend := &recordingTransactionProcessorBackend{
+		fetches: []kgo.Fetches{
+			transactionFetches(transactionSourceRecord(0, "one")),
+		},
+		endResults:      []transactionEndResult{{committed: true}},
+		bufferedRecords: 2,
+		bufferedBytes:   1_024,
+	}
+	processor := transactionProcessorForTest(t, backend)
+
+	diagnostic := processor.Diagnostic()
+	if !diagnostic.Accepting || diagnostic.Running ||
+		diagnostic.TransactionActive || diagnostic.Closing ||
+		diagnostic.ShutdownActive || diagnostic.Closed || diagnostic.Fatal ||
+		diagnostic.ClientTerminated || diagnostic.FatalCategory != ErrorUnknown ||
+		diagnostic.BufferedRecords != 2 || diagnostic.BufferedBytes != 1_024 {
+		t.Fatalf("initial Diagnostic() = %#v", diagnostic)
+	}
+
+	result, err := processor.RunOnce(t.Context(), TransactionHandlerFunc(func(
+		context.Context,
+		ConsumedRecord,
+		Transaction,
+	) error {
+		diagnostic = processor.Diagnostic()
+		if diagnostic.Accepting || !diagnostic.Running ||
+			!diagnostic.TransactionActive || diagnostic.Fatal {
+			t.Fatalf("active Diagnostic() = %#v", diagnostic)
+		}
+
+		return nil
+	}))
+	if err != nil || !result.Committed {
+		t.Fatalf("RunOnce() = %#v, %v", result, err)
+	}
+	diagnostic = processor.Diagnostic()
+	if !diagnostic.Accepting || diagnostic.Running || diagnostic.TransactionActive {
+		t.Fatalf("completed Diagnostic() = %#v", diagnostic)
+	}
+
+	processor.terminate(kerr.ProducerFenced)
+	diagnostic = processor.Diagnostic()
+	if diagnostic.Accepting || !diagnostic.Fatal ||
+		!diagnostic.ClientTerminated || diagnostic.TransactionActive ||
+		diagnostic.FatalCategory != ErrorFenced {
+		t.Fatalf("fatal Diagnostic() = %#v", diagnostic)
+	}
+}
+
+func TestTransactionProcessorDiagnosticContainsPanickingFatalClassification(t *testing.T) {
+	processor := transactionProcessorForTest(
+		t,
+		&recordingTransactionProcessorBackend{},
+	)
+	processor.terminate(panickingDiagnosticError{})
+
+	diagnostic := processor.Diagnostic()
+	if !diagnostic.Fatal || diagnostic.FatalCategory != ErrorFatal {
+		t.Fatalf("panicking fatal Diagnostic() = %#v", diagnostic)
+	}
+}
+
+type panickingDiagnosticError struct{}
+
+func (panickingDiagnosticError) Error() string {
+	return "sensitive diagnostic error"
+}
+
+func (panickingDiagnosticError) Is(error) bool {
+	panic("sensitive diagnostic panic")
+}
+
+func TestTransactionProcessorDiagnosticTracksShutdown(t *testing.T) {
+	pollStarted := make(chan struct{})
+	backend := &recordingTransactionProcessorBackend{
+		pollStarted: pollStarted,
+		releasePoll: make(chan struct{}),
+	}
+	processor := transactionProcessorForTest(t, backend)
+	runDone := make(chan error, 1)
+	go func() {
+		_, err := processor.RunOnce(t.Context(), TransactionHandlerFunc(func(
+			context.Context,
+			ConsumedRecord,
+			Transaction,
+		) error {
+			return nil
+		}))
+		runDone <- err
+	}()
+	<-pollStarted
+	shutdownDone := make(chan error, 1)
+	go func() {
+		shutdownDone <- processor.Shutdown(t.Context())
+	}()
+
+	deadline := time.NewTimer(time.Second)
+	defer deadline.Stop()
+	for {
+		diagnostic := processor.Diagnostic()
+		if diagnostic.Closing && diagnostic.ShutdownActive {
+			if diagnostic.Accepting || !diagnostic.Running || diagnostic.Closed {
+				t.Fatalf("shutting-down Diagnostic() = %#v", diagnostic)
+			}
+
+			break
+		}
+		select {
+		case <-deadline.C:
+			t.Fatal("shutdown did not acquire lifecycle ownership")
+		default:
+			runtime.Gosched()
+		}
+	}
+	close(backend.releasePoll)
+	if err := <-runDone; err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+	if err := <-shutdownDone; err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+	diagnostic := processor.Diagnostic()
+	if diagnostic.Accepting || diagnostic.Running || diagnostic.Closing ||
+		diagnostic.ShutdownActive || !diagnostic.Closed || diagnostic.Fatal {
+		t.Fatalf("closed Diagnostic() = %#v", diagnostic)
+	}
+}
+
 func TestTransactionProcessorSerializesRunAndBoundsShutdown(t *testing.T) {
 
 	pollStarted := make(chan struct{})
@@ -1464,20 +1593,30 @@ type transactionEndResult struct {
 }
 
 type recordingTransactionProcessorBackend struct {
-	mu             sync.Mutex
-	fetches        []kgo.Fetches
-	endResults     []transactionEndResult
-	produceResults []kgo.ProduceResults
-	produced       []*kgo.Record
-	endTries       []kgo.TransactionEndTry
-	pollStarted    chan struct{}
-	releasePoll    chan struct{}
-	beginErr       error
-	leaveErr       error
-	beginCalls     int
-	leaveCalls     int
-	closed         bool
-	produceSync    func(context.Context, ...*kgo.Record) kgo.ProduceResults
+	mu              sync.Mutex
+	fetches         []kgo.Fetches
+	endResults      []transactionEndResult
+	produceResults  []kgo.ProduceResults
+	produced        []*kgo.Record
+	endTries        []kgo.TransactionEndTry
+	pollStarted     chan struct{}
+	releasePoll     chan struct{}
+	beginErr        error
+	leaveErr        error
+	beginCalls      int
+	leaveCalls      int
+	closed          bool
+	bufferedRecords int64
+	bufferedBytes   int64
+	produceSync     func(context.Context, ...*kgo.Record) kgo.ProduceResults
+}
+
+func (backend *recordingTransactionProcessorBackend) BufferedProduceRecords() int64 {
+	return backend.bufferedRecords
+}
+
+func (backend *recordingTransactionProcessorBackend) BufferedProduceBytes() int64 {
+	return backend.bufferedBytes
 }
 
 func (backend *recordingTransactionProcessorBackend) PollRecords(

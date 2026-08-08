@@ -176,6 +176,22 @@ after each acquired lifecycle attempt, including an incomplete attempt and a
 later successful retry. Transaction observers cannot re-enter the invoking
 client.
 
+`Producer.Diagnostic` returns copied scalar lifecycle state plus franz-go's
+current buffered producer record and byte counts. `Accepting` reflects the
+package admission gate; `TransactionActive` reflects local `RunTransaction`
+ownership; `FatalCategory` is redacted and is `ErrorUnknown` when `Fatal` is
+false. The lifecycle fields are one lock-consistent snapshot, while buffered
+counts are a separate concurrent sample and may change immediately. The method
+performs no Kafka I/O and does not expose the retained fatal error.
+`Producer.Health` is the separate broker-connectivity probe and always derives
+the configured `RequestTimeout`; a shorter caller deadline still wins.
+
+`TransactionProcessor.Diagnostic` applies the same contract to `Run` and
+`RunOnce`, a locally begun transaction attempt, shutdown ownership, fatal state,
+forced client termination, and buffered transactional output. `Closing` ends
+when `Closed` becomes true. Neither diagnostic describes broker transaction
+coordinator state, resolves an ambiguous outcome, or proves delivery.
+
 `Consumer.RunOnce` returns one bounded poll result. Processing is sequential
 within a partition. `ConsumerConfig.MaxConcurrentHandlers` defaults to one and
 can permit up to 64 concurrent callbacks across independent partitions. The

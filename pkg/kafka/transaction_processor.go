@@ -161,10 +161,47 @@ type TransactionPollResult struct {
 	Committed bool
 }
 
+// TransactionProcessorDiagnostic is a payload-free local snapshot of one
+// consume-transform-produce processor. It does not probe Kafka, describe the
+// transaction coordinator, or prove a transaction outcome. Lifecycle fields
+// are captured together under the processor lifecycle lock; buffered counts
+// are a separate concurrent sample from franz-go and may change immediately.
+type TransactionProcessorDiagnostic struct {
+	// Accepting reports whether a new Run or RunOnce call can currently start.
+	Accepting bool
+	// Running reports package-local ownership of one Run or RunOnce call.
+	Running bool
+	// TransactionActive reports a locally begun transaction attempt that has
+	// not reached the package's commit, abort, or client-termination boundary.
+	TransactionActive bool
+	// Closing reports that shutdown has fenced new runs but has not completed.
+	Closing bool
+	// ShutdownActive reports that one Shutdown call currently owns lifecycle
+	// completion.
+	ShutdownActive bool
+	// Closed reports that graceful shutdown completed.
+	Closed bool
+	// Fatal reports that the processor retained an unrecoverable lifecycle error.
+	Fatal bool
+	// ClientTerminated reports that the underlying client was forcefully closed
+	// to bound an unsafe or ambiguous transactional output.
+	ClientTerminated bool
+	// FatalCategory is the redacted stable category of the retained fatal error,
+	// or ErrorUnknown when Fatal is false.
+	FatalCategory ErrorCategory
+	// BufferedRecords is franz-go's current transactional-output record count.
+	BufferedRecords int64
+	// BufferedBytes is franz-go's current sum of buffered output key, value, and
+	// header bytes, excluding Kafka framing.
+	BufferedBytes int64
+}
+
 type transactionProcessorBackend interface {
 	PollRecords(context.Context, int) kgo.Fetches
 	Begin() error
 	ProduceSync(context.Context, ...*kgo.Record) kgo.ProduceResults
+	BufferedProduceRecords() int64
+	BufferedProduceBytes() int64
 	End(context.Context, kgo.TransactionEndTry) (bool, error)
 	LeaveGroupContext(context.Context) error
 	Close()
@@ -207,6 +244,14 @@ func (backend *franzTransactionProcessorBackend) ProduceSync(
 	return backend.session.ProduceSync(ctx, records...)
 }
 
+func (backend *franzTransactionProcessorBackend) BufferedProduceRecords() int64 {
+	return backend.session.Client().BufferedProduceRecords()
+}
+
+func (backend *franzTransactionProcessorBackend) BufferedProduceBytes() int64 {
+	return backend.session.Client().BufferedProduceBytes()
+}
+
 func (backend *franzTransactionProcessorBackend) End(
 	ctx context.Context,
 	try kgo.TransactionEndTry,
@@ -245,6 +290,7 @@ type TransactionProcessor struct {
 
 	lifecycleMu       sync.Mutex
 	running           bool
+	transactionActive bool
 	runDone           chan struct{}
 	closing           bool
 	closed            bool
@@ -870,6 +916,11 @@ func (processor *TransactionProcessor) beginTransaction(ctx context.Context) err
 		false,
 		true,
 	)
+	if err == nil {
+		processor.lifecycleMu.Lock()
+		processor.transactionActive = true
+		processor.lifecycleMu.Unlock()
+	}
 	processor.observeTransaction(
 		ctx,
 		ObservationTransactionBegin,
@@ -883,6 +934,7 @@ func (processor *TransactionProcessor) beginTransaction(ctx context.Context) err
 func (processor *TransactionProcessor) commitTransaction(
 	ctx context.Context,
 ) (bool, error) {
+	defer processor.finishTransaction()
 	var startedAt time.Time
 	if processor.observers.enabled() {
 		startedAt = time.Now()
@@ -914,6 +966,7 @@ func (processor *TransactionProcessor) commitTransaction(
 }
 
 func (processor *TransactionProcessor) abortTransaction(ctx context.Context) error {
+	defer processor.finishTransaction()
 	var startedAt time.Time
 	if processor.observers.enabled() {
 		startedAt = time.Now()
@@ -1041,6 +1094,42 @@ func (processor *TransactionProcessor) beginRun() error {
 	return nil
 }
 
+// Diagnostic returns a bounded, payload-free snapshot of local processor
+// state without performing Kafka I/O or exposing the retained fatal error.
+func (processor *TransactionProcessor) Diagnostic() TransactionProcessorDiagnostic {
+	bufferedRecords := processor.client.BufferedProduceRecords()
+	bufferedBytes := processor.client.BufferedProduceBytes()
+
+	processor.lifecycleMu.Lock()
+	defer processor.lifecycleMu.Unlock()
+
+	fatalCategory := ErrorUnknown
+	if processor.fatalErr != nil {
+		fatalCategory = diagnosticFatalCategory(processor.fatalErr)
+	}
+
+	return TransactionProcessorDiagnostic{
+		Accepting: processor.fatalErr == nil && !processor.running &&
+			!processor.closing && !processor.closed,
+		Running:           processor.running,
+		TransactionActive: processor.transactionActive,
+		Closing:           processor.closing && !processor.closed,
+		ShutdownActive:    processor.shutdownActive,
+		Closed:            processor.closed,
+		Fatal:             processor.fatalErr != nil,
+		ClientTerminated:  processor.clientTerminated,
+		FatalCategory:     fatalCategory,
+		BufferedRecords:   bufferedRecords,
+		BufferedBytes:     bufferedBytes,
+	}
+}
+
+func (processor *TransactionProcessor) finishTransaction() {
+	processor.lifecycleMu.Lock()
+	processor.transactionActive = false
+	processor.lifecycleMu.Unlock()
+}
+
 func (processor *TransactionProcessor) fence(err error) {
 	processor.lifecycleMu.Lock()
 	if processor.fatalErr == nil {
@@ -1062,6 +1151,7 @@ func (processor *TransactionProcessor) terminate(err error) {
 		processor.fatalErr = errors.Join(ErrTransactionProcessorFatal, err)
 	}
 	processor.clientTerminated = true
+	processor.transactionActive = false
 	processor.lifecycleMu.Unlock()
 	processor.interruptClient()
 }

@@ -151,6 +151,14 @@ flush, and close. Incomplete and later successful retry attempts remain
 separate. Observers cannot re-enter the invoking producer or transaction
 processor.
 
+`Producer.Diagnostic` and `TransactionProcessor.Diagnostic` expose the local
+transaction-attempt flag, admission or runner ownership, shutdown and fatal
+state, a redacted fatal category, and current buffered output gauges. They do
+not call Kafka's transaction-state API, return the retained error, or resolve a
+commit whose outcome is unknown. A forced processor client close is visible as
+`ClientTerminated`; recovery still requires a new client and the documented
+Kafka reconciliation path.
+
 Caller cancellation requests a clean stop but does not cancel transaction
 cleanup. `Run` returns nil only after the active transaction aborts
 successfully; an abort timeout or failure is returned and fences the processor.

@@ -95,6 +95,12 @@ Call `Shutdown` with a bounded context for graceful drain and close. A failed
 drain fences new production while retaining admitted records so the caller can
 retry shutdown or explicitly accept data loss through `Abort`. `Close` uses the
 configured bounded `ShutdownTimeout` and returns any incomplete-drain error.
+`Producer.Diagnostic` is the payload-free local status surface for admission,
+transaction ownership, maintenance, shutdown, fatal category, and current
+franz-go buffered record and byte counts. It performs no Kafka request and does
+not prove broker connectivity, coordinator state, or record delivery; use the
+`Health` probe, which derives `ProducerConfig.RequestTimeout`, and `Inspector`
+separately for those concerns.
 
 Services should compose concrete producers and consumers through
 the independently versioned
@@ -145,6 +151,11 @@ HTTP calls, object storage, email, or other external effects. See the
 [transaction guide](docs/transactions.md). Processor observers report the same
 transaction lifecycle plus shutdown attempts and broker activity with copied
 client and group identity.
+`TransactionProcessor.Diagnostic` likewise reports only package-local run,
+transaction, shutdown, fatal-category, forced-client-termination, and buffered
+output state. In particular, `TransactionActive` is the local transaction
+attempt boundary, not an authoritative coordinator description or commit
+outcome.
 
 Use `ClientSecurity{TLS: tlsConfig}` for caller-provided static roots or mTLS
 material. Use `TrustAnchorProvider` for bounded overlap-first server trust

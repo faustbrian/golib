@@ -20,6 +20,23 @@ Use `Inspector.Cluster` for cluster/controller/broker identity and
 `Inspector.Topics` with explicit targets for topic state. Treat any inspection
 error as unknown diagnostic state rather than silently healthy.
 
+## Local producer and transaction diagnostics
+
+Use `Producer.Diagnostic` and `TransactionProcessor.Diagnostic` for bounded,
+payload-free local lifecycle snapshots. They expose whether package admission
+is open, whether local transaction or shutdown ownership is active, whether a
+fatal state or forced client termination occurred, the stable fatal category,
+and current franz-go buffered output counts. They never return the retained
+error, record data, broker endpoints, credentials, or arbitrary headers.
+
+The lifecycle fields in each result are captured together under the owning
+client lock. Buffered counts are sampled separately from franz-go and can move
+while the result is being read. Treat them as gauges, not settlement or
+delivery counters. A local `TransactionActive` value is not a
+`DescribeTransactions` response and cannot resolve an unknown commit outcome.
+Compose these snapshots with bounded connectivity, topic durability, and group
+inspection rather than using them as liveness or coordinator health.
+
 The pinned Apache Kafka fixture proves that an RF=3 topic with
 `min.insync.replicas=2` remains writable with acks-all after one broker process
 stops and an in-sync leader is elected. That evidence does not make the same

@@ -220,9 +220,51 @@ type DeliveryResult struct {
 	Err       error
 }
 
+// ProducerDiagnostic is a payload-free local snapshot of producer lifecycle
+// and buffered-record state. It does not probe Kafka, describe a transaction
+// coordinator, or prove that any record was delivered. Lifecycle fields are
+// captured together under the producer state lock; buffered counts are a
+// separate concurrent sample from franz-go and may change immediately.
+type ProducerDiagnostic struct {
+	// Accepting reports whether a new non-transactional producer operation can
+	// currently enter package admission.
+	Accepting bool
+	// TransactionsEnabled reports whether the producer owns a configured
+	// transactional ID and accepts RunTransaction calls.
+	TransactionsEnabled bool
+	// TransactionActive reports package-local ownership of one RunTransaction
+	// call; it is not coordinator state or proof of an open broker transaction.
+	TransactionActive bool
+	// MaintenanceActive reports that drain, abort, or shutdown currently owns
+	// the producer lifecycle gate.
+	MaintenanceActive bool
+	// Closed reports that new operations are permanently fenced.
+	Closed bool
+	// ShutdownComplete reports that the underlying client close completed.
+	ShutdownComplete bool
+	// Fatal reports that the producer retained an unrecoverable lifecycle error.
+	Fatal bool
+	// FatalCategory is the redacted stable category of the retained fatal error,
+	// or ErrorUnknown when Fatal is false.
+	FatalCategory ErrorCategory
+	// InFlightOperations is the number of admitted operations whose delivery or
+	// health work has not completed.
+	InFlightOperations int
+	// AdmissionsInProgress is the number of operations still entering the
+	// bounded franz-go client.
+	AdmissionsInProgress int
+	// BufferedRecords is franz-go's current buffered-produce record count.
+	BufferedRecords int64
+	// BufferedBytes is franz-go's current sum of buffered key, value, and header
+	// bytes, excluding Kafka framing.
+	BufferedBytes int64
+}
+
 type producerBackend interface {
 	ProduceSync(context.Context, ...*kgo.Record) kgo.ProduceResults
 	Produce(context.Context, *kgo.Record, func(*kgo.Record, error))
+	BufferedProduceRecords() int64
+	BufferedProduceBytes() int64
 	Flush(context.Context) error
 	Ping(context.Context) error
 	BeginTransaction() error
@@ -310,6 +352,7 @@ type Producer struct {
 	maxBatchRecords       int
 	maxBatchBytes         int64
 	deliveryWaitTimeout   time.Duration
+	requestTimeout        time.Duration
 	transactionsEnabled   bool
 	transactionEndTimeout time.Duration
 	shutdownTimeout       time.Duration
@@ -398,6 +441,7 @@ func newProducer(
 		maxBatchRecords:       config.MaxBatchRecords,
 		maxBatchBytes:         int64(config.MaxBatchBytes),
 		deliveryWaitTimeout:   config.DeliveryTimeout + config.RetryBackoffMax,
+		requestTimeout:        config.RequestTimeout,
 		transactionsEnabled:   config.TransactionalID != "",
 		transactionEndTimeout: config.TransactionEndTimeout,
 		shutdownTimeout:       config.ShutdownTimeout,
@@ -1328,8 +1372,45 @@ func (producer *Producer) Health(ctx context.Context) error {
 	}
 	defer producer.finishOperation()
 	defer producer.finishAdmission()
+	healthCtx := ctx
+	cancel := func() {}
+	if producer.requestTimeout > 0 {
+		healthCtx, cancel = context.WithTimeout(ctx, producer.requestTimeout)
+	}
+	defer cancel()
 
-	return producer.client.Ping(ctx)
+	return producer.client.Ping(healthCtx)
+}
+
+// Diagnostic returns a bounded, payload-free snapshot of local producer
+// state without performing Kafka I/O or exposing the retained fatal error.
+func (producer *Producer) Diagnostic() ProducerDiagnostic {
+	bufferedRecords := producer.client.BufferedProduceRecords()
+	bufferedBytes := producer.client.BufferedProduceBytes()
+
+	producer.stateMu.Lock()
+	defer producer.stateMu.Unlock()
+
+	fatalCategory := ErrorUnknown
+	if producer.fatalErr != nil {
+		fatalCategory = diagnosticFatalCategory(producer.fatalErr)
+	}
+
+	return ProducerDiagnostic{
+		Accepting: producer.fatalErr == nil && !producer.closed &&
+			!producer.transactionActive && !producer.maintenanceActive,
+		TransactionsEnabled:  producer.transactionsEnabled,
+		TransactionActive:    producer.transactionActive,
+		MaintenanceActive:    producer.maintenanceActive,
+		Closed:               producer.closed,
+		ShutdownComplete:     producer.shutdownComplete,
+		Fatal:                producer.fatalErr != nil,
+		FatalCategory:        fatalCategory,
+		InFlightOperations:   producer.inflight,
+		AdmissionsInProgress: producer.admitting,
+		BufferedRecords:      bufferedRecords,
+		BufferedBytes:        bufferedBytes,
+	}
 }
 
 // Drain waits for every admitted asynchronous record to resolve without
@@ -1729,6 +1810,24 @@ func transactionObservationCategory(err error) ErrorCategory {
 	}
 
 	return classifyError(err)
+}
+
+func diagnosticFatalCategory(err error) (category ErrorCategory) {
+	if err == nil {
+		return ErrorUnknown
+	}
+	category = ErrorFatal
+	defer func() {
+		if recover() != nil {
+			category = ErrorFatal
+		}
+	}()
+	classified := transactionObservationCategory(err)
+	if validErrorCategory(classified) {
+		category = classified
+	}
+
+	return category
 }
 
 func transactionAbortOutcomeKnown(err error) bool {

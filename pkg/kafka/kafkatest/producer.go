@@ -122,6 +122,12 @@ func RunProducerConformance(t *testing.T, harness BrokerHarness) {
 		if !errors.Is(result.Err, kafka.ErrProducerClosed) {
 			t.Fatalf("post-close PublishRecord() error = %v", result.Err)
 		}
+		diagnostic := producer.Diagnostic()
+		if diagnostic.Accepting || !diagnostic.Closed ||
+			!diagnostic.ShutdownComplete || diagnostic.Fatal ||
+			diagnostic.BufferedRecords != 0 || diagnostic.BufferedBytes != 0 {
+			t.Fatalf("closed producer Diagnostic() = %#v", diagnostic)
+		}
 	})
 }
 

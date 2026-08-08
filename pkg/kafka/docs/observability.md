@@ -206,6 +206,13 @@ duration covers waiting for the active runner, the dynamic-member group leave,
 and close. Incomplete attempts retain their stable cancellation, timeout, or
 other redacted error category; a successful retry is a separate event.
 
+`Producer.Diagnostic` and `TransactionProcessor.Diagnostic` are pull-based
+local snapshots, not observer events. They provide payload-free lifecycle,
+fatal-category, and buffered-output gauges without adding Kafka identity
+cardinality. Poll them only at an application-owned bounded cadence; do not
+derive record-delivery, commit-outcome, broker-health, or coordinator-health
+claims from their values.
+
 `RecordBytes` is a conservative policy-size estimate rather than Kafka's
 encoded wire size. Topic is copied only for validated single-topic metadata;
 mixed-topic operations omit it so an adapter cannot accidentally fan one

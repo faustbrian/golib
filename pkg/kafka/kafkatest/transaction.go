@@ -26,6 +26,11 @@ func RunTransactionConformance(t *testing.T, harness BrokerHarness) {
 		var escaped kafka.Transaction
 		if err := producer.RunTransaction(t.Context(), func(transaction kafka.Transaction) error {
 			escaped = transaction
+			diagnostic := producer.Diagnostic()
+			if diagnostic.Accepting || !diagnostic.TransactionsEnabled ||
+				!diagnostic.TransactionActive || diagnostic.Fatal {
+				t.Fatalf("transactional producer Diagnostic() = %#v", diagnostic)
+			}
 			return transaction.Publish(t.Context(), kafka.ProducerRecord{
 				Topic: topic, Partition: kafka.ExplicitPartition(0),
 				Key:       []byte("committed"),
@@ -98,6 +103,11 @@ func RunTransactionConformance(t *testing.T, harness BrokerHarness) {
 				transaction kafka.Transaction,
 			) error {
 				sourceRecord = record.Retain()
+				diagnostic := processor.Diagnostic()
+				if diagnostic.Accepting || !diagnostic.Running ||
+					!diagnostic.TransactionActive || diagnostic.Fatal {
+					t.Fatalf("transaction processor Diagnostic() = %#v", diagnostic)
+				}
 				return transaction.Publish(callbackCtx, kafka.ProducerRecord{
 					Topic: output, Partition: kafka.ExplicitPartition(0),
 					Key:       append([]byte(nil), record.Key...),
@@ -110,6 +120,11 @@ func RunTransactionConformance(t *testing.T, harness BrokerHarness) {
 			result.Published != 1 || !result.Committed || sourceRecord.Topic != source ||
 			sourceRecord.Offset != 0 {
 			t.Fatalf("RunOnce() = %#v, %v, source=%s/%d@%d", result, err, sourceRecord.Topic, sourceRecord.Partition, sourceRecord.Offset)
+		}
+		diagnostic := processor.Diagnostic()
+		if !diagnostic.Accepting || diagnostic.Running ||
+			diagnostic.TransactionActive || diagnostic.Fatal {
+			t.Fatalf("completed processor Diagnostic() = %#v", diagnostic)
 		}
 		outputs := readConformanceRecords(t, harness, ReadRequest{
 			Topic: output, Partition: 0, StartOffset: 0, MaxRecords: 1,
