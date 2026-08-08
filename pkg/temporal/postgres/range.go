@@ -20,7 +20,10 @@ func InstantRangeValue(period instant.Period) (pgtype.Range[time.Time], error) {
 	if period.IsEmpty() {
 		return pgtype.Range[time.Time]{}, fmt.Errorf("%w: anchored empty range", temporal.ErrUnsupported)
 	}
-	if !microsecondExact(period.Start()) || !microsecondExact(period.End()) {
+	if !microsecondExact(period.Start()) {
+		return pgtype.Range[time.Time]{}, temporal.ErrPrecision
+	}
+	if !microsecondExact(period.End()) {
 		return pgtype.Range[time.Time]{}, temporal.ErrPrecision
 	}
 

@@ -1,6 +1,8 @@
 package dateperiod
 
 import (
+	"cmp"
+	"slices"
 	"sort"
 
 	calendar "github.com/faustbrian/golib/pkg/calendar"
@@ -29,19 +31,18 @@ func NewSet(limits temporal.Limits, periods ...Period) (Set, error) {
 			working = append(working, canonical)
 		}
 	}
-	sort.SliceStable(working, func(i, j int) bool {
-		comparison := compareDate(working[i].start, working[j].start)
-		if comparison != 0 {
-			return comparison < 0
-		}
-		return compareDate(working[i].end, working[j].end) < 0
+	slices.SortStableFunc(working, func(left, right Period) int {
+		return cmp.Or(
+			compareDate(left.start, right.start),
+			compareDate(left.end, right.end),
+		)
 	})
 
 	normalized := make([]Period, 0, len(working))
 	for _, period := range working {
 		last := len(normalized) - 1
 		if last >= 0 && normalized[last].end.DaysUntil(period.start) <= 1 {
-			if compareDate(period.end, normalized[last].end) > 0 {
+			if compareDate(period.end, normalized[last].end) == 1 {
 				normalized[last].end = period.end
 			}
 			continue
@@ -114,7 +115,7 @@ func (s Set) Gaps() []Period {
 	if len(s.periods) < 2 {
 		return nil
 	}
-	result := make([]Period, 0, len(s.periods)-1)
+	var result []Period
 	for index := 1; index < len(s.periods); index++ {
 		start, _ := s.periods[index-1].end.AddDays(1)
 		end, _ := s.periods[index].start.AddDays(-1)
@@ -160,13 +161,13 @@ func (s Set) Subtract(other Set) (Set, error) {
 	limits := s.effectiveLimits()
 	result := s.Periods()
 	for _, removed := range other.periods {
-		next := make([]Period, 0, len(result)+1)
+		var next []Period
 		for _, period := range result {
 			fragments := period.subtract(removed)
-			if len(next)+len(fragments) > limits.OutputPeriods {
-				return Set{}, dateLimitError("output_periods", len(next)+len(fragments), limits.OutputPeriods)
-			}
 			next = append(next, fragments...)
+			if len(next) > limits.OutputPeriods {
+				return Set{}, dateLimitError("output_periods", len(next), limits.OutputPeriods)
+			}
 		}
 		result = next
 	}

@@ -63,10 +63,12 @@ func (p Period) SnapOutward(unit CivilUnit, location *time.Location, policy cale
 	if err != nil {
 		return Period{}, err
 	}
-	if p.bounds.IncludesEnd() && end.Equal(p.end) {
-		end, err = nextCivilBoundary(end, unit, location, policy)
-		if err != nil {
-			return Period{}, err
+	if p.bounds.IncludesEnd() {
+		if end.Equal(p.end) {
+			end, err = nextCivilBoundary(end, unit, location, policy)
+			if err != nil {
+				return Period{}, err
+			}
 		}
 	}
 	return Range(start, end)
@@ -146,10 +148,10 @@ func nextCivilBoundary(value time.Time, unit CivilUnit, location *time.Location,
 		date, err = date.AddYears(1, calendar.Reject)
 	case ISOYear:
 		isoYear, _ := date.ISOWeek()
-		if isoYear >= calendar.MaxYear {
-			return time.Time{}, calendar.ErrArithmetic
+		week, weekErr := calendar.NewISOWeek(isoYear+1, 1)
+		if weekErr != nil {
+			return time.Time{}, weekErr
 		}
-		week, _ := calendar.NewISOWeek(isoYear+1, 1) // validated year always has week 1
 		date = week.FirstDate()
 	default:
 		return time.Time{}, temporal.ErrUnsupported

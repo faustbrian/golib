@@ -29,6 +29,8 @@ This project follows Semantic Versioning. Dates use ISO 8601.
 
 ### Added
 
+- Exact boundary handling for parsing, limits, interval algebra, local-time
+  arithmetic, splitting, rounding, and PostgreSQL range decoding.
 - Explicit four-mode bounds and exhaustive Allen relations.
 - Immutable instant and civil-date periods and normalized sets.
 - Fixed durations, local times, circular daily intervals, and complements.

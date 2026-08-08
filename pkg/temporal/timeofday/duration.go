@@ -1,6 +1,7 @@
 package timeofday
 
 import (
+	"cmp"
 	"time"
 
 	temporal "github.com/faustbrian/golib/pkg/temporal"
@@ -22,6 +23,10 @@ const (
 // remainder semantics.
 type Duration struct {
 	value time.Duration
+}
+
+func durationRemainder(value, unit time.Duration) time.Duration {
+	return value % unit
 }
 
 // NewDuration wraps a standard fixed elapsed duration.
@@ -60,11 +65,15 @@ func (d Duration) Compare(other Duration) int {
 func (d Duration) Add(others ...Duration) (Duration, error) {
 	result := d.value
 	for _, other := range others {
-		if other.value > 0 && result > time.Duration(1<<63-1)-other.value {
-			return Duration{}, temporal.ErrOverflow
-		}
-		if other.value < 0 && result < time.Duration(-1<<63)-other.value {
-			return Duration{}, temporal.ErrOverflow
+		switch cmp.Compare(other.value, 0) {
+		case 1:
+			if result > time.Duration(1<<63-1)-other.value {
+				return Duration{}, temporal.ErrOverflow
+			}
+		case -1:
+			if result < time.Duration(-1<<63)-other.value {
+				return Duration{}, temporal.ErrOverflow
+			}
 		}
 		result += other.value
 	}
@@ -81,10 +90,12 @@ func (d Duration) Negate() (Duration, error) {
 
 // Abs returns the non-negative magnitude or ErrOverflow for the minimum.
 func (d Duration) Abs() (Duration, error) {
-	if d.value >= 0 {
+	switch cmp.Compare(d.value, 0) {
+	case -1:
+		return d.Negate()
+	default:
 		return d, nil
 	}
-	return d.Negate()
 }
 
 // Clamp restricts d to the inclusive range minimum through maximum.
@@ -92,10 +103,10 @@ func (d Duration) Clamp(minimum, maximum Duration) (Duration, error) {
 	if minimum.value > maximum.value {
 		return Duration{}, temporal.ErrStep
 	}
-	if d.value < minimum.value {
+	if d.Compare(minimum) == -1 {
 		return minimum, nil
 	}
-	if d.value > maximum.value {
+	if d.Compare(maximum) == 1 {
 		return maximum, nil
 	}
 	return d, nil
@@ -110,8 +121,10 @@ func checkedDurationProduct(value time.Duration, factor int64) (Duration, error)
 	if value == 0 || factor == 0 {
 		return Duration{}, nil
 	}
-	if value == time.Duration(-1<<63) && factor == -1 {
-		return Duration{}, temporal.ErrOverflow
+	if value == time.Duration(-1<<63) {
+		if factor == -1 {
+			return Duration{}, temporal.ErrOverflow
+		}
 	}
 	result := value * time.Duration(factor)
 	if result/time.Duration(factor) != value {
@@ -127,8 +140,10 @@ func (d Duration) Divide(factor int) (Duration, time.Duration, error) {
 		return Duration{}, 0, temporal.ErrStep
 	}
 	converted := time.Duration(factor)
-	if d.value == time.Duration(-1<<63) && converted == -1 {
-		return Duration{}, 0, temporal.ErrOverflow
+	if d.value == time.Duration(-1<<63) {
+		if converted == -1 {
+			return Duration{}, 0, temporal.ErrOverflow
+		}
 	}
 	return Duration{value: d.value / converted}, d.value % converted, nil
 }
@@ -152,13 +167,18 @@ func (d Duration) Round(unit time.Duration, mode RoundingMode) (Duration, error)
 		}
 	case RoundNearest:
 		magnitude := remainder
-		if magnitude < 0 {
+		if cmp.Compare(magnitude, 0) == -1 {
 			magnitude = -magnitude
 		}
-		if magnitude > unit/2 || (unit%2 == 0 && magnitude == unit/2) {
-			if remainder < 0 {
+		roundAway := magnitude > unit/2
+		if unit%2 == 0 && magnitude == unit/2 {
+			roundAway = true
+		}
+		if roundAway {
+			switch cmp.Compare(remainder, 0) {
+			case -1:
 				quotient--
-			} else {
+			default:
 				quotient++
 			}
 		}

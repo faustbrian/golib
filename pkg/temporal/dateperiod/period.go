@@ -53,7 +53,10 @@ func (p Period) Bounds() temporal.Bounds {
 
 // Days returns the number of represented civil dates.
 func (p Period) Days() int {
-	if !p.start.IsValid() || !p.end.IsValid() {
+	if !p.start.IsValid() {
+		return 0
+	}
+	if !p.end.IsValid() {
 		return 0
 	}
 	days := p.start.DaysUntil(p.end) + 1
@@ -63,11 +66,7 @@ func (p Period) Days() int {
 	if !p.bounds.IncludesEnd() {
 		days--
 	}
-	if days < 0 {
-		return 0
-	}
-
-	return days
+	return max(days, 0)
 }
 
 // IsEmpty reports whether no discrete civil date is represented.
@@ -82,7 +81,10 @@ func (p Period) IsSingleton() bool {
 
 // Includes reports whether date is a represented member.
 func (p Period) Includes(date calendar.Date) bool {
-	if p.IsEmpty() || !date.IsValid() {
+	if p.IsEmpty() {
+		return false
+	}
+	if !date.IsValid() {
 		return false
 	}
 	startComparison, _ := date.Compare(p.start)

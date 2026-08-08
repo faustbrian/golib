@@ -110,8 +110,11 @@ func (p Period) Equal(other Period) bool {
 
 // SetEqual reports whether two periods represent exactly the same set.
 func (p Period) SetEqual(other Period) bool {
-	if p.IsEmpty() || other.IsEmpty() {
-		return p.IsEmpty() && other.IsEmpty()
+	if p.IsEmpty() {
+		return other.IsEmpty()
+	}
+	if other.IsEmpty() {
+		return false
 	}
 
 	return p.start.Equal(other.start) &&
@@ -121,7 +124,10 @@ func (p Period) SetEqual(other Period) bool {
 
 // Intersect returns the exact non-empty intersection with other.
 func (p Period) Intersect(other Period) (Period, bool) {
-	if p.IsEmpty() || other.IsEmpty() {
+	if p.IsEmpty() {
+		return Period{}, false
+	}
+	if other.IsEmpty() {
 		return Period{}, false
 	}
 
@@ -147,8 +153,11 @@ func (p Period) Subtract(other Period) []Period {
 	}
 
 	result := make([]Period, 0, 2)
-	if p.start.Before(intersection.start) ||
-		(p.start.Equal(intersection.start) && p.bounds.IncludesStart() && !intersection.bounds.IncludesStart()) {
+	includeLeft := p.start.Before(intersection.start)
+	if p.start.Equal(intersection.start) {
+		includeLeft = p.bounds.IncludesStart() != intersection.bounds.IncludesStart()
+	}
+	if includeLeft {
 		result = append(result, Period{
 			start:  p.start,
 			end:    intersection.start,
@@ -156,8 +165,11 @@ func (p Period) Subtract(other Period) []Period {
 		})
 	}
 
-	if intersection.end.Before(p.end) ||
-		(intersection.end.Equal(p.end) && p.bounds.IncludesEnd() && !intersection.bounds.IncludesEnd()) {
+	includeRight := intersection.end.Before(p.end)
+	if intersection.end.Equal(p.end) {
+		includeRight = p.bounds.IncludesEnd() != intersection.bounds.IncludesEnd()
+	}
+	if includeRight {
 		result = append(result, Period{
 			start:  intersection.end,
 			end:    p.end,
@@ -187,7 +199,10 @@ func (p Period) Merge(other Period) Period {
 // Gap returns the exact non-empty set between disjoint periods. Adjacent
 // periods leave a singleton gap only when both exclude the shared endpoint.
 func (p Period) Gap(other Period) (Period, bool) {
-	if p.IsEmpty() || other.IsEmpty() {
+	if p.IsEmpty() {
+		return Period{}, false
+	}
+	if other.IsEmpty() {
 		return Period{}, false
 	}
 	if _, ok := p.Intersect(other); ok {

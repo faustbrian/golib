@@ -75,9 +75,8 @@ func ParseDuration(value string, limits temporal.Limits) (timeofday.Duration, er
 
 	if matches[7] != "" {
 		fraction, _ := strconv.ParseInt(matches[7], 10, 64)
-		for index := len(matches[7]); index < 9; index++ {
-			fraction *= 10
-		}
+		scales := [...]int64{0, 100_000_000, 10_000_000, 1_000_000, 100_000, 10_000, 1_000, 100, 10, 1}
+		fraction *= scales[len(matches[7])]
 		part := timeofday.NewDuration(time.Duration(fraction))
 		var err error
 		if negative {
@@ -111,11 +110,12 @@ func FormatDuration(value timeofday.Duration, limits temporal.Limits) (string, e
 	minuteNanos := uint64(time.Minute)
 	secondNanos := uint64(time.Second)
 	days := magnitude / dayNanos
-	magnitude %= dayNanos
+	magnitude = unsignedRemainder(magnitude, dayNanos)
+	dayRemainder := magnitude
 	hours := magnitude / hourNanos
-	magnitude %= hourNanos
+	magnitude = unsignedRemainder(magnitude, hourNanos)
 	minutes := magnitude / minuteNanos
-	magnitude %= minuteNanos
+	magnitude = unsignedRemainder(magnitude, minuteNanos)
 	seconds := magnitude / secondNanos
 	fraction := magnitude % secondNanos
 
@@ -127,7 +127,7 @@ func FormatDuration(value timeofday.Duration, limits temporal.Limits) (string, e
 	if days > 0 {
 		fmt.Fprintf(&builder, "%dD", days)
 	}
-	if hours > 0 || minutes > 0 || seconds > 0 || fraction > 0 || days == 0 {
+	writeTime := func() {
 		builder.WriteByte('T')
 		if hours > 0 {
 			fmt.Fprintf(&builder, "%dH", hours)
@@ -145,6 +145,11 @@ func FormatDuration(value timeofday.Duration, limits temporal.Limits) (string, e
 			builder.WriteByte('S')
 		}
 	}
+	if dayRemainder > 0 {
+		writeTime()
+	} else if days == 0 {
+		writeTime()
+	}
 
 	encoded := builder.String()
 	if len(encoded) > limits.FormatBytes {
@@ -153,6 +158,10 @@ func FormatDuration(value timeofday.Duration, limits temporal.Limits) (string, e
 		}
 	}
 	return encoded, nil
+}
+
+func unsignedRemainder(value, unit uint64) uint64 {
+	return value % unit
 }
 
 func noDurationComponents(matches []string) bool {

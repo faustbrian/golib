@@ -36,7 +36,10 @@ func (t Time) Apply(date calendar.Date, location *time.Location, policy calendar
 // Digits explicitly selects zero through nine fractional-second digits; an
 // instant that cannot be represented exactly at that precision is rejected.
 func FromInstant(value time.Time, location *time.Location, digits int) (Time, calendar.Date, error) {
-	if digits < 0 || digits > 9 {
+	if digits < 0 {
+		return Time{}, calendar.Date{}, temporal.ErrPrecision
+	}
+	if digits > 9 {
 		return Time{}, calendar.Date{}, temporal.ErrPrecision
 	}
 	local, err := calendartz.FromInstant(value, location)

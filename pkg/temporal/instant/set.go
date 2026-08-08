@@ -114,7 +114,7 @@ func (s Set) TotalDuration() (time.Duration, error) {
 		if err != nil {
 			return 0, err
 		}
-		if duration > 0 && total > time.Duration(1<<63-1)-duration {
+		if total > time.Duration(1<<63-1)-duration {
 			return 0, temporal.ErrOverflow
 		}
 		total += duration
@@ -138,7 +138,7 @@ func (s Set) Gaps() []Period {
 		return nil
 	}
 
-	result := make([]Period, 0, len(s.periods)-1)
+	var result []Period
 	for index := 1; index < len(s.periods); index++ {
 		if gap, ok := s.periods[index-1].Gap(s.periods[index]); ok {
 			result = append(result, gap)
@@ -194,17 +194,17 @@ func (s Set) Subtract(other Set) (Set, error) {
 	result := s.Periods()
 
 	for _, removed := range other.periods {
-		next := make([]Period, 0, len(result)+1)
+		var next []Period
 		for _, period := range result {
 			fragments := period.Subtract(removed)
-			if len(next)+len(fragments) > limits.OutputPeriods {
+			next = append(next, fragments...)
+			if len(next) > limits.OutputPeriods {
 				return Set{}, &temporal.LimitError{
 					Field: "output_periods",
-					Value: len(next) + len(fragments),
+					Value: len(next),
 					Max:   limits.OutputPeriods,
 				}
 			}
-			next = append(next, fragments...)
 		}
 		result = next
 	}
@@ -218,13 +218,13 @@ func (s Set) effectiveLimits() temporal.Limits {
 
 func lessPeriod(left, right Period) bool {
 	if comparison := left.start.Compare(right.start); comparison != 0 {
-		return comparison < 0
+		return comparison == -1
 	}
 	if left.bounds.IncludesStart() != right.bounds.IncludesStart() {
 		return left.bounds.IncludesStart()
 	}
 	if comparison := left.end.Compare(right.end); comparison != 0 {
-		return comparison < 0
+		return comparison == -1
 	}
 
 	return left.bounds.IncludesEnd() && !right.bounds.IncludesEnd()

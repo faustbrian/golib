@@ -154,3 +154,14 @@ func TestBoundsTextRejectsUnknownAndOversizedInput(t *testing.T) {
 		}
 	}
 }
+
+func TestBoundsTextAcceptsTheParseLimitBeforeValidatingSyntax(t *testing.T) {
+	t.Parallel()
+
+	input := make([]byte, temporal.DefaultLimits().ParseBytes)
+	var bounds temporal.Bounds
+	err := bounds.UnmarshalText(input)
+	if !errors.Is(err, temporal.ErrBounds) || errors.Is(err, temporal.ErrLimit) {
+		t.Fatalf("UnmarshalText(%d bytes) error = %v, want ErrBounds", len(input), err)
+	}
+}

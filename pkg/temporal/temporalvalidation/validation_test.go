@@ -75,3 +75,37 @@ func TestRangeValidatorsUseSemanticTemporalOrdering(t *testing.T) {
 		t.Fatal("DurationBetween(reversed) error = nil")
 	}
 }
+
+func TestRangeValidatorsIncludeBothExactEndpointsAndSingletonRanges(t *testing.T) {
+	t.Parallel()
+
+	minimum, _ := timeofday.Parse("08:00", temporal.Limits{})
+	maximum, _ := timeofday.Parse("17:00", temporal.Limits{})
+	timeRule, err := temporalvalidation.TimeBetween(minimum, maximum)
+	if err != nil {
+		t.Fatalf("TimeBetween(): %v", err)
+	}
+	for _, endpoint := range []timeofday.Time{minimum, maximum} {
+		if report := timeRule.Validate(validation.Context{}, endpoint); !report.Empty() {
+			t.Fatalf("TimeBetween rejected endpoint %v: %v", endpoint, report)
+		}
+	}
+	if _, err := temporalvalidation.TimeBetween(minimum, minimum); err != nil {
+		t.Fatalf("TimeBetween(singleton): %v", err)
+	}
+
+	minimumDuration := timeofday.NewDuration(time.Minute)
+	maximumDuration := timeofday.NewDuration(time.Hour)
+	durationRule, err := temporalvalidation.DurationBetween(minimumDuration, maximumDuration)
+	if err != nil {
+		t.Fatalf("DurationBetween(): %v", err)
+	}
+	for _, endpoint := range []timeofday.Duration{minimumDuration, maximumDuration} {
+		if report := durationRule.Validate(validation.Context{}, endpoint); !report.Empty() {
+			t.Fatalf("DurationBetween rejected endpoint %v: %v", endpoint, report)
+		}
+	}
+	if _, err := temporalvalidation.DurationBetween(minimumDuration, minimumDuration); err != nil {
+		t.Fatalf("DurationBetween(singleton): %v", err)
+	}
+}

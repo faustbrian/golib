@@ -100,25 +100,34 @@ func (p Period) RelationTo(other Period) (temporal.Relation, error) {
 	startComparison := p.start.Compare(other.start)
 	endComparison := p.end.Compare(other.end)
 
-	switch {
-	case startComparison < 0 && endComparison < 0:
-		return temporal.Overlaps, nil
-	case startComparison < 0 && endComparison == 0:
-		return temporal.FinishedBy, nil
-	case startComparison < 0 && endComparison > 0:
-		return temporal.Contains, nil
-	case startComparison == 0 && endComparison < 0:
-		return temporal.Starts, nil
-	case startComparison == 0 && endComparison == 0:
-		return temporal.Equal, nil
-	case startComparison == 0 && endComparison > 0:
-		return temporal.StartedBy, nil
-	case startComparison > 0 && endComparison < 0:
-		return temporal.During, nil
-	case startComparison > 0 && endComparison == 0:
-		return temporal.Finishes, nil
+	switch startComparison {
+	case -1:
+		switch endComparison {
+		case -1:
+			return temporal.Overlaps, nil
+		case 0:
+			return temporal.FinishedBy, nil
+		default:
+			return temporal.Contains, nil
+		}
+	case 0:
+		switch endComparison {
+		case -1:
+			return temporal.Starts, nil
+		case 0:
+			return temporal.Equal, nil
+		default:
+			return temporal.StartedBy, nil
+		}
 	default:
-		return temporal.OverlappedBy, nil
+		switch endComparison {
+		case -1:
+			return temporal.During, nil
+		case 0:
+			return temporal.Finishes, nil
+		default:
+			return temporal.OverlappedBy, nil
+		}
 	}
 }
 

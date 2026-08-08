@@ -1,6 +1,7 @@
 package timeofday
 
 import (
+	"cmp"
 	"fmt"
 	"time"
 
@@ -58,7 +59,7 @@ func Between(start, end Time, bounds temporal.Bounds) (Interval, error) {
 	}
 
 	kind := Ordinary
-	if comparison > 0 {
+	if comparison == 1 {
 		kind = Circular
 	}
 
@@ -159,13 +160,24 @@ func (i Interval) Includes(value Time) bool {
 	case CollapsedKind:
 		return false
 	case FullDayKind:
-		return value.offset >= 0 && value.offset <= day
+		if value.offset < 0 {
+			return false
+		}
+		return value.offset <= day
 	case Circular:
-		if value.offset > i.start.offset || value.offset < i.end.offset {
+		if value.offset > i.start.offset {
 			return true
 		}
-		return (value.Equal(i.start) && i.bounds.IncludesStart()) ||
-			(value.Equal(i.end) && i.bounds.IncludesEnd())
+		if value.offset < i.end.offset {
+			return true
+		}
+		if value.Equal(i.start) {
+			return i.bounds.IncludesStart()
+		}
+		if value.Equal(i.end) {
+			return i.bounds.IncludesEnd()
+		}
+		return false
 	default:
 		if value.Compare(i.start) < 0 || value.Compare(i.end) > 0 {
 			return false
@@ -182,8 +194,16 @@ func (i Interval) Includes(value Time) bool {
 
 // Equal reports structural equality.
 func (i Interval) Equal(other Interval) bool {
-	return i.start.Equal(other.start) && i.end.Equal(other.end) &&
-		i.bounds == other.bounds && i.kind == other.kind
+	if !i.start.Equal(other.start) {
+		return false
+	}
+	if !i.end.Equal(other.end) {
+		return false
+	}
+	if i.bounds != other.bounds {
+		return false
+	}
+	return i.kind == other.kind
 }
 
 // SetEqual reports represented-set equality.
@@ -298,7 +318,7 @@ func (i Interval) Gap(other Interval) (Interval, error) {
 	}
 
 	left, right := i, other
-	if other.end.Compare(i.start) <= 0 {
+	if other.end.Compare(i.start) != 1 {
 		left, right = other, i
 	}
 	if left.end.Equal(right.start) {
@@ -325,26 +345,27 @@ func (i Interval) Split(step time.Duration, limits temporal.Limits) ([]Interval,
 		return nil, nil
 	}
 
-	count := int(i.Duration() / step)
-	if i.Duration()%step != 0 {
+	duration := i.Duration()
+	count := int(duration / step)
+	if duration%step != 0 {
 		count++
 	}
 	if count > limits.Steps {
 		return nil, &temporal.LimitError{Field: "steps", Value: count, Max: limits.Steps}
 	}
-	result := make([]Interval, 0, count)
-	for elapsed := time.Duration(0); elapsed < i.Duration(); {
-		next := elapsed + step
-		if next < elapsed || next > i.Duration() {
-			next = i.Duration()
+	result := make([]Interval, count)
+	for index := range count {
+		elapsed := time.Duration(index) * step
+		next := duration
+		if index < count-1 {
+			next = elapsed + step
 		}
 		start := i.timeAt(elapsed)
 		end := i.timeAt(next)
 		includeStart := elapsed > 0 || i.bounds.IncludesStart()
-		includeEnd := next == i.Duration() && i.bounds.IncludesEnd()
+		includeEnd := next == duration && i.bounds.IncludesEnd()
 		part, _ := Between(start, end, dailyBounds(includeStart, includeEnd))
-		result = append(result, part)
-		elapsed = next
+		result[index] = part
 	}
 	return result, nil
 }
@@ -367,15 +388,21 @@ func (i Interval) Steps(step time.Duration, limits temporal.Limits) ([]Time, err
 	if !i.bounds.IncludesStart() {
 		first = step
 	}
-	result := make([]Time, 0, min(int(i.Duration()/step)+1, limits.Steps))
-	for elapsed := first; elapsed < i.Duration() || elapsed == i.Duration() && i.bounds.IncludesEnd(); elapsed += step {
-		if len(result) == limits.Steps {
-			return nil, &temporal.LimitError{Field: "steps", Value: len(result) + 1, Max: limits.Steps}
-		}
-		result = append(result, i.timeAt(elapsed))
-		if elapsed > i.Duration()-step {
-			break
-		}
+	duration := i.Duration()
+	if first > duration {
+		return nil, nil
+	}
+	count := int((duration-first)/step) + 1
+	last := first + time.Duration(count-1)*step
+	if last == duration && !i.bounds.IncludesEnd() {
+		count--
+	}
+	if count > limits.Steps {
+		return nil, &temporal.LimitError{Field: "steps", Value: count, Max: limits.Steps}
+	}
+	result := make([]Time, count)
+	for index := range count {
+		result[index] = i.timeAt(first + time.Duration(index)*step)
 	}
 	return result, nil
 }
@@ -388,8 +415,8 @@ func (i Interval) timeAt(elapsed time.Duration) Time {
 		}
 		return EndOfDay()
 	}
-	if offset > day {
-		offset %= day
+	if cmp.Compare(offset, day) == 1 {
+		offset = durationRemainder(offset, day)
 	}
 	return timeFromOffset(offset)
 }

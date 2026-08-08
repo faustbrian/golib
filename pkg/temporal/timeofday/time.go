@@ -3,7 +3,9 @@
 package timeofday
 
 import (
+	"cmp"
 	"fmt"
+	"strconv"
 	"time"
 	"unicode/utf8"
 
@@ -71,19 +73,28 @@ func EndOfDay() Time {
 // FromOffset constructs a local time from a fixed offset since midnight.
 // The exact 24-hour offset produces the distinct end boundary.
 func FromOffset(offset time.Duration, digits int) (Time, error) {
-	if offset < 0 || offset > day {
+	if offset < 0 {
 		return Time{}, temporal.ErrInvalidTime
 	}
-	if digits < 0 || digits > 9 || offset%time.Duration(precisionUnit(digits)) != 0 {
+	if offset > day {
+		return Time{}, temporal.ErrInvalidTime
+	}
+	if digits < 0 {
+		return Time{}, temporal.ErrPrecision
+	}
+	if digits > 9 {
+		return Time{}, temporal.ErrPrecision
+	}
+	if offset%time.Duration(precisionUnit(digits)) != 0 {
 		return Time{}, temporal.ErrPrecision
 	}
 	if offset == day {
 		return EndOfDay(), nil
 	}
 	hour := int(offset / time.Hour)
-	offset %= time.Hour
+	offset = durationRemainder(offset, time.Hour)
 	minute := int(offset / time.Minute)
-	offset %= time.Minute
+	offset = durationRemainder(offset, time.Minute)
 	second := int(offset / time.Second)
 	nanosecond := int(offset % time.Second)
 	return New(hour, minute, second, nanosecond, digits)
@@ -125,7 +136,10 @@ func Parse(value string, limits temporal.Limits) (Time, error) {
 		parsed.hasSeconds = false
 		return parsed, err
 	}
-	if len(value) < 8 || value[5] != ':' {
+	if len(value) < 8 {
+		return Time{}, temporal.ErrParse
+	}
+	if value[5] != ':' {
 		return Time{}, temporal.ErrParse
 	}
 	second, ok := twoDigits(value[6:8])
@@ -149,13 +163,8 @@ func Parse(value string, limits temporal.Limits) (Time, error) {
 			return Time{}, temporal.ErrParse
 		}
 	}
-	nanosecond := 0
-	for index := range fraction {
-		nanosecond = nanosecond*10 + int(fraction[index]-'0')
-	}
-	for index := digits; index < 9; index++ {
-		nanosecond *= 10
-	}
+	nanosecond, _ := strconv.Atoi(fraction)
+	nanosecond *= precisionUnit(digits)
 
 	return New(hour, minute, second, nanosecond, digits)
 }
@@ -169,9 +178,9 @@ func (t Time) Components() (int, int, int, int) {
 
 	remainder := t.offset
 	hour := int(remainder / time.Hour)
-	remainder %= time.Hour
+	remainder = durationRemainder(remainder, time.Hour)
 	minute := int(remainder / time.Minute)
-	remainder %= time.Minute
+	remainder = durationRemainder(remainder, time.Minute)
 	second := int(remainder / time.Second)
 	nanosecond := int(remainder % time.Second)
 
@@ -221,10 +230,10 @@ func (t Time) Clamp(minimum, maximum Time) (Time, error) {
 	if minimum.Compare(maximum) > 0 {
 		return Time{}, temporal.ErrInvalidTime
 	}
-	if t.Compare(minimum) < 0 {
+	if t.Compare(minimum) == -1 {
 		return minimum, nil
 	}
-	if t.Compare(maximum) > 0 {
+	if t.Compare(maximum) == 1 {
 		return maximum, nil
 	}
 
@@ -241,19 +250,19 @@ func (t Time) Shift(duration time.Duration, policy WrapPolicy) (Time, error) {
 	case Wrap:
 		delta := duration % day
 		value := t.offset%day + delta
-		value %= day
+		value = durationRemainder(value, day)
 		if value < 0 {
 			value += day
 		}
 		return Time{offset: value, fractionalDigits: 9, hasSeconds: true}, nil
 	case RejectOverflow:
-		if duration > 0 && t.offset > time.Duration(1<<63-1)-duration {
+		if duration > day-t.offset {
+			return Time{}, temporal.ErrOverflow
+		}
+		if duration < -t.offset {
 			return Time{}, temporal.ErrOverflow
 		}
 		value := t.offset + duration
-		if value < 0 || value > day {
-			return Time{}, temporal.ErrOverflow
-		}
 		return Time{offset: value, fractionalDigits: 9, hasSeconds: true}, nil
 	default:
 		return Time{}, temporal.ErrUnsupported
@@ -268,20 +277,22 @@ func (t Time) Difference(other Time) time.Duration {
 // CircularDistance returns the shortest unsigned distance on a 24-hour clock.
 func (t Time) CircularDistance(other Time) time.Duration {
 	distance := t.Difference(other)
-	if distance < 0 {
+	if cmp.Compare(distance, 0) == -1 {
 		distance = -distance
 	}
-	if distance > day-distance {
-		return day - distance
-	}
-
-	return distance
+	return min(distance, day-distance)
 }
 
 // Round rounds t to a positive unit that evenly divides the fixed 24-hour
 // daily universe. Exact half-unit ties round upward toward the end boundary.
 func (t Time) Round(unit time.Duration, mode RoundingMode) (Time, error) {
-	if unit <= 0 || unit > day || day%unit != 0 {
+	if unit <= 0 {
+		return Time{}, temporal.ErrStep
+	}
+	if unit > day {
+		return Time{}, temporal.ErrStep
+	}
+	if day%unit != 0 {
 		return Time{}, temporal.ErrStep
 	}
 	if mode > RoundCeil {
@@ -325,12 +336,8 @@ func (t Time) String() string {
 }
 
 func precisionUnit(digits int) int {
-	unit := 1
-	for index := digits; index < 9; index++ {
-		unit *= 10
-	}
-
-	return unit
+	units := [...]int{1_000_000_000, 100_000_000, 10_000_000, 1_000_000, 100_000, 10_000, 1_000, 100, 10, 1}
+	return units[digits]
 }
 
 func twoDigits(value string) (int, bool) {

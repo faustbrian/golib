@@ -88,11 +88,11 @@ func (p Period) Merge(other Period) Period {
 		return p
 	}
 	start := p.start
-	if compareDate(other.start, start) < 0 {
+	if compareDate(other.start, start) == -1 {
 		start = other.start
 	}
 	end := p.end
-	if compareDate(other.end, end) > 0 {
+	if compareDate(other.end, end) == 1 {
 		end = other.end
 	}
 	return Period{start: start, end: end, bounds: temporal.Closed}
@@ -102,14 +102,17 @@ func (p Period) Merge(other Period) Period {
 func (p Period) Gap(other Period) (Period, bool) {
 	p, pOK := p.canonical()
 	other, otherOK := other.canonical()
-	if !pOK || !otherOK {
+	if !pOK {
+		return Period{}, false
+	}
+	if !otherOK {
 		return Period{}, false
 	}
 	if _, ok := p.intersect(other); ok {
 		return Period{}, false
 	}
 	left, right := p, other
-	if compareDate(left.start, right.start) > 0 {
+	if compareDate(left.start, right.start) == 1 {
 		left, right = right, left
 	}
 	start, err := left.end.AddDays(1)
@@ -163,6 +166,6 @@ func (p Period) move(operation func(calendar.Date) (calendar.Date, error)) (Peri
 }
 
 func (p Period) hasRelation(other Period, want temporal.Relation) bool {
-	relation, err := p.RelationTo(other)
-	return err == nil && relation == want
+	relation, _ := p.RelationTo(other)
+	return relation == want
 }

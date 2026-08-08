@@ -1,7 +1,9 @@
 package timeofday
 
 import (
+	"cmp"
 	"iter"
+	"slices"
 	"sort"
 	"time"
 
@@ -55,13 +57,13 @@ func (s IntervalSet) Intervals() []Interval {
 	for index, segment := range s.segments {
 		if segment.start == 0 && segment.end == day && segment.includeStart && segment.includeEnd {
 			result[index] = FullDay()
-			continue
-		}
-		result[index] = Interval{
-			start:  timeFromOffset(segment.start),
-			end:    timeFromOffset(segment.end),
-			bounds: dailyBounds(segment.includeStart, segment.includeEnd),
-			kind:   Ordinary,
+		} else {
+			result[index] = Interval{
+				start:  timeFromOffset(segment.start),
+				end:    timeFromOffset(segment.end),
+				bounds: dailyBounds(segment.includeStart, segment.includeEnd),
+				kind:   Ordinary,
+			}
 		}
 	}
 
@@ -134,15 +136,15 @@ func (s IntervalSet) Intersect(other IntervalSet) (IntervalSet, error) {
 
 	for left, right := 0, 0; left < len(s.segments) && right < len(other.segments); {
 		if intersection, ok := intersectDaily(s.segments[left], other.segments[right]); ok {
-			if len(result) == limits.OutputPeriods {
-				return IntervalSet{}, dailyLimitError(len(result)+1, limits.OutputPeriods)
-			}
 			result = append(result, intersection)
+			if len(result) > limits.OutputPeriods {
+				return IntervalSet{}, dailyLimitError(len(result), limits.OutputPeriods)
+			}
 		}
-		switch {
-		case s.segments[left].end < other.segments[right].end:
+		switch cmp.Compare(s.segments[left].end, other.segments[right].end) {
+		case -1:
 			left++
-		case s.segments[left].end > other.segments[right].end:
+		case 1:
 			right++
 		default:
 			left++
@@ -161,10 +163,10 @@ func (s IntervalSet) Subtract(other IntervalSet) (IntervalSet, error) {
 		next := make([]dailySegment, 0, len(result)+1)
 		for _, segment := range result {
 			fragments := subtractDaily(segment, removed)
-			if len(next)+len(fragments) > limits.OutputPeriods {
-				return IntervalSet{}, dailyLimitError(len(next)+len(fragments), limits.OutputPeriods)
-			}
 			next = append(next, fragments...)
+			if len(next) > limits.OutputPeriods {
+				return IntervalSet{}, dailyLimitError(len(next), limits.OutputPeriods)
+			}
 		}
 		result = next
 	}
@@ -186,18 +188,7 @@ func (s IntervalSet) Complement() (IntervalSet, error) {
 func (s IntervalSet) Gaps() (IntervalSet, error) { return s.Complement() }
 
 func newIntervalSetFromSegments(limits temporal.Limits, segments []dailySegment) (IntervalSet, error) {
-	sort.SliceStable(segments, func(i, j int) bool {
-		if segments[i].start != segments[j].start {
-			return segments[i].start < segments[j].start
-		}
-		if segments[i].includeStart != segments[j].includeStart {
-			return segments[i].includeStart
-		}
-		if segments[i].end != segments[j].end {
-			return segments[i].end < segments[j].end
-		}
-		return segments[i].includeEnd && !segments[j].includeEnd
-	})
+	slices.SortStableFunc(segments, compareDailySegments)
 
 	normalized := make([]dailySegment, 0, len(segments))
 	for _, segment := range segments {
@@ -236,13 +227,23 @@ func segmentIncludes(segment dailySegment, value time.Duration) bool {
 }
 
 func segmentEmpty(segment dailySegment) bool {
-	return segment.start > segment.end ||
-		(segment.start == segment.end && (!segment.includeStart || !segment.includeEnd))
+	if segment.start > segment.end {
+		return true
+	}
+	if segment.start != segment.end {
+		return false
+	}
+	return !segment.includeStart || !segment.includeEnd
 }
 
 func dailyMergeable(left, right dailySegment) bool {
-	return right.start < left.end ||
-		(right.start == left.end && (left.includeEnd || right.includeStart))
+	if right.start < left.end {
+		return true
+	}
+	if right.start != left.end {
+		return false
+	}
+	return left.includeEnd || right.includeStart
 }
 
 func mergeDaily(left, right dailySegment) dailySegment {
@@ -292,8 +293,11 @@ func subtractDaily(value, removed dailySegment) []dailySegment {
 	}
 
 	result := make([]dailySegment, 0, 2)
-	if value.start < intersection.start ||
-		value.start == intersection.start && value.includeStart && !intersection.includeStart {
+	includeLeft := cmp.Compare(value.start, intersection.start) == -1
+	if value.start == intersection.start {
+		includeLeft = value.includeStart != intersection.includeStart
+	}
+	if includeLeft {
 		result = append(result, dailySegment{
 			start:        value.start,
 			end:          intersection.start,
@@ -301,8 +305,11 @@ func subtractDaily(value, removed dailySegment) []dailySegment {
 			includeEnd:   !intersection.includeStart,
 		})
 	}
-	if intersection.end < value.end ||
-		intersection.end == value.end && value.includeEnd && !intersection.includeEnd {
+	includeRight := cmp.Compare(intersection.end, value.end) == -1
+	if intersection.end == value.end {
+		includeRight = value.includeEnd != intersection.includeEnd
+	}
+	if includeRight {
 		result = append(result, dailySegment{
 			start:        intersection.end,
 			end:          value.end,
@@ -311,6 +318,28 @@ func subtractDaily(value, removed dailySegment) []dailySegment {
 		})
 	}
 	return result
+}
+
+func compareDailySegments(left, right dailySegment) int {
+	if comparison := cmp.Compare(left.start, right.start); comparison != 0 {
+		return comparison
+	}
+	if left.includeStart != right.includeStart {
+		if left.includeStart {
+			return -1
+		}
+		return 1
+	}
+	if comparison := cmp.Compare(left.end, right.end); comparison != 0 {
+		return comparison
+	}
+	if left.includeEnd == right.includeEnd {
+		return 0
+	}
+	if left.includeEnd {
+		return -1
+	}
+	return 1
 }
 
 func timeFromOffset(offset time.Duration) Time {

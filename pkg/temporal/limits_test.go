@@ -23,6 +23,9 @@ func TestDefaultLimitsAreBounded(t *testing.T) {
 func TestZeroLimitsResolveToDefaults(t *testing.T) {
 	t.Parallel()
 
+	if err := (temporal.Limits{}).Validate(); err != nil {
+		t.Fatalf("Limits{}.Validate(): %v", err)
+	}
 	if got := (temporal.Limits{}).Resolve(); got != temporal.DefaultLimits() {
 		t.Fatalf("Limits{}.Resolve() = %+v, want defaults", got)
 	}

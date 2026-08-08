@@ -27,32 +27,44 @@ func (p Period) RelationTo(other Period) (temporal.Relation, error) {
 
 	startComparison := compareDate(p.start, other.start)
 	endComparison := compareDate(p.end, other.end)
-	switch {
-	case startComparison < 0 && endComparison < 0:
-		return temporal.Overlaps, nil
-	case startComparison < 0 && endComparison == 0:
-		return temporal.FinishedBy, nil
-	case startComparison < 0 && endComparison > 0:
-		return temporal.Contains, nil
-	case startComparison == 0 && endComparison < 0:
-		return temporal.Starts, nil
-	case startComparison == 0 && endComparison == 0:
-		return temporal.Equal, nil
-	case startComparison == 0 && endComparison > 0:
-		return temporal.StartedBy, nil
-	case startComparison > 0 && endComparison < 0:
-		return temporal.During, nil
-	case startComparison > 0 && endComparison == 0:
-		return temporal.Finishes, nil
+	switch startComparison {
+	case -1:
+		switch endComparison {
+		case -1:
+			return temporal.Overlaps, nil
+		case 0:
+			return temporal.FinishedBy, nil
+		default:
+			return temporal.Contains, nil
+		}
+	case 0:
+		switch endComparison {
+		case -1:
+			return temporal.Starts, nil
+		case 0:
+			return temporal.Equal, nil
+		default:
+			return temporal.StartedBy, nil
+		}
 	default:
-		return temporal.OverlappedBy, nil
+		switch endComparison {
+		case -1:
+			return temporal.During, nil
+		case 0:
+			return temporal.Finishes, nil
+		default:
+			return temporal.OverlappedBy, nil
+		}
 	}
 }
 
 // SetEqual reports equality of represented civil dates.
 func (p Period) SetEqual(other Period) bool {
-	if p.IsEmpty() || other.IsEmpty() {
-		return p.IsEmpty() && other.IsEmpty()
+	if p.IsEmpty() {
+		return other.IsEmpty()
+	}
+	if other.IsEmpty() {
+		return false
 	}
 	pStart, pEnd, _ := p.includedRange()
 	oStart, oEnd, _ := other.includedRange()
@@ -85,11 +97,11 @@ func (p Period) intersect(other Period) (Period, bool) {
 		return Period{}, false
 	}
 	start := p.start
-	if compareDate(other.start, start) > 0 {
+	if compareDate(other.start, start) == 1 {
 		start = other.start
 	}
 	end := p.end
-	if compareDate(other.end, end) < 0 {
+	if compareDate(other.end, end) == -1 {
 		end = other.end
 	}
 	if compareDate(start, end) > 0 {

@@ -24,13 +24,8 @@ func (s Set) Search(value time.Time) (int, bool) {
 	index := sort.Search(len(s.periods), func(index int) bool {
 		return !s.periods[index].end.Before(value)
 	})
-	for candidate := index; candidate < len(s.periods) && candidate <= index+1; candidate++ {
-		if s.periods[candidate].Includes(value) {
-			return candidate, true
-		}
-		if s.periods[candidate].start.After(value) {
-			break
-		}
+	if index < len(s.periods) && s.periods[index].Includes(value) {
+		return index, true
 	}
 	return index, false
 }

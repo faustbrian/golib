@@ -133,19 +133,32 @@ func parseInstantRange(text string) (pgtype.Range[time.Time], error) {
 	if err != nil {
 		return pgtype.Range[time.Time]{}, err
 	}
-	if len(body) < 5 || body[0] != '"' || body[len(body)-1] != '"' {
+	inner, ok := strings.CutPrefix(body, `"`)
+	if !ok {
 		return pgtype.Range[time.Time]{}, temporal.ErrParse
 	}
-	inner := body[1 : len(body)-1]
-	separator := strings.Index(inner, `","`)
-	if separator <= 0 || strings.Contains(inner[separator+3:], `","`) {
+	inner, ok = strings.CutSuffix(inner, `"`)
+	if !ok {
 		return pgtype.Range[time.Time]{}, temporal.ErrParse
 	}
-	lower, err := time.Parse(time.RFC3339Nano, inner[:separator])
+	lowerText, upperText, ok := strings.Cut(inner, `","`)
+	if !ok {
+		return pgtype.Range[time.Time]{}, temporal.ErrParse
+	}
+	if lowerText == "" {
+		return pgtype.Range[time.Time]{}, temporal.ErrParse
+	}
+	if upperText == "" {
+		return pgtype.Range[time.Time]{}, temporal.ErrParse
+	}
+	if strings.Contains(upperText, `","`) {
+		return pgtype.Range[time.Time]{}, temporal.ErrParse
+	}
+	lower, err := time.Parse(time.RFC3339Nano, lowerText)
 	if err != nil {
 		return pgtype.Range[time.Time]{}, fmt.Errorf("%w: lower timestamp", temporal.ErrParse)
 	}
-	upper, err := time.Parse(time.RFC3339Nano, inner[separator+3:])
+	upper, err := time.Parse(time.RFC3339Nano, upperText)
 	if err != nil {
 		return pgtype.Range[time.Time]{}, fmt.Errorf("%w: upper timestamp", temporal.ErrParse)
 	}
@@ -159,15 +172,24 @@ func parseDateRange(text string) (pgtype.Range[calendar.Date], error) {
 	if err != nil {
 		return pgtype.Range[calendar.Date]{}, err
 	}
-	separator := strings.IndexByte(body, ',')
-	if separator <= 0 || separator == len(body)-1 || strings.ContainsRune(body[separator+1:], ',') {
+	lowerText, upperText, ok := strings.Cut(body, ",")
+	if !ok {
 		return pgtype.Range[calendar.Date]{}, temporal.ErrParse
 	}
-	lower, err := calendar.ParseDate(body[:separator])
+	if lowerText == "" {
+		return pgtype.Range[calendar.Date]{}, temporal.ErrParse
+	}
+	if upperText == "" {
+		return pgtype.Range[calendar.Date]{}, temporal.ErrParse
+	}
+	if strings.ContainsRune(upperText, ',') {
+		return pgtype.Range[calendar.Date]{}, temporal.ErrParse
+	}
+	lower, err := calendar.ParseDate(lowerText)
 	if err != nil {
 		return pgtype.Range[calendar.Date]{}, fmt.Errorf("%w: lower date", temporal.ErrParse)
 	}
-	upper, err := calendar.ParseDate(body[separator+1:])
+	upper, err := calendar.ParseDate(upperText)
 	if err != nil {
 		return pgtype.Range[calendar.Date]{}, fmt.Errorf("%w: upper date", temporal.ErrParse)
 	}
@@ -182,7 +204,10 @@ func parseRangeShell(text string) (pgtype.BoundType, pgtype.BoundType, string, e
 			Field: "parse_bytes", Value: len(text), Max: temporal.DefaultLimits().ParseBytes,
 		}
 	}
-	if len(text) < 3 || text == "empty" {
+	if len(text) < 3 {
+		return 0, 0, "", temporal.ErrUnsupported
+	}
+	if text == "empty" {
 		return 0, 0, "", temporal.ErrUnsupported
 	}
 	lower, ok := pgBoundFromBracket(text[0], true)

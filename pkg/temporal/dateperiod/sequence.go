@@ -28,14 +28,8 @@ func (s Set) Search(date calendar.Date) (int, bool) {
 		comparison, _ := s.periods[index].end.Compare(date)
 		return comparison >= 0
 	})
-	for candidate := index; candidate < len(s.periods) && candidate <= index+1; candidate++ {
-		if s.periods[candidate].Includes(date) {
-			return candidate, true
-		}
-		comparison, _ := s.periods[candidate].start.Compare(date)
-		if comparison > 0 {
-			break
-		}
+	if index < len(s.periods) && s.periods[index].Includes(date) {
+		return index, true
 	}
 	return index, false
 }

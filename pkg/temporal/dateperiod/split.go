@@ -29,21 +29,14 @@ func (p Period) SplitDays(step int, limits temporal.Limits) ([]Period, error) {
 		return nil, &temporal.LimitError{Field: "steps", Value: count, Max: limits.Steps}
 	}
 
-	result := make([]Period, 0, count)
-	start := first
-	remaining := days
-	for remaining > 0 {
-		chunkDays := min(step, remaining)
-		end := last
-		if chunkDays < remaining {
-			end, _ = start.AddDays(chunkDays - 1)
-		}
+	result := make([]Period, count)
+	for index := range count {
+		offset := index * step
+		start, _ := first.AddDays(offset)
+		chunkDays := min(step, days-offset)
+		end, _ := start.AddDays(chunkDays - 1)
 		chunk, _ := New(start, end, temporal.Closed)
-		result = append(result, chunk)
-		remaining -= chunkDays
-		if remaining > 0 {
-			start, _ = end.AddDays(1)
-		}
+		result[index] = chunk
 	}
 	return result, nil
 }

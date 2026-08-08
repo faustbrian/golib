@@ -48,9 +48,6 @@ func Around(center Time, radius time.Duration, bounds temporal.Bounds) (Interval
 	if duration.IsZero() {
 		return Collapsed(center), nil
 	}
-	if duration.Value() >= day {
-		return FullDay(), nil
-	}
 	start, _ := center.Shift(-radius, Wrap)
 	return Since(start, duration.Value(), bounds)
 }
