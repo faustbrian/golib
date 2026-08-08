@@ -648,6 +648,30 @@ func TestAggregateOpeningReusesCommittedVectorPreparation(t *testing.T) {
 	}
 }
 
+func TestAggregateOpeningPreparationCapacityBoundsOneVector(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		queries int
+		want    int
+	}{
+		{"one query", 1, 1},
+		{"one vector", VectorWidth, VectorWidth},
+		{"more than one vector", VectorWidth + 1, VectorWidth},
+		{"maximum queries", int(maxAggregateOpeningQueries), VectorWidth},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := aggregateOpeningPreparationCapacity(test.queries); got != test.want {
+				t.Fatalf("capacity = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
+
 func TestAggregateOpeningOperationsPropagateBackendAndCancellationFailures(t *testing.T) {
 	t.Parallel()
 

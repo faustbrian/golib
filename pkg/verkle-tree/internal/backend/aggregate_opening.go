@@ -363,8 +363,13 @@ func (engine *AggregateOpeningEngine) open(
 	polynomials := make([][]fr.Element, len(queries))
 	indices := make([]uint8, len(queries))
 	seen := make(map[aggregateOpeningQueryIdentity]struct{}, len(queries))
-	preparedIndexes := make(map[[commitmentSize]byte]int, len(queries))
-	preparedVectors := make([]preparedAggregateProverVector, 0, len(queries))
+	preparedCapacity := aggregateOpeningPreparationCapacity(len(queries))
+	preparedIndexes := make(map[[commitmentSize]byte]int, preparedCapacity)
+	preparedVectors := make(
+		[]preparedAggregateProverVector,
+		0,
+		preparedCapacity,
+	)
 	for queryIndex := range queries {
 		if err := checkAggregateOpeningContext(ctx); err != nil {
 			return OpeningProof{}, err
@@ -777,6 +782,13 @@ type preparedAggregateProverVector struct {
 	vector     *Vector
 	commitment banderwagon.Element
 	polynomial []fr.Element
+}
+
+func aggregateOpeningPreparationCapacity(queryCount int) int {
+	// A complete fixed-width vector accounts for 256 queries. Larger proofs
+	// may contain more committed vectors, but letting the slices and map grow
+	// as needed avoids reserving one preparation entry for every hostile query.
+	return min(queryCount, VectorWidth)
 }
 
 func aggregateOpeningIdentity(
