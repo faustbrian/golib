@@ -236,10 +236,9 @@ func BenchmarkPublicStatelessWitnessOperations(b *testing.B) {
 	if err != nil {
 		b.Fatalf("encode witness: %v", err)
 	}
-	engine, err := verkletree.NewStatelessEngine(
+	engine, err := verkletree.NewStatelessEngineFromProofEngine(
 		ctx,
-		verkletree.BandersnatchIPA256V0(),
-		publicOpeningLimits(),
+		proofEngine,
 		publicSnapshotLimits().Commitment,
 	)
 	if err != nil {
@@ -351,8 +350,8 @@ func BenchmarkPublicStatelessTopologyTransitions(b *testing.B) {
 	if err != nil {
 		b.Fatalf("prepare topology proof engine: %v", err)
 	}
-	statelessEngine, err := verkletree.NewStatelessEngine(
-		ctx, profile, openingLimits, publicSnapshotLimits().Commitment,
+	statelessEngine, err := verkletree.NewStatelessEngineFromProofEngine(
+		ctx, proofEngine, publicSnapshotLimits().Commitment,
 	)
 	if err != nil {
 		b.Fatalf("prepare topology stateless engine: %v", err)

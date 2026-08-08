@@ -12,6 +12,11 @@ and application. Shared immutable snapshot reads and aggregate-proof
 verification also have parallel measurements. The proof and witness rows
 report their exact canonical encoded sizes.
 
+Topology-changing stateless samples cover deleting one member while retaining
+its stem, replacing an emptied stem, and collapsing a unary parent. Each case
+measures both update-proof generation and complete witness verification with
+post-state application.
+
 A separate public initialization benchmark compares constructing a standalone
 stateless engine with constructing one from an already initialized proof
 engine. It isolates the explicit backend-ownership choice: the reuse path
@@ -144,6 +149,10 @@ GOWORK=off go test . -run '^$' \
   -benchmem -benchtime=1x -count=5
 
 GOWORK=off go test . -run '^$' \
+  -bench '^BenchmarkPublicStatelessTopologyTransitions$' \
+  -benchmem -benchtime=1x -count=5
+
+GOWORK=off go test . -run '^$' \
   -bench '^BenchmarkPublicProofOperations$/^verify-aggregate-8-parallel$' \
   -benchmem -benchtime=32x -count=5
 
@@ -268,6 +277,12 @@ nanoseconds per operation.
 | Verify and apply two-update witness | 2239084, 2198208, 2141375, 2148125, 2148250 | 446.6, 454.9, 467.0, 465.5, 465.5 | 1217 | 312512-312528 | 1119 |
 | Initialize standalone stateless engine | 284504167, 334086750, 322192166, 671019375, 239801375 | 3.515, 2.993, 3.104, 1.490, 4.170 | - | 833184080-833217712 | 235761-235890 |
 | Initialize stateless engine from proof engine | 7763375, 7833708, 8752375, 7720792, 7823042 | 128.81, 127.65, 114.25, 129.52, 127.83 | - | 166544-166824 | 3517-3523 |
+| Generate retained-member delete proof | 25674000, 25313041, 28543416, 49260500, 34791375 | 38.95, 39.51, 35.03, 20.30, 28.74 | 1087 witness | 1079696-1081744 | 4875-4912 |
+| Verify and apply retained-member delete | 7107042, 8009542, 5044000, 6255000, 6966125 | 140.7, 124.9, 198.3, 159.9, 143.6 | 1087 witness | 282912-283520 | 1087-1098 |
+| Generate emptied-stem replacement proof | 42480250, 61070000, 38492583, 33765750, 43077166 | 23.54, 16.37, 25.98, 29.62, 23.21 | 17856 witness | 8235200-8237064 | 5790-5823 |
+| Verify and apply emptied-stem replacement | 10411041, 19402917, 15148375, 19550125, 19554583 | 96.05, 51.54, 66.01, 51.15, 51.14 | 17856 witness | 1160848-1161784 | 1268-1285 |
+| Generate unary-parent collapse proof | 47687542, 55102667, 45004958, 54773125, 96688000 | 20.97, 18.15, 22.22, 18.26, 10.34 | 50752 witness | 11471576-11473112 | 7120-7146 |
+| Verify and apply unary-parent collapse | 11051958, 10129750, 12737042, 13999542, 16536083 | 90.48, 98.72, 78.51, 71.43, 60.47 | 50752 witness | 1881160-1882016 | 1521-1537 |
 
 The parallel rows use the Go benchmark harness at `GOMAXPROCS=16`; ns/op is
 aggregate wall time divided by completed operations, not per-goroutine latency.
