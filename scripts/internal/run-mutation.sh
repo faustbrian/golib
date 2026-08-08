@@ -241,6 +241,58 @@ for package_directory in "${packages[@]}"; do
         fi
     fi
 
+    observer_v1_package_digest="$(
+        GOLIB_MUTATION_DIGEST_RESOLUTION=observer-v1 \
+            "${root}/scripts/gate-input-digest.sh" \
+            mutation "${module}" "${package_directory}"
+    )"
+    if [[ "${discover_only}" -eq 0 && -s "${checkpoint}" ]] &&
+        jq -e \
+            --arg module "${module}" \
+            --arg package "${package_directory}" \
+            --arg digest "${observer_v1_package_digest}" \
+            --arg version "${GREMLINS_VERSION}" '
+                .schema_version == 3 and
+                .module == $module and
+                .package == $package and
+                ((
+                    [.gate_input_digest] +
+                    (.identity_lineage // []) +
+                    [(.identity_migration.previous_gate_input_digest // "")]
+                ) | index($digest)) != null and
+                .gremlins_version == $version and
+                (.report.files | type == "array") and
+                ([.report.files[].mutations[]? | select(.status != "KILLED")] | length == 0)
+            ' "${checkpoint}" >/dev/null; then
+        checkpoint_total="$(
+            jq '[.report.files[].mutations[]?] | length' "${checkpoint}"
+        )"
+        if [[ "${checkpoint_total}" -gt 0 ]] || reviewed_zero_mutant; then
+            checkpoint_tmp="$(mktemp "${checkpoint}.tmp.XXXXXX")"
+            jq \
+                --arg revision "$(git -C "${root}" rev-parse HEAD)" \
+                --arg digest "${package_input_digest}" '
+                .identity_lineage = ((
+                    (.identity_lineage // []) +
+                    [.gate_input_digest] +
+                    [(.identity_migration.previous_gate_input_digest // "")]
+                ) | map(select(length > 0)) | unique)
+                | .validated_revision = $revision
+                | .identity_migration = {
+                    reason: "dependency-test-isolation",
+                    previous_gate_input_digest: .gate_input_digest
+                }
+                | .gate_input_digest = $digest
+            ' "${checkpoint}" >"${checkpoint_tmp}"
+            mv "${checkpoint_tmp}" "${checkpoint}"
+            reports+=("${checkpoint}")
+            write_aggregate
+            printf '[%s] %s migrated dependency-test-isolated mutation identity\n' \
+                "${module}" "${target}"
+            continue
+        fi
+    fi
+
     legacy_stable_package_digest="$(
         GOLIB_MUTATION_DIGEST_RESOLUTION=legacy-stable \
             "${root}/scripts/gate-input-digest.sh" \

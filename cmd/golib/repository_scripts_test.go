@@ -1149,7 +1149,9 @@ func TestMutationEvidenceUsesContentAddressedCheckpoints(t *testing.T) {
 		`gate_input_digests`,
 		`mutation-legacy`,
 		`GOLIB_MUTATION_DIGEST_RESOLUTION=caller`,
+		`GOLIB_MUTATION_DIGEST_RESOLUTION=observer-v1`,
 		`GOLIB_MUTATION_DIGEST_RESOLUTION=legacy-stable`,
+		`migrated dependency-test-isolated mutation identity`,
 		`migrated module-wide mutation identity`,
 		`identity_lineage`,
 		`migrated caller-dependent mutation identity`,
@@ -1483,6 +1485,35 @@ func TestValue(t *testing.T) {
 
 		return digestWithResolution("")
 	}
+	digestPackageWithResolution := func(packageDirectory string, resolution string) string {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repository, "scripts", "gate-input-digest.sh"),
+			"mutation",
+			"pkg/example",
+			packageDirectory,
+		)
+		command.Dir = repository
+		command.Env = directGoEnvironment(t)
+		if resolution != "" {
+			command.Env = environmentWithValues(
+				command.Env,
+				"GOLIB_MUTATION_DIGEST_RESOLUTION",
+				resolution,
+			)
+		}
+		output, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("calculate %s mutation digest: %v\n%s", packageDirectory, err, output)
+		}
+
+		return strings.TrimSpace(string(output))
+	}
+	digestPackage := func(packageDirectory string) string {
+		t.Helper()
+
+		return digestPackageWithResolution(packageDirectory, "")
+	}
 
 	initial := digest()
 	legacyInitial := digestWithResolution("legacy-stable")
@@ -1616,6 +1647,45 @@ func Value() int { return example.Value() }
 	writeFile(t, source, "package example\n\nfunc Value() int { return 2 }\n")
 	if current := digest(); current == initial {
 		t.Fatal("production source did not change mutation digest")
+	}
+
+	writeFile(t, consumerSource, `package consumer
+
+import (
+	example "example.test/example"
+	"example.test/example/sibling"
+)
+
+func Value() int { return example.Value() + sibling.Value() }
+`)
+	siblingTest := filepath.Join(repository, "pkg", "example", "sibling", "sibling_test.go")
+	writeFile(t, siblingTest, `package sibling
+
+import "testing"
+
+func TestValue(t *testing.T) {
+	if Value() != 1 {
+		t.Fatal("wrong value")
+	}
+}
+`)
+	initialConsumer := digestPackage("consumer")
+	initialConsumerV1 := digestPackageWithResolution("consumer", "observer-v1")
+	writeFile(t, siblingTest, `package sibling
+
+import "testing"
+
+func TestValue(t *testing.T) {
+	if got := Value(); got != 1 {
+		t.Fatalf("value = %d", got)
+	}
+}
+`)
+	if current := digestPackage("consumer"); current != initialConsumer {
+		t.Fatalf("dependency tests changed consumer mutation digest: %s != %s", current, initialConsumer)
+	}
+	if current := digestPackageWithResolution("consumer", "observer-v1"); current == initialConsumerV1 {
+		t.Fatal("observer-v1 digest did not retain dependency-test identity")
 	}
 }
 

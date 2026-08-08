@@ -462,7 +462,9 @@ package_digest() {
                 go list -deps -test -json ./...
             fi
         ) >"${package_data}"
-    elif [[ "${resolution}" != "stable" && "${resolution}" != "legacy-stable" ]]; then
+    elif [[ "${resolution}" != "stable" &&
+        "${resolution}" != "observer-v1" &&
+        "${resolution}" != "legacy-stable" ]]; then
         printf 'unknown mutation digest resolution: %s\n' \
             "${resolution}" >&2
         exit 2
@@ -508,7 +510,7 @@ package_digest() {
                     ((.Module.Path // "") == $module_path)
             }
         ' "${package_data}" >"${relevant_package_data}"
-    else
+    elif [[ "${resolution}" == "observer-v1" ]]; then
         target_import_path="${module_path}"
         if [[ "${package}" != "." ]]; then
             target_import_path="${module_path}/${package}"
@@ -529,6 +531,42 @@ package_digest() {
         ] | unique) as $relevant_imports
         | .[]
         | select((.Dir // "") | startswith($root))
+        | select(
+            canonical_import as $import
+            | ($relevant_imports | index($import)) != null
+        )
+        | .Dir as $directory
+        | . + {
+            GolibMutationObserver:
+                (($observer_directories | index($directory)) != null)
+        }
+        ' "${package_data}" >"${relevant_package_data}"
+    else
+        target_import_path="${module_path}"
+        if [[ "${package}" != "." ]]; then
+            target_import_path="${module_path}/${package}"
+        fi
+        jq -s \
+            --arg root "${root}/" \
+            --arg target "${target_import_path}" '
+        def canonical_import:
+            (.ImportPath // "" | sub(" \\[.*$"; ""));
+        [.[] | select(
+            (canonical_import == $target and
+                (.ForTest // "") == "") or
+            (.ForTest // "") == $target
+        )] as $observers
+        | ([$observers[].Dir] | unique) as $observer_directories
+        | ([
+            $observers[]
+            | canonical_import, (.Deps // [])[]
+        ] | unique) as $relevant_imports
+        | .[]
+        | select((.Dir // "") | startswith($root))
+        | select(
+            (.ForTest // "") == "" or
+            (.ForTest // "") == $target
+        )
         | select(
             canonical_import as $import
             | ($relevant_imports | index($import)) != null
