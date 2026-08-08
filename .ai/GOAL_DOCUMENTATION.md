@@ -12,6 +12,14 @@ live repository, verify every claim against current APIs and behavior, create
 or update the actual root README and documentation, repair package links, add
 runnable examples, validate all documentation, and finish with exact evidence.
 
+## Cohesion Prerequisite
+
+`.ai/GOAL_COHESION.md` MUST complete before this goal. Documentation MUST
+consume its reviewed design language, package taxonomy, API conventions,
+adapter naming, supported compositions, compatibility sets, and exception
+register. This goal MUST NOT silently invent a second ecosystem design language
+or use prose to conceal an unresolved API inconsistency.
+
 ## Documentation Principles
 
 - The root repository MUST provide the canonical entry point.
