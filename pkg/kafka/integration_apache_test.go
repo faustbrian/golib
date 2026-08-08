@@ -1049,7 +1049,11 @@ func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
 		}
 	}()
 
-	assignmentCtx, cancelAssignment := context.WithCancel(context.Background())
+	assignmentCtx, cancelAssignment := context.WithTimeout(
+		context.Background(),
+		30*time.Second,
+	)
+	defer cancelAssignment()
 	assignmentResult := make(chan error, 1)
 	go func() {
 		_, assignmentErr := consumer.RunOnce(
@@ -1060,15 +1064,24 @@ func runApacheKafkaConsumerRebalanceChild(t *testing.T) {
 		)
 		assignmentResult <- assignmentErr
 	}()
-	waitForApacheKafkaConsumerAssignment(t, consumer, assignmentResult)
+	assignedPartitions := []kafka.TopicPartition{
+		{Topic: os.Getenv(apacheKafkaConsumerTopic), Partition: 0},
+		{Topic: os.Getenv(apacheKafkaConsumerTopic), Partition: 1},
+	}
+	assignment := waitForApacheKafkaOwnershipAssignment(
+		t,
+		assignmentCtx,
+		consumer,
+		os.Getenv(apacheKafkaConsumerTopic),
+		len(assignedPartitions),
+	)
+	if !slices.Equal(assignment, assignedPartitions) {
+		t.Fatalf("rebalance child assignment = %#v, want %#v", assignment, assignedPartitions)
+	}
 	cancelAssignment()
 	if assignmentErr := <-assignmentResult; assignmentErr != nil &&
 		!errors.Is(assignmentErr, context.Canceled) {
 		t.Fatalf("stop rebalance child assignment poll: %v", assignmentErr)
-	}
-	assignedPartitions := []kafka.TopicPartition{
-		{Topic: os.Getenv(apacheKafkaConsumerTopic), Partition: 0},
-		{Topic: os.Getenv(apacheKafkaConsumerTopic), Partition: 1},
 	}
 	pauseApacheKafkaConsumerPartitions(t, consumer, assignedPartitions...)
 	if err := report(apacheKafkaConsumerReady); err != nil {
