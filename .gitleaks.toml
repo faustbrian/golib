@@ -34,3 +34,11 @@ paths = ['''^(?:pkg/webhook/)?testdata/vectors/v1\.json$''']
 description = "Pinned Ethereum trie fixtures contain deliberate public test key material."
 targetRules = ["generic-api-key"]
 paths = ['''^(?:pkg/merkle-patricia-trie/)?testdata/ethereum-tests/TrieTests/trietest\.json$''']
+
+[[allowlists]]
+description = "Pinned Verkle source-file digests are checksums, not API credentials."
+targetRules = ["generic-api-key"]
+condition = "AND"
+regexTarget = "line"
+paths = ['''^(?:pkg/verkle-tree/)?specification/sources\.json$''']
+regexes = ['''^\s*"api(?:_eip7594)?\.go"\s*:\s*"[0-9a-f]{64}",?\s*$''']
