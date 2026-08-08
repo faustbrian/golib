@@ -835,8 +835,23 @@ func TestTimedOutTaskRetainsOverlapLeaseUntilItReturns(t *testing.T) {
 		scheduler.WithOwner("replica-a"),
 	)
 	secondCalled := false
+	secondSchedule, err := scheduler.NewSchedule(
+		"timed-out-overlap",
+		"task.timed-out-overlap",
+		scheduler.EveryMinute(),
+		scheduler.WithMissedRuns(scheduler.MissedRunOnce, 0),
+		scheduler.WithoutOverlap(scheduler.OverlapSkip, time.Minute),
+		scheduler.WithRunTimeout(time.Second),
+	)
+	if err != nil {
+		t.Fatalf("NewSchedule(second runner) error = %v", err)
+	}
+	secondRegistry, err := scheduler.Compile(secondSchedule)
+	if err != nil {
+		t.Fatalf("Compile(second runner) error = %v", err)
+	}
 	second, _ := scheduler.NewRunner(
-		registry,
+		secondRegistry,
 		leasing,
 		executorFunc(func(context.Context, scheduler.Context) error {
 			secondCalled = true
