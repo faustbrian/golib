@@ -11,8 +11,11 @@ import (
 )
 
 const (
-	maxAggregateVerifierQueries       = uint32(65_536)
-	aggregateVerifierQueryWorkingByte = uint64(512)
+	maxAggregateVerifierQueries = uint32(65_536)
+	// One fully queried stem: 31 internal, two metadata, two half, and 512
+	// suffix-field openings.
+	aggregateVerifierInitialQueryCapacity = uint64(547)
+	aggregateVerifierQueryWorkingByte     = uint64(512)
 )
 
 var (
@@ -170,12 +173,14 @@ func (material ProofMaterial) AggregateVerifierQueries(
 		commitments[path] = commitment.commitment
 	}
 
+	initialCapacity := min(capacity, aggregateVerifierInitialQueryCapacity)
 	collector := aggregateVerifierCollector{
-		ctx:         ctx,
-		limits:      limits,
-		commitments: commitments,
-		queries:     make([]AggregateVerifierQuery, 0, int(capacity)),
-		queryByID:   make(map[aggregateVerifierIdentity]int, int(capacity)),
+		ctx:           ctx,
+		limits:        limits,
+		commitments:   commitments,
+		queryCapacity: int(capacity),
+		queries:       make([]AggregateVerifierQuery, 0, int(initialCapacity)),
+		queryByID:     make(map[aggregateVerifierIdentity]int, int(initialCapacity)),
 	}
 	claimIndex := 0
 	for pathIndex := range material.stemPaths {
@@ -233,11 +238,12 @@ func aggregateVerifierQueryCapacity(
 }
 
 type aggregateVerifierCollector struct {
-	ctx         context.Context
-	limits      AggregateVerifierQueryLimits
-	commitments map[aggregateVerifierPath]backend.VectorCommitment
-	queries     []AggregateVerifierQuery
-	queryByID   map[aggregateVerifierIdentity]int
+	ctx           context.Context
+	limits        AggregateVerifierQueryLimits
+	commitments   map[aggregateVerifierPath]backend.VectorCommitment
+	queryCapacity int
+	queries       []AggregateVerifierQuery
+	queryByID     map[aggregateVerifierIdentity]int
 }
 
 func (collector *aggregateVerifierCollector) collectStem(
@@ -353,6 +359,15 @@ func (collector *aggregateVerifierCollector) appendValue(
 	); err != nil {
 		return err
 	}
+	queries, err := growAggregateVerifierQueries(
+		collector.queries,
+		collector.queryCapacity,
+		int(actual),
+	)
+	if err != nil {
+		return err
+	}
+	collector.queries = queries
 	query := AggregateVerifierQuery{
 		Path:   path.path,
 		Length: path.length,
@@ -366,6 +381,24 @@ func (collector *aggregateVerifierCollector) appendValue(
 	collector.queries = append(collector.queries, query)
 
 	return nil
+}
+
+func growAggregateVerifierQueries(
+	queries []AggregateVerifierQuery,
+	capacity int,
+	required int,
+) ([]AggregateVerifierQuery, error) {
+	if required <= cap(queries) {
+		return queries, nil
+	}
+	if required > capacity {
+		return nil, errInvalidProofMaterial
+	}
+	next := min(max(cap(queries)*2, required), capacity)
+	grown := make([]AggregateVerifierQuery, len(queries), next)
+	copy(grown, queries)
+
+	return grown, nil
 }
 
 func extensionMarkerScalar() [32]byte {

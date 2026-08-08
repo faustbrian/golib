@@ -123,6 +123,77 @@ func TestEmptyRootVerifierQueriesConsolidateSharedRootIndex(t *testing.T) {
 	}
 }
 
+func TestAggregateVerifierQueriesBoundInitialDeduplicationCapacity(t *testing.T) {
+	t.Parallel()
+
+	const keyCount = 256
+	keys := make([]Key, keyCount)
+	for index := range keys {
+		keys[index][0] = byte(index)
+	}
+	materialLimits := testProofMaterialLimits()
+	materialLimits.MaxKeys = keyCount
+	materialLimits.MaxStemPaths = keyCount
+	materialLimits.MaxNodeReads = keyCount
+	materialLimits.MaxPathCommitments = keyCount
+	materialLimits.MaxPathBytes = keyCount * maxProofPathLength
+	materialLimits.MaxTemporaryBytes = 64 << 20
+	material, err := newTestSnapshot(t, nil).ProofMaterial(
+		context.Background(),
+		keys,
+		materialLimits,
+	)
+	if err != nil {
+		t.Fatalf("proof material: %v", err)
+	}
+	queryLimits := testAggregateVerifierQueryLimits()
+	queryLimits.MaxQueries = 1024
+	queries, err := material.AggregateVerifierQueries(
+		context.Background(),
+		queryLimits,
+	)
+	if err != nil {
+		t.Fatalf("verifier queries: %v", err)
+	}
+	if len(queries) != keyCount {
+		t.Fatalf("query count = %d, want %d", len(queries), keyCount)
+	}
+	if cap(queries) != 547 {
+		t.Fatalf("query capacity = %d, want 547", cap(queries))
+	}
+}
+
+func TestGrowAggregateVerifierQueriesCapsAllocatedCapacity(t *testing.T) {
+	t.Parallel()
+
+	queries := make([]AggregateVerifierQuery, 2)
+	same, err := growAggregateVerifierQueries(queries, 5, cap(queries))
+	if err != nil {
+		t.Fatalf("retain exact-capacity queries: %v", err)
+	}
+	if &same[0] != &queries[0] {
+		t.Fatal("exact-capacity growth replaced query storage")
+	}
+	grown, err := growAggregateVerifierQueries(queries, 5, 3)
+	if err != nil {
+		t.Fatalf("grow queries: %v", err)
+	}
+	if len(grown) != len(queries) || cap(grown) != 4 {
+		t.Fatalf("grown query shape = %d/%d, want 2/4", len(grown), cap(grown))
+	}
+	grown = grown[:cap(grown)]
+	clamped, err := growAggregateVerifierQueries(grown, 5, 5)
+	if err != nil {
+		t.Fatalf("clamp query growth: %v", err)
+	}
+	if len(clamped) != len(grown) || cap(clamped) != 5 {
+		t.Fatalf("clamped query shape = %d/%d, want 4/5", len(clamped), cap(clamped))
+	}
+	if _, err := growAggregateVerifierQueries(clamped[:cap(clamped)], 5, 6); !errors.Is(err, errInvalidProofMaterial) {
+		t.Fatalf("growth beyond bound error = %v", err)
+	}
+}
+
 func TestAggregateVerifierQueriesTraverseEveryInternalDepth(t *testing.T) {
 	t.Parallel()
 
@@ -447,15 +518,21 @@ func TestAggregateVerifierQueryHelpersRejectInvalidState(t *testing.T) {
 	commitment := testProofCommitment(t)
 	path := aggregateVerifierPath{path: [32]byte{1}, length: 1}
 	collector := aggregateVerifierCollector{
-		ctx:         context.Background(),
-		limits:      testAggregateVerifierQueryLimits(),
-		commitments: map[aggregateVerifierPath]backend.VectorCommitment{},
-		queryByID:   map[aggregateVerifierIdentity]int{},
+		ctx:           context.Background(),
+		limits:        testAggregateVerifierQueryLimits(),
+		commitments:   map[aggregateVerifierPath]backend.VectorCommitment{},
+		queryCapacity: int(testAggregateVerifierQueryLimits().MaxQueries),
+		queryByID:     map[aggregateVerifierIdentity]int{},
 	}
 	if err := collector.appendValue(path, 1, [32]byte{}); !errors.Is(err, errInvalidProofMaterial) {
 		t.Fatalf("missing path error = %v", err)
 	}
 	collector.commitments[path] = commitment
+	bounded := collector
+	bounded.queryCapacity = 0
+	if err := bounded.appendValue(path, 1, [32]byte{1}); !errors.Is(err, errInvalidProofMaterial) {
+		t.Fatalf("bounded query growth error = %v", err)
+	}
 	if err := collector.appendValue(path, 1, [32]byte{1}); err != nil {
 		t.Fatalf("append first value: %v", err)
 	}
