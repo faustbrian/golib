@@ -231,7 +231,10 @@ func Parse(encoded []byte, policy Policy) (Parsed, error) {
 	if err != nil {
 		return Parsed{}, err
 	}
-	if len(encoded) > maxOutputSize || !utf8.Valid(encoded) {
+	if len(encoded) > maxOutputSize {
+		return Parsed{}, &Error{Code: CodeInvalidPhrase}
+	}
+	if !utf8.Valid(encoded) {
 		return Parsed{}, &Error{Code: CodeInvalidPhrase}
 	}
 
@@ -310,19 +313,18 @@ func prepare(policy Policy) (*preparedPolicy, error) {
 
 	outcomes := new(big.Int).Exp(big.NewInt(int64(len(words))), big.NewInt(int64(policy.Words)), nil)
 	for _, affix := range []*Affix{policy.Prefix, policy.Suffix} {
-		if affix == nil {
-			continue
+		if affix != nil {
+			if affix.Separator == "" || len(affix.Separator) > maxSeparator ||
+				!utf8.ValidString(affix.Separator) ||
+				strings.ContainsAny(affix.Policy.Alphabet, affix.Separator) {
+				return nil, &Error{Code: CodeAmbiguousSeparator}
+			}
+			affixDistribution, err := password.Analyze(affix.Policy)
+			if err != nil {
+				return nil, &Error{Code: CodeInvalidPolicy, Cause: err}
+			}
+			outcomes.Mul(outcomes, affixDistribution.Outcomes)
 		}
-		if affix.Separator == "" || len(affix.Separator) > maxSeparator ||
-			!utf8.ValidString(affix.Separator) ||
-			strings.ContainsAny(affix.Policy.Alphabet, affix.Separator) {
-			return nil, &Error{Code: CodeAmbiguousSeparator}
-		}
-		affixDistribution, err := password.Analyze(affix.Policy)
-		if err != nil {
-			return nil, &Error{Code: CodeInvalidPolicy, Cause: err}
-		}
-		outcomes.Mul(outcomes, affixDistribution.Outcomes)
 	}
 
 	bits := log2(outcomes)
@@ -367,20 +369,17 @@ func estimatedSize(policy Policy, words []string) int {
 	}
 	size := policy.Words*maximumWord + (policy.Words-1)*len(policy.Separator)
 	if policy.Prefix != nil {
-		size += policy.Prefix.Policy.Length*utf8.UTFMax + len(policy.Prefix.Separator)
+		size = size + policy.Prefix.Policy.Length*utf8.UTFMax + len(policy.Prefix.Separator)
 	}
 	if policy.Suffix != nil {
-		size += policy.Suffix.Policy.Length*utf8.UTFMax + len(policy.Suffix.Separator)
+		size = size + policy.Suffix.Policy.Length*utf8.UTFMax + len(policy.Suffix.Separator)
 	}
 	return size
 }
 
 func log2(value *big.Int) float64 {
 	bitLength := value.BitLen()
-	if bitLength <= 53 {
-		asFloat, _ := new(big.Float).SetInt(value).Float64()
-		return math.Log2(asFloat)
-	}
-	top := new(big.Int).Rsh(new(big.Int).Set(value), uint(bitLength-53))
-	return float64(bitLength-53) + math.Log2(float64(top.Uint64()))
+	shift := max(bitLength-53, 0)
+	top := new(big.Int).Rsh(new(big.Int).Set(value), uint(shift))
+	return float64(shift) + math.Log2(float64(top.Uint64()))
 }

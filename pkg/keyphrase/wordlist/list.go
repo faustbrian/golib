@@ -104,7 +104,7 @@ func New(metadata Metadata, words []string, options ...Option) (*List, error) {
 	if len(words) == 0 {
 		return nil, &Error{Code: CodeEmpty}
 	}
-	if len(words) > maxWords {
+	if exceedsWordLimit(len(words)) {
 		return nil, &Error{Code: CodeOversized}
 	}
 	if !validMetadata(metadata) || metadata.ExpectedWords != len(words) {
@@ -201,14 +201,40 @@ func (l *List) Metadata() Metadata {
 }
 
 func validMetadata(metadata Metadata) bool {
-	return metadata.ID != "" && metadata.Language != "" && metadata.Source != "" &&
-		metadata.Version != "" && metadata.License != "" && metadata.ExpectedWords > 0 &&
-		validChecksum(metadata.SHA256) && validChecksum(metadata.SourceSHA256)
+	if metadata.ID == "" {
+		return false
+	}
+	if metadata.Language == "" {
+		return false
+	}
+	if metadata.Source == "" {
+		return false
+	}
+	if metadata.Version == "" {
+		return false
+	}
+	if metadata.License == "" {
+		return false
+	}
+	if metadata.ExpectedWords <= 0 {
+		return false
+	}
+	if !validChecksum(metadata.SHA256) {
+		return false
+	}
+	return validChecksum(metadata.SourceSHA256)
 }
 
 func validChecksum(value string) bool {
 	decoded, err := hex.DecodeString(value)
-	return err == nil && len(decoded) == sha256.Size
+	if err != nil {
+		return false
+	}
+	return len(decoded) == sha256.Size
+}
+
+func exceedsWordLimit(count int) bool {
+	return count > maxWords
 }
 
 func validWord(word string) bool {
@@ -226,8 +252,5 @@ func validWord(word string) bool {
 
 func runePrefix(value string, length int) string {
 	runes := []rune(norm.NFC.String(value))
-	if len(runes) <= length {
-		return string(runes)
-	}
-	return string(runes[:length])
+	return string(runes[:min(length, len(runes))])
 }

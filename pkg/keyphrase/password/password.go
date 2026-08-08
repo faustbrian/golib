@@ -8,6 +8,7 @@ import (
 	"io"
 	"math"
 	"math/big"
+	"slices"
 	"unicode/utf8"
 
 	keyphrase "github.com/faustbrian/golib/pkg/keyphrase"
@@ -160,13 +161,7 @@ func Validate(policy Policy, encoded []byte) error {
 	}
 	state := uint64(0)
 	for _, symbol := range symbols {
-		index := -1
-		for candidate, allowed := range prepared.symbols {
-			if symbol == allowed {
-				index = candidate
-				break
-			}
-		}
+		index := slices.Index(prepared.symbols, symbol)
 		if index < 0 {
 			return &Error{Code: CodePolicyViolation}
 		}
@@ -259,11 +254,22 @@ func prepare(policy Policy) (*preparedPolicy, error) {
 	if policy.Length > maxLength {
 		return nil, &Error{Code: CodeOversized}
 	}
-	if math.IsNaN(policy.MinimumEntropyBits) || math.IsInf(policy.MinimumEntropyBits, 0) || policy.MinimumEntropyBits < 0 {
+	if math.IsNaN(policy.MinimumEntropyBits) {
 		return nil, &Error{Code: CodeInsufficientEntropy}
 	}
-	if len(policy.Alphabet) > maxEncodedAlphabet || len(policy.Excluded) > maxEncodedAlphabet ||
-		len(policy.Required) > maxClasses {
+	if math.IsInf(policy.MinimumEntropyBits, 0) {
+		return nil, &Error{Code: CodeInsufficientEntropy}
+	}
+	if policy.MinimumEntropyBits < 0 {
+		return nil, &Error{Code: CodeInsufficientEntropy}
+	}
+	if len(policy.Alphabet) > maxEncodedAlphabet {
+		return nil, &Error{Code: CodeOversized}
+	}
+	if len(policy.Excluded) > maxEncodedAlphabet {
+		return nil, &Error{Code: CodeOversized}
+	}
+	if len(policy.Required) > maxClasses {
 		return nil, &Error{Code: CodeOversized}
 	}
 	for _, class := range policy.Required {
@@ -298,7 +304,7 @@ func prepare(policy Policy) (*preparedPolicy, error) {
 		return nil, &Error{Code: CodeInvalidAlphabet}
 	}
 	states := 1 << len(policy.Required)
-	if (policy.Length+1)*states > maxDynamicCells {
+	if exceedsDynamicCells(policy.Length, states) {
 		return nil, &Error{Code: CodeOversized}
 	}
 
@@ -331,7 +337,7 @@ func prepare(policy Policy) (*preparedPolicy, error) {
 	}
 
 	all := uint64(1)<<len(policy.Required) - 1
-	if int64(policy.Length)*int64(states)*int64(maskGroups(masks)) > maxDynamicOperations {
+	if exceedsDynamicOperations(policy.Length, states, maskGroups(masks)) {
 		return nil, &Error{Code: CodeOversized}
 	}
 	ways := countWays(policy.Length, states, all, masks)
@@ -343,7 +349,10 @@ func prepare(policy Policy) (*preparedPolicy, error) {
 }
 
 func validateSymbols(value string) ([]rune, map[rune]struct{}, error) {
-	if value == "" || !utf8.ValidString(value) {
+	if value == "" {
+		return nil, nil, &Error{Code: CodeInvalidAlphabet}
+	}
+	if !utf8.ValidString(value) {
 		return nil, nil, &Error{Code: CodeInvalidAlphabet}
 	}
 
@@ -404,11 +413,17 @@ func maskGroups(masks []uint64) int {
 	return len(groups)
 }
 
+func exceedsDynamicCells(length int, states int) bool {
+	return (length+1)*states > maxDynamicCells
+}
+
+func exceedsDynamicOperations(length int, states int, groups int) bool {
+	return int64(length)*int64(states)*int64(groups) > maxDynamicOperations
+}
+
 func log2(value *big.Int) float64 {
 	bitLength := value.BitLen()
-	if bitLength <= 53 {
-		return math.Log2(float64(value.Uint64()))
-	}
-	top := new(big.Int).Rsh(new(big.Int).Set(value), uint(bitLength-53))
-	return float64(bitLength-53) + math.Log2(float64(top.Uint64()))
+	shift := max(bitLength-53, 0)
+	top := new(big.Int).Rsh(new(big.Int).Set(value), uint(shift))
+	return float64(shift) + math.Log2(float64(top.Uint64()))
 }

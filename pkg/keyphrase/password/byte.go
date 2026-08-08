@@ -121,11 +121,22 @@ func prepareBytes(policy BytePolicy) (*preparedBytePolicy, error) {
 	if policy.Length > maxLength {
 		return nil, &Error{Code: CodeOversized}
 	}
-	if math.IsNaN(policy.MinimumEntropyBits) || math.IsInf(policy.MinimumEntropyBits, 0) || policy.MinimumEntropyBits < 0 {
+	if math.IsNaN(policy.MinimumEntropyBits) {
 		return nil, &Error{Code: CodeInsufficientEntropy}
 	}
-	if len(policy.Alphabet) > maxByteAlphabet || len(policy.Excluded) > maxByteAlphabet ||
-		len(policy.Required) > maxClasses {
+	if math.IsInf(policy.MinimumEntropyBits, 0) {
+		return nil, &Error{Code: CodeInsufficientEntropy}
+	}
+	if policy.MinimumEntropyBits < 0 {
+		return nil, &Error{Code: CodeInsufficientEntropy}
+	}
+	if len(policy.Alphabet) > maxByteAlphabet {
+		return nil, &Error{Code: CodeOversized}
+	}
+	if len(policy.Excluded) > maxByteAlphabet {
+		return nil, &Error{Code: CodeOversized}
+	}
+	if len(policy.Required) > maxClasses {
 		return nil, &Error{Code: CodeOversized}
 	}
 	for _, class := range policy.Required {
@@ -156,7 +167,7 @@ func prepareBytes(policy BytePolicy) (*preparedBytePolicy, error) {
 		return nil, &Error{Code: CodeInvalidAlphabet}
 	}
 	states := 1 << len(policy.Required)
-	if (policy.Length+1)*states > maxDynamicCells {
+	if exceedsDynamicCells(policy.Length, states) {
 		return nil, &Error{Code: CodeOversized}
 	}
 
@@ -189,7 +200,7 @@ func prepareBytes(policy BytePolicy) (*preparedBytePolicy, error) {
 	}
 
 	all := uint64(1)<<len(policy.Required) - 1
-	if int64(policy.Length)*int64(states)*int64(maskGroups(masks)) > maxDynamicOperations {
+	if exceedsDynamicOperations(policy.Length, states, maskGroups(masks)) {
 		return nil, &Error{Code: CodeOversized}
 	}
 	ways := countWays(policy.Length, states, all, masks)

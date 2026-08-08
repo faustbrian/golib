@@ -50,6 +50,20 @@ func (s cancelingErrorSource) ReadContext(_ context.Context, _ []byte) (int, err
 	return 0, errors.New("canceled source")
 }
 
+type partialThenOversizeSource struct {
+	calls int
+}
+
+func (source *partialThenOversizeSource) ReadContext(_ context.Context, destination []byte) (int, error) {
+	source.calls++
+	if source.calls == 1 {
+		destination[0] = 1
+		return 1, nil
+	}
+
+	return len(destination) + 1, nil
+}
+
 func TestSelectorConstructionFailures(t *testing.T) {
 	t.Parallel()
 
@@ -155,6 +169,22 @@ func TestSelectorBigIntFailureBoundaries(t *testing.T) {
 	}
 }
 
+func TestBigIntMasksUnusedHighBits(t *testing.T) {
+	t.Parallel()
+
+	selector, err := NewSelector(&internalSource{bytes: []byte{0x80, 0}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	value, err := selector.BigInt(context.Background(), big.NewInt(257))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value.Sign() != 0 {
+		t.Fatalf("BigInt(257) = %s, want unused high bits to be discarded", value)
+	}
+}
+
 func TestFillClearsEveryFailureAndHandlesPartialReads(t *testing.T) {
 	t.Parallel()
 
@@ -168,6 +198,15 @@ func TestFillClearsEveryFailureAndHandlesPartialReads(t *testing.T) {
 	selector, _ = NewSelector(&internalSource{oversize: true})
 	if err := selector.Fill(context.Background(), destination); errorCode(err) != CodeShortRead || destination[0] != 0 {
 		t.Fatalf("Fill(oversize read) = %v, %v", destination, err)
+	}
+
+	destination = []byte{9, 9, 9}
+	selector, _ = NewSelector(&partialThenOversizeSource{})
+	if err := selector.Fill(context.Background(), destination); errorCode(err) != CodeShortRead {
+		t.Fatalf("Fill(oversize read after progress) = %v, %v", destination, err)
+	}
+	if destination[0] != 0 || destination[1] != 0 || destination[2] != 0 {
+		t.Fatalf("Fill(oversize read after progress) retained partial output: %v", destination)
 	}
 
 	destination = make([]byte, maxSampleBits/8+1)

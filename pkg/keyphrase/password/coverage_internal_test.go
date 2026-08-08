@@ -39,10 +39,13 @@ func TestUnicodePolicyFailureMatrix(t *testing.T) {
 		{name: "zero length", policy: Policy{Alphabet: "ab"}, code: CodeInvalidLength},
 		{name: "oversized length", policy: Policy{Length: maxLength + 1, Alphabet: "ab"}, code: CodeOversized},
 		{name: "invalid entropy floor", policy: Policy{Length: 2, Alphabet: "ab", MinimumEntropyBits: math.NaN()}, code: CodeInsufficientEntropy},
+		{name: "infinite entropy floor", policy: Policy{Length: 2, Alphabet: "ab", MinimumEntropyBits: math.Inf(1)}, code: CodeInsufficientEntropy},
+		{name: "negative entropy floor", policy: Policy{Length: 2, Alphabet: "ab", MinimumEntropyBits: -1}, code: CodeInsufficientEntropy},
 		{name: "oversized alphabet", policy: Policy{Length: 2, Alphabet: string(oversizedAlphabet)}, code: CodeOversized},
 		{name: "oversized encoded alphabet", policy: Policy{Length: 2, Alphabet: oversizedEncoded}, code: CodeOversized},
 		{name: "oversized exclusion", policy: Policy{Length: 2, Alphabet: "ab", Excluded: oversizedEncoded}, code: CodeOversized},
 		{name: "oversized class", policy: Policy{Length: 2, Alphabet: "ab", Required: []Class{{Name: "large", Characters: oversizedEncoded}}}, code: CodeOversized},
+		{name: "malformed UTF-8 alphabet", policy: Policy{Length: 2, Alphabet: string([]byte{0xff, 'a'})}, code: CodeInvalidAlphabet},
 		{name: "invalid exclusion", policy: Policy{Length: 2, Alphabet: "abc", Excluded: "aa"}, code: CodeDuplicateSymbol},
 		{name: "excluded alphabet", policy: Policy{Length: 2, Alphabet: "ab", Excluded: "a"}, code: CodeInvalidAlphabet},
 		{name: "too many classes", policy: Policy{Length: 2, Alphabet: "ab", Required: tooManyClasses}, code: CodeOversized},
@@ -118,6 +121,13 @@ func TestUnicodeValidationAndBufferFailureMatrix(t *testing.T) {
 
 	deterministic, _ := keyphrase.NewSelector(&zeroSource{})
 	generator, _ = NewGenerator(deterministic)
+	exactEntropy := Policy{Length: 2, Alphabet: "ab", MinimumEntropyBits: 2}
+	if distribution, err := Analyze(exactEntropy); err != nil || distribution.Bits != 2 {
+		t.Fatalf("Analyze(exact entropy) = %#v, %v", distribution, err)
+	}
+	if secret, err := generator.Generate(context.Background(), exactEntropy); err != nil || string(secret) != "aa" {
+		t.Fatalf("Generate(exact entropy) = %q, %v", secret, err)
+	}
 	if count, err := generator.GenerateInto(context.Background(), make([]byte, 1), Policy{Length: 2, Alphabet: "ab"}); count != 0 || policyErrorCode(err) != CodeBufferTooSmall {
 		t.Fatalf("GenerateInto(small) = %d, %v", count, err)
 	}
@@ -140,6 +150,8 @@ func TestBytePolicyFailureMatrix(t *testing.T) {
 		{name: "zero length", policy: BytePolicy{Alphabet: []byte{1, 2}}, code: CodeInvalidLength},
 		{name: "oversized length", policy: BytePolicy{Length: maxLength + 1, Alphabet: []byte{1, 2}}, code: CodeOversized},
 		{name: "invalid entropy", policy: BytePolicy{Length: 2, Alphabet: []byte{1, 2}, MinimumEntropyBits: math.Inf(1)}, code: CodeInsufficientEntropy},
+		{name: "not-a-number entropy", policy: BytePolicy{Length: 2, Alphabet: []byte{1, 2}, MinimumEntropyBits: math.NaN()}, code: CodeInsufficientEntropy},
+		{name: "negative entropy", policy: BytePolicy{Length: 2, Alphabet: []byte{1, 2}, MinimumEntropyBits: -1}, code: CodeInsufficientEntropy},
 		{name: "empty alphabet", policy: BytePolicy{Length: 2}, code: CodeInvalidAlphabet},
 		{name: "oversized alphabet", policy: BytePolicy{Length: 2, Alphabet: oversizedBytes}, code: CodeOversized},
 		{name: "oversized exclusion", policy: BytePolicy{Length: 2, Alphabet: []byte{1, 2}, Excluded: oversizedBytes}, code: CodeOversized},
@@ -187,6 +199,15 @@ func TestByteGenerationFailureMatrix(t *testing.T) {
 	if _, err := AnalyzeBytes(BytePolicy{Length: 2, Alphabet: []byte{1, 2}, MinimumEntropyBits: 3}); policyErrorCode(err) != CodeInsufficientEntropy {
 		t.Fatalf("AnalyzeBytes(entropy) code = %q", policyErrorCode(err))
 	}
+	exactEntropy := BytePolicy{Length: 2, Alphabet: []byte{1, 2}, MinimumEntropyBits: 2}
+	if distribution, err := AnalyzeBytes(exactEntropy); err != nil || distribution.Bits != 2 {
+		t.Fatalf("AnalyzeBytes(exact entropy) = %#v, %v", distribution, err)
+	}
+	deterministic, _ := keyphrase.NewSelector(&zeroSource{})
+	deterministicGenerator, _ := NewGenerator(deterministic)
+	if secret, err := deterministicGenerator.GenerateBytes(context.Background(), exactEntropy); err != nil || len(secret) != 2 || secret[0] != 1 || secret[1] != 1 {
+		t.Fatalf("GenerateBytes(exact entropy) = %v, %v", secret, err)
+	}
 
 	invalidWays := [][]big.Int{make([]big.Int, 1), make([]big.Int, 1)}
 	if _, err := unrankRunes(&preparedPolicy{symbols: []rune{'a'}, masks: []uint64{0}, ways: invalidWays}, 1, big.NewInt(0)); policyErrorCode(err) != CodeImpossible {
@@ -201,6 +222,36 @@ func TestByteGenerationFailureMatrix(t *testing.T) {
 	}
 	if result, err := unrankBytes(prepared, 1, big.NewInt(1)); err != nil || len(result) != 1 || result[0] != 2 {
 		t.Fatalf("unrankBytes(rank one) = %v, %v", result, err)
+	}
+	runePrepared, err := prepare(Policy{Length: 1, Alphabet: "ab"})
+	if err != nil {
+		t.Fatalf("prepare() error = %v", err)
+	}
+	if result, err := unrankRunes(runePrepared, 1, big.NewInt(1)); err != nil || string(result) != "b" {
+		t.Fatalf("unrankRunes(rank one) = %q, %v", result, err)
+	}
+	stateful, err := prepareBytes(BytePolicy{
+		Length: 2, Alphabet: []byte{1, 2},
+		Required: []ByteClass{{Name: "one", Bytes: []byte{1}}},
+	})
+	if err != nil {
+		t.Fatalf("prepareBytes(stateful) error = %v", err)
+	}
+	if result, err := unrankBytes(stateful, 2, big.NewInt(1)); err != nil || len(result) != 2 || result[0] != 1 || result[1] != 2 {
+		t.Fatalf("unrankBytes(stateful rank one) = %v, %v", result, err)
+	}
+	accumulating, err := prepareBytes(BytePolicy{
+		Length: 3, Alphabet: []byte{1, 2},
+		Required: []ByteClass{
+			{Name: "one", Bytes: []byte{1}},
+			{Name: "two", Bytes: []byte{2}},
+		},
+	})
+	if err != nil {
+		t.Fatalf("prepareBytes(accumulating) error = %v", err)
+	}
+	if result, err := unrankBytes(accumulating, 3, big.NewInt(2)); err != nil || len(result) != 3 || result[0] != 1 || result[1] != 2 || result[2] != 2 {
+		t.Fatalf("unrankBytes(accumulating rank two) = %v, %v", result, err)
 	}
 }
 

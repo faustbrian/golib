@@ -182,7 +182,6 @@ func detectLanguage(words []string, provider func(Language) (*wordlist.List, err
 		for _, word := range words {
 			if _, exists := list.Index(word); !exists {
 				matches = false
-				break
 			}
 		}
 		if matches {
@@ -266,8 +265,8 @@ func Seed(ctx context.Context, mnemonic Mnemonic, passphrase string) (keyphrase.
 	_, _ = mac.Write(block[:])
 	u := mac.Sum(nil)
 	result := append(keyphrase.Secret(nil), u...)
-	//nolint:revive // Keep mutation tests bounded without changing PBKDF2.
-	for iteration := 1; iteration < pbkdf2Rounds; iteration += 1 {
+	for round := range pbkdf2Rounds - 1 {
+		iteration := round + 1
 		if iteration%64 == 0 {
 			if err := ctx.Err(); err != nil {
 				clear(u)

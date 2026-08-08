@@ -75,8 +75,10 @@ func TestGenerateUsesInjectedRandomnessWithoutPartialResults(t *testing.T) {
 		t.Fatalf("mnemonic formatting disclosed content: %q", formatted)
 	}
 
-	if _, err := Generate(context.Background(), 127, English, selector); errorCode(err) != CodeInvalidEntropy {
-		t.Fatalf("Generate(127) code = %q", errorCode(err))
+	for _, entropyBits := range []int{120, 127, 129} {
+		if _, err := Generate(context.Background(), entropyBits, English, selector); errorCode(err) != CodeInvalidEntropy {
+			t.Fatalf("Generate(%d) code = %q", entropyBits, errorCode(err))
+		}
 	}
 	if _, err := Generate(context.Background(), 128, English, nil); errorCode(err) != CodeInvalidGenerator {
 		t.Fatalf("Generate(nil) code = %q", errorCode(err))
@@ -202,6 +204,12 @@ func TestSeedCancellationReturnsNoPartialSeed(t *testing.T) {
 	}
 	if seed, err := Seed(context.Background(), Mnemonic{}, "secret"); errorCode(err) != CodeInvalidLength || seed != nil {
 		t.Fatalf("Seed(zero mnemonic) = %v, %v", seed, err)
+	}
+	if seed, err := Seed(context.Background(), Mnemonic{words: make([]string, 12)}, "secret"); errorCode(err) != CodeInvalidLength || seed != nil {
+		t.Fatalf("Seed(valid words, invalid entropy) = %v, %v", seed, err)
+	}
+	if seed, err := Seed(context.Background(), Mnemonic{words: make([]string, 11), entropy: make([]byte, 16)}, "secret"); errorCode(err) != CodeInvalidLength || seed != nil {
+		t.Fatalf("Seed(invalid words, valid entropy) = %v, %v", seed, err)
 	}
 	if seed, err := Seed(context.Background(), mnemonic, strings.Repeat("x", maxPassphraseBytes+1)); errorCode(err) != CodeOversized || seed != nil {
 		t.Fatalf("Seed(oversized passphrase) = %v, %v", seed, err)

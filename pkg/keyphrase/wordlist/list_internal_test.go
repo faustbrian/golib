@@ -62,13 +62,32 @@ func TestListBoundaryAccessAndShortPrefix(t *testing.T) {
 func TestValidationBoundaries(t *testing.T) {
 	t.Parallel()
 
-	metadata := metadataForInternal([]string{"valid"})
+	words := []string{"valid"}
+	metadata := metadataForInternal(words)
 	if !validMetadata(metadata) {
 		t.Fatal("valid metadata was rejected")
 	}
-	metadata.ExpectedWords = 0
-	if validMetadata(metadata) {
-		t.Fatal("zero expected words was accepted")
+	invalidMetadata := map[string]func(*Metadata){
+		"missing ID":       func(value *Metadata) { value.ID = "" },
+		"missing language": func(value *Metadata) { value.Language = "" },
+		"missing source":   func(value *Metadata) { value.Source = "" },
+		"missing version":  func(value *Metadata) { value.Version = "" },
+		"missing license":  func(value *Metadata) { value.License = "" },
+		"zero word count":  func(value *Metadata) { value.ExpectedWords = 0 },
+	}
+	for name, invalidate := range invalidMetadata {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			candidate := metadata
+			invalidate(&candidate)
+			if validMetadata(candidate) {
+				t.Fatal("invalid metadata was accepted")
+			}
+			if _, err := New(candidate, words); errorCode(err) != CodeMetadata {
+				t.Fatalf("New() code = %q, want %q", errorCode(err), CodeMetadata)
+			}
+		})
 	}
 
 	if !validWord(strings.Repeat("a", maxWordSize)) {
@@ -76,6 +95,9 @@ func TestValidationBoundaries(t *testing.T) {
 	}
 	if validWord(strings.Repeat("a", maxWordSize+1)) {
 		t.Fatal("oversized word was accepted")
+	}
+	if exceedsWordLimit(maxWords) || !exceedsWordLimit(maxWords+1) {
+		t.Fatal("word-count boundary mismatch")
 	}
 }
 

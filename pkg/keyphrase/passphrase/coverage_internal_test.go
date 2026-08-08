@@ -3,7 +3,9 @@ package passphrase
 import (
 	"context"
 	"errors"
+	"fmt"
 	"math"
+	"math/big"
 	"strings"
 	"testing"
 
@@ -57,6 +59,8 @@ func TestPolicyFailureMatrix(t *testing.T) {
 		{name: "invalid casing", policy: Policy{WordList: list, Words: 2, Separator: "-", Casing: Upper + 1}, code: CodeInvalidPolicy},
 		{name: "invalid entropy", policy: Policy{WordList: list, Words: 2, Separator: "-", MinimumEntropyBits: math.NaN()}, code: CodeInvalidPolicy},
 		{name: "too many words", policy: Policy{WordList: list, Words: maxWords + 1, Separator: "-"}, code: CodeOversized},
+		{name: "empty affix separator", policy: Policy{WordList: list, Words: 2, Separator: "-", Prefix: &Affix{Policy: password.Policy{Length: 2, Alphabet: "ab"}}}, code: CodeAmbiguousSeparator},
+		{name: "oversized affix separator", policy: Policy{WordList: list, Words: 2, Separator: "-", Prefix: &Affix{Separator: strings.Repeat(":", maxSeparator+1), Policy: password.Policy{Length: 2, Alphabet: "ab"}}}, code: CodeAmbiguousSeparator},
 		{name: "invalid affix policy", policy: Policy{WordList: list, Words: 2, Separator: "-", Prefix: &Affix{Separator: ":", Policy: password.Policy{}}}, code: CodeInvalidPolicy},
 		{name: "minimum entropy", policy: Policy{WordList: list, Words: 2, Separator: "-", MinimumEntropyBits: 3}, code: CodeInsufficientEntropy},
 	}
@@ -76,6 +80,44 @@ func TestPolicyFailureMatrix(t *testing.T) {
 	}
 	if distribution, err := Analyze(Policy{WordList: internalList(t, []string{"a", "b", "c"}), Words: maxWords, Separator: "-"}); err != nil || distribution.Bits <= 53 {
 		t.Fatalf("Analyze(large entropy) = %#v, %v", distribution, err)
+	}
+	limitWords := make([]string, maxListWords)
+	for index := range limitWords {
+		limitWords[index] = fmt.Sprintf("word-%05d", index)
+	}
+	if _, err := Analyze(Policy{WordList: internalList(t, limitWords), Words: 2, Separator: "/"}); err != nil {
+		t.Fatalf("Analyze(maximum list) error = %v", err)
+	}
+	if _, err := Analyze(Policy{WordList: list, Words: 2, Separator: "-", MinimumEntropyBits: 2}); err != nil {
+		t.Fatalf("Analyze(exact minimum entropy) error = %v", err)
+	}
+	maximumSeparatorAffix := &Affix{Separator: strings.Repeat(":", maxSeparator), Policy: password.Policy{Length: 1, Alphabet: "ab"}}
+	if _, err := Analyze(Policy{WordList: list, Words: 2, Separator: "-", Suffix: maximumSeparatorAffix}); err != nil {
+		t.Fatalf("Analyze(maximum suffix separator) error = %v", err)
+	}
+	invalidSuffix := &Affix{Separator: ":", Policy: password.Policy{Length: 1, Alphabet: ":a"}}
+	if _, err := Analyze(Policy{WordList: list, Words: 2, Separator: "-", Suffix: invalidSuffix}); errorCode(err) != CodeAmbiguousSeparator {
+		t.Fatalf("Analyze(suffix-only ambiguity) code = %q", errorCode(err))
+	}
+	words := []string{"alpha", "beta"}
+	base := Policy{Words: 2, Separator: "-"}
+	if got := estimatedSize(base, words); got != 11 {
+		t.Fatalf("estimatedSize(base) = %d, want 11", got)
+	}
+	base.Prefix = &Affix{Separator: "::", Policy: password.Policy{Length: 2}}
+	if got := estimatedSize(base, words); got != 21 {
+		t.Fatalf("estimatedSize(prefix) = %d, want 21", got)
+	}
+	base.Suffix = &Affix{Separator: ".", Policy: password.Policy{Length: 3}}
+	if got := estimatedSize(base, words); got != 34 {
+		t.Fatalf("estimatedSize(prefix and suffix) = %d, want 34", got)
+	}
+	for _, value := range []uint64{1, 3, 1 << 52, (1 << 53) + 1, 1 << 63} {
+		got := log2(new(big.Int).SetUint64(value))
+		want := math.Log2(float64(value))
+		if math.Abs(got-want) > 1e-12 {
+			t.Fatalf("log2(%d) = %.16f, want %.16f", value, got, want)
+		}
 	}
 }
 
@@ -124,6 +166,9 @@ func TestParsingFailureMatrix(t *testing.T) {
 	}
 	if _, err := Parse([]byte{0xff}, base); errorCode(err) != CodeInvalidPhrase {
 		t.Fatalf("Parse(UTF-8) code = %q", errorCode(err))
+	}
+	if _, err := Parse([]byte(strings.Repeat("a", maxOutputSize+1)), base); errorCode(err) != CodeInvalidPhrase {
+		t.Fatalf("Parse(oversized) code = %q", errorCode(err))
 	}
 	if _, err := Parse([]byte("alpha"), base); errorCode(err) != CodeInvalidPhrase {
 		t.Fatalf("Parse(count) code = %q", errorCode(err))

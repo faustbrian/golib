@@ -2,6 +2,8 @@ package password
 
 import (
 	"errors"
+	"math"
+	"math/big"
 	"strings"
 	"testing"
 )
@@ -72,6 +74,9 @@ func TestAnalyzeAcceptsExactResourceBoundaries(t *testing.T) {
 	if _, err := Analyze(Policy{Length: 1, Alphabet: alphabet}); err != nil {
 		t.Fatalf("Analyze(maximum alphabet) error = %v", err)
 	}
+	if _, err := Analyze(Policy{Length: 1, Alphabet: alphabet, Excluded: alphabet}); policyErrorCode(err) != CodeInvalidAlphabet {
+		t.Fatalf("Analyze(maximum exclusion) code = %q", policyErrorCode(err))
+	}
 	classes := make([]Class, maxClasses)
 	for index := range classes {
 		classes[index] = Class{Name: string(rune('a' + index)), Characters: alphabet}
@@ -87,12 +92,32 @@ func TestAnalyzeAcceptsExactResourceBoundaries(t *testing.T) {
 	if _, err := AnalyzeBytes(BytePolicy{Length: 1, Alphabet: byteAlphabet}); err != nil {
 		t.Fatalf("AnalyzeBytes(maximum alphabet) error = %v", err)
 	}
+	if _, err := AnalyzeBytes(BytePolicy{Length: maxLength, Alphabet: []byte{0, 1}}); err != nil {
+		t.Fatalf("AnalyzeBytes(maximum length) error = %v", err)
+	}
+	if _, err := AnalyzeBytes(BytePolicy{Length: 1, Alphabet: byteAlphabet, Excluded: byteAlphabet}); policyErrorCode(err) != CodeInvalidAlphabet {
+		t.Fatalf("AnalyzeBytes(maximum exclusion) code = %q", policyErrorCode(err))
+	}
 	byteClasses := make([]ByteClass, maxClasses)
 	for index := range byteClasses {
 		byteClasses[index] = ByteClass{Name: string(rune('a' + index)), Bytes: byteAlphabet}
 	}
 	if _, err := AnalyzeBytes(BytePolicy{Length: 1, Alphabet: byteAlphabet, Required: byteClasses}); err != nil {
 		t.Fatalf("AnalyzeBytes(maximum classes) error = %v", err)
+	}
+
+	if exceedsDynamicCells(1023, 1024) || !exceedsDynamicCells(1024, 1024) {
+		t.Fatal("dynamic cell boundary mismatch")
+	}
+	if exceedsDynamicOperations(1024, 512, 16) || !exceedsDynamicOperations(1024, 512, 17) {
+		t.Fatal("dynamic operation boundary mismatch")
+	}
+	for _, value := range []uint64{1, 3, 1 << 52, (1 << 53) + 1, 1 << 63} {
+		got := log2(new(big.Int).SetUint64(value))
+		want := math.Log2(float64(value))
+		if math.Abs(got-want) > 1e-12 {
+			t.Fatalf("log2(%d) = %.16f, want %.16f", value, got, want)
+		}
 	}
 }
 
