@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove five repeated cooperative join, settlement, leave, and survivor
+  reacquisition cycles against minimum Apache Kafka 3.7.2 and current 4.3.1
+  three-broker clusters with exact one-copy partition ownership and
+  monotonically advancing committed offsets
 - prove exact-range replay from an Apache Kafka 4.3.1 remote segment after its
   local base segment is evicted, using Kafka's checksum-pinned test-only
   `LocalTieredStorage` implementation; inspection simultaneously proves the

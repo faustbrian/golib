@@ -1440,6 +1440,157 @@ func TestApacheKafkaConsumerRollingBalanceMigration(t *testing.T) {
 	cooperative.releaseConsumerAndWait(t)
 }
 
+func TestApacheKafkaConsumerRepeatedCooperativeChurn(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
+	t.Run("minimum-3.7.2", func(t *testing.T) {
+		proveApacheKafkaConsumerRepeatedCooperativeChurn(
+			t,
+			apacheKafkaMinimumImage,
+			"3.7.2",
+			false,
+		)
+	})
+	t.Run("current-4.3.1", func(t *testing.T) {
+		proveApacheKafkaConsumerRepeatedCooperativeChurn(
+			t,
+			apacheKafkaImage,
+			"4.3.1",
+			true,
+		)
+	})
+}
+
+func proveApacheKafkaConsumerRepeatedCooperativeChurn(
+	t *testing.T,
+	image string,
+	version string,
+	includeShareCoordinator bool,
+) {
+	t.Helper()
+
+	const (
+		anchorClient = "golib-apache-consumer-churn-anchor"
+		churnCycles  = 5
+	)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+
+	cluster := startApacheKafkaClusterWithImage(
+		t,
+		ctx,
+		image,
+		includeShareCoordinator,
+	)
+	cluster.observeFailureState(t)
+	cluster.assertRuntimeVersion(t, ctx, version)
+	brokers := cluster.brokers(t, ctx)
+	waitForApacheBrokerEndpoints(t, ctx, brokers)
+
+	topic := fmt.Sprintf(
+		"golib-apache-consumer-churn-%d",
+		time.Now().UnixNano(),
+	)
+	groupID := topic + "-group"
+	createApacheKafkaTopic(t, ctx, brokers, topic, 2)
+
+	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+		Brokers:       brokers,
+		ClientID:      "golib-apache-consumer-churn-producer",
+		AllowedTopics: []string{topic},
+		KeyPolicy:     kafka.KeyRequired,
+		Security:      kafka.DevelopmentPlaintextSecurity(),
+	})
+	if err != nil {
+		t.Fatalf("construct cooperative churn producer: %v", err)
+	}
+	defer func() {
+		if closeErr := producer.Close(); closeErr != nil {
+			t.Errorf("close cooperative churn producer: %v", closeErr)
+		}
+	}()
+
+	anchor := startApacheKafkaConsumerChild(
+		t,
+		ctx,
+		brokers,
+		topic,
+		groupID,
+		anchorClient,
+		apacheKafkaConsumerBalanceCoop,
+	)
+	waitForApacheKafkaConsumerGroupState(
+		t,
+		ctx,
+		brokers,
+		groupID,
+		topic,
+		"cooperative-sticky",
+		[]string{anchorClient},
+	)
+
+	wantCommits := map[kafka.TopicPartition]int64{
+		{Topic: topic, Partition: 0}: 0,
+		{Topic: topic, Partition: 1}: 0,
+	}
+	for cycle := range churnCycles {
+		peerClient := fmt.Sprintf(
+			"golib-apache-consumer-churn-peer-%d",
+			cycle,
+		)
+		peer := startApacheKafkaConsumerChild(
+			t,
+			ctx,
+			brokers,
+			topic,
+			groupID,
+			peerClient,
+			apacheKafkaConsumerBalanceCoop,
+		)
+		waitForApacheKafkaConsumerGroupState(
+			t,
+			ctx,
+			brokers,
+			groupID,
+			topic,
+			"cooperative-sticky",
+			[]string{anchorClient, peerClient},
+		)
+
+		publishApacheKafkaPartitionRecords(
+			t,
+			ctx,
+			producer,
+			topic,
+			int64(cycle),
+		)
+		wantOffset := int64(cycle + 1)
+		wantCommits[kafka.TopicPartition{Topic: topic, Partition: 0}] = wantOffset
+		wantCommits[kafka.TopicPartition{Topic: topic, Partition: 1}] = wantOffset
+		assertApacheKafkaGroupCommits(
+			t,
+			ctx,
+			brokers,
+			groupID,
+			wantCommits,
+		)
+
+		peer.releaseConsumerAndWait(t)
+		waitForApacheKafkaConsumerGroupState(
+			t,
+			ctx,
+			brokers,
+			groupID,
+			topic,
+			"cooperative-sticky",
+			[]string{anchorClient},
+		)
+	}
+
+	anchor.releaseConsumerAndWait(t)
+}
+
 func TestApacheKafkaConsumerMultiPartitionRebalance(t *testing.T) {
 	runKafkaBrokerIntegration(t)
 
