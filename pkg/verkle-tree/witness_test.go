@@ -126,9 +126,36 @@ func TestPublicStatelessWitnessRoundTripAndApplication(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new stateless engine: %v", err)
 	}
-	result, err := engine.Apply(
+	wantPreRoot, err := snapshot.Root()
+	if err != nil {
+		t.Fatalf("snapshot pre-state root: %v", err)
+	}
+	wrongSnapshot, err := verkletree.NewSnapshot(
+		context.Background(),
+		verkletree.BandersnatchIPA256V0(),
+		nil,
+		publicSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new wrong-root snapshot: %v", err)
+	}
+	wrongRoot, err := wrongSnapshot.Root()
+	if err != nil {
+		t.Fatalf("wrong pre-state root: %v", err)
+	}
+	if _, err := engine.ApplyForRoot(
 		context.Background(),
 		decoded,
+		wrongRoot,
+		publicProofVerificationLimits(),
+		publicStatelessUpdateLimits(),
+	); !errors.Is(err, verkletree.ErrVerification) {
+		t.Fatalf("cross-root witness error = %v", err)
+	}
+	result, err := engine.ApplyForRoot(
+		context.Background(),
+		decoded,
+		wantPreRoot,
 		publicProofVerificationLimits(),
 		publicStatelessUpdateLimits(),
 	)
@@ -138,10 +165,6 @@ func TestPublicStatelessWitnessRoundTripAndApplication(t *testing.T) {
 	preRoot, err := result.PreRoot()
 	if err != nil {
 		t.Fatalf("result pre-state root: %v", err)
-	}
-	wantPreRoot, err := snapshot.Root()
-	if err != nil {
-		t.Fatalf("snapshot pre-state root: %v", err)
 	}
 	assertPublicRootsEqual(t, preRoot, wantPreRoot)
 	resultPostRoot, err := result.PostRoot()
@@ -644,6 +667,34 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new stateless engine: %v", err)
 	}
+	preRoot, err := snapshot.Root()
+	if err != nil {
+		t.Fatalf("pre-state root: %v", err)
+	}
+	if _, err := engine.ApplyForRoot(
+		nilContext, witness, preRoot,
+		publicProofVerificationLimits(), publicStatelessUpdateLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidContext) {
+		t.Fatalf("nil trusted-root apply context error = %v", err)
+	}
+	if _, err := engine.ApplyForRoot(
+		context.Background(), witness, verkletree.Root{},
+		publicProofVerificationLimits(), publicStatelessUpdateLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidRoot) {
+		t.Fatalf("invalid trusted pre-state root error = %v", err)
+	}
+	if _, err := engine.ApplyForRoot(
+		context.Background(), witness, preRoot,
+		verkletree.ProofVerificationLimits{}, publicStatelessUpdateLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidLimits) {
+		t.Fatalf("trusted-root verification limits error = %v", err)
+	}
+	if _, err := engine.ApplyForRoot(
+		context.Background(), witness, preRoot,
+		publicProofVerificationLimits(), verkletree.StatelessUpdateLimits{},
+	); !errors.Is(err, verkletree.ErrInvalidLimits) {
+		t.Fatalf("trusted-root update limits error = %v", err)
+	}
 	if _, err := verkletree.NewStatelessEngine(
 		nilContext, verkletree.BandersnatchIPA256V0(),
 		publicOpeningLimits(), publicSnapshotLimits().Commitment,
@@ -781,6 +832,12 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 	); !errors.Is(err, verkletree.ErrInvalidWitness) {
 		t.Fatalf("zero witness apply error = %v", err)
 	}
+	if _, err := engine.ApplyForRoot(
+		context.Background(), zeroWitness, preRoot,
+		publicProofVerificationLimits(), publicStatelessUpdateLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidWitness) {
+		t.Fatalf("zero witness trusted-root apply error = %v", err)
+	}
 	var zeroUpdate verkletree.Update
 	if _, err := zeroUpdate.Kind(); !errors.Is(err, verkletree.ErrInvalidUpdate) {
 		t.Fatalf("zero update kind error = %v", err)
@@ -800,6 +857,12 @@ func TestPublicStatelessWitnessRejectsInvalidUseAndTampering(t *testing.T) {
 		publicProofVerificationLimits(), publicStatelessUpdateLimits(),
 	); !errors.Is(err, verkletree.ErrInvalidStatelessEngine) {
 		t.Fatalf("zero stateless engine error = %v", err)
+	}
+	if _, err := zeroEngine.ApplyForRoot(
+		context.Background(), witness, preRoot,
+		publicProofVerificationLimits(), publicStatelessUpdateLimits(),
+	); !errors.Is(err, verkletree.ErrInvalidStatelessEngine) {
+		t.Fatalf("zero trusted-root stateless engine error = %v", err)
 	}
 	var zeroResult verkletree.StatelessResult
 	if _, err := zeroResult.PreRoot(); !errors.Is(err, verkletree.ErrInvalidStatelessResult) {

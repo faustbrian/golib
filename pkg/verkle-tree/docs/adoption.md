@@ -98,10 +98,10 @@ No. `Set(key, Value{})` creates or preserves a present all-zero value. Use
 ### Does decoding a proof or witness verify it?
 
 No. Decoding establishes canonical syntax, bounds, and ownership. Use
-`ProofEngine.VerifyForKeys` for proofs and `StatelessEngine.Apply` for
-witnesses. The proof method binds verification to the trusted root and exact
-requested key set; the application must compare a stateless result's pre-state
-root with its trusted expectation.
+`ProofEngine.VerifyForKeys` for proofs and `StatelessEngine.ApplyForRoot` for
+witnesses. Both methods bind verification to the caller-trusted root before
+proof arithmetic; the proof method additionally binds the exact requested key
+set.
 When the application requires a particular claim kind or value, it must compare
 that expectation too.
 

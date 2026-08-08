@@ -912,9 +912,12 @@ reject profile and version mismatches before point decoding, preflight witness,
 proof, update, temporary-memory, post-root point-decode, and embedded-proof
 budgets before allocation or cryptographic decoding, and return an owned but
 unverified witness. Decoding MUST NOT imply proof verification or post-state
-agreement. `StatelessEngine.Apply` MUST verify the proof, derive the root, and
-reject a claimed post-state root mismatch before returning an immutable result
-that binds both verified roots.
+agreement. `StatelessEngine.ApplyForRoot` MUST reject a witness whose embedded
+pre-state root differs from the caller-trusted root before proof arithmetic. It
+MUST then verify the proof, derive the root, and reject a claimed post-state
+root mismatch before returning an immutable result that binds both verified
+roots. The lower-level `StatelessEngine.Apply` MUST perform the same proof and
+post-state verification but does not supply an external pre-state expectation.
 
 The post-root point-decode budget MUST equal one because every non-empty
 witness carries exactly one claimed root container; zero and larger declarations

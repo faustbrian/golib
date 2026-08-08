@@ -99,12 +99,13 @@ to the trusted stateful snapshot to obtain the claimed post-state root, then
 construct a `Witness` with `NewWitness`.
 
 `DecodeWitness` validates canonical syntax only. A consumer must initialize a
-`StatelessEngine` and call `StatelessEngine.Apply`. Compare the successful
-result's `PreRoot()` with the exact trusted pre-state root before authorizing the
-transition. Success means the complete carried pre-state proof verified, the
-canonical updates were applied, and the independently derived post-state root
-matched the witness. It does not establish application authorization, execution
-validity, or storage durability by itself.
+`StatelessEngine` and call `StatelessEngine.ApplyForRoot` with the exact trusted
+pre-state root. Cross-root replay fails before proof arithmetic. Success means
+the complete carried pre-state proof verified, the canonical updates were
+applied, and the independently derived post-state root matched the witness.
+The lower-level `Apply` method supplies no external pre-state expectation. No
+successful application establishes execution authorization or storage
+durability by itself.
 
 ## Canonical bytes and ownership
 

@@ -110,7 +110,8 @@ func (limits StatelessUpdateLimits) validate() error {
 
 // Witness is one immutable canonical stateless update witness. Its zero value
 // rejects use. Construction and decoding do not verify its proof or claimed
-// post-state root; StatelessEngine.Apply performs both checks.
+// post-state root. ApplyForRoot verifies both while requiring a caller-trusted
+// pre-state root; the lower-level Apply has no external root expectation.
 type Witness struct {
 	value authstate.StatelessWitness
 	valid bool
@@ -392,30 +393,94 @@ func NewStatelessEngineFromProofEngine(
 	return StatelessEngine{value: value, valid: true}, nil
 }
 
+// ApplyForRoot rejects a witness unless its embedded pre-state root equals the
+// caller-trusted root, then cryptographically verifies the complete witness,
+// applies its bounded canonical update batch, and requires the independently
+// derived post-state root to equal the root bound by the witness. The trusted
+// root comparison completes before proof arithmetic.
+func (engine StatelessEngine) ApplyForRoot(
+	ctx context.Context,
+	witness Witness,
+	trustedPreRoot Root,
+	verificationLimits ProofVerificationLimits,
+	limits StatelessUpdateLimits,
+) (StatelessResult, error) {
+	if err := validateStatelessApplication(
+		engine, ctx, witness, verificationLimits, limits,
+	); err != nil {
+		return StatelessResult{}, err
+	}
+	if _, err := trustedPreRoot.Profile(); err != nil {
+		return StatelessResult{}, ErrInvalidRoot
+	}
+	proof, err := witness.value.Proof()
+	if err != nil {
+		return StatelessResult{}, ErrInvalidWitness
+	}
+	witnessPreRoot, _ := proof.Root()
+	trustedBytes, _ := trustedPreRoot.Bytes()
+	witnessBytes, _ := witnessPreRoot.Bytes()
+	if trustedBytes != witnessBytes {
+		return StatelessResult{}, fmt.Errorf(
+			"apply witness expectation: %w",
+			ErrVerification,
+		)
+	}
+
+	return engine.applyValidated(ctx, witness, verificationLimits, limits)
+}
+
 // Apply cryptographically verifies the complete witness, applies its bounded
 // canonical update batch, and requires the independently derived post-state
-// root to equal the root bound by the witness.
+// root to equal the root bound by the witness. Callers authorizing a transition
+// from a known state should use ApplyForRoot.
 func (engine StatelessEngine) Apply(
 	ctx context.Context,
 	witness Witness,
 	verificationLimits ProofVerificationLimits,
 	limits StatelessUpdateLimits,
 ) (StatelessResult, error) {
+	if err := validateStatelessApplication(
+		engine, ctx, witness, verificationLimits, limits,
+	); err != nil {
+		return StatelessResult{}, err
+	}
+
+	return engine.applyValidated(ctx, witness, verificationLimits, limits)
+}
+
+func validateStatelessApplication(
+	engine StatelessEngine,
+	ctx context.Context,
+	witness Witness,
+	verificationLimits ProofVerificationLimits,
+	limits StatelessUpdateLimits,
+) error {
 	if !engine.valid || engine.value == nil {
-		return StatelessResult{}, ErrInvalidStatelessEngine
+		return ErrInvalidStatelessEngine
 	}
 	if !witness.valid {
-		return StatelessResult{}, ErrInvalidWitness
+		return ErrInvalidWitness
 	}
 	if err := checkPublicContext(ctx); err != nil {
-		return StatelessResult{}, err
+		return err
 	}
 	if err := verificationLimits.validate(); err != nil {
-		return StatelessResult{}, err
+		return err
 	}
 	if err := limits.validate(); err != nil {
-		return StatelessResult{}, err
+		return err
 	}
+
+	return nil
+}
+
+func (engine StatelessEngine) applyValidated(
+	ctx context.Context,
+	witness Witness,
+	verificationLimits ProofVerificationLimits,
+	limits StatelessUpdateLimits,
+) (StatelessResult, error) {
 	postRoot, err := engine.value.ApplyWitness(
 		ctx,
 		witness.value,

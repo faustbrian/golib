@@ -25,18 +25,43 @@ func BenchmarkLoadSnapshotFourEntries(b *testing.B) {
 	for _, encoded := range reader.view.nodes {
 		totalBytes += len(encoded)
 	}
-	b.SetBytes(int64(totalBytes))
-	b.ReportAllocs()
-	b.ResetTimer()
-
-	for range b.N {
-		if _, err := LoadSnapshot(
-			context.Background(),
-			BandersnatchIPA256V0(),
-			reader,
-			testInternalStorageReadLimits(),
-		); err != nil {
-			b.Fatalf("LoadSnapshot() error = %v", err)
-		}
+	warm := concurrentInternalStorageReader{
+		publication: reader.view.publication,
+		nodes:       reader.view.nodes,
 	}
+
+	b.Run("warm-caller-store", func(b *testing.B) {
+		b.SetBytes(int64(totalBytes))
+		b.ReportAllocs()
+		for b.Loop() {
+			if _, err := LoadSnapshot(
+				context.Background(),
+				BandersnatchIPA256V0(),
+				warm,
+				testInternalStorageReadLimits(),
+			); err != nil {
+				b.Fatalf("LoadSnapshot() error = %v", err)
+			}
+		}
+	})
+
+	b.Run("cold-caller-store", func(b *testing.B) {
+		b.SetBytes(int64(totalBytes))
+		b.ReportAllocs()
+		for b.Loop() {
+			owned := cloneInternalStorageReader(reader)
+			cold := concurrentInternalStorageReader{
+				publication: owned.view.publication,
+				nodes:       owned.view.nodes,
+			}
+			if _, err := LoadSnapshot(
+				context.Background(),
+				BandersnatchIPA256V0(),
+				cold,
+				testInternalStorageReadLimits(),
+			); err != nil {
+				b.Fatalf("LoadSnapshot() error = %v", err)
+			}
+		}
+	})
 }

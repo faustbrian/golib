@@ -51,6 +51,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add bounded proof verification against a caller-trusted root and exact
   unordered key set, rejecting cross-root and cross-key replay, omitted or
   surplus disclosure, and duplicate expectations before proof arithmetic.
+- Add stateless witness application against a caller-trusted pre-state root,
+  rejecting cross-root replay before proof arithmetic.
 - Add hostile canonical-witness fuzz application through complete proof
   verification, post-state derivation, and claimed-root comparison.
 - Add hostile persisted root-node fuzz loading through complete bounded
@@ -68,7 +70,8 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Add reproducible public benchmarks for immutable state operations, root
   construction, membership and non-membership proofs, aggregate proofs,
   malformed-proof rejection, stateless witnesses, parallel reads and
-  verification, canonical proof and witness sizes, and process peak memory.
+  verification, canonical proof and witness sizes, cold and warm caller-owned
+  storage reconstruction, and process peak memory.
 
 - Add canonical profile-bound whole-snapshot encoding and hostile-input
   decoding. Decoding preflights bytes, entries, point work, and temporary

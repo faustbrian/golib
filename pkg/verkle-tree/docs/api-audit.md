@@ -5,7 +5,7 @@
 This audit covers the complete exported surface of package
 `github.com/faustbrian/golib/pkg/verkle-tree` as represented by
 `api/baseline.txt` with SHA-256
-`93a238fbcbd098d227ec1bdb3ae15cba9d3622d36eccc067c759db05f518729f`.
+`d81bd44905c845176d48fa477de54b30fadeffb115f9084d41b81a79a5bbb5c6`.
 It reviews semantics, ownership, error classification, concurrency, resource
 cost, and caveats. Every exported field has an inline Go documentation comment;
 the tables below cover every exported type, constant, variable, function, and
@@ -71,7 +71,7 @@ audit until the API baseline checksum and this report are refreshed together.
 | `ProofEngine`, `NewProofEngine`, `ProofEngine.Prove`, `ProveUpdates`, `Verify`, `VerifyForKeys`; `Proof`, `DecodeProof`, `Proof.Bytes`, `Claims`, `Root` | Fixed-profile aggregate proof generation and independent verification over exact canonical claims and paths. `VerifyForKeys` additionally requires the caller's trusted root and unordered exact key set. Returned proof data is owned. | Engines and proofs are concurrency safe. Work scales with keys, distinct stems, paths, complete vector openings, and backend MSM terms. Decode alone never verifies. Cross-root, cross-key, omitted, surplus, and duplicate expectations fail before proof arithmetic. Verification fails closed with `ErrVerification`; malformed containers match `ErrInvalidProof`. |
 | `WitnessLimits`, `WitnessEncodingLimits`, `WitnessDecodingLimits`, `StatelessUpdateLimits` and every exported field | Explicit construction, codec, embedded-proof, update, path, commitment, field, point, and scratch budgets. | No unbounded defaults; nested proof limits are independently enforced. |
 | `Witness`, `NewWitness`, `DecodeWitness`, `Witness.Bytes`, `Proof`, `Updates`, `PostRoot` | Immutable canonical proof, ordered update batch, and claimed post-root container. Accessors return owned values. | Concurrency safe. Construction and decoding do not verify the proof or post-root. Missing or surplus authenticated material fails closed. |
-| `StatelessEngine`, `NewStatelessEngine`, `NewStatelessEngineFromProofEngine`, `StatelessEngine.Apply`; `StatelessResult`, `PreRoot`, `PostRoot` | Verifies the complete witness, applies authenticated updates, and compares the independently derived post-root. The reuse constructor retains an existing immutable proof backend and initializes only commitment arithmetic. | Concurrency safe. A reused proof engine shares its bounded dependency-operation gate with stateless verification. Cost scales with proof openings and authenticated topology changes. A zero engine/result rejects use; mismatch matches `ErrPostStateMismatch`. |
+| `StatelessEngine`, `NewStatelessEngine`, `NewStatelessEngineFromProofEngine`, `StatelessEngine.Apply`, `ApplyForRoot`; `StatelessResult`, `PreRoot`, `PostRoot` | Verifies the complete witness, applies authenticated updates, and compares the independently derived post-root. `ApplyForRoot` first requires the witness's pre-root to equal the caller-trusted root; `Apply` has no external root expectation. The reuse constructor retains an existing immutable proof backend and initializes only commitment arithmetic. | Concurrency safe. Cross-root replay through `ApplyForRoot` fails before proof arithmetic. A reused proof engine shares its bounded dependency-operation gate with stateless verification. Cost scales with proof openings and authenticated topology changes. A zero engine/result rejects use; post-root mismatch matches `ErrPostStateMismatch`. |
 
 ## Caller-owned storage
 

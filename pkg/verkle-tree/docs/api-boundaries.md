@@ -169,8 +169,10 @@ remains internal. Snapshot, proof, and stateless post-state functionality are
 exposed only through fixed-profile facades. `Witness` binds canonical proof
 bytes, an exactly matching canonical Set key set, and a claimed post-state
 root; construction and decoding reject missing or surplus claims, while
-`StatelessEngine.Apply` verifies the proof and matches an independently derived
-root. The package does not provide generic cryptographic
+`StatelessEngine.ApplyForRoot` first rejects a different caller-trusted
+pre-state root, then verifies the proof and matches an independently derived
+post-state root. The lower-level `Apply` method has no external root
+expectation. The package does not provide generic cryptographic
 composition or dependency-level cancellation during proof arithmetic.
 
 The current internal committed-tree builder binds that engine to the fixed key,

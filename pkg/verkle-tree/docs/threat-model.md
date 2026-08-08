@@ -96,8 +96,9 @@ witness to succeed and a structurally valid witness with a different post-root
 to fail with the dedicated mismatch classification.
 It also requires the embedded proof claim keys to equal the canonical update
 keys exactly, rejecting both omission and surplus disclosure.
-Decoding establishes canonical structure only. `StatelessEngine.Apply`
-cryptographically verifies the complete embedded proof before using old values
+Decoding establishes canonical structure only. `StatelessEngine.ApplyForRoot`
+first rejects a different caller-trusted pre-state root, then cryptographically
+verifies the complete embedded proof before using old values
 or terminal topology, requires an exact authenticated claim and stem path for
 every update, constructs canonical missing/different-stem subtrees when
 required, derives all changed commitments bottom-up, and rejects a different
@@ -244,6 +245,8 @@ partial opening sets, resource exhaustion, and cancellation observed by owned
 work. The public `VerifyForKeys` entry point additionally compares the proof
 against the caller's trusted root and exact unordered key set before entering
 proof arithmetic, rejecting application-level cross-root and cross-key replay.
+The public `ApplyForRoot` witness entry point enforces the same trusted-root
+preflight before stateless verification and update arithmetic.
 Verification is independent from mutable tree state. The pinned backend
 does not accept a context once aggregate proof arithmetic begins and chooses
 `runtime.NumCPU()` workers internally; preflight and post-call cancellation

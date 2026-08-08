@@ -8,8 +8,8 @@ mixed batch application, single membership and non-membership proof generation
 and verification, eight-key aggregate proof generation and verification,
 trusted-root and exact-key-set aggregate verification,
 canonical proof encoding and decoding, truncated-proof rejection, and two-key
-stateless-witness container construction, encoding, decoding, verification,
-and application. Shared immutable snapshot reads and aggregate-proof
+stateless-witness container construction, encoding, decoding, trusted-pre-root
+verification, and application. Shared immutable snapshot reads and aggregate-proof
 verification also have parallel measurements. The proof and witness rows
 report their exact canonical encoded sizes.
 
@@ -23,20 +23,22 @@ stateless engine with constructing one from an already initialized proof
 engine. It isolates the explicit backend-ownership choice: the reuse path
 initializes commitment arithmetic but does not repeat aggregate-opening setup.
 
-The matrix uses the package-owned pre-v1 profile and an in-memory
-snapshot. It excludes durable cold and warm storage, an audited backend,
-cross-implementation equivalent workloads, latency distributions under stable
-load, and deployment-specific CPU feature controls. The matrix satisfies the
-pre-v1 descriptive benchmark boundary but does not support a production or
-comparative ranking claim. Parallel rows demonstrate a bounded harness workload
-on one machine; they are not scalability claims.
+The matrix uses the package-owned pre-v1 profile, an in-memory snapshot, and
+caller-owned in-memory storage. It includes separate warm-store reconstruction
+and cold-store materialization-plus-reconstruction tracks. It excludes durable
+database or filesystem I/O, an audited backend, cross-implementation equivalent
+workloads, latency distributions under stable load, and deployment-specific CPU
+feature controls. The matrix satisfies the pre-v1 descriptive benchmark
+boundary but does not support a production or comparative ranking claim.
+Parallel rows demonstrate a bounded harness workload on one machine; they are
+not scalability claims.
 
 The remaining pre-v1 component microbenchmarks cover the implemented
 cryptographic boundary: canonical Banderwagon commitment and scalar encoding,
 strict raw aggregate-opening-proof decoding, strict profile-bound root
 decoding, the commitment-to-field map, serial fixed-width vector commitment,
-and internal aggregate tree-proof generation and verification. One public
-loader benchmark uses an in-memory test reader as described below. The suite
+and internal aggregate tree-proof generation and verification. Two public
+loader tracks use an in-memory test reader as described below. The suite
 does not measure a production storage adapter or an equivalent cross-
 implementation end-to-end workload, and it supports no comparative performance
 claim.
@@ -59,13 +61,16 @@ corpus. It excludes adapter calls, durable writes, compare-and-swap
 publication, persisted reads, recovery, and pruning. It therefore measures the
 package-owned storage-write preparation boundary, not storage performance.
 
-One public persisted-load benchmark opens the in-memory caller-owned read view,
-verifies and decodes every canonical node, reconstructs the complete immutable
-four-entry tree, recomputes the mathematical root and canonical root-node
-address, and closes the view. The mock reader copies each returned node but has
-no I/O, locking, durability, transaction, or recovery cost. The result measures
-the package-owned validation and full-rebuild path only; it is not a cold or
-warm database benchmark.
+Two public persisted-load tracks open an in-memory caller-owned read view,
+verify and decode every canonical node, reconstruct the complete immutable
+four-entry tree, recompute the mathematical root and canonical root-node
+address, and close the view. The warm track reuses the caller-owned publication
+and node index. The cold track first materializes a fresh owned publication and
+node index, including copies of all encoded nodes. Both tracks copy every node
+returned across the package boundary. They have no database or filesystem I/O,
+locking, durability, transaction, or recovery cost, so they measure the
+package-owned cold/warm storage boundary rather than a particular adapter's
+cache or durable-media behavior.
 
 One public storage-audit benchmark verifies a current and one retained
 in-memory snapshot, unions their reachable nodes, pages a complete mock node-ID
@@ -187,7 +192,7 @@ The commands above were each executed inside this wrapper:
 ```console
 (
   agent_gocache=$(mktemp -d "${TMPDIR:-/tmp}/golib-gocache.XXXXXX")
-  trap 'rm -rf -- "$agent_gocache"' EXIT HUP INT TERM
+  trap 'find "$agent_gocache" -depth -delete' EXIT HUP INT TERM
   export GOCACHE="$agent_gocache"
 
   # One command from above.
@@ -201,7 +206,7 @@ not contaminate the result:
 (
   agent_gocache=$(mktemp -d "${TMPDIR:-/tmp}/golib-gocache.XXXXXX")
   agent_benchdir=$(mktemp -d "${TMPDIR:-/tmp}/golib-verkle-peaks.XXXXXX")
-  trap 'rm -rf -- "$agent_gocache" "$agent_benchdir"' EXIT HUP INT TERM
+  trap 'find "$agent_gocache" "$agent_benchdir" -depth -delete' EXIT HUP INT TERM
   export GOCACHE="$agent_gocache"
 
   GOWORK=off go test -c -o "$agent_benchdir/verkle-peaks.test" .
@@ -222,8 +227,9 @@ Environment:
 
 - Date: 2026-08-01; public API, bound proof-engine, stateless-witness,
   canonical whole-snapshot, and storage-recovery rows refreshed 2026-08-03;
-  stateless-engine initialization, trusted-expectation verification, and
-  topology-transition rows added 2026-08-08
+  stateless-engine initialization, trusted-expectation verification,
+  topology-transition rows, and cold/warm caller-store rows added or refreshed
+  2026-08-08
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -346,7 +352,8 @@ presented as the incremental memory cost of the named operation.
 | Encode and content-address four-entry storage image | 9049, 9001, 10835, 13112, 13058 | 1440 | 8 |
 | Encode canonical two-entry whole snapshot | 1429, 1358, 1543, 1520, 1478 | 320 | 2 |
 | Decode and independently rebuild two-entry whole snapshot | 9041426, 10959098, 10006862, 8807812, 8367261 | 168125-168148 | 3574-3575 |
-| Load and independently reconstruct four-entry persisted snapshot | 8192661, 8282630, 8320207, 8284837, 8348528 | 174408-174434 | 3628-3629 |
+| Warm caller store: load and independently reconstruct four-entry persisted snapshot | 9068857, 9136988, 8882273, 10631216, 9858963 | 174869-174961 | 3631 |
+| Cold caller store: materialize, load, and independently reconstruct four-entry persisted snapshot | 8863793, 10989141, 8653620, 10485814, 8739793 | 176004-176027 | 3635-3636 |
 | Audit current and retained snapshots plus one unreachable node | 16357921, 16179517, 16582373, 16343247, 16242461 | 338996-339098 | 7178-7179 |
 | Drop one retained snapshot and plan pruning plus atomic handoff | 17571147, 18097936, 16915685, 18563534, 18791243 | 339257-339375 | 7180-7181 |
 | Preserve all publications and plan interrupted-write cleanup | 19377604, 21950949, 19936596, 20412821, 23103113 | 335112-335206 | 7141-7142 |

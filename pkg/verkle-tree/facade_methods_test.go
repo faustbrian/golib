@@ -669,6 +669,40 @@ func TestFacadeWitnessRejectsEveryInvalidOwnershipState(t *testing.T) {
 	if _, err := forged.PostRoot(); !errors.Is(err, ErrInvalidWitness) {
 		t.Fatalf("forged witness root error = %v", err)
 	}
+	emptySnapshot, err := NewSnapshot(
+		context.Background(),
+		BandersnatchIPA256V0(),
+		nil,
+		testFacadeSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("empty snapshot for forged witness: %v", err)
+	}
+	trustedRoot, err := emptySnapshot.Root()
+	if err != nil {
+		t.Fatalf("trusted root for forged witness: %v", err)
+	}
+	forgedEngine := StatelessEngine{
+		value: &authstate.StatelessUpdater{},
+		valid: true,
+	}
+	if _, err := forgedEngine.ApplyForRoot(
+		context.Background(),
+		forged,
+		trustedRoot,
+		ProofVerificationLimits{
+			VerifierQueries: VerifierQueryLimits{
+				MaxQueries: 1, MaxTemporaryBytes: 1,
+			},
+		},
+		StatelessUpdateLimits{
+			MaxUpdates: 1, MaxCommitmentUpdates: 1,
+			MaxFieldMappings: 1, MaxPathLookups: 1,
+			MaxTemporaryBytes: 1,
+		},
+	); !errors.Is(err, ErrInvalidWitness) {
+		t.Fatalf("forged trusted-root witness error = %v", err)
+	}
 
 	invalid := Update{kind: UpdateDelete, value: Value{1}}
 	if _, err := invalid.Kind(); !errors.Is(err, ErrInvalidUpdate) {
@@ -760,6 +794,56 @@ func TestFacadeWitnessRejectsEveryInvalidOwnershipState(t *testing.T) {
 		); !errors.Is(err, ErrInvalidStatelessEngine) {
 			t.Fatalf("partial stateless engine error = %v", err)
 		}
+	}
+}
+
+func TestFacadeTrustedRootMismatchPrecedesBackendVerification(t *testing.T) {
+	t.Parallel()
+
+	_, snapshot, proof := testFacadeProof(t)
+	updates := []Update{Set(Key{}, Value{2})}
+	next, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply stateful update: %v", err)
+	}
+	postRoot, err := next.Root()
+	if err != nil {
+		t.Fatalf("post-state root: %v", err)
+	}
+	witness, err := NewWitness(
+		context.Background(), proof, updates, postRoot,
+		WitnessLimits{
+			MaxUpdates: 1, MaxTemporaryBytes: publicWitnessUpdateWorkingBytes,
+		},
+	)
+	if err != nil {
+		t.Fatalf("new witness: %v", err)
+	}
+	empty, err := NewSnapshot(
+		context.Background(), BandersnatchIPA256V0(), nil,
+		testFacadeSnapshotLimits(),
+	)
+	if err != nil {
+		t.Fatalf("new empty snapshot: %v", err)
+	}
+	wrongRoot, err := empty.Root()
+	if err != nil {
+		t.Fatalf("wrong root: %v", err)
+	}
+	forgedEngine := StatelessEngine{
+		value: &authstate.StatelessUpdater{},
+		valid: true,
+	}
+	if _, err := forgedEngine.ApplyForRoot(
+		context.Background(), witness, wrongRoot,
+		testFacadeProofVerificationLimits(),
+		StatelessUpdateLimits{
+			MaxUpdates: 1, MaxCommitmentUpdates: 1,
+			MaxFieldMappings: 1, MaxPathLookups: 1,
+			MaxTemporaryBytes: 1,
+		},
+	); !errors.Is(err, ErrVerification) {
+		t.Fatalf("cross-root preflight error = %v", err)
 	}
 }
 

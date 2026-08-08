@@ -114,8 +114,12 @@ func FuzzPublicStatelessTransitionMatchesStatefulSnapshot(f *testing.F) {
 		if !bytes.Equal(reencoded, encoded) {
 			t.Fatal("public fuzz witness did not round-trip canonically")
 		}
-		result, err := statelessEngine.Apply(
-			context.Background(), decoded,
+		wantPreRoot, err := snapshot.Root()
+		if err != nil {
+			t.Fatalf("read public fuzz snapshot root: %v", err)
+		}
+		result, err := statelessEngine.ApplyForRoot(
+			context.Background(), decoded, wantPreRoot,
 			publicTopologyProofVerificationLimits(),
 			publicTopologyStatelessUpdateLimits(),
 		)
@@ -125,10 +129,6 @@ func FuzzPublicStatelessTransitionMatchesStatefulSnapshot(f *testing.F) {
 		preRoot, err := result.PreRoot()
 		if err != nil {
 			t.Fatalf("read public fuzz pre-root: %v", err)
-		}
-		wantPreRoot, err := snapshot.Root()
-		if err != nil {
-			t.Fatalf("read public fuzz snapshot root: %v", err)
 		}
 		assertPublicRootsEqual(t, preRoot, wantPreRoot)
 		gotPostRoot, err := result.PostRoot()

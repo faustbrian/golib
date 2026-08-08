@@ -380,8 +380,10 @@ pinned Rust agreement.
 Explicit limits bound updates, commitment changes, commitment-to-field maps,
 path lookups, witness and proof bytes, strict point decoding, and temporary
 bytes. The canonical witness decoder returns an unverified owned container;
-`StatelessEngine.Apply` separately verifies the proof, derives the root, and
-matches the claimed post-state root.
+`StatelessEngine.ApplyForRoot` first matches the witness against the
+caller-trusted pre-state root, then verifies the proof, derives the root, and
+matches the claimed post-state root. The lower-level `Apply` method verifies
+the self-contained witness but supplies no external pre-state expectation.
 
 ## Storage boundary
 

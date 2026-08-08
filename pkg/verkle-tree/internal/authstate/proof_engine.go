@@ -390,7 +390,10 @@ func statelessSnapshotStemDepth(
 		}
 		other := Stem(entries[index].Key[:31])
 		shared := uint8(0)
-		for shared < uint8(len(stem)) && stem[shared] == other[shared] {
+		for prefixIndex := range stem {
+			if stem[prefixIndex] != other[prefixIndex] {
+				break
+			}
 			if err := checkTreeProofContext(ctx); err != nil {
 				return 0, false, err
 			}

@@ -250,6 +250,10 @@ func BenchmarkPublicStatelessWitnessOperations(b *testing.B) {
 	if err != nil {
 		b.Fatalf("prepare post-root: %v", err)
 	}
+	preRoot, err := snapshot.Root()
+	if err != nil {
+		b.Fatalf("prepare pre-root: %v", err)
+	}
 	witness, err := verkletree.NewWitness(
 		ctx, proof, updates, postRoot, publicWitnessLimits(),
 	)
@@ -307,9 +311,10 @@ func BenchmarkPublicStatelessWitnessOperations(b *testing.B) {
 	b.Run("verify-and-apply-2", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := engine.Apply(
+			if _, err := engine.ApplyForRoot(
 				ctx,
 				witness,
+				preRoot,
 				publicProofVerificationLimits(),
 				publicStatelessUpdateLimits(),
 			); err != nil {
@@ -433,6 +438,10 @@ func BenchmarkPublicStatelessTopologyTransitions(b *testing.B) {
 			if err != nil {
 				b.Fatalf("prepare topology snapshot: %v", err)
 			}
+			preRoot, err := snapshot.Root()
+			if err != nil {
+				b.Fatalf("prepare topology pre-root: %v", err)
+			}
 			proof, err := proofEngine.ProveUpdates(
 				ctx, snapshot, test.updates, publicTopologyProofGenerationLimits(),
 			)
@@ -474,8 +483,8 @@ func BenchmarkPublicStatelessTopologyTransitions(b *testing.B) {
 			b.Run("verify-and-apply", func(b *testing.B) {
 				b.ReportAllocs()
 				for b.Loop() {
-					if _, err := statelessEngine.Apply(
-						ctx, witness,
+					if _, err := statelessEngine.ApplyForRoot(
+						ctx, witness, preRoot,
 						publicTopologyProofVerificationLimits(),
 						publicTopologyStatelessUpdateLimits(),
 					); err != nil {
