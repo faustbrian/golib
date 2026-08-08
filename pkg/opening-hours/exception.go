@@ -133,7 +133,7 @@ func ExpandExceptionRange(config ExceptionRangeConfig) (ExceptionSet, error) {
 	if !validDate(config.Start) || !validDate(config.End) || compareDate(config.Start, config.End) > 0 {
 		return ExceptionSet{}, newError("expand exception range", CodeInvalidDate)
 	}
-	if config.MaximumDates <= 0 || config.MaximumDates > maxExceptions {
+	if config.MaximumDates < 1 || config.MaximumDates > maxExceptions {
 		return ExceptionSet{}, newError("expand exception range", CodeLimitExceeded)
 	}
 	exceptions := make([]Exception, 0, min(config.MaximumDates, 32))

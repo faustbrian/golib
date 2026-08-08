@@ -87,12 +87,7 @@ func OpenRanges(input []Range, policy OverlapPolicy) (DayRule, error) {
 			if policy == RejectOverlap || policy == RejectOverlapAndAdjacent {
 				return DayRule{}, newError("open ranges", CodeOverlap)
 			}
-			if current.end > previous.end {
-				previous.end = current.end
-			}
-			if previous.end-previous.start > nanosecondsPerDay {
-				return DayRule{}, newError("open ranges", CodeDayBoundaryOverflow)
-			}
+			previous.end = max(previous.end, current.end)
 			continue
 		}
 		if adjacent {
@@ -101,9 +96,6 @@ func OpenRanges(input []Range, policy OverlapPolicy) (DayRule, error) {
 			}
 			if policy == MergeAdjacent {
 				previous.end = current.end
-				if previous.end-previous.start > nanosecondsPerDay {
-					return DayRule{}, newError("open ranges", CodeDayBoundaryOverflow)
-				}
 				continue
 			}
 		}
@@ -112,8 +104,9 @@ func OpenRanges(input []Range, policy OverlapPolicy) (DayRule, error) {
 
 	result := make([]Range, 0, len(normalized))
 	for _, item := range normalized {
-		if item.end-item.start == nanosecondsPerDay {
-			if item.start == 0 && len(normalized) == 1 {
+		span := item.end - item.start
+		if span >= nanosecondsPerDay {
+			if span == nanosecondsPerDay && item.start == 0 && len(normalized) == 1 {
 				return OpenAllDay(), nil
 			}
 			return DayRule{}, newError("open ranges", CodeDayBoundaryOverflow)
@@ -216,8 +209,12 @@ func NewSchedule(config Config) (Schedule, error) {
 		}
 		data.effectiveEnd, data.hasEffectiveEnd = *config.EffectiveEnd, true
 	}
-	if data.hasEffectiveStart && data.hasEffectiveEnd && compareDate(data.effectiveStart, data.effectiveEnd) > 0 {
-		return Schedule{}, newError("new schedule", CodeInvalidInterval)
+	if data.hasEffectiveStart {
+		if data.hasEffectiveEnd {
+			if compareDate(data.effectiveStart, data.effectiveEnd) > 0 {
+				return Schedule{}, newError("new schedule", CodeInvalidInterval)
+			}
+		}
 	}
 	for weekday, rule := range config.Weekly {
 		if weekday < time.Sunday || weekday > time.Saturday {
@@ -230,7 +227,10 @@ func NewSchedule(config Config) (Schedule, error) {
 	}
 	allExceptions := slices.Clone(config.Exceptions)
 	for _, set := range config.ExceptionSets {
-		if set.name == "" || len(set.exceptions) == 0 {
+		if set.name == "" {
+			return Schedule{}, newError("new schedule", CodeInvalidState)
+		}
+		if len(set.exceptions) == 0 {
 			return Schedule{}, newError("new schedule", CodeInvalidState)
 		}
 		allExceptions = append(allExceptions, set.exceptions...)

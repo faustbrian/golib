@@ -1,6 +1,9 @@
 package openinghours
 
-import "slices"
+import (
+	"cmp"
+	"slices"
+)
 
 type segment struct {
 	start int64
@@ -50,7 +53,7 @@ func (s Schedule) isOpenCivil(date Date, localTime LocalTime) (Availability, err
 		}}, nil
 	}
 
-	segments, spill, exceptions, err := s.effectiveSegments(date)
+	segments, exceptions, err := s.effectiveSegments(date)
 	if err != nil {
 		return Availability{}, err
 	}
@@ -63,42 +66,42 @@ func (s Schedule) isOpenCivil(date Date, localTime LocalTime) (Availability, err
 		explanation.Rule = RuleException
 		explanation.Source = last.source
 		explanation.Revision = last.revision
-	} else if spill && open {
+	} else if open && s.spillContains(date, localTime.nanosecond) {
 		explanation.Rule = RuleWeeklySpill
 	}
 
 	return Availability{Open: open, Explanation: explanation}, nil
 }
 
-func (s Schedule) effectiveSegments(date Date) ([]segment, bool, []Exception, error) {
+func (s Schedule) effectiveSegments(date Date) ([]segment, []Exception, error) {
 	inside, err := s.withinEffective(date)
 	if err != nil {
-		return nil, false, nil, err
+		return nil, nil, err
 	}
 	if !inside {
-		return nil, false, nil, nil
+		return nil, nil, nil
 	}
 	if s.data.composition != nil {
-		left, _, _, err := s.data.composition.left.effectiveSegments(date)
+		left, _, err := s.data.composition.left.effectiveSegments(date)
 		if err != nil {
-			return nil, false, nil, err
+			return nil, nil, err
 		}
-		right, _, _, err := s.data.composition.right.effectiveSegments(date)
+		right, _, err := s.data.composition.right.effectiveSegments(date)
 		if err != nil {
-			return nil, false, nil, err
+			return nil, nil, err
 		}
 		switch s.data.composition.operation {
 		case compositionUnion:
-			return unionSegments(left, right), false, nil, nil
+			return unionSegments(left, right), nil, nil
 		case compositionIntersection:
-			return intersectSegments(left, right), false, nil, nil
+			return intersectSegments(left, right), nil, nil
 		case compositionSubtract:
-			return subtractSegments(left, right), false, nil, nil
+			return subtractSegments(left, right), nil, nil
 		case compositionOverlay:
 			// The right operand was evaluated above, so its effective-range
 			// policy has already succeeded for this date.
 			mask, _ := s.data.composition.right.overlayMask(date)
-			return unionSegments(subtractSegments(left, mask), right), false, nil, nil
+			return unionSegments(subtractSegments(left, mask), right), nil, nil
 		}
 	}
 	current := ruleSegments(s.data.weekly[date.Weekday()])
@@ -117,7 +120,19 @@ func (s Schedule) effectiveSegments(date Date) ([]segment, bool, []Exception, er
 	combined = applyExceptions(combined, exceptions)
 	combined = clipSegments(combined, 0, nanosecondsPerDay, 0)
 
-	return combined, len(spillSegments) > 0, exceptions, nil
+	return combined, exceptions, nil
+}
+
+func (s Schedule) spillContains(date Date, point int64) bool {
+	previousDate, err := addDate(date, -1)
+	if err != nil {
+		return false
+	}
+	spill := clipSegments(
+		s.ownedSegments(previousDate), nanosecondsPerDay, 2*nanosecondsPerDay, -nanosecondsPerDay,
+	)
+
+	return contains(spill, point)
 }
 
 func (s Schedule) overlayMask(date Date) ([]segment, error) {
@@ -197,9 +212,7 @@ func normalizeSegments(input []segment) []segment {
 	for _, item := range result[1:] {
 		last := &output[len(output)-1]
 		if item.start <= last.end {
-			if item.end > last.end {
-				last.end = item.end
-			}
+			last.end = max(last.end, item.end)
 			continue
 		}
 		output = append(output, item)
@@ -242,9 +255,13 @@ func intersectSegments(left, right []segment) []segment {
 		if start < end {
 			result = append(result, segment{start: start, end: end})
 		}
-		if left[leftIndex].end < right[rightIndex].end {
+		switch cmp.Compare(left[leftIndex].end, right[rightIndex].end) {
+		case -1:
 			leftIndex++
-		} else {
+		case 1:
+			rightIndex++
+		default:
+			leftIndex++
 			rightIndex++
 		}
 	}
@@ -255,17 +272,15 @@ func intersectSegments(left, right []segment) []segment {
 func subtractSegments(base, removals []segment) []segment {
 	result := slices.Clone(base)
 	for _, removal := range normalizeSegments(removals) {
-		next := make([]segment, 0, len(result)+1)
+		var next []segment
 		for _, item := range result {
-			if removal.end <= item.start || removal.start >= item.end {
-				next = append(next, item)
-				continue
+			leftEnd := min(removal.start, item.end)
+			if item.start < leftEnd {
+				next = append(next, segment{start: item.start, end: leftEnd})
 			}
-			if removal.start > item.start {
-				next = append(next, segment{start: item.start, end: removal.start})
-			}
-			if removal.end < item.end {
-				next = append(next, segment{start: removal.end, end: item.end})
+			rightStart := max(removal.end, item.start)
+			if rightStart < item.end {
+				next = append(next, segment{start: rightStart, end: item.end})
 			}
 		}
 		result = next

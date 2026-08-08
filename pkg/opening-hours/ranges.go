@@ -30,7 +30,7 @@ func (s Schedule) EffectiveRanges(date Date) ([]DailyRange, error) {
 	if s.data == nil {
 		return []DailyRange{}, nil
 	}
-	segments, _, _, err := s.effectiveSegments(date)
+	segments, _, err := s.effectiveSegments(date)
 	if err != nil {
 		return nil, err
 	}
@@ -65,17 +65,13 @@ func (s Schedule) EffectiveInstantRanges(start, end time.Time) ([]InstantRange, 
 	}
 	localized := start.In(s.data.location)
 	first, _ := NewDate(localized.Year(), localized.Month(), localized.Day())
+	localizedEnd := end.Add(-time.Nanosecond).In(s.data.location)
+	last, _ := NewDate(localizedEnd.Year(), localizedEnd.Month(), localizedEnd.Day())
+	dayCount := first.DaysUntil(last) + 1
 	result := make([]InstantRange, 0, 16)
-	for step := 0; step <= 367; step++ {
+	for step := range dayCount {
 		date, _ := addDate(first, step)
-		if !validDate(date) {
-			break
-		}
-		dayStart := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, s.data.location)
-		if dayStart.After(end.Add(48 * time.Hour)) {
-			break
-		}
-		segments, _, _, err := s.effectiveSegments(date)
+		segments, _, err := s.effectiveSegments(date)
 		if err != nil {
 			return nil, err
 		}
@@ -108,10 +104,12 @@ func normalizeInstantRanges(input []InstantRange) []InstantRange {
 	result := make([]InstantRange, len(input))
 	copy(result, input)
 	slices.SortFunc(result, func(left, right InstantRange) int {
-		if comparison := left.Start.Compare(right.Start); comparison != 0 {
+		switch comparison := left.Start.Compare(right.Start); comparison {
+		case -1, 1:
 			return comparison
+		default:
+			return left.End.Compare(right.End)
 		}
-		return left.End.Compare(right.End)
 	})
 	output := result[:1]
 	for _, item := range result[1:] {

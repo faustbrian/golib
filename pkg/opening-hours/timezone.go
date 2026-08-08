@@ -114,30 +114,19 @@ func shiftForwardGap(location *time.Location, date Date, localTime LocalTime) ti
 		localTime.Hour(), localTime.Minute(), localTime.Second(), localTime.Nanosecond(),
 		time.UTC,
 	)
-	offsets := make(map[int]struct{}, 4)
-	for offset := -48 * time.Hour; offset <= 48*time.Hour; offset += 30 * time.Minute {
-		_, seconds := wall.Add(offset).In(location).Zone()
-		offsets[seconds] = struct{}{}
-	}
+	candidate := time.Date(
+		date.Year(), date.Month(), date.Day(),
+		localTime.Hour(), localTime.Minute(), localTime.Second(), localTime.Nanosecond(),
+		location,
+	)
+	localized := candidate.In(location)
+	localizedWall := time.Date(
+		localized.Year(), localized.Month(), localized.Day(), localized.Hour(),
+		localized.Minute(), localized.Second(), localized.Nanosecond(), time.UTC,
+	)
+	delta := localizedWall.Sub(wall)
 
-	var shifted time.Time
-	var shiftedDelta time.Duration
-	for seconds := range offsets {
-		candidate := wall.Add(-time.Duration(seconds) * time.Second)
-		localized := candidate.In(location)
-		localizedWall := time.Date(
-			localized.Year(), localized.Month(), localized.Day(), localized.Hour(),
-			localized.Minute(), localized.Second(), localized.Nanosecond(), time.UTC,
-		)
-		delta := localizedWall.Sub(wall)
-		if delta > 0 && (shifted.IsZero() || delta < shiftedDelta ||
-			delta == shiftedDelta && candidate.Before(shifted)) {
-			shifted = candidate
-			shiftedDelta = delta
-		}
-	}
-
-	return shifted
+	return candidate.Add(max(-delta, 0))
 }
 
 // IsOpen evaluates an absolute instant in the schedule's explicit timezone.

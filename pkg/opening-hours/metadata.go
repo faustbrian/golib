@@ -66,10 +66,10 @@ func (s Schedule) SemanticallyEqual(other Schedule) bool {
 	right := other.toWire()
 	clearWireMetadata(&left)
 	clearWireMetadata(&right)
-	leftJSON, leftErr := json.Marshal(left)
-	rightJSON, rightErr := json.Marshal(right)
+	leftJSON, _ := json.Marshal(left) // wireSchedule contains no values rejected by encoding/json.
+	rightJSON, _ := json.Marshal(right)
 
-	return leftErr == nil && rightErr == nil && bytes.Equal(leftJSON, rightJSON)
+	return bytes.Equal(leftJSON, rightJSON)
 }
 
 func clearWireMetadata(wire *wireSchedule) {

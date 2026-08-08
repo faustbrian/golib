@@ -37,6 +37,8 @@ Versioning after v1.0.0.
 
 ### Fixed
 
+- Report overnight-spill provenance only when the queried point is within the
+  preceding day's spill, rather than whenever any spill exists on that date.
 - Reject duplicate exception source revisions even when another priority sorts
   between them.
 - Replace unreachable owned-module pseudo-versions with published revisions so

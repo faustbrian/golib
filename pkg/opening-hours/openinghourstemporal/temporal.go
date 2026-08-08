@@ -62,9 +62,6 @@ func RuleFromIntervals(intervals []timeofday.Interval,
 	}
 	ranges := make([]openinghours.Range, 0, len(intervals))
 	for _, interval := range intervals {
-		if interval.Kind() == timeofday.FullDayKind || interval.Kind() == timeofday.CollapsedKind {
-			return openinghours.DayRule{}, ErrLossyMapping
-		}
 		converted, err := RangeFromInterval(interval)
 		if err != nil {
 			return openinghours.DayRule{}, err

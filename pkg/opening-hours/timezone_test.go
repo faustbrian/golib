@@ -30,6 +30,19 @@ func TestResolveLocalRejectsGapAndCanShiftForward(t *testing.T) {
 	}
 }
 
+func TestResolveLocalShiftForwardHandlesZonesNormalizedBeforeTheGap(t *testing.T) {
+	schedule, err := openinghours.NewSchedule(openinghours.Config{Timezone: "America/New_York"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	date := openinghours.MustDate(2026, time.March, 8)
+	resolved, err := schedule.ResolveLocal(date, mustTime(t, 2, 30), openinghours.ShiftForward)
+	if err != nil || resolved.Kind != openinghours.LocalGap ||
+		!resolved.Instant.Equal(time.Date(2026, time.March, 8, 7, 30, 0, 0, time.UTC)) {
+		t.Fatalf("New York shifted local = %#v, %v", resolved, err)
+	}
+}
+
 func TestResolveLocalRequiresFoldPolicy(t *testing.T) {
 	schedule, err := openinghours.NewSchedule(openinghours.Config{Timezone: "America/New_York"})
 	if err != nil {

@@ -66,3 +66,53 @@ func TestCalendarAdapterRejectsInvalidAndUnboundedInput(t *testing.T) {
 		t.Fatal("invalid exception provenance accepted")
 	}
 }
+
+func TestHolidayClosuresValidatesEachInputBoundaryIndependently(t *testing.T) {
+	date := calendar.MustDate(2026, time.December, 25)
+	holiday := business.MustHoliday(date, "Christmas", nil)
+	businessCalendar, err := business.NewCalendar(business.Config{
+		Revision: "2026", Holidays: []business.Holiday{holiday},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	next := calendar.MustDate(2026, time.December, 26)
+
+	for _, test := range []struct {
+		name             string
+		businessCalendar business.Calendar
+		start            calendar.Date
+		end              calendar.Date
+		maximumDates     int
+		source           string
+	}{
+		{name: "invalid calendar", start: date, end: date, maximumDates: 1, source: "source"},
+		{name: "invalid start", businessCalendar: businessCalendar, end: date, maximumDates: 1, source: "source"},
+		{name: "invalid end", businessCalendar: businessCalendar, start: date, maximumDates: 1, source: "source"},
+		{name: "reversed range", businessCalendar: businessCalendar, start: next, end: date, maximumDates: 2, source: "source"},
+		{name: "zero maximum", businessCalendar: businessCalendar, start: date, end: date, source: "source"},
+		{name: "negative maximum", businessCalendar: businessCalendar, start: date, end: date, maximumDates: -1, source: "source"},
+		{name: "empty source", businessCalendar: businessCalendar, start: date, end: date, maximumDates: 1},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := openinghourscalendar.HolidayClosures(
+				test.businessCalendar,
+				test.start,
+				test.end,
+				test.maximumDates,
+				0,
+				test.source,
+			)
+			if !errors.Is(err, openinghourscalendar.ErrInvalidInput) {
+				t.Fatalf("HolidayClosures() error = %v, want ErrInvalidInput", err)
+			}
+		})
+	}
+
+	exceptions, err := openinghourscalendar.HolidayClosures(
+		businessCalendar, date, date, 1, 0, "source",
+	)
+	if err != nil || len(exceptions) != 1 {
+		t.Fatalf("single-day minimum-bound closure = %#v, %v", exceptions, err)
+	}
+}

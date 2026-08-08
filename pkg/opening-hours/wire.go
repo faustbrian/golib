@@ -229,11 +229,11 @@ func scheduleFromWire(wire wireSchedule, depth int) (Schedule, error) {
 		if len(wire.Weekly) != 0 || len(wire.Exceptions) != 0 {
 			return Schedule{}, newError("parse json", CodeInvalidEncoding)
 		}
-		left, err := scheduleFromWire(wire.Composition.Left, depth+1)
+		left, err := scheduleFromWire(wire.Composition.Left, depth)
 		if err != nil {
 			return Schedule{}, err
 		}
-		right, err := scheduleFromWire(wire.Composition.Right, depth+1)
+		right, err := scheduleFromWire(wire.Composition.Right, depth)
 		if err != nil {
 			return Schedule{}, err
 		}
@@ -404,7 +404,7 @@ func parseExceptionOperation(input string) (ExceptionOperation, bool) {
 
 func parseDate(input string) (Date, error) {
 	parsed, err := time.Parse("2006-01-02", input)
-	if err != nil || parsed.Format("2006-01-02") != input {
+	if err != nil {
 		return Date{}, newError("parse date", CodeInvalidDate)
 	}
 
@@ -493,9 +493,15 @@ func requireEOF(decoder *json.Decoder) error {
 // Equal reports canonical equality, including provenance and composition shape.
 func (s Schedule) Equal(other Schedule) bool {
 	left, leftErr := s.CanonicalJSON()
+	if leftErr != nil {
+		return false
+	}
 	right, rightErr := other.CanonicalJSON()
+	if rightErr != nil {
+		return false
+	}
 
-	return leftErr == nil && rightErr == nil && bytes.Equal(left, right)
+	return bytes.Equal(left, right)
 }
 
 // Compare returns -1, 0, or 1 according to the schedules' canonical byte

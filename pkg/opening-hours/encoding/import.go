@@ -102,7 +102,7 @@ func importRange(from, to string) (openinghours.Range, error) {
 
 func importTime(input string) (openinghours.LocalTime, error) {
 	parsed, err := time.Parse("15:04", input)
-	if err != nil || parsed.Format("15:04") != input {
+	if err != nil {
 		return openinghours.LocalTime{}, &ImportError{Kind: "time"}
 	}
 

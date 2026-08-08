@@ -136,7 +136,7 @@ func TestCompositionAndOverlayInternalBranches(t *testing.T) {
 		timezone: "UTC", location: time.UTC, depth: 1,
 		composition: &composition{operation: compositionOperation(99), left: base, right: base},
 	}}
-	segments, _, _, err := invalid.effectiveSegments(date)
+	segments, _, err := invalid.effectiveSegments(date)
 	if err != nil || len(segments) != 0 {
 		t.Fatalf("unknown composition result = %#v error=%v", segments, err)
 	}
@@ -279,10 +279,10 @@ func TestMalformedCompositionPropagatesQueryErrors(t *testing.T) {
 			t.Errorf("composition ranges error = %v", err)
 		}
 	}
-	if segments, _, _, err := internalSchedule(t, Config{EffectiveStart: &start}).effectiveSegments(date); err != nil || segments != nil {
+	if segments, _, err := internalSchedule(t, Config{EffectiveStart: &start}).effectiveSegments(date); err != nil || segments != nil {
 		t.Fatalf("outside effective segments = %#v, %v", segments, err)
 	}
-	if _, _, _, err := failing.effectiveSegments(date); !IsCode(err, CodeOutsideEffectiveRange) {
+	if _, _, err := failing.effectiveSegments(date); !IsCode(err, CodeOutsideEffectiveRange) {
 		t.Fatalf("failing effective segments error = %v", err)
 	}
 

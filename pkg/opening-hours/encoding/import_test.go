@@ -2,6 +2,8 @@ package encoding_test
 
 import (
 	"encoding/json"
+	"errors"
+	"fmt"
 	"os"
 	"testing"
 	"time"
@@ -152,5 +154,75 @@ func TestCanonicalWrappersAndImportFailures(t *testing.T) {
 	}
 	if text := (&openinghoursencoding.ImportError{Kind: "time"}).Error(); text != "opening hours import: time" {
 		t.Fatalf("ImportError text = %q", text)
+	}
+}
+
+func TestImportLocationLimitBoundaries(t *testing.T) {
+	validLimits := openinghoursencoding.DefaultImportLimits()
+	for _, test := range []struct {
+		name   string
+		limits openinghoursencoding.ImportLimits
+	}{
+		{name: "negative maximum days", limits: openinghoursencoding.ImportLimits{MaximumDays: -1, MaximumRangesPerDay: 64}},
+		{name: "zero maximum days", limits: openinghoursencoding.ImportLimits{MaximumDays: 0, MaximumRangesPerDay: 64}},
+		{name: "maximum days above package bound", limits: openinghoursencoding.ImportLimits{MaximumDays: 8, MaximumRangesPerDay: 64}},
+		{name: "negative maximum ranges", limits: openinghoursencoding.ImportLimits{MaximumDays: 7, MaximumRangesPerDay: -1}},
+		{name: "zero maximum ranges", limits: openinghoursencoding.ImportLimits{MaximumDays: 7, MaximumRangesPerDay: 0}},
+		{name: "maximum ranges above package bound", limits: openinghoursencoding.ImportLimits{MaximumDays: 7, MaximumRangesPerDay: 65}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := openinghoursencoding.ImportLocation("UTC", nil, test.limits)
+			assertImportErrorKind(t, err, "limit")
+		})
+	}
+
+	sevenDays := map[string][]openinghoursencoding.Slot{
+		"sunday": nil, "monday": nil, "tuesday": nil, "wednesday": nil,
+		"thursday": nil, "friday": nil, "saturday": nil,
+	}
+	if _, err := openinghoursencoding.ImportLocation("UTC", sevenDays, validLimits); err != nil {
+		t.Fatalf("ImportLocation rejected exact maximum day count: %v", err)
+	}
+
+	sixtyFourRanges := make([]openinghoursencoding.Slot, 64)
+	for index := range sixtyFourRanges {
+		startMinute := index * 20
+		endMinute := startMinute + 10
+		sixtyFourRanges[index] = openinghoursencoding.Slot{
+			From: fmt.Sprintf("%02d:%02d", startMinute/60, startMinute%60),
+			To:   fmt.Sprintf("%02d:%02d", endMinute/60, endMinute%60),
+		}
+	}
+	if _, err := openinghoursencoding.ImportLocation(
+		"UTC",
+		map[string][]openinghoursencoding.Slot{"monday": sixtyFourRanges},
+		validLimits,
+	); err != nil {
+		t.Fatalf("ImportLocation rejected exact maximum range count: %v", err)
+	}
+}
+
+func TestImportSpatieRejectsAmbiguousSeparatorsAsRanges(t *testing.T) {
+	limits := openinghoursencoding.DefaultImportLimits()
+	for _, input := range []string{"01:00", "01:00-02:00-03:00"} {
+		t.Run(input, func(t *testing.T) {
+			_, err := openinghoursencoding.ImportSpatie(
+				"UTC",
+				map[string][]string{"monday": {input}},
+				limits,
+			)
+			assertImportErrorKind(t, err, "range")
+		})
+	}
+}
+
+func assertImportErrorKind(t *testing.T, err error, want string) {
+	t.Helper()
+	var importErr *openinghoursencoding.ImportError
+	if !errors.As(err, &importErr) {
+		t.Fatalf("error = %v; want ImportError kind %q", err, want)
+	}
+	if importErr.Kind != want {
+		t.Fatalf("ImportError kind = %q; want %q", importErr.Kind, want)
 	}
 }
