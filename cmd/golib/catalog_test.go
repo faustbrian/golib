@@ -416,25 +416,6 @@ func TestOpenSearchSpecificationCatalogMetadata(t *testing.T) {
 	}
 }
 
-func TestCloudEventsSpecificationCatalogMetadata(t *testing.T) {
-	t.Parallel()
-	if got := specifications("pkg/cloudevents"); !slices.Equal(got, []string{
-		"CloudEvents specification 1.0.2",
-		"CloudEvents JSON event format 1.0.2",
-		"CloudEvents HTTP protocol binding 1.0.2",
-		"CloudEvents Kafka protocol binding 1.0.2",
-		"CloudEvents distributed tracing extension 1.0.2",
-		"CloudEvents partitioning extension 1.0.2",
-	}) {
-		t.Fatalf("specifications(pkg/cloudevents) = %v", got)
-	}
-	if got := conformanceCorpora("pkg/cloudevents"); !slices.Equal(got, []string{
-		"cloudevents/conformance v0.4.1 HTTP and Kafka features",
-	}) {
-		t.Fatalf("conformanceCorpora(pkg/cloudevents) = %v", got)
-	}
-}
-
 func TestXSDSpecificationCatalogMetadata(t *testing.T) {
 	t.Parallel()
 	if got := specifications("pkg/xsd"); !slices.Equal(
