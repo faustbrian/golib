@@ -32,9 +32,9 @@ and releases use Semantic Versioning.
   bounded deduplicated signal acceptance that must commit before transport
   acknowledgement and replays from persisted decisions only.
 - Explicit ordered compensation history and durable first-attempt dispatch,
-  with independently bounded retries, stable idempotency identities, unknown
-  outcomes, and manual resolution that remains distinct from successful
-  rollback.
+  bounded input, persisted attempt starts and explicit outcomes, independently
+  durable retries, stable idempotency identities, and manual resolution that
+  remains distinct from successful rollback.
 - Idempotent audited lifecycle operator commands for pause, resume,
   cancellation, and termination with optimistic concurrency and replay checks
   that reject orphaned or mismatched audit records.

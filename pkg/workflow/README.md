@@ -67,10 +67,13 @@ whether the signal is already accepted or no longer applicable.
 Compensation is explicit durable workflow state rather than an implied
 rollback. `NewCompensationSchedule` atomically records the schedule decision
 with `WorkCompensation`, and `NewCompensationAttemptStart` records the exact
-attempt and idempotency key before the compensating side effect begins. Replay
-preserves persisted schedule order, independently bounded retries, known
-failures, unknown outcomes, and manual resolutions. A manual resolution is
-reported as such; it is never represented as a successful rollback.
+attempt and idempotency key before the compensating side effect begins.
+Compensation input inherits the activity step input bound.
+`NewCompensationAttemptOutcome` preserves success, known failure, or an
+unknown outcome, while `NewCompensationRetry` persists the independent retry
+decision and its next semantic attempt together. Replay preserves schedule
+order and manual resolutions. A manual resolution is reported as such; it is
+never represented as a successful rollback.
 
 `NewOperatorLifecycleCommand` accepts an already-authorized actor and produces
 one idempotent optimistic transition containing the audit record followed by
