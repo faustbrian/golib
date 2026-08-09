@@ -94,6 +94,9 @@ Every callback context is callback-scoped and must not be retained.
 - `ObservationConsumeLost` after fatal ownership loss clears the assignment;
 - `ObservationConsumeBlocked` after an active poll is told that a rebalance
   callback is waiting;
+- `ObservationConsumeRebalanceWait` when that callback's local wait reaches
+  poll-gate release, callback-context cancellation, or the configured rebalance
+  timeout;
 - `ObservationConsumeGroupError` after an error ends a group-management
   session;
 - `ObservationTransactionBegin` after a transaction begin attempt;
@@ -188,9 +191,20 @@ The pinned single-broker fixture applies a client-ID producer-byte quota and
 proves a positive post-response throttle event alongside successful delivery.
 
 Assignment, revocation, loss, and blocked-rebalance durations cover only the
-local package state transition before observer dispatch. They do not represent
-Kafka rebalance duration, group join time, callback wait time inside franz-go,
-or observer execution time. Group-management error hooks do not expose a
+local package state transition before observer dispatch.
+`ObservationConsumeRebalanceWait` starts when the package enters franz-go's
+blocked callback.
+A successful duration ends immediately after the package calls
+`AllowRebalance` for that poll. A failed duration ends when the franz-go client
+context is canceled or the configured `RebalanceTimeout` expires; failure does
+not claim the poll gate was released. Repeated blocked signals for the same
+poll are deduplicated. This interval can include handler drain or cancellation,
+observer dispatch, and offset settlement. It does not represent group join,
+`JoinGroup`/`SyncGroup` request time, all cooperative phases, or complete Kafka
+rebalance duration; broker-request observations expose individual protocol
+request latency separately. Poll completion retains the callback until this
+wait observation returns; an observer that ignores its context can therefore
+block poll completion as described above. Group-management error hooks do not expose a
 duration from franz-go, so their duration is zero.
 Transaction durations cover only the corresponding local begin or bounded end
 call and exclude observer execution. A known abort-required commit failure is
@@ -277,7 +291,7 @@ outcomes, aggregate progress and shutdown, inspector read-only operations,
 dependency health, readiness, and shutdown, plus producer, consumer,
 transaction-processor, replay, and inspector broker activity. Producer,
 consumer, and transaction-processor shutdown attempts are also covered.
-Kafka redelivery and complete broker rebalance timing remain unimplemented.
+Kafka redelivery and end-to-end broker rebalance timing remain unimplemented.
 Authentication state is reported honestly as part of broker connection
 initialization because that is the lifecycle boundary supplied by franz-go.
 

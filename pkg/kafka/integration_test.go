@@ -2386,6 +2386,7 @@ func proveDrainingRebalancePolicy(
 
 	const groupID = "golib-compatibility-draining-rebalance"
 	blocked := make(chan struct{}, 1)
+	rebalanceWait := make(chan kafka.Observation, 1)
 	first := newIntegrationRebalanceConsumer(
 		t,
 		brokers,
@@ -2398,9 +2399,15 @@ func proveDrainingRebalancePolicy(
 				_ context.Context,
 				observation kafka.Observation,
 			) error {
-				if observation.Kind == kafka.ObservationConsumeBlocked {
+				switch observation.Kind {
+				case kafka.ObservationConsumeBlocked:
 					select {
 					case blocked <- struct{}{}:
+					default:
+					}
+				case kafka.ObservationConsumeRebalanceWait:
+					select {
+					case rebalanceWait <- observation:
 					default:
 					}
 				}
@@ -2516,6 +2523,16 @@ func proveDrainingRebalancePolicy(
 			firstResult.result,
 			firstResult.err,
 		)
+	}
+	select {
+	case observation := <-rebalanceWait:
+		if !observation.Succeeded || observation.Duration <= 0 ||
+			observation.Category != kafka.ErrorUnknown {
+			t.Fatalf("draining rebalance wait = %#v", observation)
+		}
+	case <-ctx.Done():
+		cancelSecond()
+		t.Fatalf("wait for draining rebalance duration: %v", ctx.Err())
 	}
 	assertPartitionCommits(t, ctx, brokers, topic, groupID, map[int32]int64{0: 1})
 	closeIntegrationConsumer(t, first)

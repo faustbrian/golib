@@ -136,7 +136,7 @@ func TestConsumerRunBatchOnceDrainsActiveBatchForBlockedRebalance(t *testing.T) 
 		}{result: result, err: err}
 	}()
 	<-started
-	consumer.onRebalanceBlocked()
+	signalConsumerRebalanceBlocked(consumer)
 	close(release)
 	got := <-done
 
@@ -180,7 +180,7 @@ func TestConsumerRunBatchOnceCancelsEntireActiveBatchForRebalance(t *testing.T) 
 		}{result: result, err: err}
 	}()
 	<-started
-	consumer.onRebalanceBlocked()
+	signalConsumerRebalanceBlocked(consumer)
 	got := <-done
 
 	if !errors.Is(got.err, ErrConsumerRebalance) || !errors.Is(got.err, handlerErr) ||
@@ -342,7 +342,7 @@ func TestConsumerRunBatchOnceStopsAdmissionBeforeHandler(t *testing.T) {
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
 	backend.poll = func(context.Context, int) kgo.Fetches {
-		consumer.onRebalanceBlocked()
+		signalConsumerRebalanceBlocked(consumer)
 
 		return recordFetches(&kgo.Record{Topic: "events", Partition: 0, Offset: 1})
 	}

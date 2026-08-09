@@ -315,7 +315,8 @@ the producer. Consumer events report each record or partition-batch processing
 attempt, each bounded in-process retry selected after a failed handler attempt,
 each offset-commit attempt, the final bounded poll result, assignment,
 revocation, ownership loss, blocked rebalances, group-management errors, and
-broker connection, Kafka request, throttle, and disconnect activity.
+the blocked-signal-to-poll-gate interval, plus broker connection, Kafka request,
+throttle, and disconnect activity.
 Broker-connect observations identify the configured bounded
 `AuthenticationMethod`; success proves that franz-go completed API-version
 negotiation and that authentication flow, while failures retain only the stable
@@ -330,6 +331,11 @@ cannot re-enter mutating or lifecycle operations on that consumer.
 and last offset of the record or complete partition batch, with zero processed
 and committed counts. It is emitted before backoff, so it does not claim that
 the later attempt ran or that Kafka redelivered the source record.
+`ObservationConsumeRebalanceWait` starts with the matching
+`ObservationConsumeBlocked` signal and ends at poll-gate release, callback
+cancellation, or the configured rebalance timeout. Its success means only that
+the package released the active poll gate; it does not claim broker-wide or
+multi-phase cooperative rebalance completion.
 
 `NewFailureHandler` decorates the per-record `Handler` contract without
 changing `Consumer` or exposing franz-go. Before retaining bytes or invoking

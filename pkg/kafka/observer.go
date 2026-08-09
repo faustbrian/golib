@@ -119,6 +119,10 @@ const (
 	// ObservationConsumeRetryScheduled reports one failed handler attempt that
 	// selected a bounded in-process retry before its backoff wait begins.
 	ObservationConsumeRetryScheduled
+	// ObservationConsumeRebalanceWait reports the bounded local wait from
+	// franz-go blocked-callback entry until poll-gate release, callback
+	// cancellation, or timeout.
+	ObservationConsumeRebalanceWait
 )
 
 // String returns the stable low-cardinality observation name.
@@ -182,6 +186,8 @@ func (kind ObservationKind) String() string {
 		return "transaction_processor.shutdown"
 	case ObservationConsumeRetryScheduled:
 		return "consumer.retry_scheduled"
+	case ObservationConsumeRebalanceWait:
+		return "consumer.rebalance_wait"
 	case ObservationBrokerConnect:
 		return "broker.connect"
 	case ObservationBrokerRequest:
@@ -305,7 +311,7 @@ func (observation Observation) Validate() error {
 	if observation.Kind < ObservationProduceRecord {
 		return ErrInvalidObservation
 	}
-	if observation.Kind > ObservationConsumeRetryScheduled {
+	if observation.Kind > ObservationConsumeRebalanceWait {
 		return ErrInvalidObservation
 	}
 	if observation.StartedAt.IsZero() ||
@@ -340,6 +346,7 @@ func (observation Observation) Validate() error {
 			!validErrorCategory(observation.Category)) ||
 		!validObservationAuthentication(observation) ||
 		!validObservationRecordCardinality(observation) ||
+		!validConsumeRebalanceWaitObservation(observation) ||
 		!validConsumeRetryObservation(observation) ||
 		!validReplayObservationProgress(observation) ||
 		!validInspectorObservationMetadata(observation) {
@@ -347,6 +354,35 @@ func (observation Observation) Validate() error {
 	}
 
 	return nil
+}
+
+func validConsumeRebalanceWaitObservation(observation Observation) bool {
+	if observation.Kind != ObservationConsumeRebalanceWait {
+		return true
+	}
+
+	validOutcome := observation.Succeeded ||
+		observation.Category == ErrorTimeout ||
+		observation.Category == ErrorCanceled
+
+	return validOutcome &&
+		observation.BrokerID == 0 &&
+		!observation.BrokerKnown &&
+		observation.APIKey == 0 &&
+		!observation.APIKeyKnown &&
+		observation.RequestBytes == 0 &&
+		observation.ResponseBytes == 0 &&
+		observation.QueueDuration == 0 &&
+		observation.ThrottleDuration == 0 &&
+		!observation.ThrottledAfterResponse &&
+		observation.Topic == "" &&
+		observation.Partition == 0 &&
+		observation.PartitionCount == 0 &&
+		!observation.PartitionKnown &&
+		observation.Offset == 0 &&
+		!observation.OffsetKnown &&
+		observation.Timestamp.IsZero() &&
+		!observation.Truncated
 }
 
 func validObservationAuthentication(observation Observation) bool {

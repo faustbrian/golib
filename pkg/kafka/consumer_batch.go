@@ -91,7 +91,7 @@ func (consumer *Consumer) runBatchOnce(
 	if consumer.observers.enabled() {
 		startedAt = time.Now()
 	}
-	consumer.rebalance.beginPoll()
+	consumer.rebalance.beginPoll(consumer.observers.enabled())
 	defer consumer.rebalance.endPoll()
 
 	pollCtx, finishPoll, admitted := consumer.beginPoll(ctx)

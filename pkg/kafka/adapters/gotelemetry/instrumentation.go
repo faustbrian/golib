@@ -1058,6 +1058,11 @@ func messagingOperation(observation kafka.Observation) operationDescriptor {
 			spanName: "kafka consumer.retry_scheduled",
 			spanKind: trace.SpanKindInternal,
 		}
+	case kafka.ObservationConsumeRebalanceWait:
+		return operationDescriptor{
+			spanName: "kafka consumer.rebalance_wait",
+			spanKind: trace.SpanKindInternal,
+		}
 	case kafka.ObservationTransactionBegin:
 		return operationDescriptor{
 			spanName: "kafka transaction.begin",

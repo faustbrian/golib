@@ -6,6 +6,11 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- report the measured local interval from package entry into franz-go's
+  blocked callback to poll-gate release, with distinct successful,
+  callback-canceled, and bounded
+  timeout outcomes, poll-lifecycle retention, and no claim of complete broker
+  rebalance timing
 - report each record or whole-partition-batch handler failure selected for a
   bounded in-process retry through a stable payload-free consumer observation,
   before cancellation-aware backoff and without claiming Kafka redelivery;

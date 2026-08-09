@@ -244,6 +244,7 @@ type Consumer struct {
 	rebalance             *consumerRebalanceState
 	handlerTimeout        time.Duration
 	commitTimeout         time.Duration
+	rebalanceTimeout      time.Duration
 	shutdownTimeout       time.Duration
 	staticMembership      bool
 	observers             observerDispatcher
@@ -303,8 +304,8 @@ func newConsumer(
 		kgo.ConsumeResetOffset(resetOffset),
 		kgo.DisableAutoCommit(),
 		kgo.BlockRebalanceOnPoll(),
-		kgo.OnPartitionsCallbackBlocked(func(context.Context, *kgo.Client) {
-			consumer.onRebalanceBlocked()
+		kgo.OnPartitionsCallbackBlocked(func(ctx context.Context, _ *kgo.Client) {
+			consumer.onRebalanceCallbackBlocked(ctx)
 		}),
 		kgo.OnPartitionsAssigned(func(
 			_ context.Context,
@@ -365,6 +366,7 @@ func newConsumer(
 		rebalance:             rebalance,
 		handlerTimeout:        config.HandlerTimeout,
 		commitTimeout:         config.CommitTimeout,
+		rebalanceTimeout:      config.RebalanceTimeout,
 		shutdownTimeout:       config.ShutdownTimeout,
 		staticMembership:      config.InstanceID != "",
 		observers:             dispatcher,
@@ -612,7 +614,7 @@ func (consumer *Consumer) runOnce(
 	if consumer.observers.enabled() {
 		startedAt = time.Now()
 	}
-	consumer.rebalance.beginPoll()
+	consumer.rebalance.beginPoll(consumer.observers.enabled())
 	defer consumer.rebalance.endPoll()
 
 	pollCtx, finishPoll, admitted := consumer.beginPoll(ctx)
@@ -780,16 +782,135 @@ func (consumer *Consumer) onPartitionsLost(partitions map[string][]int32) {
 	)
 }
 
-func (consumer *Consumer) onRebalanceBlocked() {
-	startedAt := time.Now()
-	if !consumer.rebalance.blocked() {
+func (consumer *Consumer) onRebalanceCallbackBlocked(ctx context.Context) {
+	startedAt, pollDone, waitDone, blocked := consumer.beginRebalanceBlocked()
+	if !blocked || !consumer.observers.enabled() {
 		return
+	}
+	if waitDone != nil {
+		defer close(waitDone)
+	}
+	remaining := consumer.rebalanceTimeout - time.Since(startedAt)
+	if remaining <= 0 {
+		consumer.observeResolvedConsumerRebalanceWait(
+			ctx,
+			startedAt,
+			pollDone,
+			time.Now(),
+			ErrorTimeout,
+		)
+
+		return
+	}
+	timer := time.NewTimer(remaining)
+	defer timer.Stop()
+
+	select {
+	case completedAt := <-pollDone:
+		consumer.observeConsumerRebalanceWait(
+			ctx,
+			startedAt,
+			completedAt.Sub(startedAt),
+			true,
+			ErrorUnknown,
+		)
+	case <-ctx.Done():
+		consumer.observeResolvedConsumerRebalanceWait(
+			ctx,
+			startedAt,
+			pollDone,
+			time.Now(),
+			classifyConsumerObservationError(ctx.Err()),
+		)
+	case <-timer.C:
+		consumer.observeResolvedConsumerRebalanceWait(
+			ctx,
+			startedAt,
+			pollDone,
+			time.Now(),
+			ErrorTimeout,
+		)
+	}
+}
+
+func (consumer *Consumer) observeResolvedConsumerRebalanceWait(
+	ctx context.Context,
+	startedAt time.Time,
+	pollDone <-chan time.Time,
+	failureAt time.Time,
+	failureCategory ErrorCategory,
+) {
+	endedAt, succeeded, category := resolveConsumerRebalanceWaitOutcome(
+		pollDone,
+		failureAt,
+		failureCategory,
+	)
+	consumer.observeConsumerRebalanceWait(
+		ctx,
+		startedAt,
+		endedAt.Sub(startedAt),
+		succeeded,
+		category,
+	)
+}
+
+func resolveConsumerRebalanceWaitOutcome(
+	pollDone <-chan time.Time,
+	failureAt time.Time,
+	failureCategory ErrorCategory,
+) (time.Time, bool, ErrorCategory) {
+	if completedAt, completed := completedRebalancePoll(pollDone); completed {
+		return completedAt, true, ErrorUnknown
+	}
+
+	return failureAt, false, failureCategory
+}
+
+func completedRebalancePoll(pollDone <-chan time.Time) (time.Time, bool) {
+	select {
+	case completedAt := <-pollDone:
+		return completedAt, true
+	default:
+		return time.Time{}, false
+	}
+}
+
+func (consumer *Consumer) beginRebalanceBlocked() (
+	time.Time,
+	<-chan time.Time,
+	chan<- struct{},
+	bool,
+) {
+	startedAt := time.Now()
+	pollDone, waitDone, blocked := consumer.rebalance.blockedWait()
+	if !blocked {
+		return time.Time{}, nil, nil, false
 	}
 	consumer.observeConsumerRebalance(
 		ObservationConsumeBlocked,
 		startedAt,
 		consumerAssignmentTransition{},
 	)
+
+	return startedAt, pollDone, waitDone, true
+}
+
+func (consumer *Consumer) observeConsumerRebalanceWait(
+	ctx context.Context,
+	startedAt time.Time,
+	duration time.Duration,
+	succeeded bool,
+	category ErrorCategory,
+) {
+	consumer.dispatchObservation(ctx, Observation{
+		Kind:      ObservationConsumeRebalanceWait,
+		StartedAt: startedAt,
+		Duration:  max(duration, 0),
+		ClientID:  consumer.clientID,
+		GroupID:   consumer.groupID,
+		Succeeded: succeeded,
+		Category:  category,
+	})
 }
 
 func (consumer *Consumer) observeConsumerRebalance(

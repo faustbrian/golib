@@ -17,6 +17,11 @@ func TestObserverCriticalGuardsTerminateDeterministically(t *testing.T) {
 			Succeeded:   true,
 		},
 		"last kind": {
+			Kind:      ObservationConsumeRebalanceWait,
+			StartedAt: startedAt,
+			Succeeded: true,
+		},
+		"retry kind": {
 			Kind:           ObservationConsumeRetryScheduled,
 			StartedAt:      startedAt,
 			Topic:          "events",
@@ -36,7 +41,7 @@ func TestObserverCriticalGuardsTerminateDeterministically(t *testing.T) {
 	}
 	for name, kind := range map[string]ObservationKind{
 		"below first kind": ObservationProduceRecord - 1,
-		"above last kind":  ObservationConsumeRetryScheduled + 1,
+		"above last kind":  ObservationConsumeRebalanceWait + 1,
 	} {
 		observation := Observation{
 			Kind: kind, StartedAt: startedAt, Succeeded: true,

@@ -67,6 +67,7 @@ func proveApacheKafkaPartialCooperativeRevocation(
 
 	blocked := make(chan struct{})
 	revoked := make(chan kafka.Observation, 1)
+	rebalanceWait := make(chan kafka.Observation, 1)
 	var blockedOnce sync.Once
 	original := newApacheKafkaOwnershipConsumer(
 		t,
@@ -89,6 +90,11 @@ func proveApacheKafkaPartialCooperativeRevocation(
 						case revoked <- observation:
 						default:
 						}
+					}
+				case kafka.ObservationConsumeRebalanceWait:
+					select {
+					case rebalanceWait <- observation:
+					default:
 					}
 				}
 
@@ -164,6 +170,18 @@ func proveApacheKafkaPartialCooperativeRevocation(
 	case <-ctx.Done():
 		t.Fatalf(
 			"wait for partial cooperative original: %v",
+			context.Cause(ctx),
+		)
+	}
+	select {
+	case observation := <-rebalanceWait:
+		if !observation.Succeeded || observation.Duration <= 0 ||
+			observation.Category != kafka.ErrorUnknown {
+			t.Fatalf("partial cooperative rebalance wait = %#v", observation)
+		}
+	case <-ctx.Done():
+		t.Fatalf(
+			"wait for partial cooperative rebalance duration: %v",
 			context.Cause(ctx),
 		)
 	}

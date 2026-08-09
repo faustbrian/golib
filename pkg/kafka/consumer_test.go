@@ -1001,7 +1001,7 @@ func TestConsumerCancelsActiveHandlerForBlockedRebalance(t *testing.T) {
 		}{result: result, err: err}
 	}()
 	<-handlerStarted
-	consumer.onRebalanceBlocked()
+	signalConsumerRebalanceBlocked(consumer)
 	got := <-runDone
 
 	if !errors.Is(got.err, ErrConsumerRebalance) || !errors.Is(got.err, handlerErr) ||
@@ -1046,7 +1046,7 @@ func TestConsumerDrainsActiveHandlerForBlockedRebalance(t *testing.T) {
 		}{result: result, err: err}
 	}()
 	<-handlerStarted
-	consumer.onRebalanceBlocked()
+	signalConsumerRebalanceBlocked(consumer)
 	close(releaseHandler)
 	got := <-runDone
 
@@ -1061,8 +1061,8 @@ func TestConsumerDrainsActiveHandlerForBlockedRebalance(t *testing.T) {
 func TestConsumerRebalanceSignalBeforeHandlerContextStopsAdmission(t *testing.T) {
 
 	rebalance := newConsumerRebalanceState(RebalanceCancelHandler)
-	rebalance.beginPoll()
-	rebalance.blocked()
+	rebalance.beginPoll(false)
+	signalConsumerRebalanceStateBlocked(rebalance)
 	handlerCtx, cleanup, admitted := rebalance.handlerContext(
 		context.Background(),
 		time.Minute,
@@ -1084,7 +1084,7 @@ func TestConsumerStopsAdmissionWhenRebalanceSignalPrecedesPollReturn(t *testing.
 	backend := &recordingConsumerBackend{}
 	consumer := consumerWithBackend(backend, 10, time.Second, time.Second)
 	backend.poll = func(context.Context, int) kgo.Fetches {
-		consumer.onRebalanceBlocked()
+		signalConsumerRebalanceBlocked(consumer)
 
 		return recordFetches(&kgo.Record{Topic: "events", Partition: 0, Offset: 1})
 	}
@@ -2284,6 +2284,24 @@ func consumerWithBackend(
 		},
 		pausedPartitions: make(map[TopicPartition]struct{}),
 	}
+}
+
+func signalConsumerRebalanceBlocked(consumer *Consumer) {
+	_, _, waitDone, blocked := consumer.beginRebalanceBlocked()
+	if blocked && waitDone != nil {
+		close(waitDone)
+	}
+}
+
+func signalConsumerRebalanceStateBlocked(
+	state *consumerRebalanceState,
+) bool {
+	_, waitDone, blocked := state.blockedWait()
+	if waitDone != nil {
+		close(waitDone)
+	}
+
+	return blocked
 }
 
 func recordFetches(records ...*kgo.Record) kgo.Fetches {

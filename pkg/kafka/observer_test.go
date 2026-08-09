@@ -719,6 +719,7 @@ func TestObservationKindString(t *testing.T) {
 		ObservationConsumerShutdown:             "consumer.shutdown",
 		ObservationTransactionProcessorShutdown: "transaction_processor.shutdown",
 		ObservationConsumeRetryScheduled:        "consumer.retry_scheduled",
+		ObservationConsumeRebalanceWait:         "consumer.rebalance_wait",
 		ObservationBrokerConnect:                "broker.connect",
 		ObservationBrokerRequest:                "broker.request",
 		ObservationBrokerThrottle:               "broker.throttle",
@@ -767,9 +768,101 @@ func TestObservationKindValuesRemainStable(t *testing.T) {
 		ObservationConsumerShutdown:             31,
 		ObservationTransactionProcessorShutdown: 32,
 		ObservationConsumeRetryScheduled:        33,
+		ObservationConsumeRebalanceWait:         34,
 	} {
 		if kind != want {
 			t.Fatalf("ObservationKind value = %d, want %d", kind, want)
+		}
+	}
+}
+
+func TestObservationValidatesConsumerRebalanceWaitOutcomes(t *testing.T) {
+	t.Parallel()
+
+	base := Observation{
+		Kind:      ObservationConsumeRebalanceWait,
+		StartedAt: time.Unix(1, 0),
+		Duration:  time.Second,
+		Succeeded: true,
+	}
+	for name, mutate := range map[string]func(*Observation){
+		"success": func(*Observation) {},
+		"timeout": func(observation *Observation) {
+			observation.Succeeded = false
+			observation.Category = ErrorTimeout
+		},
+		"canceled": func(observation *Observation) {
+			observation.Succeeded = false
+			observation.Category = ErrorCanceled
+		},
+	} {
+		observation := base
+		mutate(&observation)
+		if err := observation.Validate(); err != nil {
+			t.Fatalf("%s observation error = %v", name, err)
+		}
+	}
+	for name, mutate := range map[string]func(*Observation){
+		"unsupported failure": func(observation *Observation) {
+			observation.Succeeded = false
+			observation.Category = ErrorAuthorization
+		},
+		"partition count": func(observation *Observation) {
+			observation.PartitionCount = 1
+		},
+		"topic": func(observation *Observation) {
+			observation.Topic = "events"
+		},
+		"partition coordinate": func(observation *Observation) {
+			observation.PartitionKnown = true
+		},
+		"partition value": func(observation *Observation) {
+			observation.Partition = 1
+		},
+		"offset coordinate": func(observation *Observation) {
+			observation.OffsetKnown = true
+		},
+		"offset value": func(observation *Observation) {
+			observation.Offset = 1
+		},
+		"record timestamp": func(observation *Observation) {
+			observation.Timestamp = time.Unix(2, 0)
+		},
+		"broker coordinate": func(observation *Observation) {
+			observation.BrokerKnown = true
+		},
+		"broker value": func(observation *Observation) {
+			observation.BrokerID = 1
+		},
+		"api coordinate": func(observation *Observation) {
+			observation.APIKeyKnown = true
+		},
+		"api value": func(observation *Observation) {
+			observation.APIKey = 1
+		},
+		"request bytes": func(observation *Observation) {
+			observation.RequestBytes = 1
+		},
+		"response bytes": func(observation *Observation) {
+			observation.ResponseBytes = 1
+		},
+		"queue duration": func(observation *Observation) {
+			observation.QueueDuration = time.Nanosecond
+		},
+		"throttle duration": func(observation *Observation) {
+			observation.ThrottleDuration = time.Nanosecond
+		},
+		"post-response throttle": func(observation *Observation) {
+			observation.ThrottledAfterResponse = true
+		},
+		"truncated": func(observation *Observation) {
+			observation.Truncated = true
+		},
+	} {
+		observation := base
+		mutate(&observation)
+		if err := observation.Validate(); !errors.Is(err, ErrInvalidObservation) {
+			t.Fatalf("%s observation error = %v", name, err)
 		}
 	}
 }

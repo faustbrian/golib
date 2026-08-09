@@ -11,6 +11,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- internal spans and adapter-owned duration metrics for the bounded local wait
+  from blocked-callback entry through poll-gate release or failure
 - internal spans and adapter-owned operation metrics for bounded consumer retry
   decisions without double-counting semantic consumption or processing
 - bounded `kafka.authentication.method` broker-connect span attributes that

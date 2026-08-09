@@ -46,6 +46,8 @@ Inspector observations add fixed broker, topic, consumer-group, member, and
 partition counts plus dependency-health and readiness-hysteresis fields.
 Broker-connect observations add only the bounded configured
 `kafka.authentication.method`.
+Rebalance-wait records expose only the local blocked-callback-entry-to-poll-gate
+duration and stable outcome; they do not claim complete broker rebalance time.
 Inspected identities, broker hosts, cluster IDs, assignments, and lag
 coordinates never enter adapter-generated fields.
 

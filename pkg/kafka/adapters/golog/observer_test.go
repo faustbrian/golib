@@ -516,6 +516,44 @@ func TestObserverEmitsScheduledConsumerRetry(t *testing.T) {
 	}
 }
 
+func TestObserverEmitsConsumerRebalanceWait(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	adapter, err := New(Config{
+		Logger: slog.New(slog.NewJSONHandler(&output, nil)),
+		Identities: IdentityPolicy{
+			AllowedClientIDs:      []string{"projection"},
+			AllowedConsumerGroups: []string{"projection-v1"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	observation := kafka.Observation{
+		Kind:      kafka.ObservationConsumeRebalanceWait,
+		StartedAt: time.Unix(1, 0),
+		Duration:  25 * time.Millisecond,
+		ClientID:  "projection",
+		GroupID:   "projection-v1",
+		Succeeded: true,
+	}
+	if err := adapter.Observer()(context.Background(), observation); err != nil {
+		t.Fatalf("Observer() error = %v", err)
+	}
+	var record map[string]any
+	if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if record["kafka.operation"] != "consumer.rebalance_wait" ||
+		record["kafka.outcome"] != "success" ||
+		record["messaging.client.id"] != "projection" ||
+		record["messaging.consumer.group.name"] != "projection-v1" ||
+		record["kafka.duration_ms"] != float64(25) {
+		t.Fatalf("rebalance wait record = %#v", record)
+	}
+}
+
 func TestObserverIsSafeForConcurrentCalls(t *testing.T) {
 	t.Parallel()
 

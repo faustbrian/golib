@@ -39,9 +39,9 @@ func TestConsumerObserversReportRebalanceLifecycle(t *testing.T) {
 
 	consumer.onPartitionsAssigned(map[string][]int32{"events": {0, 1}})
 	consumer.onPartitionsRevoked(map[string][]int32{"events": {0}})
-	consumer.onRebalanceBlocked()
-	consumer.rebalance.beginPoll()
-	consumer.onRebalanceBlocked()
+	signalConsumerRebalanceBlocked(consumer)
+	consumer.rebalance.beginPoll(false)
+	signalConsumerRebalanceBlocked(consumer)
 	consumer.rebalance.endPoll()
 	consumer.onPartitionsLost(map[string][]int32{"events": {1}})
 
@@ -71,6 +71,423 @@ func TestConsumerObserversReportRebalanceLifecycle(t *testing.T) {
 			got.Truncated {
 			t.Fatalf("rebalance observation %d = %#v", index, got)
 		}
+	}
+}
+
+func TestConsumerObserversMeasureBlockedRebalanceUntilPollGateRelease(
+	t *testing.T,
+) {
+	observations := make(chan Observation, 2)
+	policy, err := normalizeObserverPolicy(ObserverPolicy{
+		Observers: []ObserverFunc{
+			func(_ context.Context, observation Observation) error {
+				if observation.Kind == ObservationConsumeBlocked ||
+					observation.Kind == ObservationConsumeRebalanceWait {
+					observations <- observation
+				}
+
+				return nil
+			},
+		},
+		FailureHandler: func(context.Context, ObservationFailure) {},
+	})
+	if err != nil {
+		t.Fatalf("normalize observer policy: %v", err)
+	}
+	backend := &recordingConsumerBackend{fetches: recordFetches(
+		&kgo.Record{Topic: "events", Partition: 0, Offset: 1},
+	)}
+	consumer := consumerWithBackend(backend, 10, time.Minute, time.Second)
+	consumer.clientID = "projection"
+	consumer.groupID = "projection-v1"
+	consumer.rebalance = newConsumerRebalanceState(RebalanceDrainHandler)
+	consumer.rebalanceTimeout = time.Second
+	consumer.observers = newObserverDispatcher(policy)
+
+	handlerStarted := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	runDone := make(chan error, 1)
+	go func() {
+		_, runErr := consumer.RunOnce(
+			context.Background(),
+			HandlerFunc(func(context.Context, ConsumedMessage) error {
+				close(handlerStarted)
+				<-releaseHandler
+
+				return nil
+			}),
+		)
+		runDone <- runErr
+	}()
+	<-handlerStarted
+
+	callbackDone := make(chan struct{})
+	go func() {
+		consumer.onRebalanceCallbackBlocked(context.Background())
+		close(callbackDone)
+	}()
+	blocked := receiveConsumerObservation(t, observations)
+	if blocked.Kind != ObservationConsumeBlocked || !blocked.Succeeded {
+		t.Fatalf("blocked observation = %#v", blocked)
+	}
+	select {
+	case observation := <-observations:
+		t.Fatalf("wait completed before poll gate release: %#v", observation)
+	default:
+	}
+
+	close(releaseHandler)
+	if runErr := <-runDone; runErr != nil {
+		t.Fatalf("RunOnce() error = %v", runErr)
+	}
+	wait := receiveConsumerObservation(t, observations)
+	<-callbackDone
+	if wait.Kind != ObservationConsumeRebalanceWait ||
+		wait.StartedAt != blocked.StartedAt ||
+		wait.Duration < blocked.Duration ||
+		wait.ClientID != "projection" ||
+		wait.GroupID != "projection-v1" ||
+		!wait.Succeeded ||
+		wait.Category != ErrorUnknown ||
+		backend.allowed != 1 {
+		t.Fatalf("wait observation/backend = %#v/%#v", wait, backend)
+	}
+}
+
+func TestConsumerPollRetainsBlockedRebalanceObserverUntilCompletion(
+	t *testing.T,
+) {
+	blockedObserved := make(chan struct{}, 1)
+	waitStarted := make(chan struct{})
+	releaseWaitObserver := make(chan struct{})
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{fetches: recordFetches(
+			&kgo.Record{Topic: "events", Partition: 0, Offset: 1},
+		)},
+		10,
+		time.Minute,
+		time.Second,
+	)
+	consumer.rebalance = newConsumerRebalanceState(RebalanceDrainHandler)
+	consumer.rebalanceTimeout = time.Second
+	consumer.observers = newObserverDispatcher(mustNormalizeObserverPolicy(
+		t,
+		ObserverPolicy{
+			Observers: []ObserverFunc{
+				func(_ context.Context, observation Observation) error {
+					switch observation.Kind {
+					case ObservationConsumeBlocked:
+						blockedObserved <- struct{}{}
+					case ObservationConsumeRebalanceWait:
+						close(waitStarted)
+						<-releaseWaitObserver
+					}
+
+					return nil
+				},
+			},
+			FailureHandler: func(context.Context, ObservationFailure) {},
+		},
+	))
+
+	handlerStarted := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	runDone := make(chan error, 1)
+	go func() {
+		_, runErr := consumer.RunOnce(
+			context.Background(),
+			HandlerFunc(func(context.Context, ConsumedMessage) error {
+				close(handlerStarted)
+				<-releaseHandler
+
+				return nil
+			}),
+		)
+		runDone <- runErr
+	}()
+	<-handlerStarted
+
+	callbackDone := make(chan struct{})
+	go func() {
+		consumer.onRebalanceCallbackBlocked(context.Background())
+		close(callbackDone)
+	}()
+	<-blockedObserved
+	close(releaseHandler)
+	<-waitStarted
+
+	var prematureRunErr error
+	prematureReturn := false
+	select {
+	case prematureRunErr = <-runDone:
+		prematureReturn = true
+	case <-time.After(50 * time.Millisecond):
+	}
+	close(releaseWaitObserver)
+	<-callbackDone
+	if prematureReturn {
+		t.Fatalf(
+			"RunOnce() returned before rebalance observer completion: %v",
+			prematureRunErr,
+		)
+	}
+	if runErr := <-runDone; runErr != nil {
+		t.Fatalf("RunOnce() error = %v", runErr)
+	}
+}
+
+func TestConsumerObserversBoundBlockedRebalanceWaitByCallbackContext(
+	t *testing.T,
+) {
+	observations := make(chan Observation, 2)
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{},
+		10,
+		time.Minute,
+		time.Second,
+	)
+	consumer.observers = newObserverDispatcher(mustNormalizeObserverPolicy(
+		t,
+		ObserverPolicy{
+			Observers: []ObserverFunc{
+				func(_ context.Context, observation Observation) error {
+					observations <- observation
+
+					return nil
+				},
+			},
+			FailureHandler: func(context.Context, ObservationFailure) {},
+		},
+	))
+	consumer.rebalanceTimeout = time.Minute
+	consumer.rebalance.beginPoll(true)
+	defer consumer.rebalance.endPoll()
+
+	callbackCtx, cancelCallback := context.WithCancel(context.Background())
+	callbackDone := make(chan struct{})
+	go func() {
+		consumer.onRebalanceCallbackBlocked(callbackCtx)
+		close(callbackDone)
+	}()
+	blocked := receiveConsumerObservation(t, observations)
+	cancelCallback()
+	wait := receiveConsumerObservation(t, observations)
+	<-callbackDone
+
+	if blocked.Kind != ObservationConsumeBlocked ||
+		wait.Kind != ObservationConsumeRebalanceWait ||
+		wait.StartedAt != blocked.StartedAt ||
+		wait.Succeeded ||
+		wait.Category != ErrorCanceled {
+		t.Fatalf("blocked/wait observations = %#v/%#v", blocked, wait)
+	}
+}
+
+func TestConsumerObserversBoundBlockedRebalanceWaitByConfiguredTimeout(
+	t *testing.T,
+) {
+	observations := make(chan Observation, 2)
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{},
+		10,
+		time.Minute,
+		time.Second,
+	)
+	consumer.observers = newObserverDispatcher(mustNormalizeObserverPolicy(
+		t,
+		ObserverPolicy{
+			Observers: []ObserverFunc{
+				func(_ context.Context, observation Observation) error {
+					observations <- observation
+
+					return nil
+				},
+			},
+			FailureHandler: func(context.Context, ObservationFailure) {},
+		},
+	))
+	consumer.rebalanceTimeout = time.Millisecond
+	consumer.rebalance.beginPoll(true)
+	defer consumer.rebalance.endPoll()
+
+	callbackDone := make(chan struct{})
+	go func() {
+		consumer.onRebalanceCallbackBlocked(context.Background())
+		close(callbackDone)
+	}()
+	blocked := receiveConsumerObservation(t, observations)
+	wait := receiveConsumerObservation(t, observations)
+	<-callbackDone
+
+	if blocked.Kind != ObservationConsumeBlocked ||
+		wait.Kind != ObservationConsumeRebalanceWait ||
+		wait.StartedAt != blocked.StartedAt ||
+		wait.Succeeded ||
+		wait.Category != ErrorTimeout {
+		t.Fatalf("blocked/wait observations = %#v/%#v", blocked, wait)
+	}
+}
+
+func TestConsumerObserversDeduplicateBlockedCallbackWithinPoll(
+	t *testing.T,
+) {
+	observations := make(chan Observation, 3)
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{},
+		10,
+		time.Minute,
+		time.Second,
+	)
+	consumer.observers = newObserverDispatcher(mustNormalizeObserverPolicy(
+		t,
+		ObserverPolicy{
+			Observers: []ObserverFunc{
+				func(_ context.Context, observation Observation) error {
+					observations <- observation
+
+					return nil
+				},
+			},
+			FailureHandler: func(context.Context, ObservationFailure) {},
+		},
+	))
+	consumer.rebalanceTimeout = time.Minute
+	consumer.rebalance.beginPoll(true)
+
+	firstDone := make(chan struct{})
+	go func() {
+		consumer.onRebalanceCallbackBlocked(context.Background())
+		close(firstDone)
+	}()
+	blocked := receiveConsumerObservation(t, observations)
+	secondDone := make(chan struct{})
+	go func() {
+		consumer.onRebalanceCallbackBlocked(context.Background())
+		close(secondDone)
+	}()
+	select {
+	case <-secondDone:
+	case <-time.After(time.Second):
+		t.Fatal("duplicate blocked callback did not return")
+	}
+	select {
+	case observation := <-observations:
+		t.Fatalf("duplicate blocked observation = %#v", observation)
+	default:
+	}
+
+	consumer.rebalance.endPoll()
+	wait := receiveConsumerObservation(t, observations)
+	<-firstDone
+	if blocked.Kind != ObservationConsumeBlocked ||
+		wait.Kind != ObservationConsumeRebalanceWait ||
+		!wait.Succeeded {
+		t.Fatalf("blocked/wait observations = %#v/%#v", blocked, wait)
+	}
+}
+
+func TestConsumerObserversRejectExhaustedBlockedRebalanceBudget(
+	t *testing.T,
+) {
+	observations := make(chan Observation, 2)
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{},
+		10,
+		time.Minute,
+		time.Second,
+	)
+	consumer.observers = newObserverDispatcher(mustNormalizeObserverPolicy(
+		t,
+		ObserverPolicy{
+			Observers: []ObserverFunc{
+				func(_ context.Context, observation Observation) error {
+					observations <- observation
+
+					return nil
+				},
+			},
+			FailureHandler: func(context.Context, ObservationFailure) {},
+		},
+	))
+	consumer.rebalanceTimeout = 0
+	consumer.rebalance.beginPoll(true)
+	defer consumer.rebalance.endPoll()
+
+	consumer.onRebalanceCallbackBlocked(context.Background())
+	blocked := receiveConsumerObservation(t, observations)
+	wait := receiveConsumerObservation(t, observations)
+
+	if blocked.Kind != ObservationConsumeBlocked ||
+		wait.Kind != ObservationConsumeRebalanceWait ||
+		wait.Succeeded ||
+		wait.Category != ErrorTimeout {
+		t.Fatalf("blocked/exhausted observations = %#v/%#v", blocked, wait)
+	}
+}
+
+func TestResolveConsumerRebalanceWaitOutcomePrefersPollGateRelease(
+	t *testing.T,
+) {
+	failureAt := time.Unix(10, 0)
+	completedAt := failureAt.Add(-time.Second)
+	pollDone := make(chan time.Time, 1)
+	pollDone <- completedAt
+	close(pollDone)
+
+	endedAt, succeeded, category := resolveConsumerRebalanceWaitOutcome(
+		pollDone,
+		failureAt,
+		ErrorTimeout,
+	)
+	if endedAt != completedAt || !succeeded || category != ErrorUnknown {
+		t.Fatalf(
+			"released outcome = %v/%t/%v",
+			endedAt,
+			succeeded,
+			category,
+		)
+	}
+}
+
+func TestConsumerRebalanceStateAvoidsWaitAllocationWithoutObservers(
+	t *testing.T,
+) {
+	state := newConsumerRebalanceState(RebalanceCancelHandler)
+	allocations := testing.AllocsPerRun(100, func() {
+		state.beginPoll(false)
+		state.endPoll()
+	})
+	if allocations != 0 {
+		t.Fatalf("unobserved rebalance poll allocations = %f", allocations)
+	}
+}
+
+func TestConsumerRebalanceStateAvoidsWaitAllocationWithoutBlockedCallback(
+	t *testing.T,
+) {
+	state := newConsumerRebalanceState(RebalanceCancelHandler)
+	allocations := testing.AllocsPerRun(100, func() {
+		state.beginPoll(true)
+		state.endPoll()
+	})
+	if allocations != 0 {
+		t.Fatalf("unblocked observed poll allocations = %f", allocations)
+	}
+}
+
+func receiveConsumerObservation(
+	t *testing.T,
+	observations <-chan Observation,
+) Observation {
+	t.Helper()
+
+	select {
+	case observation := <-observations:
+		return observation
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for consumer observation")
+
+		return Observation{}
 	}
 }
 

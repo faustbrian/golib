@@ -169,7 +169,7 @@ func TestConsumerBlockedRebalanceCancelsEveryActivePartitionHandler(
 	}()
 
 	awaitHandlerStarts(t, started, 2)
-	consumer.onRebalanceBlocked()
+	signalConsumerRebalanceBlocked(consumer)
 	got := <-runDone
 
 	if !errors.Is(got.err, ErrConsumerRebalance) ||
@@ -282,7 +282,7 @@ func TestConsumerBlockedRebalanceDrainsEveryActivePartitionHandler(
 	}()
 
 	awaitHandlerStarts(t, started, 2)
-	consumer.onRebalanceBlocked()
+	signalConsumerRebalanceBlocked(consumer)
 	close(release)
 	got := <-runDone
 
@@ -391,7 +391,7 @@ func TestConsumerRebalanceHandlerIDsAvoidOverflowAndActiveCollisions(
 func TestConsumerHandlerCompletionObservesPendingRebalance(t *testing.T) {
 
 	state := newConsumerRebalanceState(RebalanceCancelHandler)
-	state.beginPoll()
+	state.beginPoll(false)
 	defer state.endPoll()
 	handlerCtx, finish, admitted := state.handlerContext(
 		context.Background(),

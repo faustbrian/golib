@@ -320,6 +320,7 @@ func TestObserverCoversEveryStableKafkaObservation(t *testing.T) {
 		kafka.ObservationConsumerShutdown,
 		kafka.ObservationTransactionProcessorShutdown,
 		kafka.ObservationConsumeRetryScheduled,
+		kafka.ObservationConsumeRebalanceWait,
 	}
 	observer := instrumentation.Observer()
 	for index, kind := range kinds {

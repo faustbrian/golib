@@ -38,6 +38,12 @@ their successful results before releasing the rebalance. No worker admits
 another callback after the signal. Earlier successful contiguous prefixes
 remain committable because franz-go still holds the poll's rebalance gate until
 the commit attempt completes.
+The consumer emits `ObservationConsumeRebalanceWait` from the same blocked
+signal until the package releases that poll gate. Callback-context cancellation
+or `RebalanceTimeout` produces a failed bounded observation without claiming
+release. Repeated signals within one poll are deduplicated. This is the
+application-controlled drain, cancellation, observation, and settlement
+interval, not Kafka's complete broker rebalance duration.
 
 The pinned Confluent Local 7.5.0 fixture exercises both policies with eager
 members and a handler already in flight. Under `RebalanceCancelHandler`, the
@@ -94,7 +100,8 @@ also configured with that limit.
 allocating a client. Optional `ConsumerConfig.Observers` report payload-free
 record, partition-batch, commit, complete poll, assignment, revocation,
 ownership-loss, blocked-rebalance, group-management-error, and bounded
-in-process retry-scheduling outcomes. They execute synchronously, can run
+in-process retry-scheduling outcomes, plus the blocked-signal-to-poll-gate
+interval. They execute synchronously, can run
 concurrently across partition workers and franz-go callback goroutines, and
 cannot re-enter consumer mutation or lifecycle operations. Processing and
 retry-scheduling observers run before the poll releases its rebalance gate;

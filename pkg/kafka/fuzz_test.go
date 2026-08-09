@@ -13,6 +13,20 @@ import (
 
 func FuzzObservationValidation(f *testing.F) {
 	f.Add(
+		uint8(ObservationConsumeRebalanceWait),
+		int64(time.Millisecond),
+		"client",
+		"group",
+		"",
+		int32(-1),
+		int64(-1),
+		0,
+		0,
+		int64(0),
+		true,
+		uint8(ErrorUnknown),
+	)
+	f.Add(
 		uint8(ObservationConsumeRetryScheduled),
 		int64(time.Millisecond),
 		"client",

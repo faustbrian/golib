@@ -76,6 +76,7 @@ website content.
 | consume record or batch | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
 | consume commit | `commit [topic]`, `CLIENT` | `messaging.client.operation.duration` |
 | consume retry scheduled | `kafka consumer.retry_scheduled`, `INTERNAL` | adapter-owned policy metrics only |
+| consume rebalance wait | `kafka consumer.rebalance_wait`, `INTERNAL` | adapter-owned policy metrics only |
 | successfully processed replay record | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
 | skipped or failed replay record | `kafka replay.record`, `CLIENT` | adapter-owned policy metrics only |
 | replay plan, run, shutdown | `kafka replay.*`, `CLIENT` | adapter-owned policy metrics only |
@@ -101,6 +102,10 @@ Retry-scheduled observations increment only the adapter-owned operation and
 duration metrics. They do not increment semantic consumed-message or process
 metrics because the event records a retry decision before backoff, not another
 completed receive or processing operation.
+Rebalance-wait observations likewise use only adapter-owned operation and
+duration metrics. Their interval ends at local poll-gate release, callback
+cancellation, or timeout and does not represent complete broker rebalance
+duration.
 Replay plan, record, and run spans also carry fixed
 `kafka.replay.processed`, `kafka.replay.skipped`, `kafka.replay.failed`, and
 `kafka.replay.remaining` signed-64-bit attributes. Source topic is exported
