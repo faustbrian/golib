@@ -155,6 +155,16 @@ func (definition Definition) Steps() []StepSpec {
 // reinterpretation of an immutable name and version.
 func (definition Definition) Fingerprint() string { return definition.fingerprint }
 
+// Reference returns the exact immutable behavior identity that instances must
+// persist with their history.
+func (definition Definition) Reference() DefinitionReference {
+	return DefinitionReference{
+		name:        definition.Name(),
+		version:     definition.Version(),
+		fingerprint: definition.Fingerprint(),
+	}
+}
+
 func cloneDefinitionSpec(spec DefinitionSpec) DefinitionSpec {
 	spec.Steps = cloneSteps(spec.Steps)
 	return spec
