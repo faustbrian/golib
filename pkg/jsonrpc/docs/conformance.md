@@ -6,6 +6,11 @@ documentation evidence. The official
 authoritative. Defensive JSON policies are labeled separately and do not claim
 to be additional JSON-RPC requirements.
 
+Material ambiguities and transport policies are preserved in the
+[specification decision register](specification-decisions.md). The matrix
+proves normative coverage; the register explains choices where coverage alone
+cannot establish the intended interpretation.
+
 Status meanings:
 
 - **Verified**: direct automated evidence covers the rule and relevant failure

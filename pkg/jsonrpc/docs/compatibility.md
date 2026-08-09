@@ -4,6 +4,11 @@ The project follows [Semantic Versioning](https://semver.org/) for tagged
 releases. Protocol behavior is compatibility-sensitive even where a Go type or
 function signature does not change.
 
+Resolved choices in the
+[specification decision register](specification-decisions.md) are part of this
+compatibility policy. Changing one requires protocol review and a changelog
+entry even when exported Go signatures are unchanged.
+
 ## Stable releases
 
 As of `v1.0.0`:

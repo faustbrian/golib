@@ -181,3 +181,33 @@ func TestSpecificationReferences(t *testing.T) {
 		}
 	}
 }
+
+func TestSpecificationDecisionRegister(t *testing.T) {
+	t.Parallel()
+
+	contents, err := os.ReadFile("docs/specification-decisions.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	register := string(contents)
+	for _, required := range []string{
+		"JSONRPC-DEC-001",
+		"JSONRPC-DEC-002",
+		"JSONRPC-DEC-003",
+		"JSONRPC-DEC-004",
+		"JSONRPC-DEC-005",
+		"JSONRPC-DEC-006",
+		"JSONRPC-DEC-007",
+		"JSONRPC-DEC-008",
+		"JSONRPC-DEC-009",
+		"JSONRPC-DEC-010",
+		"## Unresolved decisions",
+		"Known peer behavior",
+		"Reconsider when",
+		"Executable evidence",
+	} {
+		if !strings.Contains(register, required) {
+			t.Errorf("specification decision register does not contain %q", required)
+		}
+	}
+}

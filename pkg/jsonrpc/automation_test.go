@@ -50,6 +50,7 @@ func TestSharedRepositoryContract(t *testing.T) {
 		"docs/performance.md",
 		"docs/hardening.md",
 		"docs/security.md",
+		"docs/specification-decisions.md",
 		"docs/releasing.md",
 		"docs/repository-standards.md",
 	}

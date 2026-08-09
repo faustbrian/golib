@@ -27,3 +27,4 @@
 - [Go Safety And Concurrency](docs/go-safety-and-concurrency.md)
 - [Middleware, authentication, and observability](docs/middleware.md)
 - [Repository Standards](docs/repository-standards.md)
+- [JSON-RPC specification decisions](docs/specification-decisions.md)

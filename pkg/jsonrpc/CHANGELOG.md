@@ -23,6 +23,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Added
 
+- Add an auditable specification-decision register for JSON-RPC ambiguities,
+  defensive JSON policy, and the package's HTTP binding choices.
 - A configurable dispatcher JSON nesting-depth limit that rejects excessive
   arrays and objects before protocol decoding or handler execution.
 - `Registry.RegisterSystem` for trusted protocol integrations such as

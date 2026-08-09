@@ -34,6 +34,15 @@ make check
 
 Preserve JSON-RPC 2.0 request, notification, ID, batch, response, and error semantics. Every protocol change MUST include conformance and malformed-input evidence.
 
+### Specification decision review
+
+Changes to parsing, validation, serialization, resolution, transport mapping,
+or protocol behavior MUST review `docs/specification-decisions.md`. Update an
+existing stable decision instead of silently changing it. A newly discovered
+ambiguity MUST remain visibly unresolved until its normative source, credible
+interpretations, selected behavior, consequences, executable evidence, and
+reconsideration condition are recorded.
+
 ## Local Verification
 
 Run the complete local gate:
