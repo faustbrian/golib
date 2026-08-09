@@ -48,6 +48,24 @@ plan.
 
 ## Lifecycle sequence
 
+The adapter lifecycle is monotonic. The following model applies to producers
+and typed workers; a shared producer is the one documented exception that may
+return from `starting` to `constructed` after startup validation fails because
+no close ownership was transferred.
+
+| State | Allowed work | Transition and terminal result |
+| --- | --- | --- |
+| `constructed` | one start attempt; stop-before-start | start enters `starting`; stop permanently rejects work |
+| `starting` | the owned startup callback | success enters `ready`; shared failure returns to `constructed`; owned failure rolls back and becomes terminal |
+| `ready` | publish or one worker run owner, handler delivery, readiness | drain or run exit enters `draining` |
+| `draining` | already admitted calls only | the one termination budget joins admitted calls; expiry leaves drain resumable |
+| `stopping` | the owned shutdown callback | callback result is cached without another close attempt |
+| `stopped` | repeated stop result inspection | terminal; start, readiness, publish, run, and handler admission are rejected |
+
+Producer publish results are separately terminal as `not accepted`, `accepted`,
+or `unknown`. Worker delivery settlement remains a backend-owned terminal
+result and must never acknowledge an incomplete handler.
+
 ### Producer
 
 1. Construction validates the stable name, typed resource, correlation and
@@ -88,6 +106,10 @@ return. Its caller-owned shutdown context is the single budget for handler
 drain and resource closure; the preceding synchronous admission hook must
 return promptly and must not wait for handlers.
 
+Exactly one run callback may acquire intake ownership. A concurrent or repeated
+task invocation returns `ErrUnavailable` without starting another backend read
+loop.
+
 An unexpected successful run return produces `ErrWorkerExited` and makes the
 adapter unavailable. The service runtime converts that result, or any other
 non-cancellation task failure, into process drain and shutdown. A return after
@@ -95,10 +117,14 @@ the run context is canceled is a normal shutdown result.
 
 ### Concrete queue convenience
 
-`NewWorker` adapts an existing `*queue.Queue`. Its component calls `Start` and
-`ReleaseContext`, inheriting the queue module's tested admission withdrawal,
-handler join, settlement, and redelivery behavior. The same queue must not be
-released independently after its ownership is transferred to the component.
+`NewWorker` adapts an existing `*queue.Queue`. Its component calls
+`CloseAdmission` during service drain, then `ReleaseContext` during stop,
+inheriting the queue module's tested admission withdrawal, handler join,
+settlement, and redelivery behavior. The same queue must not be released
+independently after its ownership is transferred to the component.
+Concrete worker shutdown panics become secret-safe shutdown callback failures;
+the queue caches the terminal classification so repeated stop calls observe the
+same result without closing the worker again.
 
 ## Publish cancellation and duplicate windows
 
@@ -136,6 +162,21 @@ once backends may lose that work instead. Size handler concurrency and the
 termination budget so normal work can finish, while keeping every handler's
 external operations bounded by its context.
 
+The process-termination contract is exercised against real Redis Streams and
+Valkey Streams at three kill points. Termination before the handler effect
+leaves unacknowledged work for one replacement; termination after the effect
+but before settlement redelivers and demonstrates the documented duplicate
+window; termination after settlement does not replay. Two replacement
+processes contend for the expired lease, and a separate `podintegration` suite
+repeats the same boundaries by force-deleting worker pods in an isolated Kind
+cluster.
+
+The recovery lease must exceed the longest handler and settlement window. A
+replacement may correctly reclaim the same delivery again when that lease
+expires while another replacement is still handling it. The integration suite
+uses an explicit bounded lease, waits for observable expiry, and proves one
+effect owner only while work completes inside that lease.
+
 ## Backend differences
 
 The adapter does not flatten backend guarantees:
@@ -148,9 +189,15 @@ The adapter does not flatten backend guarantees:
 - NSQ uses its own finish, requeue, and timeout behavior.
 
 Read the queue module's backend and delivery-semantics documentation before
-selecting retry, visibility, dead-letter, and shutdown settings. The CI backend
-gate delegates to that module's integration suite because this adapter owns no
-transport implementation.
+selecting retry, visibility, dead-letter, and shutdown settings. The adapter
+integration gate composes `NewWorker` with real Redis Streams and Valkey
+Streams services. It proves delivery, disconnect and reconnect, handler
+timeout, lease expiry, redelivery, dead-letter destination failure, shutdown,
+helper-process termination, competing recovery, scale-up/down, and rolling
+replacement without expanding verification to unrelated queue packages.
+`make pod-integration` adds the literal pod-kill proof and requires
+`QUEUE_SERVICE_POD_CONTEXT` to name a `kind-queueservice-*` context plus the
+preloaded test, Redis, and Valkey image environment variables.
 
 ## API and ownership
 
@@ -238,6 +285,10 @@ make check
 
 The module contract includes formatting, vet, unit tests, race detection,
 exact statement coverage, fuzzing, allocation-reporting benchmarks,
-documentation examples, and delegated backend integration. Repository gates
-add API compatibility, mutation, static analysis, vulnerability, secret,
-license, and SBOM checks.
+documentation examples, and package-scoped backend integration. Repository
+gates add API compatibility, mutation, static analysis, vulnerability, secret,
+license, and SBOM checks without changing this module's local test scope.
+
+`BenchmarkProducerPublish` and `BenchmarkHandlerDelivery` isolate adapter hot
+path overhead. `BenchmarkProducerDrain` and `BenchmarkLifecycleWorkerDrain`
+measure lifecycle drain separately from broker latency and handler work.

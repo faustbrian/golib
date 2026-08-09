@@ -44,19 +44,19 @@ type CallbackOperation uint8
 
 const (
 	// CallbackStartup identifies resource validation during service start.
-	CallbackStartup CallbackOperation = iota + 1
+	CallbackStartup CallbackOperation = 1
 	// CallbackReadiness identifies an opt-in dependency readiness check.
-	CallbackReadiness
+	CallbackReadiness CallbackOperation = 2
 	// CallbackPublish identifies concrete producer publication.
-	CallbackPublish
+	CallbackPublish CallbackOperation = 3
 	// CallbackHandler identifies application task handling.
-	CallbackHandler
+	CallbackHandler CallbackOperation = 4
 	// CallbackRun identifies supervised worker intake.
-	CallbackRun
+	CallbackRun CallbackOperation = 5
 	// CallbackShutdown identifies transferred resource cleanup.
-	CallbackShutdown
+	CallbackShutdown CallbackOperation = 6
 	// CallbackAdmission identifies synchronous worker intake closure.
-	CallbackAdmission
+	CallbackAdmission CallbackOperation = 7
 )
 
 // PublishAcceptance reports whether a failed publish reached the backend.
@@ -64,12 +64,12 @@ type PublishAcceptance uint8
 
 const (
 	// PublishNotAccepted means the backend definitively did not accept the task.
-	PublishNotAccepted PublishAcceptance = iota + 1
+	PublishNotAccepted PublishAcceptance = 1
 	// PublishAccepted means the backend definitively accepted the task.
-	PublishAccepted
+	PublishAccepted PublishAcceptance = 2
 	// PublishUnknown means the backend may have accepted the task. Applications
 	// must reconcile or rely on idempotency instead of retrying blindly.
-	PublishUnknown
+	PublishUnknown PublishAcceptance = 3
 )
 
 var (
@@ -405,11 +405,12 @@ func (producer *Producer[R]) PublishWithAcceptance(
 	}
 	traceCarrier := propagation.MapCarrier{}
 	if producer.trace != nil {
-		if err = invokeCallback(CallbackPublish, func() error {
+		err = invokeCallback(CallbackPublish, func() error {
 			producer.trace.Inject(ctx, traceCarrier)
 
 			return nil
-		}); err != nil {
+		})
+		if err != nil {
 			acceptance, publishErr := normalizePublishResult(PublishNotAccepted, err)
 
 			return values, acceptance, publishErr
@@ -520,9 +521,10 @@ func (producer *Producer[R]) start(ctx context.Context) error {
 	producer.mu.Unlock()
 
 	if producer.startup != nil {
-		if err := invokeCallback(CallbackStartup, func() error {
+		callbackErr := invokeCallback(CallbackStartup, func() error {
 			return producer.startup(ctx, producer.resource)
-		}); err != nil {
+		})
+		if callbackErr != nil {
 			producer.mu.Lock()
 			producer.startupAttempt = nil
 			if producer.shutdown != nil {
@@ -530,7 +532,7 @@ func (producer *Producer[R]) start(ctx context.Context) error {
 			}
 			close(attempt.done)
 			producer.mu.Unlock()
-			startupErr := &StartupError{Validation: err}
+			startupErr := &StartupError{Validation: callbackErr}
 			if producer.shutdown != nil {
 				startupErr.Cleanup = producer.shutdownResource(ctx)
 			}
@@ -738,6 +740,7 @@ type LifecycleWorker[R any] struct {
 	mu              sync.Mutex
 	active          bool
 	stopping        bool
+	runStarted      bool
 	inflight        int
 	drained         chan struct{}
 	startupAttempt  *startupAttempt
@@ -841,9 +844,10 @@ func (worker *LifecycleWorker[R]) start(ctx context.Context) error {
 	worker.mu.Unlock()
 
 	if worker.startup != nil {
-		if err := invokeCallback(CallbackStartup, func() error {
+		callbackErr := invokeCallback(CallbackStartup, func() error {
 			return worker.startup(ctx, worker.resource)
-		}); err != nil {
+		})
+		if callbackErr != nil {
 			worker.mu.Lock()
 			worker.stopping = true
 			worker.startupAttempt = nil
@@ -851,7 +855,7 @@ func (worker *LifecycleWorker[R]) start(ctx context.Context) error {
 			worker.mu.Unlock()
 
 			return &StartupError{
-				Validation: err,
+				Validation: callbackErr,
 				Cleanup:    worker.shutdownResource(ctx),
 			}
 		}
@@ -872,7 +876,7 @@ func (worker *LifecycleWorker[R]) start(ctx context.Context) error {
 }
 
 func (worker *LifecycleWorker[R]) runTask(ctx context.Context) error {
-	if !worker.beginUse() {
+	if !worker.beginRun() {
 		return ErrUnavailable
 	}
 	defer func() {
@@ -891,6 +895,18 @@ func (worker *LifecycleWorker[R]) runTask(ctx context.Context) error {
 	}
 
 	return err
+}
+
+func (worker *LifecycleWorker[R]) beginRun() bool {
+	worker.mu.Lock()
+	defer worker.mu.Unlock()
+	if !worker.active || worker.stopping || worker.runStarted {
+		return false
+	}
+	worker.runStarted = true
+	worker.inflight++
+
+	return true
 }
 
 func (worker *LifecycleWorker[R]) checkReadiness(ctx context.Context) error {
@@ -1036,6 +1052,9 @@ func (worker *Worker) Queue() *queue.Queue { return worker.queue }
 func (worker *Worker) Component() service.Component {
 	return service.Component{
 		Name: worker.name,
+		CloseAdmission: func() error {
+			return invokeCallback(CallbackAdmission, worker.queue.CloseAdmission)
+		},
 		Start: func(context.Context) error {
 			return invokeCallback(CallbackStartup, func() error {
 				worker.queue.Start()
@@ -1044,9 +1063,17 @@ func (worker *Worker) Component() service.Component {
 			})
 		},
 		Stop: func(ctx context.Context) error {
-			return invokeCallback(CallbackShutdown, func() error {
+			err := invokeCallback(CallbackShutdown, func() error {
 				return worker.queue.ReleaseContext(ctx)
 			})
+			if errors.Is(err, queue.ErrWorkerShutdownPanic) {
+				return errors.Join(
+					err,
+					&CallbackPanicError{Operation: CallbackShutdown},
+				)
+			}
+
+			return err
 		},
 	}
 }

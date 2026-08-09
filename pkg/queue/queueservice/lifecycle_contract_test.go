@@ -532,3 +532,55 @@ func TestLifecycleWorkerCanceledRunExitIsGraceful(t *testing.T) {
 		t.Fatalf("Stop() error = %v", err)
 	}
 }
+
+func TestLifecycleWorkerRunHasOneIntakeOwner(t *testing.T) {
+	entered := make(chan struct{}, 2)
+	worker, err := NewLifecycleWorker(LifecycleWorkerOptions[int]{
+		Name: "worker", Resource: 1, Correlation: mustFactory(t),
+		Handler: func(context.Context, core.TaskMessage) error { return nil },
+		Run: func(ctx context.Context, _ int, _ Handler) error {
+			entered <- struct{}{}
+			<-ctx.Done()
+
+			return nil
+		},
+		Shutdown: func(context.Context, int) error { return nil },
+	})
+	if err != nil {
+		t.Fatalf("NewLifecycleWorker() error = %v", err)
+	}
+	plan := worker.Plan()
+	if err = plan.Components[0].Start(context.Background()); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+
+	firstContext, cancelFirst := context.WithCancel(context.Background())
+	firstResult := make(chan error, 1)
+	go func() { firstResult <- plan.Tasks[0].Run(firstContext) }()
+	awaitValue(t, entered)
+
+	secondContext, cancelSecond := context.WithCancel(context.Background())
+	secondResult := make(chan error, 1)
+	go func() { secondResult <- plan.Tasks[0].Run(secondContext) }()
+	select {
+	case err = <-secondResult:
+		if !errors.Is(err, ErrUnavailable) {
+			t.Fatalf("concurrent Run() error = %v, want ErrUnavailable", err)
+		}
+	case <-entered:
+		cancelSecond()
+		if err = awaitValue(t, secondResult); err != nil {
+			t.Fatalf("duplicate Run() cleanup error = %v", err)
+		}
+		t.Fatal("concurrent Run() acquired a second intake owner")
+	}
+
+	cancelSecond()
+	cancelFirst()
+	if err = awaitValue(t, firstResult); err != nil {
+		t.Fatalf("owned Run() cancellation error = %v", err)
+	}
+	if err = stopWithin(plan.Components[0]); err != nil {
+		t.Fatalf("Stop() error = %v", err)
+	}
+}

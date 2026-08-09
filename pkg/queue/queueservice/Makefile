@@ -2,7 +2,7 @@ GO ?= go
 FUZZ_TIME ?= 10000x
 BENCH_TIME ?= 100ms
 
-.PHONY: benchmark check coverage docs format format-check fuzz integration race test vet
+.PHONY: benchmark check coverage docs format format-check fuzz integration pod-integration race test vet
 
 format:
 	gofmt -w .
@@ -31,11 +31,16 @@ benchmark:
 	$(GO) test ./... -run '^$$' -bench . -benchmem \
 		-benchtime="$(BENCH_TIME)"
 
-# queueservice owns no transport. Its backend gate delegates to the queue
-# module, which exercises every maintained backend under the same repository
-# service matrix used by CI.
+# queueservice owns no transport. Its backend gate composes the adapter with
+# maintained durable backends while remaining scoped to this module.
 integration:
-	$(MAKE) -C .. integration
+	$(GO) test -tags=integration -count=1 -timeout=5m ./...
+
+# pod-integration requires an explicitly isolated Kind context plus a loaded
+# queueservice test image and pinned Redis/Valkey image names.
+pod-integration:
+	$(GO) test -tags='integration podintegration' -count=1 -timeout=10m \
+		-run '^TestKubernetesPodTerminationDuplicateWindowAndRecovery$$' ./...
 
 vet:
 	$(GO) vet ./...

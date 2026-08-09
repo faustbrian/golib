@@ -86,7 +86,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 24, 25 |
-| 27 | Queue | `pending-reexecution` | `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` | 18 |
 | 29 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md` | 28 |
 | 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 29 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 28 |
@@ -126,7 +125,8 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 31. Current scoped evidence verifies canonical synchronous publication, explicit acceptance ambiguity, stable duplicate identity, durable Redis and Valkey relay windows, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 32. Current scoped evidence verifies payload-safe propagation and telemetry, exact relay publication and settlement semantics, bounded cooperative-provider lifecycle, concurrency and retention safety, convention mapping, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
-| `pkg/queue/queueservice/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 27 has current scoped lifecycle, exact coverage and mutation, API, documentation, safety, and CI gate-enforcement evidence; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/queue/queueservice/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 27 has current scoped lifecycle, exact coverage and mutation, API, documentation, safety, and CI gate-enforcement evidence. |
+| `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 27. Current scoped evidence verifies durable Redis and Valkey drain, recovery, redelivery, dead-letter, process and pod termination, duplicate-window, horizontal-scaling, race, budget, performance, coverage, and mutation requirements; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 29 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomath/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 37. Current scoped evidence verifies exact decimal persistence and comparison behavior, hostile-input and concurrency hardening, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -206,7 +206,20 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Result | Passed exact 100.0% statement coverage, 129/129 viable mutants, race, 10,000 fuzz executions, vet, lint, Staticcheck, vulnerability, secrets, API, docs, examples, GO-SAFETY-1, benchmarks, and module inventory validation. Backend integration remains transport-owned and is enforced by the declared NATS, NSQ, RabbitMQ, Redis, and Valkey services plus the delegated queue integration target. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded run. |
 | Observed | 2026-08-09T05:25:37Z |
-| Gaps | None within the scoped base-goal contract; `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` remains a separate pending campaign. |
+| Gaps | None within the scoped base-goal contract. |
+
+### Queue service lifecycle hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` |
+| Scope | Producer and worker state ownership; startup, publish, handler, drain, release, shutdown, and rollback faults; admission, readiness, health, repeated stop, cancellation, termination budgets, Redis and Valkey recovery, lease expiry, timeout, redelivery, dead-letter failure, process and pod kills, duplicate windows, scaling, rolling replacement, and adapter overhead. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | Queueservice-only format, vet, unit, race, exact coverage, 10,000-execution fuzz, 20-iteration benchmark, documentation, Redis and Valkey integration, integration race, isolated mutation, and Kind pod-termination gates against the completed package snapshot. |
+| Result | Passed exact 100.0% statement coverage and killed 131/131 viable mutants with 100.00% efficacy and mutant coverage and no lived, uncovered, timed-out, non-viable, or skipped mutants. Durable Redis and Valkey disconnect, reconnect, lease expiry, handler timeout, redelivery, dead-letter failure, shutdown, process termination, scale and rolling-replacement scenarios passed; the literal Kind test proved before-effect, after-effect, and after-settlement pod-kill windows for both backends. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories, isolated Redis 8.6.4 and Valkey 9.1.0 services, and Kind 0.31.0 with Kubernetes 1.35.0. |
+| Observed | 2026-08-09T12:14:17Z |
+| Gaps | None within the scoped queue-service hardening contract. |
 
 ### Encrypted external sort hardening evidence
 

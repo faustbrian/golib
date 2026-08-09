@@ -3,13 +3,104 @@ package queueservice
 import (
 	"context"
 	"errors"
+	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	queue "github.com/faustbrian/golib/pkg/queue"
 	"github.com/faustbrian/golib/pkg/queue/core"
 	"github.com/faustbrian/golib/pkg/queue/job"
 	"github.com/faustbrian/golib/pkg/service"
 )
+
+type concretePanickingWorker struct {
+	shutdownCalls atomic.Int32
+}
+
+func (*concretePanickingWorker) Run(context.Context, core.TaskMessage) error { return nil }
+func (*concretePanickingWorker) Queue(core.TaskMessage) error                { return nil }
+func (*concretePanickingWorker) Request() (core.TaskMessage, error) {
+	return nil, queue.ErrNoTaskInQueue
+}
+func (worker *concretePanickingWorker) Shutdown() error {
+	worker.shutdownCalls.Add(1)
+	panic("sensitive concrete shutdown value")
+}
+
+func TestConcreteWorkerServiceDrainClosesQueueAdmissionBeforeShutdown(t *testing.T) {
+	handlerEntered := make(chan struct{})
+	releaseHandler := make(chan struct{})
+	coordinator := queue.NewPool(1, queue.WithFn(func(
+		context.Context,
+		core.TaskMessage,
+	) error {
+		close(handlerEntered)
+		<-releaseHandler
+
+		return nil
+	}))
+	adapter, err := NewWorker(WorkerOptions{Name: "worker", Queue: coordinator})
+	if err != nil {
+		t.Fatalf("NewWorker() error = %v", err)
+	}
+	runtime, err := service.New(service.Config{
+		Components: []service.Component{adapter.Component()},
+	})
+	if err != nil {
+		t.Fatalf("service.New() error = %v", err)
+	}
+	if err = runtime.Start(context.Background()); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+	if err = coordinator.Queue(plainTask("work")); err != nil {
+		t.Fatalf("Queue() before drain error = %v", err)
+	}
+	awaitValue(t, handlerEntered)
+	if err = runtime.Drain(); err != nil {
+		t.Fatalf("Drain() error = %v", err)
+	}
+	if err = coordinator.Queue(plainTask("late")); !errors.Is(err, queue.ErrQueueShutdown) {
+		t.Fatalf("Queue() after drain error = %v, want ErrQueueShutdown", err)
+	}
+	close(releaseHandler)
+	if err = shutdownWithin(runtime); err != nil {
+		t.Fatalf("Shutdown() error = %v", err)
+	}
+}
+
+func TestConcreteWorkerReleasePanicIsSecretSafeAndTerminal(t *testing.T) {
+	backend := &concretePanickingWorker{}
+	coordinator, err := queue.NewQueue(
+		queue.WithWorker(backend),
+		queue.WithWorkerCount(0),
+	)
+	if err != nil {
+		t.Fatalf("queue.NewQueue() error = %v", err)
+	}
+	adapter, err := NewWorker(WorkerOptions{Name: "worker", Queue: coordinator})
+	if err != nil {
+		t.Fatalf("NewWorker() error = %v", err)
+	}
+	component := adapter.Component()
+	if err = component.Start(context.Background()); err != nil {
+		t.Fatalf("Start() error = %v", err)
+	}
+
+	for call := 0; call < 2; call++ {
+		err = stopWithin(component)
+		if !errors.Is(err, ErrCallbackPanic) ||
+			!errors.Is(err, queue.ErrWorkerShutdownPanic) {
+			t.Fatalf("Stop(%d) error = %v, want shutdown panic", call, err)
+		}
+		if strings.Contains(err.Error(), "sensitive") {
+			t.Fatal("Stop() disclosed the concrete shutdown panic value")
+		}
+	}
+	if backend.shutdownCalls.Load() != 1 {
+		t.Fatalf("backend shutdown calls = %d, want 1", backend.shutdownCalls.Load())
+	}
+}
 
 func TestServiceDrainClosesProducerAdmissionBeforeShutdown(t *testing.T) {
 	publishCalls := 0

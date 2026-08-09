@@ -44,6 +44,7 @@ var (
 
 	_ func(*queue.Queue, context.Context) error = (*queue.Queue).ReleaseContext
 	_ func(*queue.Queue, context.Context) error = (*queue.Queue).WaitContext
+	_ func(*queue.Queue) error                  = (*queue.Queue).CloseAdmission
 	_ func(*job.Message) map[string]string      = (*job.Message).CorrelationMetadata
 	_ func(*job.Message) map[string]string      = (*job.Message).TraceContextMetadata
 	_ propagation.TextMapPropagator             = queueservice.ProducerOptions[*apiProducer]{}.TracePropagator

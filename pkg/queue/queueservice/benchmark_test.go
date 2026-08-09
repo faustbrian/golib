@@ -85,3 +85,70 @@ func BenchmarkProducerDrain(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkHandlerDelivery(b *testing.B) {
+	factory, err := correlation.NewFactory(correlation.FactoryOptions{})
+	if err != nil {
+		b.Fatal(err)
+	}
+	handler, err := NewHandler(HandlerOptions{
+		Correlation: factory,
+		Handler:     func(context.Context, core.TaskMessage) error { return nil },
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	message := plainTask("benchmark-delivery")
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		if err = handler(context.Background(), message); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkLifecycleWorkerDrain(b *testing.B) {
+	factory, err := correlation.NewFactory(correlation.FactoryOptions{})
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		b.StopTimer()
+		runEntered := make(chan struct{})
+		worker, workerErr := NewLifecycleWorker(LifecycleWorkerOptions[int]{
+			Name: "benchmark-worker", Resource: 1, Correlation: factory,
+			Handler: func(context.Context, core.TaskMessage) error { return nil },
+			Run: func(ctx context.Context, _ int, _ Handler) error {
+				close(runEntered)
+				<-ctx.Done()
+
+				return nil
+			},
+			Shutdown: func(context.Context, int) error { return nil },
+		})
+		if workerErr != nil {
+			b.Fatal(workerErr)
+		}
+		plan := worker.Plan()
+		if workerErr = plan.Components[0].Start(context.Background()); workerErr != nil {
+			b.Fatal(workerErr)
+		}
+		runContext, cancelRun := context.WithCancel(context.Background())
+		runResult := make(chan error, 1)
+		go func() { runResult <- plan.Tasks[0].Run(runContext) }()
+		<-runEntered
+
+		b.StartTimer()
+		cancelRun()
+		if workerErr = <-runResult; workerErr != nil {
+			b.Fatal(workerErr)
+		}
+		if workerErr = plan.Components[0].Stop(context.Background()); workerErr != nil {
+			b.Fatal(workerErr)
+		}
+	}
+}
