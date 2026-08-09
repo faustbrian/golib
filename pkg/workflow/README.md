@@ -17,8 +17,11 @@ stale-owner cancellation, graceful draining, deterministic clocks, explicit
 retry/dead-letter decisions, and synchronous lifecycle hooks. Durable timer
 schedules atomically create due work, timer workers persist firing before lease
 completion, and bounded inbound signals become idempotent transitions that must
-commit before acknowledgement. Automatic general step scheduling, compensation
-execution workers, operators, and optional integrations are not yet delivered.
+commit before acknowledgement. Audited lifecycle operator commands atomically
+record the authorized caller identity and reason before pause, resume, cancel,
+or terminate. Automatic general step scheduling, compensation execution
+workers, broader operator stores, and optional integrations are not yet
+delivered.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that
@@ -61,6 +64,12 @@ attempt and idempotency key before the compensating side effect begins. Replay
 preserves persisted schedule order, independently bounded retries, known
 failures, unknown outcomes, and manual resolutions. A manual resolution is
 reported as such; it is never represented as a successful rollback.
+
+`NewOperatorLifecycleCommand` accepts an already-authorized actor and produces
+one idempotent optimistic transition containing the audit record followed by
+the matching lifecycle decision. Replay rejects orphaned or mismatched audit
+records. Authentication and authorization remain application policy; the
+package does not infer privileges from actor names.
 
 ```go
 migration := postgres.SchemaMigration()

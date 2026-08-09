@@ -119,6 +119,8 @@ const (
 	EventCompensationRetryScheduled EventKind = 25
 	// EventCompensationManuallyResolved records explicit operator resolution.
 	EventCompensationManuallyResolved EventKind = 26
+	// EventOperatorCommandRecorded audits one caller-authorized intervention.
+	EventOperatorCommandRecorded EventKind = 27
 )
 
 // HistoryEventSpec supplies one immutable durable history record.
@@ -182,7 +184,7 @@ func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 
 func validHistoryEventSpec(spec HistoryEventSpec) bool {
 	if spec.Sequence == 0 || !instanceIDPattern.MatchString(spec.InstanceID) ||
-		spec.Kind < EventInstanceStarted || spec.Kind > EventCompensationManuallyResolved ||
+		spec.Kind < EventInstanceStarted || spec.Kind > EventOperatorCommandRecorded ||
 		spec.OccurredAt.IsZero() || len(spec.Data) > MaxPayloadBytes {
 		return false
 	}
@@ -267,19 +269,21 @@ const (
 
 // Instance is an immutable replay result derived only from persisted history.
 type Instance struct {
-	id            string
-	definition    DefinitionReference
-	status        InstanceStatus
-	sequence      uint64
-	startedAt     time.Time
-	updatedAt     time.Time
-	input         []byte
-	result        []byte
-	successorID   string
-	activities    map[string]ActivityProgress
-	timers        map[string]TimerProgress
-	signals       map[string]SignalProgress
-	compensations map[string]CompensationProgress
+	id              string
+	definition      DefinitionReference
+	status          InstanceStatus
+	sequence        uint64
+	startedAt       time.Time
+	updatedAt       time.Time
+	input           []byte
+	result          []byte
+	successorID     string
+	activities      map[string]ActivityProgress
+	timers          map[string]TimerProgress
+	signals         map[string]SignalProgress
+	compensations   map[string]CompensationProgress
+	operatorActions []OperatorActionRecord
+	pendingOperator OperatorAction
 }
 
 // Replay deterministically reconstructs one instance from validated persisted
@@ -295,6 +299,9 @@ func Replay(registry *Registry, events []HistoryEvent) (Instance, error) {
 		if err := instance.apply(registry, event); err != nil {
 			return Instance{}, err
 		}
+	}
+	if instance.pendingOperator != 0 {
+		return Instance{}, ErrInvalidTransition
 	}
 	return instance, nil
 }
@@ -368,6 +375,11 @@ func (instance Instance) Compensations() []CompensationProgress {
 	return sortedCompensationProgress(instance.compensations)
 }
 
+// OperatorActions returns an owned ordered audit trail of interventions.
+func (instance Instance) OperatorActions() []OperatorActionRecord {
+	return append([]OperatorActionRecord(nil), instance.operatorActions...)
+}
+
 // SnapshotDigest returns a deterministic digest of reconstructed persisted
 // state for diagnostics and replay comparison.
 func (instance Instance) SnapshotDigest() string {
@@ -387,6 +399,7 @@ func (instance Instance) SnapshotDigest() string {
 		Timers                []timerProgressSnapshot        `json:",omitempty"`
 		Signals               []signalProgressSnapshot       `json:",omitempty"`
 		Compensations         []compensationProgressSnapshot `json:",omitempty"`
+		OperatorActions       []operatorActionSnapshot       `json:",omitempty"`
 	}{
 		ID: instance.id, DefinitionName: instance.definition.Name(),
 		DefinitionVersion:     instance.definition.Version(),
@@ -395,7 +408,8 @@ func (instance Instance) SnapshotDigest() string {
 		UpdatedAt: instance.updatedAt, Input: instance.input, Result: instance.result,
 		SuccessorID: instance.successorID, Activities: activityProgressSnapshots(instance.activities),
 		Timers: timerProgressSnapshots(instance.timers), Signals: signalProgressSnapshots(instance.signals),
-		Compensations: compensationProgressSnapshots(instance.compensations),
+		Compensations:   compensationProgressSnapshots(instance.compensations),
+		OperatorActions: operatorActionSnapshots(instance.operatorActions),
 	})
 	digest := sha256.Sum256(encoded)
 	return hex.EncodeToString(digest[:])
@@ -410,6 +424,11 @@ func (instance *Instance) apply(registry *Registry, event HistoryEvent) error {
 		return ErrHistoryConflict
 	}
 	if terminalStatus(instance.status) {
+		return ErrInvalidTransition
+	}
+	completesOperator := instance.pendingOperator != 0 &&
+		event.kind == operatorEventKind(instance.pendingOperator)
+	if instance.pendingOperator != 0 && !completesOperator {
 		return ErrInvalidTransition
 	}
 
@@ -495,10 +514,17 @@ func (instance *Instance) apply(registry *Registry, event HistoryEvent) error {
 		if err := instance.applyCompensation(registry, event); err != nil {
 			return err
 		}
+	case EventOperatorCommandRecorded:
+		if err := instance.applyOperator(event); err != nil {
+			return err
+		}
 	}
 
 	instance.sequence = event.sequence
 	instance.updatedAt = event.occurredAt
+	if completesOperator {
+		instance.pendingOperator = 0
+	}
 	return nil
 }
 
@@ -524,6 +550,8 @@ func (instance *Instance) applyStart(registry *Registry, event HistoryEvent) err
 	instance.timers = make(map[string]TimerProgress)
 	instance.signals = make(map[string]SignalProgress)
 	instance.compensations = make(map[string]CompensationProgress)
+	instance.operatorActions = nil
+	instance.pendingOperator = 0
 	return nil
 }
 
@@ -536,6 +564,9 @@ func validEventFields(spec HistoryEventSpec) bool {
 	}
 	if spec.Kind >= EventCompensationScheduled && spec.Kind <= EventCompensationManuallyResolved {
 		return validCompensationEventFields(spec)
+	}
+	if spec.Kind == EventOperatorCommandRecorded {
+		return validOperatorEventFields(spec)
 	}
 	return spec.StepName == "" && spec.Attempt == 0 && spec.IdempotencyKey == "" &&
 		spec.DueAt.IsZero() && spec.Code == "" && !spec.Retryable

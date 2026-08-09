@@ -32,6 +32,9 @@ and releases use Semantic Versioning.
   with independently bounded retries, stable idempotency identities, unknown
   outcomes, and manual resolution that remains distinct from successful
   rollback.
+- Idempotent audited lifecycle operator commands for pause, resume,
+  cancellation, and termination with optimistic concurrency and replay checks
+  that reject orphaned or mismatched audit records.
 - Immutable durable lifecycle history, deterministic replay, pinned definition
   verification, explicit persisted migration decisions, cancellation,
   termination, and continue-as-new outcomes.
