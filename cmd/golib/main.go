@@ -1105,6 +1105,13 @@ func interoperabilityTools(directory string) []string {
 			"cloudevents/sdk-javascript v10.0.0 on Node.js 24.13.0",
 		}
 	}
+\tif directory == "pkg/barcode" {
+\t\treturn []string{
+\t\t\t"speedata/barcode v1.1.1 independent writer",
+\t\t\t"ericlevine/zxinggo v0.1.0 independent reader",
+\t\t\t"ruudk/golang-pdf417 at a7e3863a1245 independent writer",
+\t\t}
+\t}
 	if directory == "pkg/capability" {
 		return []string{"Python 3 standard-library HMAC implementation"}
 	}
@@ -1142,6 +1149,21 @@ func specifications(directory string) []string {
 			"CloudEvents partitioning extension 1.0.2",
 		}
 	}
+\tif directory == "pkg/barcode" {
+\t\treturn []string{
+\t\t\t"ISO/IEC 18004:2024 QR Code",
+\t\t\t"ISO/IEC 15417:2007 with Amendment 1:2026 Code 128",
+\t\t\t"ISO/IEC 16388:2023 Code 39",
+\t\t\t"ANSI/AIM BC5-1995 Code 93",
+\t\t\t"ISO/IEC 15420:2009 EAN/UPC",
+\t\t\t"ISO/IEC 16390:2007 Interleaved 2 of 5",
+\t\t\t"AIM Europe 1995 Codabar",
+\t\t\t"ISO/IEC 16022:2024 Data Matrix",
+\t\t\t"ISO/IEC 15438:2015 PDF417",
+\t\t\t"ISO/IEC 24778:2008 Aztec Code",
+\t\t\t"GS1 General Specifications 26.0.0",
+\t\t}
+\t}
 	if directory == "pkg/capability" {
 		return []string{"RFC 4231 HMAC-SHA-256 vectors", "RFC 8032 Ed25519 vectors"}
 	}
@@ -1266,6 +1288,14 @@ func conformanceCorpora(directory string) []string {
 	if directory == "pkg/cloudevents" {
 		return []string{"cloudevents/conformance v0.4.1 HTTP and Kafka features"}
 	}
+\tif directory == "pkg/barcode" {
+\t\treturn []string{
+\t\t\t"Normative requirement and executable evidence matrix",
+\t\t\t"Pinned GS1 syntax dictionary 2026-01-27",
+\t\t\t"Independent writer and reciprocal reader interoperability corpus",
+\t\t\t"Deterministic logical, PNG, and SVG fixture corpus",
+\t\t}
+\t}
 	if directory == "pkg/capability" {
 		return []string{"RFC 4231 test case 6", "RFC 8032 section 7.1 test 1"}
 	}

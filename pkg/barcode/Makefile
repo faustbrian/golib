@@ -6,8 +6,8 @@ ACTIONLINT ?= $(GO) run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 FUZZ_TIME ?= 2s
 BENCH_TIME ?= 100ms
 
-.PHONY: actionlint benchmark check check-all coverage dependency-review docs format \
-	format-check fuzz lint mutation race staticcheck test tidy-check vet vuln
+.PHONY: actionlint benchmark check check-all conformance coverage dependency-review \
+	docs format format-check fuzz lint mutation race staticcheck test tidy-check vet vuln
 
 format:
 	gofmt -w .
@@ -61,7 +61,10 @@ actionlint:
 docs:
 	./scripts/check-docs.sh
 
+conformance:
+	./scripts/check-conformance.sh
+
 check: tidy-check format-check dependency-review vet test race coverage fuzz mutation benchmark \
-	docs actionlint lint staticcheck vuln
+	docs conformance actionlint lint staticcheck vuln
 
 check-all: check

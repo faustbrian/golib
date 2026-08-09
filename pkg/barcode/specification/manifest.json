@@ -1,5 +1,80 @@
 {
   "schema": 1,
+  "standards": [
+    {
+      "id": "iso-iec-18004",
+      "release": "ISO/IEC 18004:2024 edition 4",
+      "source": "https://www.iso.org/standard/83389.html",
+      "status": "implementation target"
+    },
+    {
+      "id": "iso-iec-15417",
+      "release": "ISO/IEC 15417:2007 edition 2",
+      "source": "https://www.iso.org/standard/43896.html",
+      "amendment": "ISO/IEC 15417:2007/Amd 1:2026",
+      "amendment_source": "https://www.iso.org/standard/87124.html",
+      "status": "implementation target"
+    },
+    {
+      "id": "iso-iec-16388",
+      "release": "ISO/IEC 16388:2023 edition 3",
+      "source": "https://www.iso.org/standard/77799.html",
+      "status": "implementation target"
+    },
+    {
+      "id": "ansi-aim-bc5",
+      "release": "ANSI/AIM BC5-1995",
+      "source": "https://web.aimglobal.org/external/wcpages/wcecommerce/eComListPage.aspx?Category=3&PageNumber=3",
+      "status": "implementation target; licensed publication not redistributed"
+    },
+    {
+      "id": "iso-iec-15420",
+      "release": "ISO/IEC 15420:2009 edition 2",
+      "source": "https://www.iso.org/standard/46143.html",
+      "current_release": "ISO/IEC 15420:2025 edition 3",
+      "current_source": "https://www.iso.org/standard/84892.html",
+      "status": "pinned compatibility target; replacement not yet claimed"
+    },
+    {
+      "id": "iso-iec-16390",
+      "release": "ISO/IEC 16390:2007 edition 2",
+      "source": "https://www.iso.org/standard/43898.html",
+      "status": "implementation target"
+    },
+    {
+      "id": "aim-codabar",
+      "release": "AIM Europe Codabar 1995",
+      "source": "https://web.aimglobal.org/External/WCPages/WCEcommerce/eComListPage.aspx?Category=4",
+      "status": "implementation target; licensed publication not redistributed"
+    },
+    {
+      "id": "iso-iec-16022",
+      "release": "ISO/IEC 16022:2024 edition 3",
+      "source": "https://www.iso.org/standard/80926.html",
+      "status": "implementation target"
+    },
+    {
+      "id": "iso-iec-15438",
+      "release": "ISO/IEC 15438:2015 edition 3",
+      "source": "https://www.iso.org/standard/65502.html",
+      "status": "implementation target"
+    },
+    {
+      "id": "iso-iec-24778",
+      "release": "ISO/IEC 24778:2008 edition 1",
+      "source": "https://www.iso.org/standard/41548.html",
+      "current_release": "ISO/IEC 24778:2024 edition 2",
+      "current_source": "https://www.iso.org/standard/82441.html",
+      "status": "pinned compatibility target; replacement not yet claimed"
+    },
+    {
+      "id": "gs1-general-specifications",
+      "release": "26.0.0",
+      "source": "https://ref.gs1.org/standards/genspecs/26.0.0/",
+      "change_notices": "https://ref.gs1.org/standards/genspecs/gscn/",
+      "status": "implementation target"
+    }
+  ],
   "artifacts": [
     {
       "path": "gs1/gs1-syntax-dictionary.txt",

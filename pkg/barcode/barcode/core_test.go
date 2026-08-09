@@ -162,6 +162,37 @@ func TestCapabilitiesAreExplicitForEveryKnownFormat(t *testing.T) {
 	}
 }
 
+func TestCapabilityMetadataIdentifiesExactGoverningEditions(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		format  barcode.Format
+		edition string
+		url     string
+	}{
+		{barcode.Code39, "ISO/IEC 16388:2023, edition 3", "https://www.iso.org/standard/77799.html"},
+		{barcode.ITF, "ISO/IEC 16390:2007, edition 2", "https://www.iso.org/standard/43898.html"},
+		{barcode.DataMatrix, "ISO/IEC 16022:2024, edition 3", "https://www.iso.org/standard/80926.html"},
+		{barcode.PDF417, "ISO/IEC 15438:2015, edition 3", "https://www.iso.org/standard/65502.html"},
+	}
+
+	for _, test := range tests {
+		capability, ok := barcode.CapabilityFor(test.format)
+		if !ok {
+			t.Fatalf("CapabilityFor(%q) not found", test.format)
+		}
+		if capability.Specification.Edition != test.edition || capability.Specification.URL != test.url {
+			t.Errorf(
+				"CapabilityFor(%q).Specification = %+v, want edition %q and URL %q",
+				test.format,
+				capability.Specification,
+				test.edition,
+				test.url,
+			)
+		}
+	}
+}
+
 func TestCapabilitiesReflectSoftwareScope(t *testing.T) {
 	incomplete := map[barcode.Format]bool{
 		barcode.DataMatrix: true,

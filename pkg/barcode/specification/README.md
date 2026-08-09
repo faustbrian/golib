@@ -16,6 +16,19 @@ evidence. They contain descriptive metadata only and do not reproduce
 restricted standards text. Every normative ID must have exactly one evidence
 row; the documentation gate verifies that relationship.
 
+`manifest.json` also records authoritative catalogue links for every governing
+edition. ISO and AIM publications are licensed and are not redistributed, so
+their exact document identities and catalogue records are the provenance
+boundary rather than a fabricated checksum of a mutable product page. Hashes
+are recorded for every redistributed fixture and independent implementation
+archive. The package remains pinned to ISO/IEC 15420:2009 and ISO/IEC
+24778:2008; their 2025 and 2024 replacements are tracked but are not claimed
+until a licensed edition-difference review and matching conformance evidence
+are complete.
+
+Material interpretations and package-owned policy are recorded in
+[`docs/specification-decisions.md`](../docs/specification-decisions.md).
+
 `render-fixtures.tsv` inventories deterministic logical, PNG, and SVG goldens
 for every implemented format. The checked-in files in `render-fixtures/` are
 canonical software rendering fixtures. `make docs` verifies their hashes.

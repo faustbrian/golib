@@ -52,6 +52,8 @@ certification are outside this library's scope.
 - [Comparison with established libraries](docs/comparison.md)
 - [FAQ](docs/faq.md)
 - [Standards and licensing](specification/README.md)
+- [Specification decisions](docs/specification-decisions.md)
+- [Conformance scope](docs/conformance.md)
 
 Run `make check` for every blocking local gate. Coverage below meaningful 100%,
 missing conformance evidence, or an unsupported advertised control remains a

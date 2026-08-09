@@ -25,8 +25,16 @@ listed in `README.md` and exposed through `barcode.CapabilityFor`.
 
 ## Unreleased
 
+### Added
+
+- Add an auditable specification-decision register, exact standards
+  provenance, and a conformance gate that binds format policy to executable
+  evidence.
+
 ### Fixed
 
+- Correct the public ISO edition metadata for Code 39 and Data Matrix and the
+  authoritative ISO catalogue URLs for ITF and PDF417.
 - Reject invalid PDF417 text controls and over-capacity symbols with classified
   errors instead of allowing low-level encoding panics.
 - Keep GS1 parsing, image decoding, and barcode layout boundary processing
