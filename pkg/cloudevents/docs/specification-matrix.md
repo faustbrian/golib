@@ -3,6 +3,8 @@
 This module targets the stable CloudEvents 1.0 line. A row is a support claim
 only after its implementation, normative cases, official fixtures, and
 independent interoperability columns are all complete in the release report.
+Observable interpretations and accepted errata are governed by the
+[specification decision register](specification-decisions.md).
 
 ## Pinned authorities
 

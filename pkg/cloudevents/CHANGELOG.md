@@ -7,6 +7,9 @@ versioning once released.
 
 ### Added
 
+- Canonical specification decision register covering stable-line errata, data
+  presence, extension typing, duplicate metadata, deterministic JSON, HTTP and
+  Kafka binding conflicts, resource ownership, and explicit schema validation.
 - Immutable CloudEvents 1.0 event, data, and typed context-attribute model.
 - Deterministic JSON event and batch encoding with bounded hostile-input
   decoding.

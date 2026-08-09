@@ -1,5 +1,9 @@
 # Normative source provenance
 
+The [specification decision register](specification-decisions.md) maps these
+pinned inputs to the package's observable interpretations and executable
+evidence.
+
 The following SHA-256 digests bind the reviewed files at
 `cloudevents/spec@fc1f6f31f5f011a72183f1bcea20c987cb683ade`:
 

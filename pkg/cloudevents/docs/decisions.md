@@ -4,6 +4,10 @@ Normative prose in the pinned specification outranks examples, schemas, and SDK
 behavior. These decisions cover places where the stable documents leave a
 runtime or conflict policy to implementations.
 
+The canonical, stable, evidence-linked decisions are maintained in the
+[specification decision register](specification-decisions.md). This overview
+groups the same policies by adoption concern; it does not override the register.
+
 ## Event and data ownership
 
 - Events and attribute values are immutable values. Constructors and decoders
@@ -55,9 +59,9 @@ base64. This is Golib policy, not a CloudEvents conformance requirement.
 - CloudEvents context attributes are read from HTTP header fields, as required
   by the pinned binding. HTTP trailer fields remain caller-owned transport
   metadata and are not interpreted as CloudEvents context attributes.
-- HTTP binary mode treats an empty body with a data content type as present
-  empty binary data. With neither body bytes nor a data content type, data is
-  absent.
+- HTTP binary mode treats an empty body with a non-JSON data content type as
+  present empty binary data. With neither body bytes nor a data content type,
+  data is absent. A JSON data content type still requires a valid JSON value.
 - Kafka binary mode represents absent data with a nil record value, which is a
   tombstone on compacted topics. Structured events always have a non-nil value.
 

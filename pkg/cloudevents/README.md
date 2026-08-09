@@ -74,7 +74,8 @@ integrity, or authorization context.
 Do not use this package as a broker, dispatcher, event taxonomy, compatibility
 policy, schema registry, audit log, or replacement for application validation.
 
-See the [interoperability decisions](docs/decisions.md), [security policy](SECURITY.md),
+See the canonical [specification decision register](docs/specification-decisions.md),
+[interoperability overview](docs/decisions.md), [security policy](SECURITY.md),
 [fixture provenance](docs/provenance.md), [benchmark baseline](docs/benchmarks.md),
 and [changelog](CHANGELOG.md). Interoperability evidence covers the official Go
 SDK and the independent JavaScript SDK; importing the package never invokes
