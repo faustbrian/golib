@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
+	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -235,6 +236,28 @@ func TestFactoryAndStoreReportOwnedStorageFailures(t *testing.T) {
 		t.Fatalf("invalid Factory.Open() error = %v", err)
 	}
 
+	entropyFactory := newTestFactory(t, parent, 1, 1, 1)
+	entropyFactory.entropy = errorReader{err: errors.New("entropy unavailable")}
+	if _, err := entropyFactory.Open(
+		context.Background(),
+		key,
+	); !errors.Is(err, ErrEntropy) {
+		t.Fatalf("entropy Factory.Open() error = %v", err)
+	}
+	if entries, err := os.ReadDir(parent); err != nil || len(entries) != 0 {
+		t.Fatalf("Open entropy failure artifacts = %v, error = %v", entries, err)
+	}
+
+	exhaustedDomainFactory := newTestFactory(t, parent, 1, 1, 1)
+	exhaustedDomainFactory.entropy = zeroReader{}
+	exhaustedDomainFactory.nextNonceDomain = func() (uint64, bool) { return 0, false }
+	if _, err := exhaustedDomainFactory.Open(
+		context.Background(),
+		key,
+	); !errors.Is(err, ErrEntropy) {
+		t.Fatalf("nonce-domain exhaustion Open() error = %v", err)
+	}
+
 	missingParent := ownerOnlyTemporaryDirectory(t)
 	unsafeFactory := newTestFactory(t, missingParent, 1, 1, 1)
 	if err := os.Remove(missingParent); err != nil {
@@ -248,8 +271,8 @@ func TestFactoryAndStoreReportOwnedStorageFailures(t *testing.T) {
 	}
 
 	mkdirFactory := newTestFactory(t, parent, 1, 1, 1)
-	mkdirFactory.mkdirTemp = func(string, string) (string, error) {
-		return "", errors.New("mkdir failed")
+	mkdirFactory.mkdir = func(rootDirectory, string, os.FileMode) error {
+		return errors.New("mkdir failed")
 	}
 	if _, err := mkdirFactory.Open(
 		context.Background(),
@@ -259,14 +282,25 @@ func TestFactoryAndStoreReportOwnedStorageFailures(t *testing.T) {
 	}
 
 	chmodFactory := newTestFactory(t, parent, 1, 1, 1)
-	chmodFactory.chmod = func(string, os.FileMode) error {
-		return errors.New("chmod failed")
-	}
-	var removedAfterChmodFailure bool
-	chmodFactory.removeAll = func(path string) error {
-		removedAfterChmodFailure = true
+	openRoot := chmodFactory.openRoot
+	rootCloses := 0
+	chmodFactory.openRoot = func(path string) (rootDirectory, error) {
+		root, err := openRoot(path)
+		if err != nil {
+			return nil, err
+		}
 
-		return os.RemoveAll(path)
+		return &closeFaultRoot{
+			rootDirectory: root,
+			close: func() error {
+				rootCloses++
+
+				return root.Close()
+			},
+		}, nil
+	}
+	chmodFactory.chmod = func(rootDirectory, string, os.FileMode) error {
+		return faultPermission
 	}
 	if _, err := chmodFactory.Open(
 		context.Background(),
@@ -274,8 +308,118 @@ func TestFactoryAndStoreReportOwnedStorageFailures(t *testing.T) {
 	); !errors.Is(err, ErrStorage) {
 		t.Fatalf("chmod Factory.Open() error = %v", err)
 	}
-	if !removedAfterChmodFailure {
-		t.Fatal("Open() did not remove a directory after chmod failure")
+	if rootCloses != 1 {
+		t.Fatalf("construction-failure root closes = %d, want 1", rootCloses)
+	}
+	if entries, err := os.ReadDir(parent); err != nil || len(entries) != 0 {
+		t.Fatalf("chmod failure artifacts = %v, error = %v", entries, err)
+	}
+
+	modeFactory := newTestFactory(t, parent, 1, 1, 1)
+	modeFactory.chmod = func(root rootDirectory, name string, _ os.FileMode) error {
+		return root.Chmod(name, 0o500)
+	}
+	if _, err := modeFactory.Open(
+		context.Background(),
+		key,
+	); !errors.Is(err, ErrStorage) {
+		t.Fatalf("wrong-mode Factory.Open() error = %v", err)
+	}
+	if entries, err := os.ReadDir(parent); err != nil || len(entries) != 0 {
+		t.Fatalf("wrong-mode artifacts = %v, error = %v", entries, err)
+	}
+
+	statFactory := newTestFactory(t, parent, 1, 1, 1)
+	statFactory.chmod = func(root rootDirectory, name string, mode os.FileMode) error {
+		if err := root.Chmod(name, mode); err != nil {
+			return err
+		}
+
+		return root.RemoveAll(name)
+	}
+	if _, err := statFactory.Open(
+		context.Background(),
+		key,
+	); !errors.Is(err, ErrStorage) {
+		t.Fatalf("post-chmod stat Factory.Open() error = %v", err)
+	}
+
+	cleanupFactory := newTestFactory(t, parent, 1, 1, 1)
+	cleanupFactory.chmod = func(rootDirectory, string, os.FileMode) error {
+		return faultPermission
+	}
+	removeCalls := 0
+	cleanupFactory.removeAll = func(root rootDirectory, name string) error {
+		removeCalls++
+		if removeCalls == 1 {
+			return faultReadOnly
+		}
+
+		return root.RemoveAll(name)
+	}
+	cleanupStore, err := cleanupFactory.Open(context.Background(), key)
+	if !errors.Is(err, ErrStorage) || cleanupStore == nil {
+		t.Fatalf("combined construction cleanup = (%v, %v), want Store and storage error", cleanupStore, err)
+	}
+	if !cleanupStore.valid() {
+		t.Fatal("cleanup-only Store is not valid for Close")
+	}
+	cleanupInvalidations := map[string]func(*storeState){
+		"config":         func(state *storeState) { state.config.RecordBytes = 0 },
+		"remove":         func(state *storeState) { state.removeAll = nil },
+		"root":           func(state *storeState) { state.root = nil },
+		"directory":      func(state *storeState) { state.directory = "" },
+		"directory name": func(state *storeState) { state.directoryName = "" },
+	}
+	for name, invalidate := range cleanupInvalidations {
+		t.Run("cleanup-only invalid "+name, func(t *testing.T) {
+			state := storeState{
+				config:        cleanupStore.config,
+				removeAll:     cleanupStore.removeAll,
+				root:          cleanupStore.root,
+				directory:     cleanupStore.directory,
+				directoryName: cleanupStore.directoryName,
+				cleanupOnly:   true,
+			}
+			invalidate(&state)
+			if (&Store{storeState: &state}).valid() {
+				t.Fatal("cleanup-only Store accepted missing owned state")
+			}
+		})
+	}
+	cleanupDirectory := cleanupStore.directory
+	if _, err := os.Stat(cleanupDirectory); err != nil {
+		t.Fatalf("recoverable construction residue missing: %v", err)
+	}
+	if err := cleanupStore.Add(context.Background(), []byte{1}); !errors.Is(err, ErrClosed) {
+		t.Fatalf("cleanup-only Add() error = %v, want closed", err)
+	}
+	if err := cleanupStore.Close(); err != nil {
+		t.Fatalf("cleanup-only Close() error = %v", err)
+	}
+	if _, err := os.Stat(cleanupDirectory); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("construction residue remains after Close: %v", err)
+	}
+
+	modeCleanupFactory := newTestFactory(t, parent, 1, 1, 1)
+	modeCleanupFactory.chmod = func(root rootDirectory, name string, _ os.FileMode) error {
+		return root.Chmod(name, 0o500)
+	}
+	modeRemoveCalls := 0
+	modeCleanupFactory.removeAll = func(root rootDirectory, name string) error {
+		modeRemoveCalls++
+		if modeRemoveCalls == 1 {
+			return faultPermission
+		}
+
+		return root.RemoveAll(name)
+	}
+	modeCleanupStore, err := modeCleanupFactory.Open(context.Background(), key)
+	if !errors.Is(err, ErrStorage) || modeCleanupStore == nil {
+		t.Fatalf("wrong-mode cleanup = (%v, %v), want Store and storage error", modeCleanupStore, err)
+	}
+	if err := modeCleanupStore.Close(); err != nil {
+		t.Fatalf("wrong-mode cleanup Close() error = %v", err)
 	}
 
 	closeStore := openTestStore(t, newTestFactory(t, parent, 1, 1, 1))
@@ -307,16 +451,9 @@ func TestFactoryForcesOwnerOnlyWorkDirectoryPermissions(t *testing.T) {
 	t.Parallel()
 
 	parent := ownerOnlyTemporaryDirectory(t)
-	directory := filepath.Join(parent, "work")
-	if err := os.Mkdir(directory, 0o000); err != nil {
-		t.Fatalf("Mkdir() error = %v", err)
-	}
 	factory := newTestFactory(t, parent, 1, 1, 1)
-	factory.mkdirTemp = func(string, string) (string, error) {
-		return directory, nil
-	}
 	store := openTestStore(t, factory)
-	info, err := os.Stat(directory)
+	info, err := os.Stat(store.directory)
 	if err != nil {
 		t.Fatalf("Stat() error = %v", err)
 	}
@@ -454,13 +591,14 @@ func TestStoreFinalizesEmptyInputAndPropagatesCallbackAndCancellation(t *testing
 	}
 }
 
-func TestStoreRejectsEntropyFailureWithoutRetainingRecord(t *testing.T) {
+func TestStoreRejectsTemporaryNameEntropyFailureWithoutRetainingRecord(t *testing.T) {
 	t.Parallel()
 
 	parent := ownerOnlyTemporaryDirectory(t)
 	factory := newTestFactory(t, parent, 4, 1, 1)
-	factory.entropy = errorReader{err: errors.New("entropy unavailable")}
 	store := openTestStore(t, factory)
+	createTemp := store.createTemp
+	store.createTemp = func(string, string) (chunkFile, error) { return nil, ErrEntropy }
 	record := []byte{1, 2, 3, 4}
 	if err := store.Add(context.Background(), record); !errors.Is(
 		err,
@@ -475,7 +613,7 @@ func TestStoreRejectsEntropyFailureWithoutRetainingRecord(t *testing.T) {
 	if len(entries) != 0 {
 		t.Fatalf("entropy failure left %d temporary artifacts", len(entries))
 	}
-	store.entropy = bytes.NewReader(make([]byte, store.cipher.NonceSize()))
+	store.createTemp = createTemp
 	if err := store.Add(context.Background(), record); err != nil {
 		t.Fatalf("retry Add() error = %v", err)
 	}
@@ -489,9 +627,7 @@ func TestStoreRejectsEntropyFailureWithoutRetainingRecord(t *testing.T) {
 	iterationFactory := newTestFactory(t, parent, 4, 2, 2)
 	iterationStore := openTestStore(t, iterationFactory)
 	addTestRecords(t, iterationStore, record)
-	iterationStore.entropy = errorReader{
-		err: errors.New("entropy unavailable"),
-	}
+	iterationStore.createTemp = func(string, string) (chunkFile, error) { return nil, ErrEntropy }
 	if err := iterationStore.ForEachSorted(
 		context.Background(),
 		func([]byte) error { return nil },
@@ -507,9 +643,7 @@ func TestStoreRejectsEntropyFailureWithoutRetainingRecord(t *testing.T) {
 	previous := []byte{9, 9, 9, 9}
 	failed := []byte{1, 1, 1, 1}
 	addTestRecords(t, rollbackStore, previous)
-	rollbackStore.entropy = errorReader{
-		err: errors.New("entropy unavailable"),
-	}
+	rollbackStore.createTemp = func(string, string) (chunkFile, error) { return nil, ErrEntropy }
 	if err := rollbackStore.Add(
 		context.Background(),
 		failed,
@@ -531,15 +665,12 @@ func TestStoreRejectsEntropyFailureWithoutRetainingRecord(t *testing.T) {
 	}
 }
 
-func TestStoreReadsAFreshNonceForEveryTemporaryRecord(t *testing.T) {
+func TestStoreEncodesItsNonceDomainAndEveryRecordCounter(t *testing.T) {
 	t.Parallel()
 
 	parent := ownerOnlyTemporaryDirectory(t)
 	store := openTestStore(t, newTestFactory(t, parent, 4, 2, 2))
 	nonceBytes := store.cipher.NonceSize()
-	firstNonce := bytes.Repeat([]byte{1}, nonceBytes)
-	secondNonce := bytes.Repeat([]byte{2}, nonceBytes)
-	store.entropy = bytes.NewReader(append(bytes.Clone(firstNonce), secondNonce...))
 	addTestRecords(t, store, []byte{2, 2, 2, 2}, []byte{1, 1, 1, 1})
 
 	contents, err := os.ReadFile(store.chunks[0])
@@ -552,8 +683,186 @@ func TestStoreReadsAFreshNonceForEveryTemporaryRecord(t *testing.T) {
 	}
 	actualFirst := contents[:nonceBytes]
 	actualSecond := contents[encryptedRecordBytes : encryptedRecordBytes+nonceBytes]
-	if !bytes.Equal(actualFirst, firstNonce) || !bytes.Equal(actualSecond, secondNonce) {
+	if binary.BigEndian.Uint64(actualFirst[:nonceCounterOffset]) != store.nonceDomain ||
+		binary.BigEndian.Uint32(actualFirst[nonceCounterOffset:]) != 0 ||
+		binary.BigEndian.Uint64(actualSecond[:nonceCounterOffset]) != store.nonceDomain ||
+		binary.BigEndian.Uint32(actualSecond[nonceCounterOffset:]) != 1 {
 		t.Fatalf("temporary records did not consume distinct nonce bytes")
+	}
+}
+
+func TestStoreKeepsNoncesUniqueWhenEntropyRepeats(t *testing.T) {
+	t.Parallel()
+
+	store := openTestStore(
+		t,
+		newTestFactory(t, ownerOnlyTemporaryDirectory(t), 4, 2, 2),
+	)
+	addTestRecords(t, store, []byte{1, 1, 1, 1}, []byte{2, 2, 2, 2})
+	contents, err := os.ReadFile(store.chunks[0])
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	encryptedRecordBytes := store.cipher.NonceSize() +
+		store.config.RecordBytes + store.cipher.Overhead()
+	first := contents[:store.cipher.NonceSize()]
+	second := contents[encryptedRecordBytes : encryptedRecordBytes+store.cipher.NonceSize()]
+	if bytes.Equal(first, second) {
+		t.Fatal("repeated entropy produced a reused GCM nonce")
+	}
+}
+
+func TestStoreCounterPreventsAdversarialEntropyCollisions(t *testing.T) {
+	t.Parallel()
+
+	store := openTestStore(
+		t,
+		newTestFactory(t, ownerOnlyTemporaryDirectory(t), 4, 2, 2),
+	)
+	addTestRecords(t, store, []byte{1, 1, 1, 1}, []byte{2, 2, 2, 2})
+	contents, err := os.ReadFile(store.chunks[0])
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	encryptedRecordBytes := store.cipher.NonceSize() +
+		store.config.RecordBytes + store.cipher.Overhead()
+	first := contents[:store.cipher.NonceSize()]
+	second := contents[encryptedRecordBytes : encryptedRecordBytes+store.cipher.NonceSize()]
+	if bytes.Equal(first, second) {
+		t.Fatal("counter mixing allowed chosen entropy to collide")
+	}
+}
+
+func TestFactoryConsumesUniqueDeterministicEntropyAcrossConcurrentStores(t *testing.T) {
+	t.Parallel()
+
+	parent := ownerOnlyTemporaryDirectory(t)
+	factory := newTestFactory(t, parent, 16, 1, 1)
+	factory.entropy = &sequenceEntropy{}
+	key := bytes.Repeat([]byte{0xa5}, AES256KeyBytes)
+	const workers = 8
+	nonces := make(chan string, workers)
+	failures := make(chan error, workers)
+	var wait sync.WaitGroup
+	wait.Add(workers)
+	for worker := 0; worker < workers; worker++ {
+		go func(value byte) {
+			defer wait.Done()
+
+			store, err := factory.Open(context.Background(), key)
+			if err != nil {
+				failures <- err
+
+				return
+			}
+			defer func() { _ = store.Close() }()
+			record := bytes.Repeat([]byte{value}, store.config.RecordBytes)
+			if err := store.Add(context.Background(), record); err != nil {
+				failures <- err
+
+				return
+			}
+			contents, err := os.ReadFile(store.chunks[0])
+			if err != nil {
+				failures <- err
+
+				return
+			}
+			if bytes.Contains(contents, record) || bytes.Contains(contents, key) {
+				failures <- errors.New("temporary chunk exposed sensitive material")
+
+				return
+			}
+			nonces <- string(contents[:store.cipher.NonceSize()])
+		}(byte(worker + 1))
+	}
+	wait.Wait()
+	close(nonces)
+	close(failures)
+	for err := range failures {
+		t.Error(err)
+	}
+	unique := make(map[string]struct{}, workers)
+	for nonce := range nonces {
+		unique[nonce] = struct{}{}
+	}
+	if len(unique) != workers {
+		t.Fatalf("unique nonces = %d, want %d", len(unique), workers)
+	}
+}
+
+func TestFactoryAllocatesDistinctNonceDomainsWhenConcurrentEntropyRepeats(t *testing.T) {
+	t.Parallel()
+
+	factory := newTestFactory(t, ownerOnlyTemporaryDirectory(t), 1, 1, 1)
+	factory.entropy = zeroReader{}
+	key := bytes.Repeat([]byte{0xa5}, AES256KeyBytes)
+	const workers = 2
+	nonces := make(chan string, workers)
+	failures := make(chan error, workers)
+	var wait sync.WaitGroup
+	wait.Add(workers)
+	for range workers {
+		go func() {
+			defer wait.Done()
+
+			store, err := factory.Open(context.Background(), key)
+			if err != nil {
+				failures <- err
+
+				return
+			}
+			defer func() { _ = store.Close() }()
+			if err := store.Add(context.Background(), []byte{1}); err != nil {
+				failures <- err
+
+				return
+			}
+			contents, err := os.ReadFile(store.chunks[0])
+			if err != nil {
+				failures <- err
+
+				return
+			}
+			nonces <- string(contents[:store.cipher.NonceSize()])
+		}()
+	}
+	wait.Wait()
+	close(nonces)
+	close(failures)
+	for err := range failures {
+		t.Error(err)
+	}
+	unique := make(map[string]struct{}, workers)
+	for nonce := range nonces {
+		unique[nonce] = struct{}{}
+	}
+	if len(unique) != workers {
+		t.Fatalf("unique concurrent nonce domains = %d, want %d", len(unique), workers)
+	}
+}
+
+func TestStoreAuthenticatesItsNonceDomainWhenEntropyRepeats(t *testing.T) {
+	t.Parallel()
+
+	factory := newTestFactory(t, ownerOnlyTemporaryDirectory(t), 1, 1, 1)
+	factory.entropy = zeroReader{}
+	first := openTestStore(t, factory)
+	second := openTestStore(t, factory)
+	addTestRecords(t, first, []byte{1})
+	addTestRecords(t, second, []byte{1})
+	contents, err := os.ReadFile(first.chunks[0])
+	if err != nil {
+		t.Fatalf("ReadFile(first chunk) error = %v", err)
+	}
+	if err := os.WriteFile(second.chunks[0], contents, 0o600); err != nil {
+		t.Fatalf("WriteFile(second chunk) error = %v", err)
+	}
+	if err := second.ForEachSorted(
+		context.Background(),
+		func([]byte) error { return nil },
+	); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("ForEachSorted(substituted nonce domain) error = %v, want corrupt", err)
 	}
 }
 
@@ -639,7 +948,12 @@ func TestStoreFailsClosedForChunkWriteSyncCloseAndCancellation(t *testing.T) {
 
 		parent := ownerOnlyTemporaryDirectory(t)
 		store := openTestStore(t, newTestFactory(t, parent, 4, 1, 1))
-		store.entropy = errorReader{err: errors.New("entropy unavailable")}
+		store.createTemp = func(string, string) (chunkFile, error) {
+			return &fakeChunkFile{
+				name:     filepath.Join(parent, "failed"),
+				chmodErr: errors.New("chmod failed"),
+			}, nil
+		}
 		store.remove = func(string) error {
 			return errors.New("remove failed")
 		}
@@ -685,9 +999,17 @@ func TestStoreFailsClosedForChunkWriteSyncCloseAndCancellation(t *testing.T) {
 		parent := ownerOnlyTemporaryDirectory(t)
 		store := openTestStore(t, newTestFactory(t, parent, 4, 2, 2))
 		ctx, cancel := context.WithCancel(context.Background())
-		store.entropy = &cancellingReader{
-			reader: bytes.NewReader(make([]byte, store.cipher.NonceSize())),
-			cancel: cancel,
+		createTemp := store.createTemp
+		store.createTemp = func(string, string) (chunkFile, error) {
+			file, err := createTemp(store.directory, chunkPrefix)
+			if err != nil {
+				return nil, err
+			}
+
+			return &cancelAfterWriteChunkFile{
+				chunkFile: file,
+				cancel:    cancel,
+			}, nil
 		}
 		addTestRecords(t, store, []byte{1, 1, 1, 1})
 		if err := store.Add(
@@ -702,6 +1024,13 @@ func TestStoreFailsClosedForChunkWriteSyncCloseAndCancellation(t *testing.T) {
 				store.total,
 				store.buffer.Len(),
 			)
+		}
+		entries, err := os.ReadDir(store.directory)
+		if err != nil {
+			t.Fatalf("ReadDir() error = %v", err)
+		}
+		if len(entries) != 0 {
+			t.Fatalf("cancelled spill left %d temporary artifacts", len(entries))
 		}
 	})
 }
@@ -766,6 +1095,42 @@ func TestStoreAuthenticatesChunkPositionAndRejectsCorruption(t *testing.T) {
 				t.Fatalf("WriteFile() error = %v", err)
 			}
 		},
+		"encrypted record duplicated": func(t *testing.T, path string, recordBytes int) {
+			t.Helper()
+			contents, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("ReadFile() error = %v", err)
+			}
+			encryptedBytes := 12 + recordBytes + 16
+			copy(contents[encryptedBytes:], contents[:encryptedBytes])
+			if err := os.WriteFile(path, contents, 0o600); err != nil {
+				t.Fatalf("WriteFile() error = %v", err)
+			}
+		},
+		"nonce substituted": func(t *testing.T, path string, recordBytes int) {
+			t.Helper()
+			contents, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("ReadFile() error = %v", err)
+			}
+			encryptedBytes := 12 + recordBytes + 16
+			copy(contents[encryptedBytes:encryptedBytes+12], contents[:12])
+			if err := os.WriteFile(path, contents, 0o600); err != nil {
+				t.Fatalf("WriteFile() error = %v", err)
+			}
+		},
+		"complete record appended": func(t *testing.T, path string, recordBytes int) {
+			t.Helper()
+			contents, err := os.ReadFile(path)
+			if err != nil {
+				t.Fatalf("ReadFile() error = %v", err)
+			}
+			encryptedBytes := 12 + recordBytes + 16
+			contents = append(contents, contents[:encryptedBytes]...)
+			if err := os.WriteFile(path, contents, 0o600); err != nil {
+				t.Fatalf("WriteFile() error = %v", err)
+			}
+		},
 	}
 	for name, mutate := range testCases {
 		t.Run(name, func(t *testing.T) {
@@ -774,6 +1139,7 @@ func TestStoreAuthenticatesChunkPositionAndRejectsCorruption(t *testing.T) {
 			parent := ownerOnlyTemporaryDirectory(t)
 			factory := newTestFactory(t, parent, 4, 2, 2)
 			store := openTestStore(t, factory)
+			workDirectory := store.directory
 			addTestRecords(
 				t,
 				store,
@@ -798,6 +1164,52 @@ func TestStoreAuthenticatesChunkPositionAndRejectsCorruption(t *testing.T) {
 			}
 			if err := store.Close(); err != nil {
 				t.Fatalf("Close() error = %v", err)
+			}
+			if _, err := os.Stat(workDirectory); !errors.Is(err, os.ErrNotExist) {
+				t.Fatalf("corruption cleanup residue = %v", err)
+			}
+		})
+	}
+}
+
+func TestStoreRejectsAuthenticatedMetadataAndVersionSubstitution(t *testing.T) {
+	t.Parallel()
+
+	testCases := map[string]func([]byte){
+		"format version": func(aad []byte) {
+			aad[len(aadVersion)-1] ^= 1
+		},
+		"record size": func(aad []byte) {
+			aad[len(aad)-1] ^= 1
+		},
+		"store identity": func(aad []byte) {
+			aad[len(aadVersion)] ^= 1
+		},
+	}
+	for name, mutateAAD := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			store := openTestStore(
+				t,
+				newTestFactory(t, ownerOnlyTemporaryDirectory(t), 4, 1, 1),
+			)
+			record := []byte{1, 2, 3, 4}
+			nonce := bytes.Repeat([]byte{3}, store.cipher.NonceSize())
+			aad := additionalData(store.identity, store.nonceDomain, 0, 0, uint64(len(record)))
+			mutateAAD(aad)
+			framed := store.cipher.Seal(bytes.Clone(nonce), nonce, record, aad)
+			path := filepath.Join(store.directory, "chunk-forged")
+			if err := os.WriteFile(path, framed, 0o600); err != nil {
+				t.Fatalf("WriteFile() error = %v", err)
+			}
+			store.chunks = append(store.chunks, path)
+			store.total = 1
+			if err := store.ForEachSorted(
+				context.Background(),
+				func([]byte) error { return nil },
+			); !errors.Is(err, ErrCorrupt) {
+				t.Fatalf("ForEachSorted() error = %v, want corrupt", err)
 			}
 		})
 	}
@@ -832,11 +1244,82 @@ func TestStoreRejectsCrossChunkSubstitution(t *testing.T) {
 	}
 }
 
+func TestStoreRejectsCrossStoreSubstitutionWithAReusedKey(t *testing.T) {
+	t.Parallel()
+
+	parent := ownerOnlyTemporaryDirectory(t)
+	factory := newTestFactory(t, parent, 4, 1, 1)
+	first := openTestStore(t, factory)
+	second := openTestStore(t, factory)
+	addTestRecords(t, first, []byte{1, 1, 1, 1})
+	addTestRecords(t, second, []byte{2, 2, 2, 2})
+
+	substitute, err := os.ReadFile(second.chunks[0])
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	if err := os.WriteFile(first.chunks[0], substitute, 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+	if err := first.ForEachSorted(
+		context.Background(),
+		func([]byte) error { return nil },
+	); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("ForEachSorted() error = %v, want corrupt", err)
+	}
+}
+
+func TestStoreRejectsCrossLinkedAndDuplicatedChunks(t *testing.T) {
+	t.Parallel()
+
+	t.Run("cross-store hard link", func(t *testing.T) {
+		t.Parallel()
+
+		parent := ownerOnlyTemporaryDirectory(t)
+		factory := newTestFactory(t, parent, 1, 1, 1)
+		first := openTestStore(t, factory)
+		second := openTestStore(t, factory)
+		addTestRecords(t, first, []byte{1})
+		addTestRecords(t, second, []byte{2})
+		firstPath := first.chunks[0]
+		if err := os.Remove(firstPath); err != nil {
+			t.Fatalf("Remove() error = %v", err)
+		}
+		if err := os.Link(second.chunks[0], firstPath); err != nil {
+			t.Fatalf("Link() error = %v", err)
+		}
+		if err := first.ForEachSorted(
+			context.Background(),
+			func([]byte) error { return nil },
+		); !errors.Is(err, ErrCorrupt) {
+			t.Fatalf("ForEachSorted() error = %v, want corrupt", err)
+		}
+	})
+
+	t.Run("same-store duplicate", func(t *testing.T) {
+		t.Parallel()
+
+		store := openTestStore(
+			t,
+			newTestFactory(t, ownerOnlyTemporaryDirectory(t), 1, 1, 2),
+		)
+		addTestRecords(t, store, []byte{1}, []byte{2})
+		store.chunks[1] = store.chunks[0]
+		if err := store.ForEachSorted(
+			context.Background(),
+			func([]byte) error { return nil },
+		); !errors.Is(err, ErrCorrupt) {
+			t.Fatalf("ForEachSorted() error = %v, want corrupt", err)
+		}
+	})
+}
+
 func TestStoreReportsMissingChunksWithoutExposingPathsOrRecords(t *testing.T) {
 	t.Parallel()
 
 	parent := ownerOnlyTemporaryDirectory(t)
 	store := openTestStore(t, newTestFactory(t, parent, 4, 1, 1))
+	workDirectory := store.directory
 	record := []byte{9, 9, 9, 9}
 	addTestRecords(t, store, record)
 	if err := os.Remove(store.chunks[0]); err != nil {
@@ -858,6 +1341,9 @@ func TestStoreReportsMissingChunksWithoutExposingPathsOrRecords(t *testing.T) {
 	}
 	if err := store.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
+	}
+	if _, err := os.Stat(workDirectory); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("missing-chunk cleanup residue = %v", err)
 	}
 }
 
@@ -932,6 +1418,7 @@ func TestStoreReportsReaderCloseFailuresAfterCompleteIteration(t *testing.T) {
 
 	parent := ownerOnlyTemporaryDirectory(t)
 	store := openTestStore(t, newTestFactory(t, parent, 4, 1, 1))
+	workDirectory := store.directory
 	addTestRecords(t, store, []byte{1, 1, 1, 1})
 	store.openFile = func(path string) (chunkFile, error) {
 		file, err := os.Open(path)
@@ -954,6 +1441,9 @@ func TestStoreReportsReaderCloseFailuresAfterCompleteIteration(t *testing.T) {
 	if err := store.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}
+	if _, err := os.Stat(workDirectory); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("reader-close cleanup residue = %v", err)
+	}
 }
 
 func TestStoreClosesChunkReadersWhenCallbackPanics(t *testing.T) {
@@ -961,6 +1451,7 @@ func TestStoreClosesChunkReadersWhenCallbackPanics(t *testing.T) {
 
 	parent := ownerOnlyTemporaryDirectory(t)
 	store := openTestStore(t, newTestFactory(t, parent, 4, 1, 1))
+	workDirectory := store.directory
 	addTestRecords(t, store, []byte{1, 1, 1, 1})
 	var closes int
 	store.openFile = func(path string) (chunkFile, error) {
@@ -999,6 +1490,9 @@ func TestStoreClosesChunkReadersWhenCallbackPanics(t *testing.T) {
 	}
 	if err := store.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
+	}
+	if _, err := os.Stat(workDirectory); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("callback-panic cleanup residue = %v", err)
 	}
 }
 
@@ -1129,12 +1623,14 @@ func openTestStore(t *testing.T, factory *Factory) *Store {
 		context.Background(),
 		bytes.Repeat([]byte{1}, AES256KeyBytes),
 	)
+	if store != nil {
+		t.Cleanup(func() {
+			_ = store.Close()
+		})
+	}
 	if err != nil {
 		t.Fatalf("Open() error = %v", err)
 	}
-	t.Cleanup(func() {
-		_ = store.Close()
-	})
 
 	return store
 }
@@ -1164,16 +1660,29 @@ type errorReader struct {
 	err error
 }
 
-type cancellingReader struct {
-	reader io.Reader
-	cancel context.CancelFunc
+type zeroReader struct{}
+
+func (zeroReader) Read(destination []byte) (int, error) {
+	clear(destination)
+
+	return len(destination), nil
 }
 
-func (reader *cancellingReader) Read(destination []byte) (int, error) {
-	count, err := reader.reader.Read(destination)
-	reader.cancel()
+type sequenceEntropy struct {
+	mutex sync.Mutex
+	next  byte
+}
 
-	return count, err
+func (entropy *sequenceEntropy) Read(destination []byte) (int, error) {
+	entropy.mutex.Lock()
+	defer entropy.mutex.Unlock()
+
+	entropy.next++
+	for index := range destination {
+		destination[index] = entropy.next
+	}
+
+	return len(destination), nil
 }
 
 func (reader errorReader) Read([]byte) (int, error) {
@@ -1204,6 +1713,18 @@ type fakeChunkFile struct {
 	syncErr    error
 	closeErr   error
 	closeCount *int
+}
+
+type cancelAfterWriteChunkFile struct {
+	chunkFile
+	cancel context.CancelFunc
+}
+
+func (file *cancelAfterWriteChunkFile) Write(data []byte) (int, error) {
+	written, err := file.chunkFile.Write(data)
+	file.cancel()
+
+	return written, err
 }
 
 func (file *fakeChunkFile) Read(destination []byte) (int, error) {

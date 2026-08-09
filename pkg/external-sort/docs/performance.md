@@ -2,7 +2,14 @@
 
 Peak record-buffer memory is bounded by `RecordBytes * ChunkRecords`, plus the
 Go slice and merge heap overhead. The merge keeps one decrypted record and one
-file descriptor per chunk, capped at 64.
+file descriptor per chunk, capped at 64, plus the store's single rooted parent
+handle. Module-owned descriptors therefore peak at 65.
+
+For AES-GCM, committed temporary bytes are exactly the record count multiplied
+by `RecordBytes + nonce bytes + authentication-tag bytes`. At most 64 chunk
+files and one work directory exist. The module-owned merge logic does not
+recurse. Cleanup delegates one bounded directory tree containing at most 64
+files to the operating system.
 
 Sorting costs `O(n log n)` comparisons within chunks and `O(n log k)` during
 the merge, where `k <= 64`. Each record is encrypted once and decrypted once.
@@ -11,4 +18,7 @@ Smaller chunks reduce peak memory but increase file descriptors and heap work.
 `BenchmarkEncryptedExternalSort` measures a complete 32-byte record workload,
 including encryption, file IO, merge, cleanup, allocations, and the local
 filesystem. Results are environment-specific and should be repeated on the
-intended migration host with realistic chunk and population sizes.
+intended migration host with realistic chunk and population sizes. For a
+comparison, retain at least ten raw samples from the same idle host and Go
+toolchain, then compare distributions with `benchstat`; do not gate on a
+single wall-clock sample.

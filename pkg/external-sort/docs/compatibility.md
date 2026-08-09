@@ -1,6 +1,8 @@
 # Compatibility
 
 The module requires Go 1.26.5 or newer and currently exposes a pre-v1 API.
+`Factory.Open` is unavailable on `js` and `plan9`, where `os.Root` cannot
+provide the rename-stable containment required by the storage contract.
 
 Lexicographic ordering, duplicate preservation, exact bounds, lifecycle error
 semantics, owner-only permissions, and authenticated corruption rejection are

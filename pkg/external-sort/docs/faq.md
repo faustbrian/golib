@@ -28,3 +28,10 @@ ephemeral storage and host controls protect metadata and abandoned artifacts.
 
 The process cannot run `Close`, so encrypted directories may remain. Operators
 must use a conservative stale-owner cleanup policy.
+
+## Can lifecycle methods overlap?
+
+No work is performed concurrently within one store. An overlapping call,
+including a callback that reenters the store, returns `ErrConcurrentUse`.
+Wait for the active operation to return before retrying. Separate stores from
+the same factory can run concurrently.

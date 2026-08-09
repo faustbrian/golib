@@ -10,12 +10,14 @@ import (
 	"crypto/cipher"
 	"crypto/rand"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 	"io"
 	"log/slog"
 	"os"
 	"path/filepath"
 	"sort"
+	"sync"
 )
 
 const (
@@ -30,11 +32,15 @@ const (
 	// MaximumChunkBytes bounds the contiguous in-memory sort buffer.
 	MaximumChunkBytes = 256 << 20
 
-	chunkPrefix  = "chunk-"
-	storePrefix  = ".external-sort-"
-	aadVersion   = "extsort1"
-	redacted     = "[REDACTED]"
-	redactedJSON = `"` + redacted + `"`
+	storeIdentityBytes = 32
+	temporaryNameBytes = 16
+	temporaryAttempts  = 128
+	nonceCounterOffset = 8
+	chunkPrefix        = "chunk-"
+	storePrefix        = ".external-sort-"
+	aadVersion         = "extsort1"
+	redacted           = "[REDACTED]"
+	redactedJSON       = `"` + redacted + `"`
 )
 
 var (
@@ -44,14 +50,16 @@ var (
 	ErrUnsafeParent = errors.New(
 		"external sort parent is not an owner-only directory",
 	)
-	ErrInvalidKey    = errors.New("external sort key is invalid")
-	ErrInvalidRecord = errors.New("external sort record is invalid")
-	ErrRecordLimit   = errors.New("external sort record limit reached")
-	ErrClosed        = errors.New("external sort store is closed")
-	ErrFinalized     = errors.New("external sort store is finalized")
-	ErrEntropy       = errors.New("external sort entropy failed")
-	ErrStorage       = errors.New("external sort storage failed")
-	ErrCorrupt       = errors.New("external sort chunk is corrupt")
+	ErrInvalidKey       = errors.New("external sort key is invalid")
+	ErrInvalidRecord    = errors.New("external sort record is invalid")
+	ErrRecordLimit      = errors.New("external sort record limit reached")
+	ErrConcurrentUse    = errors.New("external sort store is already in use")
+	ErrClosed           = errors.New("external sort store is closed")
+	ErrFinalized        = errors.New("external sort store is finalized")
+	ErrEntropy          = errors.New("external sort entropy failed")
+	ErrStorage          = errors.New("external sort storage failed")
+	ErrCorrupt          = errors.New("external sort chunk is corrupt")
+	processNonceDomains = nonceDomainAllocator{entropy: rand.Reader}
 )
 
 // Config declares every storage and memory bound before temporary storage is
@@ -65,16 +73,17 @@ type Config struct {
 }
 
 // Factory validates a reusable external-sort storage policy. Factory is safe
-// for concurrent use. Stores returned by Open are not safe for concurrent use.
+// for concurrent use. Each Store permits one active lifecycle operation.
 type Factory struct {
-	config     Config
-	entropy    io.Reader
-	mkdirTemp  func(string, string) (string, error)
-	createTemp func(string, string) (chunkFile, error)
-	openFile   func(string) (chunkFile, error)
-	chmod      func(string, os.FileMode) error
-	remove     func(string) error
-	removeAll  func(string) error
+	config          Config
+	parentInfo      os.FileInfo
+	entropy         io.Reader
+	nameEntropy     io.Reader
+	openRoot        func(string) (rootDirectory, error)
+	mkdir           func(rootDirectory, string, os.FileMode) error
+	chmod           func(rootDirectory, string, os.FileMode) error
+	removeAll       func(rootDirectory, string) error
+	nextNonceDomain func() (uint64, bool)
 }
 
 // String prevents configuration and temporary paths from entering text logs.
@@ -104,35 +113,51 @@ func NewFactory(config Config) (*Factory, error) {
 	if !validConfig(config) {
 		return nil, ErrInvalidConfiguration
 	}
-	config.ParentDirectory = filepath.Clean(config.ParentDirectory)
-	if err := validateParent(config.ParentDirectory); err != nil {
+	configuredParent := filepath.Clean(config.ParentDirectory)
+	resolvedParent, err := filepath.EvalSymlinks(configuredParent)
+	if err != nil {
+		return nil, ErrUnsafeParent
+	}
+	parentInfo, err := validatedParent(configuredParent)
+	if err != nil {
 		return nil, err
 	}
+	config.ParentDirectory = resolvedParent
 
 	return &Factory{
-		config:     config,
-		entropy:    rand.Reader,
-		mkdirTemp:  os.MkdirTemp,
-		createTemp: createTemporaryChunk,
-		openFile:   openChunk,
-		chmod:      os.Chmod,
-		remove:     os.Remove,
-		removeAll:  os.RemoveAll,
+		config:      config,
+		parentInfo:  parentInfo,
+		entropy:     rand.Reader,
+		nameEntropy: rand.Reader,
+		openRoot:    openRootDirectory,
+		mkdir: func(root rootDirectory, name string, mode os.FileMode) error {
+			return root.Mkdir(name, mode)
+		},
+		chmod: func(root rootDirectory, name string, mode os.FileMode) error {
+			return root.Chmod(name, mode)
+		},
+		removeAll: func(root rootDirectory, name string) error {
+			return root.RemoveAll(name)
+		},
+		nextNonceDomain: allocateNonceDomain,
 	}, nil
 }
 
 // Open creates one owner-only temporary work directory. The caller provides
-// an AES-256 key for immediate cipher construction and MUST call
-// Close on the returned store on every path.
+// an AES-256 key for immediate cipher construction. The caller MUST call Close
+// whenever Open returns a non-nil Store, including together with an error; an
+// error result can carry ownership of construction residue whose first removal
+// attempt failed.
 func (factory *Factory) Open(
 	ctx context.Context,
 	key []byte,
 ) (*Store, error) {
 	if factory == nil || !validConfig(factory.config) ||
-		factory.entropy == nil || factory.mkdirTemp == nil ||
-		factory.createTemp == nil || factory.openFile == nil ||
-		factory.chmod == nil || factory.remove == nil ||
-		factory.removeAll == nil {
+		factory.parentInfo == nil || factory.entropy == nil ||
+		factory.nameEntropy == nil ||
+		factory.openRoot == nil || factory.mkdir == nil ||
+		factory.chmod == nil || factory.removeAll == nil ||
+		factory.nextNonceDomain == nil {
 		return nil, ErrInvalidConfiguration
 	}
 	if ctx == nil {
@@ -144,34 +169,73 @@ func (factory *Factory) Open(
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	if err := validateParent(factory.config.ParentDirectory); err != nil {
-		return nil, err
-	}
-
 	block, _ := aes.NewCipher(key)
 	authenticatedCipher, _ := cipher.NewGCM(block)
-	directory, err := factory.mkdirTemp(
-		factory.config.ParentDirectory,
-		storePrefix,
+	identity := make([]byte, storeIdentityBytes)
+	if _, err := io.ReadFull(factory.entropy, identity); err != nil {
+		clear(identity)
+
+		return nil, ErrEntropy
+	}
+	nonceDomain, ok := factory.nextNonceDomain()
+	if !ok {
+		clear(identity)
+
+		return nil, ErrEntropy
+	}
+	root, err := factory.openRoot(factory.config.ParentDirectory)
+	if err != nil {
+		clear(identity)
+
+		return nil, ErrUnsafeParent
+	}
+	parentInfo, err := root.Stat(".")
+	if err != nil || !sameSafeDirectory(factory.parentInfo, parentInfo) {
+		_ = root.Close()
+		clear(identity)
+
+		return nil, ErrUnsafeParent
+	}
+	directoryName, cleanupRequired, err := createStoreDirectory(
+		ctx,
+		root,
+		factory.nameEntropy,
+		factory.mkdir,
+		factory.chmod,
+		factory.removeAll,
 	)
 	if err != nil {
-		return nil, ErrStorage
-	}
-	if err := factory.chmod(directory, 0o700); err != nil {
-		_ = factory.removeAll(directory)
+		if cleanupRequired {
+			clear(identity)
+			directory := filepath.Join(factory.config.ParentDirectory, directoryName)
 
-		return nil, ErrStorage
-	}
+			return &Store{storeState: &storeState{
+				config: factory.config,
+				removeAll: func(string) error {
+					return factory.removeAll(root, directoryName)
+				},
+				root:          root,
+				directory:     directory,
+				directoryName: directoryName,
+				closing:       true,
+				cleanupOnly:   true,
+			}}, err
+		}
+		_ = root.Close()
+		clear(identity)
 
-	return &Store{
-		config:     factory.config,
-		entropy:    factory.entropy,
-		createTemp: factory.createTemp,
-		openFile:   factory.openFile,
-		remove:     factory.remove,
-		removeAll:  factory.removeAll,
-		directory:  directory,
-		cipher:     authenticatedCipher,
+		return nil, err
+	}
+	directory := filepath.Join(factory.config.ParentDirectory, directoryName)
+	state := &storeState{
+		config:        factory.config,
+		nameEntropy:   factory.nameEntropy,
+		root:          root,
+		directory:     directory,
+		directoryName: directoryName,
+		cipher:        authenticatedCipher,
+		identity:      identity,
+		nonceDomain:   nonceDomain,
 		buffer: recordBuffer{
 			data: make(
 				[]byte,
@@ -180,27 +244,53 @@ func (factory *Factory) Open(
 			),
 			recordBytes: factory.config.RecordBytes,
 		},
-	}, nil
+	}
+	state.createTemp = func(string, string) (chunkFile, error) {
+		return createRootTemporaryChunk(root, directoryName, state.nameEntropy)
+	}
+	state.openFile = func(path string) (chunkFile, error) {
+		return root.Open(filepath.Join(directoryName, filepath.Base(path)))
+	}
+	state.remove = func(path string) error {
+		return root.Remove(filepath.Join(directoryName, filepath.Base(path)))
+	}
+	state.removeAll = func(string) error {
+		return root.RemoveAll(directoryName)
+	}
+
+	return &Store{storeState: state}, nil
 }
 
-// Store owns encrypted temporary chunks for one sort. It is deliberately
-// single-owner and MUST NOT be used concurrently. A record passed to the
-// ForEachSorted callback is valid only until that callback returns.
+// Store owns encrypted temporary chunks for one sort. Overlapping or reentrant
+// lifecycle calls return ErrConcurrentUse. A record passed to the ForEachSorted
+// callback is valid only until that callback returns.
 type Store struct {
-	config     Config
-	entropy    io.Reader
-	createTemp func(string, string) (chunkFile, error)
-	openFile   func(string) (chunkFile, error)
-	remove     func(string) error
-	removeAll  func(string) error
-	directory  string
-	cipher     cipher.AEAD
-	buffer     recordBuffer
-	chunks     []string
-	total      int
-	finalized  bool
-	closing    bool
-	closed     bool
+	*storeState
+}
+
+type storeState struct {
+	mutex         sync.Mutex
+	config        Config
+	nameEntropy   io.Reader
+	createTemp    func(string, string) (chunkFile, error)
+	openFile      func(string) (chunkFile, error)
+	remove        func(string) error
+	removeAll     func(string) error
+	root          rootDirectory
+	directory     string
+	directoryName string
+	cipher        cipher.AEAD
+	identity      []byte
+	nonceDomain   uint64
+	nonceCount    uint64
+	buffer        recordBuffer
+	chunks        []string
+	total         int
+	finalized     bool
+	busy          bool
+	closing       bool
+	closed        bool
+	cleanupOnly   bool
 }
 
 // String prevents records, cipher state, and temporary paths from entering
@@ -234,15 +324,10 @@ func (store *Store) Add(ctx context.Context, record []byte) error {
 	if store == nil || ctx == nil {
 		return ErrInvalidConfiguration
 	}
-	if store.closed || store.closing {
-		return ErrClosed
+	if err := store.begin(true); err != nil {
+		return err
 	}
-	if store.finalized {
-		return ErrFinalized
-	}
-	if !store.valid() {
-		return ErrInvalidConfiguration
-	}
+	defer store.finish()
 	if len(record) != store.config.RecordBytes {
 		return ErrInvalidRecord
 	}
@@ -279,15 +364,10 @@ func (store *Store) ForEachSorted(
 	if store == nil || ctx == nil || yield == nil {
 		return ErrInvalidConfiguration
 	}
-	if store.closed || store.closing {
-		return ErrClosed
+	if err := store.begin(true); err != nil {
+		return err
 	}
-	if store.finalized {
-		return ErrFinalized
-	}
-	if !store.valid() {
-		return ErrInvalidConfiguration
-	}
+	defer store.finish()
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -319,37 +399,122 @@ func (store *Store) ForEachSorted(
 // It is idempotent. A storage failure leaves the store closable so cleanup can
 // be retried, but no other operation is accepted after closing begins.
 func (store *Store) Close() error {
-	if store == nil || store.closed {
+	if store == nil {
 		return nil
 	}
-	if !store.valid() {
+	if store.storeState == nil {
 		return ErrInvalidConfiguration
 	}
+	store.mutex.Lock()
+	if store.closed {
+		store.mutex.Unlock()
+
+		return nil
+	}
+	if store.busy {
+		store.mutex.Unlock()
+
+		return ErrConcurrentUse
+	}
+	if !store.validUnlocked() {
+		store.mutex.Unlock()
+
+		return ErrInvalidConfiguration
+	}
+	store.busy = true
 	store.closing = true
+	store.mutex.Unlock()
 	store.buffer.clear()
 	if err := store.removeAll(store.directory); err != nil {
+		store.finish()
+
 		return ErrStorage
 	}
+	rootCloseErr := store.root.Close()
 	store.directory = ""
+	store.directoryName = ""
+	store.root = nil
 	store.chunks = nil
 	store.cipher = nil
-	store.entropy = nil
+	store.nameEntropy = nil
+	clear(store.identity)
+	store.identity = nil
+	store.mutex.Lock()
 	store.closing = false
 	store.closed = true
+	store.busy = false
+	store.mutex.Unlock()
+	if rootCloseErr != nil {
+		return ErrStorage
+	}
 
 	return nil
 }
 
 func (store *Store) valid() bool {
+	if store == nil || store.storeState == nil {
+		return false
+	}
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
+	return store.validUnlocked()
+}
+
+func (store *Store) validUnlocked() bool {
+	if store.cleanupOnly {
+		return validConfig(store.config) && store.removeAll != nil &&
+			store.root != nil && store.directory != "" && store.directoryName != ""
+	}
+
 	return validConfig(store.config) &&
-		store.entropy != nil &&
+		store.nameEntropy != nil &&
 		store.createTemp != nil &&
 		store.openFile != nil &&
 		store.remove != nil &&
 		store.removeAll != nil &&
+		store.root != nil &&
 		store.directory != "" &&
+		store.directoryName != "" &&
 		store.cipher != nil &&
+		len(store.identity) == storeIdentityBytes &&
 		store.buffer.recordBytes == store.config.RecordBytes
+}
+
+func (store *Store) begin(requireUnfinalized bool) error {
+	if store.storeState == nil {
+		return ErrInvalidConfiguration
+	}
+	store.mutex.Lock()
+	defer store.mutex.Unlock()
+
+	if store.closed || store.closing {
+		return ErrClosed
+	}
+	if store.busy {
+		return ErrConcurrentUse
+	}
+	if requireUnfinalized && store.finalized {
+		return ErrFinalized
+	}
+	if !store.validUnlocked() {
+		return ErrInvalidConfiguration
+	}
+	store.busy = true
+
+	return nil
+}
+
+func (store *Store) finish() {
+	store.mutex.Lock()
+	store.busy = false
+	store.mutex.Unlock()
+}
+
+func (store *Store) seal() {
+	store.mutex.Lock()
+	store.closing = true
+	store.mutex.Unlock()
 }
 
 func validConfig(config Config) bool {
@@ -371,15 +536,54 @@ func validConfig(config Config) bool {
 	return chunks <= MaximumMergeFiles
 }
 
-func validateParent(parent string) error {
+func validatedParent(parent string) (os.FileInfo, error) {
 	info, err := os.Lstat(parent)
 	if err != nil || !info.IsDir() ||
 		info.Mode()&os.ModeSymlink != 0 ||
 		info.Mode().Perm()&0o077 != 0 {
-		return ErrUnsafeParent
+		return nil, ErrUnsafeParent
 	}
 
-	return nil
+	return info, nil
+}
+
+func sameSafeDirectory(expected os.FileInfo, actual os.FileInfo) bool {
+	return expected != nil && actual != nil && actual.IsDir() &&
+		actual.Mode().Perm()&0o077 == 0 && os.SameFile(expected, actual)
+}
+
+type nonceDomainAllocator struct {
+	mutex       sync.Mutex
+	entropy     io.Reader
+	initialized bool
+	seed        uint64
+	next        uint64
+}
+
+func allocateNonceDomain() (uint64, bool) {
+	return processNonceDomains.allocate()
+}
+
+func (allocator *nonceDomainAllocator) allocate() (uint64, bool) {
+	allocator.mutex.Lock()
+	defer allocator.mutex.Unlock()
+	if !allocator.initialized {
+		var seed [8]byte
+		if _, err := io.ReadFull(allocator.entropy, seed[:]); err != nil {
+			clear(seed[:])
+
+			return 0, false
+		}
+		allocator.seed = binary.BigEndian.Uint64(seed[:])
+		allocator.initialized = true
+		clear(seed[:])
+	}
+	if allocator.next == ^uint64(0) {
+		return 0, false
+	}
+	allocator.next++
+
+	return allocator.seed ^ allocator.next, true
 }
 
 func (store *Store) spill(ctx context.Context) (result error) {
@@ -389,6 +593,10 @@ func (store *Store) spill(ctx context.Context) (result error) {
 	sort.Sort(&store.buffer)
 	file, err := store.createTemp(store.directory, chunkPrefix)
 	if err != nil {
+		if errors.Is(err, ErrEntropy) {
+			return ErrEntropy
+		}
+
 		return ErrStorage
 	}
 	path := file.Name()
@@ -398,7 +606,7 @@ func (store *Store) spill(ctx context.Context) (result error) {
 			closeErr := file.Close()
 			removeErr := store.remove(path)
 			if closeErr != nil || removeErr != nil {
-				store.closing = true
+				store.seal()
 				result = ErrStorage
 			}
 		}
@@ -413,13 +621,21 @@ func (store *Store) spill(ctx context.Context) (result error) {
 			return err
 		}
 		nonce := make([]byte, store.cipher.NonceSize())
-		if _, err := io.ReadFull(store.entropy, nonce); err != nil {
+		if store.nonceCount > uint64(^uint32(0)) {
 			clear(nonce)
 
 			return ErrEntropy
 		}
+		binary.BigEndian.PutUint64(nonce[:nonceCounterOffset], store.nonceDomain)
+		binary.BigEndian.PutUint32(
+			nonce[nonceCounterOffset:],
+			uint32(store.nonceCount),
+		)
+		store.nonceCount++
 		plaintext := store.buffer.record(recordIndex)
 		aad := additionalData(
+			store.identity,
+			store.nonceDomain,
 			chunkIndex,
 			uint64(recordIndex),
 			uint64(store.config.RecordBytes),
@@ -462,6 +678,8 @@ func (store *Store) openReaders() ([]*chunkReader, error) {
 		readers = append(readers, &chunkReader{
 			file:            file,
 			cipher:          store.cipher,
+			identity:        store.identity,
+			nonceDomain:     store.nonceDomain,
 			recordBytes:     store.config.RecordBytes,
 			chunkIndex:      uint64(index),
 			expectedRecords: uint64(store.expectedChunkRecords(index)),
@@ -528,6 +746,8 @@ func merge(
 type chunkReader struct {
 	file            chunkFile
 	cipher          cipher.AEAD
+	identity        []byte
+	nonceDomain     uint64
 	recordBytes     int
 	chunkIndex      uint64
 	recordIndex     uint64
@@ -543,12 +763,96 @@ type chunkFile interface {
 	Close() error
 }
 
-func createTemporaryChunk(directory string, pattern string) (chunkFile, error) {
-	return os.CreateTemp(directory, pattern)
+type rootDirectory interface {
+	Stat(string) (os.FileInfo, error)
+	Mkdir(string, os.FileMode) error
+	Chmod(string, os.FileMode) error
+	Open(string) (*os.File, error)
+	OpenFile(string, int, os.FileMode) (*os.File, error)
+	Remove(string) error
+	RemoveAll(string) error
+	Close() error
 }
 
-func openChunk(path string) (chunkFile, error) {
-	return os.Open(path)
+func createStoreDirectory(
+	ctx context.Context,
+	root rootDirectory,
+	entropy io.Reader,
+	mkdir func(rootDirectory, string, os.FileMode) error,
+	chmod func(rootDirectory, string, os.FileMode) error,
+	removeAll func(rootDirectory, string) error,
+) (string, bool, error) {
+	for range temporaryAttempts {
+		if err := ctx.Err(); err != nil {
+			return "", false, err
+		}
+		name, err := temporaryName(entropy, storePrefix)
+		if err != nil {
+			return "", false, err
+		}
+		if err := mkdir(root, name, 0o700); err == nil {
+			if err := chmod(root, name, 0o700); err != nil {
+				if removeErr := removeAll(root, name); removeErr != nil {
+					return name, true, ErrStorage
+				}
+
+				return "", false, ErrStorage
+			}
+			info, err := root.Stat(name)
+			if err != nil || !info.IsDir() || info.Mode().Perm() != 0o700 {
+				if removeErr := removeAll(root, name); removeErr != nil {
+					return name, true, ErrStorage
+				}
+
+				return "", false, ErrStorage
+			}
+
+			return name, false, nil
+		} else if !errors.Is(err, os.ErrExist) {
+			return "", false, ErrStorage
+		}
+	}
+
+	return "", false, ErrStorage
+}
+
+func createRootTemporaryChunk(
+	root rootDirectory,
+	directory string,
+	entropy io.Reader,
+) (chunkFile, error) {
+	for range temporaryAttempts {
+		name, err := temporaryName(entropy, chunkPrefix)
+		if err != nil {
+			return nil, err
+		}
+		file, err := root.OpenFile(
+			filepath.Join(directory, name),
+			os.O_RDWR|os.O_CREATE|os.O_EXCL,
+			0o600,
+		)
+		if err == nil {
+			return file, nil
+		}
+		if !errors.Is(err, os.ErrExist) {
+			return nil, ErrStorage
+		}
+	}
+
+	return nil, ErrStorage
+}
+
+func temporaryName(entropy io.Reader, prefix string) (string, error) {
+	random := make([]byte, temporaryNameBytes)
+	if _, err := io.ReadFull(entropy, random); err != nil {
+		clear(random)
+
+		return "", ErrEntropy
+	}
+	name := prefix + hex.EncodeToString(random)
+	clear(random)
+
+	return name, nil
 }
 
 func (reader *chunkReader) next() ([]byte, error) {
@@ -580,6 +884,8 @@ func (reader *chunkReader) next() ([]byte, error) {
 	}
 	nonce := record[:reader.cipher.NonceSize()]
 	aad := additionalData(
+		reader.identity,
+		reader.nonceDomain,
 		reader.chunkIndex,
 		reader.recordIndex,
 		uint64(reader.recordBytes),
@@ -616,16 +922,20 @@ func closeReaders(readers []*chunkReader) error {
 }
 
 func additionalData(
+	identity []byte,
+	nonceDomain uint64,
 	chunkIndex uint64,
 	recordIndex uint64,
 	recordBytes uint64,
 ) []byte {
-	result := make([]byte, len(aadVersion)+24)
+	result := make([]byte, len(aadVersion)+storeIdentityBytes+32)
 	copy(result, aadVersion)
-	offset := len(aadVersion)
-	binary.BigEndian.PutUint64(result[offset:offset+8], chunkIndex)
-	binary.BigEndian.PutUint64(result[offset+8:offset+16], recordIndex)
-	binary.BigEndian.PutUint64(result[offset+16:], recordBytes)
+	copy(result[len(aadVersion):], identity)
+	offset := len(aadVersion) + storeIdentityBytes
+	binary.BigEndian.PutUint64(result[offset:offset+8], nonceDomain)
+	binary.BigEndian.PutUint64(result[offset+8:offset+16], chunkIndex)
+	binary.BigEndian.PutUint64(result[offset+16:offset+24], recordIndex)
+	binary.BigEndian.PutUint64(result[offset+24:], recordBytes)
 
 	return result
 }

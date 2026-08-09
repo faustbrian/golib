@@ -33,14 +33,16 @@ func Example() {
 		context.Background(),
 		bytes.Repeat([]byte{1}, externalsort.AES256KeyBytes),
 	)
+	if store != nil {
+		defer func() {
+			if err := store.Close(); err != nil {
+				panic(err)
+			}
+		}()
+	}
 	if err != nil {
 		panic(err)
 	}
-	defer func() {
-		if err := store.Close(); err != nil {
-			panic(err)
-		}
-	}()
 
 	for _, record := range [][]byte{{3, 3}, {1, 1}, {2, 2}} {
 		if err := store.Add(context.Background(), record); err != nil {

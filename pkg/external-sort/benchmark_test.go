@@ -38,6 +38,9 @@ func BenchmarkEncryptedExternalSort(b *testing.B) {
 		}
 		store, err := factory.Open(ctx, key)
 		if err != nil {
+			if store != nil {
+				_ = store.Close()
+			}
 			b.Fatalf("Open() error = %v", err)
 		}
 		for _, record := range input {

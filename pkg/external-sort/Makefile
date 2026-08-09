@@ -31,7 +31,11 @@ coverage:
 fuzz:
 	$(GO) test -run '^$$' -fuzz '^FuzzRecordBufferSort$$' \
 		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test -run '^$$' -fuzz '^FuzzConfigurationBounds$$' \
+		-fuzztime="$(FUZZ_TIME)"
 	$(GO) test -run '^$$' -fuzz '^FuzzEncryptedChunkFraming$$' \
+		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test -run '^$$' -fuzz '^FuzzMergeHistories$$' \
 		-fuzztime="$(FUZZ_TIME)"
 
 benchmark:

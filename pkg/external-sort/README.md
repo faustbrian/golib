@@ -19,10 +19,12 @@ if err != nil {
 }
 
 store, err := factory.Open(ctx, derivedAES256Key)
+if store != nil {
+    defer store.Close()
+}
 if err != nil {
     return err
 }
-defer store.Close()
 
 if err := store.Add(ctx, digest[:]); err != nil {
     return err
@@ -33,7 +35,10 @@ return store.ForEachSorted(ctx, func(record []byte) error {
 ```
 
 The parent directory must already exist, must not be a symlink, and must have
-no group or other permission bits. The key must contain exactly 32 bytes.
+no group or other permission bits. Existing ancestor links are resolved when
+the factory is created; each store binds the resolved directory to a rooted
+handle and rejects later identity or permission changes. The key must contain
+exactly 32 bytes.
 
 ## Guarantees
 
@@ -41,14 +46,20 @@ no group or other permission bits. The key must contain exactly 32 bytes.
 - bounded contiguous in-memory chunks;
 - at most 64 files in one merge;
 - lexicographic byte ordering with duplicates preserved;
-- a fresh random nonce and AES-256-GCM authentication per temporary record;
-- authentication of format version, chunk, ordinal, and record size;
-- owner-only temporary directories and files; and
+- a random-seeded process-unique nonce domain, a retry-safe record counter, and
+  AES-256-GCM authentication for every temporary record;
+- authentication of store identity, format version, chunk, ordinal, and record
+  size;
+- exact owner-only temporary modes (`0700` directories and `0600` files),
+  independent of process umask;
+- descriptor-relative storage and cleanup that cannot be redirected by a
+  renamed or replaced parent pathname ancestor; and
 - complete temporary-directory removal after a successful `Close`.
 
-Stores have one owner and are not safe for concurrent use. A record passed to
-the iteration callback is valid only until the callback returns. Copy it when
-retention is required.
+Stores permit one active lifecycle operation. Overlapping or reentrant calls
+fail with `ErrConcurrentUse`; callers can retry after the active operation
+returns. A record passed to the iteration callback is valid only until that
+callback returns. Copy it when retention is required.
 
 ## Adoption and tradeoffs
 
@@ -61,8 +72,9 @@ dataset at a higher semantic layer.
 
 `Close` removes process-owned artifacts, but no process can guarantee cleanup
 after abrupt termination or host loss. Operators should place the parent on an
-encrypted ephemeral filesystem and apply a conservative stale-directory
-cleanup policy when crash recovery requires it.
+encrypted ephemeral filesystem and apply the descriptor-relative ownership and
+age checks in the [operations guide](docs/operations.md) before removing stale
+directories.
 
 ## Documentation
 
@@ -72,6 +84,7 @@ cleanup policy when crash recovery requires it.
 - [Compatibility](docs/compatibility.md)
 - [Threat model](docs/threat-model.md)
 - [Performance](docs/performance.md)
+- [Operations and Kubernetes](docs/operations.md)
 - [FAQ](docs/faq.md)
 - [Security policy](SECURITY.md)
 - [Release notes](CHANGELOG.md)

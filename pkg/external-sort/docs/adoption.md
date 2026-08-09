@@ -10,6 +10,8 @@ carry secrets that require parsing during merge.
 4. Set `MaximumRecords` from an explicit source-population ceiling.
 5. Ensure the resulting chunk count is at most 64.
 6. Add records, consume the sorted stream, and always close the store.
+7. Install signal handling and a caller-owned stale-directory janitor as
+   described in [Operations and Kubernetes](operations.md).
 
 When replacing an in-memory sort, compare output including duplicates and empty
 input. When replacing plaintext spill files, add operational cleanup for stale

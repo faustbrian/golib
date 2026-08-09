@@ -27,13 +27,17 @@ func TestStoreValidityRequiresEveryOwnedDependency(t *testing.T) {
 	if !store.valid() {
 		t.Fatal("freshly opened store is invalid")
 	}
+	var nilStore *Store
+	if nilStore.valid() || (&Store{}).valid() {
+		t.Fatal("nil-state store is valid")
+	}
 
 	testCases := map[string]func(*Store){
 		"config": func(candidate *Store) {
 			candidate.config.RecordBytes = 0
 		},
-		"entropy": func(candidate *Store) {
-			candidate.entropy = nil
+		"name entropy": func(candidate *Store) {
+			candidate.nameEntropy = nil
 		},
 		"create temporary file": func(candidate *Store) {
 			candidate.createTemp = nil
@@ -47,23 +51,47 @@ func TestStoreValidityRequiresEveryOwnedDependency(t *testing.T) {
 		"remove directory": func(candidate *Store) {
 			candidate.removeAll = nil
 		},
+		"root": func(candidate *Store) {
+			candidate.root = nil
+		},
 		"directory": func(candidate *Store) {
 			candidate.directory = ""
 		},
+		"directory name": func(candidate *Store) {
+			candidate.directoryName = ""
+		},
 		"cipher": func(candidate *Store) {
 			candidate.cipher = nil
+		},
+		"identity": func(candidate *Store) {
+			candidate.identity = nil
 		},
 	}
 	for name, invalidate := range testCases {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 
-			candidate := *store
-			invalidate(&candidate)
+			candidate := openTestStore(
+				t,
+				newTestFactory(t, ownerOnlyTemporaryDirectory(t), 1, 1, 1),
+			)
+			invalidate(candidate)
 			if candidate.valid() {
 				t.Fatal("store remained valid without its required dependency")
 			}
 		})
+	}
+
+	invalid := openTestStore(
+		t,
+		newTestFactory(t, ownerOnlyTemporaryDirectory(t), 1, 1, 1),
+	)
+	invalid.createTemp = nil
+	if err := invalid.Add(context.Background(), []byte{1}); !errors.Is(
+		err,
+		ErrInvalidConfiguration,
+	) {
+		t.Fatalf("Add() error = %v, want invalid configuration", err)
 	}
 }
 
@@ -253,14 +281,37 @@ func (reader dataErrorReader) Read(destination []byte) (int, error) {
 func TestAdditionalDataEncodesEveryUnsignedFieldInOrder(t *testing.T) {
 	t.Parallel()
 
-	actual := additionalData(0x0102030405060708, 0x1112131415161718, 0x2122232425262728)
-	want := make([]byte, len(aadVersion)+24)
+	identity := bytes.Repeat([]byte{0x7f}, storeIdentityBytes)
+	actual := additionalData(identity, 0x0102030405060708, 0x1112131415161718, 0x2122232425262728, 0x3132333435363738)
+	want := make([]byte, len(aadVersion)+storeIdentityBytes+32)
 	copy(want, aadVersion)
-	binary.BigEndian.PutUint64(want[len(aadVersion):], 0x0102030405060708)
-	binary.BigEndian.PutUint64(want[len(aadVersion)+8:], 0x1112131415161718)
-	binary.BigEndian.PutUint64(want[len(aadVersion)+16:], 0x2122232425262728)
+	copy(want[len(aadVersion):], identity)
+	offset := len(aadVersion) + storeIdentityBytes
+	binary.BigEndian.PutUint64(want[offset:], 0x0102030405060708)
+	binary.BigEndian.PutUint64(want[offset+8:], 0x1112131415161718)
+	binary.BigEndian.PutUint64(want[offset+16:], 0x2122232425262728)
+	binary.BigEndian.PutUint64(want[offset+24:], 0x3132333435363738)
 	if !bytes.Equal(actual, want) {
 		t.Fatalf("additional data = %x, want %x", actual, want)
+	}
+}
+
+func TestNonceDomainAllocatorIsProcessUniqueAndFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	failing := nonceDomainAllocator{entropy: errorReader{err: io.ErrUnexpectedEOF}}
+	if _, ok := failing.allocate(); ok {
+		t.Fatal("allocator accepted failed process entropy")
+	}
+	allocator := nonceDomainAllocator{entropy: zeroReader{}}
+	first, firstOK := allocator.allocate()
+	second, secondOK := allocator.allocate()
+	if !firstOK || !secondOK || first != 1 || second != 2 {
+		t.Fatalf("allocated domains = (%d, %t), (%d, %t)", first, firstOK, second, secondOK)
+	}
+	allocator.next = ^uint64(0)
+	if _, ok := allocator.allocate(); ok {
+		t.Fatal("allocator reused a process nonce domain after exhaustion")
 	}
 }
 
