@@ -239,13 +239,13 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Field | Record |
 | --- | --- |
 | Goal | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` |
-| Scope | Canonical versioned capabilities, HMAC-SHA-256 and Ed25519 signing, bounded key resolution and lifecycle policy, deterministic signed URLs, explicit authorization, atomic replay, revocation, HTTP integration, durable PostgreSQL and Valkey adapters, hostile-input hardening, and complete public documentation. |
+| Scope | Canonical versioned capabilities, HMAC-SHA-256 and Ed25519 signing, bounded key resolution with distinct redacted policy failures and explicit lifecycle policy, deterministic signed URLs, explicit authorization, atomic replay, revocation, HTTP integration, durable PostgreSQL and Valkey adapters, hostile-input hardening, and complete public documentation. |
 | Status | `pending` to `verified` |
-| Evidence | Capability-module formatting, tidy, vet, unit and live integration tests, exact coverage, race, three 10,000-execution fuzz campaigns, API, conformance, independent interoperability, benchmarks, clean-consumer, mutation, safety, lint, static analysis, vulnerability, secret, license, and SBOM gates. |
-| Result | All mandatory capability-module gates passed. Exact statement coverage is 541/541 core, 88/88 `caphttp`, 84/84 memory, 91/91 PostgreSQL, and 38/38 Valkey; mutation killed 352/352, 44/44, 37/37, 51/51, and 38/38 viable mutants respectively, with 100% efficacy and mutator coverage. |
-| Environment | Go 1.26.5 on darwin/arm64 with a fresh task-owned disposable `GOCACHE` for every Go gate and gate-managed PostgreSQL and Valkey services. |
-| Observed | 2026-08-09T09:47:23Z |
-| Gaps | NilAway remains advisory and reports one production invariant around reparsing an internally canonical URL plus test-only constructor-flow warnings; mandatory analyzers and security gates pass. |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/capability` with gate-managed PostgreSQL and Valkey, including abrupt caller-process exit, client recreation, fault injection, exact coverage and mutation, race, three 10,000-execution fuzz campaigns, API, conformance, independent interoperability, benchmarks, clean-consumer, safety, static analysis, vulnerability, secret, license, and SBOM gates. |
+| Result | All mandatory capability-module gates passed. Exact statement coverage is 545/545 core, 88/88 `caphttp`, 84/84 memory, 91/91 PostgreSQL, and 38/38 Valkey; mutation killed 352/352, 44/44, 37/37, 51/51, and 38/38 viable mutants respectively, with 100% efficacy and mutator coverage. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories and gate-managed PostgreSQL and Valkey services. |
+| Observed | 2026-08-09T12:31:16Z |
+| Gaps | NilAway remains advisory with its diagnostics visible. Live single-node services prove caller-process and client-replacement durability plus fail-closed injected outage boundaries; actual PostgreSQL replica promotion and Valkey failover durability remain deployment-topology evidence and are not claimed by this library gate. |
 
 ### Event-sourcing outbox adapter evidence
 
