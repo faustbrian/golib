@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Serialize concurrent staging calls made through one caller-owned transaction
+  writer with context-bounded waiting. Direct transaction access and separate
+  wrappers remain caller-serialized because `pgx.Tx` is not concurrency safe.
 - Make the embedded schema history forward-only. Migration runners have no
   rollback operation, and repeated `Up` jobs remain idempotent through the
   durable ledger.
@@ -14,6 +17,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- real PostgreSQL contention evidence proving globally duplicate message IDs
+  commit exactly once without orphan streams or allocator gaps, and busy
+  caller-owned transaction staging remains rollback-safe
 - read-only append reconciliation by the exact original message identities,
   envelopes, ordering, and expected version, distinguishing confirmed commit,
   confirmed absence, and unsafe partial or divergent durable state

@@ -338,12 +338,12 @@ func TestTransactionWriterStagesWithoutClaimingDurableCommit(t *testing.T) {
 
 	stream := testStream(t)
 	pending := testPending(t, stream, "message-1")
-	writer := &TxWriter{
-		store: &Store{
+	writer := newTxWriter(
+		&Store{
 			database: appendDatabase(0, 1),
 			schema:   defaultSchema,
 		},
-	}
+	)
 	staged, err := writer.Stage(
 		context.Background(),
 		stream,
@@ -364,6 +364,22 @@ func TestTransactionWriterStagesWithoutClaimingDurableCommit(t *testing.T) {
 		eventsourcing.CommitNotCommitted {
 		t.Fatalf("nil Stage() = %v", err)
 	}
+
+	waiting := testWriter(&fakeDatabase{})
+	<-waiting.operation
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := waiting.Stage(
+		cancelled,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{pending},
+	); !errors.Is(err, context.Canceled) ||
+		eventsourcing.AppendCommitOutcome(err) !=
+			eventsourcing.CommitNotCommitted {
+		t.Fatalf("waiting Stage() = %v", err)
+	}
+	waiting.operation <- struct{}{}
 }
 
 func TestAppendRejectsInvalidInputBeforeDatabaseUse(t *testing.T) {
@@ -1485,9 +1501,7 @@ func testStream(t testing.TB) eventsourcing.StreamID {
 }
 
 func testWriter(database database) *TxWriter {
-	return &TxWriter{
-		store: &Store{database: database, schema: defaultSchema},
-	}
+	return newTxWriter(&Store{database: database, schema: defaultSchema})
 }
 
 func testPending(

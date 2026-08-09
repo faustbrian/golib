@@ -125,9 +125,16 @@ func New(pool *pgxpool.Pool, config Config) (*Store, error) {
 // TxWriter stages event messages inside one caller-owned transaction.
 //
 // TxWriter deliberately does not implement eventsourcing.EventStore because a
-// successful Stage has not committed durably.
+// successful Stage has not committed durably. It serializes its own Stage and
+// StagePlan calls, and waiting observes the supplied context. Callers must
+// separately serialize direct transaction use and calls through other wrappers
+// because pgx transactions are not concurrency safe.
 type TxWriter struct {
 	store *Store
+	// operation owns one serialization permit for this writer and is never
+	// closed. The caller still owns transaction-wide coordination with any
+	// other wrapper or direct pgx.Tx operation.
+	operation chan struct{}
 }
 
 // AppendPlan exposes the immutable data required to stage a prepared aggregate
@@ -140,7 +147,8 @@ type AppendPlan interface {
 
 // NewTx constructs a writer bound to a caller-owned PostgreSQL transaction.
 //
-// The caller exclusively owns commit, rollback, timeout, and retry policy.
+// The caller exclusively owns commit, rollback, timeout, retry policy, and
+// coordination with every other user of the transaction.
 func NewTx(tx pgx.Tx, config Config) (*TxWriter, error) {
 	schema, err := validateConfig(config)
 	if err != nil {
@@ -150,9 +158,14 @@ func NewTx(tx pgx.Tx, config Config) (*TxWriter, error) {
 		return nil, ErrTransactionRequired
 	}
 
-	return &TxWriter{
-		store: &Store{database: tx, schema: schema},
-	}, nil
+	return newTxWriter(&Store{database: tx, schema: schema}), nil
+}
+
+func newTxWriter(store *Store) *TxWriter {
+	operation := make(chan struct{}, 1)
+	operation <- struct{}{}
+
+	return &TxWriter{store: store, operation: operation}
 }
 
 // Append atomically persists one non-empty ordered stream batch.
@@ -346,16 +359,25 @@ func queryReconciliationIdentities(
 // Stage writes one ordered batch into the caller-owned transaction.
 //
 // Returned messages are not durable until the caller commits. The caller must
-// roll back after any error.
+// roll back after any error. Concurrent calls through this writer are
+// serialized; waiting stops when ctx is done.
 func (writer *TxWriter) Stage(
 	ctx context.Context,
 	stream eventsourcing.StreamID,
 	expected eventsourcing.ExpectedVersion,
 	pending []eventsourcing.PendingMessage,
 ) ([]eventsourcing.Message, error) {
-	if writer == nil {
+	if writer == nil || writer.operation == nil || ctx == nil {
 		return nil, notCommitted(eventsourcing.ErrInvalidArgument)
 	}
+	select {
+	case <-ctx.Done():
+		return nil, notCommitted(ctx.Err())
+	case <-writer.operation:
+	}
+	defer func() {
+		writer.operation <- struct{}{}
+	}()
 	if err := validateAppend(
 		writer.store,
 		ctx,

@@ -142,6 +142,13 @@ are not durable until the caller commits. After any staging error, callers must
 roll back because PostgreSQL may have marked the transaction failed. Commit
 ambiguity belongs to the caller.
 
+One `TxWriter` serializes its own concurrent `Stage` and `StagePlan` calls.
+Waiting is bounded by each call's context and a canceled waiter is classified
+as `CommitNotCommitted`. A `pgx.Tx` is still not concurrency safe: the caller
+must use one writer per transaction and serialize direct transaction calls plus
+all access through checkpoint, outbox, or other transaction wrappers. This
+coordination must cover commit and rollback as well as staging.
+
 `StagePlan` accepts the consumer-owned `AppendPlan` contract, which the core
 `eventsourcing.SavePlan` implements. The lower-level `Stage` method remains
 available to custom repositories that already own stable stream, expectation,
@@ -240,9 +247,12 @@ or sequence-only inserts.
 
 The real-database contention suite proves that concurrent writers on one new
 stream produce one committed winner and only optimistic conflicts, while
-concurrent independent streams all commit. It also verifies unique, gap-free,
-ascending global positions through the public global reader. This correctness
-evidence is not a throughput claim.
+concurrent independent streams all commit. Globally duplicate message IDs race
+to exactly one durable winner without orphan streams or allocator gaps. A busy
+caller-owned writer serializes a second call until its context expires, then a
+full rollback leaves neither call durable. The suite also verifies unique,
+gap-free, ascending global positions through the public global reader. This
+correctness evidence is not a throughput claim.
 
 The PostgreSQL 14 through 18 integration matrix runs the public committed
 event-store conformance profile for atomic append, every expected-version mode,
