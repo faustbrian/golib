@@ -3,14 +3,20 @@ package goqueue_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/faustbrian/golib/pkg/outbox"
 	"github.com/faustbrian/golib/pkg/outbox/adapters/goqueue"
+	"github.com/faustbrian/golib/pkg/outbox/relay"
+	firstpartyqueue "github.com/faustbrian/golib/pkg/queue"
 	"github.com/faustbrian/golib/pkg/queue/core"
 	"github.com/faustbrian/golib/pkg/queue/job"
+	"github.com/faustbrian/golib/pkg/queue/management"
 )
 
 func TestPublisherQueuesCanonicalEnvelope(t *testing.T) {
@@ -33,21 +39,650 @@ func TestPublisherQueuesCanonicalEnvelope(t *testing.T) {
 	if queue.calls != 1 || queue.message == nil {
 		t.Fatalf("queue calls/message = %d/%#v", queue.calls, queue.message)
 	}
-	if !bytes.Equal(queue.message.Bytes(), envelope.CanonicalJSON()) {
+	want := `{"task_id":"evt-1","idempotency_key":"evt-1","content":"eyJpZCI6MX0=",` +
+		`"content_type":"application/json","event_name":"orders.created",` +
+		`"schema_version":1,"metadata":{"a":"1","b":"2"}}`
+	if string(queue.message.Bytes()) != want {
 		t.Fatalf("queued bytes = %s", queue.message.Bytes())
 	}
+	mutated := queue.message.Bytes()
+	mutated[0] = '!'
+	if string(queue.message.Bytes()) != want {
+		t.Fatalf("caller mutation changed retained task bytes: %s", queue.message.Bytes())
+	}
+}
+
+func TestPublisherMapsEnvelopeToStableOwnedTask(t *testing.T) {
+	t.Parallel()
+
+	queue := &recordingQueue{}
+	publisher, err := goqueue.New(queue)
+	if err != nil {
+		t.Fatalf("create publisher: %v", err)
+	}
+	envelope := outbox.Envelope{
+		ID:             "evt-1",
+		Topic:          "orders.created",
+		Payload:        []byte(`{"id":1}`),
+		PayloadVersion: 3,
+		Metadata: map[string]string{
+			"es.content_type": "application/json",
+			"es.event_name":   "order.created",
+			"tenant":          "tenant-7",
+		},
+		OrderingKey:    "customer-7",
+		IdempotencyKey: "create-order-42",
+		Attempts:       4,
+		AvailableAt:    time.Unix(20, 0).UTC(),
+		CreatedAt:      time.Unix(10, 0).UTC(),
+	}
+
+	if err := publisher.Publish(context.Background(), envelope); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+
+	var task goqueue.Task
+	if err := json.Unmarshal(queue.message.Bytes(), &task); err != nil {
+		t.Fatalf("decode queued task: %v", err)
+	}
+	if task.TaskID != envelope.ID || task.IdempotencyKey != envelope.IdempotencyKey ||
+		task.OrderingKey != envelope.OrderingKey || task.EventName != "order.created" ||
+		task.ContentType != "application/json" || task.SchemaVersion != envelope.PayloadVersion ||
+		!bytes.Equal(task.Content, envelope.Payload) || task.Metadata["tenant"] != "tenant-7" {
+		t.Fatalf("queued task = %#v", task)
+	}
+	if len(queue.options) != 1 || queue.options[0].Metadata == nil ||
+		queue.options[0].Metadata.OriginalID != envelope.ID ||
+		queue.options[0].Metadata.JobType != "order.created" ||
+		queue.options[0].Metadata.PayloadSchemaVersion != "3" ||
+		queue.options[0].RetryCount != nil {
+		t.Fatalf("queue options = %#v", queue.options)
+	}
+}
+
+func TestPublisherRejectsUnsupportedAndOversizedEnvelopeValuesBeforeQueue(t *testing.T) {
+	t.Parallel()
+
+	limits := goqueue.Limits{
+		MaxTaskBytes: 256, MaxIdentityBytes: 16, MaxContentBytes: 8,
+		MaxMetadataEntries: 2, MaxMetadataBytes: 16,
+	}
+	tests := map[string]outbox.Envelope{
+		"missing task identity": {Topic: "event", PayloadVersion: 1},
+		"missing event":         {ID: "task", PayloadVersion: 1},
+		"missing schema":        {ID: "task", Topic: "event"},
+		"oversized content": {
+			ID: "task", Topic: "event", PayloadVersion: 1, Payload: make([]byte, 9),
+		},
+		"oversized ordering identity": {
+			ID: "task", Topic: "event", PayloadVersion: 1, OrderingKey: strings.Repeat("o", 17),
+		},
+		"oversized metadata": {
+			ID: "task", Topic: "event", PayloadVersion: 1,
+			Metadata: map[string]string{"12345678": "123456789"},
+		},
+		"unsupported text": {
+			ID: "task", Topic: string([]byte{0xff}), PayloadVersion: 1,
+		},
+		"blank content type": {
+			ID: "task", Topic: "event", PayloadVersion: 1,
+			Metadata: map[string]string{"es.content_type": " "},
+		},
+	}
+
+	for name, envelope := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			queue := &recordingQueue{}
+			publisher, err := goqueue.New(queue, goqueue.WithLimits(limits))
+			if err != nil {
+				t.Fatalf("create publisher: %v", err)
+			}
+			if err := publisher.Publish(context.Background(), envelope); !errors.Is(err, goqueue.ErrInvalidEnvelope) || queue.calls != 0 {
+				t.Fatalf("publish error/calls = %v/%d", err, queue.calls)
+			}
+		})
+	}
+}
+
+func TestPublisherPreservesAcceptanceAndRetryDisposition(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		queueError error
+		cancel     bool
+		envelope   outbox.Envelope
+		want       goqueue.PublishOutcome
+	}{
+		{
+			name: "accepted", envelope: validEnvelope(),
+			want: goqueue.PublishOutcome{Acceptance: goqueue.AcceptanceAccepted},
+		},
+		{
+			name: "invalid envelope", envelope: outbox.Envelope{},
+			want: goqueue.PublishOutcome{
+				Acceptance:  goqueue.AcceptanceRejected,
+				Disposition: goqueue.DispositionPermanent,
+			},
+		},
+		{
+			name: "retryable backend failure", envelope: validEnvelope(),
+			queueError: management.NewFailure(
+				management.ClassificationRetryable, "capacity", errors.New("full"),
+			),
+			want: goqueue.PublishOutcome{
+				Acceptance:  goqueue.AcceptanceUnknown,
+				Disposition: goqueue.DispositionRetryable,
+			},
+		},
+		{
+			name: "permanent backend failure", envelope: validEnvelope(),
+			queueError: management.NewFailure(
+				management.ClassificationPermanent, "unsupported", errors.New("bad"),
+			),
+			want: goqueue.PublishOutcome{
+				Acceptance:  goqueue.AcceptanceUnknown,
+				Disposition: goqueue.DispositionPermanent,
+			},
+		},
+		{
+			name: "canceled before enqueue", cancel: true, envelope: validEnvelope(),
+			want: goqueue.PublishOutcome{
+				Acceptance:  goqueue.AcceptanceRejected,
+				Disposition: goqueue.DispositionCanceled,
+			},
+		},
+		{
+			name: "backend cancellation is ambiguous", envelope: validEnvelope(),
+			queueError: management.NewFailure(
+				management.ClassificationCanceled, "deadline", context.DeadlineExceeded,
+			),
+			want: goqueue.PublishOutcome{
+				Acceptance:  goqueue.AcceptanceUnknown,
+				Disposition: goqueue.DispositionCanceled,
+			},
+		},
+		{
+			name: "unclassified backend cancellation is ambiguous", envelope: validEnvelope(),
+			queueError: context.Canceled,
+			want: goqueue.PublishOutcome{
+				Acceptance:  goqueue.AcceptanceUnknown,
+				Disposition: goqueue.DispositionCanceled,
+			},
+		},
+		{
+			name: "unclassified backend failure is ambiguous", envelope: validEnvelope(),
+			queueError: errors.New("connection lost"),
+			want: goqueue.PublishOutcome{
+				Acceptance:  goqueue.AcceptanceUnknown,
+				Disposition: goqueue.DispositionRetryable,
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			queue := &recordingQueue{err: test.queueError}
+			publisher, err := goqueue.New(queue)
+			if err != nil {
+				t.Fatalf("create publisher: %v", err)
+			}
+			ctx := context.Background()
+			if test.cancel {
+				canceled, cancel := context.WithCancel(ctx)
+				cancel()
+				ctx = canceled
+			}
+			publishErr := publisher.Publish(ctx, test.envelope)
+			if got := goqueue.OutcomeOf(publishErr); got != test.want {
+				t.Fatalf("outcome = %#v, want %#v (error %v)", got, test.want, publishErr)
+			}
+		})
+	}
+}
+
+func TestClassifyErrorKeepsPermanentRejectionsOutOfRelayRetries(t *testing.T) {
+	t.Parallel()
+
+	queue := &recordingQueue{err: management.NewFailure(
+		management.ClassificationPermanent, "unsupported", errors.New("bad payload"),
+	)}
+	publisher, err := goqueue.New(queue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publishErr := publisher.Publish(context.Background(), validEnvelope())
+	if got := goqueue.ClassifyError(publishErr); got != relay.ErrorPermanent {
+		t.Fatalf("classification = %v, want permanent", got)
+	}
+	if got := goqueue.ClassifyError(errors.New("temporary")); got != relay.ErrorTransient {
+		t.Fatalf("classification = %v, want transient", got)
+	}
+}
+
+func TestPublisherConvertsQueuePanicToUnknownAcceptanceWithoutLeakingIt(t *testing.T) {
+	t.Parallel()
+
+	publisher, err := goqueue.New(panicQueue{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	publishErr := publisher.Publish(context.Background(), validEnvelope())
+	want := goqueue.PublishOutcome{
+		Acceptance:  goqueue.AcceptanceUnknown,
+		Disposition: goqueue.DispositionRetryable,
+	}
+	if !errors.Is(publishErr, goqueue.ErrQueuePanic) || goqueue.OutcomeOf(publishErr) != want {
+		t.Fatalf("panic error/outcome = %v/%#v", publishErr, goqueue.OutcomeOf(publishErr))
+	}
+	if bytes.Contains([]byte(publishErr.Error()), []byte("sensitive-detail")) {
+		t.Fatalf("panic value leaked in error: %v", publishErr)
+	}
+}
+
+func TestPublisherConfigurationRejectsEveryUnsafeBoundAndOption(t *testing.T) {
+	t.Parallel()
+
+	valid := goqueue.Limits{
+		MaxTaskBytes: 1, MaxIdentityBytes: 1, MaxContentBytes: 1,
+		MaxMetadataEntries: 1, MaxMetadataBytes: 1,
+	}
+	invalid := []goqueue.Limits{
+		{},
+		{MaxIdentityBytes: 1, MaxContentBytes: 1, MaxMetadataEntries: 1, MaxMetadataBytes: 1},
+		{MaxTaskBytes: 1, MaxContentBytes: 1, MaxMetadataEntries: 1, MaxMetadataBytes: 1},
+		{MaxTaskBytes: 1, MaxIdentityBytes: 1, MaxMetadataEntries: 1, MaxMetadataBytes: 1},
+		{MaxTaskBytes: 1, MaxIdentityBytes: 1, MaxContentBytes: 1, MaxMetadataBytes: 1},
+		{MaxTaskBytes: 1, MaxIdentityBytes: 1, MaxContentBytes: 1, MaxMetadataEntries: 1},
+	}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("valid limits: %v", err)
+	}
+	for index, limits := range invalid {
+		if err := limits.Validate(); !errors.Is(err, goqueue.ErrInvalidConfig) {
+			t.Fatalf("invalid limits %d error = %v", index, err)
+		}
+		if _, err := goqueue.New(&recordingQueue{}, goqueue.WithLimits(limits)); !errors.Is(err, goqueue.ErrInvalidConfig) {
+			t.Fatalf("invalid option %d error = %v", index, err)
+		}
+	}
+	if _, err := goqueue.New(&recordingQueue{}, nil); !errors.Is(err, goqueue.ErrInvalidConfig) {
+		t.Fatalf("nil option error = %v", err)
+	}
+	optionErr := errors.New("option failed")
+	if _, err := goqueue.New(&recordingQueue{}, func(*goqueue.Publisher) error {
+		return optionErr
+	}); !errors.Is(err, optionErr) {
+		t.Fatalf("custom option error = %v", err)
+	}
+}
+
+func TestPublisherRejectsEncodedTaskAndMetadataBoundaries(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		limits   goqueue.Limits
+		envelope outbox.Envelope
+		want     error
+	}{
+		"encoded task": {
+			limits: goqueue.Limits{
+				MaxTaskBytes: 1, MaxIdentityBytes: 16, MaxContentBytes: 8,
+				MaxMetadataEntries: 2, MaxMetadataBytes: 32,
+			},
+			envelope: validEnvelope(), want: goqueue.ErrTaskTooLarge,
+		},
+		"metadata entries": {
+			limits: goqueue.Limits{
+				MaxTaskBytes: 1024, MaxIdentityBytes: 16, MaxContentBytes: 8,
+				MaxMetadataEntries: 1, MaxMetadataBytes: 32,
+			},
+			envelope: outbox.Envelope{
+				ID: "task", Topic: "event", PayloadVersion: 1,
+				Metadata: map[string]string{"a": "1", "b": "2"},
+			},
+			want: goqueue.ErrInvalidEnvelope,
+		},
+		"blank metadata key": {
+			limits: goqueue.Limits{
+				MaxTaskBytes: 1024, MaxIdentityBytes: 16, MaxContentBytes: 8,
+				MaxMetadataEntries: 2, MaxMetadataBytes: 32,
+			},
+			envelope: outbox.Envelope{
+				ID: "task", Topic: "event", PayloadVersion: 1,
+				Metadata: map[string]string{" ": "value"},
+			},
+			want: goqueue.ErrInvalidEnvelope,
+		},
+		"invalid metadata value": {
+			limits: goqueue.Limits{
+				MaxTaskBytes: 1024, MaxIdentityBytes: 16, MaxContentBytes: 8,
+				MaxMetadataEntries: 2, MaxMetadataBytes: 32,
+			},
+			envelope: outbox.Envelope{
+				ID: "task", Topic: "event", PayloadVersion: 1,
+				Metadata: map[string]string{"key": string([]byte{0xff})},
+			},
+			want: goqueue.ErrInvalidEnvelope,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			queue := &recordingQueue{}
+			publisher, err := goqueue.New(queue, goqueue.WithLimits(test.limits))
+			if err != nil {
+				t.Fatal(err)
+			}
+			publishErr := publisher.Publish(context.Background(), test.envelope)
+			if !errors.Is(publishErr, test.want) || queue.calls != 0 {
+				t.Fatalf("publish error/calls = %v/%d", publishErr, queue.calls)
+			}
+		})
+	}
+}
+
+func TestPublisherAcceptsExactConfiguredBoundaries(t *testing.T) {
+	t.Parallel()
+
+	envelope := outbox.Envelope{
+		ID: "id", Topic: "event", Payload: []byte("data"), PayloadVersion: 1,
+		Metadata: map[string]string{strings.Repeat("k", 16): "v"},
+	}
+	baselineQueue := &recordingQueue{}
+	baseline, err := goqueue.New(baselineQueue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := baseline.Publish(context.Background(), envelope); err != nil {
+		t.Fatal(err)
+	}
+	exactTaskBytes := len(baselineQueue.message.Bytes())
+
+	queue := &recordingQueue{}
+	publisher, err := goqueue.New(queue, goqueue.WithLimits(goqueue.Limits{
+		MaxTaskBytes: exactTaskBytes, MaxIdentityBytes: 16, MaxContentBytes: 4,
+		MaxMetadataEntries: 1, MaxMetadataBytes: 17,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := publisher.Publish(context.Background(), envelope); err != nil || queue.calls != 1 {
+		t.Fatalf("exact-boundary publish error/calls = %v/%d", err, queue.calls)
+	}
+}
+
+func TestPublisherRejectsMetadataTotalAboveLimitIndependently(t *testing.T) {
+	t.Parallel()
+
+	queue := &recordingQueue{}
+	publisher, err := goqueue.New(queue, goqueue.WithLimits(goqueue.Limits{
+		MaxTaskBytes: 4096, MaxIdentityBytes: 32, MaxContentBytes: 8,
+		MaxMetadataEntries: 2, MaxMetadataBytes: 8,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := validEnvelope()
+	envelope.Metadata = map[string]string{"a": "1234", "b": "5678"}
+	publishErr := publisher.Publish(context.Background(), envelope)
+	if !errors.Is(publishErr, goqueue.ErrInvalidEnvelope) || queue.calls != 0 {
+		t.Fatalf("publish error/calls = %v/%d", publishErr, queue.calls)
+	}
+}
+
+func TestPublisherRejectsTaskThatExceedsFirstPartyQueueEnvelope(t *testing.T) {
+	t.Parallel()
+
+	queue := &recordingQueue{}
+	publisher, err := goqueue.New(queue, goqueue.WithLimits(goqueue.Limits{
+		MaxTaskBytes: 900 << 10, MaxIdentityBytes: 255, MaxContentBytes: 700 << 10,
+		MaxMetadataEntries: 64, MaxMetadataBytes: 16 << 10,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := validEnvelope()
+	envelope.Payload = make([]byte, 600<<10)
+	publishErr := publisher.Publish(context.Background(), envelope)
+	if !errors.Is(publishErr, goqueue.ErrTaskTooLarge) || queue.calls != 0 {
+		t.Fatalf("publish error/calls = %v/%d", publishErr, queue.calls)
+	}
+}
+
+func TestPublisherAcceptsLargestTaskRepresentableBelowFirstPartyQueueEnvelopeLimit(t *testing.T) {
+	t.Parallel()
+
+	payloadBytes := largestPayloadWithinQueueEnvelope(job.DefaultMaxMessageBytes)
+	if queueEnvelopeSize(payloadBytes) > job.DefaultMaxMessageBytes ||
+		queueEnvelopeSize(payloadBytes+1) <= job.DefaultMaxMessageBytes {
+		t.Fatalf("payload boundary sizes = %d/%d", queueEnvelopeSize(payloadBytes), queueEnvelopeSize(payloadBytes+1))
+	}
+	queue := &recordingQueue{}
+	publisher, err := goqueue.New(queue, goqueue.WithLimits(goqueue.Limits{
+		MaxTaskBytes: job.DefaultMaxMessageBytes, MaxIdentityBytes: 255,
+		MaxContentBytes: payloadBytes, MaxMetadataEntries: 64, MaxMetadataBytes: 16 << 10,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := validEnvelope()
+	envelope.Payload = make([]byte, payloadBytes)
+	if err := publisher.Publish(context.Background(), envelope); err != nil || queue.calls != 1 {
+		t.Fatalf("exact queue-envelope publish error/calls = %v/%d", err, queue.calls)
+	}
+}
+
+func TestPublisherRejectsTaskUnsupportedByQueueOperationalMetadata(t *testing.T) {
+	t.Parallel()
+
+	queue := &recordingQueue{}
+	publisher, err := goqueue.New(queue, goqueue.WithLimits(goqueue.Limits{
+		MaxTaskBytes: 4096, MaxIdentityBytes: 512, MaxContentBytes: 8,
+		MaxMetadataEntries: 2, MaxMetadataBytes: 1024,
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := validEnvelope()
+	envelope.Metadata = map[string]string{
+		"es.content_type": strings.Repeat("a", job.MaxMetadataValueBytes+1),
+	}
+	publishErr := publisher.Publish(context.Background(), envelope)
+	if !errors.Is(publishErr, goqueue.ErrInvalidEnvelope) ||
+		!errors.Is(publishErr, job.ErrInvalidMessage) || queue.calls != 0 {
+		t.Fatalf("publish error/calls = %v/%d", publishErr, queue.calls)
+	}
+}
+
+func TestPublisherClassifiesFirstPartyQueueRejectionsAndInfrastructure(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		err  error
+		want goqueue.PublishOutcome
+	}{
+		{"capacity", firstpartyqueue.ErrMaxCapacity, goqueue.PublishOutcome{
+			Acceptance: goqueue.AcceptanceRejected, Disposition: goqueue.DispositionRetryable,
+		}},
+		{"shutdown", firstpartyqueue.ErrQueueShutdown, goqueue.PublishOutcome{
+			Acceptance: goqueue.AcceptanceRejected, Disposition: goqueue.DispositionRetryable,
+		}},
+		{"closed", firstpartyqueue.ErrQueueHasBeenClosed, goqueue.PublishOutcome{
+			Acceptance: goqueue.AcceptanceRejected, Disposition: goqueue.DispositionRetryable,
+		}},
+		{"malformed", management.NewFailure(
+			management.ClassificationMalformed, "bad_task", errors.New("bad"),
+		), goqueue.PublishOutcome{
+			Acceptance: goqueue.AcceptanceUnknown, Disposition: goqueue.DispositionPermanent,
+		}},
+		{"infrastructure", management.NewFailure(
+			management.ClassificationInfrastructure, "disconnect", errors.New("lost"),
+		), goqueue.PublishOutcome{
+			Acceptance: goqueue.AcceptanceUnknown, Disposition: goqueue.DispositionRetryable,
+		}},
+		{"invalid classified failure", management.NewFailure(
+			management.ClassificationPermanent, "", errors.New("invalid"),
+		), goqueue.PublishOutcome{
+			Acceptance: goqueue.AcceptanceUnknown, Disposition: goqueue.DispositionRetryable,
+		}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			publisher, err := goqueue.New(&recordingQueue{err: test.err})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got := goqueue.OutcomeOf(publisher.Publish(context.Background(), validEnvelope())); got != test.want {
+				t.Fatalf("outcome = %#v, want %#v", got, test.want)
+			}
+		})
+	}
+}
+
+func validEnvelope() outbox.Envelope {
+	return outbox.Envelope{ID: "event-1", Topic: "events", PayloadVersion: 1}
+}
+
+func largestPayloadWithinQueueEnvelope(target int) int {
+	low, high := 0, target
+	largest := 0
+	for low <= high {
+		candidate := low + (high-low)/2
+		size := queueEnvelopeSize(candidate)
+		if size <= target {
+			largest = candidate
+			low = candidate + 1
+		} else {
+			high = candidate - 1
+		}
+	}
+
+	return largest
+}
+
+func queueEnvelopeSize(payloadBytes int) int {
+	task := goqueue.Task{
+		TaskID: "event-1", IdempotencyKey: "event-1", Content: make([]byte, payloadBytes),
+		ContentType: "application/json", EventName: "events", SchemaVersion: 1,
+		Metadata: map[string]string{},
+	}
+	encoded, err := json.Marshal(task)
+	if err != nil {
+		panic(err)
+	}
+	queued := job.NewMessage(testMessage(encoded), job.AllowOption{Metadata: &job.Metadata{
+		OriginalID: "event-1", PayloadSchemaVersion: "1",
+		ContentType: "application/json", JobType: "events",
+	}})
+
+	return len(queued.Bytes())
 }
 
 func TestPublisherPreservesQueueFailure(t *testing.T) {
 	t.Parallel()
 
-	queueErr := errors.New("broker unavailable")
+	queueErr := errors.New("backend failure includes sensitive-detail")
 	publisher, err := goqueue.New(&recordingQueue{err: queueErr})
 	if err != nil {
 		t.Fatalf("create publisher: %v", err)
 	}
-	if err := publisher.Publish(context.Background(), outbox.Envelope{}); !errors.Is(err, queueErr) {
+	if err := publisher.Publish(context.Background(), validEnvelope()); !errors.Is(err, queueErr) {
 		t.Fatalf("publish error = %v, want %v", err, queueErr)
+	} else if bytes.Contains([]byte(err.Error()), []byte("sensitive-detail")) {
+		t.Fatalf("publish error leaked backend diagnostics: %v", err)
+	}
+}
+
+func TestPublisherKeepsDuplicateTaskIdentityStableAcrossRelayAttempts(t *testing.T) {
+	t.Parallel()
+
+	queue := &recordingQueue{}
+	publisher, err := goqueue.New(queue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := validEnvelope()
+	envelope.Attempts = 1
+	if err := publisher.Publish(context.Background(), envelope); err != nil {
+		t.Fatal(err)
+	}
+	first := append([]byte(nil), queue.message.Bytes()...)
+	envelope.Attempts = 2
+	if err := publisher.Publish(context.Background(), envelope); err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(first, queue.message.Bytes()) {
+		t.Fatalf("duplicate task bytes changed: %s != %s", first, queue.message.Bytes())
+	}
+	var task goqueue.Task
+	if err := json.Unmarshal(first, &task); err != nil {
+		t.Fatal(err)
+	}
+	if task.TaskID != envelope.ID || task.IdempotencyKey != envelope.ID {
+		t.Fatalf("duplicate identity = %#v", task)
+	}
+}
+
+func TestUnknownAcceptanceRetryMakesBackendDuplicateExplicit(t *testing.T) {
+	t.Parallel()
+
+	queue := &acceptThenFailQueue{err: errors.New("response lost after append")}
+	publisher, err := goqueue.New(queue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := validEnvelope()
+	for attempt := 1; attempt <= 2; attempt++ {
+		envelope.Attempts = attempt
+		publishErr := publisher.Publish(context.Background(), envelope)
+		if outcome := goqueue.OutcomeOf(publishErr); outcome.Acceptance != goqueue.AcceptanceUnknown ||
+			outcome.Disposition != goqueue.DispositionRetryable {
+			t.Fatalf("attempt %d outcome = %#v", attempt, outcome)
+		}
+	}
+	if len(queue.payloads) != 2 || !bytes.Equal(queue.payloads[0], queue.payloads[1]) {
+		t.Fatalf("accepted duplicate payloads = %#v", queue.payloads)
+	}
+}
+
+func TestPublisherIsSafeForConcurrentSynchronousPublication(t *testing.T) {
+	t.Parallel()
+
+	queue := &concurrentQueue{}
+	publisher, err := goqueue.New(queue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const publications = 64
+	var wait sync.WaitGroup
+	wait.Add(publications)
+	for range publications {
+		go func() {
+			defer wait.Done()
+			if publishErr := publisher.Publish(context.Background(), validEnvelope()); publishErr != nil {
+				t.Errorf("publish: %v", publishErr)
+			}
+		}()
+	}
+	wait.Wait()
+	queue.mu.Lock()
+	defer queue.mu.Unlock()
+	if len(queue.payloads) != publications {
+		t.Fatalf("payload count = %d", len(queue.payloads))
+	}
+	for _, payload := range queue.payloads[1:] {
+		if !bytes.Equal(payload, queue.payloads[0]) {
+			t.Fatal("concurrent publications changed stable task bytes")
+		}
 	}
 }
 
@@ -69,6 +704,26 @@ func TestPublisherRejectsCancellationBeforeQueueing(t *testing.T) {
 	}
 }
 
+func TestPublisherRejectsNilContextBeforeQueueing(t *testing.T) {
+	t.Parallel()
+
+	queue := &recordingQueue{}
+	publisher, err := goqueue.New(queue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var nilContext context.Context
+	publishErr := publisher.Publish(nilContext, validEnvelope())
+	want := goqueue.PublishOutcome{
+		Acceptance:  goqueue.AcceptanceRejected,
+		Disposition: goqueue.DispositionPermanent,
+	}
+	if !errors.Is(publishErr, goqueue.ErrContextRequired) ||
+		goqueue.OutcomeOf(publishErr) != want || queue.calls != 0 {
+		t.Fatalf("publish error/outcome/calls = %v/%#v/%d", publishErr, goqueue.OutcomeOf(publishErr), queue.calls)
+	}
+}
+
 func TestPublisherDoesNotMisreportCancellationAfterQueueAcceptance(t *testing.T) {
 	t.Parallel()
 
@@ -80,7 +735,7 @@ func TestPublisherDoesNotMisreportCancellationAfterQueueAcceptance(t *testing.T)
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() {
-		done <- publisher.Publish(ctx, outbox.Envelope{ID: "evt-1"})
+		done <- publisher.Publish(ctx, validEnvelope())
 	}()
 	select {
 	case <-queue.started:
@@ -107,10 +762,15 @@ func TestNewRequiresQueue(t *testing.T) {
 	if _, err := goqueue.New(nil); !errors.Is(err, goqueue.ErrQueueRequired) {
 		t.Fatalf("error = %v, want %v", err, goqueue.ErrQueueRequired)
 	}
+	var typedNil *recordingQueue
+	if _, err := goqueue.New(typedNil); !errors.Is(err, goqueue.ErrQueueRequired) {
+		t.Fatalf("typed nil error = %v, want %v", err, goqueue.ErrQueueRequired)
+	}
 }
 
 type recordingQueue struct {
 	message core.QueuedMessage
+	options []job.AllowOption
 	err     error
 	calls   int
 }
@@ -120,6 +780,40 @@ type blockingQueue struct {
 	release chan struct{}
 }
 
+type panicQueue struct{}
+
+type testMessage []byte
+
+type concurrentQueue struct {
+	mu       sync.Mutex
+	payloads [][]byte
+}
+
+type acceptThenFailQueue struct {
+	payloads [][]byte
+	err      error
+}
+
+func (message testMessage) Bytes() []byte { return message }
+
+func (queue *acceptThenFailQueue) Queue(message core.QueuedMessage, _ ...job.AllowOption) error {
+	queue.payloads = append(queue.payloads, message.Bytes())
+
+	return queue.err
+}
+
+func (queue *concurrentQueue) Queue(message core.QueuedMessage, _ ...job.AllowOption) error {
+	queue.mu.Lock()
+	defer queue.mu.Unlock()
+	queue.payloads = append(queue.payloads, message.Bytes())
+
+	return nil
+}
+
+func (panicQueue) Queue(core.QueuedMessage, ...job.AllowOption) error {
+	panic("sensitive-detail")
+}
+
 func (queue *blockingQueue) Queue(core.QueuedMessage, ...job.AllowOption) error {
 	close(queue.started)
 	<-queue.release
@@ -127,9 +821,10 @@ func (queue *blockingQueue) Queue(core.QueuedMessage, ...job.AllowOption) error 
 	return nil
 }
 
-func (queue *recordingQueue) Queue(message core.QueuedMessage, _ ...job.AllowOption) error {
+func (queue *recordingQueue) Queue(message core.QueuedMessage, options ...job.AllowOption) error {
 	queue.calls++
 	queue.message = message
+	queue.options = options
 
 	return queue.err
 }

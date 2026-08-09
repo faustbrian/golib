@@ -17,7 +17,9 @@ func Example_relay() {
 	queue := &exampleQueue{}
 	publisher, _ := goqueue.New(queue)
 	store := &exampleStore{}
-	worker, _ := relay.New(store, publisher, relay.Config{Owner: "relay-a"})
+	worker, _ := relay.New(store, publisher, relay.Config{
+		Owner: "relay-a", ClassifyError: goqueue.ClassifyError,
+	})
 
 	result, _ := worker.RunOnce(context.Background())
 

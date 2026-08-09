@@ -4,6 +4,26 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Added
+
+- Add a bounded, adapter-owned task payload with stable task, idempotency,
+  ordering, content, event, schema, and metadata fields.
+- Expose acceptance and retry disposition without collapsing unknown backend
+  acceptance into a known rejection.
+- Verify task round trips through durable Redis Streams and Valkey Streams
+  producer paths.
+
+### Changed
+
+- Publish the owned task payload instead of `Envelope.CanonicalJSON`, exclude
+  relay attempt state from task identity, and attach only operational queue
+  metadata without worker retry or scheduling policy.
+
+### Migration
+
+- Consumers must decode `Task` fields instead of the former canonical envelope
+  and durably deduplicate `idempotency_key` or `task_id` before side effects.
+
 ### Fixed
 
 - Replace unresolved owned-module `v0.0.0` requirements with immutable main

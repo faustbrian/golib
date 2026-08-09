@@ -1060,6 +1060,9 @@ func tagPrefix(directory string, releasable bool) string {
 }
 
 func requiredServices(directory string) []string {
+	if directory == "pkg/outbox/adapters/goqueue" {
+		return []string{"redis", "valkey"}
+	}
 	library := libraryName(directory)
 	services := []string{}
 	postgresLibraries := []string{

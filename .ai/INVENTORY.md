@@ -94,7 +94,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 28 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/postgres/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 29 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gooutbox/.ai/{GOAL.md,GOAL_HARDEN.md}` | 28 |
 | 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 29 |
-| 31 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 29 |
 | 32 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18, 29-31 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 28 |
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
@@ -132,6 +131,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | --- | --- | --- |
 | `.ai/GOAL_MAINTENANCE.md` | `recurring` | Execute its cadence continuously and before each supported-Go, dependency, security, specification, or release transition. |
 | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 31. Current scoped evidence verifies canonical synchronous publication, explicit acceptance ambiguity, stable duplicate identity, durable Redis and Valkey relay windows, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 32 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -194,6 +194,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
 | Observed | 2026-08-09T03:48:26Z |
 | Gaps | The repository-wide wrapper remains independently blocked by missing `pkg/tenancy/LICENSE`; NilAway advisory diagnostics remain visible under repository policy. |
+
+### Outbox queue publisher evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Canonical bounded task mapping, synchronous queue outcomes, stable duplicate identity, relay process windows, Redis and Valkey durability and ordering, documentation, and module quality gates. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/outbox/adapters/goqueue` against the isolated completed implementation snapshot. |
+| Result | Passed every mandatory module gate, including 104/104 statements, 71/71 viable mutants, durable Redis and Valkey integration, relay/backend shutdown race, fuzz, security, API, docs, and benchmark; conformance and the separate interoperability gate were not applicable by catalog policy because tagged durable integration runs in the test, race, coverage, and mutation gates. |
+| Environment | Go 1.26.5 on darwin/arm64 with Redis and Valkey configured to equivalent 16-entry stream capacity and a task-owned disposable `GOCACHE`. |
+| Observed | 2026-08-09T04:53:58Z |
+| Gaps | NilAway advisory diagnostics remain visible under repository policy. The outer live-worktree audit saw unrelated concurrent `modules.json` input drift after the isolated snapshot had verified both goal files; it did not invalidate the scoped snapshot result. |
 
 ### Exact temporal rule operator evidence
 

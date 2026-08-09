@@ -14634,7 +14634,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`goqueue` is the canonical synchronous adapter from `outbox.Envelope` to the first-party `queue` contract. It maps one persisted envelope to one owned JSON task and returns only after the queue reports its enqueue result. It owns no worker, retry loop, dead-letter policy, scheduler, transaction, or queue lifecycle.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -14647,10 +14647,13 @@
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [],
       "required_services": [
-        "postgresql"
+        "redis",
+        "valkey"
       ],
       "build_tags": [],
-      "test_tags": [],
+      "test_tags": [
+        "integration"
+      ],
       "interoperability_tools": [],
       "specifications": [],
       "conformance_corpora": [],
@@ -14665,7 +14668,8 @@
           "file": "pkg/outbox/adapters/goqueue/.ai/GOAL.md",
           "requirements_sha256": "38365e426b33cd1f806deaa5c2c64da9ade566ec17d24dc697f04d6991128ce8",
           "implementation_evidence": [
-            "pkg/outbox/adapters/goqueue/CHANGELOG.md"
+            "pkg/outbox/adapters/goqueue/CHANGELOG.md",
+            "pkg/outbox/adapters/goqueue/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -14696,7 +14700,8 @@
           "file": "pkg/outbox/adapters/goqueue/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "307ff602816ecf36bc739474ca2e69f132f0647cecc9299da50cf1ed57eaa996",
           "implementation_evidence": [
-            "pkg/outbox/adapters/goqueue/CHANGELOG.md"
+            "pkg/outbox/adapters/goqueue/CHANGELOG.md",
+            "pkg/outbox/adapters/goqueue/README.md"
           ],
           "verification_gates": [
             "format-check",
