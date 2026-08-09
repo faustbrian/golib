@@ -2,19 +2,26 @@
 package gokafka
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/faustbrian/golib/pkg/kafka"
 	"github.com/faustbrian/golib/pkg/outbox"
 )
 
 var (
-	ErrClientRequired  = errors.New("outbox/gokafka: Kafka client is required")
-	ErrInvalidEnvelope = errors.New("outbox/gokafka: envelope routing identity is invalid")
+	ErrClientRequired   = errors.New("outbox/gokafka: Kafka client is required")
+	ErrInvalidEnvelope  = errors.New("outbox/gokafka: envelope routing identity is invalid")
+	ErrInvalidConfig    = errors.New("outbox/gokafka: configuration is invalid")
+	ErrPublishPanic     = errors.New("outbox/gokafka: Kafka client panicked during publish")
+	ErrReservedMetadata = errors.New(
+		"outbox/gokafka: metadata uses a reserved Kafka header",
+	)
 )
 
 // Client is the narrow Kafka producer surface used by Publisher.
@@ -26,24 +33,75 @@ type Client interface {
 // Publisher synchronously publishes canonical outbox payloads to Kafka.
 type Publisher struct {
 	client Client
+	limits Limits
+}
+
+// Limits combines the persisted outbox bounds with the Kafka record bounds
+// enforced before the producer is called.
+type Limits struct {
+	Envelope outbox.Limits
+	Kafka    kafka.MessageLimits
+}
+
+// DefaultLimits returns the outbox defaults and the first-party producer's
+// conservative Kafka record defaults.
+func DefaultLimits() Limits {
+	return Limits{
+		Envelope: outbox.DefaultLimits(),
+		Kafka:    kafka.DefaultMessageLimits(),
+	}
+}
+
+// Option configures a Publisher during construction. Options are created by
+// this package so construction does not execute caller callbacks.
+type Option interface {
+	apply(*Limits)
+}
+
+type limitsOption struct {
+	limits Limits
+}
+
+func (option limitsOption) apply(target *Limits) {
+	*target = option.limits
+}
+
+// WithLimits replaces the bounds enforced before publication.
+func WithLimits(limits Limits) Option {
+	return limitsOption{limits: limits}
 }
 
 // New creates a Kafka publisher adapter.
-func New(client Client) (*Publisher, error) {
+func New(client Client, options ...Option) (*Publisher, error) {
 	if client == nil {
 		return nil, ErrClientRequired
 	}
+	limits := DefaultLimits()
+	for _, option := range options {
+		if option == nil {
+			return nil, ErrInvalidConfig
+		}
+		option.apply(&limits)
+	}
+	if err := limits.Envelope.Validate(); err != nil {
+		return nil, errors.Join(ErrInvalidConfig, err)
+	}
+	if err := limits.Kafka.Validate(); err != nil {
+		return nil, errors.Join(ErrInvalidConfig, err)
+	}
 
-	return &Publisher{client: client}, nil
+	return &Publisher{client: client, limits: limits}, nil
 }
 
 // Publish sends an envelope payload with a stable partition key and schema
 // identity headers. Kafka acknowledgement does not make delivery exactly once.
 func (publisher *Publisher) Publish(ctx context.Context, envelope outbox.Envelope) error {
-	if envelope.ID == "" || envelope.Topic == "" || envelope.PayloadVersion == 0 {
-		return ErrInvalidEnvelope
+	if ctx == nil {
+		return kafka.ErrContextRequired
 	}
-
+	if err := validateEnvelope(envelope, publisher.limits.Envelope); err != nil {
+		return errors.Join(ErrInvalidEnvelope, err)
+	}
 	contentType := "application/json"
 	if value := envelope.Metadata["es.content_type"]; value != "" {
 		contentType = value
@@ -68,19 +126,123 @@ func (publisher *Publisher) Publish(ctx context.Context, envelope outbox.Envelop
 	}
 	sort.Strings(metadataKeys)
 	for _, key := range metadataKeys {
+		if reservedHeader(key) {
+			return errors.Join(ErrInvalidEnvelope, ErrReservedMetadata)
+		}
 		headers = append(headers, kafka.Header{
-			Key:   key,
+			Key:   strings.Clone(key),
 			Value: []byte(envelope.Metadata[key]),
 		})
 	}
-
-	if err := publisher.client.Publish(ctx, kafka.Message{
-		Topic:   envelope.Topic,
+	message := kafka.Message{
+		Topic:   strings.Clone(envelope.Topic),
 		Key:     []byte(partitionKey(envelope)),
-		Value:   envelope.Payload,
+		Value:   bytes.Clone(envelope.Payload),
 		Headers: headers,
-	}); err != nil {
-		return fmt.Errorf("outbox/gokafka: publish envelope %q: %w", envelope.ID, err)
+	}
+	if err := validateMessage(message, publisher.limits.Kafka); err != nil {
+		return errors.Join(ErrInvalidEnvelope, err)
+	}
+	if err := publish(publisher.client, ctx, message); err != nil {
+		return fmt.Errorf("outbox/gokafka: publish failed: %w", err)
+	}
+
+	return nil
+}
+
+type ambiguousPublishError struct{}
+
+func (ambiguousPublishError) Error() string { return ErrPublishPanic.Error() }
+
+func (ambiguousPublishError) Unwrap() error { return ErrPublishPanic }
+
+func (ambiguousPublishError) Category() kafka.ErrorCategory {
+	return kafka.ErrorAmbiguous
+}
+
+func publish(client Client, ctx context.Context, message kafka.Message) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = ambiguousPublishError{}
+		}
+	}()
+
+	return client.Publish(ctx, message)
+}
+
+func reservedHeader(key string) bool {
+	switch key {
+	case "content-type", "event-id", "schema-version", "idempotency-key":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateEnvelope(envelope outbox.Envelope, limits outbox.Limits) error {
+	switch {
+	case envelope.ID == "":
+		return outbox.ErrIDRequired
+	case len(envelope.ID) > limits.MaxIDBytes:
+		return outbox.ErrIDTooLarge
+	case envelope.Topic == "":
+		return outbox.ErrTopicRequired
+	case len(envelope.Topic) > limits.MaxTopicBytes:
+		return outbox.ErrTopicTooLarge
+	case len(envelope.Payload) > limits.MaxPayloadBytes:
+		return outbox.ErrPayloadTooLarge
+	case len(envelope.Metadata) > limits.MaxMetadataEntries:
+		return outbox.ErrMetadataEntriesTooLarge
+	case metadataTooLarge(envelope.Metadata, limits.MaxMetadataBytes):
+		return outbox.ErrMetadataTooLarge
+	case len(envelope.OrderingKey) > limits.MaxOrderingKeyBytes:
+		return outbox.ErrOrderingKeyTooLarge
+	case len(envelope.IdempotencyKey) > limits.MaxIdempotencyKeyBytes:
+		return outbox.ErrIdempotencyKeyTooLarge
+	case envelope.PayloadVersion == 0:
+		return outbox.ErrPayloadVersionRequired
+	default:
+		return nil
+	}
+}
+
+func metadataTooLarge(metadata map[string]string, maximum int) bool {
+	total := 0
+	for key, value := range metadata {
+		size := len(key) + len(value)
+		if size > maximum-total {
+			return true
+		}
+		total += size
+	}
+
+	return false
+}
+
+func validateMessage(message kafka.Message, limits kafka.MessageLimits) error {
+	switch {
+	case len(message.Topic) > limits.MaxTopicBytes:
+		return kafka.ErrTopicTooLarge
+	case len(message.Key) > limits.MaxKeyBytes:
+		return kafka.ErrKeyTooLarge
+	case len(message.Value) > limits.MaxValueBytes:
+		return kafka.ErrValueTooLarge
+	case len(message.Headers) > limits.MaxHeaders:
+		return kafka.ErrTooManyHeaders
+	}
+	total := 0
+	for _, header := range message.Headers {
+		switch {
+		case header.Key == "":
+			return kafka.ErrHeaderKeyRequired
+		case len(header.Key) > limits.MaxHeaderKeyBytes:
+			return kafka.ErrHeaderKeyTooLarge
+		case len(header.Value) > limits.MaxHeaderValueBytes:
+			return kafka.ErrHeaderValueTooLarge
+		case len(header.Key)+len(header.Value) > limits.MaxHeaderBytes-total:
+			return kafka.ErrHeadersTooLarge
+		}
+		total += len(header.Key) + len(header.Value)
 	}
 
 	return nil

@@ -93,7 +93,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 27 | Queue | `pending-reexecution` | `pkg/queue/queueservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
 | 28 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/postgres/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 29 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gooutbox/.ai/{GOAL.md,GOAL_HARDEN.md}` | 28 |
-| 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 29 |
+| 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 29 |
 | 31 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 29 |
 | 32 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18, 29-31 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 28 |
@@ -134,12 +134,26 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `.ai/GOAL_MAINTENANCE.md` | `recurring` | Execute its cadence continuously and before each supported-Go, dependency, security, specification, or release transition. |
 | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 32 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
+
+### Outbox Kafka publisher evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` |
+| Scope | Deterministic synchronous envelope mapping, keyed ordering, defensive ownership and limits, broker outcome categories, duplicate recovery, real-Kafka interoperability, documentation, and module quality gates. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | Current scoped module gates and artifacts for `pkg/outbox/adapters/gokafka`. |
+| Result | Passed every mandatory module gate, including real Kafka, race, 10,000 fuzz executions, 88/88 statements, 58/58 viable mutants, security, API, docs, and benchmarks. |
+| Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; digest-pinned Confluent Local 7.5.0 for Kafka interoperability. |
+| Observed | 2026-08-09T03:57:51Z |
+| Gaps | None within the scoped base-goal contract; `GOAL_HARDEN.md` remains a separate pending campaign. |
 
 ### Exact-money knapsack objective evidence
 

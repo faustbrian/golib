@@ -14504,7 +14504,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`gokafka` adapts `outbox.Envelope` to the first-party `kafka.Producer`.",
+      "purpose": "`gokafka` is the canonical synchronous adapter from `outbox.Envelope` to the first-party `kafka.Producer`. It maps one persisted envelope to one Kafka record and returns only after the producer reports the broker delivery result. It owns no worker, retry loop, transaction, topic, or producer lifecycle.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -14515,12 +14515,18 @@
         "github.com/faustbrian/golib/pkg/outbox"
       ],
       "reverse_owned_dependencies": null,
-      "external_runtime_dependencies": [],
+      "external_runtime_dependencies": [
+        "github.com/testcontainers/testcontainers-go/modules/kafka",
+        "github.com/twmb/franz-go",
+        "github.com/twmb/franz-go/pkg/kadm"
+      ],
       "required_services": [
         "postgresql"
       ],
       "build_tags": [],
-      "test_tags": [],
+      "test_tags": [
+        "integration"
+      ],
       "interoperability_tools": [],
       "specifications": [],
       "conformance_corpora": [],

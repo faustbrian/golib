@@ -2,15 +2,22 @@ package gokafka_test
 
 import (
 	"context"
+	"slices"
 	"testing"
 
+	"github.com/faustbrian/golib/pkg/kafka"
 	"github.com/faustbrian/golib/pkg/outbox"
 	"github.com/faustbrian/golib/pkg/outbox/adapters/gokafka"
 )
 
 func FuzzPublisherEnvelopeMapping(f *testing.F) {
-	f.Add("event-1", "events", "aggregate-1", "event-1", uint16(1), []byte("{}"))
-	f.Add("", "", "", "", uint16(0), []byte(nil))
+	f.Add(
+		"event-1", "events", "aggregate-1", "event-1",
+		"traceparent", "trace-1", "application/json", uint16(1), []byte("{}"), false,
+	)
+	f.Add("", "", "", "", "", "", "", uint16(0), []byte(nil), false)
+	f.Add("event-1", "events", "", "", "event-id", "forged", "", uint16(1), []byte("x"), false)
+	f.Add("event-1", "events", "", "", "", "", "", uint16(1), []byte("x"), true)
 
 	f.Fuzz(func(
 		t *testing.T,
@@ -18,21 +25,83 @@ func FuzzPublisherEnvelopeMapping(f *testing.F) {
 		topic string,
 		orderingKey string,
 		idempotencyKey string,
+		metadataKey string,
+		metadataValue string,
+		contentType string,
 		version uint16,
 		payload []byte,
+		panicClient bool,
 	) {
-		if len(id)+len(topic)+len(orderingKey)+len(idempotencyKey)+len(payload) > 1<<20 {
+		if len(id)+len(topic)+len(orderingKey)+len(idempotencyKey)+
+			len(metadataKey)+len(metadataValue)+len(contentType)+len(payload) > 1<<16 {
 			return
 		}
-		client := &recordingClient{}
-		publisher, err := gokafka.New(client)
-		if err != nil {
-			t.Fatalf("New() error = %v", err)
+		metadata := map[string]string{metadataKey: metadataValue}
+		if contentType != "" {
+			metadata["es.content_type"] = contentType
 		}
-		_ = publisher.Publish(context.Background(), outbox.Envelope{
+		envelope := outbox.Envelope{
 			ID: id, Topic: topic, OrderingKey: orderingKey,
 			IdempotencyKey: idempotencyKey, PayloadVersion: version,
-			Payload: payload,
-		})
+			Payload: payload, Metadata: metadata,
+		}
+		if panicClient {
+			publisher, err := gokafka.New(panickingClient{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			_ = publisher.Publish(context.Background(), envelope)
+			return
+		}
+
+		first := &recordingClient{}
+		publisher, err := gokafka.New(first)
+		if err != nil {
+			t.Fatal(err)
+		}
+		publishErr := publisher.Publish(context.Background(), envelope)
+		if publishErr != nil {
+			if first.calls != 0 {
+				t.Fatalf("rejected envelope reached client %d times", first.calls)
+			}
+			return
+		}
+		if first.calls != 1 || first.message.Topic != topic ||
+			!slices.Equal(first.message.Value, payload) {
+			t.Fatalf("mapped message = %#v", first.message)
+		}
+		wantKey := orderingKey
+		if wantKey == "" {
+			wantKey = idempotencyKey
+		}
+		if wantKey == "" {
+			wantKey = id
+		}
+		if string(first.message.Key) != wantKey {
+			t.Fatalf("mapped key = %q, want %q", first.message.Key, wantKey)
+		}
+
+		second := &recordingClient{}
+		secondPublisher, err := gokafka.New(second)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := secondPublisher.Publish(context.Background(), envelope); err != nil {
+			t.Fatalf("repeat Publish() error = %v", err)
+		}
+		if first.message.Topic != second.message.Topic ||
+			!slices.Equal(first.message.Key, second.message.Key) ||
+			!slices.Equal(first.message.Value, second.message.Value) ||
+			!slices.EqualFunc(first.message.Headers, second.message.Headers, func(left, right kafka.Header) bool {
+				return left.Key == right.Key && slices.Equal(left.Value, right.Value)
+			}) {
+			t.Fatalf("mapping was not deterministic: %#v / %#v", first.message, second.message)
+		}
+		if len(payload) != 0 {
+			first.message.Value[0] ^= 0xff
+			if !slices.Equal(second.message.Value, payload) {
+				t.Fatal("one client mutation changed another mapped payload")
+			}
+		}
 	})
 }
