@@ -21273,7 +21273,8 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
-        "github.com/jackc/pgx/v5"
+        "github.com/jackc/pgx/v5",
+        "go.uber.org/goleak"
       ],
       "required_services": [
         "postgresql"
