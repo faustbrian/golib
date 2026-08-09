@@ -102,6 +102,7 @@ func TestJSONRPCValidatesOptionsAndContext(t *testing.T) {
 		t.Fatalf("New(oversized limit) error = %v", err)
 	}
 	codec, _ := tenantjsonrpc.New(tenantjsonrpc.Options{Trust: func(context.Context) bool { return true }})
+	//nolint:staticcheck // Nil context rejection is the contract under test.
 	if _, err := codec.Extract(nil, []byte(`{"tenant_id":"tenant-a"}`)); !errors.Is(err, tenantjsonrpc.ErrInvalidContext) {
 		t.Fatalf("Extract(nil context) error = %v", err)
 	}

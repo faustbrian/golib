@@ -43,6 +43,7 @@ func TestPropagationDefensiveInputsAndCustomField(t *testing.T) {
 	if _, err := codec.Extract(valueCarrier{}, true); !errors.Is(err, tenancy.ErrTenantMetadataMissing) {
 		t.Fatalf("Extract(value carrier) error = %v", err)
 	}
+	//nolint:staticcheck // Nil context rejection is the contract under test.
 	if err := tenancy.RunScoped(nil, scope, func(context.Context) error { return nil }); !errors.Is(err, tenancy.ErrInvalidContext) {
 		t.Fatalf("RunScoped(nil context) error = %v", err)
 	}
@@ -148,6 +149,7 @@ func TestGroupRaceBoundariesAndWaitCancellation(t *testing.T) {
 	}
 	group, _ := tenancy.NewGroup(context.Background(), tenancy.GroupOptions{MaxConcurrent: 1})
 	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
+	//nolint:staticcheck // Nil context rejection is the contract under test.
 	if err := group.Submit(nil, scope, func(context.Context) error { return nil }); !errors.Is(err, tenancy.ErrInvalidGroup) {
 		t.Fatalf("Submit(nil context) error = %v", err)
 	}
@@ -170,6 +172,7 @@ func TestGroupRaceBoundariesAndWaitCancellation(t *testing.T) {
 	if err := closeWithin(t, group); err != nil {
 		t.Fatalf("Close(after release) error = %v", err)
 	}
+	//nolint:staticcheck // Nil context rejection is the contract under test.
 	if err := group.Shutdown(nil); !errors.Is(err, tenancy.ErrInvalidGroup) {
 		t.Fatalf("Shutdown(nil) error = %v", err)
 	}

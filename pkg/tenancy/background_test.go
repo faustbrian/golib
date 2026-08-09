@@ -124,6 +124,7 @@ func TestGroupReportsTaskErrorsOutsideSynchronization(t *testing.T) {
 func TestGroupValidatesConstructionAndSubmission(t *testing.T) {
 	t.Parallel()
 
+	//nolint:staticcheck // Nil context rejection is the contract under test.
 	if _, err := tenancy.NewGroup(nil, tenancy.GroupOptions{MaxConcurrent: 1}); !errors.Is(err, tenancy.ErrInvalidGroup) {
 		t.Fatalf("NewGroup(nil) error = %v", err)
 	}
@@ -157,6 +158,7 @@ func TestGroupValidatesConstructionAndSubmission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewGroup(maximum) error = %v", err)
 	}
+	//nolint:staticcheck // Nil context rejection is the contract under test.
 	if err := validGroup.Shutdown(nil); !errors.Is(err, tenancy.ErrInvalidGroup) {
 		t.Fatalf("Shutdown(nil context) error = %v", err)
 	}

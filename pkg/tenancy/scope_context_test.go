@@ -132,6 +132,7 @@ func TestContextFailsClosedWithoutTenantScope(t *testing.T) {
 	if _, err := tenancy.RequireTenant(context.Background()); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
 		t.Fatalf("RequireTenant() error = %v", err)
 	}
+	//nolint:staticcheck // Nil context rejection is the contract under test.
 	if _, err := tenancy.WithScope(nil, tenancy.Scope{}); !errors.Is(err, tenancy.ErrInvalidContext) {
 		t.Fatalf("WithScope(nil) error = %v", err)
 	}

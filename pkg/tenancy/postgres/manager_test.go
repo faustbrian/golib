@@ -146,6 +146,7 @@ func TestManagerFailsClosedOnVerificationAndInvalidInputs(t *testing.T) {
 	if err := manager.WithTenant(context.Background(), database, scope, func(context.Context, *sql.Tx) error { return nil }); !errors.Is(err, tenancypostgres.ErrScopeVerification) {
 		t.Fatalf("WithTenant(mismatch) error = %v", err)
 	}
+	//nolint:staticcheck // Nil context rejection is the contract under test.
 	if err := manager.WithTenant(nil, database, scope, func(context.Context, *sql.Tx) error { return nil }); !errors.Is(err, tenancypostgres.ErrInvalidOperation) {
 		t.Fatalf("WithTenant(nil context) error = %v", err)
 	}
@@ -248,7 +249,7 @@ func assertSessionReset(t *testing.T, database *sql.DB) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	var got string
 	if err := connection.QueryRowContext(context.Background(), "SELECT current_setting($1, true)", tenancypostgres.DefaultSetting).Scan(&got); err != nil {
 		t.Fatal(err)
