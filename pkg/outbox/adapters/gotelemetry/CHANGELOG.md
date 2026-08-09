@@ -27,6 +27,8 @@ All notable changes to this module are documented here.
 - Document instruments, cardinality, privacy, semantics, failure isolation,
   lifecycle ownership, API usage, adoption, compatibility, migration, security,
   and frequently asked questions.
+- Document that synchronous provider calls require a trusted, cooperative
+  implementation because Go cannot preempt an indefinitely blocked call.
 - Require explicit operation and outcome mapping review when upgrading the
   core outbox dependency.
 
@@ -34,6 +36,8 @@ All notable changes to this module are documented here.
 
 - Preserve the caller's context when a hostile tracer returns a replacement
   context, so telemetry cannot erase relay cancellation or deadlines.
+- Stop forwarding caller-controlled `tracestate` into exported parent spans,
+  preventing vendor state from carrying envelope data or credentials.
 - Replace the unresolved Outbox `v0.0.0` requirement with an immutable main
   pseudo-version so workspace-disabled consumers resolve the adapter.
 
@@ -52,3 +56,6 @@ All notable changes to this module are documented here.
   telemetry.
 - Add bounded fuzz coverage for metadata copying, event metrics, backlog
   snapshots, and wrapped publication lifecycles.
+- Capture complete SDK span and metric output in privacy and fuzz proofs, add
+  an unwrapped publication benchmark baseline, and exercise real relay
+  settlement to detect publication or retry amplification.

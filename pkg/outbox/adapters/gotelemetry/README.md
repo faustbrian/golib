@@ -58,9 +58,10 @@ values, or credentials. Failure spans use a fixed status description.
 
 Destination labels are denied entirely. There is no destination-label option,
 so no caller-controlled identity can become an attribute. Trace propagation is
-also allowlisted: only the exact lowercase `traceparent` and `tracestate` keys
-are passed to or copied from the configured propagator. All other envelope
-metadata remains outside the telemetry provider.
+also allowlisted: only the exact lowercase `traceparent` key is passed to or
+copied from the configured propagator. Caller-controlled `tracestate` is not
+forwarded because its arbitrary vendor value could carry sensitive data. All
+other envelope metadata remains outside the telemetry provider.
 
 ## Publication semantics and failure isolation
 
@@ -75,8 +76,10 @@ Provider panics during propagation, span start, status updates, span completion,
 or metric recording are contained. Sampling decisions, canceled contexts, and
 SDK shutdown therefore cannot turn publication success into failure or failure
 into success. Telemetry calls are synchronous at the OpenTelemetry API boundary;
-configure bounded SDK queues and exporter timeouts because the adapter cannot
-interrupt a provider that violates the API contract by blocking indefinitely.
+the API accepts contexts but does not guarantee that every synchronous provider
+method honors cancellation. Treat providers as trusted cooperative process
+dependencies and configure bounded SDK queues and exporter timeouts because the
+adapter cannot preempt an in-process call that blocks indefinitely.
 
 The adapter starts no goroutines, owns no exporter, and never flushes or shuts
 down a provider. The application must flush and shut down its providers after

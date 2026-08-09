@@ -324,6 +324,10 @@ func TestPropagationCannotInspectOrAddArbitraryMetadata(t *testing.T) {
 	if _, exists := injected["baggage"]; exists {
 		t.Fatalf("injected metadata contains provider baggage: %#v", injected)
 	}
+	withoutTraceState := telemetry.Inject(context.Background(), nil)
+	if _, exists := withoutTraceState["tracestate"]; exists {
+		t.Fatalf("injected metadata contains provider tracestate: %#v", withoutTraceState)
+	}
 	publisher, err := telemetry.WrapPublisher(&recordingPublisher{})
 	if err != nil {
 		t.Fatalf("wrap publisher: %v", err)
@@ -333,7 +337,6 @@ func TestPropagationCannotInspectOrAddArbitraryMetadata(t *testing.T) {
 	}
 	if !reflect.DeepEqual(propagator.extracted, map[string]string{
 		"traceparent": metadata["traceparent"],
-		"tracestate":  metadata["tracestate"],
 	}) {
 		t.Fatalf("propagator carrier = %#v", propagator.extracted)
 	}
@@ -410,19 +413,7 @@ func TestObservationBoundsCallerConstructedDimensions(t *testing.T) {
 func TestObservationMapsEveryDeclaredOutboxConvention(t *testing.T) {
 	t.Parallel()
 
-	operations := []outbox.Operation{
-		outbox.OperationClaim,
-		outbox.OperationPublish,
-		outbox.OperationDeliver,
-		outbox.OperationRetry,
-		outbox.OperationDeadLetter,
-		outbox.OperationRelease,
-		outbox.OperationExtendLease,
-		outbox.OperationReplay,
-		outbox.OperationPrune,
-		outbox.OperationArchive,
-	}
-	outcomes := []outbox.Outcome{outbox.OutcomeSuccess, outbox.OutcomeFailure}
+	operations, outcomes := declaredOutboxConventions(t)
 	reader := sdkmetric.NewManualReader()
 	telemetry, err := gotelemetry.New(testRuntime{
 		tracer:     sdktrace.NewTracerProvider(),

@@ -2,8 +2,10 @@ package gotelemetry_test
 
 import (
 	"context"
+	"encoding/hex"
 	"errors"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -11,6 +13,10 @@ import (
 	"github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
@@ -114,10 +120,16 @@ func FuzzWrappedPublicationIsolation(f *testing.F) {
 		if len(secret) > 256 {
 			t.Skip()
 		}
+		privateValue := "fuzz-private-value-" + hex.EncodeToString([]byte(secret)) + "-end"
 
-		var tracer trace.TracerProvider = tracenoop.NewTracerProvider()
+		spanRecorder := tracetest.NewSpanRecorder()
+		providerOptions := []sdktrace.TracerProviderOption{sdktrace.WithSpanProcessor(spanRecorder)}
+		if providerMode%7 == 6 {
+			providerOptions = append(providerOptions, sdktrace.WithSampler(sdktrace.NeverSample()))
+		}
+		var tracer trace.TracerProvider = sdktrace.NewTracerProvider(providerOptions...)
 		var propagator propagation.TextMapPropagator = propagation.TraceContext{}
-		switch providerMode % 6 {
+		switch providerMode % 7 {
 		case 1:
 			propagator = panickingPropagator{}
 		case 2:
@@ -129,8 +141,10 @@ func FuzzWrappedPublicationIsolation(f *testing.F) {
 		case 5:
 			tracer = invalidStartTracerProvider{TracerProvider: tracer, nilSpan: true}
 		}
+		metricReader := sdkmetric.NewManualReader()
 		telemetry, err := gotelemetry.New(testRuntime{
-			tracer: tracer, meter: metricnoop.NewMeterProvider(), propagator: propagator,
+			tracer: tracer,
+			meter:  sdkmetric.NewMeterProvider(sdkmetric.WithReader(metricReader)), propagator: propagator,
 		})
 		if err != nil {
 			t.Fatalf("new telemetry: %v", err)
@@ -141,10 +155,10 @@ func FuzzWrappedPublicationIsolation(f *testing.F) {
 		downstream := &recordingPublisher{}
 		switch publisherMode % 3 {
 		case 1:
-			wantErr = errors.New(secret)
+			wantErr = errors.New(privateValue)
 			downstream.err = wantErr
 		case 2:
-			wantPanic = &fuzzPanic{value: secret}
+			wantPanic = &fuzzPanic{value: privateValue}
 			downstream.panicValue = wantPanic
 		}
 		publisher, err := telemetry.WrapPublisher(downstream)
@@ -152,9 +166,9 @@ func FuzzWrappedPublicationIsolation(f *testing.F) {
 			t.Fatalf("wrap publisher: %v", err)
 		}
 		envelope := outbox.Envelope{
-			ID: secret, Topic: secret, Payload: []byte(secret),
-			Metadata:    map[string]string{"authorization": secret},
-			OrderingKey: secret, IdempotencyKey: secret, Attempts: attempts,
+			ID: privateValue, Topic: privateValue, Payload: []byte(privateValue),
+			Metadata:    map[string]string{"authorization": privateValue},
+			OrderingKey: privateValue, IdempotencyKey: privateValue, Attempts: attempts,
 		}
 		ctx := context.Background()
 		if canceled {
@@ -177,6 +191,22 @@ func FuzzWrappedPublicationIsolation(f *testing.F) {
 		}
 		if canceled && !errors.Is(downstream.context.Err(), context.Canceled) {
 			t.Fatalf("downstream context error = %v", downstream.context.Err())
+		}
+
+		telemetry.Observe(ctx, outbox.Event{
+			Operation: outbox.Operation(privateValue),
+			Outcome:   outbox.Outcome(privateValue),
+			Count:     1,
+			MessageID: privateValue,
+			Topic:     privateValue,
+			Attempts:  attempts,
+		})
+		var metrics metricdata.ResourceMetrics
+		if collectErr := metricReader.Collect(context.Background(), &metrics); collectErr != nil {
+			t.Fatalf("collect metrics: %v", collectErr)
+		}
+		if strings.Contains(captureTelemetryText(spanRecorder.Ended(), metrics), privateValue) {
+			t.Fatalf("captured telemetry contains forbidden fuzz value %q", privateValue)
 		}
 	})
 }

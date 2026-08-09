@@ -22,7 +22,6 @@ const (
 	// InstrumentationVersion versions this adapter's span and metric schema.
 	InstrumentationVersion = "1.0.0"
 	traceParentKey         = "traceparent"
-	traceStateKey          = "tracestate"
 )
 
 var (
@@ -330,10 +329,8 @@ func (telemetry *Telemetry) extract(ctx context.Context, metadata map[string]str
 }
 
 func copyTraceContext(destination, source map[string]string) {
-	for _, key := range []string{traceParentKey, traceStateKey} {
-		if value, exists := source[key]; exists {
-			destination[key] = value
-		}
+	if value, exists := source[traceParentKey]; exists {
+		destination[traceParentKey] = value
 	}
 }
 

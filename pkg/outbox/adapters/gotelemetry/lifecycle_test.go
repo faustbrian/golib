@@ -41,12 +41,16 @@ func TestPublicationSurvivesSamplingAndSDKShutdown(t *testing.T) {
 	}
 
 	want := errors.New("publisher failure")
-	publisher, err := instrumentation.WrapPublisher(&recordingPublisher{err: want})
+	downstream := &recordingPublisher{err: want}
+	publisher, err := instrumentation.WrapPublisher(downstream)
 	if err != nil {
 		t.Fatalf("wrap publisher: %v", err)
 	}
 	if err := publisher.Publish(context.Background(), outbox.Envelope{}); err != want {
 		t.Fatalf("publish error = %v, want exact %v", err, want)
+	}
+	if downstream.calls != 1 {
+		t.Fatalf("downstream calls = %d, want 1", downstream.calls)
 	}
 	instrumentation.Observe(context.Background(), outbox.Event{
 		Operation: outbox.OperationPublish,
@@ -100,10 +104,11 @@ func TestPublicationCompletionIsExactlyOnceDuringCancellationAndSDKShutdown(t *t
 	t.Parallel()
 
 	base := sdktrace.NewTracerProvider()
+	meterProvider := sdkmetric.NewMeterProvider()
 	var ended atomic.Int64
 	instrumentation, err := gotelemetry.New(testRuntime{
 		tracer: countingTracerProvider{TracerProvider: base, ended: &ended},
-		meter:  sdkmetric.NewMeterProvider(), propagator: propagation.TraceContext{},
+		meter:  meterProvider, propagator: propagation.TraceContext{},
 	})
 	if err != nil {
 		t.Fatalf("new telemetry: %v", err)
@@ -117,7 +122,7 @@ func TestPublicationCompletionIsExactlyOnceDuringCancellationAndSDKShutdown(t *t
 	const publications = 128
 	start := make(chan struct{})
 	var wait sync.WaitGroup
-	wait.Add(publications + 1)
+	wait.Add(publications + 2)
 	for index := range publications {
 		go func() {
 			defer wait.Done()
@@ -131,6 +136,13 @@ func TestPublicationCompletionIsExactlyOnceDuringCancellationAndSDKShutdown(t *t
 			if publishErr := publisher.Publish(ctx, outbox.Envelope{Attempts: index}); publishErr != nil {
 				t.Errorf("publish: %v", publishErr)
 			}
+			instrumentation.Observe(ctx, outbox.Event{
+				Operation: outbox.OperationPublish,
+				Outcome:   outbox.OutcomeSuccess,
+				Count:     1,
+				Attempts:  index,
+			})
+			instrumentation.RecordBacklog(ctx, outbox.BacklogStats{Pending: int64(index)}, time.Now())
 		}()
 	}
 	go func() {
@@ -138,6 +150,13 @@ func TestPublicationCompletionIsExactlyOnceDuringCancellationAndSDKShutdown(t *t
 		<-start
 		if shutdownErr := base.Shutdown(context.Background()); shutdownErr != nil {
 			t.Errorf("shutdown tracer provider: %v", shutdownErr)
+		}
+	}()
+	go func() {
+		defer wait.Done()
+		<-start
+		if shutdownErr := meterProvider.Shutdown(context.Background()); shutdownErr != nil {
+			t.Errorf("shutdown meter provider: %v", shutdownErr)
 		}
 	}()
 	close(start)

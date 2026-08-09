@@ -37,22 +37,37 @@ func BenchmarkObserve(b *testing.B) {
 }
 
 func BenchmarkPublish(b *testing.B) {
-	benchmarks := map[string]gotelemetry.Runtime{
-		"no-op": testRuntime{
+	b.Run("unwrapped", func(b *testing.B) {
+		publisher := examplePublisher{}
+		ctx := context.Background()
+		envelope := outbox.Envelope{Attempts: 2}
+		b.ReportAllocs()
+		for b.Loop() {
+			if err := publisher.Publish(ctx, envelope); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	benchmarks := []struct {
+		name    string
+		runtime gotelemetry.Runtime
+	}{
+		{name: "no-op", runtime: testRuntime{
 			tracer: tracenoop.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
-		},
-		"sampled-out": testRuntime{
+		}},
+		{name: "sampled-out", runtime: testRuntime{
 			tracer: sdktrace.NewTracerProvider(sdktrace.WithSampler(sdktrace.NeverSample())),
 			meter:  metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
-		},
-		"recording": testRuntime{
+		}},
+		{name: "recording", runtime: testRuntime{
 			tracer: sdktrace.NewTracerProvider(sdktrace.WithSyncer(discardSpanExporter{})),
 			meter:  metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
-		},
+		}},
 	}
-	for name, runtime := range benchmarks {
-		b.Run(name, func(b *testing.B) {
-			instrumentation, err := gotelemetry.New(runtime)
+	for _, benchmark := range benchmarks {
+		b.Run(benchmark.name, func(b *testing.B) {
+			instrumentation, err := gotelemetry.New(benchmark.runtime)
 			if err != nil {
 				b.Fatal(err)
 			}
