@@ -121,6 +121,40 @@ func TestGroupReportsTaskErrorsOutsideSynchronization(t *testing.T) {
 	}
 }
 
+func TestGroupCloseReleasesOwnedTaskContext(t *testing.T) {
+	t.Parallel()
+
+	group, err := tenancy.NewGroup(context.Background(), tenancy.GroupOptions{MaxConcurrent: 1})
+	if err != nil {
+		t.Fatalf("NewGroup() error = %v", err)
+	}
+	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
+	captured := make(chan context.Context, 1)
+	if err := group.Submit(context.Background(), scope, func(ctx context.Context) error {
+		captured <- ctx
+		return nil
+	}); err != nil {
+		t.Fatalf("Submit() error = %v", err)
+	}
+	var taskContext context.Context
+	select {
+	case taskContext = <-captured:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for task context")
+	}
+	if err := closeWithin(t, group); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	select {
+	case <-taskContext.Done():
+		if !errors.Is(taskContext.Err(), context.Canceled) {
+			t.Fatalf("task context error = %v", taskContext.Err())
+		}
+	default:
+		t.Fatal("Close() retained the group-owned task context")
+	}
+}
+
 func TestGroupValidatesConstructionAndSubmission(t *testing.T) {
 	t.Parallel()
 

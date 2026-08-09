@@ -97,7 +97,11 @@ func (group *Group) Close(ctx context.Context) error {
 		return ErrInvalidGroup
 	}
 	group.beginClose()
-	return group.wait(ctx)
+	if err := group.wait(ctx); err != nil {
+		return err
+	}
+	group.cancel()
+	return nil
 }
 
 // Shutdown stops new submissions, cancels active tasks, and waits for their
