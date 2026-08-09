@@ -9,8 +9,9 @@ to an earlier state.
 
 | State | Accepted operations | Transition |
 | --- | --- | --- |
-| Constructed | enqueue, `Start`, `Shutdown`, `Release` | `Start` is guarded by `sync.Once` |
-| Started | enqueue, resize workers, handle deliveries | `Shutdown` atomically closes admission |
+| Constructed | enqueue, `Start`, `CloseAdmission`, `Shutdown`, `Release` | `Start` is guarded by `sync.Once` |
+| Started | enqueue, resize workers, handle deliveries, `CloseAdmission` | admission closure is idempotent |
+| Draining | finish admitted publishes and handlers, `ReleaseContext` | concrete worker remains owned |
 | Shutting down | drain an in-memory ring; cancel backend reads and handler contexts | owned goroutines finish |
 | Stopped | metrics and repeated `Release` | enqueue returns `ErrQueueShutdown` |
 
@@ -19,12 +20,16 @@ drain. Repeated `Start`, `Shutdown`, and `Release` do not create another
 scheduler or close a channel twice. The internal atomic active-worker count is
 authoritative; custom metric implementations cannot change concurrency.
 
-`ReleaseContext` is the service-owned graceful path. It first closes queue
-admission and waits for an already accepted publish to finish. It then stops
-the scheduler from requesting another backend delivery, joins admitted
-handlers without cancelling their contexts, and closes the concrete worker
-only after the drain completes. The supplied context bounds both waits. If it
-expires, the transport remains open and a later call may resume release.
+`CloseAdmission` is the prompt service-drain phase. After it returns, new queue
+submissions fail with `ErrQueueShutdown` and the scheduler stops taking backend
+work, while accepted submissions, active handlers, and the concrete worker
+remain owned. Repeated calls are no-ops.
+
+`ReleaseContext` closes admission when necessary, waits for an already accepted
+publish to finish, joins admitted handlers without cancelling their contexts,
+and closes the concrete worker only after the drain completes. The supplied
+context bounds both waits. If it expires, the transport remains open and a
+later call may resume release.
 Backend `Request` operations retain their configured request bound so intake
 withdrawal cannot wait forever. If management lifecycle gating reserved the
 next backend request but the scheduler has not started it, graceful withdrawal

@@ -39,11 +39,12 @@ versioning and Keep a Changelog structure.
   independently versioned `queueservice` module. Core queue consumers no
   longer inherit unrelated service runtime dependencies.
 
-- `Queue.ReleaseContext` now provides a bounded graceful worker path that
-  rejects new admission, waits for accepted publishes and active handlers, and
-  closes the concrete worker only after the drain. Legacy `Release` retains
-  its force-compatible behavior. Graceful withdrawal also releases a reserved
-  management admission before the scheduler exits.
+- `Queue.CloseAdmission` now provides the prompt split phase used by service
+  drain to reject submissions and stop backend intake without releasing the
+  worker. `Queue.ReleaseContext` waits for accepted publishes and active
+  handlers before release. Legacy `Release` retains its force-compatible
+  behavior. Graceful withdrawal also releases a reserved management admission
+  before the scheduler exits.
 - Handler backoff now retries only retryable failures. Permanent, malformed,
   canceled, and infrastructure outcomes reach backend settlement after the
   first handler execution instead of repeating a known terminal or uncertain

@@ -43,10 +43,11 @@ owned telemetry propagation policy when accepting baggage.
 ## Worker ownership
 
 `NewWorker` accepts and exposes an exact `*queue.Queue`. Its component calls
-`Start` and transfers release ownership to the service plan. On stop,
-`Queue.ReleaseContext` withdraws queue admission, lets an accepted publish
-return, stops new delivery requests, joins active handlers, and only then
-releases the concrete worker.
+`Start` and transfers release ownership to the service plan. Service drain
+calls `Queue.CloseAdmission`, which rejects late submissions and stops new
+delivery requests without releasing the worker. On stop, `Queue.ReleaseContext`
+lets an accepted publish return, joins active handlers, and only then releases
+the concrete worker.
 
 Backend request and transport operations retain their own configured timeout
 bounds. The service stop context bounds coordinator drain and join work.

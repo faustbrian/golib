@@ -152,6 +152,30 @@ func (q *Queue) Release() {
 	q.Wait()
 }
 
+// CloseAdmission synchronously and idempotently rejects new queue submissions
+// and stops taking new backend work. Already accepted submissions and active
+// handlers retain queue ownership until ReleaseContext drains and releases
+// them.
+func (q *Queue) CloseAdmission() error {
+	q.drainOnce.Do(func() {
+		q.admissionMu.Lock()
+		atomic.StoreInt32(&q.drainFlag, 1)
+		q.admissionsDone = make(chan struct{})
+		if q.admissions == 0 {
+			close(q.admissionsDone)
+		}
+		q.admissionMu.Unlock()
+		if ring, inMemory := q.worker.(*Ring); inMemory {
+			_ = ring.stopIntake()
+		} else {
+			close(q.drain)
+			q.releaseReadyAdmission()
+		}
+	})
+
+	return nil
+}
+
 // ReleaseContext stops admission, lets already admitted handlers finish, then
 // releases the concrete worker. If ctx expires, the worker remains open so a
 // later call can resume safe release.
@@ -707,21 +731,7 @@ func (q *Queue) drainContext(ctx context.Context) error {
 		atomic.LoadInt32(&q.started) == 0 {
 		q.Start()
 	}
-	q.drainOnce.Do(func() {
-		q.admissionMu.Lock()
-		atomic.StoreInt32(&q.drainFlag, 1)
-		q.admissionsDone = make(chan struct{})
-		if q.admissions == 0 {
-			close(q.admissionsDone)
-		}
-		q.admissionMu.Unlock()
-		if ring, inMemory := q.worker.(*Ring); inMemory {
-			_ = ring.stopIntake()
-		} else {
-			close(q.drain)
-			q.releaseReadyAdmission()
-		}
-	})
+	_ = q.CloseAdmission()
 	q.admissionMu.Lock()
 	admissionsDone := q.admissionsDone
 	q.admissionMu.Unlock()

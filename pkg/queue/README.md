@@ -56,7 +56,8 @@ or starting worker loops.
 
 Services should compose concrete producers and workers through
 [`queueservice`](docs/service-integration.md). The adapter keeps concrete queue
-APIs visible, drains accepted publishers before closing an owned transport,
+APIs visible, closes queue admission during service drain, drains accepted
+publishers before closing an owned transport,
 uses the existing correlation queue boundary for every message and delivery
 attempt, and optionally propagates bounded W3C trace context through an
 explicit caller-owned OpenTelemetry propagator.

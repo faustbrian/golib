@@ -2,6 +2,7 @@ package queue_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"time"
@@ -46,6 +47,23 @@ func ExampleWithWorkerLifecycle() {
 	}
 	fmt.Println(status.State, status.CurrentJobs)
 	// Output: running 0
+}
+
+func ExampleQueue_CloseAdmission() {
+	q := queue.NewPool(1)
+	if err := q.CloseAdmission(); err != nil {
+		log.Fatal(err)
+	}
+
+	err := q.QueueTask(func(context.Context) error { return nil })
+	fmt.Println(errors.Is(err, queue.ErrQueueShutdown))
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err = q.ReleaseContext(ctx); err != nil {
+		log.Fatal(err)
+	}
+	// Output: true
 }
 
 func ExampleNewPool_queueTask() {

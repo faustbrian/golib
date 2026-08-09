@@ -143,6 +143,42 @@ func TestReleaseContextStopsAdmissionAndDrainsHandlersBeforeShutdown(t *testing.
 	}
 }
 
+func TestCloseAdmissionRejectsNewWorkWithoutReleasingWorker(t *testing.T) {
+	worker := &releaseWorker{
+		shutdown: make(chan struct{}),
+		handler:  func(context.Context, core.TaskMessage) error { return nil },
+	}
+	coordinator, err := queue.NewQueue(
+		queue.WithWorker(worker),
+		queue.WithWorkerCount(0),
+	)
+	if err != nil {
+		t.Fatalf("NewQueue() error = %v", err)
+	}
+	if err = coordinator.CloseAdmission(); err != nil {
+		t.Fatalf("CloseAdmission() error = %v", err)
+	}
+	if err = coordinator.CloseAdmission(); err != nil {
+		t.Fatalf("repeated CloseAdmission() error = %v", err)
+	}
+	if err = coordinator.Queue(releaseMessage("late")); !errors.Is(err, queue.ErrQueueShutdown) {
+		t.Fatalf("Queue() after admission closure error = %v, want ErrQueueShutdown", err)
+	}
+	select {
+	case <-worker.shutdown:
+		t.Fatal("CloseAdmission() released the worker")
+	default:
+	}
+	if err = coordinator.ReleaseContext(boundedReleaseContext(t)); err != nil {
+		t.Fatalf("ReleaseContext() error = %v", err)
+	}
+	select {
+	case <-worker.shutdown:
+	default:
+		t.Fatal("ReleaseContext() did not release the worker")
+	}
+}
+
 func TestReleaseContextCanResumeAfterCallerCancellation(t *testing.T) {
 	entered := make(chan struct{})
 	release := make(chan struct{})

@@ -57,9 +57,9 @@ producer -> Publisher.Queue -> Valkey Stream
 `Start` launches the scheduling loop. The loop requests work only when a worker
 slot is available. Each handler runs with a timeout context. `Shutdown`
 prevents new work, asks the backend worker to stop, and signals the scheduler.
-`Release` also waits for owned goroutines. `ReleaseContext` is the bounded
-service path: it withdraws intake, joins admitted handlers, then releases the
-worker.
+`Release` also waits for owned goroutines. `CloseAdmission` is the prompt
+service-drain phase; `ReleaseContext` is the bounded stop phase that joins
+admitted handlers, then releases the worker.
 
 The complete ownership and transition contract is in
 [lifecycle and state ownership](lifecycle.md).

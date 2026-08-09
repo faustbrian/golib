@@ -9,9 +9,10 @@ maps the stable concepts new adopters need.
 - `NewPool(size, options...) *Queue` creates an in-memory queue.
 - `NewRing(options...) *Ring` creates an in-memory worker.
 - `Queue.Start`, `Shutdown`, `Release`, and `Wait` control the compatibility
-  lifecycle. `ReleaseContext` and `WaitContext` add service-owned bounds;
-  `ReleaseContext` withdraws admission and drains handlers before transport
-  release.
+  lifecycle. `CloseAdmission` is the prompt split phase that rejects new
+  submissions and stops backend intake without releasing the worker.
+  `ReleaseContext` and `WaitContext` add service-owned bounds;
+  `ReleaseContext` drains admitted work before transport release.
 - `Queue.Queue` submits byte-backed messages; `Queue.QueueTask` submits local
   functions.
 - `WithWorkerCount`, `WithQueueSize`, `WithRetryInterval`, `WithLogger`,
