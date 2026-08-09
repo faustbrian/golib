@@ -82,16 +82,17 @@ type secureKafkaBrokerOptions struct {
 }
 
 type secureKafkaPKI struct {
-	caDER                 []byte
-	caPEM                 []byte
-	serverDER             []byte
-	serverPEM             []byte
-	serverKeyPEM          []byte
-	clientPEM             []byte
-	clientKeyPEM          []byte
-	clientIdentity        tls.Certificate
-	rotatedClientIdentity tls.Certificate
-	roots                 *x509.CertPool
+	caTemplate     *x509.Certificate
+	caKey          *rsa.PrivateKey
+	caDER          []byte
+	caPEM          []byte
+	serverDER      []byte
+	serverPEM      []byte
+	serverKeyPEM   []byte
+	clientPEM      []byte
+	clientKeyPEM   []byte
+	clientIdentity tls.Certificate
+	roots          *x509.CertPool
 }
 
 func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
@@ -114,11 +115,28 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 		nil,
 		topic,
 	)
+	renewedClientIdentity := make([]tls.Certificate, 0, 3)
+	for renewal := int64(1); renewal <= 3; renewal++ {
+		_, _, identity := newSecureKafkaClientIdentity(
+			t,
+			time.Now(),
+			broker.pki.caTemplate,
+			broker.pki.caKey,
+			100+renewal,
+			fmt.Sprintf("golib-kafka-client-renewal-%d", renewal),
+		)
+		renewedClientIdentity = append(renewedClientIdentity, identity)
+	}
 
-	var currentCertificate atomic.Pointer[tls.Certificate]
-	currentCertificate.Store(&broker.pki.clientIdentity)
+	type clientCertificateSnapshot struct {
+		identity   *tls.Certificate
+		generation int64
+	}
+	var currentCertificate atomic.Pointer[clientCertificateSnapshot]
+	currentCertificate.Store(&clientCertificateSnapshot{
+		identity: &broker.pki.clientIdentity,
+	})
 	var certificateCalls atomic.Int64
-	var rotatedCertificateCalls atomic.Int64
 	security := kafka.ClientSecurity{
 		TLS: broker.serverTLSConfig(),
 		ClientCertificateProvider: kafka.ClientCertificateProviderFunc(func(
@@ -127,11 +145,7 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 		) (tls.Certificate, error) {
 			certificateCalls.Add(1)
 			certificate := currentCertificate.Load()
-			if certificate == &broker.pki.rotatedClientIdentity {
-				rotatedCertificateCalls.Add(1)
-			}
-
-			return *certificate, nil
+			return *certificate.identity, nil
 		}),
 		CredentialTimeout: time.Second,
 	}
@@ -177,18 +191,24 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 		nil,
 		rotationTopic,
 	)
-	const rotationClientCount = 3
+	const (
+		rotationClientCount = 3
+		certificateRenewals = 3
+	)
 	type rotatingMTLSClient struct {
-		producer             *kafka.Producer
-		providerCalls        atomic.Int64
-		rotatedProviderCalls atomic.Int64
-		baselineCalls        int64
-		disconnects          chan struct{}
+		producer           *kafka.Producer
+		providerCalls      atomic.Int64
+		observedGeneration atomic.Int64
+		disconnects        atomic.Int64
 	}
 	rotationClients := make([]*rotatingMTLSClient, 0, rotationClientCount)
-	expectedRotationValues := make([]string, 0, rotationClientCount*2)
+	expectedRotationValues := make(
+		[]string,
+		0,
+		rotationClientCount*(certificateRenewals+1),
+	)
 	for clientIndex := range rotationClientCount {
-		client := &rotatingMTLSClient{disconnects: make(chan struct{}, 1)}
+		client := &rotatingMTLSClient{}
 		clientSecurity := kafka.ClientSecurity{
 			TLS: broker.serverTLSConfig(),
 			ClientCertificateProvider: kafka.ClientCertificateProviderFunc(func(
@@ -197,11 +217,9 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 			) (tls.Certificate, error) {
 				client.providerCalls.Add(1)
 				certificate := currentCertificate.Load()
-				if certificate == &broker.pki.rotatedClientIdentity {
-					client.rotatedProviderCalls.Add(1)
-				}
+				client.observedGeneration.Store(certificate.generation)
 
-				return *certificate, nil
+				return *certificate.identity, nil
 			}),
 			CredentialTimeout: time.Second,
 		}
@@ -225,10 +243,7 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 					observation kafka.Observation,
 				) error {
 					if observation.Kind == kafka.ObservationBrokerDisconnect {
-						select {
-						case client.disconnects <- struct{}{}:
-						default:
-						}
+						client.disconnects.Add(1)
 					}
 
 					return nil
@@ -252,46 +267,56 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 		if client.providerCalls.Load() == 0 {
 			t.Fatalf("initial mTLS provider %d was not used", clientIndex)
 		}
-		select {
-		case <-client.disconnects:
+		if client.disconnects.Load() != 0 {
 			t.Fatalf("mTLS producer %d disconnected before certificate renewal", clientIndex)
-		default:
 		}
-		client.baselineCalls = client.providerCalls.Load()
 		rotationClients = append(rotationClients, client)
 		expectedRotationValues = append(expectedRotationValues, value)
 	}
 
-	currentCertificate.Store(&broker.pki.rotatedClientIdentity)
-	waitForSecureKafkaIdleExpiry(t, ctx)
-
-	rotationCtx, cancelRotation := context.WithTimeout(ctx, 20*time.Second)
-	defer cancelRotation()
-	for clientIndex, client := range rotationClients {
-		value := fmt.Sprintf("client-%d-after-certificate-renewal", clientIndex)
-		result := client.producer.PublishRecord(rotationCtx, kafka.ProducerRecord{
-			Topic: rotationTopic,
-			Key:   []byte(value),
-			Value: []byte(value),
+	for renewal := int64(1); renewal <= certificateRenewals; renewal++ {
+		currentCertificate.Store(&clientCertificateSnapshot{
+			identity:   &renewedClientIdentity[renewal-1],
+			generation: renewal,
 		})
-		disconnected := false
-		select {
-		case <-client.disconnects:
-			disconnected = true
-		default:
+		providerBaselines := make([]int64, len(rotationClients))
+		disconnectBaselines := make([]int64, len(rotationClients))
+		for clientIndex, client := range rotationClients {
+			providerBaselines[clientIndex] = client.providerCalls.Load()
+			disconnectBaselines[clientIndex] = client.disconnects.Load()
 		}
-		if result.Err != nil || !disconnected ||
-			client.providerCalls.Load() <= client.baselineCalls ||
-			client.rotatedProviderCalls.Load() == 0 {
-			t.Fatalf(
-				"mTLS certificate renewal result/calls for client %d = %#v/%d/%d",
+		waitForSecureKafkaIdleExpiry(t, ctx)
+
+		rotationCtx, cancelRotation := context.WithTimeout(ctx, 20*time.Second)
+		for clientIndex, client := range rotationClients {
+			value := fmt.Sprintf(
+				"client-%d-after-certificate-renewal-%d",
 				clientIndex,
-				result,
-				client.providerCalls.Load(),
-				client.rotatedProviderCalls.Load(),
+				renewal,
 			)
+			result := client.producer.PublishRecord(rotationCtx, kafka.ProducerRecord{
+				Topic: rotationTopic,
+				Key:   []byte(value),
+				Value: []byte(value),
+			})
+			if result.Err != nil ||
+				client.disconnects.Load() <= disconnectBaselines[clientIndex] ||
+				client.providerCalls.Load() <= providerBaselines[clientIndex] ||
+				client.observedGeneration.Load() < renewal {
+				cancelRotation()
+				t.Fatalf(
+					"mTLS renewal %d result/calls for client %d = %#v/%d/%d/%d",
+					renewal,
+					clientIndex,
+					result,
+					client.disconnects.Load(),
+					client.providerCalls.Load(),
+					client.observedGeneration.Load(),
+				)
+			}
+			expectedRotationValues = append(expectedRotationValues, value)
 		}
-		expectedRotationValues = append(expectedRotationValues, value)
+		cancelRotation()
 	}
 	for clientIndex, client := range rotationClients {
 		if err := client.producer.Close(); err != nil {
@@ -1801,15 +1826,6 @@ func newSecureKafkaPKI(t *testing.T, endpointHost string) secureKafkaPKI {
 		3,
 		"golib-kafka-client",
 	)
-	_, _, rotatedClientIdentity := newSecureKafkaClientIdentity(
-		t,
-		now,
-		caTemplate,
-		caKey,
-		4,
-		"golib-kafka-client-rotated",
-	)
-
 	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})
 	serverPEM := pem.EncodeToMemory(&pem.Block{
 		Type: "CERTIFICATE", Bytes: serverDER,
@@ -1821,16 +1837,17 @@ func newSecureKafkaPKI(t *testing.T, endpointHost string) secureKafkaPKI {
 	}
 
 	return secureKafkaPKI{
-		caDER:                 append([]byte(nil), caDER...),
-		caPEM:                 caPEM,
-		serverDER:             append([]byte(nil), serverDER...),
-		serverPEM:             serverPEM,
-		serverKeyPEM:          serverKeyPEM,
-		clientPEM:             clientPEM,
-		clientKeyPEM:          clientKeyPEM,
-		clientIdentity:        clientIdentity,
-		rotatedClientIdentity: rotatedClientIdentity,
-		roots:                 roots,
+		caTemplate:     caTemplate,
+		caKey:          caKey,
+		caDER:          append([]byte(nil), caDER...),
+		caPEM:          caPEM,
+		serverDER:      append([]byte(nil), serverDER...),
+		serverPEM:      serverPEM,
+		serverKeyPEM:   serverKeyPEM,
+		clientPEM:      clientPEM,
+		clientKeyPEM:   clientKeyPEM,
+		clientIdentity: clientIdentity,
+		roots:          roots,
 	}
 }
 

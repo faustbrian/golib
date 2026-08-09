@@ -150,10 +150,11 @@ The fixtures prove:
   rejects an untrusted peer without disclosing its secret, refreshes the token
   under broker-enforced reauthentication, and preserves every acknowledged
   record; and
-- live mTLS client-certificate renewal: three independent producers observe
-  Kafka's broker-enforced idle disconnect, invoke every package provider with a
-  separately issued replacement certificate signed by the same CA, reconnect,
-  and preserve every acknowledged record in exact broker order; and
+- live mTLS client-certificate renewal: three independent producers cross
+  three Kafka broker-enforced idle-disconnect cycles, invoke every package
+  provider with each separately issued replacement certificate signed by the
+  same CA, reconnect, and preserve every acknowledged record in exact broker
+  order; and
 - live server-certificate and trust-anchor rotation: Apache Kafka dynamically
   replaces the client-listener keystore with a certificate under a separately
   generated CA, an existing producer reconnects using overlapping roots, then
@@ -173,11 +174,11 @@ verifier transition atomic. See Kafka's
 and the pinned
 [SASL channel reconfiguration source](https://github.com/apache/kafka/blob/4.3.1/clients/src/main/java/org/apache/kafka/common/network/SaslChannelBuilder.java#L189-L207).
 
-This proves interoperability only with the pinned Apache fixture. Prolonged
-multi-client mTLS rollover stress, specific external OAuth identity providers,
-zero-downtime multi-broker PLAIN cutover, transactional-ID authorization
-failures, ACL changes during live traffic, and managed-service authentication
-remain separate required evidence. The fixtures do not use Kafka's
+This proves interoperability only with the pinned Apache fixture. Specific
+external OAuth identity-provider evidence, zero-downtime multi-broker PLAIN
+cutover, transactional-ID authorization failures, ACL changes during live
+traffic, and managed-service authentication remain separate required evidence.
+The fixtures do not use Kafka's
 non-production unsecured OAUTHBEARER implementation and do not claim
 compatibility with a particular OAuth identity provider.
 

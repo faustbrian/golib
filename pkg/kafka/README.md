@@ -426,10 +426,10 @@ and preserves every acknowledged record. Three provider-backed PLAIN
 producers additionally recover after a bounded broker
 restart replaces the server credential, verify every acknowledged record, and
 reject the retired password. This does not claim zero-downtime PLAIN rotation.
-Three independent mTLS producers also
-reconnect after broker-enforced idle disconnects, obtain a separately issued
-replacement certificate from every provider, and preserve every acknowledged
-record. A compact-only Apache topic also proves replay fails closed on a missing
+Three independent mTLS producers also cross three broker-enforced idle
+disconnect cycles, obtain each successive client certificate from every
+provider, and preserve every acknowledged record. A compact-only Apache topic
+also proves replay fails closed on a missing
 requested offset while the broker log start remains unchanged. A three-process
 consumer fixture proves the documented
 eager-to-cooperative rolling protocol transition with exact partition

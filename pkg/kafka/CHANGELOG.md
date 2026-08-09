@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- extend three independent mTLS producers across three successive live
+  client-certificate renewals, requiring every provider generation after a
+  broker-enforced reconnect and preserving every acknowledged record
 - prove a caller-owned OAuth `client_credentials` provider acquires and
   refreshes signed tokens from a verified HTTPS endpoint under bounded,
   cancellation-aware, redacted policy before Kafka authentication
