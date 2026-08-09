@@ -1272,7 +1272,14 @@ func specifications(directory string) []string {
 			"Ethereum Recursive Length Prefix encoding",
 		}
 	case "openapi":
-		return []string{"OpenAPI 2.0, 3.0, and 3.1"}
+		return []string{
+			"Swagger 2.0",
+			"OpenAPI 3.0.0 through 3.0.4",
+			"OpenAPI 3.1.0 through 3.1.2",
+			"OpenAPI 3.2.0",
+			"OpenAPI published schemas and registries",
+			"JSON Schema Draft 4 and 2020-12 dialects",
+		}
 	case "openrpc":
 		return []string{
 			"OpenRPC 1.3.x and 1.4.x",
@@ -1351,6 +1358,13 @@ func conformanceCorpora(directory string) []string {
 			"ethereum/execution-spec-tests stable fixtures v5.4.0 at 88e9fb8f10ed89805aa3110d0a2cd5dcadc19689",
 			"ethereum/tests TrieTests at c67e485ff8b5be9abc8ad15345ec21aa22e290d9",
 			"go-ethereum transition receipt fixtures at 117e067f0f0bae1a17082321f224dedb6765b10f",
+		}
+	case "openapi":
+		return []string{
+			"Pinned Swagger 2.0 and OpenAPI 3.0 through 3.2 normative publications",
+			"Generated 2,381-row normative and object-field evidence matrices",
+			"Pinned published schemas, dialects, registries, and accepted errata",
+			"Pinned Swagger Petstore and GitHub REST API descriptions",
 		}
 	case "openrpc":
 		return []string{

@@ -16,6 +16,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Catalog OpenAPI's exact 2.0 through 3.2 feature lines, adjacent JSON Schema
+  dialects, generated normative matrices, published artifacts, accepted errata,
+  and independent descriptions.
 - Catalog OpenRPC's supported 1.3.x and 1.4.x lines, adjacent standards, pinned
   official examples, and generated conformance matrices instead of the stale
   OpenRPC 1.3-only description.
