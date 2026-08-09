@@ -451,6 +451,13 @@ func TestNewRejectsMissingProviders(t *testing.T) {
 	}); !errors.Is(err, authentication.ErrInvalidConfiguration) {
 		t.Fatalf("New(typed nil provider) error = %v", err)
 	}
+	var typedNilTracer *panicTracerProvider
+	if _, err := authotel.New(authotel.Config{
+		TracerProvider: typedNilTracer,
+		MeterProvider:  metricnoop.NewMeterProvider(),
+	}); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("New(typed nil tracer provider) error = %v", err)
+	}
 }
 
 func TestNewReportsInstrumentConstructionFailures(t *testing.T) {
@@ -526,6 +533,25 @@ func TestStartContainsTracerPanicsAndPreservesContext(t *testing.T) {
 	}
 	if finish == nil {
 		t.Fatal("Start() returned nil completion after tracer panic")
+	}
+	finish(authentication.Event{Outcome: authentication.OutcomeAuthenticated})
+}
+
+func TestStartPreservesContextWhenTracerReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	instrumenter, err := authotel.New(authotel.Config{
+		TracerProvider: nilContextTracerProvider{TracerProvider: tracenoop.NewTracerProvider()},
+		MeterProvider:  metricnoop.NewMeterProvider(),
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	type contextKey struct{}
+	ctx := context.WithValue(context.Background(), contextKey{}, "preserved")
+	next, finish := instrumenter.Start(ctx, authentication.CredentialBearer)
+	if next == nil || next.Value(contextKey{}) != "preserved" {
+		t.Fatal("Start() did not preserve context after a hostile tracer returned nil")
 	}
 	finish(authentication.Event{Outcome: authentication.OutcomeAuthenticated})
 }
@@ -610,6 +636,23 @@ type panicStartTracer struct{ trace.Tracer }
 
 func (panicStartTracer) Start(context.Context, string, ...trace.SpanStartOption) (context.Context, trace.Span) {
 	panic("secret-token-tracer-panic")
+}
+
+type nilContextTracerProvider struct{ trace.TracerProvider }
+
+func (p nilContextTracerProvider) Tracer(name string, options ...trace.TracerOption) trace.Tracer {
+	return nilContextTracer{Tracer: p.TracerProvider.Tracer(name, options...)}
+}
+
+type nilContextTracer struct{ trace.Tracer }
+
+func (t nilContextTracer) Start(
+	ctx context.Context,
+	name string,
+	options ...trace.SpanStartOption,
+) (context.Context, trace.Span) {
+	_, span := t.Tracer.Start(ctx, name, options...)
+	return nil, span
 }
 
 type spanPanicTracerProvider struct {

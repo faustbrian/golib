@@ -25,6 +25,17 @@ All notable changes to this module are documented here.
   signal stability, bounded-provider prerequisites, provider ownership,
   privacy, cancellation, concurrency, lifecycle, compatibility, and migration
   policy.
+- Preserve the caller context when a hostile tracer returns nil and release
+  captured request context and span references after the winning completion so
+  retained callbacks cannot retain request state.
+- Expand hardening proof across complete captured-telemetry redaction,
+  high-concurrency cardinality, bounded batch-exporter backpressure, hostile
+  provider fuzzing, SDK errors and shutdown, and enabled, sampled-out, no-op,
+  and direct-instrumentation allocation benchmarks with enforced relative
+  latency and allocation budgets.
+- Make the unavoidable bounded synchronous-provider prerequisite explicit:
+  indefinitely blocking implementations are outside the supported contract
+  because containing them would require unbounded abandoned goroutines.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

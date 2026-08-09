@@ -18,7 +18,8 @@ import (
 
 const instrumentationName = "github.com/faustbrian/golib/pkg/authentication/authotel"
 
-// Config supplies caller-owned providers. Both providers are required.
+// Config supplies caller-owned providers. Both providers are required and
+// their synchronous construction and recording operations must be bounded.
 type Config struct {
 	TracerProvider trace.TracerProvider
 	MeterProvider  metric.MeterProvider
@@ -28,6 +29,11 @@ type Config struct {
 // concurrent use and starts no goroutines.
 type Instrumenter struct {
 	tracer   trace.Tracer
+	attempts metric.Int64Counter
+	duration metric.Float64Histogram
+}
+
+type instruments struct {
 	attempts metric.Int64Counter
 	duration metric.Float64Histogram
 }
@@ -84,30 +90,39 @@ func (i *Instrumenter) Start(
 		}
 	}()
 	kindAttribute := attribute.String("authentication.credential.kind", credentialKind(kind))
-	next, span := i.tracer.Start(
+	candidate, span := i.tracer.Start(
 		ctx,
 		"authentication.authenticate",
 		trace.WithAttributes(kindAttribute),
 	)
+	if candidate != nil {
+		next = candidate
+	}
+	observers := instruments{attempts: i.attempts, duration: i.duration}
 
 	var completed atomic.Bool
 	return next, func(event authentication.Event) {
 		if !completed.CompareAndSwap(false, true) {
 			return
 		}
+		recordingContext, recordingSpan := next, span
+		recordingObservers := observers
+		next = nil
+		span = nil
+		observers = instruments{}
 		outcome := outcome(event.Outcome)
 		attributes := []attribute.KeyValue{
 			kindAttribute,
 			attribute.String("authentication.outcome", outcome),
 			attribute.String("authentication.failure.kind", failureKind(event.Outcome, event.Failure)),
 		}
-		setAttributes(span, attributes[1:])
+		setAttributes(recordingSpan, attributes[1:])
 		if outcome == string(authentication.OutcomeFailed) {
-			setErrorStatus(span)
+			setErrorStatus(recordingSpan)
 		}
-		addAttempt(i.attempts, next, attributes)
-		recordDuration(i.duration, next, max(event.Duration.Seconds(), 0), attributes)
-		endSpan(span)
+		addAttempt(recordingObservers.attempts, recordingContext, attributes)
+		recordDuration(recordingObservers.duration, recordingContext, max(event.Duration.Seconds(), 0), attributes)
+		endSpan(recordingSpan)
 	}
 }
 

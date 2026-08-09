@@ -84,7 +84,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 18 | Fleet | `pending-reexecution` | `pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md` | 3-17 |
 | 19 | Security | `pending-reexecution` | `pkg/secret-envelope/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 20 | Security | `pending-reexecution` | `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19 |
-| 23 | Authentication | `pending-reexecution` | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | 21, 22 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 24, 25 |
@@ -124,6 +123,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `.ai/GOAL_MAINTENANCE.md` | `recurring` | Execute its cadence continuously and before each supported-Go, dependency, security, specification, or release transition. |
 | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 22. Current scoped evidence verifies OpenID Connect discovery and ID-token policy, bounded synchronized metadata and JWKS rotation, caller-owned nonce validation, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 23. Current scoped evidence verifies authentication-material redaction, result isolation, bounded completion and retention, provider lifecycle, concurrency, fuzzing, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 31. Current scoped evidence verifies canonical synchronous publication, explicit acceptance ambiguity, stable duplicate identity, durable Redis and Valkey relay windows, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 32. Current scoped evidence verifies payload-safe propagation and telemetry, exact relay publication and settlement semantics, bounded cooperative-provider lifecycle, concurrency and retention safety, convention mapping, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
@@ -312,6 +312,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run; no external services. |
 | Observed | 2026-08-09T06:22:55Z |
 | Gaps | None within the scoped OIDC goal contract; NilAway advisory example-flow diagnostics remain visible under repository policy. |
+
+### Authentication OpenTelemetry hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` |
+| Scope | Authentication-material redaction, exact result preservation, fixed-cardinality signals, exactly-once completion, panic and hostile-provider isolation, request-state release, bounded batch-exporter backpressure, caller-owned SDK shutdown, and equivalent-work performance budgets. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/authentication/authotel` against an immutable goal-scoped snapshot containing the completed adapter batch. |
+| Result | Passed every mandatory module gate and both goal audits, including 75/75 statements, 13/13 viable mutants with 100% efficacy and mutator coverage, race, two 10,000-execution fuzz targets, lint, Staticcheck, vulnerability, secrets, licenses, SBOM, API, documentation, and enforced benchmark budgets; conformance and interoperability were not applicable by catalog policy. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run; no external services. |
+| Observed | 2026-08-09T10:43:36Z |
+| Gaps | None within the documented bounded-provider contract. The live repository wrapper was blocked by unrelated concurrent manifest and inventory drift, so the identical authotel inputs were verified in an immutable scoped snapshot. |
 
 ### Outbox queue publisher evidence
 

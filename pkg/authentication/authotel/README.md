@@ -41,7 +41,9 @@ disable emission while retaining the same wiring.
 The caller owns provider configuration, sampling, readers, exporters,
 queueing, force-flush, and shutdown. Constructing or using this adapter starts
 no goroutines. The adapter remains usable according to the supplied providers'
-contract after their shutdown; it performs no independent shutdown work.
+contract after their shutdown; it performs no independent shutdown work. A
+provider that returns a nil context is treated as hostile and the caller's
+original context is preserved.
 
 ## Telemetry convention
 
@@ -100,7 +102,10 @@ and apply its own redaction and cardinality policy.
 The completion callback is exactly-once: its first call records the event and
 ends the span; duplicate calls emit nothing and return without waiting for the
 winning completion's telemetry operations. `Instrumenter` and callbacks are
-safe for concurrent use. No lock is held across provider or caller code.
+safe for concurrent use. The winning call releases the captured request context
+and span before recording through stack-local references, so retaining a
+completed callback does not retain request state. No lock is held across
+provider or caller code.
 
 A canceled context is preserved and completion is still attempted. This lets a
 provider record the canceled attempt according to its own SDK and sampling
@@ -121,6 +126,46 @@ synchronous or blocking span processor can delay completion. Applications MUST
 use no-op, bounded batch, or otherwise non-blocking processors on request paths.
 The adapter cannot contain an indefinitely blocking provider without starting
 unbounded goroutines, which this contract forbids.
+
+This is a supported-provider prerequisite: every provider and observer method
+invoked by the adapter MUST return within the application's request-path bound.
+An indefinitely blocking implementation is outside the adapter contract. The
+hostile-provider fuzz matrix covers panics, nil contexts, invalid construction,
+and observer failures; bounded batch-exporter backpressure is exercised with an
+actually blocked exporter. Isolating an arbitrary implementation that never
+returns would require an unbounded abandoned goroutine, contradicting the
+adapter's no-goroutine and no-leak requirements.
+
+## Hardening and allocation inventory
+
+The production dependency surface is the core `authentication` contract and
+the OpenTelemetry attribute, metric, and trace APIs. OpenTelemetry SDK packages
+are used only by tests and benchmarks; applications select and own their SDK
+configuration. Construction invokes the caller's meter and tracer providers
+and creates exactly one counter and one histogram. Per attempt, the adapter
+starts one span and returns one exactly-once callback. Completion performs two
+span mutations, one counter addition, one histogram recording, and one span
+end. Every provider or observer panic boundary is isolated independently and
+all returned adapter errors use fixed text.
+
+The adapter owns no goroutine, exporter, queue, cache, registry, or request
+collection. Before completion, its callback state is a finite credential-kind
+attribute, an atomic completion flag, request references, and the two metric
+instruments needed to record the event. The winning completion clears the
+request, span, and instrument references before invoking observers through
+stack-local copies. Metric labels are limited to the documented 112
+combinations. Exporter queues and retained exported spans or metrics belong to
+the supplied SDK.
+
+`BenchmarkAuthenticationInstrumentation` reports latency and allocations for
+equivalent direct core instrumentation, OpenTelemetry no-op providers, an SDK
+with tracing sampled out, and an enabled SDK. The figures are regression
+evidence for the executing environment, not a cross-platform performance
+promise. The module benchmark gate runs five 1,000-operation samples per path,
+compares median latency with the direct-instrumentation sample from the same
+process, and enforces platform-tolerant maximum ratios of 100x for no-op, 150x
+for sampled-out, and 200x for enabled telemetry. It also caps those paths at
+median values of 20, 22, and 24 allocations per operation respectively.
 
 ## Adoption and tradeoffs
 
