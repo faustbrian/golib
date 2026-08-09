@@ -124,3 +124,20 @@ func mustPeriod(t *testing.T, start, end time.Time) instant.Period {
 	}
 	return period
 }
+
+func TestParseTimestampIgnoresAmbientLocalTimezone(t *testing.T) {
+	originalLocal := time.Local
+	t.Cleanup(func() { time.Local = originalLocal })
+	time.Local = time.FixedZone("ambient", 2*60*60)
+
+	parsed, err := parseTimestamp("2026-07-19T12:00:00+02:00")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed.Location() != time.UTC {
+		t.Fatalf("parseTimestamp() location = %q, want UTC", parsed.Location())
+	}
+	if want := time.Date(2026, time.July, 19, 10, 0, 0, 0, time.UTC); !parsed.Equal(want) {
+		t.Fatalf("parseTimestamp() = %s, want %s", parsed, want)
+	}
+}

@@ -169,9 +169,10 @@ No. Resolve that civil-time concern before calling this adapter.
 ## Performance and verification
 
 `BenchmarkPeriodContainsInstant` compares tagged parse-and-evaluate work with
-equivalent direct temporal membership and reports allocations. Compare results
-on the same machine and Go toolchain with `benchstat`; record CPU, operating
-system, corpus, sample count, and benchmark time when publishing numbers.
+both equivalent direct parse/construct/membership work and already-typed direct
+membership, and reports allocations. Compare results on the same machine and
+Go toolchain with `benchstat`; record CPU, operating system, corpus, sample
+count, and benchmark time when publishing numbers.
 
 The repository module gate covers formatting, API compatibility, documentation
 examples, tests, race detection, exact statement coverage, fuzz smoke tests,

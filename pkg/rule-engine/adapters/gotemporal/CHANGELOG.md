@@ -26,6 +26,9 @@ All notable changes to this module are documented here.
   open/closed endpoints, singleton intervals, and empty intervals.
 - Reject persisted timestamps that would lose precision beyond nanoseconds and
   bound parser work to the largest supported encoding.
+- Parse persisted offsets without consulting the ambient local timezone and
+  return canonical UTC instants for every accepted timestamp.
+- Reject hostile persisted values without echoing their contents in errors.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 - Refresh owned-module checksums against the final consolidated archives.

@@ -147,3 +147,81 @@ func TestOperatorSetsAndSignaturesAreMutationIsolated(t *testing.T) {
 		t.Fatalf("Signatures() reused caller-mutated storage: %#v", got)
 	}
 }
+
+func TestEveryAllenEndpointRelationAcrossAllBounds(t *testing.T) {
+	t.Parallel()
+
+	base := time.Date(2026, time.July, 19, 10, 0, 0, 0, time.UTC)
+	at := func(value int) time.Time { return base.Add(time.Duration(value) * time.Nanosecond) }
+	layouts := []struct {
+		name                 string
+		leftStart, leftEnd   int
+		rightStart, rightEnd int
+	}{
+		{"before", 0, 1, 2, 3},
+		{"meets", 0, 1, 1, 2},
+		{"overlaps", 0, 2, 1, 3},
+		{"starts", 0, 1, 0, 2},
+		{"during", 1, 2, 0, 3},
+		{"finishes", 1, 3, 0, 3},
+		{"equal", 0, 3, 0, 3},
+		{"finished_by", 0, 3, 1, 3},
+		{"contains", 0, 3, 1, 2},
+		{"started_by", 0, 2, 0, 1},
+		{"overlapped_by", 1, 3, 0, 2},
+		{"met_by", 1, 2, 0, 1},
+		{"after", 2, 3, 0, 1},
+	}
+	relations := []struct {
+		name  ruleengine.OperatorName
+		match func(instant.Period, instant.Period) bool
+	}{
+		{ruleenginetemporal.OpPeriodEqual, instant.Period.SetEqual},
+		{ruleenginetemporal.OpPeriodBefore, instant.Period.IsBefore},
+		{ruleenginetemporal.OpPeriodAfter, instant.Period.IsAfter},
+		{ruleenginetemporal.OpPeriodOverlaps, instant.Period.Overlaps},
+		{ruleenginetemporal.OpPeriodContainsPeriod, instant.Period.Contains},
+	}
+	for _, layout := range layouts {
+		for _, leftBounds := range temporal.AllBounds() {
+			for _, rightBounds := range temporal.AllBounds() {
+				leftPeriod := mustExternalPeriod(t, at(layout.leftStart), at(layout.leftEnd), leftBounds)
+				rightPeriod := mustExternalPeriod(t, at(layout.rightStart), at(layout.rightEnd), rightBounds)
+				left := mustEncodedPeriod(t, leftPeriod)
+				right := mustEncodedPeriod(t, rightPeriod)
+				for _, relation := range relations {
+					got, err := temporalOperatorByName(t, relation.name).Evaluate(context.Background(), left, right)
+					want := relation.match(leftPeriod, rightPeriod)
+					if err != nil || got != want {
+						t.Fatalf("%s %s/%s %s = %t, %v; want %t", layout.name, leftBounds, rightBounds, relation.name, got, err, want)
+					}
+				}
+			}
+		}
+	}
+}
+
+func TestZeroDurationPeriodsHaveExactSetSemantics(t *testing.T) {
+	t.Parallel()
+
+	point := time.Date(2026, time.July, 19, 10, 0, 0, 1, time.UTC)
+	containsInstant := temporalOperatorByName(t, ruleenginetemporal.OpPeriodContains)
+	overlaps := temporalOperatorByName(t, ruleenginetemporal.OpPeriodOverlaps)
+	containsPeriod := temporalOperatorByName(t, ruleenginetemporal.OpPeriodContainsPeriod)
+	for _, bounds := range temporal.AllBounds() {
+		period := mustExternalPeriod(t, point, point, bounds)
+		encoded := mustEncodedPeriod(t, period)
+		member, err := containsInstant.Evaluate(context.Background(), encoded, mustEncodedInstant(t, point))
+		if err != nil || member != (bounds == temporal.Closed) {
+			t.Fatalf("%s singleton membership = %t, %v", bounds, member, err)
+		}
+		shared, err := overlaps.Evaluate(context.Background(), encoded, encoded)
+		if err != nil || shared != (bounds == temporal.Closed) {
+			t.Fatalf("%s self overlap = %t, %v", bounds, shared, err)
+		}
+		contained, err := containsPeriod.Evaluate(context.Background(), encoded, encoded)
+		if err != nil || !contained {
+			t.Fatalf("%s self containment = %t, %v", bounds, contained, err)
+		}
+	}
+}

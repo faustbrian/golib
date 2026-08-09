@@ -133,7 +133,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomath/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 37. Current scoped evidence verifies exact decimal persistence and comparison behavior, hostile-input and concurrency hardening, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 39. Current scoped evidence verifies exact UTC encoding, bound-sensitive interval relations, persisted-input hardening, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 39. Current scoped evidence verifies exact UTC encoding, bound-sensitive interval relations, persisted-input hardening, compatibility, concurrency, fuzzing, coverage, mutation, benchmarks, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/external-sort/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 40. Current scoped evidence verifies encrypted spill hardening and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/service/.ai/GOAL_RESILIENCE.md` | `verified` | The base resilience goal formerly included in pending order 18 has current lifecycle, adoption, Kubernetes, exact coverage and mutation, documentation, API, security, supply-chain, race, and benchmark evidence; its separate `GOAL_RESILIENCE_HARDEN.md` remains pending. |
 | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 42. Current scoped evidence verifies canonical scoped capabilities and signed URLs, key lifecycle, replay and revocation adapters, hardening requirements, and every mandatory capability-module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -320,11 +320,11 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Goal | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` |
 | Scope | Canonical exact-instant encoding, explicit period bounds, set relations, persisted-input validation, cancellation, concurrency, documentation, and module quality gates. |
 | Status | `pending-reexecution` to `verified` |
-| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/rule-engine/adapters/gotemporal` against an immutable repository snapshot containing the completed adapter batch. |
-| Result | Passed every mandatory module gate, including 92/92 statements, 51/51 viable mutants, race, two 10,000-execution fuzz targets, API, docs, security, and benchmarks; conformance and interoperability were not applicable by catalog policy. |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/rule-engine/adapters/gotemporal` against an immutable snapshot, followed by successful live-input fingerprint and two-goal audit at execution revision `8bbd80aad80a3c1bc8f70dcca50487a3b7a40a25`. |
+| Result | Passed every scoped module gate and both goal audits, including 95/95 statements, 52/52 viable mutants with 100% mutation efficacy and mutant coverage, race, two 10,000-execution fuzz targets, API, documentation, security, supply-chain checks, and equivalent-work benchmarks. |
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
-| Observed | 2026-08-09T04:42:01Z |
-| Gaps | None within the scoped module contract. |
+| Observed | 2026-08-09T10:12:10Z |
+| Gaps | None within the affected Temporal and owned `rule-engine` module scope. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,

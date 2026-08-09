@@ -142,7 +142,7 @@ func parsePeriod(value ruleengine.Value) (instant.Period, error) {
 	}
 	var bounds temporal.Bounds
 	if err := bounds.UnmarshalText([]byte(parts[2])); err != nil {
-		return instant.Period{}, fmt.Errorf("rule-engine temporal: invalid period bounds: %w", err)
+		return instant.Period{}, fmt.Errorf("rule-engine temporal: invalid period bounds")
 	}
 	return instant.New(start, end, bounds)
 }
@@ -174,7 +174,12 @@ func parseTimestamp(text string) (time.Time, error) {
 		return time.Time{}, fmt.Errorf("invalid RFC3339 numeric offset")
 	}
 
-	return time.Parse(time.RFC3339Nano, text)
+	parsed, err := time.ParseInLocation(time.RFC3339Nano, text, time.UTC)
+	if err != nil {
+		return time.Time{}, fmt.Errorf("invalid RFC3339 nanosecond timestamp")
+	}
+
+	return parsed.UTC(), nil
 }
 
 func validTimestampShape(text string) bool {

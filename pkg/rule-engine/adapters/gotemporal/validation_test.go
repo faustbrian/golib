@@ -132,3 +132,39 @@ func TestOperatorsRejectCancellationBeforeParsing(t *testing.T) {
 		}
 	}
 }
+
+func TestPersistedInputErrorsDoNotEchoHostileValues(t *testing.T) {
+	t.Parallel()
+
+	sentinel := "do-not-echo"
+	equal := temporalOperatorByName(t, ruleenginetemporal.OpPeriodEqual)
+	valid := ruleengine.String(
+		"period:2026-07-19T10:00:00Z|2026-07-19T11:00:00Z|[)",
+	)
+	for _, hostile := range []ruleengine.Value{
+		ruleengine.String("period:" + sentinel + "|2026-07-19T11:00:00Z|[)"),
+		ruleengine.String("period:2026-07-19T10:00:00Z|" + sentinel + "|[)"),
+		ruleengine.String("period:2026-07-19T10:00:00Z|2026-07-19T11:00:00Z|" + sentinel),
+	} {
+		_, err := equal.Evaluate(context.Background(), hostile, valid)
+		if err == nil {
+			t.Fatalf("Evaluate(%#v) error = nil", hostile)
+		}
+		if strings.Contains(err.Error(), sentinel) {
+			t.Fatalf("Evaluate() error echoed hostile input: %q", err)
+		}
+	}
+
+	contains := temporalOperatorByName(t, ruleenginetemporal.OpPeriodContains)
+	_, err := contains.Evaluate(
+		context.Background(),
+		valid,
+		ruleengine.String("instant:"+sentinel),
+	)
+	if err == nil {
+		t.Fatal("Evaluate(hostile instant) error = nil")
+	}
+	if strings.Contains(err.Error(), sentinel) {
+		t.Fatalf("Evaluate() error echoed hostile instant: %q", err)
+	}
+}
