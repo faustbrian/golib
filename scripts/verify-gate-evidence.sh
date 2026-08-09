@@ -43,6 +43,7 @@ jq -e \
         .gate == $gate and
         (
             .result == "passed" or
+            .result == "not_applicable" or
             ($gate == "nilaway" and .result == "advisory")
         ) and
         .exit_code == 0 and
@@ -56,6 +57,12 @@ jq -e \
 
 if [[ "$(jq -r '.result' "${evidence}")" == "advisory" ]] &&
     ! grep -Eq 'NilAway advisory exit status: [1-9][0-9]*$' "${log}"; then
+    printf '[%s] stale or invalid %s evidence\n' "${module}" "${gate}" >&2
+    exit 1
+fi
+
+if [[ "$(jq -r '.result' "${evidence}")" == "not_applicable" ]] &&
+    ! grep -Fq ': not applicable by catalog policy' "${log}"; then
     printf '[%s] stale or invalid %s evidence\n' "${module}" "${gate}" >&2
     exit 1
 fi

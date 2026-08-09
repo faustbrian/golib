@@ -2440,6 +2440,32 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 	if output, err := verify.CombinedOutput(); err == nil {
 		t.Fatalf("verifier accepted advisory evidence for a mandatory gate:\n%s", output)
 	}
+
+	writeEvidence(
+		"conformance",
+		"not_applicable",
+		"[pkg/sample] conformance: not applicable by catalog policy\n",
+	)
+	verify = exec.Command(
+		filepath.Join(repository, "scripts", "verify-gate-evidence.sh"),
+		"pkg/sample",
+		"conformance",
+	)
+	verify.Dir = repository
+	if output, err := verify.CombinedOutput(); err != nil {
+		t.Fatalf("verify catalog-not-applicable evidence: %v\n%s", err, output)
+	}
+	writeEvidence("conformance", "not_applicable", "conformance skipped without catalog policy\n")
+	verify = exec.Command(
+		filepath.Join(repository, "scripts", "verify-gate-evidence.sh"),
+		"pkg/sample",
+		"conformance",
+	)
+	verify.Dir = repository
+	if output, err := verify.CombinedOutput(); err == nil {
+		t.Fatalf("verifier accepted malformed not-applicable evidence:\n%s", output)
+	}
+
 	writeEvidence("test", "passed", "test passed\n")
 	writeEvidence(
 		"nilaway",

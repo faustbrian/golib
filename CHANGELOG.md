@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Accept catalog-declared not-applicable gate evidence only when its bound log
+  records the catalog-policy decision, so scoped aggregate checks can complete
+  without treating a skipped mandatory gate as a pass.
 - Accept well-formed advisory NilAway evidence during goal audits while
   continuing to reject advisory outcomes for every mandatory gate.
 - Scope gate fingerprints to the tool versions and service images that can
