@@ -18,6 +18,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- PostgreSQL 14 through 18 upgrade evidence from the only prior schema version,
+  preserving event writers and history across the derived-state migration
+  without optional extensions
 - realistic-volume PostgreSQL 14 through 18 plan evidence proving complete
   stream and global envelope reads use their exact indexes without sequential
   or bitmap heap scans

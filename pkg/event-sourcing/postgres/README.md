@@ -24,7 +24,12 @@ Migrations belong in a dedicated deployment job. Constructors do not inspect
 or modify schema. The embedded history is forward-only: migrations expose no
 rollback operation, so schema changes are reversed through a reviewed forward
 repair or restore rather than destructive down SQL. The migration runner's
-checksum-bound ledger makes repeated `Up` jobs idempotent.
+checksum-bound ledger makes repeated `Up` jobs idempotent and must serialize
+concurrent deployment jobs; the embedded SQL is not independently idempotent.
+The real-database upgrade suite reconstructs the only supported prior schema,
+runs an event writer before and after the derived-state migration, preserves
+history, and activates snapshots and projections without optional PostgreSQL
+extensions across PostgreSQL 14 through 18.
 
 ## Append and read
 
