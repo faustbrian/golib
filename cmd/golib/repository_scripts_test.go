@@ -1660,8 +1660,8 @@ func TestValue(t *testing.T) {
 		"gremlins-module-relative-diff.patch",
 	)
 	writeFile(t, diffPatch, "revised module-relative diff patch\n")
-	if current := digest(); current == initial {
-		t.Fatal("module-relative diff patch did not change mutation digest")
+	if current := digest(); current != initial {
+		t.Fatalf("focused diff patch changed full mutation digest: %s != %s", current, initial)
 	}
 	writeFile(t, diffPatch, "scripts/patches/gremlins-module-relative-diff.patch\n")
 	writeFile(t, moduleSum, "example.test/dependency v0.0.0 h1:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=\n")
