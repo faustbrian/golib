@@ -205,7 +205,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Evidence | Queueservice-only format, vet, unit, race, exact coverage, 10,000-execution fuzz, benchmark, documentation, API, safety, security, supply-chain, Redis and Valkey integration, interoperability, and mutation gates against the current package inputs. |
 | Result | Passed every mandatory queueservice module gate, including exact 100.0% statement coverage, 131/131 viable mutants killed with 100.00% efficacy and mutator coverage, Redis and Valkey backend integration, race, fuzz, API, documentation, security, supply-chain, and benchmark evidence. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run and isolated Redis 8.6.4 and Valkey 9.1.0 services for backend gates. |
-| Observed | 2026-08-09T14:43:43Z |
+| Observed | 2026-08-09T15:14:08Z |
 | Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped base-goal contract. The separate `GOAL_HARDEN.md` campaign remains pending. |
 
 ### Encrypted external sort hardening evidence
