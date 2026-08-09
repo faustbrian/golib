@@ -1,5 +1,9 @@
 # Specification and interoperability report
 
+The [specification decision register](specification-decisions.md) records the
+explicit interpretation whenever normative prose, the meta-schema, examples,
+or adjacent standards do not determine one observable behavior on their own.
+
 This report records the release audit performed on 2026-07-20. The source of
 truth is OpenRPC 1.4.1 at commit
 `3a13c7a8bad248e6edd2d48339cd1c06b57f8f22`; `specification/manifest.json`

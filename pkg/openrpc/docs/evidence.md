@@ -1,5 +1,8 @@
 # Verification evidence
 
+The [specification decision register](specification-decisions.md) maps every
+material ambiguity and package policy to this executable evidence surface.
+
 `specification/conformance/normative.tsv` inventories all 49 normative
 statements from the pinned prose and schema descriptions. The reviewed
 `evidence.tsv` maps each statement to implementation and executable tests.

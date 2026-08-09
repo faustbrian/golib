@@ -23,6 +23,9 @@ var (
 	ErrSchemaCompile = errors.New("jsonschema: Draft 7 compilation failed")
 	// ErrInvalidInstance reports an invalid zero instance value.
 	ErrInvalidInstance = errors.New("jsonschema: invalid instance")
+	// ErrValidationResourceLimit reports that bounded validation could not
+	// complete without exceeding its configured work limit.
+	ErrValidationResourceLimit = errors.New("jsonschema: validation resource limit exceeded")
 )
 
 const defaultBaseURI = "https://openrpc.invalid/schema.json"
@@ -127,9 +130,14 @@ type ecmaRegexp struct {
 	compiled *regexp2.Regexp
 }
 
+type regexpTimeout struct{}
+
 func (expression ecmaRegexp) MatchString(input string) bool {
 	matched, err := expression.compiled.MatchString(input)
-	return err == nil && matched
+	if err != nil {
+		panic(regexpTimeout{})
+	}
+	return matched
 }
 
 func (expression ecmaRegexp) String() string { return expression.compiled.String() }
@@ -185,12 +193,17 @@ func (compiled Validator) Validate(ctx context.Context, instance jsonvalue.Value
 	if err != nil {
 		return Report{err: ErrInvalidInstance}
 	}
-	err = compiled.compiled.Validate(value)
+	err = runValidation(func() error {
+		return compiled.compiled.Validate(value)
+	})
 	if err == nil {
 		if contextErr := ctx.Err(); contextErr != nil {
 			return Report{err: contextErr}
 		}
 		return Report{}
+	}
+	if errors.Is(err, ErrValidationResourceLimit) {
+		return Report{err: err}
 	}
 	// A compiled schema returns only nil or *ValidationError for a decoded
 	// instance; decoding failures were handled above.
@@ -204,6 +217,20 @@ func (compiled Validator) Validate(ctx context.Context, instance jsonvalue.Value
 		issues = issues[:compiled.maxIssues]
 	}
 	return Report{issues: issues, truncated: truncated}
+}
+
+func runValidation(validate func() error) (err error) {
+	defer func() {
+		recovered := recover()
+		switch recovered.(type) {
+		case nil:
+		case regexpTimeout:
+			err = ErrValidationResourceLimit
+		default:
+			panic(recovered)
+		}
+	}()
+	return validate()
 }
 
 func sortValidationErrors(current *validator.ValidationError) {

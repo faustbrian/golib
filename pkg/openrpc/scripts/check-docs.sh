@@ -11,7 +11,7 @@ required=(
   docs/hardening.md docs/migration.md docs/performance.md docs/quickstart.md
   docs/releasing.md docs/repository-standards.md
   docs/resolver-threat-model.md docs/resource-budgets.md docs/security.md
-  docs/specification-report.md benchmarks/baseline.txt
+  docs/specification-decisions.md docs/specification-report.md benchmarks/baseline.txt
   docs/troubleshooting.md
 )
 

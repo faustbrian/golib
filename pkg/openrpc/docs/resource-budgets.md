@@ -7,7 +7,7 @@ Callers should lower limits when their deployment contract is smaller.
 | --- | --- | --- |
 | Generic JSON | 16 MiB, depth 256, 2,000,000 tokens | `jsonvalue.Policy` rejects before ownership or model parsing |
 | OpenRPC parse | 10,000 methods, parameters, servers, variables, tags, errors, links, and examples; 100,000 components | `parse.Options` rejects the affected collection |
-| Draft 7 compile | 1,024 explicit resources, 64 MiB aggregate schema bytes, 1,000 issues, 100 ms regexp timeout | `jsonschema.ValidationOptions` checks resources before compiler registration |
+| Draft 7 compile | 1,024 explicit resources, 64 MiB aggregate schema bytes, 1,000 issues, 100 ms regexp timeout; pinned OpenRPC meta-schema patterns use the maximum bounded 10 s window | `jsonschema.ValidationOptions` checks resources before compiler registration; a regexp timeout returns `ErrValidationResourceLimit` instead of a false pattern mismatch |
 | Semantic validation | 10,000 methods and 1,000 diagnostics | `validate.Options` checks method count before copying and stops bounded reporting |
 | URI reference | 16 KiB encoded length | `reference.Policy` rejects before URI parsing |
 | JSON Pointer | 16 KiB, 256 tokens, 19 index digits | `reference.PointerPolicy` rejects before token or index work |

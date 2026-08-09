@@ -19,3 +19,14 @@ func TestECMARegexpAdapterPreservesPatternIdentity(t *testing.T) {
 		t.Fatal("invalid pattern compiled")
 	}
 }
+
+func TestValidationBoundaryRepanicsUnexpectedFailures(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if recovered := recover(); recovered != "unexpected" {
+			t.Fatalf("recovered panic = %#v", recovered)
+		}
+	}()
+	_ = runValidation(func() error { panic("unexpected") })
+}

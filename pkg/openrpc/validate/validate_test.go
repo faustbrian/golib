@@ -242,6 +242,34 @@ func TestValidationChecksExamplePairingReferenceSyntax(t *testing.T) {
 	}
 }
 
+func TestSemanticValidationPreservesExampleValuesWithoutSchemaAssertion(t *testing.T) {
+	t.Parallel()
+
+	parsed, err := openrpcparse.Decode([]byte(`{
+		"openrpc":"1.4.1",
+		"info":{"title":"Examples","version":"1"},
+		"methods":[{
+			"name":"example",
+			"params":[{"name":"count","schema":{"type":"integer"}}],
+			"result":{"name":"accepted","schema":{"type":"boolean"}},
+			"examples":[{
+				"name":"documentation-only",
+				"params":[{"name":"count","value":"not-an-integer"}],
+				"result":{"name":"accepted","value":"not-a-boolean"}
+			}]
+		}]
+	}`), openrpcparse.DefaultOptions())
+	if err != nil {
+		t.Fatal(err)
+	}
+	report := validate.Document(
+		context.Background(), parsed.Document(), validate.DefaultOptions(),
+	)
+	if !report.Valid() || len(report.Diagnostics()) != 0 {
+		t.Fatalf("example documentation changed semantic validity: %#v", report.Diagnostics())
+	}
+}
+
 func TestDocumentRejectsInvalidValidationOptions(t *testing.T) {
 	t.Parallel()
 

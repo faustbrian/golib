@@ -29,4 +29,5 @@
 - [Repository standards](docs/repository-standards.md)
 - [Resolver threat model](docs/resolver-threat-model.md)
 - [Resource budgets](docs/resource-budgets.md)
+- [OpenRPC specification decisions](docs/specification-decisions.md)
 - [Specification and interoperability report](docs/specification-report.md)

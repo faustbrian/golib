@@ -7,6 +7,7 @@ import (
 	"errors"
 	"strings"
 	"sync"
+	"time"
 
 	openrpc "github.com/faustbrian/golib/pkg/openrpc"
 	"github.com/faustbrian/golib/pkg/openrpc/jsonschema"
@@ -91,6 +92,10 @@ func compileMetaSchemaBytes(schemaInput []byte, companionInput []byte) (jsonsche
 		return jsonschema.Validator{}, err
 	}
 	options := jsonschema.DefaultValidationOptions()
+	// These regexps are checksum-pinned specification inputs rather than
+	// caller-supplied schemas, so use the maximum bounded window to avoid
+	// scheduler starvation masquerading as structural invalidity.
+	options.RegexpTimeout = 10 * time.Second
 	options.Resources = map[string]jsonschema.Schema{
 		"https://meta.json-schema.tools/": companion,
 	}

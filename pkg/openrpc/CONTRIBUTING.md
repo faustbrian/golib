@@ -19,6 +19,8 @@ testing, is satisfied.
 ## Changes
 
 - Preserve exact OpenRPC and Draft 7 semantics; do not narrow arbitrary JSON.
+- Record every new ambiguity or changed interpretation in the
+  [specification decision register](docs/specification-decisions.md).
 - Add a failing behavioral test before changing production behavior.
 - Keep parsing, validation, and resolution resource-bounded.
 - Do not add implicit network, filesystem, telemetry, or global registry use.

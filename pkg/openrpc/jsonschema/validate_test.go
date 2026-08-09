@@ -3,6 +3,7 @@ package jsonschema_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -106,6 +107,27 @@ func TestCompileEnforcesExactOptionBoundaries(t *testing.T) {
 	options.RegexpTimeout = 10 * time.Second
 	if _, err := jsonschema.Compile(parseSchema(t, `true`), options); err != nil {
 		t.Fatalf("exact timeout boundary error = %v", err)
+	}
+}
+
+func TestValidatorReportsRegexpTimeoutAsResourceLimit(t *testing.T) {
+	t.Parallel()
+
+	options := jsonschema.DefaultValidationOptions()
+	options.RegexpTimeout = time.Millisecond
+	validator, err := jsonschema.Compile(
+		parseSchema(t, `{"pattern":"^(a+)+$"}`), options,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	instance := parseValue(t, `"`+strings.Repeat("a", 4_096)+`!"`)
+	report := validator.Validate(context.Background(), instance)
+	if !errors.Is(report.Err(), jsonschema.ErrValidationResourceLimit) {
+		t.Fatalf("regexp timeout error = %v, issues = %#v", report.Err(), report.Issues())
+	}
+	if report.Valid() || len(report.Issues()) != 0 {
+		t.Fatalf("regexp timeout report = %#v", report)
 	}
 }
 

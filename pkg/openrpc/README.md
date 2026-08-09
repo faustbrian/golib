@@ -143,8 +143,9 @@ redirect and timeout limits, compression rejection, and streamed byte limits.
   rejection fixtures.
 
 See [security](docs/security.md), [architecture](docs/architecture.md),
-[compatibility](docs/compatibility.md), and the generated conformance evidence
-under `specification/conformance/`.
+[compatibility](docs/compatibility.md), the explicit
+[specification decisions](docs/specification-decisions.md), and the generated
+conformance evidence under `specification/conformance/`.
 
 AI-assisted documentation consumers can use [llms.txt](llms.txt) or the
 complete generated [llms-full.txt](llms-full.txt) bundle.

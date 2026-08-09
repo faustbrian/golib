@@ -1,5 +1,8 @@
 # Compatibility policy
 
+Observable interpretations and defensive policies are normative package
+contracts recorded in the [specification decision register](specification-decisions.md).
+
 The module supports the OpenRPC `1.3.x` and `1.4.x` feature lines. Patch
 numbers select the semantics of their declared feature line. OpenRPC 1.4
 introduced strict version matching without changing the document object model,
@@ -21,6 +24,12 @@ surface is otherwise identical.
 `Report.Compatible` fails closed for conditional findings, truncated reports,
 and execution errors; callers cannot silently treat incomplete evidence as a
 safe generation or deployment decision.
+
+Example Pairing values are documentation data. Semantic validation checks
+their structure and reference syntax but does not partially assert values
+against method schemas because OpenRPC 1.4.1 defines no complete pairing and
+evaluation algorithm. Applications that execute examples must resolve and
+validate them explicitly under application-owned semantics.
 
 The JSON Schema validator dependency is pinned in `go.mod`, forced to Draft 7,
 fed only explicit resources, and given no URL loader. The OpenRPC companion

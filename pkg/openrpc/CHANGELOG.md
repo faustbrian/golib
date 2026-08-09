@@ -7,6 +7,9 @@ Changelog principles, and releases use semantic versioning.
 
 ### Changed
 
+- Report bounded Draft 7 regular-expression timeouts as resource-limit errors
+  instead of ordinary pattern mismatches, and give checksum-pinned OpenRPC
+  meta-schema patterns the maximum bounded validation window.
 - Accept OpenRPC `1.3.x` documents through the typed model, parser, semantic
   validator, discovery, and canonical serializer alongside `1.4.x`; the pinned
   `1.4.1` meta-schema remains the structural validator for that feature line,
@@ -22,6 +25,9 @@ Changelog principles, and releases use semantic versioning.
 
 ### Added
 
+- An auditable OpenRPC specification decision register covering artifact
+  precedence, references, examples, Draft 7 schemas, discovery, extensions,
+  serialization, composition, and compatibility diffing.
 - Attributable repository execution for the normative conformance matrix.
 - Complete lossless OpenRPC 1.4.1 document model and strict parser.
 - Draft 7 schema validation with explicit external resources.

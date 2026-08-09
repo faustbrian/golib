@@ -34,3 +34,9 @@ documents.
 Reports and errors never embed full documents or fetched bodies. Callers should
 branch with `errors.Is`, inspect bounded diagnostic codes and pointers, and log
 their own correlation identifiers rather than raw input.
+
+`jsonschema.Validator.Validate` reports a bounded regular-expression timeout as
+`ErrValidationResourceLimit`, not as an ordinary schema mismatch. Callers can
+therefore distinguish an invalid instance from validation that did not finish
+within `ValidationOptions.RegexpTimeout`; the default is 100 milliseconds and
+the accepted maximum is 10 seconds.
