@@ -248,8 +248,12 @@ embedded migrations, verifies the complete message index set, rejects an
 invalid event schema version through the named check constraint, and proves
 the stream and global read shapes select their intended indexes. Query-plan
 evidence disables sequential scans only inside the test transaction so small
-fixtures cannot hide a missing index; production planning remains PostgreSQL's
-responsibility for the deployed data distribution and statistics.
+fixtures cannot hide a missing index. A separate regression loads and analyzes
+65,536 complete envelopes without planner overrides, then proves PostgreSQL 14
+through 18 use exact `Limit` to `Index Scan` plans through
+`messages_stream_version_idx` and `messages_pkey`. It rejects sequential and
+bitmap heap scans. Production planning remains PostgreSQL's responsibility for
+the deployed data distribution and statistics.
 
 The allocator row deliberately serializes position assignment until commit.
 This ensures a global reader cannot checkpoint a later committed event while

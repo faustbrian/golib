@@ -18,6 +18,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- realistic-volume PostgreSQL 14 through 18 plan evidence proving complete
+  stream and global envelope reads use their exact indexes without sequential
+  or bitmap heap scans
 - real PostgreSQL one-connection pool evidence proving partial readers retain
   their connection until close or cancellation, blocked appends honor caller
   deadlines without allocating a global position, and released capacity is
