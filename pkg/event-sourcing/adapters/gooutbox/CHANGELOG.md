@@ -4,6 +4,12 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Removed
+
+- Remove the pre-release committed `Store`; callers now retain exclusive
+  transaction, commit-ambiguity, aggregate acknowledgement, and dispatch
+  ownership through `Stager`.
+
 ### Changed
 
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

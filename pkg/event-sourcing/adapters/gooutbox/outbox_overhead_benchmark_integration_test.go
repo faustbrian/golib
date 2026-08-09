@@ -39,21 +39,42 @@ func BenchmarkPostgreSQLOutboxAppendOverhead(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	outboxStore, err := gooutbox.NewStore(
-		pool,
-		eventpostgres.Config{},
-		writer,
-		codec,
-	)
-	if err != nil {
-		b.Fatal(err)
+	stagedAppend := func(
+		ctx context.Context,
+		stream eventsourcing.StreamID,
+		expected eventsourcing.ExpectedVersion,
+		pending []eventsourcing.PendingMessage,
+	) ([]eventsourcing.Message, error) {
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			return nil, err
+		}
+		defer func() { _ = tx.Rollback(context.Background()) }()
+		stager, err := gooutbox.NewStager(
+			tx,
+			eventpostgres.Config{},
+			writer,
+			codec,
+		)
+		if err != nil {
+			return nil, err
+		}
+		messages, err := stager.Stage(ctx, stream, expected, pending)
+		if err != nil {
+			return nil, err
+		}
+		if err := tx.Commit(ctx); err != nil {
+			return nil, err
+		}
+
+		return messages, nil
 	}
 
 	b.Run("event-store-only", func(b *testing.B) {
 		benchmarkOutboxAppend(b, ctx, pool, "events", 0, eventStore.Append)
 	})
 	b.Run("event-store-with-outbox", func(b *testing.B) {
-		benchmarkOutboxAppend(b, ctx, pool, "outbox", 1, outboxStore.Append)
+		benchmarkOutboxAppend(b, ctx, pool, "outbox", 1, stagedAppend)
 	})
 }
 

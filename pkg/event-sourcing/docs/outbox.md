@@ -5,10 +5,11 @@ Neither imports the other. The optional
 `github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox` nested module
 is the only component that depends on both public contracts.
 
-Use its committed `Store` as the ordinary aggregate repository store when
-event rows and publishable outbox envelopes must commit together. Use its
-lower-level `Stager` only for an already caller-owned `pgx.Tx`. The adapter
-never publishes before commit and replay reads never enqueue records.
+Use its `Stager` with an already caller-owned `pgx.Tx` when event rows and
+publishable outbox envelopes must commit together. The application prepares the
+aggregate save, stages both batches, commits, and only then confirms and
+dispatches the aggregate. The adapter never owns transaction completion,
+publishes before commit, or enqueues records during replay.
 
 The complete API, envelope mapping, crash matrix, limits, recovery procedure,
 and examples are documented in the

@@ -22,7 +22,7 @@ message-repository concern into explicit Go boundaries:
 | Leasing and state transitions | `outbox/relay.Store` |
 | Broker acceptance | `outbox/relay.Publisher` |
 | Event-message conversion | optional `event-sourcing/adapters/gooutbox.EnvelopeCodec` |
-| Event plus outbox transaction | optional committed `gooutbox.Store` or caller-owned `gooutbox.Stager` |
+| Event plus outbox transaction | caller-owned `pgx.Tx` with optional `gooutbox.Stager` |
 
 Non-event-sourced applications use the outbox writer directly inside their
 application transaction. They do not need any event-sourcing package:

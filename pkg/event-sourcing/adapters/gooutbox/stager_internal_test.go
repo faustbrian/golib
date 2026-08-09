@@ -41,6 +41,13 @@ func TestStagerStagesEventsBeforeOutboxEnvelopes(t *testing.T) {
 	if transaction.execCalls != 3 {
 		t.Fatalf("Exec calls = %d, want 3", transaction.execCalls)
 	}
+	if transaction.commitCalls != 0 || transaction.rollbackCalls != 0 {
+		t.Fatalf(
+			"transaction completion calls = commit %d rollback %d",
+			transaction.commitCalls,
+			transaction.rollbackCalls,
+		)
+	}
 }
 
 func TestStagerStagesPreparedSavePlan(t *testing.T) {

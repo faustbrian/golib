@@ -271,7 +271,7 @@ func TestPrimaryWorkflowsHaveExecutableArtifacts(t *testing.T) {
 		"TestEventDeliveriesRoundTripThroughKafka",
 		"TestValkeyStreamRetainsAndSettlesCompleteDelivery",
 		"TestStagerCommitsAndRollsBackEventsWithOutboxEnvelopes",
-		"TestCommittedStoreRelaysWithDurableRetryAndReplayIsolation",
+		"TestCallerCommittedRowsRelayWithDurableRetryAndReplayIsolation",
 		"TestPublisherMapsEnvelopeToKafkaMessage",
 		"TestInstrumentationTracesAndMeasuresDispatchAndConsumption",
 	} {

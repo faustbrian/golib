@@ -68,12 +68,12 @@ acknowledges the aggregate and permits post-commit dispatch. Rollback leaves the
 original change set pending. Commit ambiguity requires reconciliation by
 message ID before the aggregate can be reused.
 
-The outbox adapter provides a committed event store for the ordinary aggregate
-repository and a separately named caller-owned transaction stager. Both write
-event rows and outbox rows through one PostgreSQL transaction. The stager does
-not commit or roll back; the committed store owns one short transaction. No
-dispatcher runs before the committed store succeeds. A direct
-event-store-to-Kafka dispatch is explicitly non-atomic.
+The outbox adapter provides only a caller-owned transaction stager. It writes
+event rows and outbox rows through the supplied PostgreSQL transaction but does
+not begin, commit, or roll it back. The application prepares the aggregate
+save, stages both row batches, commits, confirms the aggregate, and then runs
+post-commit dispatch. A direct event-store-to-Kafka dispatch is explicitly
+non-atomic.
 
 ## Replay boundary
 

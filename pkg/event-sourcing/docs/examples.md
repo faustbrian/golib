@@ -23,7 +23,7 @@ Docker-compatible container runtime.
 | Publish and settle Kafka event deliveries | [`TestEventDeliveriesRoundTripThroughKafka`](../adapters/gokafka/integration_test.go) | `(cd pkg/event-sourcing/adapters/gokafka && make integration)` |
 | Publish and settle a compatible durable queue | [`TestValkeyStreamRetainsAndSettlesCompleteDelivery`](../adapters/goqueue/durable_integration_test.go) | `(cd pkg/event-sourcing/adapters/goqueue && make integration)` |
 | Commit events and outbox envelopes atomically | [`TestStagerCommitsAndRollsBackEventsWithOutboxEnvelopes`](../adapters/gooutbox/stager_integration_test.go) | `(cd pkg/event-sourcing/adapters/gooutbox && make integration)` |
-| Relay committed outbox envelopes with durable retry | [`TestCommittedStoreRelaysWithDurableRetryAndReplayIsolation`](../adapters/gooutbox/stager_integration_test.go) | `(cd pkg/event-sourcing/adapters/gooutbox && make integration)` |
+| Relay committed outbox envelopes with durable retry | [`TestCallerCommittedRowsRelayWithDurableRetryAndReplayIsolation`](../adapters/gooutbox/stager_integration_test.go) | `(cd pkg/event-sourcing/adapters/gooutbox && make integration)` |
 | Map an outbox envelope to a Kafka record | [`TestPublisherMapsEnvelopeToKafkaMessage`](../../outbox/adapters/gokafka/publisher_test.go) | `(cd pkg/outbox/adapters/gokafka && go test ./...)` |
 | Instrument dispatch and consumption without exposing data | [`TestInstrumentationTracesAndMeasuresDispatchAndConsumption`](../adapters/gotelemetry/instrumentation_test.go) | `(cd pkg/event-sourcing/adapters/gotelemetry && go test ./...)` |
 

@@ -1,19 +1,14 @@
 # Event sourcing outbox adapter
 
 `gooutbox` composes the public event-sourcing PostgreSQL writer and the public
-outbox PostgreSQL writer. Neither core imports the other. The adapter provides:
-
-- `Store`, a committed `eventsourcing.EventStore` that owns one short
-  PostgreSQL transaction per append; and
-- `Stager`, a lower-level writer for an existing caller-owned `pgx.Tx`.
-
-Both paths write event rows and one outbox envelope per event through the same
-transaction. They never publish to Kafka, dispatch consumers, or claim
-exactly-once delivery.
+outbox PostgreSQL writer. Neither core imports the other. `Stager` writes event
+rows and one outbox envelope per event through an existing caller-owned
+`pgx.Tx`. The adapter never begins, commits, rolls back, or publishes from that
+transaction and never claims exactly-once delivery.
 
 ## Quick start
 
-Use `Store` with the ordinary aggregate repository:
+Construct the outbox writer and envelope codec with the same limits:
 
 ```go
 limits := gooutbox.DefaultLimits()
@@ -33,25 +28,14 @@ codec, err := gooutbox.NewEnvelopeCodec(
 if err != nil {
 	return err
 }
-store, err := gooutbox.NewStore(
-	pool,
-	eventpostgres.Config{},
-	outboxWriter,
-	codec,
-)
-if err != nil {
-	return err
-}
-
-// Supply store as RepositoryConfig.Store. AggregateRepository.Save appends
-// events and outbox rows atomically, acknowledges only after commit, and then
-// runs the explicitly configured post-commit dispatcher.
 ```
 
-The safe durable-publication composition uses a no-op synchronous dispatcher
-for external publication, an outbox relay after commit, and an idempotent
-consumer. A dispatcher can still update in-process consumers after commit, but
-it is independent of the outbox transaction.
+Prepare an aggregate save, stage it with the transaction sequence below, then
+confirm the aggregate only after the caller observes a successful commit. The
+safe durable-publication composition uses a no-op synchronous dispatcher for
+external publication, an outbox relay after commit, and an idempotent consumer.
+A dispatcher can still update in-process consumers after commit, but it is
+independent of the outbox transaction.
 
 ## Relay setup
 
@@ -94,7 +78,9 @@ bounded context, goroutine, shutdown, publisher, classifier, and operational
 monitoring. The outbox Kafka publisher is the production Kafka boundary; a
 direct event-store dispatcher is not part of this transaction.
 
-Use `Stager` only when an application already owns the transaction:
+## Transaction staging
+
+The application must own the transaction and aggregate lifecycle:
 
 ```go
 tx, err := pool.Begin(ctx)
@@ -143,7 +129,9 @@ return err
 
 `Stager` deliberately does not implement `eventsourcing.EventStore`: a
 successful stage is not a committed append. It never commits, rolls back,
-dispatches, or acknowledges aggregate lifecycle state.
+dispatches, or acknowledges aggregate lifecycle state. Applications that use
+the ordinary repository `Save` method must migrate to `PrepareSave`,
+`StagePlan`, and `ConfirmCommitted` as shown above.
 
 `StagePlan` accepts the adapter-owned `AppendPlan` contract, which the core
 `eventsourcing.SavePlan` implements. The lower-level `Stage` method remains
@@ -171,16 +159,24 @@ configure the outbox writer with the exact same limits as the codec.
 
 ## Transactions, crashes, and recovery
 
-`Store.Append` returns:
-
-- `CommitNotCommitted` when begin, event staging, envelope mapping, or outbox
-  insertion fails; and
-- `CommitUnknown` when PostgreSQL commit returns an error.
+Validation, event staging, envelope mapping, and outbox insertion failures
+return `CommitNotCommitted`; the caller must roll back. The adapter cannot
+return `CommitUnknown` because it never commits. If the caller's PostgreSQL
+commit returns an error, the caller must classify the outcome as ambiguous and
+must not acknowledge the aggregate.
 
 For an unknown commit, do not retry with new message IDs. Read the event store
 and outbox by the prepared message IDs, compare the complete expected batch,
 and choose acknowledge, retry, or repair through an application-owned,
 audited recovery procedure.
+
+An exact staging retry is safe only after rollback is known: the prepared IDs,
+recorded times, payloads, metadata, stream versions, and derived envelope bytes
+remain identical, while rolled-back sequence allocation leaves no durable row.
+Identity reuse against a committed event or envelope is rejected, including
+when payload bytes or metadata differ. After an ambiguous commit, reconcile by
+message and envelope identity before deciding whether the exact plan may be
+retried.
 
 The relay publishes committed envelopes at least once. A crash after broker
 acknowledgement but before the outbox delivered transition can publish a
@@ -219,11 +215,11 @@ context with explicit shutdown and retry policy.
 ## Performance evidence
 
 The integration benchmark compares single-message PostgreSQL appends through
-the event store alone and through `Store` with one same-transaction outbox row.
-Both paths use the same validated message shape, new-stream expectation,
-PostgreSQL schema, connection pool, transaction ownership, and commit boundary.
-Envelope encoding and insertion are deliberately measured only on the adapter
-path because they are its production overhead. Run with:
+the event store alone and through caller-owned transaction staging with one
+same-transaction outbox row. Both paths use the same validated message shape,
+new-stream expectation, PostgreSQL schema, connection pool, and commit
+boundary. Envelope encoding and insertion are deliberately measured only on
+the adapter path because they are its production overhead. Run with:
 
 ```console
 go test -tags=integration -run '^$' \
@@ -234,3 +230,42 @@ go test -tags=integration -run '^$' \
 Report the pinned PostgreSQL image, database settings, hardware, Go version,
 sample count, and raw `benchstat` analysis. These local transactions do not
 measure relay publication or Kafka delivery.
+
+## Adoption, compatibility, and migration
+
+This pre-v1 adapter requires Go 1.26.5, pgx v5, the event-sourcing PostgreSQL
+schema, and the outbox PostgreSQL schema declared by the sibling modules. The
+codec and outbox writer must share exactly the same limits. PostgreSQL 18 is
+the pinned integration target; support for another major version requires its
+own current integration evidence.
+
+Earlier pre-release revisions exported a committed `Store`. Migrate callers to
+an application-owned `pgx.Tx`, `NewStager`, and `StagePlan`, then call
+`Commit`, `MarkCommitUnknown`, `ConfirmCommitted`, and `DispatchCommitted` in
+the explicit order shown above. There is no database migration for this API
+change. Existing event and outbox rows remain compatible because the envelope
+format and schemas are unchanged.
+
+## FAQ
+
+### Does staging mean the events are committed?
+
+No. A successful `Stage` or `StagePlan` only means both row batches were
+accepted by the caller's transaction. Durability begins only after the caller
+observes a successful PostgreSQL commit.
+
+### Can the adapter publish directly to Kafka?
+
+No. The independently operated relay claims committed outbox envelopes and may
+publish duplicates. Consumers must be idempotent by envelope identity.
+
+### Can an ambiguous commit be retried immediately?
+
+No. Reconcile the prepared message IDs and envelope IDs first. Blind retry can
+turn a successful but unacknowledged commit into a duplicate-identity or stream
+version conflict.
+
+### Does replay enqueue historical events?
+
+No. Replay and read APIs remain outside this staging adapter and have no outbox
+side effects.

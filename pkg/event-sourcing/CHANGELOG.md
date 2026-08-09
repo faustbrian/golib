@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Require the optional gooutbox adapter caller to own PostgreSQL transaction
+  completion and aggregate acknowledgement explicitly; the pre-release
+  committed adapter store has been removed.
 - Pin the performance harness to the exact PostgreSQL 18.4 fixture used by
   durable benchmark captures and record that complete reference in evidence.
 - Require every projection runner to configure an explicit replay guard. The

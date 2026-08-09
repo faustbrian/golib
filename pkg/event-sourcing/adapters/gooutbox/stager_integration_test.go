@@ -3,6 +3,7 @@
 package gooutbox_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -129,6 +130,94 @@ func TestStagerCommitsAndRollsBackEventsWithOutboxEnvelopes(t *testing.T) {
 	}
 }
 
+func TestExactStagingRetryAfterRollbackProducesIdenticalRows(t *testing.T) {
+	ctx, pool := newIntegrationPool(t)
+	limits := gooutbox.DefaultLimits()
+	writer, err := outboxpostgres.NewWriter(outboxpostgres.WriterConfig{
+		Limits:       limits,
+		MaxBatchSize: eventsourcing.MaxAppendMessages,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	codec, err := gooutbox.NewEnvelopeCodec(
+		gooutbox.FixedTopic("account-events"),
+		limits,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := mustStream(t)
+	pending := []eventsourcing.PendingMessage{testPending(t, stream)}
+
+	firstTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstStager, err := gooutbox.NewStager(
+		firstTx,
+		eventpostgres.Config{},
+		writer,
+		codec,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstMessages, err := firstStager.Stage(
+		ctx,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		pending,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstEnvelope, err := codec.Encode(firstMessages[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := firstTx.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	retryTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retryStager, err := gooutbox.NewStager(
+		retryTx,
+		eventpostgres.Config{},
+		writer,
+		codec,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retryMessages, err := retryStager.Stage(
+		ctx,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		pending,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	retryEnvelope, err := codec.Encode(retryMessages[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !retryMessages[0].Equal(firstMessages[0]) || !bytes.Equal(
+		retryEnvelope.CanonicalJSON(),
+		firstEnvelope.CanonicalJSON(),
+	) {
+		t.Fatal("exact staging retry changed event or envelope bytes")
+	}
+	if err := retryTx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	assertStoredCounts(t, ctx, pool, 1, 1)
+}
+
 func TestStagerMappingFailureRequiresCallerRollback(t *testing.T) {
 	ctx, pool := newIntegrationPool(t)
 	writer, err := outboxpostgres.NewWriter(outboxpostgres.WriterConfig{
@@ -174,7 +263,7 @@ func TestStagerMappingFailureRequiresCallerRollback(t *testing.T) {
 	assertStoredCounts(t, ctx, pool, 0, 0)
 }
 
-func TestStoreOwnsAtomicCommitAndRollsBackStagingFailure(t *testing.T) {
+func TestCallerOwnsAtomicCommitAndRollbackAfterStaging(t *testing.T) {
 	ctx, pool := newIntegrationPool(t)
 	writer, err := outboxpostgres.NewWriter(outboxpostgres.WriterConfig{
 		Limits:       gooutbox.DefaultLimits(),
@@ -190,8 +279,12 @@ func TestStoreOwnsAtomicCommitAndRollsBackStagingFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	failingStore, err := gooutbox.NewStore(
-		pool,
+	failingTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	failingStager, err := gooutbox.NewStager(
+		failingTx,
 		eventpostgres.Config{},
 		writer,
 		failingCodec,
@@ -201,13 +294,16 @@ func TestStoreOwnsAtomicCommitAndRollsBackStagingFailure(t *testing.T) {
 	}
 	stream := mustStream(t)
 	pending := []eventsourcing.PendingMessage{testPending(t, stream)}
-	if _, err := failingStore.Append(
+	if _, err := failingStager.Stage(
 		ctx,
 		stream,
 		eventsourcing.ExpectNewStream(),
 		pending,
 	); !errors.Is(err, gooutbox.ErrEnvelopeEncoding) {
-		t.Fatalf("failing Append error = %v", err)
+		t.Fatalf("failing Stage error = %v", err)
+	}
+	if err := failingTx.Rollback(ctx); err != nil {
+		t.Fatal(err)
 	}
 	assertStoredCounts(t, ctx, pool, 0, 0)
 
@@ -218,8 +314,12 @@ func TestStoreOwnsAtomicCommitAndRollsBackStagingFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, err := gooutbox.NewStore(
-		pool,
+	commitTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stager, err := gooutbox.NewStager(
+		commitTx,
 		eventpostgres.Config{},
 		writer,
 		codec,
@@ -227,7 +327,7 @@ func TestStoreOwnsAtomicCommitAndRollsBackStagingFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	messages, err := store.Append(
+	messages, err := stager.Stage(
 		ctx,
 		stream,
 		eventsourcing.ExpectNewStream(),
@@ -236,7 +336,14 @@ func TestStoreOwnsAtomicCommitAndRollsBackStagingFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if err := commitTx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
 	assertStoredCounts(t, ctx, pool, 1, 1)
+	eventStore, err := eventpostgres.New(pool, eventpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
 	options, err := eventsourcing.NewReadStreamOptions(
 		eventsourcing.ReadStreamOptionsInput{
 			FromVersion: 1,
@@ -246,7 +353,7 @@ func TestStoreOwnsAtomicCommitAndRollsBackStagingFailure(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	iterator, err := store.ReadStream(ctx, stream, options)
+	iterator, err := eventStore.ReadStream(ctx, stream, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -259,7 +366,7 @@ func TestStoreOwnsAtomicCommitAndRollsBackStagingFailure(t *testing.T) {
 	}
 }
 
-func TestStoreRollsBackEventsWhenOutboxInsertConflicts(t *testing.T) {
+func TestCallerRollbackRemovesEventsWhenOutboxIdentityConflicts(t *testing.T) {
 	ctx, pool := newIntegrationPool(t)
 	limits := gooutbox.DefaultLimits()
 	writer, err := outboxpostgres.NewWriter(outboxpostgres.WriterConfig{
@@ -297,8 +404,12 @@ func TestStoreRollsBackEventsWhenOutboxInsertConflicts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, err := gooutbox.NewStore(
-		pool,
+	stagingTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stager, err := gooutbox.NewStager(
+		stagingTx,
 		eventpostgres.Config{},
 		writer,
 		codec,
@@ -307,7 +418,7 @@ func TestStoreRollsBackEventsWhenOutboxInsertConflicts(t *testing.T) {
 		t.Fatal(err)
 	}
 	stream := mustStream(t)
-	if _, err := store.Append(
+	if _, err := stager.Stage(
 		ctx,
 		stream,
 		eventsourcing.ExpectNewStream(),
@@ -315,12 +426,15 @@ func TestStoreRollsBackEventsWhenOutboxInsertConflicts(t *testing.T) {
 	); !errors.Is(err, gooutbox.ErrOutboxWrite) ||
 		eventsourcing.AppendCommitOutcome(err) !=
 			eventsourcing.CommitNotCommitted {
-		t.Fatalf("Append error = %v", err)
+		t.Fatalf("Stage error = %v", err)
+	}
+	if err := stagingTx.Rollback(ctx); err != nil {
+		t.Fatal(err)
 	}
 	assertStoredCounts(t, ctx, pool, 0, 1)
 }
 
-func TestCommittedStoreRelaysWithDurableRetryAndReplayIsolation(t *testing.T) {
+func TestCallerCommittedRowsRelayWithDurableRetryAndReplayIsolation(t *testing.T) {
 	ctx, pool := newIntegrationPool(t)
 	limits := gooutbox.DefaultLimits()
 	writer, err := outboxpostgres.NewWriter(outboxpostgres.WriterConfig{
@@ -337,8 +451,12 @@ func TestCommittedStoreRelaysWithDurableRetryAndReplayIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	store, err := gooutbox.NewStore(
-		pool,
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stager, err := gooutbox.NewStager(
+		tx,
 		eventpostgres.Config{},
 		writer,
 		codec,
@@ -347,16 +465,23 @@ func TestCommittedStoreRelaysWithDurableRetryAndReplayIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 	stream := mustStream(t)
-	messages, err := store.Append(
+	messages, err := stager.Stage(
 		ctx,
 		stream,
 		eventsourcing.ExpectNewStream(),
 		[]eventsourcing.PendingMessage{testPending(t, stream)},
 	)
 	if err != nil || len(messages) != 1 {
-		t.Fatalf("Append() = %#v, %v", messages, err)
+		t.Fatalf("Stage() = %#v, %v", messages, err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
 	}
 	assertStoredCounts(t, ctx, pool, 1, 1)
+	eventStore, err := eventpostgres.New(pool, eventpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	relayStore, err := outboxpostgres.NewStore(
 		pool,
@@ -417,7 +542,7 @@ func TestCommittedStoreRelaysWithDurableRetryAndReplayIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	streamIterator, err := store.ReadStream(ctx, stream, streamOptions)
+	streamIterator, err := eventStore.ReadStream(ctx, stream, streamOptions)
 	assertSingleReadMessage(t, ctx, streamIterator, err, messages[0])
 	globalOptions, err := eventsourcing.NewReadGlobalOptions(
 		eventsourcing.ReadGlobalOptionsInput{FromPosition: 1, Limit: 10},
@@ -425,7 +550,7 @@ func TestCommittedStoreRelaysWithDurableRetryAndReplayIsolation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	globalIterator, err := store.ReadGlobal(ctx, globalOptions)
+	globalIterator, err := eventStore.ReadGlobal(ctx, globalOptions)
 	assertSingleReadMessage(t, ctx, globalIterator, err, messages[0])
 	assertStoredCounts(t, ctx, pool, 1, 1)
 }
