@@ -28,3 +28,4 @@ versioning once released.
   allocation benchmark coverage for tenant isolation boundaries.
 - Complete trust, integration, PostgreSQL, administration, migration, security,
   analyzer-boundary, hardening, FAQ, and clean-consumer guidance and tooling.
+- MIT licensing and a private vulnerability-reporting and support boundary.
