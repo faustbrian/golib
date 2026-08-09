@@ -8,6 +8,9 @@ limits, and no production `unsafe` or cgo.
 The module does not claim support for any vendor preset. The generic `v1`
 scheme is specified by [the signature reference](docs/signatures.md) and has
 independently generated Python fixtures in `testdata/vectors/v1.json`.
+Protocol ambiguities and application policies are recorded in the
+[specification decision register](docs/specification-decisions.md) against the
+[pinned source manifest](specification/manifest.tsv).
 
 ## Install
 
@@ -73,6 +76,7 @@ fixtures.
 - [API and compatibility](docs/api.md)
 - [Inbound verification and raw bodies](docs/inbound.md)
 - [Signatures, canonicalization, timestamps, and rotation](docs/signatures.md)
+- [Specification decisions and non-conformance boundaries](docs/specification-decisions.md)
 - [Replay and idempotency](docs/replay.md)
 - [Delivery, retries, dead letters, and replay](docs/delivery.md)
 - [Threat model and SSRF policy](docs/security.md)
@@ -90,6 +94,7 @@ fixtures.
 make check
 make safety
 make interoperability
+make conformance
 ```
 
 Security reports follow [SECURITY.md](SECURITY.md). Contributions follow

@@ -6,12 +6,12 @@ exact case-sensitive method, escaped path, canonical query, lowercase host, fixe
 `Content-Type` and `Idempotency-Key` values, SHA-256 body digest, and canonical
 metadata. Variable byte fields are unpadded base64url,
 so embedded delimiters cannot alter the grammar. Query keys use Go URL parsing
-and lexical ordering; duplicate values retain wire order because Go's
-`Query().Get` observes the first value.
+and lexical ordering; duplicate values retain their parsed wire order.
 Metadata keys are sorted; key and value bytes are independently base64url
 encoded without padding.
 
-The HTTP header is a structured, single-value-per-line field:
+The HTTP header uses a strict custom, single-value-per-line grammar. It is not
+an RFC 9421 or RFC 8941 field:
 
 ```text
 Webhook-Signature: v1;algorithm=sha256;keyid=<base64url>;timestamp=<unix>;nonce=<base64url>;signature=<base64url>
@@ -41,3 +41,6 @@ The exact normative vectors are `testdata/vectors/v1.json`. They were produced
 independently by Python's standard `hmac`, `hashlib`, and URL primitives and
 are checked by `scripts/check_interoperability.py`. Any canonicalization or
 header change requires a major version and new vector version.
+
+The complete rationale, alternatives, consequences, and reconsideration rules
+are in the [specification decision register](specification-decisions.md).

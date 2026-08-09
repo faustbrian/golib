@@ -8,6 +8,10 @@ tokens, event IDs, or secrets to tests, fixtures, issues, or logs.
 Public API, canonical bytes, emitted headers, envelope encoding, error
 identity, retry classification, and provider presets are compatibility
 surfaces. Describe any change to them under `Unreleased` in `CHANGELOG.md`.
+Review the affected entries in
+[`docs/specification-decisions.md`](docs/specification-decisions.md), preserve
+superseded decisions, and update the pinned source manifest and executable
+evidence when a protocol interpretation changes.
 
 Provider presets require an authoritative specification link, independent
 positive and negative fixtures, and a named maintenance owner. A copied blog

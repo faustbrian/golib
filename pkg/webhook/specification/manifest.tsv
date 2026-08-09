@@ -1,0 +1,15 @@
+id	version	sections	role	url	sha256	status
+go-webhook	Go-1.26.5	crypto/hmac,crypto/sha256,crypto/sha512,encoding/base64,encoding/json,net/http,net/netip,net/url,time	runtime-cryptography-HTTP-URL-address-and-encoding-contracts	https://go.dev/dl/go1.26.5.src.tar.gz	495be4bc87176ac567392e5b4116abd98466d33d7b49d41e764ccc6976b2dc42	pinned
+rfc2104	RFC-2104	all	HMAC-construction	https://www.rfc-editor.org/rfc/rfc2104.txt	64d5245a9101929025336e470e3737f118704001249d503c85a86e19fe9fbb01	pinned
+rfc4231	RFC-4231	all	HMAC-SHA-256-and-HMAC-SHA-512-test-cases	https://www.rfc-editor.org/rfc/rfc4231.txt	72178527ce93500e730bc8eb182b857e583096d652b64ece0879c52ba1df973b	pinned
+rfc4648	RFC-4648	3.2,5	base64url-alphabet-and-padding	https://www.rfc-editor.org/rfc/rfc4648.txt	84e14418f795d503be5f34bf23ce4ebaa119e9ec7c9f667d8caeb111385b178f	pinned
+rfc3986	RFC-3986	2-5	URI-syntax-and-components	https://www.rfc-editor.org/rfc/rfc3986.txt	3102dae4b68cebe40337730312fcb612297b8928547267e8b3d1ee6002b2d683	pinned
+rfc3339	RFC-3339	5	Internet-date-and-time-format	https://www.rfc-editor.org/rfc/rfc3339.txt	9ab2b8864a85dca73a88f49b0927bc7bc85f596926e4fd1890905777924e700a	pinned
+rfc8259	RFC-8259	all	JSON-data-interchange	https://www.rfc-editor.org/rfc/rfc8259.txt	61a5378f4255c720beb2a4b4a63b29540147c140f36988bf086291989b4cd2d7	pinned
+rfc8941	RFC-8941	all	HTTP-Structured-Fields-comparison-boundary	https://www.rfc-editor.org/rfc/rfc8941.txt	92e07becbe27974319d79de6195e72e25062b4193f68623e90ea4f7deaf33bb9	pinned
+rfc9110	RFC-9110	5-10,15	HTTP-semantics-fields-methods-status-and-Retry-After	https://www.rfc-editor.org/rfc/rfc9110.txt	21c1cdce6ab0e5509b04d84a28000836c7a087cf786efe6f04877ebfff47232a	pinned
+rfc9421	RFC-9421	all	HTTP-Message-Signatures-comparison-boundary	https://www.rfc-editor.org/rfc/rfc9421.txt	612655786bf4293bfc486e4177571467fbb3de6e6f0eea90cb74c346a34fdf3c	pinned
+iana-ipv4	IANA-IPv4-Special-Purpose-2025-10-09	all	IPv4-special-purpose-address-policy	https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xml	cf24e11f41b7d42c68debe2d18b97cac815084ec413ebb3b244f704028a16f20	pinned
+iana-ipv6	IANA-IPv6-Special-Purpose-2025-10-09	all	IPv6-special-purpose-address-policy	https://www.iana.org/assignments/iana-ipv6-special-registry/iana-ipv6-special-registry.xml	c17f4380ba84fb2160dae82ebfd8bd155a5853cfab624ed3a9fd251638a8be02	pinned
+cloudevents	CloudEvents-1.0.2	1-3	structured-event-format-comparison-boundary	https://raw.githubusercontent.com/cloudevents/spec/v1.0.2/cloudevents/spec.md	e327435c858d19fd171e4ab9781a01fc22dfa949d23c4220976529ebd16a1aa3	pinned
+trace-context	W3C-Trace-Context-1-2021-11-23	3	trace-context-propagation	https://www.w3.org/TR/2021/REC-trace-context-1-20211123/	9e7228d2a91c5aa4bef6e7f610366a2000274ee51699053e10c8ac3f0b8965be	pinned

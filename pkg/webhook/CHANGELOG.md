@@ -25,6 +25,9 @@ and Semantic Versioning.
 
 ### Added
 
+- Added an auditable specification decision register, integrity-pinned
+  normative source manifest, and executable conformance gate for signature,
+  HTTP, replay, envelope, delivery, retry, and SSRF policies.
 - Versioned HMAC-SHA-256 and HMAC-SHA-512 signing and verification.
 - Signed, bounded nonces with injectable generation and a `crypto/rand` default.
 - Exact-byte HTTP verification, bounded bodies and headers, rotation windows,

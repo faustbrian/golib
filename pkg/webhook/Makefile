@@ -2,7 +2,7 @@ GO ?= go
 FUZZTIME ?= 10s
 FUZZWORKERS ?= 4
 
-.PHONY: check format vet lint workflow test coverage race fuzz benchmark docs safety interoperability vuln
+.PHONY: check format vet lint workflow test coverage race fuzz benchmark docs safety interoperability conformance vuln
 
 format:
 	@./scripts/check-format.sh
@@ -32,4 +32,6 @@ safety:
 	@./scripts/check-safety.sh
 interoperability:
 	@python3 scripts/check_interoperability.py
-check: format vet lint workflow test coverage race fuzz benchmark docs safety interoperability vuln
+conformance:
+	@./scripts/check-conformance.sh
+check: format vet lint workflow test coverage race fuzz benchmark docs safety interoperability conformance vuln

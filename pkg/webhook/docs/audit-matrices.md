@@ -15,6 +15,11 @@ behavior follows Go's [`crypto/hmac`](https://pkg.go.dev/crypto/hmac),
 generator is `scripts/check_interoperability.py`; it does not import this Go
 module.
 
+The complete interpretation and non-conformance inventory is the
+[specification decision register](specification-decisions.md). Its external
+contracts are integrity-pinned in
+[`../specification/manifest.tsv`](../specification/manifest.tsv).
+
 ## HTTP and body boundary
 
 | Input | Expected disposition | Executable evidence |
