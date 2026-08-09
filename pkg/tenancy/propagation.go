@@ -135,7 +135,7 @@ func (codec *PropagationCodec) Accept(
 // InjectFromContext requires and injects tenant-bound context scope.
 func (codec *PropagationCodec) InjectFromContext(carrier Carrier, ctx context.Context) error {
 	scope, err := RequireScope(ctx)
-	if err != nil || scope.Kind() != ScopeTenant {
+	if err != nil {
 		return ErrTenantScopeRequired
 	}
 	return codec.Inject(carrier, scope)

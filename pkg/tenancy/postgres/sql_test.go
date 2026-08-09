@@ -3,6 +3,8 @@ package tenancypostgres_test
 import (
 	"errors"
 	"reflect"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/tenancy"
@@ -31,6 +33,15 @@ func TestPredicateRequiresTenantScopeAndQuotesOwnedIdentifier(t *testing.T) {
 	}
 	if _, err := tenancypostgres.Predicate(scope, "tenant_id", 0); !errors.Is(err, tenancypostgres.ErrInvalidParameter) {
 		t.Fatalf("Predicate(parameter) error = %v", err)
+	}
+	for _, parameter := range []int{1, 65535} {
+		predicate, err := tenancypostgres.Predicate(scope, "tenant_id", parameter)
+		if err != nil || predicate.Clause != `"tenant_id" = $`+strconv.Itoa(parameter) {
+			t.Fatalf("Predicate(parameter %d) = %#v, %v", parameter, predicate, err)
+		}
+	}
+	if _, err := tenancypostgres.Predicate(scope, "tenant_id", 65536); !errors.Is(err, tenancypostgres.ErrInvalidParameter) {
+		t.Fatalf("Predicate(parameter above maximum) error = %v", err)
 	}
 }
 
@@ -67,5 +78,48 @@ func TestRLSPlanFailsClosedAndUsesTransactionLocalSetting(t *testing.T) {
 		if _, err := tenancypostgres.NewRLSPlan(options); !errors.Is(err, tenancypostgres.ErrInvalidRLSOptions) {
 			t.Fatalf("NewRLSPlan(%#v) error = %v", options, err)
 		}
+	}
+}
+
+func TestPostgreSQLIdentifierAndSettingBoundaries(t *testing.T) {
+	t.Parallel()
+
+	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
+	validIdentifiers := []string{
+		strings.Repeat("a", 63),
+		"_tenant",
+		"a0z9_AZ",
+		"ztenant",
+		"Atenant",
+		"Ztenant",
+	}
+	for _, identifier := range validIdentifiers {
+		if _, err := tenancypostgres.Predicate(scope, identifier, 1); err != nil {
+			t.Fatalf("Predicate(%q) error = %v", identifier, err)
+		}
+	}
+	invalidIdentifiers := []string{
+		strings.Repeat("a", 64),
+		"0tenant",
+		"@tenant",
+		"[tenant",
+		"`tenant",
+		"{tenant",
+		"tenant/",
+		"tenant:",
+	}
+	for _, identifier := range invalidIdentifiers {
+		if _, err := tenancypostgres.Predicate(scope, identifier, 1); !errors.Is(err, tenancypostgres.ErrInvalidIdentifier) {
+			t.Fatalf("Predicate(%q) error = %v", identifier, err)
+		}
+	}
+
+	validSetting := "a." + strings.Repeat("b", 62)
+	if _, err := tenancypostgres.NewManager(tenancypostgres.Config{Setting: validSetting}); err != nil {
+		t.Fatalf("NewManager(64-byte setting) error = %v", err)
+	}
+	invalidSetting := "a." + strings.Repeat("b", 63)
+	if _, err := tenancypostgres.NewManager(tenancypostgres.Config{Setting: invalidSetting}); !errors.Is(err, tenancypostgres.ErrInvalidConfig) {
+		t.Fatalf("NewManager(65-byte setting) error = %v", err)
 	}
 }

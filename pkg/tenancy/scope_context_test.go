@@ -62,6 +62,19 @@ func TestAdministrativeScopesRequireExplicitAuditedIntent(t *testing.T) {
 		t.Fatalf("NewSystemScope(zero capability) error = %v", err)
 	}
 	for name, values := range map[string][2]string{
+		"actor control":   {"bad\nactor", "maintenance"},
+		"purpose control": {"operator", "bad\npurpose"},
+		"actor maximum":   {string(make([]byte, 65)), "maintenance"},
+		"purpose maximum": {"operator", string(make([]byte, 129))},
+	} {
+		actor, purpose := values[0], values[1]
+		t.Run(name, func(t *testing.T) {
+			if _, err := tenancy.NewAdministrativeReason(actor, purpose, ""); !errors.Is(err, tenancy.ErrInvalidAdministrativeReason) {
+				t.Fatalf("NewAdministrativeReason() error = %v", err)
+			}
+		})
+	}
+	for name, values := range map[string][2]string{
 		"actor":   {"", "maintenance"},
 		"purpose": {"operator", ""},
 	} {
@@ -131,6 +144,10 @@ func TestContextFailsClosedWithoutTenantScope(t *testing.T) {
 	}
 	if _, err := tenancy.RequireTenant(ctx); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
 		t.Fatalf("RequireTenant(system) error = %v", err)
+	}
+	tenantB, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-b"), tenancy.Metadata{})
+	if err := tenancy.AssertScope(ctx, tenantB); !errors.Is(err, tenancy.ErrConflictingScope) {
+		t.Fatalf("AssertScope(other tenant) error = %v", err)
 	}
 	if got, err := tenancy.RequireSystem(ctx); err != nil || got.AdministrativeReason() != reason {
 		t.Fatalf("RequireSystem() = %#v, %v", got, err)

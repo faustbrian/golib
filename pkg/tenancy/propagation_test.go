@@ -79,6 +79,13 @@ func TestPropagationCodecRejectsAmbiguousSpoofedAndMalformedMetadata(t *testing.
 			}},
 			true, tenancy.ErrTenantMetadataOversized,
 		},
+		"maximum duplicates": {
+			tenancy.MapCarrier{tenancy.DefaultTenantField: []string{
+				"tenant-a", "tenant-a", "tenant-a", "tenant-a",
+				"tenant-a", "tenant-a", "tenant-a", "tenant-a",
+			}},
+			true, tenancy.ErrTenantMetadataDuplicate,
+		},
 	}
 	for name, test := range tests {
 		test := test
@@ -115,6 +122,10 @@ func TestPropagationCodecRefusesOverwriteSystemScopeAndContextConflict(t *testin
 	}
 	if err := codec.InjectFromContext(tenancy.MapCarrier{}, context.Background()); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
 		t.Fatalf("InjectFromContext(missing) error = %v", err)
+	}
+	systemContext, _ := tenancy.WithScope(context.Background(), system)
+	if err := codec.InjectFromContext(tenancy.MapCarrier{}, systemContext); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
+		t.Fatalf("InjectFromContext(system) error = %v", err)
 	}
 }
 

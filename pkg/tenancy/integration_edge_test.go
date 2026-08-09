@@ -153,19 +153,21 @@ func TestGroupRaceBoundariesAndWaitCancellation(t *testing.T) {
 	}
 	release := make(chan struct{})
 	started := make(chan struct{})
-	_ = group.Submit(context.Background(), scope, func(context.Context) error {
+	if err := submitWithin(t, group, scope, func(context.Context) error {
 		close(started)
 		<-release
 		return nil
-	})
-	<-started
+	}); err != nil {
+		t.Fatalf("Submit(blocking task) error = %v", err)
+	}
+	waitForSignal(t, started)
 	timed, cancel := context.WithTimeout(context.Background(), time.Millisecond)
 	defer cancel()
 	if err := group.Close(timed); !errors.Is(err, context.DeadlineExceeded) {
 		t.Fatalf("Close(timeout) error = %v", err)
 	}
 	close(release)
-	if err := group.Close(context.Background()); err != nil {
+	if err := closeWithin(t, group); err != nil {
 		t.Fatalf("Close(after release) error = %v", err)
 	}
 	if err := group.Shutdown(nil); !errors.Is(err, tenancy.ErrInvalidGroup) {
@@ -175,43 +177,93 @@ func TestGroupRaceBoundariesAndWaitCancellation(t *testing.T) {
 	parent, cancelParent := context.WithCancel(context.Background())
 	cancelledGroup, _ := tenancy.NewGroup(parent, tenancy.GroupOptions{MaxConcurrent: 1})
 	blockedRelease := make(chan struct{})
-	_ = cancelledGroup.Submit(context.Background(), scope, func(context.Context) error {
+	if err := submitWithin(t, cancelledGroup, scope, func(context.Context) error {
 		<-blockedRelease
 		return nil
-	})
+	}); err != nil {
+		t.Fatalf("Submit(cancel task) error = %v", err)
+	}
 	reached := make(chan struct{})
 	submitResult := make(chan error, 1)
 	go func() {
 		submitResult <- cancelledGroup.Submit(&doneSignalingContext{Context: context.Background(), reached: reached}, scope, func(context.Context) error { return nil })
 	}()
-	<-reached
+	waitForSignal(t, reached)
 	cancelParent()
-	if err := <-submitResult; !errors.Is(err, context.Canceled) {
+	if err := waitForError(t, submitResult); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Submit(cancelled group) error = %v", err)
 	}
 	close(blockedRelease)
-	_ = cancelledGroup.Close(context.Background())
+	_ = closeWithin(t, cancelledGroup)
 
 	raceGroup, _ := tenancy.NewGroup(context.Background(), tenancy.GroupOptions{MaxConcurrent: 1})
 	raceRelease := make(chan struct{})
-	_ = raceGroup.Submit(context.Background(), scope, func(context.Context) error {
+	if err := submitWithin(t, raceGroup, scope, func(context.Context) error {
 		<-raceRelease
 		return nil
-	})
+	}); err != nil {
+		t.Fatalf("Submit(race task) error = %v", err)
+	}
 	raceReached := make(chan struct{})
 	raceResult := make(chan error, 1)
 	go func() {
 		raceResult <- raceGroup.Submit(&doneSignalingContext{Context: context.Background(), reached: raceReached}, scope, func(context.Context) error { return nil })
 	}()
-	<-raceReached
+	waitForSignal(t, raceReached)
 	closeContext, closeCancel := context.WithCancel(context.Background())
 	closeCancel()
 	_ = raceGroup.Close(closeContext)
 	close(raceRelease)
-	if err := <-raceResult; !errors.Is(err, tenancy.ErrGroupClosed) {
+	if err := waitForError(t, raceResult); !errors.Is(err, tenancy.ErrGroupClosed) {
 		t.Fatalf("Submit(close race) error = %v", err)
 	}
-	_ = raceGroup.Close(context.Background())
+	_ = closeWithin(t, raceGroup)
+}
+
+func waitForSignal(t *testing.T, signal <-chan struct{}) {
+	t.Helper()
+	select {
+	case <-signal:
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for test signal")
+	}
+}
+
+func submitWithin(
+	t *testing.T,
+	group *tenancy.Group,
+	scope tenancy.Scope,
+	operation func(context.Context) error,
+) error {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	return group.Submit(ctx, scope, operation)
+}
+
+func closeWithin(t *testing.T, group *tenancy.Group) error {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	return group.Close(ctx)
+}
+
+func shutdownWithin(t *testing.T, group *tenancy.Group) error {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	return group.Shutdown(ctx)
+}
+
+func waitForError(t *testing.T, result <-chan error) error {
+	t.Helper()
+	select {
+	case err := <-result:
+		return err
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for test result")
+		return nil
+	}
 }
 
 type structCarrier struct {

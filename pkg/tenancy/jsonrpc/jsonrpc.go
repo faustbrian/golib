@@ -128,15 +128,15 @@ func decodeMetadata(
 	}
 	decoder := json.NewDecoder(bytes.NewReader(metadata))
 	start, err := decoder.Token()
-	if err != nil || start != json.Delim('{') {
+	if !matchingDelimiter(start, err, json.Delim('{')) {
 		return nil, nil, ErrInvalidMetadata
 	}
 	object := make(map[string]json.RawMessage)
 	var tenantValues []string
 	for decoder.More() {
 		keyToken, tokenErr := decoder.Token()
-		key, ok := keyToken.(string)
-		if tokenErr != nil || !ok {
+		key, ok := stringToken(keyToken, tokenErr)
+		if !ok {
 			return nil, nil, ErrInvalidMetadata
 		}
 		var value json.RawMessage
@@ -156,7 +156,7 @@ func decodeMetadata(
 		object[key] = append(json.RawMessage(nil), value...)
 	}
 	end, err := decoder.Token()
-	if err != nil || end != json.Delim('}') {
+	if !matchingDelimiter(end, err, json.Delim('}')) {
 		return nil, nil, ErrInvalidMetadata
 	}
 	var trailing any
@@ -164,4 +164,13 @@ func decodeMetadata(
 		return nil, nil, ErrInvalidMetadata
 	}
 	return object, tenantValues, nil
+}
+
+func matchingDelimiter(token json.Token, err error, expected json.Delim) bool {
+	return err == nil && token == expected
+}
+
+func stringToken(token json.Token, err error) (string, bool) {
+	value, ok := token.(string)
+	return value, err == nil && ok
 }

@@ -71,7 +71,12 @@ func TestPropertyConcurrentOperationsCannotObserveAnotherTenant(t *testing.T) {
 			}
 		}()
 	}
-	wait.Wait()
+	done := make(chan struct{})
+	go func() {
+		wait.Wait()
+		close(done)
+	}()
+	waitForSignal(t, done)
 }
 
 func mustTenantScope(t *testing.T, value string) tenancy.Scope {

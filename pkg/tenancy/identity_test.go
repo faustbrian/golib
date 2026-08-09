@@ -82,6 +82,16 @@ func TestTenantIDRejectsNonCanonicalAndHostileValues(t *testing.T) {
 	}
 }
 
+func TestTenantIDAcceptsExactLengthAndAlphabetBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, value := range []string{"a", "z", "A", "Z", "0", "9", strings.Repeat("a", tenancy.MaxTenantIDBytes)} {
+		if _, err := tenancy.ParseTenantID(value); err != nil {
+			t.Fatalf("ParseTenantID(%q) error = %v", value, err)
+		}
+	}
+}
+
 func TestTenantIDUnmarshalFailsClosed(t *testing.T) {
 	t.Parallel()
 

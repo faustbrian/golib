@@ -3,6 +3,7 @@ package tenancyjsonrpc_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/tenancy"
@@ -53,5 +54,25 @@ func TestJSONRPCInjectionAndAcceptanceFailClosed(t *testing.T) {
 	var nilCodec *tenantjsonrpc.Codec
 	if _, err := nilCodec.Inject([]byte(`{}`), scope); !errors.Is(err, tenantjsonrpc.ErrInvalidOptions) {
 		t.Fatalf("nil Inject() error = %v", err)
+	}
+}
+
+func TestJSONRPCAcceptsExactMetadataBounds(t *testing.T) {
+	t.Parallel()
+
+	trust := func(context.Context) bool { return true }
+	for _, maximum := range []int{2, tenantjsonrpc.MaximumMetadataBytes} {
+		if _, err := tenantjsonrpc.New(tenantjsonrpc.Options{MaxMetadataBytes: maximum, Trust: trust}); err != nil {
+			t.Fatalf("New(maximum %d) error = %v", maximum, err)
+		}
+	}
+
+	const prefix = `{"tenant_id":"tenant-a","padding":"`
+	const suffix = `"}`
+	metadata := []byte(prefix + strings.Repeat("x", tenantjsonrpc.MaximumMetadataBytes-len(prefix)-len(suffix)) + suffix)
+	codec, _ := tenantjsonrpc.New(tenantjsonrpc.Options{MaxMetadataBytes: len(metadata), Trust: trust})
+	scope, err := codec.Extract(context.Background(), metadata)
+	if err != nil || !scope.TenantID().Equal(tenancy.MustTenantID("tenant-a")) {
+		t.Fatalf("Extract(exact maximum) = %#v, %v", scope, err)
 	}
 }

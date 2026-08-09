@@ -159,6 +159,36 @@ func TestAdministrativeIterationValidatesEveryBoundary(t *testing.T) {
 	}
 }
 
+func TestAdministrativeIterationAcceptsExactResourceLimits(t *testing.T) {
+	t.Parallel()
+
+	system := systemScope(t)
+	cursor := string(make([]byte, 256))
+	source := &tenantPagerStub{pages: map[string]tenancy.TenantPage{
+		"":     {NextCursor: cursor},
+		cursor: {},
+	}}
+	result, err := tenancy.IterateTenants(context.Background(), system, source, tenancy.IterationOptions{
+		PageSize:   1000,
+		MaxTenants: 1_000_000,
+		Audit: func(context.Context, tenancy.AdministrativeReason, tenancy.TenantID) error {
+			return nil
+		},
+	}, func(context.Context, tenancy.TenantID) error { return nil })
+	if err != nil || !result.Complete {
+		t.Fatalf("exact-limit iteration = %#v, %v", result, err)
+	}
+	result, err = tenancy.IterateTenants(context.Background(), system, source, tenancy.IterationOptions{
+		PageSize: 1, MaxTenants: 1, Resume: tenancy.ResumeToken{Cursor: cursor},
+		Audit: func(context.Context, tenancy.AdministrativeReason, tenancy.TenantID) error {
+			return nil
+		},
+	}, func(context.Context, tenancy.TenantID) error { return nil })
+	if err != nil || !result.Complete {
+		t.Fatalf("exact cursor resume = %#v, %v", result, err)
+	}
+}
+
 type tenantPagerStub struct {
 	pages map[string]tenancy.TenantPage
 }

@@ -155,6 +155,12 @@ func TestNamespaceEncoderRejectsInvalidEncoderAndBounds(t *testing.T) {
 		t.Fatalf("NewNamespaceEncoder(long) error = %v", err)
 	}
 	encoder, _ := tenancy.NewNamespaceEncoder(make([]byte, 32))
+	if _, err := tenancy.NewNamespaceEncoder(make([]byte, 1024)); err != nil {
+		t.Fatalf("NewNamespaceEncoder(maximum) error = %v", err)
+	}
+	if _, err := encoder.Encode(scope, tenancy.NamespaceCache, strings.Repeat("x", 4096)); err != nil {
+		t.Fatalf("Encode(maximum key) error = %v", err)
+	}
 	if _, err := encoder.Encode(scope, tenancy.NamespaceCache, strings.Repeat("x", 4097)); !errors.Is(err, tenancy.ErrInvalidNamespaceInput) {
 		t.Fatalf("Encode(long) error = %v", err)
 	}

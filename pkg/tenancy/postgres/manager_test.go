@@ -20,13 +20,23 @@ func TestManagerEnforcesTenantScopeAcrossPoolReuseAndRollback(t *testing.T) {
 	}
 	tenantA := tenantScopeFor(t, "tenant-a")
 	tenantB := tenantScopeFor(t, "tenant-b")
+	wantBeginFailure := errors.New("begin failed")
+	state.failNext("begin", wantBeginFailure)
+	if err := manager.WithTenant(context.Background(), database, tenantA, func(context.Context, *sql.Tx) error { return nil }); !errors.Is(err, wantBeginFailure) {
+		t.Fatalf("WithTenant(begin failure) error = %v", err)
+	}
 
+	operationCalled := false
 	if err := manager.WithTenant(context.Background(), database, tenantA, func(ctx context.Context, tx *sql.Tx) error {
+		operationCalled = true
 		assertCurrentSetting(t, ctx, tx, "tenant-a")
 		_, err := tx.ExecContext(ctx, "test_write", "order-1", "owned-by-a")
 		return err
 	}); err != nil {
 		t.Fatalf("WithTenant(A) error = %v", err)
+	}
+	if !operationCalled {
+		t.Fatal("WithTenant(A) did not invoke operation")
 	}
 	assertSessionReset(t, database)
 
@@ -122,6 +132,14 @@ func TestManagerFailsClosedOnVerificationAndInvalidInputs(t *testing.T) {
 	if _, err := tenancypostgres.NewManager(tenancypostgres.Config{CleanupTimeout: -time.Second}); !errors.Is(err, tenancypostgres.ErrInvalidConfig) {
 		t.Fatalf("NewManager(bad timeout) error = %v", err)
 	}
+	for _, timeout := range []time.Duration{time.Millisecond, 30 * time.Second} {
+		if _, err := tenancypostgres.NewManager(tenancypostgres.Config{CleanupTimeout: timeout}); err != nil {
+			t.Fatalf("NewManager(timeout %s) error = %v", timeout, err)
+		}
+	}
+	if _, err := tenancypostgres.NewManager(tenancypostgres.Config{CleanupTimeout: 30*time.Second + 1}); !errors.Is(err, tenancypostgres.ErrInvalidConfig) {
+		t.Fatalf("NewManager(timeout above maximum) error = %v", err)
+	}
 	manager, _ := tenancypostgres.NewManager(tenancypostgres.Config{})
 	scope := tenantScopeFor(t, "tenant-a")
 	state.failNext("verify_mismatch", nil)
@@ -137,12 +155,19 @@ func TestManagerFailsClosedOnVerificationAndInvalidInputs(t *testing.T) {
 	if err := manager.WithTenant(context.Background(), database, tenancy.Scope{}, nil); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
 		t.Fatalf("WithTenant(invalid scope) error = %v", err)
 	}
+	if err := manager.WithTenant(context.Background(), database, systemScopeFor(t), func(context.Context, *sql.Tx) error { return nil }); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
+		t.Fatalf("WithTenant(system scope) error = %v", err)
+	}
 	var nilManager *tenancypostgres.Manager
 	if err := nilManager.WithTenant(context.Background(), database, scope, func(context.Context, *sql.Tx) error { return nil }); !errors.Is(err, tenancypostgres.ErrInvalidOperation) {
 		t.Fatalf("nil WithTenant() error = %v", err)
 	}
 	if err := manager.WithSystem(context.Background(), database, systemScopeFor(t), nil); !errors.Is(err, tenancypostgres.ErrInvalidOperation) {
 		t.Fatalf("WithSystem(nil operation) error = %v", err)
+	}
+	var typedNilDatabase *sql.DB
+	if err := manager.WithTenant(context.Background(), typedNilDatabase, scope, func(context.Context, *sql.Tx) error { return nil }); !errors.Is(err, tenancypostgres.ErrInvalidOperation) {
+		t.Fatalf("WithTenant(typed nil database) error = %v", err)
 	}
 }
 

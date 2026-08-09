@@ -150,7 +150,7 @@ func (boundary Boundary) namespaceDomain() NamespaceDomain {
 }
 
 func integrationKey(boundary Boundary, logicalKey string) string {
-	result := make([]byte, 0, 8+len(boundary)+len(logicalKey))
+	var result []byte
 	result = appendLengthPrefixed(result, string(boundary))
 	return string(appendLengthPrefixed(result, logicalKey))
 }

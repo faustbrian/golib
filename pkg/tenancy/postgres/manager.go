@@ -133,10 +133,10 @@ func (manager *Manager) execute(
 	}()
 
 	tx, err := connection.BeginTx(ctx, &manager.txOptions)
+	defer rollback(tx)
 	if err != nil {
 		return err
 	}
-	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(ctx, setTransactionSQL, manager.setting, expected); err != nil {
 		return err
 	}
@@ -151,6 +151,12 @@ func (manager *Manager) execute(
 		return err
 	}
 	return tx.Commit()
+}
+
+func rollback(tx *sql.Tx) {
+	if tx != nil {
+		_ = tx.Rollback()
+	}
 }
 
 func (manager *Manager) resetAndClose(ctx context.Context, connection *sql.Conn) error {

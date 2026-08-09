@@ -26,7 +26,8 @@ func TestGroupRunsBoundedTenantScopedWorkAndClosesGracefully(t *testing.T) {
 			id = tenancy.MustTenantID("tenant-b")
 		}
 		scope, _ := tenancy.NewTenantScope(id, tenancy.Metadata{})
-		if err := group.Submit(context.Background(), scope, func(ctx context.Context) error {
+		submitContext, cancelSubmit := context.WithTimeout(context.Background(), time.Second)
+		err := group.Submit(submitContext, scope, func(ctx context.Context) error {
 			mutex.Lock()
 			active++
 			maximum = max(maximum, active)
@@ -38,7 +39,9 @@ func TestGroupRunsBoundedTenantScopedWorkAndClosesGracefully(t *testing.T) {
 			active--
 			mutex.Unlock()
 			return nil
-		}); err != nil {
+		})
+		cancelSubmit()
+		if err != nil {
 			t.Fatalf("Submit() error = %v", err)
 		}
 	}
@@ -61,14 +64,16 @@ func TestGroupSubmissionAndShutdownAreCancellable(t *testing.T) {
 	started := make(chan struct{})
 	group, _ := tenancy.NewGroup(context.Background(), tenancy.GroupOptions{MaxConcurrent: 1})
 	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
-	if err := group.Submit(context.Background(), scope, func(ctx context.Context) error {
+	submitContext, cancelSubmit := context.WithTimeout(context.Background(), time.Second)
+	defer cancelSubmit()
+	if err := group.Submit(submitContext, scope, func(ctx context.Context) error {
 		close(started)
 		<-ctx.Done()
 		return ctx.Err()
 	}); err != nil {
 		t.Fatalf("Submit(first) error = %v", err)
 	}
-	<-started
+	waitForSignal(t, started)
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
 	if err := group.Submit(cancelled, scope, func(context.Context) error { return nil }); !errors.Is(err, context.Canceled) {
@@ -96,7 +101,9 @@ func TestGroupReportsTaskErrorsOutsideSynchronization(t *testing.T) {
 	}
 	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
 	want := errors.New("task failed")
-	if err := group.Submit(context.Background(), scope, func(context.Context) error { return want }); err != nil {
+	submitContext, cancelSubmit := context.WithTimeout(context.Background(), time.Second)
+	defer cancelSubmit()
+	if err := group.Submit(submitContext, scope, func(context.Context) error { return want }); err != nil {
 		t.Fatalf("Submit() error = %v", err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
@@ -136,11 +143,24 @@ func TestGroupValidatesConstructionAndSubmission(t *testing.T) {
 	if err := group.Submit(context.Background(), scope, nil); !errors.Is(err, tenancy.ErrInvalidOperation) {
 		t.Fatalf("Submit(nil operation) error = %v", err)
 	}
-	if err := group.Shutdown(context.Background()); err != nil {
+	if err := shutdownWithin(t, group); err != nil {
 		t.Fatalf("Shutdown() error = %v", err)
 	}
 	var nilGroup *tenancy.Group
 	if err := nilGroup.Close(context.Background()); !errors.Is(err, tenancy.ErrInvalidGroup) {
 		t.Fatalf("nil Close() error = %v", err)
+	}
+	if err := nilGroup.Shutdown(context.Background()); !errors.Is(err, tenancy.ErrInvalidGroup) {
+		t.Fatalf("nil Shutdown() error = %v", err)
+	}
+	validGroup, err := tenancy.NewGroup(context.Background(), tenancy.GroupOptions{MaxConcurrent: 1024})
+	if err != nil {
+		t.Fatalf("NewGroup(maximum) error = %v", err)
+	}
+	if err := validGroup.Shutdown(nil); !errors.Is(err, tenancy.ErrInvalidGroup) {
+		t.Fatalf("Shutdown(nil context) error = %v", err)
+	}
+	if err := shutdownWithin(t, validGroup); err != nil {
+		t.Fatalf("Shutdown(valid) error = %v", err)
 	}
 }

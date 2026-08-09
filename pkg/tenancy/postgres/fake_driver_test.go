@@ -40,7 +40,7 @@ func newFakeDatabase(t *testing.T) (*sql.DB, *fakeDatabaseState) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	database.SetMaxOpenConns(1)
+	database.SetMaxOpenConns(32)
 	t.Cleanup(func() {
 		_ = database.Close()
 		fakeDatabases.Delete(name)
