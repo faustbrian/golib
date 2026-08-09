@@ -8,6 +8,8 @@
 - [Behavior tables](behavior.md)
 - [ResponseWriter matrix](responsewriter.md)
 - [Standards scope](standards.md)
+- [Specification decisions](specification-decisions.md)
+- [Pinned conformance matrix](../specification/README.md)
 - [Dependency audit](dependencies.md)
 - [Verification evidence](verification.md)
 - [Adoption guides](adoption.md)

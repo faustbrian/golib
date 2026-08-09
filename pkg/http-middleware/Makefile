@@ -6,7 +6,7 @@ ACTIONLINT ?= go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 FUZZ_TIME ?= 2s
 BENCH_TIME ?= 100ms
 
-.PHONY: actionlint api-compat api-update architecture benchmark check check-all coverage docs format \
+.PHONY: actionlint api-compat api-update architecture benchmark check check-all conformance coverage docs format \
 	format-check fuzz integration leak lint mutation nilaway race staticcheck \
 	sibling-integration standards test tidy-check vet vuln
 
@@ -46,6 +46,9 @@ architecture:
 standards:
 	$(GO) test ./proxy ./cors ./compress ./content ./secureheader -count=1
 
+conformance:
+	./scripts/check-conformance.sh
+
 fuzz:
 	./scripts/check-fuzz.sh "$(FUZZ_TIME)"
 
@@ -81,6 +84,6 @@ nilaway:
 	-$(GO) run go.uber.org/nilaway/cmd/nilaway@v0.0.0-20260710181136-2378218750e4 ./...
 
 check: tidy-check format-check vet architecture test race coverage fuzz mutation leak \
-	integration sibling-integration standards benchmark docs api-compat actionlint lint staticcheck vuln
+	integration sibling-integration standards conformance benchmark docs api-compat actionlint lint staticcheck vuln
 
 check-all: check nilaway

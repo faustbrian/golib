@@ -13,6 +13,8 @@ This project follows Semantic Versioning and Keep a Changelog.
 - HTTP/1.1 and HTTP/2 integration fixtures, fuzzing, mutation checks,
   benchmarks, ownership adapters, and release automation.
 - A bounded request-scoped route recorder for routers that clone requests.
+- A pinned specification decision register and focused conformance gate for
+  HTTP, Fetch, URL, forwarding, HSTS, and Go runtime behavior.
 
 ### Changed
 

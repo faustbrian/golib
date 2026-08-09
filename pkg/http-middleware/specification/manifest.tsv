@@ -1,0 +1,10 @@
+id	version	sections	role	url	sha256	status
+go-net-http	Go-1.26.5	net/http,context	Go-handler-and-writer-contracts	https://go.dev/dl/go1.26.5.src.tar.gz	495be4bc87176ac567392e5b4116abd98466d33d7b49d41e764ccc6976b2dc42	pinned
+rfc9110	RFC-9110	5-12,15	HTTP-semantics	https://www.rfc-editor.org/rfc/rfc9110.txt	21c1cdce6ab0e5509b04d84a28000836c7a087cf786efe6f04877ebfff47232a	pinned
+rfc9111	RFC-9111	5.2	HTTP-cache-directives	https://www.rfc-editor.org/rfc/rfc9111.txt	aeb52adb3279d5f23dae34f68af11bd5cef0a0aff7ffcd014c9ca93c5302cf3e	pinned
+rfc7239	RFC-7239	4-8	Forwarded-field	https://www.rfc-editor.org/rfc/rfc7239.txt	f15c45c9e079684bc4284d041be63285923962448cb0d8540d54106c68c2a40d	pinned
+rfc6797	RFC-6797	6-8	HTTP-Strict-Transport-Security	https://www.rfc-editor.org/rfc/rfc6797.txt	7cefa03f77547532580b7f877b4e6388bb66c20631b624667a0065c14ae3d364	pinned
+rfc7034	RFC-7034	2	X-Frame-Options	https://www.rfc-editor.org/rfc/rfc7034.txt	e6ab403a2e672c67507542f62c1705284d8c6ae41a6a90adc850cfb845faa9de	pinned
+whatwg-fetch	WHATWG-Fetch-586cd2a44c2a	CORS-protocol,CORS-preflight-fetch	Fetch-CORS	https://raw.githubusercontent.com/whatwg/fetch/586cd2a44c2a865b37c166dc0740f3fb8bb220d6/fetch.bs	2099e5170175b36f61ab3234849c429702552d3587d50b87149269336977eb98	pinned
+whatwg-url	WHATWG-URL-9dc3827fc722	origin,host-parsing,URL-serialization	URL-origin-model	https://raw.githubusercontent.com/whatwg/url/9dc3827fc722ac4af3f11061aa3e9adb44a17c8b/url.bs	53a7e67492328bf5dd7bbf20ba6edd8aa26790da3a3c9a1a6ac818b33257001d	pinned
+w3c-referrer-policy	W3C-cc435b05ca4a	referrer-policy-token	Referrer-Policy	https://raw.githubusercontent.com/w3c/webappsec-referrer-policy/cc435b05ca4a94f7f1a139be5074b168d20014db/index.src.html	a277e78e06418ec60afc6f499aee79d4f3a3a067e0fd97e9886a2d9e3de95eb1	pinned

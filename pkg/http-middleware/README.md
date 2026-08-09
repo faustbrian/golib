@@ -103,6 +103,12 @@ defenses, or application validation.
 Read [SECURITY.md](SECURITY.md), [the threat model](docs/threat-model.md), and
 [deployment guidance](docs/security.md) before production use.
 
+Observable choices around HTTP, Fetch, Go runtime contracts, and deployment
+policy are recorded in the
+[specification decision register](docs/specification-decisions.md). The pinned
+[conformance matrix](specification/README.md) maps those decisions to
+authoritative sources and executable evidence.
+
 ## Compatibility
 
 The minimum toolchain is Go 1.26.5. Normal tracking and header wrappers preserve

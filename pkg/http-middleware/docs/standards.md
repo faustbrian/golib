@@ -19,7 +19,9 @@ compliance with an entire specification.
   Network Access is opt-in and documented as an extension, not blanket Fetch
   compliance. HTTP method tokens retain their case-sensitive semantics.
 - RFC 6797 HSTS directive grammar with an additional conservative ten-year
-  construction bound.
+  construction bound. Configuration emits canonical unquoted `max-age`, and
+  accepts `preload` only as a documented de facto extension.
+- RFC 7034 `X-Frame-Options` and the pinned W3C Referrer Policy token set.
 
 W3C Trace Context parsing and SDK/exporter lifecycle remain owned by
 `telemetry`; this package's adapters compose owning middleware and do not
@@ -29,8 +31,10 @@ Primary references: [Go net/http](https://pkg.go.dev/net/http),
 [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html),
 [RFC 9111](https://www.rfc-editor.org/rfc/rfc9111.html),
 [RFC 7239](https://www.rfc-editor.org/rfc/rfc7239.html),
+[RFC 6797](https://www.rfc-editor.org/rfc/rfc6797.html),
+[RFC 7034](https://www.rfc-editor.org/rfc/rfc7034.html),
 [Fetch](https://fetch.spec.whatwg.org/#http-cors-protocol), and
-[Trace Context](https://www.w3.org/TR/trace-context/).
+[Referrer Policy](https://w3c.github.io/webappsec-referrer-policy/).
 
 Buffered timeout intentionally diverges from upgrade-capable writers: it
 forwards informational responses but cannot honor `101`, hijacking, full

@@ -17,3 +17,8 @@ underlying helper but is not part of this package's public promise.
 
 No unsafe, cgo, `go:linkname`, reflection discovery, or runtime patching is
 used. The root module does not require sibling owning packages.
+
+The [specification decision register](specification-decisions.md) separates
+normative behavior from defensive and application policy. A changed decision
+requires compatibility review even when the previous behavior was not part of
+the exported Go API.
