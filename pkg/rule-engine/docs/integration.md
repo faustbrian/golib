@@ -6,6 +6,10 @@ models for reflection-based discovery.
 
 Persist canonical JSON plus its hash. Compile on write or controlled refresh,
 not on every request. Cache only immutable plans and cap cache cardinality.
+Definitions containing custom operators must use `Compiler.MarshalCanonical`,
+`Compiler.CanonicalHash`, and `Compiler.ParseJSON` on compilers constructed with
+the same registry used for evaluation. The package functions intentionally
+accept built-ins only.
 
 Authorization integrations retain subjects, resources, permissions, policy
 combining, and deny defaults. Feature-flag integrations retain targeting,

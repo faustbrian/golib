@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"strings"
 	"sync"
 	"testing"
 
@@ -51,6 +52,75 @@ func TestDecimalEncodingNormalizesNegativeScaleWithoutChangingValue(t *testing.T
 	matched, err := operatorByName(t, ruleenginemath.OpDecimalEqual).Evaluate(context.Background(), encoded, canonical)
 	if err != nil || !matched {
 		t.Fatalf("normalized equality = %t, %v", matched, err)
+	}
+}
+
+func TestDecimalEncodingCanonicalizesPositiveExponentZero(t *testing.T) {
+	t.Parallel()
+
+	value, err := decimal.FromBig(big.NewInt(0), 2, gomath.DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded := ruleenginemath.Decimal(value)
+	text, ok := encoded.StringValue()
+	if !ok || text != ruleenginemath.EncodingV1Prefix+"0" {
+		t.Fatalf("Decimal(0e2) = %q, %t", text, ok)
+	}
+	matched, err := operatorByName(t, ruleenginemath.OpDecimalEqual).Evaluate(
+		context.Background(), encoded, ruleenginemath.Decimal(decimal.New(0)),
+	)
+	if err != nil || !matched {
+		t.Fatalf("positive-exponent zero equality = %t, %v", matched, err)
+	}
+}
+
+func TestDecimalRuleCanonicalPersistenceRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	compiler, err := ruleengine.NewCompilerWithOperators(
+		ruleengine.DefaultLimits(), ruleenginemath.Operators()...,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	amount := ruleengine.MustPath("order", "amount")
+	set := ruleengine.RuleSet{ID: "decimal-persistence", Rules: []ruleengine.Rule{{
+		ID: "minimum",
+		When: ruleengine.Compare(
+			ruleenginemath.OpDecimalGreaterOrEqual,
+			ruleengine.Variable(amount),
+			ruleengine.Literal(ruleenginemath.Decimal(decimal.MustParse("10.00"))),
+		),
+	}}}
+	encoded, err := compiler.MarshalCanonical(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := `{"version":"1","id":"decimal-persistence","strategy":"first_match","rules":[{"id":"minimum","priority":0,"tags":null,"when":{"kind":"compare","operator":"golib_decimal_v1_greater_or_equal","left":{"kind":"variable","path":["order","amount"]},"right":{"kind":"literal","value":{"type":"string","string":"golib.rule-engine.decimal/v1:10.00"}}},"derive":[]}]}`
+	if string(encoded) != want {
+		t.Fatalf("MarshalCanonical() = %s", encoded)
+	}
+	decoded, diagnostics, err := compiler.ParseJSON(encoded)
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatalf("ParseJSON() diagnostics = %#v, error = %v", diagnostics, err)
+	}
+	reencoded, err := compiler.MarshalCanonical(decoded)
+	if err != nil || string(reencoded) != string(encoded) {
+		t.Fatalf("canonical round trip = %s, %v; want %s", reencoded, err, encoded)
+	}
+	plan, _, err := compiler.Compile(context.Background(), decoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts, err := ruleengine.NewContext(ruleengine.Fact{
+		Path: amount, Value: ruleenginemath.Decimal(decimal.MustParse("10.0")),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result := plan.Evaluate(context.Background(), facts); result.Decision != ruleengine.Matched {
+		t.Fatalf("round-tripped Evaluate() = %#v", result)
 	}
 }
 
@@ -165,6 +235,22 @@ func TestDecimalOperatorsRejectInvalidInputsWithStableErrorIdentity(t *testing.T
 	}
 }
 
+func TestDecimalOperatorErrorsDoNotDiscloseRejectedValues(t *testing.T) {
+	t.Parallel()
+
+	const secret = "customer-secret-value"
+	value := ruleengine.String(ruleenginemath.EncodingV1Prefix + secret)
+	_, err := operatorByName(t, ruleenginemath.OpDecimalEqual).Evaluate(
+		context.Background(), value, value,
+	)
+	if err == nil {
+		t.Fatal("Evaluate() error = nil")
+	}
+	if strings.Contains(err.Error(), secret) {
+		t.Fatalf("Evaluate() error disclosed rejected value: %v", err)
+	}
+}
+
 func TestDecimalOperatorsEnforceExplicitLimits(t *testing.T) {
 	t.Parallel()
 
@@ -178,6 +264,12 @@ func TestDecimalOperatorsEnforceExplicitLimits(t *testing.T) {
 	}
 	equal := operators[0]
 	valid := ruleengine.String(ruleenginemath.EncodingV1Prefix + "1")
+	for _, input := range []string{"999", "0.01"} {
+		value := ruleengine.String(ruleenginemath.EncodingV1Prefix + input)
+		if _, err := equal.Evaluate(context.Background(), value, valid); err != nil {
+			t.Fatalf("Evaluate(%q) exact limit error = %v", input, err)
+		}
+	}
 	for _, input := range []string{"1000", "0.001"} {
 		value := ruleengine.String(ruleenginemath.EncodingV1Prefix + input)
 		if _, err := equal.Evaluate(context.Background(), value, valid); !errors.Is(err, gomath.ErrLimitExceeded) {
@@ -203,26 +295,60 @@ func TestDecimalOperatorsPreserveCancellationIdentity(t *testing.T) {
 	}
 }
 
-func TestDecimalOperatorSetsAreFreshAndConcurrencySafe(t *testing.T) {
+func TestDecimalOperatorSetsAreFreshAndSafeAcrossConcurrentEngines(t *testing.T) {
 	t.Parallel()
 
-	first := ruleenginemath.Operators()
-	second := ruleenginemath.Operators()
-	first[0] = nil
-	if second[0] == nil {
-		t.Fatal("Operators() returned shared slice storage")
+	shared := ruleenginemath.Operators()
+	firstCompiler, err := ruleengine.NewCompilerWithOperators(ruleengine.DefaultLimits(), shared...)
+	if err != nil {
+		t.Fatal(err)
 	}
-
-	left := ruleenginemath.Decimal(decimal.MustParse("1.00"))
-	right := ruleenginemath.Decimal(decimal.MustParse("1"))
+	secondCompiler, err := ruleengine.NewCompilerWithOperators(ruleengine.DefaultLimits(), shared...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	path := ruleengine.MustPath("decimal")
+	set := ruleengine.RuleSet{ID: "concurrent-decimal", Rules: []ruleengine.Rule{{
+		ID: "equal",
+		When: ruleengine.Compare(
+			ruleenginemath.OpDecimalEqual,
+			ruleengine.Variable(path),
+			ruleengine.Literal(ruleenginemath.Decimal(decimal.MustParse("1.00"))),
+		),
+	}}}
+	firstPlan, _, err := firstCompiler.Compile(context.Background(), set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	secondPlan, _, err := secondCompiler.Compile(context.Background(), set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	signatures := shared[0].Signatures()
+	signatures[0] = ruleengine.Signature{}
+	for index := range shared {
+		shared[index] = nil
+	}
+	if fresh := ruleenginemath.Operators(); len(fresh) != 5 || fresh[0] == nil {
+		t.Fatalf("Operators() reused caller-mutated storage: %#v", fresh)
+	}
+	facts, err := ruleengine.NewContext(ruleengine.Fact{
+		Path: path, Value: ruleenginemath.Decimal(decimal.MustParse("1")),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plans := []ruleengine.Plan{firstPlan, secondPlan}
 	var wait sync.WaitGroup
 	for range 32 {
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
-			for _, operator := range second {
-				if _, err := operator.Evaluate(context.Background(), left, right); err != nil {
-					t.Errorf("%s Evaluate() error = %v", operator.Name(), err)
+			for range 100 {
+				for _, plan := range plans {
+					if result := plan.Evaluate(context.Background(), facts); result.Decision != ruleengine.Matched {
+						t.Errorf("concurrent Evaluate() = %#v", result)
+					}
 				}
 			}
 		}()

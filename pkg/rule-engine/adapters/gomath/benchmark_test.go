@@ -4,15 +4,20 @@ import (
 	"context"
 	"testing"
 
+	gomath "github.com/faustbrian/golib/pkg/math"
 	"github.com/faustbrian/golib/pkg/math/decimal"
 	ruleengine "github.com/faustbrian/golib/pkg/rule-engine"
 	ruleenginemath "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath"
 )
 
 func BenchmarkDecimalComparison(b *testing.B) {
-	left := ruleenginemath.Decimal(decimal.MustParse("100.0000000001"))
-	right := ruleenginemath.Decimal(decimal.MustParse("100"))
+	const leftText = "100.0000000001"
+	const rightText = "100"
+	left := ruleenginemath.Decimal(decimal.MustParse(leftText))
+	right := ruleenginemath.Decimal(decimal.MustParse(rightText))
 	ctx := context.Background()
+	limits := gomath.DefaultLimits()
+	b.SetBytes(int64(len(leftText) + len(rightText)))
 
 	b.Run("adapter", func(b *testing.B) {
 		operator := operatorByName(b, ruleenginemath.OpDecimalGreaterThan)
@@ -25,9 +30,26 @@ func BenchmarkDecimalComparison(b *testing.B) {
 		}
 	})
 
-	b.Run("direct", func(b *testing.B) {
-		left := decimal.MustParse("100.0000000001")
-		right := decimal.MustParse("100")
+	b.Run("direct-parse-and-compare", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			left, err := decimal.ParseWithOptions(leftText, decimal.ParseOptions{Limits: limits})
+			if err != nil {
+				b.Fatal(err)
+			}
+			right, err := decimal.ParseWithOptions(rightText, decimal.ParseOptions{Limits: limits})
+			if err != nil {
+				b.Fatal(err)
+			}
+			if left.Cmp(right) <= 0 {
+				b.Fatal("direct comparison did not preserve ordering")
+			}
+		}
+	})
+
+	b.Run("direct-preparsed-comparison", func(b *testing.B) {
+		left := decimal.MustParse(leftText)
+		right := decimal.MustParse(rightText)
 		b.ReportAllocs()
 		for b.Loop() {
 			if left.Cmp(right) <= 0 {

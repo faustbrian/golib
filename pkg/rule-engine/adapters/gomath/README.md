@@ -37,8 +37,8 @@ no global state.
 golib.rule-engine.decimal/v1:<canonical-decimal>
 ```
 
-The prefix is exported as `EncodingV1Prefix`. The payload is exactly
-`decimal.Decimal.String()`, including explicit fractional scale. Examples
+The prefix is exported as `EncodingV1Prefix`. The payload is the decimal's
+canonical text representation, including explicit fractional scale. Examples
 include `golib.rule-engine.decimal/v1:0`,
 `golib.rule-engine.decimal/v1:-12.50`, and
 `golib.rule-engine.decimal/v1:0.0001`.
@@ -48,6 +48,8 @@ A payload must round-trip through `decimal.ParseWithOptions` to the same string.
 This rejects malformed data and alternate text such as `-0`; separately encoded
 representations such as `1.0` and `1.00` remain canonical because their scale is
 intentional.
+Positive-exponent zero is persisted as `0`, matching `decimal.MarshalText`, so
+the encoder never emits a leading-zero form that the strict parser rejects.
 
 ## Operators and API
 
@@ -83,6 +85,7 @@ and exponent magnitude. Invalid limit configurations retain
 Wrong rule value kinds and unknown tags return `ErrInvalidTaggedValue`, and
 noncanonical payloads return `ErrNonCanonicalDecimal`. Context cancellation is
 checked before and between parsing operations and is returned without wrapping.
+Digit parsing stops allocating as soon as `MaxInputDigits` is exhausted.
 
 ## Composition and adoption
 
@@ -95,6 +98,13 @@ Choose `OperatorsWithLimits` when persisted or untrusted values need limits
 tighter than the math defaults. All engines reading the same rule data should
 use the same encoding version and limits. The adapter performs no I/O, starts no
 goroutines, and reads no clock, environment, network, or registry.
+
+For canonical RuleSet persistence, construct the compiler with this adapter's
+operators and call `compiler.MarshalCanonical`, `compiler.CanonicalHash`, and
+`compiler.ParseJSON`.
+Package-level rule-engine persistence helpers intentionally recognize only
+built-in operators. Reuse the same operator limits when parsing and evaluating
+persisted definitions.
 
 ## Compatibility and migration
 

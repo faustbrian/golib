@@ -68,6 +68,55 @@ func TestJSONDefinitionRoundTripPreservesEvaluation(t *testing.T) {
 	}
 }
 
+func TestCompilerCanonicalPersistenceUsesCustomOperatorRegistry(t *testing.T) {
+	t.Parallel()
+
+	path := ruleengine.MustPath("parcel", "code")
+	set := ruleengine.RuleSet{ID: "custom-persistence", Rules: []ruleengine.Rule{{
+		ID: "same-length",
+		When: ruleengine.Compare(
+			"same_length",
+			ruleengine.Variable(path),
+			ruleengine.Literal(ruleengine.String("ABC")),
+		),
+	}}}
+	if _, err := ruleengine.MarshalCanonical(set); !ruleengine.IsCode(err, ruleengine.CodeUnknownOperator) {
+		t.Fatalf("package MarshalCanonical() error = %v", err)
+	}
+	compiler, err := ruleengine.NewCompilerWithOperators(
+		ruleengine.DefaultLimits(), sameLengthOperator{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	encoded, err := compiler.MarshalCanonical(set)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hash, err := compiler.CanonicalHash(set)
+	if err != nil || len(hash) != 64 {
+		t.Fatalf("compiler CanonicalHash() = %q, %v", hash, err)
+	}
+	if _, _, parseErr := ruleengine.ParseJSON(encoded, ruleengine.DefaultLimits()); !ruleengine.IsCode(parseErr, ruleengine.CodeUnknownOperator) {
+		t.Fatalf("package ParseJSON() error = %v", parseErr)
+	}
+	decoded, diagnostics, err := compiler.ParseJSON(encoded)
+	if err != nil || len(diagnostics) != 0 {
+		t.Fatalf("compiler ParseJSON() diagnostics = %#v, error = %v", diagnostics, err)
+	}
+	plan, _, err := compiler.Compile(context.Background(), decoded)
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts, err := ruleengine.NewContext(ruleengine.Fact{Path: path, Value: ruleengine.String("XYZ")})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if result := plan.Evaluate(context.Background(), facts); result.Decision != ruleengine.Matched {
+		t.Fatalf("round-tripped Evaluate() = %#v", result)
+	}
+}
+
 func TestJSONDefinitionRejectsUnknownFieldsAndUnsupportedPredicates(t *testing.T) {
 	t.Parallel()
 

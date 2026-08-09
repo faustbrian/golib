@@ -79,7 +79,7 @@ func (c Context) Owner(path Path) (Owner, bool) {
 }
 
 func (c Context) withFact(fact Fact) Context {
-	cloned := Context{facts: make(map[string]Fact, len(c.facts)+1)}
+	cloned := Context{facts: make(map[string]Fact, len(c.facts))}
 	for key, existing := range c.facts {
 		cloned.facts[key] = existing
 	}

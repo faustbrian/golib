@@ -17,3 +17,5 @@
   search boundaries against overflow and runaway work.
 - Harden rational construction, powers, decimal expansion, parsing, and
   rounding at exact resource boundaries.
+- Reject decimal digit input as soon as its configured budget is exhausted and
+  reject repeated separators without attacker-sized allocation.

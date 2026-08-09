@@ -14,7 +14,7 @@ import (
 )
 
 // EncodingV1Prefix identifies the first canonical persisted decimal encoding.
-// A tagged value is this prefix followed by decimal.Decimal.String output.
+// A tagged value is this prefix followed by decimal.Decimal.MarshalText output.
 const EncodingV1Prefix = "golib.rule-engine.decimal/v1:"
 
 var (
@@ -39,7 +39,9 @@ const (
 // Decimal encodes an exact decimal as a versioned, tagged canonical string
 // value. It preserves the exact base-10 value and explicit fractional scale.
 func Decimal(value decimal.Decimal) ruleengine.Value {
-	return ruleengine.String(EncodingV1Prefix + value.String())
+	text, _ := value.MarshalText()
+
+	return ruleengine.String(EncodingV1Prefix + string(text))
 }
 
 // Operators returns a fresh complete decimal comparison operator set using

@@ -3,6 +3,9 @@
 `Operator` exposes a name, exact kind signatures, and a context-aware evaluate
 method. Registries belong to a compiler instance. Built-in names and duplicate
 custom names cannot be replaced, and no process-global registry exists.
+Use that compiler's `MarshalCanonical`, `CanonicalHash`, and `ParseJSON` methods
+for stored definitions containing custom operator names; package-level
+persistence helpers validate against built-ins only.
 
 `PredicateFunc` is available for bounded logic that cannot be represented by
 built-ins. It cannot be serialized, and its fact dependencies are opaque to

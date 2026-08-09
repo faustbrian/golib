@@ -96,7 +96,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 28 |
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
-| 37 | Leaf adapter | `pending-reexecution` | `pkg/rule-engine/adapters/gomath/.ai/GOAL_HARDEN.md` | 1 |
 | 40 | Hardening | `pending` | `pkg/external-sort/.ai/GOAL_HARDEN.md` | Existing external-sort implementation |
 | 41 | Protocol | `pending` | `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1, 13, 19 |
 | 42 | Security | `pending` | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19, 21-23, 41 |
@@ -136,7 +135,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/queue/queueservice/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 27 has current scoped lifecycle, exact coverage and mutation, API, documentation, safety, and CI gate-enforcement evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 29 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/rule-engine/adapters/gomath/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 37 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/rule-engine/adapters/gomath/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 37. Current scoped evidence verifies exact decimal persistence and comparison behavior, hostile-input and concurrency hardening, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 39. Current scoped evidence verifies exact UTC encoding, bound-sensitive interval relations, persisted-input hardening, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
@@ -174,14 +173,14 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 
 | Field | Record |
 | --- | --- |
-| Goal | `pkg/rule-engine/adapters/gomath/.ai/GOAL.md` |
-| Scope | Versioned canonical decimal encoding, exact comparison operators, stable error causes, limits, cancellation, documentation, and module quality gates. |
+| Goal | `pkg/rule-engine/adapters/gomath/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Versioned canonical decimal encoding, exact relation truth tables and comparison properties, bounded hostile persisted-input handling, cancellation, diagnostic redaction, immutable cross-engine operator registration, canonical RuleSet compatibility, and equivalent-work benchmarks. |
 | Status | `pending-reexecution` to `verified` |
-| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/rule-engine/adapters/gomath` against the completed implementation. |
-| Result | Passed every mandatory module gate, including 36/36 statements, 19/19 viable mutants, race, two 10,000-execution fuzz targets, API, docs, security, and benchmarks. |
+| Evidence | `./scripts/run-modules.sh check --jobs 3 --modules 'pkg/math,pkg/rule-engine,pkg/rule-engine/adapters/gomath'`, followed by the current rule-engine module contract after refreshing its public API fingerprint. |
+| Result | Passed every mandatory affected-module gate. Gomath has exact 37/37 statement coverage, killed 19/19 viable mutants, passed race detection and two 10,000-execution fuzz targets, and benchmarked adapter parsing and evaluation against equivalent direct decimal work. Rule-engine has exact 880/880 plus 2/2 jsonast statement coverage and killed 460/460 viable mutants with no lived, uncovered, timed-out, or skipped mutants. |
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
-| Observed | 2026-08-09T05:00:07Z |
-| Gaps | None within the scoped base-goal contract; `GOAL_HARDEN.md` remains a separate pending campaign. The repository wrapper is independently unavailable because root-proxy and verification-snapshot tests exceed their fixed timeouts in the mixed worktree. |
+| Observed | 2026-08-09T08:19:29Z |
+| Gaps | None within the scoped base and hardening contracts. |
 
 ### Outbox Kafka publisher evidence
 

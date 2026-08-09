@@ -42,3 +42,12 @@ All notable changes to this module are documented here.
 - Add an allocation-aware benchmark for exact decimal operator evaluation.
 - Add bounded fuzz coverage that cross-checks tagged decimal acceptance
   against the canonical decimal parser.
+- Add canonical RuleSet round-trip compatibility, cross-engine race isolation,
+  hostile-value redaction, unequal-operand fuzzing, and exact parser benchmarks.
+
+### Fixed
+
+- Canonicalize positive-exponent zero as `0` so every value emitted by
+  `Decimal` is accepted by the v1 operators.
+- Reject digit input when its configured parser budget is exhausted, before an
+  attacker-sized coefficient string can be allocated.

@@ -2,13 +2,13 @@ package ruleengine
 
 import (
 	"bytes"
+	"cmp"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"io"
 	"slices"
-	"sort"
 	"time"
 )
 
@@ -64,10 +64,18 @@ type jsonValue struct {
 	List     []jsonValue `json:"list,omitempty"`
 }
 
-// MarshalCanonical serializes a definition with stable ordering and field
-// representation. Custom predicates cannot be serialized.
+// MarshalCanonical serializes a definition containing only built-in operators
+// with stable ordering and field representation. Custom predicates cannot be
+// serialized.
 func MarshalCanonical(set RuleSet) ([]byte, error) {
-	plan, _, err := NewCompiler(DefaultLimits()).Compile(context.Background(), set)
+	return NewCompiler(DefaultLimits()).MarshalCanonical(set)
+}
+
+// MarshalCanonical serializes a definition with stable ordering and field
+// representation using compiler's registered custom operators. Custom
+// predicates cannot be serialized.
+func (compiler Compiler) MarshalCanonical(set RuleSet) ([]byte, error) {
+	plan, _, err := compiler.Compile(context.Background(), set)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +97,13 @@ func MarshalCanonical(set RuleSet) ([]byte, error) {
 
 // CanonicalHash returns the lowercase SHA-256 digest of MarshalCanonical.
 func CanonicalHash(set RuleSet) (string, error) {
-	encoded, err := MarshalCanonical(set)
+	return NewCompiler(DefaultLimits()).CanonicalHash(set)
+}
+
+// CanonicalHash returns the lowercase SHA-256 digest of compiler's canonical
+// representation, including definitions using its registered custom operators.
+func (compiler Compiler) CanonicalHash(set RuleSet) (string, error) {
+	encoded, err := compiler.MarshalCanonical(set)
 	if err != nil {
 		return "", err
 	}
@@ -97,12 +111,19 @@ func CanonicalHash(set RuleSet) (string, error) {
 	return hex.EncodeToString(digest[:]), nil
 }
 
-// ParseJSON parses the versioned JSON AST with strict unknown-field handling.
+// ParseJSON parses a versioned JSON AST containing only built-in operators with
+// strict unknown-field handling.
 func ParseJSON(data []byte, limits Limits) (RuleSet, []Diagnostic, error) {
-	if err := limits.validate(); err != nil {
+	return NewCompiler(limits).ParseJSON(data)
+}
+
+// ParseJSON parses a versioned JSON AST with strict unknown-field handling and
+// validates custom operators against compiler's isolated registry.
+func (compiler Compiler) ParseJSON(data []byte) (RuleSet, []Diagnostic, error) {
+	if err := compiler.limits.validate(); err != nil {
 		return RuleSet{}, nil, err
 	}
-	if len(data) == 0 || len(data) > limits.MaxDefinitionBytes {
+	if len(data) == 0 || len(data) > compiler.limits.MaxDefinitionBytes {
 		return parseFailure(CodeLimitExceeded, "JSON definition size is invalid")
 	}
 	decoder := json.NewDecoder(bytes.NewReader(data))
@@ -123,13 +144,13 @@ func ParseJSON(data []byte, limits Limits) (RuleSet, []Diagnostic, error) {
 	}
 	set := RuleSet{ID: definition.ID, Namespace: definition.Namespace, Strategy: strategy, Rules: make([]Rule, len(definition.Rules))}
 	for index, encodedRule := range definition.Rules {
-		rule, parseErr := decodeRule(encodedRule, limits)
+		rule, parseErr := decodeRule(encodedRule, compiler.limits)
 		if parseErr != nil {
 			return parseFailureForRule(encodedRule.ID, parseErr)
 		}
 		set.Rules[index] = rule
 	}
-	_, diagnostics, err := NewCompiler(limits).Compile(context.Background(), set)
+	_, diagnostics, err := compiler.Compile(context.Background(), set)
 	if err != nil {
 		return RuleSet{}, diagnostics, err
 	}
@@ -161,14 +182,14 @@ func encodeRule(rule Rule) (jsonRule, error) {
 		return jsonRule{}, err
 	}
 	tags := append([]string(nil), rule.Tags...)
-	sort.Strings(tags)
+	slices.Sort(tags)
 	tags = slices.Compact(tags)
 	encoded := jsonRule{ID: rule.ID, Namespace: rule.Namespace, Priority: rule.Priority, Tags: tags, When: when, Derive: make([]jsonFact, len(rule.Derive))}
 	for index, fact := range rule.Derive {
 		encoded.Derive[index] = jsonFact{Path: fact.Path.Segments(), Owner: ownerName(fact.Owner), Value: encodeValue(fact.Value)}
 	}
-	sort.Slice(encoded.Derive, func(left, right int) bool {
-		return joinPath(encoded.Derive[left].Path) < joinPath(encoded.Derive[right].Path)
+	slices.SortFunc(encoded.Derive, func(left, right jsonFact) int {
+		return cmp.Compare(joinPath(left.Path), joinPath(right.Path))
 	})
 	return encoded, nil
 }

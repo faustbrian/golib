@@ -364,7 +364,7 @@ func TestDecimalSerializationAndHelpersEdges(t *testing.T) {
 	if compareInt64(1, 0) != 1 || compareInt64(0, 1) != -1 || compareInt64(1, 1) != 0 {
 		t.Fatal("int64 comparison mismatch")
 	}
-	if _, _, ok := cleanDigits("_1", true); ok {
+	if _, _, err := cleanDigits("_1", true, 2); err == nil {
 		t.Fatal("leading underscore accepted")
 	}
 }

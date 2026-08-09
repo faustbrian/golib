@@ -139,24 +139,28 @@ func ParseWithOptions(input string, options ParseOptions) (Decimal, error) {
 	if err != nil {
 		return Decimal{}, err
 	}
-	parts := strings.Split(mantissa, ".")
-	if len(parts) > 2 || parts[0] == "" || len(parts) == 2 && parts[1] == "" {
+	integerPart, fractionPart, hasFraction := strings.Cut(mantissa, ".")
+	if hasFraction && strings.Contains(fractionPart, ".") {
 		return Decimal{}, ErrInvalid
 	}
-	integerDigits, integerCount, ok := cleanDigits(parts[0], options.AllowUnderscores)
-	if !ok || !options.AllowLeadingZeros && integerCount > 1 && integerDigits[0] == '0' {
+	integerDigits, integerCount, err := cleanDigits(
+		integerPart, options.AllowUnderscores, options.Limits.MaxInputDigits,
+	)
+	if err != nil {
+		return Decimal{}, err
+	}
+	if !options.AllowLeadingZeros && integerCount > 1 && integerDigits[0] == '0' {
 		return Decimal{}, ErrInvalid
 	}
 	fractionDigits := ""
 	fractionCount := 0
-	if len(parts) == 2 {
-		fractionDigits, fractionCount, ok = cleanDigits(parts[1], options.AllowUnderscores)
-		if !ok {
-			return Decimal{}, ErrInvalid
+	if hasFraction {
+		fractionDigits, fractionCount, err = cleanDigits(
+			fractionPart, options.AllowUnderscores, options.Limits.MaxInputDigits-integerCount,
+		)
+		if err != nil {
+			return Decimal{}, err
 		}
-	}
-	if integerCount+fractionCount > options.Limits.MaxInputDigits {
-		return Decimal{}, fmt.Errorf("%w: decimal input digits", ErrLimit)
 	}
 	exponent64 := int64(parsedExponent) - int64(fractionCount)
 	exponent, err := checkedExponent(exponent64, options.Limits.MaxExponentMagnitude)
@@ -971,26 +975,34 @@ func splitExponent(input string, options ParseOptions) (string, int32, error) {
 	return mantissa, checked, nil
 }
 
-func cleanDigits(input string, allowUnderscores bool) (string, int, bool) {
+func cleanDigits(input string, allowUnderscores bool, maximum int) (string, int, error) {
 	var builder strings.Builder
+	builder.Grow(min(len(input), maximum))
 	previousUnderscore := false
 	for index := 0; index < len(input); index++ {
 		character := input[index]
 		if character == '_' {
 			if !allowUnderscores || index == 0 || index == len(input)-1 || previousUnderscore {
-				return "", 0, false
+				return "", 0, ErrInvalid
 			}
 			previousUnderscore = true
 			continue
 		}
 		if character < '0' || character > '9' {
-			return "", 0, false
+			return "", 0, ErrInvalid
+		}
+		if builder.Len() >= maximum {
+			return "", 0, fmt.Errorf("%w: decimal input digits", ErrLimit)
 		}
 		builder.WriteByte(character)
 		previousUnderscore = false
 	}
 
-	return builder.String(), builder.Len(), builder.Len() > 0
+	if builder.Len() == 0 {
+		return "", 0, ErrInvalid
+	}
+
+	return builder.String(), builder.Len(), nil
 }
 
 func errorsIsRange(err error) bool {

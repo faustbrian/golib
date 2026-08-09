@@ -1,8 +1,9 @@
 package ruleengine
 
 import (
+	"cmp"
 	"context"
-	"sort"
+	"slices"
 	"unicode/utf8"
 )
 
@@ -125,11 +126,11 @@ func (compiler Compiler) Compile(ctx context.Context, set RuleSet) (Plan, []Diag
 	if cycleRule := findDerivationCycle(rules); cycleRule != "" {
 		return compileFailure(cycleRule, CodeCycle, "derived fact dependency cycle")
 	}
-	sort.Slice(rules, func(left, right int) bool {
-		if rules[left].Priority != rules[right].Priority {
-			return rules[left].Priority > rules[right].Priority
+	slices.SortFunc(rules, func(left, right Rule) int {
+		if priority := cmp.Compare(right.Priority, left.Priority); priority != 0 {
+			return priority
 		}
-		return rules[left].ID < rules[right].ID
+		return cmp.Compare(left.ID, right.ID)
 	})
 	return Plan{
 		setID: set.ID, namespace: set.Namespace, strategy: set.Strategy,
@@ -292,7 +293,7 @@ func predicatePaths(predicate Predicate) []string {
 }
 
 func childPaths(children []Predicate) []string {
-	paths := make([]string, 0, len(children)*2)
+	paths := make([]string, 0, len(children))
 	for _, child := range children {
 		paths = append(paths, predicatePaths(child)...)
 	}
@@ -317,7 +318,7 @@ func requiredPaths(rules []Rule) []Path {
 	for key := range unique {
 		keys = append(keys, key)
 	}
-	sort.Strings(keys)
+	slices.Sort(keys)
 	paths := make([]Path, len(keys))
 	for index, key := range keys {
 		paths[index] = unique[key]

@@ -3,6 +3,7 @@ package ruleengine
 import (
 	"context"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -155,7 +156,7 @@ func orderedKind(kind Kind) bool {
 }
 
 func evaluateBuiltin(name OperatorName, left, right Value) (bool, error) {
-	if left.kind == KindMissing || right.kind == KindMissing {
+	if slices.Contains([]Kind{left.kind, right.kind}, KindMissing) {
 		return false, nil
 	}
 	if err := validateOperatorKinds(name, left.kind, right.kind); err != nil {

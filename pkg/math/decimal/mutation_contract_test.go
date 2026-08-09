@@ -510,18 +510,21 @@ func TestAMutationPrimitiveBoundaryContracts(t *testing.T) {
 		}
 	}
 	for input, want := range map[string]string{"0": "0", "123": "123", "1_2_3": "123"} {
-		digits, count, ok := cleanDigits(input, true)
-		if !ok || digits != want || count != len(want) {
-			t.Fatalf("cleanDigits(%q) = %q, %d, %v", input, digits, count, ok)
+		digits, count, err := cleanDigits(input, true, len(want))
+		if err != nil || digits != want || count != len(want) {
+			t.Fatalf("cleanDigits(%q) = %q, %d, %v", input, digits, count, err)
 		}
 	}
 	for _, input := range []string{"", "_1", "1_", "1__2", "1a"} {
-		if _, _, ok := cleanDigits(input, true); ok {
+		if _, _, err := cleanDigits(input, true, len(input)); err == nil {
 			t.Fatalf("cleanDigits(%q) succeeded", input)
 		}
 	}
-	if _, _, ok := cleanDigits("1_2", false); ok {
+	if _, _, err := cleanDigits("1_2", false, 2); err == nil {
 		t.Fatal("cleanDigits accepted disabled underscores")
+	}
+	if _, _, err := cleanDigits("12", true, 1); !errors.Is(err, ErrLimit) {
+		t.Fatalf("cleanDigits over limit error = %v", err)
 	}
 }
 
