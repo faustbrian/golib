@@ -412,9 +412,12 @@ replacements, refresh every provider, verify every acknowledged record, and
 reject every retired secret. Three provider-backed PLAIN producers additionally
 recover after a bounded broker restart replaces the server credential, verify
 every acknowledged record, and reject the retired password. This does not
-claim zero-downtime PLAIN rotation. A compact-only Apache topic also proves
-replay fails closed on a missing requested offset while the broker log start
-remains unchanged. A three-process consumer fixture proves the documented
+claim zero-downtime PLAIN rotation. Three independent mTLS producers also
+reconnect after broker-enforced idle disconnects, obtain a separately issued
+replacement certificate from every provider, and preserve every acknowledged
+record. A compact-only Apache topic also proves replay fails closed on a missing
+requested offset while the broker log start remains unchanged. A three-process
+consumer fixture proves the documented
 eager-to-cooperative rolling protocol transition with exact partition
 ownership. The Apache
 fixtures assert the runtime version; the failure fixture proves one bounded

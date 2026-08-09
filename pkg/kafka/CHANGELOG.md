@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- extend live mTLS renewal evidence to three independent producers, require
+  every certificate provider after broker-enforced reconnect, and preserve all
+  acknowledged records in exact broker order
 - prove three provider-backed PLAIN producers recover after a bounded broker
   restart replaces the server credential, preserve every acknowledged record,
   and reject the retired password without claiming zero-downtime rotation

@@ -124,10 +124,10 @@ The fixtures prove:
   replacements, invoke every package provider again, preserve every
   acknowledged record, and reject every retired credential on a new
   connection; and
-- live mTLS client-certificate renewal: one producer observes Kafka's
-  broker-enforced idle disconnect, invokes the package provider with a
-  separately issued replacement certificate signed by the same CA, reconnects,
-  and resumes delivery; and
+- live mTLS client-certificate renewal: three independent producers observe
+  Kafka's broker-enforced idle disconnect, invoke every package provider with a
+  separately issued replacement certificate signed by the same CA, reconnect,
+  and preserve every acknowledged record in exact broker order; and
 - live server-certificate and trust-anchor rotation: Apache Kafka dynamically
   replaces the client-listener keystore with a certificate under a separately
   generated CA, an existing producer reconnects using overlapping roots, then
@@ -147,11 +147,12 @@ verifier transition atomic. See Kafka's
 and the pinned
 [SASL channel reconfiguration source](https://github.com/apache/kafka/blob/4.3.1/clients/src/main/java/org/apache/kafka/common/network/SaslChannelBuilder.java#L189-L207).
 
-This proves interoperability only with the pinned Apache fixture. Multi-client
-mTLS and OAuth rotation stress, zero-downtime multi-broker PLAIN cutover, JWKS
-refresh and signing-key rollover, transactional-ID authorization failures, ACL
-changes during live traffic, and managed-service authentication remain
-separate required evidence. The fixture does not use Kafka's
+This proves interoperability only with the pinned Apache fixture. Prolonged
+multi-client mTLS rollover stress, OAuth rotation stress, zero-downtime
+multi-broker PLAIN cutover, JWKS refresh and signing-key rollover,
+transactional-ID authorization failures, ACL changes during live traffic, and
+managed-service authentication remain separate required evidence. The fixture
+does not use Kafka's
 non-production unsecured OAUTHBEARER implementation and does not claim
 compatibility with a particular OAuth identity provider.
 

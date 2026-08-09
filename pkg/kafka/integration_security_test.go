@@ -160,91 +160,161 @@ func TestApacheKafkaTLSAndMutualTLSCompatibility(t *testing.T) {
 		t.Fatalf("close mTLS inspector: %v", err)
 	}
 
-	disconnects := make(chan struct{}, 1)
-	rotationProducer, err := kafka.NewProducer(kafka.ProducerConfig{
-		Brokers:         []string{broker.endpoint},
-		ClientID:        "golib-mtls-rotation-producer",
-		AllowedTopics:   []string{topic},
-		DeliveryTimeout: 5 * time.Second,
-		RequestTimeout:  2 * time.Second,
-		ShutdownTimeout: 6 * time.Second,
-		Security:        security,
-		Observers: kafka.ObserverPolicy{
-			Timeout: time.Second,
-			FailureHandler: func(
+	rotationTopic := fmt.Sprintf("golib-mtls-rotation-%d", time.Now().UnixNano())
+	createSecureKafkaTopic(
+		t,
+		ctx,
+		broker.endpoint,
+		broker.staticMutualTLSConfig(),
+		nil,
+		rotationTopic,
+	)
+	const rotationClientCount = 3
+	type rotatingMTLSClient struct {
+		producer             *kafka.Producer
+		providerCalls        atomic.Int64
+		rotatedProviderCalls atomic.Int64
+		baselineCalls        int64
+		disconnects          chan struct{}
+	}
+	rotationClients := make([]*rotatingMTLSClient, 0, rotationClientCount)
+	expectedRotationValues := make([]string, 0, rotationClientCount*2)
+	for clientIndex := range rotationClientCount {
+		client := &rotatingMTLSClient{disconnects: make(chan struct{}, 1)}
+		clientSecurity := kafka.ClientSecurity{
+			TLS: broker.serverTLSConfig(),
+			ClientCertificateProvider: kafka.ClientCertificateProviderFunc(func(
 				context.Context,
-				kafka.ObservationFailure,
-			) {
-			},
-			Observers: []kafka.ObserverFunc{func(
-				_ context.Context,
-				observation kafka.Observation,
-			) error {
-				if observation.Kind == kafka.ObservationBrokerDisconnect {
-					select {
-					case disconnects <- struct{}{}:
-					default:
-					}
+				kafka.ClientCertificateRequest,
+			) (tls.Certificate, error) {
+				client.providerCalls.Add(1)
+				certificate := currentCertificate.Load()
+				if certificate == &broker.pki.rotatedClientIdentity {
+					client.rotatedProviderCalls.Add(1)
 				}
 
-				return nil
-			}},
-		},
-	})
-	if err != nil {
-		t.Fatalf("construct rotating mTLS producer: %v", err)
+				return *certificate, nil
+			}),
+			CredentialTimeout: time.Second,
+		}
+		producer, producerErr := kafka.NewProducer(kafka.ProducerConfig{
+			Brokers:         []string{broker.endpoint},
+			ClientID:        fmt.Sprintf("golib-mtls-rotation-producer-%d", clientIndex),
+			AllowedTopics:   []string{rotationTopic},
+			DeliveryTimeout: 5 * time.Second,
+			RequestTimeout:  2 * time.Second,
+			ShutdownTimeout: 6 * time.Second,
+			Security:        clientSecurity,
+			Observers: kafka.ObserverPolicy{
+				Timeout: time.Second,
+				FailureHandler: func(
+					context.Context,
+					kafka.ObservationFailure,
+				) {
+				},
+				Observers: []kafka.ObserverFunc{func(
+					_ context.Context,
+					observation kafka.Observation,
+				) error {
+					if observation.Kind == kafka.ObservationBrokerDisconnect {
+						select {
+						case client.disconnects <- struct{}{}:
+						default:
+						}
+					}
+
+					return nil
+				}},
+			},
+		})
+		if producerErr != nil {
+			t.Fatalf("construct rotating mTLS producer %d: %v", clientIndex, producerErr)
+		}
+		client.producer = producer
+		t.Cleanup(func() { _ = client.producer.Close() })
+		value := fmt.Sprintf("client-%d-before-certificate-renewal", clientIndex)
+		result := producer.PublishRecord(ctx, kafka.ProducerRecord{
+			Topic: rotationTopic,
+			Key:   []byte(value),
+			Value: []byte(value),
+		})
+		if result.Err != nil {
+			t.Fatalf("initial rotating mTLS delivery for client %d: %v", clientIndex, result.Err)
+		}
+		if client.providerCalls.Load() == 0 {
+			t.Fatalf("initial mTLS provider %d was not used", clientIndex)
+		}
+		select {
+		case <-client.disconnects:
+			t.Fatalf("mTLS producer %d disconnected before certificate renewal", clientIndex)
+		default:
+		}
+		client.baselineCalls = client.providerCalls.Load()
+		rotationClients = append(rotationClients, client)
+		expectedRotationValues = append(expectedRotationValues, value)
 	}
-	initialRotationResult := rotationProducer.PublishRecord(
-		ctx,
-		kafka.ProducerRecord{
-			Topic: topic,
-			Key:   []byte("before-certificate-rotation"),
-			Value: []byte("before-certificate-rotation"),
-		},
-	)
-	if initialRotationResult.Err != nil {
-		_ = rotationProducer.Close()
-		t.Fatalf("initial rotating mTLS delivery: %v", initialRotationResult.Err)
-	}
-	select {
-	case <-disconnects:
-		_ = rotationProducer.Close()
-		t.Fatal("mTLS producer disconnected before certificate rotation")
-	default:
-	}
-	baselineCertificateCalls := certificateCalls.Load()
+
 	currentCertificate.Store(&broker.pki.rotatedClientIdentity)
 	waitForSecureKafkaIdleExpiry(t, ctx)
 
-	rotationCtx, cancelRotation := context.WithTimeout(ctx, 10*time.Second)
+	rotationCtx, cancelRotation := context.WithTimeout(ctx, 20*time.Second)
 	defer cancelRotation()
-	rotationResult := rotationProducer.PublishRecord(
-		rotationCtx,
-		kafka.ProducerRecord{
-			Topic: topic,
-			Key:   []byte("after-certificate-rotation"),
-			Value: []byte("after-certificate-rotation"),
-		},
-	)
-	disconnected := false
-	select {
-	case <-disconnects:
-		disconnected = true
-	default:
+	for clientIndex, client := range rotationClients {
+		value := fmt.Sprintf("client-%d-after-certificate-renewal", clientIndex)
+		result := client.producer.PublishRecord(rotationCtx, kafka.ProducerRecord{
+			Topic: rotationTopic,
+			Key:   []byte(value),
+			Value: []byte(value),
+		})
+		disconnected := false
+		select {
+		case <-client.disconnects:
+			disconnected = true
+		default:
+		}
+		if result.Err != nil || !disconnected ||
+			client.providerCalls.Load() <= client.baselineCalls ||
+			client.rotatedProviderCalls.Load() == 0 {
+			t.Fatalf(
+				"mTLS certificate renewal result/calls for client %d = %#v/%d/%d",
+				clientIndex,
+				result,
+				client.providerCalls.Load(),
+				client.rotatedProviderCalls.Load(),
+			)
+		}
+		expectedRotationValues = append(expectedRotationValues, value)
 	}
-	if rotationResult.Err != nil || !disconnected ||
-		certificateCalls.Load() <= baselineCertificateCalls ||
-		rotatedCertificateCalls.Load() == 0 {
-		_ = rotationProducer.Close()
+	for clientIndex, client := range rotationClients {
+		if err := client.producer.Close(); err != nil {
+			t.Fatalf("close rotating mTLS producer %d: %v", clientIndex, err)
+		}
+	}
+	rotationValues := consumeSecureRecords(
+		t,
+		ctx,
+		broker.endpoint,
+		rotationTopic,
+		"golib-mtls-rotation-group",
+		len(expectedRotationValues),
+		security,
+	)
+	if len(rotationValues) != len(expectedRotationValues) {
 		t.Fatalf(
-			"mTLS certificate rotation result/calls = %#v/%d/%d",
-			rotationResult,
-			certificateCalls.Load(),
-			rotatedCertificateCalls.Load(),
+			"mTLS renewal values = %d, want %d",
+			len(rotationValues),
+			len(expectedRotationValues),
 		)
 	}
-	if err := rotationProducer.Close(); err != nil {
-		t.Fatalf("close rotating mTLS producer: %v", err)
+	for index := range expectedRotationValues {
+		if rotationValues[index] != expectedRotationValues[index] {
+			t.Fatalf(
+				"mTLS renewal value %d = %q, want %q",
+				index,
+				rotationValues[index],
+				expectedRotationValues[index],
+			)
+		}
 	}
 
 	assertSecureKafkaHealthFailure(
