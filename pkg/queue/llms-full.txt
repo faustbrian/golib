@@ -60,7 +60,8 @@ or starting worker loops.
 
 Services should compose concrete producers and workers through
 [`queueservice`](docs/service-integration.md). The adapter keeps concrete queue
-APIs visible, drains accepted publishers before closing an owned transport,
+APIs visible, closes queue admission during service drain, drains accepted
+publishers before closing an owned transport,
 uses the existing correlation queue boundary for every message and delivery
 attempt, and optionally propagates bounded W3C trace context through an
 explicit caller-owned OpenTelemetry propagator.
@@ -257,9 +258,12 @@ maps the stable concepts new adopters need.
 - `NewPool(size, options...) *Queue` creates an in-memory queue.
 - `NewRing(options...) *Ring` creates an in-memory worker.
 - `Queue.Start`, `Shutdown`, `Release`, and `Wait` control the compatibility
-  lifecycle. `ReleaseContext` and `WaitContext` add service-owned bounds;
-  `ReleaseContext` withdraws admission and drains handlers before transport
-  release.
+  lifecycle. `CloseAdmission` is the prompt split phase that rejects new
+  submissions and stops backend intake without releasing the worker.
+  `ReleaseContext` and `WaitContext` add service-owned bounds;
+  `ReleaseContext` drains admitted work before transport release.
+- `ErrWorkerShutdownPanic` classifies a contained concrete worker shutdown
+  panic without retaining or formatting its value.
 - `Queue.Queue` submits byte-backed messages; `Queue.QueueTask` submits local
   functions.
 - `WithWorkerCount`, `WithQueueSize`, `WithRetryInterval`, `WithLogger`,
@@ -486,9 +490,9 @@ producer -> Publisher.Queue -> Valkey Stream
 `Start` launches the scheduling loop. The loop requests work only when a worker
 slot is available. Each handler runs with a timeout context. `Shutdown`
 prevents new work, asks the backend worker to stop, and signals the scheduler.
-`Release` also waits for owned goroutines. `ReleaseContext` is the bounded
-service path: it withdraws intake, joins admitted handlers, then releases the
-worker.
+`Release` also waits for owned goroutines. `CloseAdmission` is the prompt
+service-drain phase; `ReleaseContext` is the bounded stop phase that joins
+admitted handlers, then releases the worker.
 
 The complete ownership and transition contract is in
 [lifecycle and state ownership](lifecycle.md).
@@ -785,9 +789,9 @@ The project uses semantic versioning.
   replace Redis.
 - Security bounds are contracts: encoded messages default to 1 MiB, retry count
   is at most 100, and the in-memory queue defaults to 10,000 pending jobs.
-- `ReleaseContext` and `queueservice` are additive pre-v1 APIs. Existing
-  `Shutdown` and `Release` retain their force-compatible signatures and
-  cancellation behavior.
+- `CloseAdmission`, `ReleaseContext`, and `queueservice` are additive pre-v1
+  APIs. Existing `Shutdown` and `Release` retain their force-compatible
+  signatures and cancellation behavior.
 - `job.Metadata.TraceContext`, `Message.TraceContextMetadata`, and
   `queueservice` caller-owned trace propagators are additive pre-v1 APIs.
   `Metadata.TraceID` remains an operational field and is not interpreted as
@@ -1211,11 +1215,15 @@ versioning and Keep a Changelog structure.
   independently versioned `queueservice` module. Core queue consumers no
   longer inherit unrelated service runtime dependencies.
 
-- `Queue.ReleaseContext` now provides a bounded graceful worker path that
-  rejects new admission, waits for accepted publishes and active handlers, and
-  closes the concrete worker only after the drain. Legacy `Release` retains
-  its force-compatible behavior. Graceful withdrawal also releases a reserved
-  management admission before the scheduler exits.
+- `Queue.CloseAdmission` now provides the prompt split phase used by service
+  drain to reject submissions and stop backend intake without releasing the
+  worker. `Queue.ReleaseContext` waits for accepted publishes and active
+  handlers before release. Legacy `Release` retains its force-compatible
+  behavior. Graceful withdrawal also releases a reserved management admission
+  before the scheduler exits.
+- `Queue.ReleaseContext` now contains concrete worker shutdown panics as the
+  stable, secret-safe `ErrWorkerShutdownPanic` result and caches that terminal
+  result across repeated release calls.
 - Handler backoff now retries only retryable failures. Permanent, malformed,
   canceled, and infrastructure outcomes reach backend settlement after the
   first handler execution instead of repeating a known terminal or uncertain
@@ -1456,6 +1464,9 @@ versioning and Keep a Changelog structure.
 
 ### Fixed
 
+- Apply the configured Redis Streams command timeout to direct enqueue so a
+  stalled append remains bounded consistently with source settlement and the
+  Valkey Streams producer.
 - Keep module-archive tests scoped to files shipped with the queue module;
   repository-root workflow policy remains owned by the root verification gate.
 - Made in-memory ring shutdown completion durable so draining the final task
@@ -2883,8 +2894,9 @@ to an earlier state.
 
 | State | Accepted operations | Transition |
 | --- | --- | --- |
-| Constructed | enqueue, `Start`, `Shutdown`, `Release` | `Start` is guarded by `sync.Once` |
-| Started | enqueue, resize workers, handle deliveries | `Shutdown` atomically closes admission |
+| Constructed | enqueue, `Start`, `CloseAdmission`, `Shutdown`, `Release` | `Start` is guarded by `sync.Once` |
+| Started | enqueue, resize workers, handle deliveries, `CloseAdmission` | admission closure is idempotent |
+| Draining | finish admitted publishes and handlers, `ReleaseContext` | concrete worker remains owned |
 | Shutting down | drain an in-memory ring; cancel backend reads and handler contexts | owned goroutines finish |
 | Stopped | metrics and repeated `Release` | enqueue returns `ErrQueueShutdown` |
 
@@ -2893,12 +2905,19 @@ drain. Repeated `Start`, `Shutdown`, and `Release` do not create another
 scheduler or close a channel twice. The internal atomic active-worker count is
 authoritative; custom metric implementations cannot change concurrency.
 
-`ReleaseContext` is the service-owned graceful path. It first closes queue
-admission and waits for an already accepted publish to finish. It then stops
-the scheduler from requesting another backend delivery, joins admitted
-handlers without cancelling their contexts, and closes the concrete worker
-only after the drain completes. The supplied context bounds both waits. If it
-expires, the transport remains open and a later call may resume release.
+`CloseAdmission` is the prompt service-drain phase. After it returns, new queue
+submissions fail with `ErrQueueShutdown` and the scheduler stops taking backend
+work, while accepted submissions, active handlers, and the concrete worker
+remain owned. Repeated calls are no-ops.
+
+`ReleaseContext` closes admission when necessary, waits for an already accepted
+publish to finish, joins admitted handlers without cancelling their contexts,
+and closes the concrete worker only after the drain completes. The supplied
+context bounds both waits. If it expires, the transport remains open and a
+later call may resume release.
+Concrete worker shutdown panics are contained as `ErrWorkerShutdownPanic`, do
+not disclose their values, and remain the cached terminal result on every
+later release call.
 Backend `Request` operations retain their configured request bound so intake
 withdrawal cannot wait forever. If management lifecycle gating reserved the
 next backend request but the scheduler has not started it, graceful withdrawal
@@ -3351,10 +3370,11 @@ owned telemetry propagation policy when accepting baggage.
 ## Worker ownership
 
 `NewWorker` accepts and exposes an exact `*queue.Queue`. Its component calls
-`Start` and transfers release ownership to the service plan. On stop,
-`Queue.ReleaseContext` withdraws queue admission, lets an accepted publish
-return, stops new delivery requests, joins active handlers, and only then
-releases the concrete worker.
+`Start` and transfers release ownership to the service plan. Service drain
+calls `Queue.CloseAdmission`, which rejects late submissions and stops new
+delivery requests without releasing the worker. On stop, `Queue.ReleaseContext`
+lets an accepted publish return, joins active handlers, and only then releases
+the concrete worker.
 
 Backend request and transport operations retain their own configured timeout
 bounds. The service stop context bounds coordinator drain and join work.
