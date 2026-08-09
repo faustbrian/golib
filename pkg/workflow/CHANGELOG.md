@@ -46,6 +46,9 @@ and releases use Semantic Versioning.
 - Idempotent audited lifecycle operator commands for pause, resume,
   cancellation, and termination with optimistic concurrency and replay checks
   that reject orphaned or mismatched audit records.
+- Audited operator commands for activity retry, explicit compensation, and
+  truthful manual compensation resolution, with audit history and due work
+  committed through one optimistic transition.
 - Bounded deterministic instance inspection and streaming history export over
   stable forward pages with explicit traversal limits.
 - Immutable durable lifecycle history, deterministic replay, pinned definition

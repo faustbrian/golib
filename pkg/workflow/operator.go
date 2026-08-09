@@ -32,6 +32,13 @@ const (
 	OperatorCancel OperatorAction = 3
 	// OperatorTerminate forcibly ends a non-terminal instance.
 	OperatorTerminate OperatorAction = 4
+	// OperatorRetryActivity durably admits an explicit activity retry.
+	OperatorRetryActivity OperatorAction = 5
+	// OperatorCompensate durably schedules an explicit compensation.
+	OperatorCompensate OperatorAction = 6
+	// OperatorResolveCompensation records explicit manual reconciliation without
+	// reporting successful rollback.
+	OperatorResolveCompensation OperatorAction = 7
 )
 
 // String returns the stable persisted action name.
@@ -45,6 +52,12 @@ func (action OperatorAction) String() string {
 		return "cancel"
 	case OperatorTerminate:
 		return "terminate"
+	case OperatorRetryActivity:
+		return "retry-activity"
+	case OperatorCompensate:
+		return "compensate"
+	case OperatorResolveCompensation:
+		return "resolve-compensation"
 	default:
 		return ""
 	}
@@ -248,6 +261,12 @@ func operatorEventKind(action OperatorAction) EventKind {
 		return EventCancellationRequested
 	case OperatorTerminate:
 		return EventInstanceTerminated
+	case OperatorRetryActivity:
+		return EventActivityRetryScheduled
+	case OperatorCompensate:
+		return EventCompensationScheduled
+	case OperatorResolveCompensation:
+		return EventCompensationManuallyResolved
 	default:
 		return 0
 	}
