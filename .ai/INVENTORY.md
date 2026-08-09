@@ -90,7 +90,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 24, 25 |
-| 27 | Queue | `pending-reexecution` | `pkg/queue/queueservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
+| 27 | Queue | `pending-reexecution` | `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` | 18 |
 | 29 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md` | 28 |
 | 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 29 |
 | 32 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18, 29-31 |
@@ -133,6 +133,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 31. Current scoped evidence verifies canonical synchronous publication, explicit acceptance ambiguity, stable duplicate identity, durable Redis and Valkey relay windows, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 32 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/queue/queueservice/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 27 has current scoped lifecycle, exact coverage and mutation, API, documentation, safety, and CI gate-enforcement evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 29 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomath/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 37 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
@@ -142,6 +143,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
+
+### Queue service lifecycle adapter evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/queue/queueservice/.ai/GOAL.md` |
+| Scope | Typed producer and worker ownership, startup rollback, readiness withdrawal, admission closure, bounded drain, exactly-once shutdown, explicit publish acceptance, callback redaction, Kubernetes lifecycle guidance, and CI gate wiring. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | Current isolated queueservice tests and analyzers against the local service lifecycle source, plus the repository mutation artifact and catalog validation. |
+| Result | Passed exact 100.0% statement coverage, 129/129 viable mutants, race, 10,000 fuzz executions, vet, lint, Staticcheck, vulnerability, secrets, API, docs, examples, GO-SAFETY-1, benchmarks, and module inventory validation. Backend integration remains transport-owned and is enforced by the declared NATS, NSQ, RabbitMQ, Redis, and Valkey services plus the delegated queue integration target. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded run. |
+| Observed | 2026-08-09T05:25:37Z |
+| Gaps | None within the scoped base-goal contract; `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` remains a separate pending campaign. |
 
 ### Event-sourcing outbox adapter evidence
 

@@ -2,6 +2,7 @@ package queueservice_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"time"
 
@@ -93,6 +94,56 @@ func ExampleNewWorker() {
 		return
 	}
 	if err = workerComponent.Stop(ctx); err != nil {
+		return
+	}
+
+	// Output: delivery
+}
+
+type typedWorkerResource struct{}
+
+type typedDelivery string
+
+func (delivery typedDelivery) Bytes() []byte   { return []byte(delivery) }
+func (delivery typedDelivery) Payload() []byte { return []byte(delivery) }
+
+func ExampleNewLifecycleWorker() {
+	factory, _ := correlation.NewFactory(correlation.FactoryOptions{})
+	worker, err := queueservice.NewLifecycleWorker(
+		queueservice.LifecycleWorkerOptions[*typedWorkerResource]{
+			Name:        "orders-worker",
+			Resource:    &typedWorkerResource{},
+			Correlation: factory,
+			Handler: func(_ context.Context, task core.TaskMessage) error {
+				fmt.Println(string(task.Payload()))
+
+				return nil
+			},
+			Run: func(
+				ctx context.Context,
+				_ *typedWorkerResource,
+				handler queueservice.Handler,
+			) error {
+				return handler(ctx, typedDelivery("delivery"))
+			},
+			Shutdown: func(context.Context, *typedWorkerResource) error {
+				return nil
+			},
+		},
+	)
+	if err != nil {
+		return
+	}
+	plan := worker.Plan()
+	if err = plan.Components[0].Start(context.Background()); err != nil {
+		return
+	}
+	if err = plan.Tasks[0].Run(context.Background()); !errors.Is(err, queueservice.ErrWorkerExited) {
+		return
+	}
+	stopContext, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err = plan.Components[0].Stop(stopContext); err != nil {
 		return
 	}
 

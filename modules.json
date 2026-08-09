@@ -16509,7 +16509,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`queueservice` is the independently versioned lifecycle integration between [`github.com/faustbrian/golib/pkg/queue`](..) and `github.com/faustbrian/golib/pkg/service`. It connects caller-owned producers and workers to service startup, readiness, supervision, drain, and shutdown without choosing a backend or moving retry, scheduling, acknowledgement, redelivery, or dead-letter policy out of `queue`.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
@@ -16552,7 +16552,8 @@
           "file": "pkg/queue/queueservice/.ai/GOAL.md",
           "requirements_sha256": "228328089362ceea6d1a05107e6a628d33b1a49b5ada456ef38eb398b43bd02f",
           "implementation_evidence": [
-            "pkg/queue/queueservice/CHANGELOG.md"
+            "pkg/queue/queueservice/CHANGELOG.md",
+            "pkg/queue/queueservice/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -16583,7 +16584,8 @@
           "file": "pkg/queue/queueservice/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "81f5b32d2d9a7d4315a7cdb53910aa15027e0c5b189fdd54ad599f059f263f01",
           "implementation_evidence": [
-            "pkg/queue/queueservice/CHANGELOG.md"
+            "pkg/queue/queueservice/CHANGELOG.md",
+            "pkg/queue/queueservice/README.md"
           ],
           "verification_gates": [
             "format-check",

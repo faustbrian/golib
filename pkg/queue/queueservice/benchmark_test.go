@@ -48,3 +48,40 @@ func BenchmarkProducerPublish(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkProducerDrain(b *testing.B) {
+	factory, err := correlation.NewFactory(correlation.FactoryOptions{})
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	b.ReportAllocs()
+	for b.Loop() {
+		b.StopTimer()
+		producer, producerErr := NewProducer(ProducerOptions[int]{
+			Name:        "benchmark-producer",
+			Resource:    1,
+			Correlation: factory,
+			Publish: func(
+				context.Context,
+				int,
+				core.QueuedMessage,
+				...job.AllowOption,
+			) error {
+				return nil
+			},
+			Shutdown: func(context.Context, int) error { return nil },
+		})
+		if producerErr != nil {
+			b.Fatal(producerErr)
+		}
+		component := producer.Component()
+		if producerErr = component.Start(context.Background()); producerErr != nil {
+			b.Fatal(producerErr)
+		}
+		b.StartTimer()
+		if producerErr = component.Stop(context.Background()); producerErr != nil {
+			b.Fatal(producerErr)
+		}
+	}
+}

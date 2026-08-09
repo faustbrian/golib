@@ -606,13 +606,15 @@ func TestProducerShutdownWaitsForEveryAdmittedPublisher(t *testing.T) {
 	if err = awaitValue(t, published); err != nil {
 		t.Fatalf("first Publish() error = %v", err)
 	}
-	select {
-	case <-shutdown:
-		t.Fatal("resource shut down before every publisher drained")
-	case err = <-stopped:
-		t.Fatalf("Stop() returned before every publisher drained: %v", err)
-	default:
+	partialContext, cancelPartial := context.WithTimeout(
+		context.Background(),
+		50*time.Millisecond,
+	)
+	if err = component.Stop(partialContext); !errors.Is(err, context.DeadlineExceeded) {
+		cancelPartial()
+		t.Fatalf("Stop() with second publisher active error = %v, want deadline", err)
 	}
+	cancelPartial()
 
 	close(secondRelease)
 	if err = awaitValue(t, published); err != nil {
@@ -721,10 +723,11 @@ func TestCanceledProducerDrainCanBeResumed(t *testing.T) {
 	}
 }
 
-func TestProducerShutdownIsSingleFlightAndRetainsFailure(t *testing.T) {
+func TestProducerShutdownIsSingleFlightAndCachesFailure(t *testing.T) {
 	shutdownStarted := make(chan struct{})
 	releaseShutdown := make(chan struct{})
 	shutdownErr := errors.New("shutdown failed")
+	shutdownCalls := 0
 	resource := &producerResource{}
 	producer, err := NewProducer(ProducerOptions[*producerResource]{
 		Name:        "jobs-producer",
@@ -732,10 +735,15 @@ func TestProducerShutdownIsSingleFlightAndRetainsFailure(t *testing.T) {
 		Correlation: mustFactory(t),
 		Publish:     noPublish,
 		Shutdown: func(context.Context, *producerResource) error {
-			close(shutdownStarted)
-			<-releaseShutdown
+			shutdownCalls++
+			if shutdownCalls == 1 {
+				close(shutdownStarted)
+				<-releaseShutdown
 
-			return shutdownErr
+				return shutdownErr
+			}
+
+			return nil
 		},
 	})
 	if err != nil {
@@ -751,9 +759,16 @@ func TestProducerShutdownIsSingleFlightAndRetainsFailure(t *testing.T) {
 	first := make(chan error, 1)
 	go func() { first <- stopWithin(component) }()
 	awaitValue(t, shutdownStarted)
+	waiterContext := &observeSecondDoneContext{
+		Context: context.Background(), entered: make(chan struct{}), never: make(chan struct{}),
+	}
+	waiter := make(chan error, 1)
+	go func() { waiter <- component.Stop(waiterContext) }()
+	awaitValue(t, waiterContext.entered)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	ctx := &cancelOnSecondDoneContext{
+		Context: context.Background(), done: make(chan struct{}),
+	}
 	if err = component.Stop(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("concurrent Stop() error = %v, want context cancellation", err)
 	}
@@ -761,8 +776,17 @@ func TestProducerShutdownIsSingleFlightAndRetainsFailure(t *testing.T) {
 	if err = awaitValue(t, first); !errors.Is(err, shutdownErr) {
 		t.Fatalf("first Stop() error = %v, want shutdown failure", err)
 	}
+	if err = awaitValue(t, waiter); !errors.Is(err, shutdownErr) {
+		t.Fatalf("waiting Stop() error = %v, want shutdown failure", err)
+	}
 	if err = stopWithin(component); !errors.Is(err, shutdownErr) {
-		t.Fatalf("repeated Stop() error = %v, want shutdown failure", err)
+		t.Fatalf("repeated Stop() error = %v, want original shutdown failure", err)
+	}
+	if err = stopWithin(component); !errors.Is(err, shutdownErr) {
+		t.Fatalf("second repeated Stop() error = %v, want original shutdown failure", err)
+	}
+	if shutdownCalls != 1 {
+		t.Fatalf("shutdown calls = %d, want exactly one attempt", shutdownCalls)
 	}
 	if err = component.Start(context.Background()); !errors.Is(err, ErrUnavailable) {
 		t.Fatalf("restart error = %v, want ErrUnavailable", err)
@@ -790,7 +814,8 @@ func TestSharedProducerAndPublishFailuresRemainExplicit(t *testing.T) {
 		t.Fatalf("Start() error = %v", err)
 	}
 	values, err := producer.Publish(producerContext(), queuedPayload("work"))
-	if !errors.Is(err, publishErr) || values.CorrelationID == "" ||
+	if !errors.Is(err, publishErr) || !errors.Is(err, ErrPublishOutcomeUnknown) ||
+		values.CorrelationID == "" ||
 		values.RequestID == "" {
 		t.Fatalf("Publish() = (%#v, %v), want values and publish failure", values, err)
 	}
@@ -831,6 +856,18 @@ func TestAdaptersRejectInvalidOptions(t *testing.T) {
 		{Name: "producer", Resource: nilResource, Correlation: mustFactory(t), Publish: noPublish},
 		{Name: "producer", Resource: &producerResource{}, Publish: noPublish},
 		{Name: "producer", Resource: &producerResource{}, Correlation: mustFactory(t)},
+		{
+			Name: "producer", Resource: &producerResource{},
+			Correlation: mustFactory(t), Publish: noPublish,
+			PublishWithAcceptance: func(
+				context.Context,
+				*producerResource,
+				core.QueuedMessage,
+				...job.AllowOption,
+			) (PublishAcceptance, error) {
+				return PublishAccepted, nil
+			},
+		},
 		{
 			Name: "producer", Resource: &producerResource{},
 			Correlation: mustFactory(t), Publish: noPublish,
