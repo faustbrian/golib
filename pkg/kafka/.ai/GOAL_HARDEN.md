@@ -309,6 +309,7 @@ Run the complete applicable conformance and real-broker matrix for:
 - `outbox/adapters/gokafka`;
 - `event-sourcing/adapters/gokafka`;
 - event-sourcing Kafka telemetry propagation;
+- Kafka OpenTelemetry W3C record-header propagation;
 - the dedicated Kafka OpenTelemetry adapter when implemented;
 - Amazon MSK IAM authentication when implemented; and
 - service health/readiness composition.

@@ -313,6 +313,11 @@ current stable root observation. It emits the reviewed OpenTelemetry messaging
 semantic conventions 1.43.0 for send, poll, process, and commit operations plus
 adapter-owned Kafka lifecycle, broker request, queue, and throttle metrics.
 Client IDs, topics, and consumer groups are denied as attributes unless they
-are exactly present in copied bounded allowlists. The adapter does not inject
-or extract record headers and therefore does not claim cross-message context
-propagation. OpenTelemetry remains absent from the root module.
+are exactly present in copied bounded allowlists. Its completion observer does
+not inject or extract record headers. A separate immutable
+`TraceContextPropagation` policy copies only W3C `traceparent` and `tracestate`
+between explicitly supplied records and contexts, with Kafka message-limit
+validation, producer-record ownership, fail-closed duplicate fields, and no
+baggage or global propagator. It does not publish, consume, settle, create
+spans, or prove an end-to-end broker path. OpenTelemetry remains absent from
+the root module.

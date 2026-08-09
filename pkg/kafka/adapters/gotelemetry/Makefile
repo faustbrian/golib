@@ -29,6 +29,8 @@ fuzz:
 		-fuzztime="$(FUZZ_TIME)"
 	$(GO) test . -run '^$$' -fuzz '^FuzzObserverValidation$$' \
 		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test . -run '^$$' -fuzz '^FuzzTraceContextPropagation$$' \
+		-fuzztime="$(FUZZ_TIME)"
 
 benchmark:
 	$(GO) test ./... -run '^$$' -bench . -benchmem \

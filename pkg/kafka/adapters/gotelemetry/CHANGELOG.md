@@ -11,6 +11,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- explicit, concurrency-safe W3C Trace Context injection and extraction for
+  bounded Kafka records, with defensive producer copies, borrowed-consumer
+  ownership, fail-closed duplicate fields, no baggage, and no global
+  OpenTelemetry state
 - internal spans and adapter-owned duration metrics for the bounded local wait
   from blocked-callback entry through poll-gate release or failure
 - internal spans and adapter-owned operation metrics for bounded consumer retry

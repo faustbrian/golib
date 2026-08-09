@@ -224,7 +224,10 @@ operations on the consumer. See the
 [observability guide](docs/observability.md). The independently versioned
 [`adapters/gotelemetry`](adapters/gotelemetry) module maps these stable events
 to OpenTelemetry with deny-by-default topic, group, and client attributes; it
-does not install providers or own record-header context propagation.
+does not install providers. Its separate `TraceContextPropagation` value
+injects and extracts only bounded W3C `traceparent` and `tracestate` record
+headers without baggage, global propagators, or caller-record mutation; the
+completion observer itself still does not propagate context.
 The independently versioned `kafkaservice` module separately accepts only the
 OpenTelemetry propagation contract for explicit record headers. The
 standard-library

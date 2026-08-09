@@ -40,7 +40,9 @@ keeps retry, settlement, and topic policy in Kafka.
   disconnect metadata without exporting franz-go hooks or making observation
   part of Kafka correctness. The root module's `adapters/golog` package maps
   those stable observations to `log/slog`; the independently versioned
-  `adapters/gotelemetry` module maps them to OpenTelemetry.
+  `adapters/gotelemetry` module maps them to OpenTelemetry and separately owns
+  an explicit bounded W3C record-header propagation policy. Neither adapter
+  changes Kafka delivery or settlement.
 
 franz-go remains an implementation detail. The root module exposes owned TLS,
 mTLS, PLAIN, SCRAM, and OAUTHBEARER policy contracts; optional vendor

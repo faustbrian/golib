@@ -129,7 +129,11 @@ member identities, assignments, or lag coordinates.
 `adapters/golog` emits fixed standard-library `log/slog` records from this
 contract. Its copied client, topic, and group allowlists deny every identity by
 default. `adapters/gotelemetry` supplies the independently versioned
-OpenTelemetry mapping.
+OpenTelemetry mapping and a separate immutable `TraceContextPropagation`
+policy. That policy injects or extracts only W3C `traceparent` and `tracestate`
+through owned producer records and borrowed consumed records, validates the
+same explicit `MessageLimits` before and after injection, excludes baggage, and
+does not install global OpenTelemetry state.
 Callbacks share one cooperative deadline, can run concurrently across producer
 and franz-go broker operations, and cannot re-enter the invoking producer. See the
 [observability guide](observability.md).

@@ -5,10 +5,11 @@
 vendor-neutral and does not import OpenTelemetry.
 
 Use this adapter when Kafka policy observations should become traces and
-metrics. It translates only completed, copied, payload-free `kafka.Observation`
-values. It does not wrap `franz-go`, reimplement Kafka instrumentation, inject
-headers, extract message creation contexts, or claim producer-to-consumer trace
-propagation.
+metrics. `Instrumentation` translates only completed, copied, payload-free
+`kafka.Observation` values. The separate `TraceContextPropagation` policy can
+copy bounded W3C Trace Context fields between explicit Kafka records and
+contexts. Neither surface wraps `franz-go`, reimplements Kafka instrumentation,
+or installs global OpenTelemetry state.
 
 ## Five-minute setup
 
@@ -43,6 +44,39 @@ producer, err := kafka.NewProducer(kafka.ProducerConfig{
 The same policy can be supplied to `ConsumerConfig`,
 `TransactionProcessorConfig`, `ReplayConfig`, and `InspectorConfig`. One
 `Instrumentation` is concurrency-safe and starts no goroutines.
+
+Optional record propagation is explicit and independent of observation:
+
+```go
+tracePolicy, err := gotelemetry.NewTraceContextPropagation(messageLimits)
+if err != nil {
+    return err
+}
+
+outbound, err := tracePolicy.Inject(ctx, kafka.ProducerRecord{
+    Topic: "orders.v1",
+    Key:   orderID,
+    Value: encodedOrder,
+})
+if err != nil {
+    return err
+}
+delivery := producer.PublishRecord(ctx, outbound)
+```
+
+At a consumer boundary, pass the returned context to the application handler:
+
+```go
+handlerContext, err := tracePolicy.Extract(ctx, consumedRecord)
+if err != nil {
+    return err
+}
+return applicationHandler.Handle(handlerContext, consumedRecord)
+```
+
+Use the same `kafka.MessageLimits` as the producer and consumer. This policy
+does not publish, consume, settle, retry, or create spans; those Kafka and
+application lifecycles remain explicit.
 
 ## Cardinality and data policy
 
@@ -131,11 +165,26 @@ using `Observation.StartedAt` and `Observation.Duration` as the recorded span
 interval. The callback context remains the span parent when it contains an
 ambient trace context.
 
-This completion-only seam cannot inject a producer span context into a record
-or extract one from consumed headers. It also cannot create the per-message
-links recommended for batch receive and processing. Applications that require
-cross-message propagation must use a separately reviewed record-header policy;
-arbitrary header export is intentionally absent.
+The completion-only observer seam cannot inject a producer span context into a
+record, extract one from consumed headers, or create the per-message links
+recommended for batch receive and processing. `TraceContextPropagation` is the
+separate reviewed record-header policy: it uses a fixed W3C Trace Context
+propagator, never a process-global or caller-supplied propagator, and excludes
+baggage and arbitrary headers.
+
+Injection validates before copying, deep-copies the record, removes stale
+`traceparent` and `tracestate` keys under ASCII case-insensitive comparison,
+injects current fields, and validates the result again. Non-ASCII Kafka header
+keys are never treated as W3C fields. If the context has no valid span context,
+stale W3C fields remain removed and none are added. Extraction validates the
+borrowed record and does not mutate or retain it. An invalid `traceparent`, or
+duplicate W3C fields under the same comparison, preserves the supplied parent
+context; an invalid `tracestate` is ignored according to the OpenTelemetry W3C
+propagator contract. Added fields remain subject to header count, key, value,
+and aggregate byte limits. Trace state is transported as Kafka metadata and is
+never made a telemetry attribute by this adapter; applications must still
+ensure vendor trace-state values are appropriate for every broker and
+downstream trust boundary.
 
 ## Failure and lifecycle behavior
 
