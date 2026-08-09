@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove a least-privilege transactional producer receives stable redacted
+  `ErrorAuthorization` identity before its transactional-ID ACL is granted,
+  commits after the live grant, and cannot expose a later transaction after
+  that ACL is revoked from the active client
 - extend three independent mTLS producers across three successive live
   client-certificate renewals, requiring every provider generation after a
   broker-enforced reconnect and preserving every acknowledged record

@@ -772,6 +772,149 @@ func TestApacheKafkaAuthorizationFailureCompatibility(t *testing.T) {
 	}
 }
 
+func TestApacheKafkaTransactionalIDAuthorizationCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	broker := startSecureKafkaBroker(t, ctx, secureKafkaSASL)
+	broker.assertRuntimeVersions(t, ctx)
+	adminMechanism := franzplain.Auth{
+		User: "plain-user",
+		Pass: broker.plainPassword,
+	}.AsMechanism()
+	topic := fmt.Sprintf("golib-transaction-authorization-%d", time.Now().UnixNano())
+	transactionalID := topic + "-producer"
+	createSecureKafkaTopic(
+		t,
+		ctx,
+		broker.endpoint,
+		broker.serverTLSConfig(),
+		adminMechanism,
+		topic,
+	)
+
+	adminClient, err := kgo.NewClient(
+		kgo.SeedBrokers(broker.endpoint),
+		kgo.ClientID("golib-transaction-authorization-admin"),
+		kgo.DialTLSConfig(broker.serverTLSConfig()),
+		kgo.SASL(adminMechanism),
+	)
+	if err != nil {
+		t.Fatalf("construct transaction ACL administrator: %v", err)
+	}
+	defer adminClient.Close()
+	admin := kadm.NewClient(adminClient)
+	topicACL := kadm.NewACLs().
+		Topics(topic).
+		Allow("limited-user").
+		Operations(kadm.OpWrite).
+		ResourcePatternType(kadm.ACLPatternLiteral)
+	topicACL.PrefixUser()
+	createSecureKafkaACLs(t, ctx, admin, topicACL, 1)
+
+	limitedSecurity, calls := usernamePasswordSecurity(
+		broker,
+		"limited-user",
+		broker.limitedPassword,
+		kafka.NewPlainAuthentication,
+	)
+	newTransactionalProducer := func(clientID string) *kafka.Producer {
+		t.Helper()
+		producer, producerErr := kafka.NewProducer(kafka.ProducerConfig{
+			Brokers:               []string{broker.endpoint},
+			ClientID:              clientID,
+			AllowedTopics:         []string{topic},
+			TransactionalID:       transactionalID,
+			DeliveryTimeout:       5 * time.Second,
+			RequestTimeout:        2 * time.Second,
+			TransactionTimeout:    15 * time.Second,
+			TransactionEndTimeout: 5 * time.Second,
+			ShutdownTimeout:       6 * time.Second,
+			Security:              limitedSecurity,
+		})
+		if producerErr != nil {
+			t.Fatalf("construct transaction ACL producer: %v", producerErr)
+		}
+
+		return producer
+	}
+	runTransaction := func(producer *kafka.Producer, value string) error {
+		return producer.RunTransaction(ctx, func(transaction kafka.Transaction) error {
+			return transaction.Publish(ctx, kafka.Message{
+				Topic: topic,
+				Key:   []byte(value),
+				Value: []byte(value),
+			})
+		})
+	}
+
+	deniedProducer := newTransactionalProducer(
+		"golib-transaction-authorization-denied",
+	)
+	deniedErr := runTransaction(deniedProducer, "denied-before-grant")
+	assertSecureKafkaTransactionalIDAuthorizationFailure(
+		t,
+		deniedErr,
+		broker.limitedPassword,
+		"denied-before-grant",
+	)
+	if err := deniedProducer.Close(); err != nil {
+		t.Fatalf("close denied transaction ACL producer: %v", err)
+	}
+	if calls.Load() == 0 {
+		t.Fatal("transaction ACL credential provider was not used")
+	}
+
+	transactionACL := kadm.NewACLs().
+		TransactionalIDs(transactionalID).
+		Allow("limited-user").
+		Operations(kadm.OpWrite).
+		ResourcePatternType(kadm.ACLPatternLiteral)
+	transactionACL.PrefixUser()
+	createSecureKafkaACLs(t, ctx, admin, transactionACL, 1)
+
+	allowedProducer := newTransactionalProducer(
+		"golib-transaction-authorization-allowed",
+	)
+	if err := runTransaction(allowedProducer, "committed-after-grant"); err != nil {
+		t.Fatalf("transaction after transactional-ID ACL grant: %v", err)
+	}
+
+	deleteTransactionACL := kadm.NewACLs().
+		TransactionalIDs(transactionalID).
+		Allow("limited-user").
+		AllowHosts("*").
+		Operations(kadm.OpWrite).
+		ResourcePatternType(kadm.ACLPatternLiteral)
+	deleteTransactionACL.PrefixUser()
+	deleteSecureKafkaACLs(t, ctx, admin, deleteTransactionACL, 1)
+	revokedErr := runTransaction(allowedProducer, "denied-after-revoke")
+	assertSecureKafkaTransactionalIDAuthorizationFailure(
+		t,
+		revokedErr,
+		broker.limitedPassword,
+		"denied-after-revoke",
+	)
+	if err := allowedProducer.Close(); err != nil {
+		t.Fatalf("close revoked transaction ACL producer: %v", err)
+	}
+
+	values := consumeSecureTransactionValues(
+		t,
+		ctx,
+		broker.endpoint,
+		topic,
+		broker.serverTLSConfig(),
+		adminMechanism,
+		1,
+	)
+	if len(values) != 1 || values[0] != "committed-after-grant" {
+		t.Fatalf("transaction ACL read-committed values = %q", values)
+	}
+}
+
 func TestApacheKafkaPlainCredentialReplacementCompatibility(t *testing.T) {
 	runKafkaBrokerIntegration(t)
 
@@ -2284,6 +2427,129 @@ func createSecureKafkaGroupDescribeACL(
 	if len(results) != 2 || results[0].Err != nil || results[1].Err != nil {
 		t.Fatalf("secured Kafka group ACL results = %#v", results)
 	}
+}
+
+func createSecureKafkaACLs(
+	t *testing.T,
+	ctx context.Context,
+	admin *kadm.Client,
+	builder *kadm.ACLBuilder,
+	want int,
+) {
+	t.Helper()
+
+	results, err := admin.CreateACLs(ctx, builder)
+	if err != nil {
+		t.Fatalf("create secured Kafka ACLs: %v", err)
+	}
+	if len(results) != want {
+		t.Fatalf("secured Kafka ACL creation results = %d, want %d", len(results), want)
+	}
+	for index, result := range results {
+		if result.Err != nil {
+			t.Fatalf("secured Kafka ACL creation result %d: %v", index, result.Err)
+		}
+	}
+}
+
+func deleteSecureKafkaACLs(
+	t *testing.T,
+	ctx context.Context,
+	admin *kadm.Client,
+	builder *kadm.ACLBuilder,
+	want int,
+) {
+	t.Helper()
+
+	results, err := admin.DeleteACLs(ctx, builder)
+	if err != nil {
+		t.Fatalf("delete secured Kafka ACLs: %v", err)
+	}
+	if len(results) != 1 || results[0].Err != nil || len(results[0].Deleted) != want {
+		t.Fatalf("secured Kafka ACL deletion results = %#v", results)
+	}
+	for index, deleted := range results[0].Deleted {
+		if deleted.Err != nil {
+			t.Fatalf("secured Kafka deleted ACL %d: %v", index, deleted.Err)
+		}
+	}
+}
+
+func assertSecureKafkaTransactionalIDAuthorizationFailure(
+	t *testing.T,
+	err error,
+	secrets ...string,
+) {
+	t.Helper()
+
+	var deliveryErr *kafka.DeliveryError
+	var transactionErr *kafka.TransactionError
+	category := kafka.ErrorCategory(0)
+	if errors.As(err, &deliveryErr) {
+		category = deliveryErr.Category()
+	} else if errors.As(err, &transactionErr) {
+		category = transactionErr.Category()
+	}
+	if !errors.Is(err, kerr.TransactionalIDAuthorizationFailed) ||
+		category != kafka.ErrorAuthorization {
+		t.Fatalf("transactional-ID authorization error = %#v", err)
+	}
+	for _, secret := range secrets {
+		if strings.Contains(err.Error(), secret) {
+			t.Fatal("transactional-ID authorization error disclosed sensitive input")
+		}
+	}
+}
+
+func consumeSecureTransactionValues(
+	t *testing.T,
+	ctx context.Context,
+	broker string,
+	topic string,
+	tlsConfig *tls.Config,
+	mechanism sasl.Mechanism,
+	want int,
+) []string {
+	t.Helper()
+
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(broker),
+		kgo.ClientID("golib-secure-transaction-reader"),
+		kgo.DialTLSConfig(tlsConfig),
+		kgo.SASL(mechanism),
+		kgo.ConsumePartitions(map[string]map[int32]kgo.Offset{
+			topic: {0: kgo.NewOffset().AtStart()},
+		}),
+		kgo.FetchIsolationLevel(kgo.ReadCommitted()),
+		kgo.FetchMaxWait(100*time.Millisecond),
+	)
+	if err != nil {
+		t.Fatalf("construct secured transaction reader: %v", err)
+	}
+	defer client.Close()
+
+	values := make([]string, 0, want)
+	for len(values) < want {
+		fetches := client.PollRecords(ctx, want-len(values))
+		if err := fetches.Err(); err != nil {
+			t.Fatalf("read secured transaction records: %v", err)
+		}
+		for _, record := range fetches.Records() {
+			values = append(values, string(record.Value))
+		}
+	}
+
+	extraCtx, cancel := context.WithTimeout(ctx, 500*time.Millisecond)
+	defer cancel()
+	extra := client.PollRecords(extraCtx, 1)
+	if err := extra.Err(); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("read extra secured transaction records: %v", err)
+	}
+	for _, record := range extra.Records() {
+		values = append(values, string(record.Value))
+	}
+
+	return values
 }
 
 func waitForSecureKafkaCompaction(

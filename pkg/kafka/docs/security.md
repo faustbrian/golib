@@ -150,6 +150,12 @@ The fixtures prove:
   rejects an untrusted peer without disclosing its secret, refreshes the token
   under broker-enforced reauthentication, and preserves every acknowledged
   record; and
+- live transactional-ID authorization: an authenticated producer with topic
+  write access receives Kafka's exact transactional-ID authorization failure
+  under stable package `ErrorAuthorization` classification without credential
+  or record-value disclosure, commits one read-committed record after the ACL
+  is granted, then receives the same bounded denial after the ACL is revoked
+  from its active client without exposing the denied record; and
 - live mTLS client-certificate renewal: three independent producers cross
   three Kafka broker-enforced idle-disconnect cycles, invoke every package
   provider with each separately issued replacement certificate signed by the
@@ -176,9 +182,8 @@ and the pinned
 
 This proves interoperability only with the pinned Apache fixture. Specific
 external OAuth identity-provider evidence, zero-downtime multi-broker PLAIN
-cutover, transactional-ID authorization failures, ACL changes during live
-traffic, and managed-service authentication remain separate required evidence.
-The fixtures do not use Kafka's
+cutover, broader ACL-change stress, and managed-service authentication remain
+separate required evidence. The fixtures do not use Kafka's
 non-production unsecured OAUTHBEARER implementation and do not claim
 compatibility with a particular OAuth identity provider.
 

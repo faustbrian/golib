@@ -409,7 +409,11 @@ Kafka 4.3.1 fixtures prove verified TLS 1.2 and 1.3, mutual TLS, PLAIN,
 SCRAM-SHA-256, SCRAM-SHA-512, and signed-JWT OAUTHBEARER through the package's
 producer, consumer, inspector, and provider-backed authentication policies.
 An authenticated but ACL-denied principal also proves producer and inspector
-authorization failures. Three independent producers for each SCRAM mechanism
+authorization failures. A separately authenticated transactional producer
+proves stable authorization classification before its transactional-ID ACL is
+granted, read-committed delivery after the live grant, and denial without
+read-committed exposure after that ACL is revoked from the active client.
+Three independent producers for each SCRAM mechanism
 cross broker-enforced reauthentication through three successive credential
 replacements, refresh every provider, verify every acknowledged record, and
 reject every retired secret. Three independent OAUTHBEARER producers similarly
