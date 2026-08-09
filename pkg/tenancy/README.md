@@ -103,3 +103,12 @@ has been reset. Connection reset failures cause the physical connection to be
 discarded. Operations must use only the transaction passed to their callback;
 opening another connection or issuing tenant queries outside it bypasses this
 enforcement seam.
+
+## Testing
+
+`tenancytest` provides test-only tenant and system scope constructors, context
+installation, and tenant assertions. The package includes hostile-input fuzz
+targets, randomized cross-tenant namespace models, concurrent isolation stress,
+and allocation-reporting benchmarks for context propagation, namespace
+encoding, and tenant assertions. These tests prove the owned enforcement seams;
+they cannot prove isolation in application paths that bypass those seams.

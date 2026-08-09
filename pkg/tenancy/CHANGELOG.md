@@ -24,3 +24,5 @@ versioning once released.
   derives every tenant operation independently from an unscoped base context.
 - Explicit PostgreSQL predicates, transaction-local tenant settings with
   readback and pool-reset safety, and migration-owned fail-closed RLS plans.
+- Reusable `tenancytest` scope helpers plus property, concurrency, fuzz, and
+  allocation benchmark coverage for tenant isolation boundaries.
