@@ -7,9 +7,10 @@ created them.
 
 The module is under active development. The current API covers definition
 compilation, explicit version migrations, immutable lifecycle history, and
-deterministic replay. Durable step execution, PostgreSQL storage, workers,
-activities, compensation, signals, timers, operators, and optional integrations
-are not yet delivered.
+deterministic replay. It also defines bounded explicit activity attempts and
+unknown-outcome semantics. Durable step scheduling, PostgreSQL storage, workers,
+compensation, signals, timers, operators, and optional integrations are not yet
+delivered.
 
 The package does not claim exactly-once external side effects. Applications
 must make activities idempotent and treat unknown outcomes as requiring
