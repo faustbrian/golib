@@ -79,7 +79,10 @@ never represented as a successful rollback.
 one idempotent optimistic transition containing the audit record followed by
 the matching lifecycle decision. Replay rejects orphaned or mismatched audit
 records. Authentication and authorization remain application policy; the
-package does not infer privileges from actor names.
+package does not infer privileges from actor names. `InspectInstance` performs
+bounded deterministic replay over stable history pages, while `ExportHistory`
+streams owned pages to a caller sink without accumulating unbounded history or
+acknowledging external work.
 
 ```go
 migration := postgres.SchemaMigration()
