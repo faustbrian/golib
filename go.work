@@ -113,6 +113,7 @@ use (
 	./pkg/tabular
 	./pkg/telemetry
 	./pkg/temporal
+	./pkg/tenancy
 	./pkg/validation
 	./pkg/verkle-tree
 	./pkg/webhook
@@ -354,3 +355,5 @@ replace github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison 
 replace github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience v0.0.0 => ./pkg/concurrency-limit/integration/resilience
 
 replace github.com/faustbrian/golib/pkg/resilience v0.0.0 => ./pkg/resilience
+
+replace github.com/faustbrian/golib/pkg/tenancy v0.0.0 => ./pkg/tenancy

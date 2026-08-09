@@ -7271,6 +7271,66 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/tenancy",
+      "directory": ".",
+      "name": "tenancy",
+      "import_path": "github.com/faustbrian/golib/pkg/tenancy",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/tenancy",
+      "directory": "http",
+      "name": "tenancyhttp",
+      "import_path": "github.com/faustbrian/golib/pkg/tenancy/http",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/tenancy",
+      "directory": "jsonrpc",
+      "name": "tenancyjsonrpc",
+      "import_path": "github.com/faustbrian/golib/pkg/tenancy/jsonrpc",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/tenancy",
+      "directory": "postgres",
+      "name": "tenancypostgres",
+      "import_path": "github.com/faustbrian/golib/pkg/tenancy/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/tenancy",
+      "directory": "tenancytest",
+      "name": "tenancytest",
+      "import_path": "github.com/faustbrian/golib/pkg/tenancy/tenancytest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/validation",
       "directory": ".",
       "name": "validation",
