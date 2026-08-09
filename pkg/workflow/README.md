@@ -22,7 +22,8 @@ record the authorized caller identity and reason before pause, resume, cancel,
 or terminate. Fenced activity and compensation processors persist attempt
 starts before handlers and preserve unknown outcomes across redelivery.
 Ordered orchestration can schedule activities and timers, wait for signals and
-audited human approvals, and persist known terminal outcomes. Parallel and
+audited human approvals, atomically admit bounded parallel activity branches,
+join their persisted outcomes, and persist known terminal outcomes. Race and
 child orchestration, broader operator stores, and optional integrations are not
 yet delivered.
 

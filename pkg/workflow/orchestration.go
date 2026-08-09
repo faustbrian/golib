@@ -40,6 +40,16 @@ type OrchestrationDecisionSpec struct {
 	Result         []byte
 	TenantID       string
 	CorrelationID  string
+	Branches       []OrchestrationBranchSpec
+}
+
+// OrchestrationBranchSpec supplies one bounded parallel branch dispatch. The
+// branch name must exactly match its enclosing immutable control step.
+type OrchestrationBranchSpec struct {
+	StepName       string
+	WorkID         string
+	IdempotencyKey string
+	Input          []byte
 }
 
 // OrchestrationDecision is one immutable persisted plan or explicit wait.
@@ -66,7 +76,13 @@ func NewOrchestrationDecision(spec OrchestrationDecisionSpec) (OrchestrationDeci
 		spec.Instance.status != StatusRunning {
 		return OrchestrationDecision{}, ErrInvalidOrchestration
 	}
-	for _, step := range spec.Definition.Steps() {
+	steps := spec.Definition.Steps()
+	branchMembers := orchestrationBranchMembers(steps)
+	for _, step := range steps {
+		if _, branch := branchMembers[step.Name]; branch && step.Kind != StepParallel &&
+			step.Kind != StepJoin && step.Kind != StepRace {
+			continue
+		}
 		switch step.Kind {
 		case StepActivity:
 			decision, done, err := decideActivityStep(spec, step)
@@ -82,11 +98,139 @@ func NewOrchestrationDecision(spec OrchestrationDecisionSpec) (OrchestrationDeci
 			if _, received := spec.Instance.Signal(step.Name); !received {
 				return orchestrationWait(step.Name), nil
 			}
+		case StepParallel:
+			decision, done, err := decideParallelStep(spec, step)
+			if err != nil || !done {
+				return decision, err
+			}
+		case StepJoin:
+			decision, done, err := decideJoinStep(spec, step)
+			if err != nil || !done {
+				return decision, err
+			}
 		default:
 			return OrchestrationDecision{}, ErrInvalidOrchestration
 		}
 	}
 	return orchestrationTerminal(spec, OrchestrationCompleted, "")
+}
+
+func decideParallelStep(
+	spec OrchestrationDecisionSpec,
+	step StepSpec,
+) (OrchestrationDecision, bool, error) {
+	missing := 0
+	for _, branchName := range step.Branches {
+		progress, exists := spec.Instance.Activity(branchName)
+		if !exists {
+			missing++
+			continue
+		}
+		switch progress.Status() {
+		case ActivityProgressSucceeded:
+		case ActivityProgressFailed:
+			branch, _ := definitionActivityStep(spec.Definition, branchName)
+			if progress.Retryable() && progress.Attempt() < branch.Retry.MaxAttempts {
+				return orchestrationWait(step.Name), false, nil
+			}
+			decision, err := orchestrationTerminal(spec, OrchestrationFailed, branchName)
+			return decision, false, err
+		case ActivityProgressReady, ActivityProgressRunning, ActivityProgressUnknown, ActivityProgressRetryWaiting:
+			return orchestrationWait(step.Name), false, nil
+		default:
+			return OrchestrationDecision{}, false, ErrInvalidOrchestration
+		}
+	}
+	if missing == 0 {
+		return OrchestrationDecision{}, true, nil
+	}
+	if missing != len(step.Branches) {
+		return OrchestrationDecision{}, false, ErrInvalidOrchestration
+	}
+	transition, err := newParallelActivitySchedule(spec, step)
+	if err != nil {
+		return OrchestrationDecision{}, false, ErrInvalidOrchestration
+	}
+	return OrchestrationDecision{
+		kind: OrchestrationScheduled, stepName: step.Name, transition: transition,
+	}, false, nil
+}
+
+func decideJoinStep(
+	spec OrchestrationDecisionSpec,
+	step StepSpec,
+) (OrchestrationDecision, bool, error) {
+	for _, branchName := range step.Branches {
+		progress, exists := spec.Instance.Activity(branchName)
+		if !exists || progress.Status() != ActivityProgressSucceeded {
+			return orchestrationWait(step.Name), false, nil
+		}
+	}
+	return OrchestrationDecision{}, true, nil
+}
+
+func newParallelActivitySchedule(spec OrchestrationDecisionSpec, control StepSpec) (Transition, error) {
+	branches := make(map[string]OrchestrationBranchSpec, len(spec.Branches))
+	for _, branch := range spec.Branches {
+		if _, exists := branches[branch.StepName]; exists {
+			return Transition{}, ErrInvalidOrchestration
+		}
+		branches[branch.StepName] = branch
+	}
+	if len(branches) != len(control.Branches) {
+		return Transition{}, ErrInvalidOrchestration
+	}
+	events := make([]HistoryEvent, 0, len(control.Branches))
+	workItems := make([]PendingWork, 0, len(control.Branches))
+	for index, branchName := range control.Branches {
+		branchSpec, exists := branches[branchName]
+		branchStep, validStep := definitionActivityStep(spec.Definition, branchName)
+		if !exists || !validStep || !instanceIDPattern.MatchString(branchSpec.IdempotencyKey) ||
+			len(branchSpec.Input) > int(branchStep.InputLimit) {
+			return Transition{}, ErrInvalidOrchestration
+		}
+		event, err := NewHistoryEvent(HistoryEventSpec{
+			Sequence: spec.Instance.sequence + uint64(index) + 1, InstanceID: spec.Instance.id,
+			Kind: EventActivityScheduled, OccurredAt: spec.DecidedAt,
+			StepName: branchName, Data: branchSpec.Input,
+		})
+		if err != nil {
+			return Transition{}, ErrInvalidOrchestration
+		}
+		work, err := NewPendingWork(PendingWorkSpec{
+			ID: branchSpec.WorkID, Kind: WorkActivity, InstanceID: spec.Instance.id,
+			Sequence: event.Sequence(), AvailableAt: spec.DecidedAt, Deadline: spec.Deadline,
+			Payload:  encodeActivityDispatch(branchName, 1, branchSpec.IdempotencyKey),
+			TenantID: spec.TenantID, CorrelationID: spec.CorrelationID,
+		})
+		if err != nil {
+			return Transition{}, ErrInvalidOrchestration
+		}
+		events = append(events, event)
+		workItems = append(workItems, work)
+	}
+	transition, err := NewTransition(TransitionSpec{
+		ID: spec.TransitionID, InstanceID: spec.Instance.id,
+		ExpectedSequence: spec.Instance.sequence, Definition: spec.Instance.definition,
+		Events: events, Work: workItems,
+	})
+	if err != nil {
+		return Transition{}, ErrInvalidOrchestration
+	}
+	return transition, nil
+}
+
+func orchestrationBranchMembers(steps []StepSpec) map[string]struct{} {
+	members := make(map[string]struct{})
+	for _, step := range steps {
+		if step.Kind != StepParallel && step.Kind != StepRace {
+			continue
+		}
+		for _, branch := range step.Branches {
+			members[branch] = struct{}{}
+		}
+	}
+	return members
 }
 
 func decideActivityStep(

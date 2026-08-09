@@ -92,6 +92,7 @@ type StepSpec struct {
 	Name         string
 	Kind         StepKind
 	Target       string
+	Branches     []string
 	Timeout      time.Duration
 	InputLimit   uint32
 	ResultLimit  uint32
@@ -177,6 +178,7 @@ func cloneSteps(steps []StepSpec) []StepSpec {
 	cloned := make([]StepSpec, len(steps))
 	copy(cloned, steps)
 	for index := range cloned {
+		cloned[index].Branches = append([]string(nil), steps[index].Branches...)
 		if steps[index].Compensation != nil {
 			compensation := *steps[index].Compensation
 			cloned[index].Compensation = &compensation
@@ -199,7 +201,7 @@ func validateDefinition(spec DefinitionSpec) error {
 		return invalidDefinition("steps")
 	}
 
-	names := make(map[string]struct{}, len(spec.Steps))
+	names := make(map[string]StepKind, len(spec.Steps))
 	for _, step := range spec.Steps {
 		if !stableName.MatchString(step.Name) {
 			return invalidDefinition("step.name")
@@ -207,12 +209,59 @@ func validateDefinition(spec DefinitionSpec) error {
 		if _, exists := names[step.Name]; exists {
 			return invalidDefinition("step.name")
 		}
-		names[step.Name] = struct{}{}
+		names[step.Name] = step.Kind
 		if err := validateStep(step); err != nil {
 			return err
 		}
 	}
+	for _, step := range spec.Steps {
+		for _, branch := range step.Branches {
+			kind, exists := names[branch]
+			if !exists || branch == step.Name || kind == StepParallel || kind == StepJoin || kind == StepRace {
+				return invalidDefinition("step.branch")
+			}
+		}
+	}
+	if spec.Mode == Orchestration {
+		return validateOrchestrationControlFlow(spec.Steps, names)
+	}
 
+	return nil
+}
+
+func validateOrchestrationControlFlow(steps []StepSpec, kinds map[string]StepKind) error {
+	owners := make(map[string]string)
+	branchCounts := make(map[string]int)
+	joined := make(map[string]struct{})
+	for _, step := range steps {
+		switch step.Kind {
+		case StepParallel:
+			for _, branch := range step.Branches {
+				if kinds[branch] != StepActivity {
+					return invalidDefinition("step.parallel_branch")
+				}
+				if _, exists := owners[branch]; exists {
+					return invalidDefinition("step.branch_owner")
+				}
+				owners[branch] = step.Name
+			}
+			branchCounts[step.Name] = len(step.Branches)
+		case StepJoin:
+			owner, exists := owners[step.Branches[0]]
+			if !exists || branchCounts[owner] != len(step.Branches) {
+				return invalidDefinition("step.join")
+			}
+			if _, exists := joined[owner]; exists {
+				return invalidDefinition("step.join")
+			}
+			for _, branch := range step.Branches[1:] {
+				if owners[branch] != owner {
+					return invalidDefinition("step.join")
+				}
+			}
+			joined[owner] = struct{}{}
+		}
+	}
 	return nil
 }
 
@@ -234,11 +283,15 @@ func validateStep(step StepSpec) error {
 			return invalidDefinition("step.timer")
 		}
 	case StepParallel, StepJoin, StepRace:
-		if step.FanOutLimit == 0 || step.FanOutLimit > MaxFanOut {
+		if step.FanOutLimit == 0 || step.FanOutLimit > MaxFanOut || len(step.Branches) == 0 ||
+			len(step.Branches) > int(step.FanOutLimit) || !validBranchNames(step.Branches) {
 			return invalidDefinition("step.fan_out")
 		}
 	default:
 		return invalidDefinition("step.kind")
+	}
+	if step.Kind != StepParallel && step.Kind != StepJoin && step.Kind != StepRace && len(step.Branches) != 0 {
+		return invalidDefinition("step.branches")
 	}
 
 	if step.Compensation != nil {
@@ -251,6 +304,20 @@ func validateStep(step StepSpec) error {
 	}
 
 	return nil
+}
+
+func validBranchNames(branches []string) bool {
+	seen := make(map[string]struct{}, len(branches))
+	for _, branch := range branches {
+		if !stableName.MatchString(branch) {
+			return false
+		}
+		if _, exists := seen[branch]; exists {
+			return false
+		}
+		seen[branch] = struct{}{}
+	}
+	return true
 }
 
 func validPayloadLimit(limit uint32) bool {

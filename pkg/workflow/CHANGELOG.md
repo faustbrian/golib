@@ -7,6 +7,9 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Deterministic bounded parallel activity admission that persists every branch
+  schedule atomically, waits for all branch outcomes, and advances through
+  explicit joins without treating partial admission as valid progress.
 - Fenced activity work processing that persists attempt starts before external
   handlers, reconciles uncertain store commits, preserves unknown side-effect
   outcomes on crash redelivery, and durably schedules bounded known-safe retries.

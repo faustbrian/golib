@@ -95,9 +95,9 @@ func TestDefinitionSupportsExplicitBoundedStepKinds(t *testing.T) {
 			{Name: "signal", Kind: workflow.StepSignal, Target: "shipment.ready", Timeout: time.Hour, InputLimit: 1},
 			{Name: "approval", Kind: workflow.StepApproval, Target: "finance.approval", Timeout: time.Hour, InputLimit: 1},
 			{Name: "timer", Kind: workflow.StepTimer, Timeout: time.Second},
-			{Name: "parallel", Kind: workflow.StepParallel, FanOutLimit: 2},
-			{Name: "join", Kind: workflow.StepJoin, FanOutLimit: 2},
-			{Name: "race", Kind: workflow.StepRace, FanOutLimit: 2},
+			{Name: "parallel", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"activity"}},
+			{Name: "join", Kind: workflow.StepJoin, FanOutLimit: 1, Branches: []string{"activity"}},
+			{Name: "race", Kind: workflow.StepRace, FanOutLimit: 2, Branches: []string{"signal", "approval"}},
 		},
 	})
 	if err != nil {
@@ -140,7 +140,14 @@ func TestDefinitionAcceptsEveryExactSafetyBoundary(t *testing.T) {
 			MaxAttempts: 1, InitialDelay: time.Nanosecond, MaxDelay: time.Nanosecond,
 		},
 	}
-	steps[1] = workflow.StepSpec{Name: "parallel-boundary", Kind: workflow.StepParallel, FanOutLimit: workflow.MaxFanOut}
+	branches := make([]string, 0, len(steps)-2)
+	for _, step := range steps[2:] {
+		branches = append(branches, step.Name)
+	}
+	steps[1] = workflow.StepSpec{
+		Name: "parallel-boundary", Kind: workflow.StepParallel,
+		FanOutLimit: workflow.MaxFanOut, Branches: branches,
+	}
 
 	if _, err := workflow.NewDefinition(workflow.DefinitionSpec{
 		Name: "boundaries", Version: "1", Mode: workflow.Orchestration, Steps: steps,
@@ -269,6 +276,89 @@ func TestDefinitionRejectsUnsafeOrAmbiguousSteps(t *testing.T) {
 				t.Fatalf("error = %v, want ErrInvalidDefinition", err)
 			}
 		})
+	}
+}
+
+func TestDefinitionRejectsAmbiguousControlFlowBranches(t *testing.T) {
+	t.Parallel()
+
+	activity := workflow.StepSpec{
+		Name: "work", Kind: workflow.StepActivity, Target: "work.execute",
+		Timeout: time.Second, InputLimit: 1, ResultLimit: 1,
+		Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
+	}
+	controls := []workflow.StepSpec{
+		{Name: "missing", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"absent"}},
+		{Name: "malformed", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{" spaces "}},
+		{Name: "duplicate", Kind: workflow.StepParallel, FanOutLimit: 2, Branches: []string{"work", "work"}},
+	}
+	for _, control := range controls {
+		if _, err := workflow.NewDefinition(workflow.DefinitionSpec{
+			Name: "control", Version: control.Name, Mode: workflow.Orchestration,
+			Steps: []workflow.StepSpec{control, activity},
+		}); !errors.Is(err, workflow.ErrInvalidDefinition) {
+			t.Fatalf("control %q error = %v", control.Name, err)
+		}
+	}
+	activity.Branches = []string{"work"}
+	if _, err := workflow.NewDefinition(workflow.DefinitionSpec{
+		Name: "control", Version: "activity-branches", Mode: workflow.Orchestration,
+		Steps: []workflow.StepSpec{activity},
+	}); !errors.Is(err, workflow.ErrInvalidDefinition) {
+		t.Fatalf("activity branches error = %v", err)
+	}
+
+	activity.Branches = nil
+	other := activity
+	other.Name = "other"
+	third := activity
+	third.Name = "third"
+	duplicateOwners := []workflow.StepSpec{
+		{Name: "first", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"work"}},
+		{Name: "second", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"work"}},
+		activity,
+	}
+	mismatchedJoin := []workflow.StepSpec{
+		{Name: "fan-out", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"work"}},
+		activity,
+		other,
+		{Name: "join", Kind: workflow.StepJoin, FanOutLimit: 1, Branches: []string{"other"}},
+	}
+	child := workflow.StepSpec{
+		Name: "child", Kind: workflow.StepChild, Target: "child.workflow", Timeout: time.Second,
+		InputLimit: 1, ResultLimit: 1,
+		Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
+	}
+	nonActivityBranch := []workflow.StepSpec{
+		{Name: "fan-out", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"child"}},
+		child,
+	}
+	duplicateJoin := []workflow.StepSpec{
+		{Name: "fan-out", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"work"}},
+		activity,
+		{Name: "join-one", Kind: workflow.StepJoin, FanOutLimit: 1, Branches: []string{"work"}},
+		{Name: "join-two", Kind: workflow.StepJoin, FanOutLimit: 1, Branches: []string{"work"}},
+	}
+	mixedJoin := []workflow.StepSpec{
+		{Name: "first", Kind: workflow.StepParallel, FanOutLimit: 2, Branches: []string{"work", "third"}},
+		activity,
+		third,
+		{Name: "second", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"other"}},
+		other,
+		{Name: "join", Kind: workflow.StepJoin, FanOutLimit: 2, Branches: []string{"work", "other"}},
+	}
+	for name, steps := range map[string][]workflow.StepSpec{
+		"duplicate-owners": duplicateOwners,
+		"duplicate-join":   duplicateJoin,
+		"mismatched-join":  mismatchedJoin,
+		"mixed-join":       mixedJoin,
+		"non-activity":     nonActivityBranch,
+	} {
+		if _, err := workflow.NewDefinition(workflow.DefinitionSpec{
+			Name: "control", Version: name, Mode: workflow.Orchestration, Steps: steps,
+		}); !errors.Is(err, workflow.ErrInvalidDefinition) {
+			t.Fatalf("%s error = %v", name, err)
+		}
 	}
 }
 
