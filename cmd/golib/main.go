@@ -1070,6 +1070,7 @@ func requiredServices(directory string) []string {
 		"idempotency", "lease", "localized", "migrations", "opening-hours",
 		"outbox", "postgres", "queue-control-plane", "rate-limit",
 		"scheduler", "sequencer", "settings", "state-machine", "temporal",
+		"tenancy",
 	}
 	valkeyLibraries := []string{
 		"authorization", "cache", "feature-flags", "idempotency", "lease",

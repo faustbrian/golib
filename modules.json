@@ -21262,7 +21262,9 @@
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5"
       ],
-      "required_services": [],
+      "required_services": [
+        "postgresql"
+      ],
       "build_tags": [],
       "test_tags": [
         "integration"
