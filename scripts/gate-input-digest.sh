@@ -25,12 +25,14 @@ relevant_package_data="${manifest}.relevant-packages"
 existing_files="${manifest}.existing"
 file_hashes="${manifest}.hashes"
 nested_directories="${manifest}.nested"
+bounded_output="${manifest}.bounded-output"
 digest_modfile=""
 cleanup() {
     rm -f \
         "${manifest}" "${directories}" "${input_files}" "${package_data}" \
         "${relevant_package_data}" \
-        "${existing_files}" "${file_hashes}" "${nested_directories}"
+        "${existing_files}" "${file_hashes}" "${nested_directories}" \
+        "${bounded_output}"
     if [[ -n "${digest_modfile}" ]]; then
         rm -f "${digest_modfile}" "${digest_modfile%.mod}.sum"
     fi
@@ -206,14 +208,53 @@ append_environment() {
     append_value cgo-enabled "$(go env CGO_ENABLED)"
 }
 
+bounded_command_output() {
+    local timeout_seconds="$1"
+    shift
+    local command_pid status timer_pid
+    : >"${bounded_output}"
+    "$@" >"${bounded_output}" 2>/dev/null &
+    command_pid=$!
+    (
+        sleep "${timeout_seconds}"
+        kill -TERM "${command_pid}" 2>/dev/null || true
+        sleep 1
+        kill -KILL "${command_pid}" 2>/dev/null || true
+    ) &
+    timer_pid=$!
+    status=0
+    wait "${command_pid}" || status=$?
+    kill -TERM "${timer_pid}" 2>/dev/null || true
+    wait "${timer_pid}" 2>/dev/null || true
+    if [[ "${status}" -eq 0 ]]; then
+        cat "${bounded_output}"
+    fi
+    return "${status}"
+}
+
 append_verification_environment() {
+    local docker_timeout docker_version
     append_environment
     append_value kernel "$(uname -srm)"
-    if command -v docker >/dev/null 2>&1; then
-        append_value docker "$(
-            docker version --format '{{.Server.Version}}' 2>/dev/null ||
+    if ! jq -e --arg directory "${module}" '
+        .modules[]
+        | select(.directory == $directory)
+        | select((.required_services // []) | length > 0)
+    ' "${root}/modules.json" >/dev/null; then
+        append_value docker not-required
+    elif command -v docker >/dev/null 2>&1; then
+        docker_timeout="${GOLIB_DOCKER_VERSION_TIMEOUT_SECONDS:-5}"
+        if [[ ! "${docker_timeout}" =~ ^[1-9][0-9]*$ ]]; then
+            printf 'invalid Docker version timeout: %s\n' "${docker_timeout}" >&2
+            exit 1
+        fi
+        docker_version="$({
+            bounded_command_output \
+                "${docker_timeout}" \
+                docker version --format '{{.Server.Version}}' ||
                 printf unavailable
-        )"
+        })"
+        append_value docker "${docker_version}"
     else
         append_value docker missing
     fi

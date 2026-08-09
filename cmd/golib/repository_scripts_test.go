@@ -76,6 +76,158 @@ printf '%s\n' "$3" >>"$FAKE_DOCKER_LOG"
 	}
 }
 
+func TestGateInputDigestBoundsHungDockerVersionDiscovery(t *testing.T) {
+	repositoryRoot := testRepositoryRoot(t)
+	repository := t.TempDir()
+	bin := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "docker.log")
+	for _, directory := range []string{".golib", "pkg/example", "scripts"} {
+		if err := os.MkdirAll(filepath.Join(repository, directory), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "module_path": "example.test/example",
+    "owned_dependencies": [],
+    "required_services": ["postgresql"]
+  }]
+}
+`)
+	writeTestFile(t, filepath.Join(repository, "packages.json"), "{\"packages\":[]}\n")
+	writeTestFile(t, filepath.Join(repository, ".golib/versions.env"), "POSTGRES_IMAGE=postgres:18.4-alpine\n")
+	writeTestFile(t, filepath.Join(repository, "pkg/example/example.go"), "package example\n")
+	writeTestFile(t, filepath.Join(bin, "docker"), "#!/bin/sh\nprintf 'called\\n' >>\"$FAKE_DOCKER_LOG\"\nexec sleep 30\n")
+	writeTestFile(t, filepath.Join(bin, "go"), `#!/bin/sh
+case "$2" in
+    GOVERSION) printf '%s\n' go1.26.5 ;;
+    GOOS) printf '%s\n' linux ;;
+    GOARCH) printf '%s\n' amd64 ;;
+    CGO_ENABLED) printf '%s\n' 0 ;;
+    *) exit 1 ;;
+esac
+`)
+	writeTestFile(t, filepath.Join(bin, "node"), "#!/bin/sh\nprintf '%s\n' v24.0.0\n")
+	for _, executable := range []string{"docker", "go", "node"} {
+		if err := os.Chmod(filepath.Join(bin, executable), 0o700); err != nil {
+			t.Fatalf("make fake %s executable: %v", executable, err)
+		}
+	}
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = repository
+	if result, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, result)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	command := exec.CommandContext(
+		ctx,
+		filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+		"format-check",
+		"pkg/example",
+	)
+	command.Dir = repository
+	command.Env = environmentWithValues(
+		os.Environ(),
+		"PATH",
+		bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+	)
+	command.Env = environmentWithValues(command.Env, "GOLIB_ROOT", repository)
+	command.Env = environmentWithValues(command.Env, "FAKE_DOCKER_LOG", logFile)
+	command.Env = environmentWithValues(
+		command.Env,
+		"GOLIB_DOCKER_VERSION_TIMEOUT_SECONDS",
+		"1",
+	)
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Cancel = func() error {
+		return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+	}
+	command.WaitDelay = time.Second
+	result, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("gate input digest: %v\n%s", err, result)
+	}
+	if len(strings.TrimSpace(string(result))) != sha256.Size*2 {
+		t.Fatalf("gate input digest = %q", result)
+	}
+	called, err := os.ReadFile(logFile)
+	if err != nil {
+		t.Fatalf("read Docker invocation log: %v", err)
+	}
+	if string(called) != "called\n" {
+		t.Fatalf("Docker invocation log = %q, want called", called)
+	}
+}
+
+func TestGateInputDigestDoesNotInspectDockerForServiceFreeModule(t *testing.T) {
+	repositoryRoot := testRepositoryRoot(t)
+	repository := t.TempDir()
+	bin := t.TempDir()
+	logFile := filepath.Join(t.TempDir(), "docker.log")
+	if err := os.MkdirAll(filepath.Join(repository, "pkg/example"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(repository, "modules.json"), `{
+  "modules": [{
+    "directory": "pkg/example",
+    "module_path": "example.test/example",
+    "owned_dependencies": [],
+    "required_services": []
+  }]
+}
+`)
+	writeTestFile(t, filepath.Join(repository, "packages.json"), "{\"packages\":[]}\n")
+	writeTestFile(t, filepath.Join(repository, "pkg/example/example.go"), "package example\n")
+	writeTestFile(t, filepath.Join(bin, "docker"), "#!/bin/sh\nprintf 'called\\n' >>\"$FAKE_DOCKER_LOG\"\nprintf '29.0.0\\n'\n")
+	writeTestFile(t, filepath.Join(bin, "go"), `#!/bin/sh
+case "$2" in
+    GOVERSION) printf '%s\n' go1.26.5 ;;
+    GOOS) printf '%s\n' linux ;;
+    GOARCH) printf '%s\n' amd64 ;;
+    CGO_ENABLED) printf '%s\n' 0 ;;
+    *) exit 1 ;;
+esac
+`)
+	writeTestFile(t, filepath.Join(bin, "node"), "#!/bin/sh\nprintf '%s\n' v24.0.0\n")
+	for _, executable := range []string{"docker", "go", "node"} {
+		if err := os.Chmod(filepath.Join(bin, executable), 0o700); err != nil {
+			t.Fatalf("make fake %s executable: %v", executable, err)
+		}
+	}
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = repository
+	if result, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, result)
+	}
+
+	command := exec.Command(
+		filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+		"format-check",
+		"pkg/example",
+	)
+	command.Dir = repository
+	command.Env = environmentWithValues(
+		os.Environ(),
+		"PATH",
+		bin+string(os.PathListSeparator)+os.Getenv("PATH"),
+	)
+	command.Env = environmentWithValues(command.Env, "GOLIB_ROOT", repository)
+	command.Env = environmentWithValues(command.Env, "FAKE_DOCKER_LOG", logFile)
+	result, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("gate input digest: %v\n%s", err, result)
+	}
+	if len(strings.TrimSpace(string(result))) != sha256.Size*2 {
+		t.Fatalf("gate input digest = %q", result)
+	}
+	if _, err := os.Stat(logFile); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("service-free digest inspected Docker: %v", err)
+	}
+}
+
 func TestVerificationSnapshotDisablesInheritedFileSystemMonitor(t *testing.T) {
 	root := testRepositoryRoot(t)
 	globalConfig := filepath.Join(t.TempDir(), "gitconfig")

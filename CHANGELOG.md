@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Skip Docker discovery for service-free modules and bound server-version
+  discovery elsewhere, so an unrelated unresponsive daemon cannot stall every
+  verification lane.
 - Accept catalog-declared not-applicable gate evidence only when its bound log
   records the catalog-policy decision, so scoped aggregate checks can complete
   without treating a skipped mandatory gate as a pass.
