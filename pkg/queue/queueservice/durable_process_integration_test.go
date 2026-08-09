@@ -206,6 +206,23 @@ func newDurableProcessBackendWorker(
 	recovering bool,
 	maxAttempts int64,
 ) core.Worker {
+	return newDurableProcessBackendWorkerWithLease(
+		t, backendName, address, stream, consumer, handler,
+		recovering, durableProcessLease, maxAttempts,
+	)
+}
+
+func newDurableProcessBackendWorkerWithLease(
+	t *testing.T,
+	backendName string,
+	address string,
+	stream string,
+	consumer string,
+	handler func(context.Context, core.TaskMessage) error,
+	recovering bool,
+	recoveryLease time.Duration,
+	maxAttempts int64,
+) core.Worker {
 	t.Helper()
 	group := strings.TrimSuffix(stream, "-jobs") + "-workers"
 	switch backendName {
@@ -225,7 +242,7 @@ func newDurableProcessBackendWorker(
 			redisstream.WithLogger(queue.NewEmptyLogger()),
 		}
 		if recovering {
-			options = append(options, redisstream.WithReclaim(durableProcessLease, 10*time.Millisecond, 8))
+			options = append(options, redisstream.WithReclaim(recoveryLease, 10*time.Millisecond, 8))
 		}
 		worker, err := redisstream.NewWorkerE(options...)
 		if err != nil {
@@ -251,7 +268,7 @@ func newDurableProcessBackendWorker(
 			valkeystream.WithLogger(queue.NewEmptyLogger()),
 		}
 		if recovering {
-			options = append(options, valkeystream.WithReclaim(durableProcessLease, 10*time.Millisecond, 8))
+			options = append(options, valkeystream.WithReclaim(recoveryLease, 10*time.Millisecond, 8))
 		}
 		worker, err := valkeystream.NewWorkerE(options...)
 		if err != nil {

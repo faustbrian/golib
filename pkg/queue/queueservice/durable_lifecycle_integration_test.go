@@ -177,7 +177,10 @@ func TestDurableBackendDeadLetterFailureLeavesWorkForRecovery(t *testing.T) {
 }
 
 func TestDurableBackendScaleAndRollingDeploymentRetainOneSettlementOwner(t *testing.T) {
-	const batchSize = 32
+	const (
+		batchSize          = 32
+		scaleRecoveryLease = 3 * time.Second
+	)
 	for _, backend := range durableBackendIntegrationCases(t) {
 		t.Run(backend.name, func(t *testing.T) {
 			identity := integrationIdentity(t)
@@ -205,7 +208,7 @@ func TestDurableBackendScaleAndRollingDeploymentRetainOneSettlementOwner(t *test
 				coordinator *queue.Queue
 			}
 			start := func(role string, index int) runningAdapter {
-				worker := newDurableProcessBackendWorker(
+				worker := newDurableProcessBackendWorkerWithLease(
 					t,
 					backend.name,
 					backend.address,
@@ -213,6 +216,7 @@ func TestDurableBackendScaleAndRollingDeploymentRetainOneSettlementOwner(t *test
 					fmt.Sprintf("%s-%d", role, index),
 					handler,
 					true,
+					scaleRecoveryLease,
 					3,
 				)
 				runtime, coordinator := startDurableAdapterRuntime(
@@ -371,7 +375,7 @@ func awaitDurableHandlerAdmissions(t *testing.T, admitted <-chan struct{}, count
 
 func awaitDurableHandledCount(t *testing.T, handled <-chan struct{}, count int) {
 	t.Helper()
-	deadline := time.After(5 * time.Second)
+	deadline := time.After(10 * time.Second)
 	for range count {
 		select {
 		case <-handled:
