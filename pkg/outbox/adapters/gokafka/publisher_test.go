@@ -437,6 +437,83 @@ func TestPublisherPreservesDeliveryCategoriesWithoutIdentityDisclosure(t *testin
 	}
 }
 
+func TestPublisherRedactsEveryDeliveryFailureDiagnostic(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		category kafka.ErrorCategory
+	}{
+		{name: "broker restart", category: kafka.ErrorRetryable},
+		{name: "lost acknowledgement", category: kafka.ErrorAmbiguous},
+		{name: "authorization", category: kafka.ErrorAuthorization},
+		{name: "oversized record", category: kafka.ErrorOversized},
+		{name: "timeout", category: kafka.ErrorTimeout},
+		{name: "cancellation", category: kafka.ErrorCanceled},
+		{name: "throttling", category: kafka.ErrorRetryable},
+		{name: "producer close", category: kafka.ErrorShutdown},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			cause := categorizedError{
+				category: test.category,
+				message: "sasl://secret-user:secret-password@broker.internal:9092 " +
+					"sensitive-event sensitive-topic sensitive-key sensitive-payload " +
+					"sensitive-metadata sensitive-kafka-error",
+			}
+			publisher, err := gokafka.New(&recordingClient{publishErr: cause})
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = publisher.Publish(t.Context(), outbox.Envelope{
+				ID: "sensitive-event", Topic: "sensitive-topic", PayloadVersion: 1,
+				OrderingKey: "sensitive-key", Payload: []byte("sensitive-payload"),
+				Metadata: map[string]string{"traceparent": "sensitive-metadata"},
+			})
+			var categorized interface{ Category() kafka.ErrorCategory }
+			if !errors.Is(err, cause) || !errors.As(err, &categorized) ||
+				categorized.Category() != test.category {
+				t.Fatalf("Publish() error = %v", err)
+			}
+			for _, secret := range []string{
+				"sensitive-event", "sensitive-topic", "sensitive-key",
+				"sensitive-payload", "sensitive-metadata", "sensitive-kafka-error",
+				"broker.internal", "secret-user", "secret-password",
+			} {
+				if strings.Contains(err.Error(), secret) {
+					t.Fatalf("Publish() diagnostic disclosed %q: %v", secret, err)
+				}
+			}
+		})
+	}
+}
+
+func TestPublisherRedactsHealthFailureDiagnostic(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.New("sasl://secret-user:secret-password@broker.internal:9092")
+	publisher, err := gokafka.New(&recordingClient{healthErr: cause})
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = publisher.Health(t.Context())
+	if err == nil {
+		t.Fatal("Health() error = nil")
+	}
+	if !errors.Is(err, cause) {
+		t.Fatalf("Health() error = %v", err)
+	}
+	for _, secret := range []string{
+		"broker.internal", "secret-user", "secret-password",
+	} {
+		if strings.Contains(err.Error(), secret) {
+			t.Fatalf("Health() diagnostic disclosed %q: %v", secret, err)
+		}
+	}
+}
+
 func TestPublisherConvertsClientPanicToAmbiguousOutcome(t *testing.T) {
 	t.Parallel()
 
@@ -450,10 +527,14 @@ func TestPublisherConvertsClientPanicToAmbiguousOutcome(t *testing.T) {
 	if err == nil {
 		t.Fatal("Publish() error = nil, want ambiguous panic outcome")
 	}
-	var categorized interface{ Category() kafka.ErrorCategory }
+	var categorized interface {
+		error
+		Category() kafka.ErrorCategory
+	}
 	if !errors.Is(err, gokafka.ErrPublishPanic) ||
 		!errors.As(err, &categorized) ||
-		categorized.Category() != kafka.ErrorAmbiguous {
+		categorized.Category() != kafka.ErrorAmbiguous ||
+		categorized.Error() != gokafka.ErrPublishPanic.Error() {
 		t.Fatalf("Publish() error = %v", err)
 	}
 	if strings.Contains(err.Error(), "secret panic") {
@@ -577,6 +658,10 @@ func TestPublisherRequiresClientAndPreservesFailures(t *testing.T) {
 	if err := publisher.Health(context.Background()); !errors.Is(err, healthErr) {
 		t.Fatalf("Health() error = %v, want %v", err, healthErr)
 	}
+	client.healthErr = nil
+	if err := publisher.Health(context.Background()); err != nil {
+		t.Fatalf("Health() recovered error = %v", err)
+	}
 }
 
 func TestPublisherRejectsEnvelopeWithoutRequiredRoutingIdentity(t *testing.T) {
@@ -633,6 +718,7 @@ type recordingClient struct {
 
 type categorizedError struct {
 	category kafka.ErrorCategory
+	message  string
 }
 
 type panickingClient struct{}
@@ -643,7 +729,13 @@ func (panickingClient) Publish(context.Context, kafka.Message) error {
 
 func (panickingClient) Health(context.Context) error { return nil }
 
-func (err categorizedError) Error() string { return err.category.String() }
+func (err categorizedError) Error() string {
+	if err.message != "" {
+		return err.message
+	}
+
+	return err.category.String()
+}
 
 func (err categorizedError) Category() kafka.ErrorCategory { return err.category }
 

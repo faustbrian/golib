@@ -2,7 +2,9 @@ package gokafka_test
 
 import (
 	"context"
+	"errors"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/kafka"
@@ -14,10 +16,11 @@ func FuzzPublisherEnvelopeMapping(f *testing.F) {
 	f.Add(
 		"event-1", "events", "aggregate-1", "event-1",
 		"traceparent", "trace-1", "application/json", uint16(1), []byte("{}"), false,
+		uint8(kafka.ErrorRetryable), "broker restart",
 	)
-	f.Add("", "", "", "", "", "", "", uint16(0), []byte(nil), false)
-	f.Add("event-1", "events", "", "", "event-id", "forged", "", uint16(1), []byte("x"), false)
-	f.Add("event-1", "events", "", "", "", "", "", uint16(1), []byte("x"), true)
+	f.Add("", "", "", "", "", "", "", uint16(0), []byte(nil), false, uint8(0), "")
+	f.Add("event-1", "events", "", "", "event-id", "forged", "", uint16(1), []byte("x"), false, uint8(kafka.ErrorAuthorization), "authorization")
+	f.Add("event-1", "events", "", "", "", "", "", uint16(1), []byte("x"), true, uint8(kafka.ErrorAmbiguous), "callback panic")
 
 	f.Fuzz(func(
 		t *testing.T,
@@ -31,9 +34,12 @@ func FuzzPublisherEnvelopeMapping(f *testing.F) {
 		version uint16,
 		payload []byte,
 		panicClient bool,
+		producerCategory uint8,
+		producerResult string,
 	) {
 		if len(id)+len(topic)+len(orderingKey)+len(idempotencyKey)+
-			len(metadataKey)+len(metadataValue)+len(contentType)+len(payload) > 1<<16 {
+			len(metadataKey)+len(metadataValue)+len(contentType)+len(payload)+
+			len(producerResult) > 1<<16 {
 			return
 		}
 		metadata := map[string]string{metadataKey: metadataValue}
@@ -102,6 +108,23 @@ func FuzzPublisherEnvelopeMapping(f *testing.F) {
 			if !slices.Equal(second.message.Value, payload) {
 				t.Fatal("one client mutation changed another mapped payload")
 			}
+		}
+
+		category := kafka.ErrorCategory(producerCategory)
+		diagnostic := "producer-secret[" + producerResult + "]"
+		cause := categorizedError{category: category, message: diagnostic}
+		failingPublisher, err := gokafka.New(&recordingClient{publishErr: cause})
+		if err != nil {
+			t.Fatal(err)
+		}
+		publishErr = failingPublisher.Publish(context.Background(), envelope)
+		var categorized interface{ Category() kafka.ErrorCategory }
+		if !errors.Is(publishErr, cause) || !errors.As(publishErr, &categorized) ||
+			categorized.Category() != category {
+			t.Fatalf("producer result was not preserved: %v", publishErr)
+		}
+		if strings.Contains(publishErr.Error(), diagnostic) {
+			t.Fatal("producer diagnostic was rendered")
 		}
 	})
 }

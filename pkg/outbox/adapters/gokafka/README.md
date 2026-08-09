@@ -96,17 +96,39 @@ perform unbounded retries.
 
 ## Failure and ambiguity recovery
 
-Producer errors are wrapped with `%w`, so `errors.Is` and `errors.As` retain
+Producer errors are wrapped with `Unwrap`, so `errors.Is` and `errors.As` retain
 the first-party `kafka.DeliveryError` and its permanent, retryable, and
 ambiguous categories. Cancellation and timeout after admission can mean the
 broker outcome is unknown. Treat an ambiguous result like a possible success:
 retain or retry the outbox envelope and rely on consumer deduplication. Do not
 mark it delivered from local inference alone.
 
+Adapter error strings are fixed, low-cardinality diagnostics. They do not
+render wrapped client errors because alternate clients may include envelope
+data, metadata, Kafka endpoints, or credentials in their error text.
+`errors.Is` and `errors.As` still expose the wrapped cause for deliberate
+programmatic handling. Health-check failures follow the same rule.
+
 A panic from an alternate `Client` is contained and returned as
 `ErrPublishPanic` with `kafka.ErrorAmbiguous`, because the adapter cannot know
 whether that client sent the record before panicking. Error text excludes the
 envelope ID, payload, metadata, broker endpoint, credentials, and panic value.
+
+### Relay crash and reconciliation matrix
+
+| Interruption point | Durable state | Recovery |
+| --- | --- | --- |
+| before producer admission | no Kafka record; envelope remains claimed until release or lease expiry | retry the envelope |
+| after admission, before acknowledgement | Kafka outcome is unknown | retry after lease recovery and deduplicate by stable event identity |
+| after acknowledgement, before `MarkDelivered` | Kafka contains the record; outbox is not delivered | retry creates an observable duplicate; consumers deduplicate |
+| while `MarkDelivered` commits | database outcome is unknown independently of Kafka | reconcile the outbox row; retry only when it is not durably delivered |
+| after `MarkDelivered` commits | Kafka contains the record; outbox is delivered | no relay retry is required |
+
+The relay must never infer an outbox transition from Kafka state alone. When a
+mark outcome is ambiguous, reconciliation reads the durable outbox row. A row
+that is still eligible may be published again, which is safe only when
+consumers make side effects idempotent by `event-id` or the application event
+identity.
 
 ## API and ownership
 
@@ -180,9 +202,20 @@ consumer side effect by stable identity.
 `make check` runs formatting, vet, unit tests, race, exact statement coverage,
 fuzzing, benchmarks, and documentation. `make integration` uses a digest-pinned
 Confluent Local 7.5.0 container to verify real-broker acknowledgement,
-key-partition order, deterministic headers, and duplicate recovery evidence.
+key-partition order, deterministic headers, broker-restart recovery, redacted
+ambiguous failure diagnostics, and duplicate recovery evidence. The first-party
+producer uses idempotent production with all in-sync replicas required; the
+integration test exercises those same durability semantics. Its explicit
+duplicate remains observable because producer idempotence cannot join the
+separate outbox database transition.
 Repository gates additionally enforce security, API compatibility, lint,
 static analysis, SBOM/licenses, and exactly 100% viable mutant kills.
+
+`BenchmarkPublisherMappingOnly` uses an in-memory client and therefore measures
+only envelope validation, deterministic mapping, copying, and client-call
+overhead. Broker latency, producer batching, compression, and network
+backpressure require first-party Kafka producer benchmarks and are not mixed
+into the mapping number.
 
 See [CHANGELOG.md](CHANGELOG.md) for release notes and [LICENSE](LICENSE) for
 the MIT license.

@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- redact arbitrary client publish and health error text while preserving error
+  identity and Kafka delivery categories for programmatic recovery; callers
+  that rendered wrapped client diagnostics must switch to structured category
+  handling
 - enforce configured outbox and Kafka record limits before producer admission,
   defensively own every mapped byte, reject fixed-header metadata collisions,
   redact envelope identity from delivery errors, and classify alternate-client
@@ -22,6 +26,13 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- golden record fixtures for null and empty distinctions, Unicode payloads,
+  fallback keys, event-sourcing content type, and deterministic metadata order
+- fault-injection coverage for broker restart, lost acknowledgement,
+  authorization, oversized records, timeout, cancellation, throttling,
+  producer shutdown, callback panic, and concurrent publish/shutdown behavior
+- a relay interruption and durable reconciliation matrix covering every
+  Kafka-acknowledgement and outbox-mark boundary
 - real-Kafka evidence for keyed order, deterministic mapping, broker
   acknowledgement, and duplicate publication after simulated outbox-mark loss
 - complete adoption, mapping, ordering, ambiguity recovery, Kafka configuration,

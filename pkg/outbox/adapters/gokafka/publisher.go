@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -144,11 +143,27 @@ func (publisher *Publisher) Publish(ctx context.Context, envelope outbox.Envelop
 		return errors.Join(ErrInvalidEnvelope, err)
 	}
 	if err := publish(publisher.client, ctx, message); err != nil {
-		return fmt.Errorf("outbox/gokafka: publish failed: %w", err)
+		return publishError{cause: err}
 	}
 
 	return nil
 }
+
+type publishError struct {
+	cause error
+}
+
+func (err publishError) Error() string { return "outbox/gokafka: publish failed" }
+
+func (err publishError) Unwrap() error { return err.cause }
+
+type healthError struct {
+	cause error
+}
+
+func (err healthError) Error() string { return "outbox/gokafka: health check failed" }
+
+func (err healthError) Unwrap() error { return err.cause }
 
 type ambiguousPublishError struct{}
 
@@ -248,9 +263,15 @@ func validateMessage(message kafka.Message, limits kafka.MessageLimits) error {
 	return nil
 }
 
-// Health verifies Kafka broker connectivity through the producer.
+// Health verifies Kafka broker connectivity through the producer. Failures
+// retain their cause through errors.Is and errors.As but render a fixed,
+// credential-safe diagnostic.
 func (publisher *Publisher) Health(ctx context.Context) error {
-	return publisher.client.Health(ctx)
+	if err := publisher.client.Health(ctx); err != nil {
+		return healthError{cause: err}
+	}
+
+	return nil
 }
 
 func partitionKey(envelope outbox.Envelope) string {

@@ -8,7 +8,9 @@ import (
 	"github.com/faustbrian/golib/pkg/outbox/adapters/gokafka"
 )
 
-func BenchmarkPublisherMapping(b *testing.B) {
+// BenchmarkPublisherMappingOnly uses an in-memory client so broker latency,
+// producer batching, and network backpressure are outside the measurement.
+func BenchmarkPublisherMappingOnly(b *testing.B) {
 	publisher, err := gokafka.New(&recordingClient{})
 	if err != nil {
 		b.Fatal(err)

@@ -4,8 +4,10 @@ package gokafka_test
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -27,6 +29,9 @@ func TestPublisherPreservesOrderAndMakesRetryDuplicatesObservableInKafka(t *test
 	container, err := tckafka.Run(ctx, integrationKafkaImage)
 	if container != nil {
 		t.Cleanup(func() {
+			if container == nil {
+				return
+			}
 			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cleanupCancel()
 			if err := container.Terminate(cleanupCtx); err != nil {
@@ -44,13 +49,18 @@ func TestPublisherPreservesOrderAndMakesRetryDuplicatesObservableInKafka(t *test
 	topic := fmt.Sprintf("outbox-publisher-%d", time.Now().UnixNano())
 	createIntegrationTopic(t, ctx, brokers, topic)
 
-	producer, err := kafka.NewProducer(kafka.ProducerConfig{
+	producerConfig := kafka.ProducerConfig{
 		Brokers:       brokers,
 		ClientID:      "outbox-publisher-integration",
 		AllowedTopics: []string{topic},
 		Limits:        gokafka.DefaultLimits().Kafka,
 		Security:      kafka.DevelopmentPlaintextSecurity(),
-	})
+		RecordRetries: 5, RetryBackoffMin: 25 * time.Millisecond,
+		RetryBackoffMax: 100 * time.Millisecond, DeliveryTimeout: 10 * time.Second,
+		ShutdownTimeout: 11 * time.Second, RequestTimeout: time.Second,
+		DialTimeout: time.Second, Linger: time.Millisecond,
+	}
+	producer, err := kafka.NewProducer(producerConfig)
 	if err != nil {
 		t.Fatalf("construct producer: %v", err)
 	}
@@ -103,6 +113,136 @@ func TestPublisherPreservesOrderAndMakesRetryDuplicatesObservableInKafka(t *test
 	if string(headerValue(records[0].Headers, "event-id")) != "event-1" ||
 		string(headerValue(records[2].Headers, "event-id")) != "event-1" {
 		t.Fatalf("duplicate event identity was not stable")
+	}
+
+	stopTimeout := 10 * time.Second
+	if err := container.Stop(ctx, &stopTimeout); err != nil {
+		t.Fatalf("stop Kafka: %v", err)
+	}
+	failedCtx, cancelFailed := context.WithTimeout(ctx, 1500*time.Millisecond)
+	failure := publisher.Publish(failedCtx, outbox.Envelope{
+		ID: "event-during-restart", Topic: topic, PayloadVersion: 2,
+		OrderingKey: "stream-1", Payload: []byte(`{"sequence":3}`),
+	})
+	cancelFailed()
+	if failure == nil {
+		t.Fatal("publish while Kafka was stopped succeeded")
+	}
+	var categorized interface{ Category() kafka.ErrorCategory }
+	if !errors.As(failure, &categorized) {
+		t.Fatalf("publish while Kafka was stopped was not categorized: %v", failure)
+	}
+	if !slices.Contains(
+		[]kafka.ErrorCategory{kafka.ErrorRetryable, kafka.ErrorAmbiguous},
+		categorized.Category(),
+	) {
+		t.Fatalf("publish while Kafka was stopped category = %v", categorized.Category())
+	}
+	for _, broker := range brokers {
+		if strings.Contains(failure.Error(), broker) {
+			t.Fatalf("restart diagnostic disclosed broker endpoint: %v", failure)
+		}
+	}
+	if err := container.Terminate(ctx); err != nil {
+		t.Fatalf("terminate stopped Kafka: %v", err)
+	}
+	container = nil
+	container, err = tckafka.Run(ctx, integrationKafkaImage)
+	if err != nil {
+		t.Fatalf("start replacement Kafka: %v", err)
+	}
+	brokers, err = container.Brokers(ctx)
+	if err != nil {
+		t.Fatalf("resolve restarted Kafka brokers: %v", err)
+	}
+	waitForKafkaBroker(t, ctx, brokers, 45*time.Second)
+	recoveredTopic := fmt.Sprintf("outbox-publisher-recovered-%d", time.Now().UnixNano())
+	createIntegrationTopic(t, ctx, brokers, recoveredTopic)
+	producerConfig.Brokers = brokers
+	producerConfig.AllowedTopics = []string{recoveredTopic}
+	if err := producer.Close(); err != nil {
+		t.Fatalf("close producer after broker restart: %v", err)
+	}
+	producer, err = kafka.NewProducer(producerConfig)
+	if err != nil {
+		t.Fatalf("reconstruct producer after broker restart: %v", err)
+	}
+	publisher, err = gokafka.New(producer)
+	if err != nil {
+		t.Fatalf("reconstruct publisher after broker restart: %v", err)
+	}
+	waitForPublisherHealth(t, ctx, publisher, 45*time.Second)
+	if err := publisher.Publish(ctx, outbox.Envelope{
+		ID: "event-after-restart", Topic: recoveredTopic, PayloadVersion: 2,
+		OrderingKey: "stream-1", Payload: []byte(`{"sequence":4}`),
+	}); err != nil {
+		t.Fatalf("publish after Kafka restart: %v", err)
+	}
+	recovered := consumeIntegrationRecords(t, ctx, brokers, recoveredTopic, 1)
+	if string(recovered[0].Value) != `{"sequence":4}` ||
+		string(recovered[0].Key) != "stream-1" {
+		t.Fatalf("record after restart = %#v", recovered[0])
+	}
+}
+
+func waitForKafkaBroker(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	timeout time.Duration,
+) {
+	t.Helper()
+	client, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
+	if err != nil {
+		t.Fatalf("construct Kafka readiness client: %v", err)
+	}
+	defer client.Close()
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		probeCtx, cancel := context.WithTimeout(ctx, time.Second)
+		err := client.Ping(probeCtx)
+		cancel()
+		if err == nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait for Kafka broker: %v", ctx.Err())
+		case <-deadline.C:
+			t.Fatal("wait for Kafka broker: timeout")
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForPublisherHealth(
+	t *testing.T,
+	ctx context.Context,
+	publisher *gokafka.Publisher,
+	timeout time.Duration,
+) {
+	t.Helper()
+	deadline := time.NewTimer(timeout)
+	defer deadline.Stop()
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		probeCtx, cancel := context.WithTimeout(ctx, time.Second)
+		err := publisher.Health(probeCtx)
+		cancel()
+		if err == nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait for Kafka health: %v", ctx.Err())
+		case <-deadline.C:
+			t.Fatal("wait for Kafka health: timeout")
+		case <-ticker.C:
+		}
 	}
 }
 
