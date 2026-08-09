@@ -22,6 +22,8 @@ and releases use Semantic Versioning.
   optimistic history-and-work commits, conflicting transition detection,
   idempotent exact replay, bounded stable pagination, and rollback-safe failure
   handling.
+- Stable PostgreSQL instance listing across active and archived views plus
+  exact reconciliation for uncertain transition commit outcomes.
 - Bounded durable-work claims with atomic PostgreSQL admission, expiring leases,
   monotonically increasing fencing tokens, crash recovery, renewal, explicit
   retry times, stale-owner rejection, completion, and dead-letter disposition.

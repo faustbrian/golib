@@ -227,6 +227,20 @@ func TestHistoryRejectsInvalidRequestsAndDatabaseFailures(t *testing.T) {
 	}
 }
 
+func TestHistoryRejectsSequenceBeyondPostgreSQLBigint(t *testing.T) {
+	t.Parallel()
+
+	query, err := workflow.NewHistoryQuery(workflow.HistoryQuerySpec{
+		InstanceID: "instance-1", AfterSequence: maxPostgreSQLSequence + 1, Limit: 1,
+	})
+	if err != nil {
+		t.Fatalf("construct oversized PostgreSQL sequence query: %v", err)
+	}
+	if _, err := newStore(&fakeDatabase{}, "workflow").History(context.Background(), query); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+		t.Fatalf("oversized PostgreSQL sequence error = %v", err)
+	}
+}
+
 func TestHistoryRejectsCorruptRowsAndPagination(t *testing.T) {
 	t.Parallel()
 

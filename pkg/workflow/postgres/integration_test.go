@@ -43,6 +43,25 @@ func TestPostgreSQLAtomicTransitionsAndStableHistory(t *testing.T) {
 	if err := store.Commit(ctx, created); err != nil {
 		t.Fatalf("replay create: %v", err)
 	}
+	listQuery, err := workflow.NewInstanceListQuery(workflow.InstanceListQuerySpec{
+		Selection: workflow.ListActiveInstances, Limit: 10,
+	})
+	if err != nil {
+		t.Fatalf("construct instance list: %v", err)
+	}
+	listed, err := store.ListInstances(ctx, listQuery)
+	if err != nil || len(listed.Items()) != 1 || listed.Items()[0].InstanceID() != created.InstanceID() {
+		t.Fatalf("list durable instance = %#v, %v", listed, err)
+	}
+	reconciliation, err := workflow.NewTransitionReconciliation(workflow.TransitionReconciliationSpec{
+		TransitionID: created.ID(), Fingerprint: created.Fingerprint(),
+	})
+	if err != nil {
+		t.Fatalf("construct transition reconciliation: %v", err)
+	}
+	if outcome, err := store.ReconcileTransition(ctx, reconciliation); err != nil || outcome != workflow.TransitionCommitted {
+		t.Fatalf("reconcile committed transition = %d, %v", outcome, err)
+	}
 
 	query := mustHistoryQuery(t, 0, 1)
 	first, err := store.History(ctx, query)

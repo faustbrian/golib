@@ -11,8 +11,10 @@ import (
 )
 
 const (
-	rollbackTimeout       = 5 * time.Second
-	maxPostgreSQLSequence = uint64(^uint64(0) >> 1)
+	rollbackTimeout       = time.Duration(5_000_000_000)
+	// PostgreSQL bigint is signed; the explicit literal avoids architecture-
+	// dependent integer conversion while retaining its exact durable boundary.
+	maxPostgreSQLSequence = uint64(9_223_372_036_854_775_807)
 )
 
 // Config selects the caller-owned PostgreSQL schema. Its zero value uses
@@ -95,6 +97,9 @@ type querySet struct {
 	updateInstance   string
 	history          string
 	instanceExists   string
+	listActive       string
+	listArchived     string
+	listAll          string
 	claimWork        string
 	renewWork        string
 	completeWork     string
@@ -154,6 +159,12 @@ SET definition_name = $1, definition_version = $2,
 WHERE instance_id = $6 AND sequence = $7`,
 		history:        "SELECT sequence, kind, occurred_at, definition_name, definition_version, definition_fingerprint, successor_id, step_name, attempt, idempotency_key, due_at, code, retryable, data FROM " + history + " WHERE instance_id = $1 AND sequence > $2 ORDER BY sequence ASC LIMIT $3",
 		instanceExists: "SELECT EXISTS (SELECT 1 FROM " + instances + " WHERE instance_id = $1)",
+		listActive: "SELECT instance_id, definition_name, definition_version, definition_fingerprint, sequence, created_at, updated_at, archived_at FROM " + instances +
+			" WHERE archived_at IS NULL AND ($1::timestamptz IS NULL OR (created_at, instance_id) > ($1, $2)) ORDER BY created_at, instance_id LIMIT $3",
+		listArchived: "SELECT instance_id, definition_name, definition_version, definition_fingerprint, sequence, created_at, updated_at, archived_at FROM " + instances +
+			" WHERE archived_at IS NOT NULL AND ($1::timestamptz IS NULL OR (created_at, instance_id) > ($1, $2)) ORDER BY created_at, instance_id LIMIT $3",
+		listAll: "SELECT instance_id, definition_name, definition_version, definition_fingerprint, sequence, created_at, updated_at, archived_at FROM " + instances +
+			" WHERE ($1::timestamptz IS NULL OR (created_at, instance_id) > ($1, $2)) ORDER BY created_at, instance_id LIMIT $3",
 		claimWork: `WITH due AS (
 	SELECT work_id, available_at,
 	    row_number() OVER (PARTITION BY tenant_id ORDER BY available_at, work_id) AS tenant_rank
@@ -202,6 +213,88 @@ SET state = 4, failure_code = $4, completed_at = $5,
 WHERE work_id = $1 AND state = 2 AND lease_owner = $2 AND lease_token = $3
     AND lease_expires_at > $5`,
 	}}
+}
+
+// ListInstances returns one stable bounded creation-time page. Updates do not
+// move the keyset cursor. Archive selection membership may change between
+// pages; callers requiring a fixed snapshot must provide a transaction-scoped
+// adapter instead.
+func (store *Store) ListInstances(
+	ctx context.Context,
+	query workflow.InstanceListQuery,
+) (workflow.InstanceListPage, error) {
+	if store == nil || store.database == nil || ctx == nil || !query.Valid() {
+		return workflow.InstanceListPage{}, workflow.ErrInvalidStoreRequest
+	}
+	if err := ctx.Err(); err != nil {
+		return workflow.InstanceListPage{}, err
+	}
+	statement := store.queries.listAll
+	if query.Selection() == workflow.ListActiveInstances {
+		statement = store.queries.listActive
+	} else if query.Selection() == workflow.ListArchivedInstances {
+		statement = store.queries.listArchived
+	}
+	var afterCreatedAt any
+	if !query.After().CreatedAt().IsZero() {
+		afterCreatedAt = query.After().CreatedAt()
+	}
+	rows, err := store.database.Query(
+		ctx, statement, afterCreatedAt, query.After().InstanceID(), int32(query.Limit()+1),
+	)
+	if err != nil {
+		return workflow.InstanceListPage{}, newOperationError("list instances", err)
+	}
+	defer rows.Close()
+	items := make([]workflow.InstanceRecord, 0, query.Limit())
+	for rows.Next() {
+		item, scanErr := scanInstanceRecord(rows)
+		if scanErr != nil {
+			return workflow.InstanceListPage{}, newOperationError("scan instance", scanErr)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return workflow.InstanceListPage{}, newOperationError("iterate instances", err)
+	}
+	hasMore := len(items) > int(query.Limit())
+	if hasMore {
+		items = items[:query.Limit()]
+	}
+	page, err := workflow.NewInstanceListPage(query, items, hasMore)
+	if err != nil {
+		return workflow.InstanceListPage{}, newOperationError(
+			"validate instance page", errors.Join(ErrCorruptStore, err),
+		)
+	}
+	return page, nil
+}
+
+// ReconcileTransition resolves an uncertain commit by exact durable identity.
+func (store *Store) ReconcileTransition(
+	ctx context.Context,
+	reconciliation workflow.TransitionReconciliation,
+) (workflow.TransitionReconciliationOutcome, error) {
+	if store == nil || store.database == nil || ctx == nil || !reconciliation.Valid() {
+		return 0, workflow.ErrInvalidStoreRequest
+	}
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
+	var fingerprint string
+	err := store.database.QueryRow(
+		ctx, store.queries.findTransition, reconciliation.TransitionID(),
+	).Scan(&fingerprint)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return workflow.TransitionMissing, nil
+	}
+	if err != nil {
+		return 0, newOperationError("reconcile transition", err)
+	}
+	if fingerprint == reconciliation.Fingerprint() {
+		return workflow.TransitionCommitted, nil
+	}
+	return workflow.TransitionConflicting, nil
 }
 
 // Commit atomically appends history and creates due work. Exact transition-ID
@@ -566,6 +659,38 @@ func scanHistoryEvent(row rowScanner, instanceID string) (workflow.HistoryEvent,
 	return event, nil
 }
 
+func scanInstanceRecord(row rowScanner) (workflow.InstanceRecord, error) {
+	var instanceID, name, version, fingerprint string
+	var sequence int64
+	var createdAt, updatedAt time.Time
+	var archivedAt *time.Time
+	if err := row.Scan(
+		&instanceID, &name, &version, &fingerprint, &sequence,
+		&createdAt, &updatedAt, &archivedAt,
+	); err != nil {
+		return workflow.InstanceRecord{}, err
+	}
+	if sequence < 1 {
+		return workflow.InstanceRecord{}, ErrCorruptStore
+	}
+	reference, err := workflow.NewDefinitionReference(name, version, fingerprint)
+	if err != nil {
+		return workflow.InstanceRecord{}, errors.Join(ErrCorruptStore, err)
+	}
+	spec := workflow.InstanceRecordSpec{
+		InstanceID: instanceID, Definition: reference, Sequence: uint64(sequence),
+		CreatedAt: createdAt, UpdatedAt: updatedAt,
+	}
+	if archivedAt != nil {
+		spec.ArchivedAt = *archivedAt
+	}
+	record, err := workflow.NewInstanceRecord(spec)
+	if err != nil {
+		return workflow.InstanceRecord{}, errors.Join(ErrCorruptStore, err)
+	}
+	return record, nil
+}
+
 func scanWorkLease(
 	row rowScanner,
 	owner string,
@@ -634,3 +759,4 @@ func newOperationError(operation string, cause error) error {
 
 var _ workflow.TransitionStore = (*Store)(nil)
 var _ workflow.WorkStore = (*Store)(nil)
+var _ workflow.AdministrationStore = (*Store)(nil)

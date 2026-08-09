@@ -43,10 +43,13 @@ for the transition identity, contiguous history, due work, and current instance
 position. Exact transition replay is idempotent; conflicting identity reuse is
 rejected. History reads use a bounded stable forward cursor. A transport error
 from `COMMIT` is deliberately classified as unknown rather than retried as if
-nothing happened. Due-work claims use atomic locked admission with stable
-ordering. Lease expiry never exceeds the persisted work deadline, and every
-retry or crash recovery increments the attempt and fencing token so a stale
-owner cannot complete or release work.
+nothing happened. Instance lists use immutable creation-time and identity
+cursors across active or archived views, and uncertain transitions can be
+reconciled as missing, exact committed, or conflicting identities. Due-work
+claims use atomic locked admission with stable ordering. Lease expiry never
+exceeds the persisted work deadline, and every retry or crash recovery
+increments the attempt and fencing token so a stale owner cannot complete or
+release work.
 
 A `WorkProcessor` must honor cancellation and stop all of its goroutines before
 returning. It must persist the workflow transition represented by a work item

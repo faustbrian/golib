@@ -257,6 +257,63 @@ func TestHistoryDoesNotClaimMoreForAnExactlyFullPage(t *testing.T) {
 	}
 }
 
+func TestListInstancesReturnsStableValidatedCreationPages(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	fingerprint := strings.Repeat("a", 64)
+	database := &fakeDatabase{queryRows: &fakeRows{rows: [][]any{
+		{"instance-1", "orders", "1", fingerprint, int64(1), now, now, (*time.Time)(nil)},
+		{"instance-2", "orders", "1", fingerprint, int64(2), now, now.Add(time.Second), (*time.Time)(nil)},
+		{"instance-3", "orders", "1", fingerprint, int64(3), now.Add(time.Second), now.Add(time.Second), (*time.Time)(nil)},
+	}}}
+	query, err := workflow.NewInstanceListQuery(workflow.InstanceListQuerySpec{
+		Selection: workflow.ListActiveInstances, Limit: 2,
+	})
+	if err != nil {
+		t.Fatalf("construct list query: %v", err)
+	}
+	page, err := newStore(database, "workflow").ListInstances(context.Background(), query)
+	if err != nil {
+		t.Fatalf("list instances: %v", err)
+	}
+	if len(page.Items()) != 2 || page.Items()[1].InstanceID() != "instance-2" ||
+		!page.HasMore() || page.NextCursor().InstanceID() != "instance-2" ||
+		database.lastQueryLimit != 3 || !strings.Contains(database.lastQuery, "archived_at IS NULL") {
+		t.Fatalf("instance page = %#v query %q limit %d", page, database.lastQuery, database.lastQueryLimit)
+	}
+}
+
+func TestReconcileTransitionDistinguishesMissingExactAndConflict(t *testing.T) {
+	t.Parallel()
+
+	fingerprint := strings.Repeat("a", 64)
+	reconciliation, err := workflow.NewTransitionReconciliation(workflow.TransitionReconciliationSpec{
+		TransitionID: "transition-1", Fingerprint: fingerprint,
+	})
+	if err != nil {
+		t.Fatalf("construct reconciliation: %v", err)
+	}
+	for _, test := range []struct {
+		name string
+		row  rowScanner
+		want workflow.TransitionReconciliationOutcome
+	}{
+		{name: "missing", row: &fakeRow{err: pgx.ErrNoRows}, want: workflow.TransitionMissing},
+		{name: "exact", row: &fakeRow{values: []any{fingerprint}}, want: workflow.TransitionCommitted},
+		{name: "conflict", row: &fakeRow{values: []any{strings.Repeat("b", 64)}}, want: workflow.TransitionConflicting},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			outcome, err := newStore(&fakeDatabase{row: test.row}, "workflow").ReconcileTransition(
+				context.Background(), reconciliation,
+			)
+			if err != nil || outcome != test.want {
+				t.Fatalf("reconciliation = %d, %v", outcome, err)
+			}
+		})
+	}
+}
+
 func TestClaimReturnsStableFencedDueWork(t *testing.T) {
 	t.Parallel()
 
