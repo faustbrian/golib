@@ -2,7 +2,10 @@ module github.com/faustbrian/golib/pkg/tenancy
 
 go 1.26.5
 
-require github.com/jackc/pgx/v5 v5.10.0
+require (
+	github.com/jackc/pgx/v5 v5.10.0
+	go.uber.org/goleak v1.3.0
+)
 
 require (
 	github.com/jackc/pgpassfile v1.0.0 // indirect

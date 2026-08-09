@@ -128,6 +128,22 @@ func TestPostgreSQLRLSAndPoolReuseIsolation(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	cancelledContext, cancelDuringQuery := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancelDuringQuery()
+	err = manager.WithTenant(cancelledContext, database, tenantA, withRole(func(ctx context.Context, tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx, `SELECT pg_sleep(10)`)
+		return err
+	}))
+	if !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("cancelled transaction error = %v", err)
+	}
+	if err := manager.WithTenant(ctx, database, tenantB, withRole(func(ctx context.Context, tx *sql.Tx) error {
+		var setting string
+		return tx.QueryRowContext(ctx, "SELECT current_setting($1, true)", tenancypostgres.DefaultSetting).Scan(&setting)
+	})); err != nil {
+		t.Fatalf("pool reuse after cancellation: %v", err)
+	}
+
 	connection, err := database.Conn(ctx)
 	if err != nil {
 		t.Fatal(err)
