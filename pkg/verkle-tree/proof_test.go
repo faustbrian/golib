@@ -5,9 +5,16 @@ import (
 	"context"
 	"errors"
 	"runtime"
+	"sync"
 	"testing"
 
 	verkletree "github.com/faustbrian/golib/pkg/verkle-tree"
+)
+
+var (
+	publicProofEngineOnce  sync.Once
+	publicProofEngineValue verkletree.ProofEngine
+	publicProofEngineErr   error
 )
 
 func TestPublicProofEngineGeneratesCanonicalVerifiableProofs(t *testing.T) {
@@ -25,14 +32,7 @@ func TestPublicProofEngineGeneratesCanonicalVerifiableProofs(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new snapshot: %v", err)
 	}
-	engine, err := verkletree.NewProofEngine(
-		context.Background(),
-		verkletree.BandersnatchIPA256V0(),
-		publicOpeningLimits(),
-	)
-	if err != nil {
-		t.Fatalf("new proof engine: %v", err)
-	}
+	engine := sharedPublicProofEngine(t)
 	keys := []verkletree.Key{absentStem, absentSuffix, present}
 	proof, err := engine.Prove(
 		context.Background(),
@@ -139,14 +139,7 @@ func TestPublicProofEngineVerifiesTrustedRootAndKeySet(t *testing.T) {
 	if err != nil {
 		t.Fatalf("trusted root: %v", err)
 	}
-	engine, err := verkletree.NewProofEngine(
-		context.Background(),
-		verkletree.BandersnatchIPA256V0(),
-		publicOpeningLimits(),
-	)
-	if err != nil {
-		t.Fatalf("new proof engine: %v", err)
-	}
+	engine := sharedPublicProofEngine(t)
 	proof, err := engine.Prove(
 		context.Background(),
 		snapshot,
@@ -394,14 +387,7 @@ func TestPublicProofEngineProvesCanonicalEmptyRootNonMembership(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new empty snapshot: %v", err)
 	}
-	engine, err := verkletree.NewProofEngine(
-		context.Background(),
-		verkletree.BandersnatchIPA256V0(),
-		publicOpeningLimits(),
-	)
-	if err != nil {
-		t.Fatalf("new proof engine: %v", err)
-	}
+	engine := sharedPublicProofEngine(t)
 	proof, err := engine.Prove(
 		context.Background(),
 		snapshot,
@@ -489,14 +475,7 @@ func TestPublicProofEngineRejectsTamperingAndInvalidUse(t *testing.T) {
 	if err != nil {
 		t.Fatalf("new snapshot: %v", err)
 	}
-	engine, err := verkletree.NewProofEngine(
-		context.Background(),
-		verkletree.BandersnatchIPA256V0(),
-		publicOpeningLimits(),
-	)
-	if err != nil {
-		t.Fatalf("new proof engine: %v", err)
-	}
+	engine := sharedPublicProofEngine(t)
 	proof, err := engine.Prove(
 		context.Background(),
 		snapshot,
@@ -599,6 +578,23 @@ func publicOpeningLimits() verkletree.OpeningLimits {
 		MaxWorkers:              uint32(runtime.NumCPU()),
 		MaxQueuedOperations:     32,
 	}
+}
+
+func sharedPublicProofEngine(t testing.TB) verkletree.ProofEngine {
+	t.Helper()
+
+	publicProofEngineOnce.Do(func() {
+		publicProofEngineValue, publicProofEngineErr = verkletree.NewProofEngine(
+			context.Background(),
+			verkletree.BandersnatchIPA256V0(),
+			publicOpeningLimits(),
+		)
+	})
+	if publicProofEngineErr != nil {
+		t.Fatalf("new shared proof engine: %v", publicProofEngineErr)
+	}
+
+	return publicProofEngineValue
 }
 
 func publicProofGenerationLimits() verkletree.ProofGenerationLimits {

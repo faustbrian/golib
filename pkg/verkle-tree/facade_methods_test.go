@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"runtime"
+	"sync"
 	"testing"
 	"time"
 
@@ -13,6 +14,12 @@ import (
 type cancellingContext struct {
 	remaining int
 }
+
+var (
+	testFacadeProofEngineOnce  sync.Once
+	testFacadeProofEngineValue ProofEngine
+	testFacadeProofEngineErr   error
+)
 
 func (ctx *cancellingContext) Deadline() (time.Time, bool) {
 	return time.Time{}, false
@@ -758,13 +765,7 @@ func TestFacadeWitnessRejectsEveryInvalidOwnershipState(t *testing.T) {
 	); !errors.Is(err, ErrResourceExhausted) {
 		t.Fatalf("stateless engine resource error = %v", err)
 	}
-	proofEngine, err := NewProofEngine(
-		context.Background(), BandersnatchIPA256V0(),
-		testFacadeOpeningLimits(),
-	)
-	if err != nil {
-		t.Fatalf("proof engine for stateless reuse: %v", err)
-	}
+	proofEngine := sharedTestFacadeProofEngine(t)
 	if _, err := NewStatelessEngineFromProofEngine(
 		context.Background(), ProofEngine{valid: true},
 		testFacadeSnapshotLimits().Commitment,
@@ -1014,14 +1015,7 @@ func testFacadeProof(t testing.TB) (ProofEngine, Snapshot, Proof) {
 	if err != nil {
 		t.Fatalf("new snapshot: %v", err)
 	}
-	engine, err := NewProofEngine(
-		context.Background(),
-		BandersnatchIPA256V0(),
-		testFacadeOpeningLimits(),
-	)
-	if err != nil {
-		t.Fatalf("new engine: %v", err)
-	}
+	engine := sharedTestFacadeProofEngine(t)
 	proof, err := engine.Prove(
 		context.Background(),
 		snapshot,
@@ -1033,6 +1027,23 @@ func testFacadeProof(t testing.TB) (ProofEngine, Snapshot, Proof) {
 	}
 
 	return engine, snapshot, proof
+}
+
+func sharedTestFacadeProofEngine(t testing.TB) ProofEngine {
+	t.Helper()
+
+	testFacadeProofEngineOnce.Do(func() {
+		testFacadeProofEngineValue, testFacadeProofEngineErr = NewProofEngine(
+			context.Background(),
+			BandersnatchIPA256V0(),
+			testFacadeOpeningLimits(),
+		)
+	})
+	if testFacadeProofEngineErr != nil {
+		t.Fatalf("new shared facade proof engine: %v", testFacadeProofEngineErr)
+	}
+
+	return testFacadeProofEngineValue
 }
 
 func testFacadeSnapshotLimits() SnapshotLimits {

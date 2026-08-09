@@ -44,10 +44,9 @@ func FuzzPublicStatelessTransitionMatchesStatefulSnapshot(f *testing.F) {
 	if err != nil {
 		f.Fatalf("new public fuzz proof engine: %v", err)
 	}
-	statelessEngine, err := verkletree.NewStatelessEngine(
+	statelessEngine, err := verkletree.NewStatelessEngineFromProofEngine(
 		context.Background(),
-		verkletree.BandersnatchIPA256V0(),
-		openingLimits,
+		proofEngine,
 		publicSnapshotLimits().Commitment,
 	)
 	if err != nil {

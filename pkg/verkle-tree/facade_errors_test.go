@@ -181,11 +181,10 @@ func TestFacadeErrorTranslationFallbacks(t *testing.T) {
 func TestFacadeWitnessErrorTranslations(t *testing.T) {
 	t.Parallel()
 
-	_, _, proof := testFacadeProof(t)
-	engine, err := NewStatelessEngine(
+	proofEngine, _, proof := testFacadeProof(t)
+	engine, err := NewStatelessEngineFromProofEngine(
 		context.Background(),
-		BandersnatchIPA256V0(),
-		testFacadeOpeningLimits(),
+		proofEngine,
 		testFacadeSnapshotLimits().Commitment,
 	)
 	if err != nil {
