@@ -47,3 +47,11 @@ All notable changes to this module are documented here.
 - Add an allocation-aware benchmark for exact cross-unit quantity comparison.
 - Add bounded fuzz coverage that cross-checks tagged quantity acceptance
   against the canonical measurement parser.
+- Add exhaustive unit and incompatible-dimension matrices, ordering properties,
+  hostile pair fuzzing, concurrent metadata isolation, and canonical rule
+  persistence round trips.
+
+### Fixed
+
+- Reject negative-zero tag spellings that do not match the canonical decimal
+  representation emitted by `Quantity`.

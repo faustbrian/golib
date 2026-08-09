@@ -21,7 +21,7 @@ func BenchmarkQuantityComparison(b *testing.B) {
 	right := ruleenginemeasurement.Quantity(rightQuantity)
 	ctx := context.Background()
 
-	b.Run("adapter", func(b *testing.B) {
+	b.Run("adapter-parse-convert-evaluate", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			matched, err := operator.Evaluate(ctx, left, right)
@@ -30,7 +30,32 @@ func BenchmarkQuantityComparison(b *testing.B) {
 			}
 		}
 	})
-	b.Run("direct-measurement", func(b *testing.B) {
+	b.Run("direct-parse-convert-compare", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			leftAmount, err := decimal.Parse("1001")
+			if err != nil {
+				b.Fatal(err)
+			}
+			rightAmount, err := decimal.Parse("1")
+			if err != nil {
+				b.Fatal(err)
+			}
+			parsedLeft, err := measurement.New(leftAmount, measurement.Unit("g"))
+			if err != nil {
+				b.Fatal(err)
+			}
+			parsedRight, err := measurement.New(rightAmount, measurement.Unit("kg"))
+			if err != nil {
+				b.Fatal(err)
+			}
+			comparison, err := parsedLeft.Compare(parsedRight, measurement.ExactConversion())
+			if err != nil || comparison <= 0 {
+				b.Fatalf("Compare() = %d, %v", comparison, err)
+			}
+		}
+	})
+	b.Run("direct-convert-compare", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			comparison, err := leftQuantity.Compare(rightQuantity, measurement.ExactConversion())

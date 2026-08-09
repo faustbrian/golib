@@ -120,6 +120,9 @@ func parseQuantity(value ruleengine.Value) (measurement.Quantity, error) {
 	if err != nil {
 		return measurement.Quantity{}, fmt.Errorf("%w: %w", ErrInvalidQuantity, err)
 	}
+	if amount.String() != amountText {
+		return measurement.Quantity{}, ErrInvalidQuantity
+	}
 	unit := measurement.Unit(unitText)
 	if _, err := unit.Dimension(); err != nil {
 		return measurement.Quantity{}, errors.Join(ErrInvalidQuantity, measurement.ErrUnknownUnit)

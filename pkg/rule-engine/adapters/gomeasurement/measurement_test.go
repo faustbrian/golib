@@ -1,6 +1,7 @@
 package ruleenginemeasurement_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
@@ -70,6 +71,8 @@ func TestQuantityOperatorsRejectInvalidAndNoncanonicalValues(t *testing.T) {
 		{name: "missing unit", value: ruleengine.String("quantity:v1|1|")},
 		{name: "additional field", value: ruleengine.String("quantity:v1|1|kg|extra")},
 		{name: "noncanonical amount", value: ruleengine.String("quantity:v1|01|kg")},
+		{name: "noncanonical negative zero", value: ruleengine.String("quantity:v1|-0|kg")},
+		{name: "noncanonical scaled negative zero", value: ruleengine.String("quantity:v1|-0.00|kg")},
 		{name: "unknown unit", value: ruleengine.String("quantity:v1|1|stone"), cause: measurement.ErrUnknownUnit},
 		{name: "oversized", value: ruleengine.String("quantity:v1|" + strings.Repeat("9", ruleenginemeasurement.MaxTaggedValueBytes) + "|kg")},
 	}
@@ -157,6 +160,88 @@ func TestQuantityOperatorsObserveCancellationBetweenBoundedStages(t *testing.T) 
 			t.Fatalf("Evaluate(cancel at %d) error = %v", cancelAt, err)
 		}
 	}
+}
+
+func TestEquivalentQuantitiesSurviveCanonicalRulePersistence(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		left  measurement.Quantity
+		right measurement.Quantity
+	}{
+		{"dimensionless scale", measurement.MustNew(decimal.MustParse("1.00"), measurement.One), measurement.MustNew(decimal.MustParse("1.00"), measurement.One)},
+		{"preserved scale", measurement.MustNew(decimal.MustParse("1.00"), measurement.Kilogram), measurement.MustNew(decimal.MustParse("1000.0"), measurement.Gram)},
+		{"length", measurement.MustNew(decimal.New(1), measurement.Metre), measurement.MustNew(decimal.New(100), measurement.Centimetre)},
+		{"area", measurement.MustNew(decimal.New(1), measurement.SquareMetre), measurement.MustNew(decimal.New(10_000), measurement.SquareCentimetre)},
+		{"volume", measurement.MustNew(decimal.New(1), measurement.Litre), measurement.MustNew(decimal.New(1000), measurement.Millilitre)},
+		{"density", measurement.MustNew(decimal.New(1), measurement.GramPerCubicCentimetre), measurement.MustNew(decimal.New(1000), measurement.KilogramPerCubicMetre)},
+		{"temperature", measurement.MustNew(decimal.New(0), measurement.Celsius), measurement.MustNew(decimal.MustParse("273.15"), measurement.Kelvin)},
+		{"loading metre scale", measurement.MustNew(decimal.MustParse("1.00"), measurement.LoadingMetre), measurement.MustNew(decimal.MustParse("1.00"), measurement.LoadingMetre)},
+	}
+	compiler, err := ruleengine.NewCompilerWithOperators(ruleengine.DefaultLimits(), ruleenginemeasurement.Operators()...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	facts, err := ruleengine.NewContext()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			set := ruleengine.RuleSet{ID: "persisted", Rules: []ruleengine.Rule{{
+				ID: "equivalent",
+				When: ruleengine.Compare(ruleenginemeasurement.OpQuantityEqual,
+					ruleengine.Literal(ruleenginemeasurement.Quantity(test.left)),
+					ruleengine.Literal(ruleenginemeasurement.Quantity(test.right))),
+			}}}
+			encoded, marshalErr := compiler.MarshalCanonical(set)
+			if marshalErr != nil {
+				t.Fatal(marshalErr)
+			}
+			decoded, diagnostics, parseErr := compiler.ParseJSON(encoded)
+			if parseErr != nil || len(diagnostics) != 0 {
+				t.Fatalf("ParseJSON() = %#v, %v", diagnostics, parseErr)
+			}
+			reencoded, marshalErr := compiler.MarshalCanonical(decoded)
+			if marshalErr != nil || !bytes.Equal(reencoded, encoded) {
+				t.Fatalf("canonical round trip changed: %s, %v", reencoded, marshalErr)
+			}
+			plan, _, compileErr := compiler.Compile(context.Background(), decoded)
+			if compileErr != nil {
+				t.Fatal(compileErr)
+			}
+			if result := plan.Evaluate(context.Background(), facts); result.Decision != ruleengine.Matched {
+				t.Fatalf("persisted comparison = %#v", result)
+			}
+		})
+	}
+}
+
+func TestOperatorsDoNotMutateTheDefaultRegistry(t *testing.T) {
+	t.Parallel()
+
+	set := ruleengine.RuleSet{ID: "isolated", Rules: []ruleengine.Rule{{
+		ID: "custom",
+		When: ruleengine.Compare(ruleenginemeasurement.OpQuantityEqual,
+			ruleengine.Literal(ruleenginemeasurement.Quantity(measurement.MustNew(decimal.New(1), measurement.Kilogram))),
+			ruleengine.Literal(ruleenginemeasurement.Quantity(measurement.MustNew(decimal.New(1), measurement.Kilogram)))),
+	}}}
+	assertUnknown := func() {
+		t.Helper()
+		if _, _, err := ruleengine.NewCompiler(ruleengine.DefaultLimits()).Compile(context.Background(), set); !ruleengine.IsCode(err, ruleengine.CodeUnknownOperator) {
+			t.Fatalf("default compiler accepted an unregistered operator: %v", err)
+		}
+	}
+	assertUnknown()
+	registered, err := ruleengine.NewCompilerWithOperators(ruleengine.DefaultLimits(), ruleenginemeasurement.Operators()...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := registered.Compile(context.Background(), set); err != nil {
+		t.Fatal(err)
+	}
+	assertUnknown()
 }
 
 type cancelAtContext struct {
