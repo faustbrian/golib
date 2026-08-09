@@ -10,6 +10,9 @@ and releases use Semantic Versioning.
 - Fenced activity work processing that persists attempt starts before external
   handlers, reconciles uncertain store commits, preserves unknown side-effect
   outcomes on crash redelivery, and durably schedules bounded known-safe retries.
+- Independently fenced compensation work processing with start-before-effect
+  persistence, conservative unknown rollback outcomes, and durable policy-bound
+  retries that never report failed compensation as successful rollback.
 - Explicit bounded activity requests and registries with persisted deadlines,
   attempt metadata, idempotency keys, tenant/correlation propagation, and
   distinct success, known-failure, and unknown-outcome results.
