@@ -20,12 +20,15 @@ import (
 	"io"
 	"math/big"
 	"net"
+	"net/netip"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/faustbrian/golib/pkg/kafka"
+	"github.com/moby/moby/api/types/container"
+	dockernetwork "github.com/moby/moby/api/types/network"
 	"github.com/testcontainers/testcontainers-go"
 	tcexec "github.com/testcontainers/testcontainers-go/exec"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -35,6 +38,7 @@ import (
 	"github.com/twmb/franz-go/pkg/sasl"
 	franzoauth "github.com/twmb/franz-go/pkg/sasl/oauth"
 	franzplain "github.com/twmb/franz-go/pkg/sasl/plain"
+	franzscram "github.com/twmb/franz-go/pkg/sasl/scram"
 )
 
 const (
@@ -42,6 +46,7 @@ const (
 	secureKafkaInternalPort     = 19092
 	secureKafkaControllerPort   = 29093
 	secureKafkaDiagnosticBytes  = 32 << 10
+	secureKafkaDiagnosticInput  = 1 << 20
 	secureKafkaTransientRetries = 8
 	secureKafkaIssuer           = "https://issuer.golib.test"
 	secureKafkaAudience         = "golib-kafka"
@@ -664,6 +669,42 @@ func TestApacheKafkaAuthorizationFailureCompatibility(t *testing.T) {
 	}
 }
 
+func TestApacheKafkaPlainCredentialReplacementCompatibility(t *testing.T) {
+	runKafkaBrokerIntegration(t)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+
+	broker := startSecureKafkaBroker(t, ctx, secureKafkaSASL)
+	broker.assertRuntimeVersions(t, ctx)
+	adminMechanism := franzscram.Auth{
+		User: "scram256-user",
+		Pass: broker.scram256Password,
+	}.AsSha256Mechanism()
+	proveApacheKafkaLiveUsernamePasswordRotation(
+		t,
+		ctx,
+		broker,
+		"PLAIN",
+		"plain-rotation",
+		adminMechanism,
+		"plain-user",
+		broker.plainPassword,
+		3,
+		1,
+		kafka.NewPlainAuthentication,
+		func(password string) {
+			restartSecureKafkaWithPlainCredential(
+				t,
+				ctx,
+				broker,
+				adminMechanism,
+				password,
+			)
+		},
+	)
+}
+
 func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
 	runKafkaBrokerIntegration(t)
 
@@ -699,37 +740,51 @@ func TestApacheKafkaLiveSCRAMCredentialRotationCompatibility(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			proveApacheKafkaLiveSCRAMCredentialRotation(
+			proveApacheKafkaLiveUsernamePasswordRotation(
 				t,
 				ctx,
 				broker,
+				"SCRAM",
+				"scram-rotation-"+test.username,
 				adminMechanism,
 				test.username,
 				test.initialPassword,
-				test.mechanism,
+				3,
+				3,
 				test.buildAuthentication,
+				func(password string) {
+					alterSecureKafkaSCRAMCredential(
+						t,
+						ctx,
+						broker,
+						adminMechanism,
+						test.username,
+						password,
+						test.mechanism,
+					)
+				},
 			)
 		})
 	}
 }
 
-func proveApacheKafkaLiveSCRAMCredentialRotation(
+func proveApacheKafkaLiveUsernamePasswordRotation(
 	t *testing.T,
 	ctx context.Context,
 	broker *secureKafkaBroker,
+	credentialName string,
+	topicPrefix string,
 	adminMechanism sasl.Mechanism,
 	username string,
 	initialPassword string,
-	mechanism kadm.ScramMechanism,
+	clientCount int,
+	rotationCount int,
 	buildAuthentication func(kafka.UsernamePasswordProvider) kafka.Authentication,
+	replaceCredential func(string),
 ) {
 	t.Helper()
-	const (
-		clientCount   = 3
-		rotationCount = 3
-	)
 
-	topic := fmt.Sprintf("golib-scram-rotation-%s-%d", username, time.Now().UnixNano())
+	topic := fmt.Sprintf("golib-%s-%d", topicPrefix, time.Now().UnixNano())
 	createSecureKafkaTopic(
 		t,
 		ctx,
@@ -767,8 +822,8 @@ func proveApacheKafkaLiveSCRAMCredentialRotation(
 		producer, err := kafka.NewProducer(kafka.ProducerConfig{
 			Brokers: []string{broker.endpoint},
 			ClientID: fmt.Sprintf(
-				"golib-scram-rotation-producer-%s-%d",
-				username,
+				"golib-%s-producer-%d",
+				topicPrefix,
 				clientIndex,
 			),
 			AllowedTopics:   []string{topic},
@@ -778,7 +833,7 @@ func proveApacheKafkaLiveSCRAMCredentialRotation(
 			Security:        security,
 		})
 		if err != nil {
-			t.Fatalf("construct rotating SCRAM producer %d: %v", clientIndex, err)
+			t.Fatalf("construct rotating %s producer %d: %v", credentialName, clientIndex, err)
 		}
 		t.Cleanup(func() { _ = producer.Close() })
 		value := fmt.Sprintf("client-%d-before-rotation", clientIndex)
@@ -788,11 +843,11 @@ func proveApacheKafkaLiveSCRAMCredentialRotation(
 			Value: []byte(value),
 		})
 		if initial.Err != nil {
-			t.Fatalf("initial SCRAM delivery for client %d: %v", clientIndex, initial.Err)
+			t.Fatalf("initial %s delivery for client %d: %v", credentialName, clientIndex, initial.Err)
 		}
 		baselineCalls := providerCalls.Load()
 		if baselineCalls == 0 {
-			t.Fatalf("initial SCRAM provider %d was not used", clientIndex)
+			t.Fatalf("initial %s provider %d was not used", credentialName, clientIndex)
 		}
 		clients = append(clients, rotatingClient{
 			producer:      producer,
@@ -808,15 +863,7 @@ func proveApacheKafkaLiveSCRAMCredentialRotation(
 			currentPassword.Load().(string),
 		)
 		newPassword := randomSecureKafkaCredential(t)
-		alterSecureKafkaSCRAMCredential(
-			t,
-			ctx,
-			broker,
-			adminMechanism,
-			username,
-			newPassword,
-			mechanism,
-		)
+		replaceCredential(newPassword)
 		currentPassword.Store(newPassword)
 
 		for clientIndex := range clients {
@@ -831,7 +878,8 @@ func proveApacheKafkaLiveSCRAMCredentialRotation(
 					ticker.Stop()
 					cancelRotation()
 					t.Fatalf(
-						"SCRAM provider %d did not refresh during rotation %d after %d calls: %v",
+						"%s provider %d did not refresh during rotation %d after %d calls: %v",
+						credentialName,
 						clientIndex,
 						rotation,
 						client.providerCalls.Load(),
@@ -868,7 +916,7 @@ func proveApacheKafkaLiveSCRAMCredentialRotation(
 	}
 	for clientIndex := range clients {
 		if err := clients[clientIndex].producer.Close(); err != nil {
-			t.Fatalf("close rotating SCRAM producer %d: %v", clientIndex, err)
+			t.Fatalf("close rotating %s producer %d: %v", credentialName, clientIndex, err)
 		}
 	}
 
@@ -883,17 +931,18 @@ func proveApacheKafkaLiveSCRAMCredentialRotation(
 		ctx,
 		broker.endpoint,
 		topic,
-		"golib-scram-rotation-group-"+username,
+		"golib-"+topicPrefix+"-group",
 		len(expectedValues),
 		currentSecurity,
 	)
 	if len(values) != len(expectedValues) {
-		t.Fatalf("SCRAM rotation values = %d, want %d", len(values), len(expectedValues))
+		t.Fatalf("%s rotation values = %d, want %d", credentialName, len(values), len(expectedValues))
 	}
 	for index := range expectedValues {
 		if values[index] != expectedValues[index] {
 			t.Fatalf(
-				"SCRAM rotation value %d = %q, want %q",
+				"%s rotation value %d = %q, want %q",
+				credentialName,
 				index,
 				values[index],
 				expectedValues[index],
@@ -1147,6 +1196,14 @@ func startSecureKafkaBroker(
 ) *secureKafkaBroker {
 	t.Helper()
 
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("reserve secured Apache Kafka port: %v", err)
+	}
+	hostPort := listener.Addr().(*net.TCPAddr).Port
+	if err := listener.Close(); err != nil {
+		t.Fatalf("release secured Apache Kafka port: %v", err)
+	}
 	request := testcontainers.GenericContainerRequest{
 		ContainerRequest: testcontainers.ContainerRequest{
 			Image:        apacheKafkaImage,
@@ -1158,6 +1215,16 @@ func startSecureKafkaBroker(
 				"while [ ! -f /tmp/golib-kafka-secure-ready ]; do " +
 					"sleep 0.05; done; exec /bin/bash " +
 					"/tmp/golib-kafka-secure-start.sh",
+			},
+			HostConfigModifier: func(config *container.HostConfig) {
+				config.PortBindings = dockernetwork.PortMap{
+					dockernetwork.MustParsePort(secureKafkaClientPort): {
+						{
+							HostIP:   netip.MustParseAddr("127.0.0.1"),
+							HostPort: fmt.Sprint(hostPort),
+						},
+					},
+				}
 			},
 		},
 	}
@@ -1332,9 +1399,12 @@ func secureKafkaStartupDiagnostic(
 		return "", err
 	}
 	defer logs.Close()
-	data, err := io.ReadAll(io.LimitReader(logs, secureKafkaDiagnosticBytes))
+	data, err := io.ReadAll(io.LimitReader(logs, secureKafkaDiagnosticInput))
 	if err != nil {
 		return "", err
+	}
+	if len(data) > secureKafkaDiagnosticBytes {
+		data = data[len(data)-secureKafkaDiagnosticBytes:]
 	}
 	diagnostic := string(data)
 	for _, secret := range secrets {
@@ -2066,6 +2136,98 @@ func waitForSecureKafkaCompaction(
 		select {
 		case <-waitCtx.Done():
 			t.Fatalf("wait for secured Kafka compaction: %v", context.Cause(waitCtx))
+		case <-ticker.C:
+		}
+	}
+}
+
+func restartSecureKafkaWithPlainCredential(
+	t *testing.T,
+	ctx context.Context,
+	broker *secureKafkaBroker,
+	adminMechanism sasl.Mechanism,
+	password string,
+) {
+	t.Helper()
+
+	copySecureKafkaFile(
+		t,
+		ctx,
+		broker.container,
+		"/tmp/plain.properties",
+		[]byte(
+			"password="+password+"\n"+
+				"limited-password="+broker.limitedPassword+"\n",
+		),
+		0o600,
+	)
+	stopCtx, cancelStop := context.WithTimeout(ctx, 10*time.Second)
+	stopTimeout := 5 * time.Second
+	stopErr := broker.container.Stop(stopCtx, &stopTimeout)
+	cancelStop()
+	if stopErr != nil {
+		t.Fatalf("stop secured Kafka for PLAIN credential replacement: %v", stopErr)
+	}
+	startCtx, cancelStart := context.WithTimeout(ctx, 30*time.Second)
+	startErr := broker.container.Start(startCtx)
+	cancelStart()
+	if startErr != nil {
+		t.Fatalf("restart secured Kafka after PLAIN credential replacement: %v", startErr)
+	}
+	restartedEndpoint := waitForSecureKafkaPortEndpoint(t, ctx, broker.container)
+	if restartedEndpoint != broker.endpoint {
+		t.Fatalf(
+			"secured Kafka endpoint after PLAIN replacement = %q, want %q",
+			restartedEndpoint,
+			broker.endpoint,
+		)
+	}
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(broker.endpoint),
+		kgo.ClientID("golib-secure-plain-restart-observer"),
+		kgo.DialTLSConfig(broker.serverTLSConfig()),
+		kgo.SASL(adminMechanism),
+	)
+	if err != nil {
+		t.Fatalf("construct secured Kafka PLAIN restart observer: %v", err)
+	}
+	defer client.Close()
+	readinessCtx, cancelReadiness := context.WithTimeout(ctx, 60*time.Second)
+	defer cancelReadiness()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var lastErr error
+	for {
+		attemptCtx, cancelAttempt := context.WithTimeout(readinessCtx, 2*time.Second)
+		lastErr = client.Ping(attemptCtx)
+		cancelAttempt()
+		if lastErr == nil {
+			return
+		}
+		select {
+		case <-readinessCtx.Done():
+			diagnosticCtx, cancelDiagnostic := context.WithTimeout(
+				context.Background(),
+				5*time.Second,
+			)
+			diagnostic, diagnosticErr := secureKafkaStartupDiagnostic(
+				diagnosticCtx,
+				broker.container,
+				[]string{
+					password,
+					broker.plainPassword,
+					broker.limitedPassword,
+					broker.scram256Password,
+					broker.scram512Password,
+				},
+			)
+			cancelDiagnostic()
+			if diagnosticErr != nil {
+				t.Logf("read restarted secured Kafka diagnostic: %v", diagnosticErr)
+			} else if diagnostic != "" {
+				t.Logf("restarted secured Kafka diagnostic:\n%s", diagnostic)
+			}
+			t.Fatalf("wait for secured Kafka after PLAIN credential replacement: %v", lastErr)
 		case <-ticker.C:
 		}
 	}

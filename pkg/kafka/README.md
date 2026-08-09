@@ -409,9 +409,12 @@ An authenticated but ACL-denied principal also proves producer and inspector
 authorization failures. Three independent producers for each SCRAM mechanism
 cross broker-enforced reauthentication through three successive credential
 replacements, refresh every provider, verify every acknowledged record, and
-reject every retired secret. A compact-only Apache topic also proves replay
-fails closed on a missing requested offset while the broker log start remains
-unchanged. A three-process consumer fixture proves the documented
+reject every retired secret. Three provider-backed PLAIN producers additionally
+recover after a bounded broker restart replaces the server credential, verify
+every acknowledged record, and reject the retired password. This does not
+claim zero-downtime PLAIN rotation. A compact-only Apache topic also proves
+replay fails closed on a missing requested offset while the broker log start
+remains unchanged. A three-process consumer fixture proves the documented
 eager-to-cooperative rolling protocol transition with exact partition
 ownership. The Apache
 fixtures assert the runtime version; the failure fixture proves one bounded

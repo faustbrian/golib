@@ -114,6 +114,10 @@ The fixtures prove:
   explicitly authorized group result beside a separate
   `GroupAuthorizationFailed` result with stable `ErrorAuthorization`
   classification and no password disclosure; and
+- live PLAIN credential replacement through broker restart: three independent
+  producers use the replacement password from their providers after the
+  secured broker returns, preserve every acknowledged record, and reject the
+  retired password on a new connection; and
 - live SCRAM-SHA-256 and SCRAM-SHA-512 credential replacement: three
   independent producers per mechanism cross Kafka's three-second
   broker-enforced reauthentication lifetime through three successive
@@ -130,11 +134,24 @@ The fixtures prove:
   reconnects again after the retired root is removed; a new client trusting
   only the retired root is rejected.
 
+Kafka's default PLAIN login module keeps the accepted passwords in broker JAAS
+configuration. Kafka 4.3.1's existing SASL channel builder dynamically reloads
+TLS material, not its JAAS context. A same-principal password change therefore
+requires a broker or listener restart and creates a mixed-credential window in
+a rolling cluster. Use an external server callback handler or introduce a
+second principal with overlapping least-privilege ACLs before removing the old
+principal when zero-downtime rotation is required. The package credential
+provider can supply either client credential, but it cannot make the broker
+verifier transition atomic. See Kafka's
+[PLAIN production guidance](https://kafka.apache.org/43/security/authentication-using-sasl/#use-of-sasl-plain-in-production)
+and the pinned
+[SASL channel reconfiguration source](https://github.com/apache/kafka/blob/4.3.1/clients/src/main/java/org/apache/kafka/common/network/SaslChannelBuilder.java#L189-L207).
+
 This proves interoperability only with the pinned Apache fixture. Multi-client
-mTLS and OAuth rotation stress, PLAIN replacement, JWKS refresh and signing-key
-rollover, transactional-ID authorization failures, ACL changes during live
-traffic, and managed-service authentication remain separate required evidence.
-The fixture does not use Kafka's
+mTLS and OAuth rotation stress, zero-downtime multi-broker PLAIN cutover, JWKS
+refresh and signing-key rollover, transactional-ID authorization failures, ACL
+changes during live traffic, and managed-service authentication remain
+separate required evidence. The fixture does not use Kafka's
 non-production unsecured OAUTHBEARER implementation and does not claim
 compatibility with a particular OAuth identity provider.
 

@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove three provider-backed PLAIN producers recover after a bounded broker
+  restart replaces the server credential, preserve every acknowledged record,
+  and reject the retired password without claiming zero-downtime rotation
 - prove three independent producers per SCRAM mechanism survive three
   successive broker credential replacements, refresh every provider, preserve
   every acknowledged record, and reject every retired credential
