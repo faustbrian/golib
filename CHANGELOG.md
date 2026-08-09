@@ -65,6 +65,11 @@ documented in each module's changelog.
 
 ### Changed
 
+- Treat unavailable historical mutation identities as absent reuse candidates
+  instead of aborting current-input mutation verification; current identity
+  calculation and mutation execution remain fail-closed.
+- Run package benchmark targets through the same isolated module graph as
+  tests, analyzers, and mutation instead of loading unrelated workspace modules.
 - Remove the final module-specific pre-v1 release exception so every currently
   unpublished releasable module plans its first public tag as `v1.0.0`.
 - Keep Kafka and Verkle Tree implementation and verification outside the

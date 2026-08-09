@@ -177,6 +177,7 @@ interoperability_declared() {
 
 run_benchmark() {
     local output temporary status target
+    enable_local_proxy
     output="${root}/.artifacts/${module}/benchmark.txt"
     temporary="${output}.tmp.$$"
     mkdir -p "$(dirname "${output}")"
@@ -184,10 +185,10 @@ run_benchmark() {
 
     set +e
     if target="$(find_make_target benchmark performance)"; then
-        make GOWORK="${root}/go.work" "${target}" 2>&1 | tee "${temporary}"
+        make GOWORK=off "${target}" 2>&1 | tee "${temporary}"
         status=${PIPESTATUS[0]}
     else
-        go test ./... -run '^$' -bench . -benchmem 2>&1 |
+        GOWORK=off go test ./... -run '^$' -bench . -benchmem 2>&1 |
             tee "${temporary}"
         status=${PIPESTATUS[0]}
     fi

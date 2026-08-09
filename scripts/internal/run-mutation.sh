@@ -242,11 +242,11 @@ for package_directory in "${packages[@]}"; do
     fi
 
     observer_v1_package_digest="$(
-        GOLIB_MUTATION_DIGEST_RESOLUTION=observer-v1 \
-            "${root}/scripts/gate-input-digest.sh" \
-            mutation "${module}" "${package_directory}"
+        "${root}/scripts/internal/optional-mutation-digest.sh" \
+            observer-v1 "${module}" "${package_directory}"
     )"
-    if [[ "${discover_only}" -eq 0 && -s "${checkpoint}" ]] &&
+    if [[ "${discover_only}" -eq 0 &&
+        -n "${observer_v1_package_digest}" && -s "${checkpoint}" ]] &&
         jq -e \
             --arg module "${module}" \
             --arg package "${package_directory}" \
@@ -294,11 +294,11 @@ for package_directory in "${packages[@]}"; do
     fi
 
     legacy_stable_package_digest="$(
-        GOLIB_MUTATION_DIGEST_RESOLUTION=legacy-stable \
-            "${root}/scripts/gate-input-digest.sh" \
-            mutation "${module}" "${package_directory}"
+        "${root}/scripts/internal/optional-mutation-digest.sh" \
+            legacy-stable "${module}" "${package_directory}"
     )"
-    if [[ "${discover_only}" -eq 0 && -s "${checkpoint}" ]] &&
+    if [[ "${discover_only}" -eq 0 &&
+        -n "${legacy_stable_package_digest}" && -s "${checkpoint}" ]] &&
         jq -e \
             --arg module "${module}" \
             --arg package "${package_directory}" \
@@ -346,11 +346,11 @@ for package_directory in "${packages[@]}"; do
     fi
 
     legacy_package_digest="$(
-        GOLIB_MUTATION_DIGEST_RESOLUTION=caller \
-            "${root}/scripts/gate-input-digest.sh" \
-            mutation "${module}" "${package_directory}"
+        "${root}/scripts/internal/optional-mutation-digest.sh" \
+            caller "${module}" "${package_directory}"
     )"
-    if [[ "${discover_only}" -eq 0 && -s "${checkpoint}" ]] &&
+    if [[ "${discover_only}" -eq 0 &&
+        -n "${legacy_package_digest}" && -s "${checkpoint}" ]] &&
         jq -e \
             --arg module "${module}" \
             --arg package "${package_directory}" \

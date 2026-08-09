@@ -1148,9 +1148,10 @@ func TestMutationEvidenceUsesContentAddressedCheckpoints(t *testing.T) {
 		`execution_revisions`,
 		`gate_input_digests`,
 		`mutation-legacy`,
-		`GOLIB_MUTATION_DIGEST_RESOLUTION=caller`,
-		`GOLIB_MUTATION_DIGEST_RESOLUTION=observer-v1`,
-		`GOLIB_MUTATION_DIGEST_RESOLUTION=legacy-stable`,
+		`optional-mutation-digest.sh`,
+		`observer-v1`,
+		`legacy-stable`,
+		`caller`,
 		`migrated dependency-test-isolated mutation identity`,
 		`migrated module-wide mutation identity`,
 		`identity_lineage`,
@@ -1181,6 +1182,75 @@ func TestMutationEvidenceUsesContentAddressedCheckpoints(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(root, "scripts", "gate-input-digest.sh")); err != nil {
 		t.Fatalf("mutation evidence fingerprint tool: %v", err)
+	}
+}
+
+func TestOptionalMutationDigestTreatsUnavailableHistoryAsNoMatch(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	repository := filepath.Join(t.TempDir(), "repository")
+	if err := os.MkdirAll(filepath.Join(repository, "scripts", "internal"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	helper, err := os.ReadFile(filepath.Join(
+		root,
+		"scripts",
+		"internal",
+		"optional-mutation-digest.sh",
+	))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(
+		t,
+		filepath.Join(repository, "scripts", "internal", "optional-mutation-digest.sh"),
+		string(helper),
+	)
+	writeTestFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
+set -eu
+if [ "${GOLIB_MUTATION_DIGEST_RESOLUTION:-}" = unavailable ]; then
+	printf 'historical dependency cannot be resolved\n' >&2
+	exit 23
+fi
+printf 'available-digest\n'
+`)
+	for _, path := range []string{
+		"scripts/gate-input-digest.sh",
+		"scripts/internal/optional-mutation-digest.sh",
+	} {
+		if err := os.Chmod(filepath.Join(repository, path), 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if output, err := exec.Command("git", "-C", repository, "init", "-q").CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
+	}
+
+	command := exec.Command(
+		filepath.Join(repository, "scripts", "internal", "optional-mutation-digest.sh"),
+		"unavailable",
+		"pkg/example",
+		".",
+	)
+	command.Dir = repository
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("unavailable historical digest was fatal: %v\n%s", err, output)
+	} else if len(output) != 0 {
+		t.Fatalf("unavailable historical digest output = %q, want empty", output)
+	}
+
+	command = exec.Command(
+		filepath.Join(repository, "scripts", "internal", "optional-mutation-digest.sh"),
+		"observer-v1",
+		"pkg/example",
+		".",
+	)
+	command.Dir = repository
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("available historical digest: %v\n%s", err, output)
+	} else if string(output) != "available-digest\n" {
+		t.Fatalf("available historical digest output = %q", output)
 	}
 }
 
@@ -2430,12 +2500,16 @@ func TestModuleGateFallbacksCannotMaskFailingMakeTargets(t *testing.T) {
 		`elif interoperability_declared; then`,
 		"interoperability is declared but has no command",
 		"benchmark gate produced no Go benchmark results",
-		`make GOWORK="${root}/go.work" "${target}"`,
+		`make GOWORK=off "${target}"`,
+		`GOWORK=off go test ./... -run '^$' -bench . -benchmem`,
 		`make "${target}"`,
 	} {
 		if !strings.Contains(contract, required) {
 			t.Fatalf("module gate fail-closed dispatch lacks %q", required)
 		}
+	}
+	if strings.Contains(contract, `make GOWORK="${root}/go.work" "${target}"`) {
+		t.Fatal("package benchmark gate loads the repository workspace")
 	}
 }
 
