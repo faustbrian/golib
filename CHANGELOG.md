@@ -10,7 +10,9 @@ documented in each module's changelog.
 - Add a repository-wide specification decision validator, canonical governance
   contract, and pull request review section so specification-backed modules
   fail visibly on missing provenance, unresolved interpretations, or stale
-  executable evidence.
+  executable evidence. The validator supports deterministic all-module and
+  explicit module selections through the same root command convention as the
+  remaining repository gates.
 
 ### Fixed
 

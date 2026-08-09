@@ -121,7 +121,7 @@ func main() {
 	case "validate":
 		validate(root)
 	case "specifications":
-		validateSpecifications(root)
+		validateSpecifications(root, os.Args[2:])
 	case "select":
 		selectModules(root, os.Args[2:])
 	case "safety":

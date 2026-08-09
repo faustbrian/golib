@@ -231,6 +231,34 @@ func TestValidateSpecificationProvenanceRejectsMalformedNestedJSONDigest(t *test
 	}
 }
 
+func TestSelectSpecificationDecisionModules(t *testing.T) {
+	t.Parallel()
+
+	current := catalog{Modules: []module{
+		{Directory: "pkg/first", Path: canonicalRoot + "/pkg/first"},
+		{Directory: "pkg/second", Path: canonicalRoot + "/pkg/second"},
+	}}
+	selected, err := selectSpecificationDecisionModules(current, false, "pkg/second,"+canonicalRoot+"/pkg/first")
+	if err != nil {
+		t.Fatalf("selectSpecificationDecisionModules() error = %v", err)
+	}
+	if len(selected.Modules) != 2 ||
+		selected.Modules[0].Directory != "pkg/first" ||
+		selected.Modules[1].Directory != "pkg/second" {
+		t.Fatalf("selected modules = %#v", selected.Modules)
+	}
+
+	if _, err := selectSpecificationDecisionModules(current, false, "pkg/missing"); err == nil {
+		t.Fatal("selectSpecificationDecisionModules() accepted an unknown module")
+	}
+	if _, err := selectSpecificationDecisionModules(current, false, ""); err == nil {
+		t.Fatal("selectSpecificationDecisionModules() accepted no selection")
+	}
+	if _, err := selectSpecificationDecisionModules(current, true, "pkg/first"); err == nil {
+		t.Fatal("selectSpecificationDecisionModules() accepted conflicting selection")
+	}
+}
+
 func validSpecificationDecisionFixture(t *testing.T) (string, catalog) {
 	t.Helper()
 

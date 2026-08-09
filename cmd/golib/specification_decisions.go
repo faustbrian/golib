@@ -4,6 +4,7 @@ import (
 	"encoding/csv"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -40,15 +41,57 @@ type specificationDecision struct {
 	body       string
 }
 
-func validateSpecifications(root string) {
+func validateSpecifications(root string, arguments []string) {
+	flags := flag.NewFlagSet("specifications", flag.ExitOnError)
+	all := flags.Bool("all", false, "validate every specification-backed module")
+	explicit := flags.String("modules", "", "comma-separated module directories or paths")
+	if err := flags.Parse(arguments); err != nil {
+		fatal("parse specification selection: %v", err)
+	}
+
 	current, err := discover(root)
 	if err != nil {
 		fatal("discover modules: %v", err)
 	}
-	if err := validateSpecificationDecisions(root, current); err != nil {
+	selected, err := selectSpecificationDecisionModules(current, *all, *explicit)
+	if err != nil {
+		fatal("select specification modules: %v", err)
+	}
+	if err := validateSpecificationDecisions(root, selected); err != nil {
 		fatal("validate specification decisions: %v", err)
 	}
-	fmt.Printf("validated specification decisions for %d modules\n", specificationDecisionModuleCount(current))
+	fmt.Printf("validated specification decisions for %d modules\n", specificationDecisionModuleCount(selected))
+}
+
+func selectSpecificationDecisionModules(current catalog, all bool, explicit string) (catalog, error) {
+	if all && strings.TrimSpace(explicit) != "" {
+		return catalog{}, errors.New("--all and --modules cannot be combined")
+	}
+	if all {
+		return current, nil
+	}
+	if strings.TrimSpace(explicit) == "" {
+		return catalog{}, errors.New("one of --all or --modules is required")
+	}
+
+	wanted := make(map[string]bool)
+	for value := range strings.SplitSeq(explicit, ",") {
+		value = strings.TrimSpace(value)
+		resolved := resolveModule(current, value)
+		if resolved == "" {
+			return catalog{}, fmt.Errorf("unknown module %q", value)
+		}
+		wanted[resolved] = true
+	}
+
+	selected := current
+	selected.Modules = make([]module, 0, len(wanted))
+	for _, item := range current.Modules {
+		if wanted[item.Directory] {
+			selected.Modules = append(selected.Modules, item)
+		}
+	}
+	return selected, nil
 }
 
 func validateSpecificationDecisions(root string, current catalog) error {

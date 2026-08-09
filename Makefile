@@ -25,7 +25,7 @@ inventory:
 	go run ./cmd/golib validate
 
 specification-decisions:
-	go run ./cmd/golib specifications
+	go run ./cmd/golib specifications $(SELECT)
 
 select:
 	go run ./cmd/golib select $(SELECT)
