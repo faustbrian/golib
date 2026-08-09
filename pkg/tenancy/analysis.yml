@@ -1,0 +1,57 @@
+version: 1
+
+context_owners:
+  - github.com/faustbrian/golib/pkg/tenancy/testdata/analyzer/adapter
+
+forbidden_apis:
+  - package: github.com/faustbrian/golib/pkg/cache/backend/memory
+    symbol: New
+    replacement: application-owned tenant cache adapter
+    allowed_packages:
+      - github.com/faustbrian/golib/pkg/tenancy/testdata/analyzer/adapter
+  - package: github.com/faustbrian/golib/pkg/audit/memory
+    symbol: New
+    replacement: application-owned tenant audit adapter
+    allowed_packages:
+      - github.com/faustbrian/golib/pkg/tenancy/testdata/analyzer/adapter
+  - package: github.com/faustbrian/golib/pkg/queue
+    symbol: NewQueue
+    replacement: application-owned tenant queue adapter
+    allowed_packages:
+      - github.com/faustbrian/golib/pkg/tenancy/testdata/analyzer/adapter
+  - package: github.com/faustbrian/golib/pkg/workflow/postgres
+    symbol: New
+    replacement: application-owned tenant workflow adapter
+    allowed_packages:
+      - github.com/faustbrian/golib/pkg/tenancy/testdata/analyzer/adapter
+  - package: github.com/faustbrian/golib/pkg/telemetry/otlp
+    symbol: NewTraceExporter
+    replacement: application-owned bounded telemetry adapter
+    allowed_packages:
+      - github.com/faustbrian/golib/pkg/tenancy/testdata/analyzer/adapter
+
+metric_label_types:
+  - package: github.com/faustbrian/golib/pkg/tenancy
+    name: TenantID
+
+metric_label_sinks:
+  - package: github.com/faustbrian/golib/pkg/tenancy/testdata/analyzer/metrics
+    symbol: Label
+    arguments: [0]
+
+rules:
+  api/forbidden-call:
+    status: blocking
+    promotion:
+      version: 0.1.0
+      evidence: tenancy provider bypass fixture
+  context/no-background:
+    status: blocking
+    promotion:
+      version: 0.1.0
+      evidence: tenancy context replacement fixture
+  observability/high-cardinality-label:
+    status: blocking
+    promotion:
+      version: 0.1.0
+      evidence: tenancy telemetry cardinality fixture

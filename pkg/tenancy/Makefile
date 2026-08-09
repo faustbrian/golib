@@ -4,8 +4,11 @@ BENCH_TIME ?= 100ms
 SOAK_TIME ?= 30s
 SOAK_TIMEOUT ?= 2m
 
-.PHONY: benchmark check clean-consumer coverage docs format format-check fuzz \
+.PHONY: analyzers benchmark check clean-consumer coverage docs format format-check fuzz \
 	integration mutation race soak test tidy-check vet
+
+analyzers:
+	./scripts/check-analyzers.sh
 
 format:
 	gofmt -w .
@@ -54,5 +57,5 @@ clean-consumer:
 vet:
 	GOWORK=off $(GO) vet ./...
 
-check: tidy-check format-check vet test coverage race fuzz mutation benchmark \
+check: tidy-check format-check vet test coverage race fuzz mutation benchmark analyzers \
 	docs clean-consumer

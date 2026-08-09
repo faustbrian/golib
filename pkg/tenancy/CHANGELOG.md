@@ -50,4 +50,7 @@ versioning once released.
   administrative reasons, capabilities, and complete scopes.
 - Complete trust, integration, PostgreSQL, administration, migration, security,
   analyzer-boundary, hardening, FAQ, and clean-consumer guidance and tooling.
+- Add an executable blocking analyzer policy for direct first-party provider
+  construction, replacement contexts, and tenant metric labels, with a narrow
+  reviewed-adapter exception fixture.
 - MIT licensing and a private vulnerability-reporting and support boundary.

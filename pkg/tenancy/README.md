@@ -118,5 +118,8 @@ they cannot prove isolation in application paths that bypass those seams.
 Detailed adoption and security guidance is in [`docs/`](docs/): trust and
 service propagation, integrations, PostgreSQL/RLS, administration, migration,
 static-analysis boundaries, hardening evidence, security caveats, and FAQ.
+The checked-in `analysis.yml` and `make analyzers` fixture provide executable
+negative proof for declared direct-provider, context-replacement, and telemetry
+cardinality bypasses.
 The current threat-to-test mapping and residual trust boundaries are recorded
 in [`docs/security-review.md`](docs/security-review.md).

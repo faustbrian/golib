@@ -38,6 +38,7 @@ Review date: 2026-08-09
 | PostgreSQL absent scope, system scope, RLS composition, prepared plans, rollback, cancellation, stale pool state, connection loss, reconnect, and concurrent reuse | `TestPostgreSQLRLSAndPoolReuseIsolation` against live PostgreSQL with `-race` |
 | Administrative partial failure, retry, resume, and attribution | `TestAdministrativeIterationStopsAtAuditOperationAndCancellation`, `TestAdministrativeResumeRepeatsFailedTenantWithCompleteAttribution`, cursor-cycle and page-bound tests |
 | External-module adoption and migration | `scripts/check-clean-consumer.sh` executes authenticated HTTP, conflicting JSON-RPC, explicit SQL predicate, and no-fallback scoped cache fixtures |
+| Direct provider, replacement-context, and telemetry-label bypass | `scripts/check-analyzers.sh` executes the blocking `analysis.yml` policy against negative consumer and reviewed-adapter fixtures |
 
 ## Trust and support boundaries
 
@@ -59,7 +60,8 @@ cursor to its source snapshot. Asynchronous fan-out is intentionally outside
 `IterateTenants`; callers requiring it must durably own per-tenant completion,
 retry, idempotency, and audit attribution.
 
-No executable package-specific analyzer policy currently proves that
-applications cannot call raw provider or telemetry sinks. The analyzer guide
-defines the required consumer-side rules and their blind spots; runtime
-negative tests remain authoritative for the owned seams.
+The package-specific analyzer policy proves only its declared exact provider
+constructors, context sources, typed tenant values, and telemetry sink. It does
+not infer undeclared wrappers, reflection, generated calls, dynamic SQL, or a
+provider added without updating the policy. Runtime negative tests remain
+authoritative for the owned seams.
