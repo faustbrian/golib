@@ -97,7 +97,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
 | 41 | Protocol | `pending` | `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1, 13, 19 |
 | 42 | Security | `pending` | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19, 21-23, 41 |
-| 43 | Isolation | `pending` | `pkg/tenancy/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 21-23 |
 | 44 | Audit | `pending` | `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 29-32, 43 |
 | 45 | Event contracts | `pending` | `pkg/schema-registry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26 |
 | 46 | Event interoperability | `pending` | `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-35, 43, 45 |
@@ -137,10 +136,24 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 39. Current scoped evidence verifies exact UTC encoding, bound-sensitive interval relations, persisted-input hardening, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/external-sort/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 40. Current scoped evidence verifies encrypted spill hardening and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/tenancy/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 43. Current scoped evidence verifies explicit tenant identity, propagation, namespaces, administration, PostgreSQL/RLS, asynchronous lifecycle, hardening, documentation, and every mandatory tenancy-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
+
+### Explicit tenant isolation evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/tenancy/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Typed opaque tenant identity; explicit tenant, system, and unscoped operations; trusted HTTP, JSON-RPC, message, event, namespace, telemetry, and background propagation; audited administration; PostgreSQL predicates, transaction-local settings, pool reset, and RLS isolation. |
+| Status | `pending` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --modules pkg/tenancy` and package-local `make clean-consumer` against the completed implementation. |
+| Result | Passed every mandatory tenancy module gate, including live PostgreSQL/RLS interoperability, race and leak stress, two 10,000-execution fuzz targets, exact 597/597 statements across production packages, 426/426 viable mutants with 100% efficacy and mutant coverage, security, API, documentation, clean-consumer, and equivalent-work benchmarks. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each run and the gate-managed PostgreSQL service. |
+| Observed | 2026-08-09T09:48:31Z |
+| Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped tenancy contract. |
 
 ### Queue service lifecycle adapter evidence
 
