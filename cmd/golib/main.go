@@ -1109,6 +1109,9 @@ func interoperabilityTools(directory string) []string {
 	if directory == "pkg/authentication/oidc" {
 		return []string{"Google, Keycloak, and Dex provider metadata profiles"}
 	}
+	if directory == "pkg/webhook" {
+		return []string{"Python 3 standard-library HMAC-SHA-256 and HMAC-SHA-512 vectors"}
+	}
 	if directory == "pkg/search/adapters/opensearch" {
 		return []string{"OpenSearch 2.19.3", "OpenSearch 3.6.0", "opensearch-go/v4 v4.7.3"}
 	}
@@ -1204,6 +1207,22 @@ func specifications(directory string) []string {
 			"OpenID Connect Discovery 1.0 incorporating errata set 2",
 		}
 	}
+	if directory == "pkg/webhook" {
+		return []string{
+			"Go 1.26.5 cryptography, HTTP, URL, address, time, and encoding contracts",
+			"RFC 2104 HMAC and RFC 4231 HMAC-SHA-256/HMAC-SHA-512 vectors",
+			"RFC 4648 Base-N Encodings",
+			"RFC 3986 URI Generic Syntax",
+			"RFC 3339 Internet date and time",
+			"RFC 8259 JSON",
+			"RFC 8941 Structured Fields comparison boundary",
+			"RFC 9110 HTTP Semantics",
+			"RFC 9421 HTTP Message Signatures comparison boundary",
+			"IANA IPv4 and IPv6 Special-Purpose Address Registries at 2025-10-09",
+			"CloudEvents 1.0.2 comparison boundary",
+			"W3C Trace Context Level 1",
+		}
+	}
 	if directory == "pkg/kafka" {
 		return []string{
 			"Apache Kafka protocol and client semantics",
@@ -1277,6 +1296,13 @@ func conformanceCorpora(directory string) []string {
 	}
 	if directory == "pkg/authentication/oidc" {
 		return []string{"OpenID Connect Core 1.0 Section 2 ID-token claim vector"}
+	}
+	if directory == "pkg/webhook" {
+		return []string{
+			"Pinned normative-source matrix and 26-decision protocol register",
+			"Independent Python HMAC-SHA-256 and HMAC-SHA-512 v1 vectors",
+			"Controlled body, replay, delivery, DNS, redirect, and SSRF matrices",
+		}
 	}
 	prefix := libraryName(directory)
 	switch prefix {
