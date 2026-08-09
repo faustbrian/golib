@@ -1,0 +1,425 @@
+package workflow_test
+
+import (
+	"errors"
+	"strconv"
+	"testing"
+	"time"
+
+	workflow "github.com/faustbrian/golib/pkg/workflow"
+)
+
+func TestDefinitionOwnsImmutableVersionedBehavior(t *testing.T) {
+	t.Parallel()
+
+	steps := []workflow.StepSpec{
+		{
+			Name:        "reserve",
+			Kind:        workflow.StepActivity,
+			Target:      "inventory.reserve",
+			Timeout:     time.Minute,
+			InputLimit:  4 << 10,
+			ResultLimit: 4 << 10,
+			Retry: workflow.RetryPolicy{
+				MaxAttempts:  3,
+				InitialDelay: time.Second,
+				MaxDelay:     time.Minute,
+			},
+			Compensation: &workflow.CompensationSpec{
+				Target:      "inventory.release",
+				Timeout:     time.Minute,
+				ResultLimit: 4 << 10,
+				Retry: workflow.RetryPolicy{
+					MaxAttempts:  5,
+					InitialDelay: time.Second,
+					MaxDelay:     time.Minute,
+				},
+			},
+		},
+	}
+
+	definition, err := workflow.NewDefinition(workflow.DefinitionSpec{
+		Name:    "order.fulfillment",
+		Version: "2026-08-09",
+		Mode:    workflow.Orchestration,
+		Steps:   steps,
+	})
+	if err != nil {
+		t.Fatalf("construct definition: %v", err)
+	}
+
+	fingerprint := definition.Fingerprint()
+	steps[0].Target = "inventory.corrupted"
+	steps[0].Compensation.Target = "inventory.corrupted"
+
+	got := definition.Steps()
+	if got[0].Target != "inventory.reserve" {
+		t.Fatalf("definition retained caller-owned target: %q", got[0].Target)
+	}
+	if got[0].Compensation.Target != "inventory.release" {
+		t.Fatalf("definition retained caller-owned compensation: %q", got[0].Compensation.Target)
+	}
+	got[0].Target = "inventory.changed-again"
+	if definition.Steps()[0].Target != "inventory.reserve" {
+		t.Fatal("Steps returned mutable definition state")
+	}
+	if definition.Fingerprint() != fingerprint {
+		t.Fatal("caller mutation changed the immutable definition fingerprint")
+	}
+	if definition.Name() != "order.fulfillment" || definition.Version() != "2026-08-09" {
+		t.Fatalf("unexpected key: %s@%s", definition.Name(), definition.Version())
+	}
+	if definition.Mode() != workflow.Orchestration || definition.Deprecated() {
+		t.Fatal("unexpected definition metadata")
+	}
+}
+
+func TestDefinitionSupportsExplicitBoundedStepKinds(t *testing.T) {
+	t.Parallel()
+
+	activity := workflow.StepSpec{
+		Name: "activity", Kind: workflow.StepActivity, Target: "work.execute",
+		Timeout: time.Minute, InputLimit: 1, ResultLimit: 1,
+		Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
+	}
+	child := activity
+	child.Name = "child"
+	child.Kind = workflow.StepChild
+	child.Target = "child.workflow"
+
+	definition, err := workflow.NewDefinition(workflow.DefinitionSpec{
+		Name: "all.steps", Version: "1", Mode: workflow.Choreography, Deprecated: true,
+		Steps: []workflow.StepSpec{
+			activity,
+			child,
+			{Name: "signal", Kind: workflow.StepSignal, Target: "shipment.ready", Timeout: time.Hour, InputLimit: 1},
+			{Name: "approval", Kind: workflow.StepApproval, Target: "finance.approval", Timeout: time.Hour, InputLimit: 1},
+			{Name: "timer", Kind: workflow.StepTimer, Timeout: time.Second},
+			{Name: "parallel", Kind: workflow.StepParallel, FanOutLimit: 2},
+			{Name: "join", Kind: workflow.StepJoin, FanOutLimit: 2},
+			{Name: "race", Kind: workflow.StepRace, FanOutLimit: 2},
+		},
+	})
+	if err != nil {
+		t.Fatalf("construct all step kinds: %v", err)
+	}
+	if definition.Mode() != workflow.Choreography || !definition.Deprecated() {
+		t.Fatal("definition did not preserve explicit mode and deprecation")
+	}
+	if len(definition.Steps()) != 8 {
+		t.Fatalf("step count = %d", len(definition.Steps()))
+	}
+	if got := (workflow.Definition{}).Steps(); got != nil {
+		t.Fatalf("zero definition steps = %#v", got)
+	}
+}
+
+func TestDefinitionAcceptsEveryExactSafetyBoundary(t *testing.T) {
+	t.Parallel()
+
+	steps := make([]workflow.StepSpec, workflow.MaxFanOut)
+	for index := range steps {
+		steps[index] = workflow.StepSpec{
+			Name:        "step-" + strconv.Itoa(index),
+			Kind:        workflow.StepActivity,
+			Target:      "work.execute",
+			Timeout:     time.Nanosecond,
+			InputLimit:  workflow.MaxPayloadBytes,
+			ResultLimit: workflow.MaxPayloadBytes,
+			Retry: workflow.RetryPolicy{
+				MaxAttempts:  1,
+				InitialDelay: time.Nanosecond,
+				MaxDelay:     time.Nanosecond,
+			},
+		}
+	}
+	steps[0].Compensation = &workflow.CompensationSpec{
+		Target: "work.undo", Timeout: time.Nanosecond,
+		ResultLimit: workflow.MaxPayloadBytes,
+		Retry: workflow.RetryPolicy{
+			MaxAttempts: 1, InitialDelay: time.Nanosecond, MaxDelay: time.Nanosecond,
+		},
+	}
+	steps[1] = workflow.StepSpec{Name: "parallel-boundary", Kind: workflow.StepParallel, FanOutLimit: workflow.MaxFanOut}
+
+	if _, err := workflow.NewDefinition(workflow.DefinitionSpec{
+		Name: "boundaries", Version: "1", Mode: workflow.Orchestration, Steps: steps,
+	}); err != nil {
+		t.Fatalf("exact safety boundary rejected: %v", err)
+	}
+}
+
+func TestDefinitionRejectsUnsafeOrAmbiguousSteps(t *testing.T) {
+	t.Parallel()
+
+	validActivity := workflow.StepSpec{
+		Name:        "charge",
+		Kind:        workflow.StepActivity,
+		Target:      "payments.charge",
+		Timeout:     time.Minute,
+		InputLimit:  1024,
+		ResultLimit: 1024,
+		Retry: workflow.RetryPolicy{
+			MaxAttempts:  2,
+			InitialDelay: time.Second,
+			MaxDelay:     time.Minute,
+		},
+	}
+
+	tests := map[string]func() workflow.DefinitionSpec{
+		"missing stable name": func() workflow.DefinitionSpec {
+			return workflow.DefinitionSpec{Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{validActivity}}
+		},
+		"missing immutable version": func() workflow.DefinitionSpec {
+			return workflow.DefinitionSpec{Name: "payments", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{validActivity}}
+		},
+		"unknown mode": func() workflow.DefinitionSpec {
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.ExecutionMode(99), Steps: []workflow.StepSpec{validActivity}}
+		},
+		"duplicate step": func() workflow.DefinitionSpec {
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{validActivity, validActivity}}
+		},
+		"activity without target": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.Target = ""
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"activity without timeout": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.Timeout = 0
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"activity without bounded input": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.InputLimit = 0
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"activity without bounded result": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.ResultLimit = 0
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"activity without bounded retry": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.Retry.MaxAttempts = 0
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"unbounded fan out": func() workflow.DefinitionSpec {
+			return workflow.DefinitionSpec{Name: "batch", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{{Name: "map", Kind: workflow.StepParallel}}}
+		},
+		"invalid durable wait": func() workflow.DefinitionSpec {
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{{Name: "signal", Kind: workflow.StepSignal, Target: "payment.ready", Timeout: 0, InputLimit: 1}}}
+		},
+		"invalid durable timer": func() workflow.DefinitionSpec {
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{{Name: "timer", Kind: workflow.StepTimer}}}
+		},
+		"unknown step kind": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.Kind = workflow.StepKind(99)
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"invalid step name": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.Name = " spaces "
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"payload exceeds bound": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.ResultLimit = workflow.MaxPayloadBytes + 1
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"retry delay is incoherent": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.Retry.MaxDelay = time.Millisecond
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"retry initial delay is unbounded": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.Retry.InitialDelay = 0
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"compensation only follows activity": func() workflow.DefinitionSpec {
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{{
+				Name: "wait", Kind: workflow.StepTimer, Timeout: time.Second,
+				Compensation: &workflow.CompensationSpec{Target: "undo", Timeout: time.Second, ResultLimit: 1, Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second}},
+			}}}
+		},
+		"invalid compensation": func() workflow.DefinitionSpec {
+			step := validActivity
+			step.Compensation = &workflow.CompensationSpec{
+				Target: "undo", Timeout: 0, ResultLimit: 1,
+				Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
+			}
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{step}}
+		},
+		"too many steps": func() workflow.DefinitionSpec {
+			steps := make([]workflow.StepSpec, workflow.MaxFanOut+1)
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration, Steps: steps}
+		},
+	}
+
+	for name, spec := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := workflow.NewDefinition(spec())
+			if !errors.Is(err, workflow.ErrInvalidDefinition) {
+				t.Fatalf("error = %v, want ErrInvalidDefinition", err)
+			}
+		})
+	}
+}
+
+func TestRegistryPinsVersionsAndRejectsDuplicateRegistration(t *testing.T) {
+	t.Parallel()
+
+	first := mustDefinition(t, "orders", "1")
+	second := mustDefinition(t, "orders", "2")
+
+	registry, err := workflow.CompileDefinitions(first, second)
+	if err != nil {
+		t.Fatalf("compile definitions: %v", err)
+	}
+
+	resolved, err := registry.Resolve("orders", "1")
+	if err != nil {
+		t.Fatalf("resolve pinned version: %v", err)
+	}
+	if resolved.Fingerprint() != first.Fingerprint() {
+		t.Fatal("registry did not return the pinned immutable behavior")
+	}
+	if _, err := registry.Resolve("orders", "3"); !errors.Is(err, workflow.ErrDefinitionNotFound) {
+		t.Fatalf("missing version error = %v", err)
+	}
+	if _, err := workflow.CompileDefinitions(first, first); !errors.Is(err, workflow.ErrDuplicateDefinition) {
+		t.Fatalf("duplicate error = %v", err)
+	}
+}
+
+func TestRegistryRequiresExplicitDefinitionMigration(t *testing.T) {
+	t.Parallel()
+
+	first := mustDefinition(t, "orders", "1")
+	second := mustDefinition(t, "orders", "2")
+	migrate := func(state workflow.MigrationState) (workflow.MigrationState, error) {
+		state.Data = append([]byte("v2:"), state.Data...)
+		return state, nil
+	}
+
+	registry, err := workflow.CompileRegistry(
+		[]workflow.Definition{first, second},
+		[]workflow.Migration{{Name: "orders", FromVersion: "1", ToVersion: "2", Apply: migrate}},
+	)
+	if err != nil {
+		t.Fatalf("compile registry: %v", err)
+	}
+
+	migration, err := registry.Migration("orders", "1", "2")
+	if err != nil {
+		t.Fatalf("resolve migration: %v", err)
+	}
+	state, err := migration.Apply(workflow.MigrationState{Data: []byte("state")})
+	if err != nil {
+		t.Fatalf("apply migration: %v", err)
+	}
+	if string(state.Data) != "v2:state" {
+		t.Fatalf("migration result = %q", state.Data)
+	}
+
+	_, err = workflow.CompileRegistry(
+		[]workflow.Definition{first, second},
+		[]workflow.Migration{{Name: "orders", FromVersion: "1", ToVersion: "3", Apply: migrate}},
+	)
+	if !errors.Is(err, workflow.ErrInvalidMigration) {
+		t.Fatalf("unknown target error = %v", err)
+	}
+	if _, err := registry.Migration("orders", "2", "1"); !errors.Is(err, workflow.ErrMigrationNotFound) {
+		t.Fatalf("missing migration error = %v", err)
+	}
+	if _, err := (*workflow.Registry)(nil).Migration("orders", "1", "2"); !errors.Is(err, workflow.ErrMigrationNotFound) {
+		t.Fatalf("nil registry migration error = %v", err)
+	}
+}
+
+func TestRegistryRejectsInvalidDefinitionsAndMigrationEdges(t *testing.T) {
+	t.Parallel()
+
+	first := mustDefinition(t, "orders", "1")
+	second := mustDefinition(t, "orders", "2")
+	migrate := func(state workflow.MigrationState) (workflow.MigrationState, error) { return state, nil }
+
+	tests := map[string]struct {
+		definitions []workflow.Definition
+		migrations  []workflow.Migration
+		want        error
+	}{
+		"zero definition": {
+			definitions: []workflow.Definition{{}},
+			want:        workflow.ErrInvalidDefinition,
+		},
+		"nil migration": {
+			definitions: []workflow.Definition{first, second},
+			migrations:  []workflow.Migration{{Name: "orders", FromVersion: "1", ToVersion: "2"}},
+			want:        workflow.ErrInvalidMigration,
+		},
+		"identity migration": {
+			definitions: []workflow.Definition{first},
+			migrations:  []workflow.Migration{{Name: "orders", FromVersion: "1", ToVersion: "1", Apply: migrate}},
+			want:        workflow.ErrInvalidMigration,
+		},
+		"missing source": {
+			definitions: []workflow.Definition{second},
+			migrations:  []workflow.Migration{{Name: "orders", FromVersion: "1", ToVersion: "2", Apply: migrate}},
+			want:        workflow.ErrInvalidMigration,
+		},
+		"duplicate migration": {
+			definitions: []workflow.Definition{first, second},
+			migrations: []workflow.Migration{
+				{Name: "orders", FromVersion: "1", ToVersion: "2", Apply: migrate},
+				{Name: "orders", FromVersion: "1", ToVersion: "2", Apply: migrate},
+			},
+			want: workflow.ErrDuplicateMigration,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := workflow.CompileRegistry(test.definitions, test.migrations)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("error = %v, want %v", err, test.want)
+			}
+		})
+	}
+
+	if _, err := (*workflow.Registry)(nil).Resolve("orders", "1"); !errors.Is(err, workflow.ErrDefinitionNotFound) {
+		t.Fatalf("nil registry resolve error = %v", err)
+	}
+}
+
+func mustDefinition(t *testing.T, name, version string) workflow.Definition {
+	t.Helper()
+
+	definition, err := workflow.NewDefinition(workflow.DefinitionSpec{
+		Name:    name,
+		Version: version,
+		Mode:    workflow.Orchestration,
+		Steps: []workflow.StepSpec{{
+			Name:        "execute",
+			Kind:        workflow.StepActivity,
+			Target:      name + ".execute",
+			Timeout:     time.Minute,
+			InputLimit:  1024,
+			ResultLimit: 1024,
+			Retry: workflow.RetryPolicy{
+				MaxAttempts:  1,
+				InitialDelay: time.Second,
+				MaxDelay:     time.Second,
+			},
+		}},
+	})
+	if err != nil {
+		t.Fatalf("construct definition: %v", err)
+	}
+
+	return definition
+}
