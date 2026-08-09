@@ -106,6 +106,12 @@ outbox relay contract, and the optional health method is retained when present.
 Instrumentation names, attribute sets, and retry buckets are versioned schema;
 changes are documented in [`CHANGELOG.md`](CHANGELOG.md).
 
+Upgrading the core outbox dependency requires reviewing every declared
+`outbox.Operation` and `outbox.Outcome` against the adapter's explicit mapping
+test. Newly introduced values remain `unknown` until they are deliberately
+mapped and the instrumentation schema version is updated when the exported
+convention changes.
+
 Earlier builds exported raw topic, envelope ID, and attempt count on publish
 spans. Remove dashboards or alerts that depend on those forbidden attributes.
 Replace attempt-number grouping with `outbox.retry.state`; destination-specific

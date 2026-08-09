@@ -2,6 +2,8 @@ package gotelemetry_test
 
 import (
 	"context"
+	"errors"
+	"reflect"
 	"testing"
 	"time"
 
@@ -9,6 +11,7 @@ import (
 	"github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
 
@@ -94,4 +97,90 @@ func FuzzTelemetryLifecycle(f *testing.F) {
 			t.Fatalf("Publish() error = %v", publishErr)
 		}
 	})
+}
+
+func FuzzWrappedPublicationIsolation(f *testing.F) {
+	f.Add("secret", uint8(0), uint8(0), false, 1)
+	f.Add("credential", uint8(4), uint8(2), true, 6)
+
+	f.Fuzz(func(
+		t *testing.T,
+		secret string,
+		providerMode uint8,
+		publisherMode uint8,
+		canceled bool,
+		attempts int,
+	) {
+		if len(secret) > 256 {
+			t.Skip()
+		}
+
+		var tracer trace.TracerProvider = tracenoop.NewTracerProvider()
+		var propagator propagation.TextMapPropagator = propagation.TraceContext{}
+		switch providerMode % 6 {
+		case 1:
+			propagator = panickingPropagator{}
+		case 2:
+			propagator = replacingPropagator{}
+		case 3:
+			propagator = nilContextPropagator{}
+		case 4:
+			tracer = panickingTracerProvider{TracerProvider: tracer}
+		case 5:
+			tracer = invalidStartTracerProvider{TracerProvider: tracer, nilSpan: true}
+		}
+		telemetry, err := gotelemetry.New(testRuntime{
+			tracer: tracer, meter: metricnoop.NewMeterProvider(), propagator: propagator,
+		})
+		if err != nil {
+			t.Fatalf("new telemetry: %v", err)
+		}
+
+		var wantErr error
+		var wantPanic any
+		downstream := &recordingPublisher{}
+		switch publisherMode % 3 {
+		case 1:
+			wantErr = errors.New(secret)
+			downstream.err = wantErr
+		case 2:
+			wantPanic = &fuzzPanic{value: secret}
+			downstream.panicValue = wantPanic
+		}
+		publisher, err := telemetry.WrapPublisher(downstream)
+		if err != nil {
+			t.Fatalf("wrap publisher: %v", err)
+		}
+		envelope := outbox.Envelope{
+			ID: secret, Topic: secret, Payload: []byte(secret),
+			Metadata:    map[string]string{"authorization": secret},
+			OrderingKey: secret, IdempotencyKey: secret, Attempts: attempts,
+		}
+		ctx := context.Background()
+		if canceled {
+			var cancel context.CancelFunc
+			ctx, cancel = context.WithCancel(ctx)
+			cancel()
+		}
+
+		var gotErr error
+		var gotPanic any
+		func() {
+			defer func() { gotPanic = recover() }()
+			gotErr = publisher.Publish(ctx, envelope)
+		}()
+		if gotErr != wantErr || gotPanic != wantPanic {
+			t.Fatalf("publish error/panic = %v/%#v, want exact %v/%#v", gotErr, gotPanic, wantErr, wantPanic)
+		}
+		if downstream.calls != 1 || !reflect.DeepEqual(downstream.envelope, envelope) {
+			t.Fatalf("downstream calls/envelope = %d/%#v", downstream.calls, downstream.envelope)
+		}
+		if canceled && !errors.Is(downstream.context.Err(), context.Canceled) {
+			t.Fatalf("downstream context error = %v", downstream.context.Err())
+		}
+	})
+}
+
+type fuzzPanic struct {
+	value string
 }

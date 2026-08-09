@@ -298,11 +298,10 @@ func (telemetry *Telemetry) startPublishSpan(
 			attribute.String("outbox.retry.state", retryState(attempts)),
 		),
 	)
-	if spanContext == nil {
-		spanContext = ctx
-	}
 	if span == nil {
 		spanContext = ctx
+	} else {
+		spanContext = trace.ContextWithSpan(ctx, span)
 	}
 
 	return spanContext, span

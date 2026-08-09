@@ -46,10 +46,12 @@ worker, err := relay.New(store, publisher, relay.Config{
 Pass the same observer through `postgres.StoreConfig.Observer` to record replay,
 prune, and archive counts and latency.
 
-The wrapper extracts producer context and creates an `outbox.publish` producer
-span. It adds message ID, topic, and attempts to traces, but never payload,
-metadata, or publisher error text. Downstream errors are returned unchanged
-and set only a generic error status on the span.
+The wrapper extracts only lowercase `traceparent` and `tracestate` metadata and
+creates an `outbox.publish` producer span. Span attributes are limited to the
+fixed operation, outcome, and retry-state dimensions. Message IDs, topics, raw
+attempt counts, destinations, payloads, arbitrary metadata, publisher errors,
+and panic values are never exported. Downstream errors and panics retain their
+exact values.
 
 The observer exports:
 
@@ -70,3 +72,9 @@ if err == nil {
 Metric attributes intentionally exclude message ID and topic to bound
 cardinality. A standard `*slog.Logger` can be passed directly through
 `relay.Config.Logger`.
+
+Exporter lifecycle remains application-owned. Use an OpenTelemetry batch span
+processor with a bounded queue and export timeout, stop the relay before SDK
+shutdown, and pass the pod's remaining termination budget to provider
+shutdown. The adapter starts no goroutines and performs no provider flush or
+shutdown of its own.

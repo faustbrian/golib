@@ -55,6 +55,10 @@ func TestTelemetryLinksPublishToInjectedProducerTrace(t *testing.T) {
 	if len(spans) != 2 || spans[1].Parent().TraceID() != spans[0].SpanContext().TraceID() {
 		t.Fatalf("spans = %#v", spans)
 	}
+	if downstream.span.TraceID() != spans[1].SpanContext().TraceID() ||
+		downstream.span.SpanID() != spans[1].SpanContext().SpanID() {
+		t.Fatalf("downstream span = %v, want publish span %v", downstream.span, spans[1].SpanContext())
+	}
 }
 
 func TestTelemetryRecordsPayloadSafeMetricsAndPublishFailure(t *testing.T) {
@@ -253,6 +257,32 @@ func TestWrappedPublisherPreservesContextWhenProviderReturnsNil(t *testing.T) {
 	}
 }
 
+func TestWrappedPublisherPreservesCallerContextWhenTracerReplacesIt(t *testing.T) {
+	t.Parallel()
+
+	telemetry, err := gotelemetry.New(testRuntime{
+		tracer: replacingStartTracerProvider{TracerProvider: sdktrace.NewTracerProvider()},
+		meter:  metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		t.Fatalf("new telemetry: %v", err)
+	}
+	downstream := &recordingPublisher{}
+	publisher, err := telemetry.WrapPublisher(downstream)
+	if err != nil {
+		t.Fatalf("wrap publisher: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	if err := publisher.Publish(ctx, outbox.Envelope{}); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	if !errors.Is(downstream.context.Err(), context.Canceled) {
+		t.Fatalf("downstream context error = %v", downstream.context.Err())
+	}
+}
+
 func TestInjectContainsPropagationPanicAndPreservesMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -372,6 +402,75 @@ func TestObservationBoundsCallerConstructedDimensions(t *testing.T) {
 				for _, point := range data.DataPoints {
 					assertBoundedOperationAttributes(t, point.Attributes)
 				}
+			}
+		}
+	}
+}
+
+func TestObservationMapsEveryDeclaredOutboxConvention(t *testing.T) {
+	t.Parallel()
+
+	operations := []outbox.Operation{
+		outbox.OperationClaim,
+		outbox.OperationPublish,
+		outbox.OperationDeliver,
+		outbox.OperationRetry,
+		outbox.OperationDeadLetter,
+		outbox.OperationRelease,
+		outbox.OperationExtendLease,
+		outbox.OperationReplay,
+		outbox.OperationPrune,
+		outbox.OperationArchive,
+	}
+	outcomes := []outbox.Outcome{outbox.OutcomeSuccess, outbox.OutcomeFailure}
+	reader := sdkmetric.NewManualReader()
+	telemetry, err := gotelemetry.New(testRuntime{
+		tracer:     sdktrace.NewTracerProvider(),
+		meter:      sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		t.Fatalf("new telemetry: %v", err)
+	}
+	for _, operation := range operations {
+		for _, outcome := range outcomes {
+			telemetry.Observe(context.Background(), outbox.Event{
+				Operation: operation,
+				Outcome:   outcome,
+				Count:     1,
+			})
+		}
+	}
+
+	var metrics metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &metrics); err != nil {
+		t.Fatalf("collect metrics: %v", err)
+	}
+	got := map[string]struct{}{}
+	for _, scope := range metrics.ScopeMetrics {
+		for _, measurement := range scope.Metrics {
+			if measurement.Name != "outbox.operations" {
+				continue
+			}
+			for _, point := range measurement.Data.(metricdata.Sum[int64]).DataPoints {
+				operation, operationOK := point.Attributes.Value("outbox.operation")
+				outcome, outcomeOK := point.Attributes.Value("outbox.outcome")
+				retry, retryOK := point.Attributes.Value("outbox.retry.state")
+				if !operationOK || !outcomeOK || !retryOK || retry.AsString() != "none" {
+					t.Fatalf("operation attributes = %#v", point.Attributes)
+				}
+				got[operation.AsString()+"/"+outcome.AsString()] = struct{}{}
+			}
+		}
+	}
+	if len(got) != len(operations)*len(outcomes) {
+		t.Fatalf("mapped conventions = %d, want %d", len(got), len(operations)*len(outcomes))
+	}
+	for _, operation := range operations {
+		for _, outcome := range outcomes {
+			key := string(operation) + "/" + string(outcome)
+			if _, exists := got[key]; !exists {
+				t.Errorf("missing convention mapping %q", key)
 			}
 		}
 	}
@@ -926,6 +1025,27 @@ type invalidStartTracerProvider struct {
 	trace.TracerProvider
 	nilContext bool
 	nilSpan    bool
+}
+
+type replacingStartTracerProvider struct{ trace.TracerProvider }
+
+func (provider replacingStartTracerProvider) Tracer(
+	name string,
+	options ...trace.TracerOption,
+) trace.Tracer {
+	return replacingStartTracer{Tracer: provider.TracerProvider.Tracer(name, options...)}
+}
+
+type replacingStartTracer struct{ trace.Tracer }
+
+func (tracer replacingStartTracer) Start(
+	ctx context.Context,
+	name string,
+	options ...trace.SpanStartOption,
+) (context.Context, trace.Span) {
+	_, span := tracer.Tracer.Start(ctx, name, options...)
+
+	return trace.ContextWithSpan(context.Background(), span), span
 }
 
 func (provider invalidStartTracerProvider) Tracer(

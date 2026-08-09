@@ -27,9 +27,13 @@ All notable changes to this module are documented here.
 - Document instruments, cardinality, privacy, semantics, failure isolation,
   lifecycle ownership, API usage, adoption, compatibility, migration, security,
   and frequently asked questions.
+- Require explicit operation and outcome mapping review when upgrading the
+  core outbox dependency.
 
 ### Fixed
 
+- Preserve the caller's context when a hostile tracer returns a replacement
+  context, so telemetry cannot erase relay cancellation or deadlines.
 - Replace the unresolved Outbox `v0.0.0` requirement with an immutable main
   pseudo-version so workspace-disabled consumers resolve the adapter.
 

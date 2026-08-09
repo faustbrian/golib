@@ -73,6 +73,8 @@ publisher contracts are public compatibility surfaces.
 
 ### Changed
 
+- OpenTelemetry guidance now documents the adapter's fixed privacy-safe
+  dimensions and bounded, application-owned exporter shutdown contract.
 - Readiness now requires a writable PostgreSQL primary.
 - Persisted publisher failure diagnostics are bounded and payload-safe.
 - Relay heartbeat, classifier, and backoff callbacks are panic-contained and
