@@ -2,6 +2,7 @@ package gomoney_test
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -50,6 +51,57 @@ func FuzzCostTypeIdentifiers(f *testing.F) {
 		}
 		if !costs.Valid() {
 			t.Fatalf("NewWithLimits(%q) returned invalid costs", typeID)
+		}
+	})
+}
+
+func FuzzCostMappings(f *testing.F) {
+	f.Add("box", "crate", int64(125), uint8(2), uint16(16), false)
+	f.Add("duplicate", "duplicate", int64(1), uint8(0), uint16(16), false)
+	f.Add("credit", "box", int64(-25), uint8(2), uint16(16), true)
+
+	euro, err := currency.Parse("EUR")
+	if err != nil {
+		f.Fatal(err)
+	}
+	f.Fuzz(func(t *testing.T, leftID, rightID string, amount int64, scale uint8, maxIDBytes uint16, allowNegative bool) {
+		if len(leftID) > 4_096 || len(rightID) > 4_096 {
+			t.Skip()
+		}
+		scale %= money.MaxScale + 1
+		monetaryContext, contextErr := money.CustomContext(scale)
+		if contextErr != nil {
+			t.Fatal(contextErr)
+		}
+		value, parseErr := money.Parse(strconv.FormatInt(amount, 10), euro, monetaryContext)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		policy := gomoney.Policy{
+			Limits:             gomoney.Limits{MaxTypes: 2, MaxIDBytes: uint32(maxIDBytes%65 + 1)},
+			AllowNegativeCosts: allowNegative,
+		}
+		entries := []gomoney.Entry{{TypeID: leftID, Cost: value}, {TypeID: rightID, Cost: value}}
+		first, firstErr := gomoney.NewFromEntries(entries, policy)
+		second, secondErr := gomoney.NewFromEntries(entries, policy)
+		if (firstErr == nil) != (secondErr == nil) {
+			t.Fatalf("construction changed outcome: %v then %v", firstErr, secondErr)
+		}
+		if firstErr != nil {
+			if !errors.Is(firstErr, gomoney.ErrInvalidCosts) || !errors.Is(secondErr, gomoney.ErrInvalidCosts) {
+				t.Fatalf("construction errors = %v and %v", firstErr, secondErr)
+			}
+			return
+		}
+		plan := mustPlan(t, leftID, rightID)
+		firstTotal, firstTotalErr := first.Total(plan)
+		secondTotal, secondTotalErr := second.Total(plan)
+		if firstTotalErr != nil || secondTotalErr != nil {
+			t.Fatalf("totals failed: %v and %v", firstTotalErr, secondTotalErr)
+		}
+		equal, equalErr := firstTotal.Equal(secondTotal)
+		if equalErr != nil || !equal {
+			t.Fatalf("totals differ: %s and %s (%v)", firstTotal, secondTotal, equalErr)
 		}
 	})
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/faustbrian/golib/pkg/knapsack/objective/gomoney"
 	"github.com/faustbrian/golib/pkg/knapsack/solver"
 	"github.com/faustbrian/golib/pkg/knapsack/verify"
+	gomath "github.com/faustbrian/golib/pkg/math"
 	"github.com/faustbrian/golib/pkg/math/decimal"
 	"github.com/faustbrian/golib/pkg/measurement"
 	"github.com/faustbrian/golib/pkg/money"
@@ -113,6 +114,9 @@ func TestCostObjectiveRejectsInvalidAndUnpriceablePlans(t *testing.T) {
 	if (gomoney.Costs{}).Valid() {
 		t.Fatal("zero-value costs are valid")
 	}
+	if _, err := (gomoney.Costs{}).Total(mustPlan(t)); !errors.Is(err, gomoney.ErrInvalidCosts) {
+		t.Fatalf("zero-value Total() error = %v", err)
+	}
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
 	if _, err := costs.ComparePlans(canceled, knapsack.NormalizedRequest{}, knapsack.Plan{}, knapsack.Plan{}); !errors.Is(err, context.Canceled) {
@@ -122,12 +126,8 @@ func TestCostObjectiveRejectsInvalidAndUnpriceablePlans(t *testing.T) {
 		t.Fatalf("Components(canceled) error = %v", err)
 	}
 
-	empty := mustPlan(t)
 	missing := mustPlan(t, "missing")
 	priced := mustPlan(t, "box")
-	if _, err := costs.Total(empty); !errors.Is(err, gomoney.ErrInvalidCosts) {
-		t.Fatalf("Total(empty) error = %v", err)
-	}
 	if _, err := costs.Total(missing); !errors.Is(err, gomoney.ErrMissingCost) {
 		t.Fatalf("Total(missing) error = %v", err)
 	}
@@ -146,8 +146,8 @@ func TestCostObjectiveRejectsInvalidAndUnpriceablePlans(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := overflowing.Total(mustPlan(t, "box", "box")); err == nil {
-		t.Fatal("Total(overflowing) error = nil")
+	if _, err := overflowing.Total(mustPlan(t, "box", "box")); !errors.Is(err, gomath.ErrLimitExceeded) {
+		t.Fatalf("Total(overflowing) error = %v, want ErrLimitExceeded", err)
 	}
 }
 

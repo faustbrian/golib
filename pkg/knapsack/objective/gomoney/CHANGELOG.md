@@ -4,6 +4,19 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Added
+
+- Add explicit negative-cost policy, duplicate-aware entry construction, exact
+  empty-plan totals, and module adoption and API documentation.
+- Add allocation-aware total and comparison benchmarks plus bounded fuzz and
+  property coverage for exact mappings and hostile identifiers.
+
+### Fixed
+
+- Reject unsupported money contexts and retain specific validation and
+  arithmetic error identities through objective evaluation. Mixed-sign totals
+  no longer depend on container iteration order near amount bounds.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.
@@ -24,10 +37,3 @@ All notable changes to this module are documented here.
 - Refresh the parent Knapsack checksum used by clean consumer builds.
 - Normalized standalone module metadata against the canonical owned dependency
   graph, including complete checksums for clean consumer resolution.
-
-### Added
-
-- Add an allocation-aware benchmark for exact packaging-cost aggregation
-  across a representative multi-container plan.
-- Add bounded fuzz coverage for hostile container type identifiers and exact
-  cost-map limit enforcement.
