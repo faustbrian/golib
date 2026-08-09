@@ -96,7 +96,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 29 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gooutbox/.ai/{GOAL.md,GOAL_HARDEN.md}` | 28 |
 | 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 29 |
 | 31 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 29 |
-| 32 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 29-31 |
+| 32 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18, 29-31 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 28 |
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
@@ -135,6 +135,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Goal | Status | Treatment |
 | --- | --- | --- |
 | `.ai/GOAL_MAINTENANCE.md` | `recurring` | Execute its cadence continuously and before each supported-Go, dependency, security, specification, or release transition. |
+| `pkg/outbox/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 32 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
