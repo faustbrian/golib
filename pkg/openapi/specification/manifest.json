@@ -5,7 +5,7 @@
       "version": "3.2.0",
       "url": "https://github.com/OAI/OpenAPI-Specification/pull/4994",
       "mergeCommit": "0f65e951d63d34c207cd79081cff4743c0d763fb",
-      "decision": "docs/specification-decisions.md#openapi-32-default-schema-object-dialect"
+      "decision": "docs/specification-decisions.md#openapi-dec-001-openapi-32-default-schema-object-dialect"
     }
   ],
   "jsonSchemaArtifacts": {

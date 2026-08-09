@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Normalize the existing accepted-erratum, HTTP representation, and strict
+  JSON parser decisions into the auditable specification-decision contract.
 - Preserve operation-diff traversal, limit propagation, and `Unknown`
   classifications when callbacks, request bodies, responses, links, security
   schemes, or media schemas contain unresolved or malformed references.
