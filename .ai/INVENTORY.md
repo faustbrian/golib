@@ -79,7 +79,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 12 | Integration | `pending-reexecution` | `pkg/cache/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 8 |
 | 13 | Integration | `pending-reexecution` | `pkg/http-client/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 6-11 |
 | 14 | Verification | `pending-reexecution` | `pkg/fault-injection/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-13 |
-| 15 | Fleet | `pending-reexecution` | `pkg/feature-flags/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 7-9, 12 |
 | 17 | Fleet | `pending-reexecution` | `pkg/sequencer/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3-9 |
 | 18 | Fleet | `pending-reexecution` | `pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md` | 3-17 |
 | 19 | Security | `pending-reexecution` | `pkg/secret-envelope/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
@@ -134,6 +133,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 39. Current scoped evidence verifies exact UTC encoding, bound-sensitive interval relations, persisted-input hardening, compatibility, concurrency, fuzzing, coverage, mutation, benchmarks, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/external-sort/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 40. Current scoped evidence verifies encrypted spill hardening and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/feature-flags/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 15. Current scoped evidence verifies bounded fleet bootstrap, refresh, invalidation, degraded evaluation, provider resilience composition, Kubernetes lifecycle behavior, and every mandatory feature-flags module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/settings/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 16. Current scoped evidence verifies immutable bounded snapshots, explicit per-class degradation, monotonic writes and reads, bounded fleet convergence and lifecycle, PostgreSQL and Valkey interoperability, and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/service/.ai/GOAL_RESILIENCE.md` | `verified` | The base resilience goal formerly included in pending order 18 has current lifecycle, adoption, Kubernetes, exact coverage and mutation, documentation, API, security, supply-chain, race, and benchmark evidence; its separate `GOAL_RESILIENCE_HARDEN.md` remains pending. |
 | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 42. Current scoped evidence verifies canonical scoped capabilities and signed URLs, key lifecycle, replay and revocation adapters, hardening requirements, and every mandatory capability-module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -142,6 +142,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
+
+### Feature flag fleet resilience evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/feature-flags/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` |
+| Scope | Atomic multi-replica bootstrap and refresh, immutable last-known-good metadata, bounded provider work and invalidation histories, explicit degraded policy, resilience composition seams, provider conformance, and Kubernetes lifecycle semantics. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | Package-local Make targets with isolated Go build caches; exhaustive root-package Gremlins mutation; and package-scoped `scripts/check-module.sh pkg/feature-flags` safety, secrets, licenses, SBOM, API, NilAway, conformance, and interoperability gates. |
+| Result | Passed exact 100.0% meaningful production statement coverage; 776/776 viable mutants killed with 100.00% efficacy and mutant coverage; race, five 10,000-execution fuzz targets, fault, leak, PostgreSQL and Valkey provider integration, Kubernetes simulation, API, documentation, security, supply-chain, and equivalent-work benchmark gates. |
+| Environment | Go 1.26.5 on darwin/arm64 with a separate task-owned disposable `GOCACHE` removed after every bounded Go or mutation run; disposable PostgreSQL and Valkey containers were removed after provider gates. |
+| Observed | 2026-08-09T10:42:32Z |
+| Gaps | None within the scoped resilience and hardening contracts. NilAway remains advisory and its existing non-fleet diagnostics remain visible. |
 
 ### Settings fleet resilience evidence
 
