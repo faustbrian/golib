@@ -17815,7 +17815,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`rule-engine/adapters/gomeasurement` is an optional bridge between immutable `measurement.Quantity` values and the rule engine's explicitly registered custom operators. It compares compatible dimensions with `measurement.ExactConversion()` and never supplies a unit or rounding policy.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -17845,7 +17845,11 @@
           "file": "pkg/rule-engine/adapters/gomeasurement/.ai/GOAL.md",
           "requirements_sha256": "dd36c8e75e9e5edfd142c8ea28002d5fae38ab97c26fba86ceb124122671068d",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gomeasurement/CHANGELOG.md"
+            "pkg/rule-engine/adapters/gomeasurement/CHANGELOG.md",
+            "pkg/rule-engine/adapters/gomeasurement/README.md",
+            "pkg/rule-engine/adapters/gomeasurement/docs/api.md",
+            "pkg/rule-engine/adapters/gomeasurement/docs/compatibility.md",
+            "pkg/rule-engine/adapters/gomeasurement/docs/security.md"
           ],
           "verification_gates": [
             "format-check",
@@ -17876,7 +17880,11 @@
           "file": "pkg/rule-engine/adapters/gomeasurement/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "f5f21f9821822563e6a80e4fd9c1652832272a5effa7baa0b0032ed7a5925a52",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gomeasurement/CHANGELOG.md"
+            "pkg/rule-engine/adapters/gomeasurement/CHANGELOG.md",
+            "pkg/rule-engine/adapters/gomeasurement/README.md",
+            "pkg/rule-engine/adapters/gomeasurement/docs/api.md",
+            "pkg/rule-engine/adapters/gomeasurement/docs/compatibility.md",
+            "pkg/rule-engine/adapters/gomeasurement/docs/security.md"
           ],
           "verification_gates": [
             "format-check",

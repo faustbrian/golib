@@ -10,26 +10,35 @@ import (
 	ruleenginemeasurement "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement"
 )
 
-func BenchmarkQuantityGreaterThanWithConversion(b *testing.B) {
+func BenchmarkQuantityComparison(b *testing.B) {
 	operator := measurementOperatorByName(
 		b,
 		ruleenginemeasurement.OpQuantityGreaterThan,
 	)
-	left := ruleenginemeasurement.Quantity(
-		measurement.MustNew(decimal.MustParse("1001"), measurement.Gram),
-	)
-	right := ruleenginemeasurement.Quantity(
-		measurement.MustNew(decimal.MustParse("1"), measurement.Kilogram),
-	)
+	leftQuantity := measurement.MustNew(decimal.MustParse("1001"), measurement.Gram)
+	rightQuantity := measurement.MustNew(decimal.MustParse("1"), measurement.Kilogram)
+	left := ruleenginemeasurement.Quantity(leftQuantity)
+	right := ruleenginemeasurement.Quantity(rightQuantity)
 	ctx := context.Background()
 
-	b.ReportAllocs()
-	for b.Loop() {
-		matched, err := operator.Evaluate(ctx, left, right)
-		if err != nil || !matched {
-			b.Fatalf("Evaluate() = %t, %v", matched, err)
+	b.Run("adapter", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			matched, err := operator.Evaluate(ctx, left, right)
+			if err != nil || !matched {
+				b.Fatalf("Evaluate() = %t, %v", matched, err)
+			}
 		}
-	}
+	})
+	b.Run("direct-measurement", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			comparison, err := leftQuantity.Compare(rightQuantity, measurement.ExactConversion())
+			if err != nil || comparison <= 0 {
+				b.Fatalf("Compare() = %d, %v", comparison, err)
+			}
+		}
+	})
 }
 
 func measurementOperatorByName(

@@ -2,39 +2,49 @@ package ruleenginemeasurement_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
-	measurement "github.com/faustbrian/golib/pkg/measurement"
 	ruleengine "github.com/faustbrian/golib/pkg/rule-engine"
 	ruleenginemeasurement "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement"
 )
 
 func FuzzQuantityTaggedValues(f *testing.F) {
-	f.Add("1 kg")
-	f.Add("-0.25 m")
-	f.Add("not-a-quantity")
+	f.Add("quantity:v1|1|kg", uint8(0))
+	f.Add("quantity:v1|-0.25|m", uint8(0))
+	f.Add("quantity:v2|1|kg", uint8(0))
+	f.Add("quantity:v1|1|unknown", uint8(0))
+	f.Add("quantity:v1|1e100|kg", uint8(0))
+	f.Add("quantity:v1|1|kg|extra", uint8(0))
+	f.Add("quantity:v1|1|㎏", uint8(0))
+	f.Add("not-a-quantity", uint8(0))
+	f.Add("quantity:v1|1|kg", uint8(1))
+	f.Add("quantity:v1|1|kg", uint8(2))
 
 	equal := ruleenginemeasurement.Operators()[0]
-	f.Fuzz(func(t *testing.T, text string) {
+	f.Fuzz(func(t *testing.T, text string, kind uint8) {
 		if len(text) > 4_096 {
 			t.Skip()
 		}
 
-		value := ruleengine.String("quantity:" + text)
-		matched, err := equal.Evaluate(context.Background(), value, value)
-		_, parseErr := measurement.Parse(text, measurement.SymbolProfile())
-		if parseErr != nil {
-			if err == nil {
-				t.Fatalf("Evaluate(%q) accepted an invalid quantity", text)
-			}
-
-			return
+		value := ruleengine.String(text)
+		switch kind % 3 {
+		case 1:
+			value = ruleengine.Int(int64(len(text)))
+		case 2:
+			value = ruleengine.Null()
 		}
-		if err != nil {
+		matched, err := equal.Evaluate(context.Background(), value, value)
+		if err == nil && !matched {
+			t.Fatalf("Evaluate(%q, %q) = false", text, text)
+		}
+		if err != nil && !errors.Is(err, ruleenginemeasurement.ErrInvalidQuantity) {
 			t.Fatalf("Evaluate(%q) error = %v", text, err)
 		}
-		if !matched {
-			t.Fatalf("Evaluate(%q, %q) = false", text, text)
+		canceled, cancel := context.WithCancel(context.Background())
+		cancel()
+		if _, err := equal.Evaluate(canceled, value, value); !errors.Is(err, context.Canceled) {
+			t.Fatalf("Evaluate(canceled, %q) error = %v", text, err)
 		}
 	})
 }
