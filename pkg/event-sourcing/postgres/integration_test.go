@@ -1852,19 +1852,6 @@ func TestPostgreSQLStoreLifecycleAndCallerOwnedTransaction(t *testing.T) {
 		t.Fatalf("messages beyond PostgreSQL global range = %#v", messages)
 	}
 
-	if _, err := pool.Exec(ctx, migrationDownSQL(t)); err != nil {
-		t.Fatalf("roll back migration: %v", err)
-	}
-	var schemaExists bool
-	if err := pool.QueryRow(
-		ctx,
-		"SELECT to_regnamespace('event_sourcing') IS NOT NULL",
-	).Scan(&schemaExists); err != nil {
-		t.Fatalf("inspect rolled-back schema: %v", err)
-	}
-	if schemaExists {
-		t.Fatal("event_sourcing schema remains after migration rollback")
-	}
 }
 
 func migrationUpSQL(t testing.TB) string {
@@ -1879,30 +1866,11 @@ func migrationUpSQL(t testing.TB) string {
 	}
 	marker := "-- +migrations Down\n"
 	down := strings.Index(string(contents), marker)
-	if down < 0 {
-		t.Fatal("migration has no down directive")
+	if down >= 0 {
+		return string(contents[len("-- +migrations Up\n"):down])
 	}
 
-	return string(contents[len("-- +migrations Up\n"):down])
-}
-
-func migrationDownSQL(t testing.TB) string {
-	t.Helper()
-
-	contents, err := fs.ReadFile(
-		eventpostgres.Migrations(),
-		"000001_create_event_sourcing.sql",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	marker := "-- +migrations Down\n"
-	down := strings.Index(string(contents), marker)
-	if down < 0 {
-		t.Fatal("migration has no down directive")
-	}
-
-	return string(contents[down+len(marker):])
+	return string(contents[len("-- +migrations Up\n"):])
 }
 
 func waitForPostgreSQL(

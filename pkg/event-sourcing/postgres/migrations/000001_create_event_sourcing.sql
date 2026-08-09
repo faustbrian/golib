@@ -96,6 +96,3 @@ CREATE INDEX messages_recorded_at_idx
 
 COMMENT ON TABLE event_sourcing.messages IS
     'Immutable event history; application repair must append or rebuild derived data';
-
--- +migrations Down
-DROP SCHEMA event_sourcing CASCADE;

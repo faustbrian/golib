@@ -91,7 +91,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 24, 25 |
 | 27 | Queue | `pending-reexecution` | `pkg/queue/queueservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
-| 28 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/postgres/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 29 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md` | 28 |
 | 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 29 |
 | 32 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18, 29-31 |

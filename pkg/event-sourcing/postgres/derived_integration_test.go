@@ -3,13 +3,13 @@
 package postgres_test
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"io/fs"
 	"math"
 	"os"
 	"sort"
-	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -375,43 +375,6 @@ func TestPostgreSQLProjectionStoreAllowsOneConcurrentWinner(t *testing.T) {
 	}
 }
 
-func TestPostgreSQLDerivedMigrationRollsBackIndependently(t *testing.T) {
-	ctx, pool := newDerivedIntegrationPool(t)
-	contents, err := fs.ReadFile(
-		eventpostgres.Migrations(),
-		"000002_create_snapshots_and_projections.sql",
-	)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := pool.Exec(ctx, migrationSection(t, contents, false)); err != nil {
-		t.Fatalf("roll back derived migration: %v", err)
-	}
-	for _, table := range []string{"snapshots", "projections"} {
-		var exists bool
-		if err := pool.QueryRow(
-			ctx,
-			"SELECT to_regclass($1) IS NOT NULL",
-			"event_sourcing."+table,
-		).Scan(&exists); err != nil {
-			t.Fatal(err)
-		}
-		if exists {
-			t.Fatalf("%s remains after migration rollback", table)
-		}
-	}
-	var messagesExist bool
-	if err := pool.QueryRow(
-		ctx,
-		"SELECT to_regclass('event_sourcing.messages') IS NOT NULL",
-	).Scan(&messagesExist); err != nil {
-		t.Fatal(err)
-	}
-	if !messagesExist {
-		t.Fatal("base event-store migration was rolled back")
-	}
-}
-
 func TestPostgreSQLProjectionStoreRejectsUnsupportedPosition(t *testing.T) {
 	ctx, pool := newDerivedIntegrationPool(t)
 	store, err := eventpostgres.NewProjectionStore(
@@ -498,10 +461,7 @@ func newPostgreSQLIntegrationDatabase(
 		if err != nil {
 			t.Fatal(err)
 		}
-		if _, err := pool.Exec(
-			ctx,
-			migrationSection(t, contents, true),
-		); err != nil {
+		if _, err := pool.Exec(ctx, migrationUpSection(t, contents)); err != nil {
 			t.Fatalf("apply migration %s: %v", entry.Name(), err)
 		}
 	}
@@ -509,20 +469,20 @@ func newPostgreSQLIntegrationDatabase(
 	return ctx, pool, container
 }
 
-func migrationSection(t testing.TB, contents []byte, up bool) string {
+func migrationUpSection(t testing.TB, contents []byte) string {
 	t.Helper()
 
 	const upMarker = "-- +migrations Up\n"
 	const downMarker = "-- +migrations Down\n"
-	down := strings.Index(string(contents), downMarker)
-	if !strings.HasPrefix(string(contents), upMarker) || down < 0 {
-		t.Fatal("migration directives are incomplete")
+	if !bytes.HasPrefix(contents, []byte(upMarker)) {
+		t.Fatal("migration has no up directive")
 	}
-	if up {
+	down := bytes.Index(contents, []byte(downMarker))
+	if down >= 0 {
 		return string(contents[len(upMarker):down])
 	}
 
-	return string(contents[down+len(downMarker):])
+	return string(contents[len(upMarker):])
 }
 
 func mustPostgreSQLSnapshot(

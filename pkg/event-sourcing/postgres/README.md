@@ -21,7 +21,10 @@ if err != nil {
 ```
 
 Migrations belong in a dedicated deployment job. Constructors do not inspect
-or modify schema.
+or modify schema. The embedded history is forward-only: migrations expose no
+rollback operation, so schema changes are reversed through a reviewed forward
+repair or restore rather than destructive down SQL. The migration runner's
+checksum-bound ledger makes repeated `Up` jobs idempotent.
 
 ## Append and read
 

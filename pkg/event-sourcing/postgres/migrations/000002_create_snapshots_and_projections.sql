@@ -42,7 +42,3 @@ CREATE TABLE event_sourcing.projections (
     CONSTRAINT projections_updated_at_finite
         CHECK (isfinite(updated_at))
 );
-
--- +migrations Down
-DROP TABLE event_sourcing.projections;
-DROP TABLE event_sourcing.snapshots;

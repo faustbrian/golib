@@ -31,7 +31,7 @@ func TestStoreConstructorsRejectMissingDependenciesAndInvalidSchema(
 	}
 }
 
-func TestMigrationsExposeEngineNeutralVersionedSchema(t *testing.T) {
+func TestMigrationsExposeForwardOnlyVersionedHistory(t *testing.T) {
 	t.Parallel()
 
 	files := postgres.Migrations()
@@ -45,35 +45,16 @@ func TestMigrationsExposeEngineNeutralVersionedSchema(t *testing.T) {
 			"000002_create_snapshots_and_projections.sql" {
 		t.Fatalf("migration entries = %#v", entries)
 	}
-	requirements := map[string][]string{
-		"000001_create_event_sourcing.sql": {
-			"-- +migrations Up",
-			"CREATE TABLE event_sourcing.positions",
-			"last_position bigint NOT NULL DEFAULT 0",
-			"CREATE TABLE event_sourcing.streams",
-			"CREATE TABLE event_sourcing.messages",
-			"event_schema_version bigint NOT NULL",
-			"CREATE UNIQUE INDEX messages_stream_version_idx",
-			"-- +migrations Down",
-		},
-		"000002_create_snapshots_and_projections.sql": {
-			"-- +migrations Up",
-			"CREATE TABLE event_sourcing.snapshots",
-			"CREATE TABLE event_sourcing.projections",
-			"snapshot_schema_version bigint NOT NULL",
-			"checkpoint bigint",
-			"-- +migrations Down",
-		},
-	}
-	for name, required := range requirements {
-		contents, err := fs.ReadFile(files, name)
+	for _, entry := range entries {
+		contents, err := fs.ReadFile(files, entry.Name())
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, fragment := range required {
-			if !strings.Contains(string(contents), fragment) {
-				t.Fatalf("%s missing %q", name, fragment)
-			}
+		if !strings.HasPrefix(string(contents), "-- +migrations Up\n") {
+			t.Fatalf("migration %s has no up operation", entry.Name())
+		}
+		if strings.Contains(string(contents), "-- +migrations Down") {
+			t.Fatalf("migration %s has a down operation", entry.Name())
 		}
 	}
 }

@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Make the embedded schema history forward-only. Migration runners have no
+  rollback operation, and repeated `Up` jobs remain idempotent through the
+  durable ledger.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 
@@ -58,7 +61,7 @@ All notable changes to this module are documented here.
 - caller-owned transaction composition through `NewTx`
 - transactional global-position allocation that preserves committed ordering
   under concurrent writers
-- reversible, engine-neutral schema migration and real PostgreSQL lifecycle
+- forward-only, engine-neutral schema migration and real PostgreSQL lifecycle
   coverage
 - durable snapshot storage with atomic non-regression, exact-retry, conflict,
   deletion, and corrupt-input semantics
