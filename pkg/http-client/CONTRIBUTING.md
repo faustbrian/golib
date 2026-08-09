@@ -33,5 +33,12 @@ fixture schema changes as compatibility-sensitive. A contribution may be
 declined when it belongs in a vendor package or replaces standard HTTP
 semantics with an untyped abstraction.
 
+Changes to parsing, serialization, authentication, redirects, retries,
+caching, pagination, or protocol metadata must review and update the
+[specification decision register](docs/specification-decisions.md), its pinned
+[conformance matrix](specification/manifest.tsv), and linked executable
+evidence. New ambiguity remains visibly unresolved until maintainers select
+and test an interpretation.
+
 By contributing, you agree that your contribution is licensed under the MIT
 License and to follow the Code of Conduct.

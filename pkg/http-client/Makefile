@@ -1,6 +1,6 @@
 GO ?= go
 
-.PHONY: benchmark check coverage docs format format-check fuzz-smoke lint safety test test-leak test-race vet workflow
+.PHONY: benchmark check conformance coverage docs format format-check fuzz-smoke lint safety test test-leak test-race vet workflow
 
 format:
 	gofmt -w .
@@ -32,6 +32,9 @@ fuzz-smoke:
 benchmark:
 	$(GO) test -run '^$$' -bench . -benchmem ./...
 
+conformance:
+	./scripts/check-conformance.sh
+
 docs:
 	$(GO) doc -all . >/dev/null
 	test -z "$$(find docs -type f -name '*.md' -empty)"
@@ -43,4 +46,4 @@ workflow:
 	actionlint
 	shellcheck scripts/*.sh
 
-check: format-check vet lint test test-race test-leak coverage fuzz-smoke benchmark docs workflow safety
+check: format-check vet lint test test-race test-leak coverage fuzz-smoke benchmark docs conformance workflow safety

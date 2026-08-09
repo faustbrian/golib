@@ -1,0 +1,13 @@
+id	version	sections	role	url	sha256	status
+rfc3986	RFC-3986	5	URI-reference-resolution	https://www.rfc-editor.org/rfc/rfc3986.txt	3102dae4b68cebe40337730312fcb612297b8928547267e8b3d1ee6002b2d683	pinned
+rfc9110	RFC-9110	4-15	HTTP-semantics	https://www.rfc-editor.org/rfc/rfc9110.txt	21c1cdce6ab0e5509b04d84a28000836c7a087cf786efe6f04877ebfff47232a	pinned
+rfc9111	RFC-9111	3-5	HTTP-caching	https://www.rfc-editor.org/rfc/rfc9111.txt	aeb52adb3279d5f23dae34f68af11bd5cef0a0aff7ffcd014c9ca93c5302cf3e	pinned
+rfc8288	RFC-8288	2-3	Web-Linking	https://www.rfc-editor.org/rfc/rfc8288.txt	820f624e0b0884af5c732e8087a65182452e49f2f49cd784ad7c30e16a4fc35d	pinned
+rfc7617	RFC-7617	2	Basic-authentication	https://www.rfc-editor.org/rfc/rfc7617.txt	bc941321da9912fbb1bc92ad1820848ddfd3283dbfbc30f26ea2800bdaf541db	pinned
+rfc6750	RFC-6750	2.1	Bearer-authentication	https://www.rfc-editor.org/rfc/rfc6750.txt	9dc385cf4ecdd85024e5a95e447ede9230e11700bf35251906b25b37557d604b	pinned
+rfc6749	RFC-6749	2.3,3.2,4.4	OAuth2-client-credentials	https://www.rfc-editor.org/rfc/rfc6749.txt	f204fc8661d6c92d2ec6e0b54808f961a9ad26e792f57f312d9528335519bd71	pinned
+rfc6265	RFC-6265	5,8	HTTP-cookies	https://www.rfc-editor.org/rfc/rfc6265.txt	dc4177094813e85a44a7897b892b76bc09160b3a03aea44f0f511f3a98f91933	pinned
+rfc8259	RFC-8259	2-8	JSON-syntax	https://www.rfc-editor.org/rfc/rfc8259.txt	61a5378f4255c720beb2a4b4a63b29540147c140f36988bf086291989b4cd2d7	pinned
+rfc8470	RFC-8470	5	HTTP-425-Too-Early	https://www.rfc-editor.org/rfc/rfc8470.txt	483c316c2b5d2687357fc66e3da5acc153cc4cfe9817d92da8f63b9e21a62974	pinned
+rfc6585	RFC-6585	4	HTTP-429-Too-Many-Requests	https://www.rfc-editor.org/rfc/rfc6585.txt	f6d55d1b491cd515c35827cf9181753b23b2a68c4df14e56d83dc445b3876e58	pinned
+w3c-trace-context-1	W3C-REC-20211123	3	Trace-Context-Level-1	https://www.w3.org/TR/2021/REC-trace-context-1-20211123/	9e7228d2a91c5aa4bef6e7f610366a2000274ee51699053e10c8ac3f0b8965be	pinned

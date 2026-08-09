@@ -13,7 +13,11 @@ The [public API reference](docs/api-reference.md) maps the complete Go
 documentation. Start with the [transport guide](docs/transport.md),
 [typed integration patterns](docs/integrations.md), and
 [error classification](docs/errors.md). Release-facing policies and additional
-guides are indexed in the repository `docs` directory.
+guides are indexed in the repository `docs` directory. Observable HTTP,
+authentication, caching, pagination, and trace-context choices are recorded in
+the [specification decision register](docs/specification-decisions.md) and
+mapped to pinned sources and executable evidence in the
+[conformance matrix](specification/README.md).
 
 ## Install
 

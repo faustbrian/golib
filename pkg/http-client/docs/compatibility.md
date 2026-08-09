@@ -23,3 +23,9 @@ The supported Go version is the version declared in `go.mod`. A change to that
 minimum is announced in the changelog. HTTP/3 is not part of v1; adding it
 requires separately proven fallback, telemetry, transport ownership, and
 compatibility behavior.
+
+The [specification decision register](specification-decisions.md) is part of
+this observable compatibility contract. A changed interpretation of HTTP,
+authentication, caching, Web Linking, cookies, JSON, OAuth2, or Trace Context
+requires compatibility review even when the previous behavior was not exposed
+as a distinct Go identifier.

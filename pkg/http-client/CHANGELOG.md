@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Documentation
+
+- Record HTTP, authentication, retry, caching, range, pagination, cookie,
+  response, and trace-context decisions against pinned normative sources and
+  executable conformance evidence.
+
 ### Fixed
 
 - Mark the deliberate nil-context boundary assertion explicitly so strict
