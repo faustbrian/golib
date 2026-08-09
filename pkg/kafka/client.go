@@ -15,6 +15,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/twmb/franz-go/pkg/kerr"
 	"github.com/twmb/franz-go/pkg/kgo"
 	"github.com/twmb/franz-go/pkg/sasl"
 	"github.com/twmb/franz-go/pkg/sasl/oauth"
@@ -720,7 +721,7 @@ func (authentication Authentication) saslMechanism(
 	case AuthenticationSCRAMSHA512:
 		return scram.Sha512(authentication.scramProvider(timeout))
 	case AuthenticationOAuthBearer:
-		return oauth.Oauth(func(ctx context.Context) (oauth.Auth, error) {
+		mechanism := oauth.Oauth(func(ctx context.Context) (oauth.Auth, error) {
 			token, err := callOAuthBearerProvider(
 				ctx, timeout, authentication.oauthBearerProvider,
 			)
@@ -734,9 +735,50 @@ func (authentication Authentication) saslMechanism(
 				Extensions: cloneStringMap(token.Extensions),
 			}, nil
 		})
+
+		return oauthAuthenticationMechanism{delegate: mechanism}
 	default:
 		return nil
 	}
+}
+
+type oauthAuthenticationMechanism struct {
+	delegate sasl.Mechanism
+}
+
+func (mechanism oauthAuthenticationMechanism) Name() string {
+	return mechanism.delegate.Name()
+}
+
+func (mechanism oauthAuthenticationMechanism) Authenticate(
+	ctx context.Context,
+	host string,
+) (sasl.Session, []byte, error) {
+	session, initial, err := mechanism.delegate.Authenticate(ctx, host)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return oauthAuthenticationSession{delegate: session}, initial, nil
+}
+
+type oauthAuthenticationSession struct {
+	delegate sasl.Session
+}
+
+func (session oauthAuthenticationSession) Challenge(
+	challenge []byte,
+) (bool, []byte, error) {
+	done, next, err := session.delegate.Challenge(challenge)
+	if err != nil {
+		// Kafka returns an RFC 7628 error challenge with a successful SASL
+		// response code. franz-go deliberately rejects the non-empty challenge
+		// but exposes only an unclassifiable generic error. Preserve no broker
+		// payload while restoring Kafka's stable authentication-failure identity.
+		return false, nil, kerr.SaslAuthenticationFailed
+	}
+
+	return done, next, nil
 }
 
 func (authentication Authentication) scramProvider(

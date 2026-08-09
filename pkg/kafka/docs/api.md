@@ -87,6 +87,10 @@ admission so a concurrent flush cannot miss them.
 Every broker delivery failure is a redacted `DeliveryError`. Its stable
 category distinguishes retryable, authorization, fenced, oversized, timeout,
 canceled, shutdown, fatal producer-state, permanent, and ambiguous outcomes.
+OAUTHBEARER broker error challenges retain
+`kerr.SaslAuthenticationFailed` identity without retaining the challenge body,
+so delivery classification remains `ErrorAuthorization` without disclosing
+broker-returned OAuth details.
 `errors.Is` and `errors.As` retain the underlying identity for deliberate
 inspection; application retry is a separate policy decision.
 Non-transactional production permits franz-go to stop an in-flight idempotent

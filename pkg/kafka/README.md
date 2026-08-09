@@ -412,8 +412,12 @@ replacements, refresh every provider, verify every acknowledged record, and
 reject every retired secret. Three independent OAUTHBEARER producers similarly
 cross three broker-enforced reauthentication cycles through successive signed
 JWT replacements, refresh every provider, and preserve every acknowledged
-record; retired tokens remain valid until their signed expiry. Three
-provider-backed PLAIN producers additionally recover after a bounded broker
+record; retired tokens remain valid until their signed expiry. A separate
+fixture refreshes Kafka's production validator from a verified HTTPS JWKS,
+accepts a new RS256 signing key during overlap, then rejects the still-valid
+retired key after its removal. RFC 7628 broker error challenges are normalized
+to a stable redacted authentication identity. Three provider-backed PLAIN
+producers additionally recover after a bounded broker
 restart replaces the server credential, verify every acknowledged record, and
 reject the retired password. This does not claim zero-downtime PLAIN rotation.
 Three independent mTLS producers also

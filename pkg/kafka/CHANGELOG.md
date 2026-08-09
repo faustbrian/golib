@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove Kafka's production OAUTHBEARER validator refreshes a verified HTTPS
+  JWKS, accepts an overlap-first RS256 signing-key rollover, rejects the retired
+  key after refresh, preserves every acknowledged record, and returns a stable
+  redacted authentication identity for RFC 7628 error challenges
 - prove three independent OAUTHBEARER producers cross three broker-enforced
   reauthentication cycles through successive signed-JWT replacements, refresh
   every provider, and preserve every acknowledged record without claiming

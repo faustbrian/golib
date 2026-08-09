@@ -17,6 +17,8 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"github.com/twmb/franz-go/pkg/kerr"
 )
 
 type usernamePasswordProviderStub struct {
@@ -285,6 +287,43 @@ func TestAuthenticationProvidersRotateWithinBoundedRedactedSessions(t *testing.T
 		})
 	if strings.Contains(formatted, "secret") || strings.Contains(formatted, "service") {
 		t.Fatalf("security formatting disclosed credentials: %q", formatted)
+	}
+}
+
+func TestOAuthAuthenticationClassifiesBrokerChallenge(t *testing.T) {
+	authentication := NewOAuthBearerAuthentication(OAuthBearerProviderFunc(func(
+		context.Context,
+	) (OAuthBearerToken, error) {
+		return OAuthBearerToken{
+			Token:     []byte("bounded-token"),
+			ExpiresAt: time.Now().Add(time.Minute),
+		}, nil
+	}))
+	mechanism := authentication.saslMechanism(time.Second)
+	if mechanism.Name() != "OAUTHBEARER" {
+		t.Fatalf("OAuth mechanism name = %q", mechanism.Name())
+	}
+	session, initial, err := mechanism.Authenticate(
+		context.Background(),
+		"broker.internal",
+	)
+	if err != nil || session == nil || len(initial) == 0 {
+		t.Fatalf("OAuth authentication session/initial/error = %v/%d/%v", session, len(initial), err)
+	}
+	done, next, err := session.Challenge(nil)
+	if err != nil || !done || len(next) != 0 {
+		t.Fatalf("OAuth successful challenge = %t/%q/%v", done, next, err)
+	}
+
+	session, _, err = mechanism.Authenticate(context.Background(), "broker.internal")
+	if err != nil {
+		t.Fatalf("second OAuth authentication session: %v", err)
+	}
+	secretChallenge := []byte(`{"status":"invalid_token","scope":"secret-scope"}`)
+	done, next, err = session.Challenge(secretChallenge)
+	if done || len(next) != 0 || !errors.Is(err, kerr.SaslAuthenticationFailed) ||
+		strings.Contains(err.Error(), "secret-scope") {
+		t.Fatalf("OAuth rejected challenge = %t/%q/%v", done, next, err)
 	}
 }
 

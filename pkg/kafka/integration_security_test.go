@@ -50,6 +50,7 @@ const (
 	secureKafkaTransientRetries = 8
 	secureKafkaIssuer           = "https://issuer.golib.test"
 	secureKafkaAudience         = "golib-kafka"
+	secureKafkaOAuthKeyID       = "golib-test-key"
 )
 
 type secureKafkaMode uint8
@@ -71,6 +72,13 @@ type secureKafkaBroker struct {
 	scram256Password string
 	scram512Password string
 	oauthKey         *rsa.PrivateKey
+}
+
+type secureKafkaBrokerOptions struct {
+	oauthJWKSURL      string
+	oauthJWKSTrustPEM []byte
+	hostAccessPorts   []int
+	oauthKey          *rsa.PrivateKey
 }
 
 type secureKafkaPKI struct {
@@ -1266,6 +1274,22 @@ func startSecureKafkaBroker(
 ) *secureKafkaBroker {
 	t.Helper()
 
+	return startSecureKafkaBrokerWithOptions(
+		t,
+		ctx,
+		mode,
+		secureKafkaBrokerOptions{},
+	)
+}
+
+func startSecureKafkaBrokerWithOptions(
+	t *testing.T,
+	ctx context.Context,
+	mode secureKafkaMode,
+	options secureKafkaBrokerOptions,
+) *secureKafkaBroker {
+	t.Helper()
+
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("reserve secured Apache Kafka port: %v", err)
@@ -1279,7 +1303,11 @@ func startSecureKafkaBroker(
 			Image:        apacheKafkaImage,
 			User:         "0",
 			ExposedPorts: []string{secureKafkaClientPort},
-			Entrypoint:   []string{"sh"},
+			HostAccessPorts: append(
+				[]int(nil),
+				options.hostAccessPorts...,
+			),
+			Entrypoint: []string{"sh"},
 			Cmd: []string{
 				"-c",
 				"while [ ! -f /tmp/golib-kafka-secure-ready ]; do " +
@@ -1395,15 +1423,33 @@ func startSecureKafkaBroker(
 			0o600,
 		)
 	case secureKafkaOAuth:
-		broker.oauthKey = newSecureKafkaRSAKey(t)
-		copySecureKafkaFile(
-			t,
-			ctx,
-			container,
-			"/tmp/jwks.json",
-			secureKafkaJWKS(t, &broker.oauthKey.PublicKey),
-			0o644,
-		)
+		broker.oauthKey = options.oauthKey
+		if broker.oauthKey == nil {
+			broker.oauthKey = newSecureKafkaRSAKey(t)
+		}
+		if options.oauthJWKSURL == "" {
+			copySecureKafkaFile(
+				t,
+				ctx,
+				container,
+				"/tmp/jwks.json",
+				secureKafkaJWKS(t, &broker.oauthKey.PublicKey),
+				0o644,
+			)
+		} else {
+			if len(options.oauthJWKSTrustPEM) == 0 ||
+				len(options.hostAccessPorts) == 0 {
+				t.Fatal("HTTPS JWKS broker options require trust and host access")
+			}
+			copySecureKafkaFile(
+				t,
+				ctx,
+				container,
+				"/tmp/jwks-ca.pem",
+				options.oauthJWKSTrustPEM,
+				0o644,
+			)
+		}
 	default:
 		t.Fatalf("unknown secured Apache Kafka mode %d", mode)
 	}
@@ -1413,7 +1459,7 @@ func startSecureKafkaBroker(
 		ctx,
 		container,
 		"/tmp/server.properties",
-		[]byte(secureKafkaServerProperties(mode, endpoint)),
+		[]byte(secureKafkaServerProperties(mode, endpoint, options.oauthJWKSURL)),
 		0o644,
 	)
 	copySecureKafkaFile(
@@ -1421,7 +1467,7 @@ func startSecureKafkaBroker(
 		ctx,
 		container,
 		"/tmp/golib-kafka-secure-start.sh",
-		[]byte(secureKafkaStartScript(mode)),
+		[]byte(secureKafkaStartScript(mode, options.oauthJWKSURL)),
 		0o755,
 	)
 	copySecureKafkaFile(
@@ -1525,7 +1571,11 @@ func waitForSecureKafkaPortEndpoint(
 	}
 }
 
-func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
+func secureKafkaServerProperties(
+	mode secureKafkaMode,
+	endpoint string,
+	oauthJWKSURL string,
+) string {
 	listener := "SSL"
 	if mode != secureKafkaMutualTLS {
 		listener = "SASL_SSL"
@@ -1595,6 +1645,9 @@ func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
 			"listener.name.sasl_ssl.scram-sha-512.sasl.jaas.config=" +
 			"org.apache.kafka.common.security.scram.ScramLoginModule required;\n"
 	case secureKafkaOAuth:
+		if oauthJWKSURL == "" {
+			oauthJWKSURL = "file:///tmp/jwks.json"
+		}
 		properties += "ssl.client.auth=none\n" +
 			"sasl.enabled.mechanisms=OAUTHBEARER\n" +
 			"listener.name.sasl_ssl.oauthbearer." +
@@ -1607,17 +1660,25 @@ func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
 			"listener.name.sasl_ssl.oauthbearer." +
 			"sasl.oauthbearer.expected.issuer=" + secureKafkaIssuer + "\n" +
 			"listener.name.sasl_ssl.oauthbearer." +
-			"sasl.oauthbearer.jwks.endpoint.url=file:///tmp/jwks.json\n" +
+			"sasl.oauthbearer.jwks.endpoint.url=" + oauthJWKSURL + "\n" +
 			"listener.name.sasl_ssl.oauthbearer." +
 			"sasl.server.callback.handler.class=" +
 			"org.apache.kafka.common.security.oauthbearer." +
 			"OAuthBearerValidatorCallbackHandler\n"
+		if strings.HasPrefix(oauthJWKSURL, "https://") {
+			properties += "listener.name.sasl_ssl.oauthbearer." +
+				"sasl.oauthbearer.jwks.endpoint.refresh.ms=1000\n" +
+				"listener.name.sasl_ssl.oauthbearer." +
+				"sasl.oauthbearer.jwks.endpoint.retry.backoff.ms=100\n" +
+				"listener.name.sasl_ssl.oauthbearer." +
+				"sasl.oauthbearer.jwks.endpoint.retry.backoff.max.ms=1000\n"
+		}
 	}
 
 	return properties
 }
 
-func secureKafkaStartScript(mode secureKafkaMode) string {
+func secureKafkaStartScript(mode secureKafkaMode, oauthJWKSURL string) string {
 	format := "/opt/kafka/bin/kafka-storage.sh format --ignore-formatted " +
 		"--cluster-id " + apacheKafkaClusterID + " " +
 		"--config /tmp/server.properties"
@@ -1631,9 +1692,24 @@ func secureKafkaStartScript(mode secureKafkaMode) string {
 			"[name=scram512-user,password=$scram512_password]\""
 	}
 	if mode == secureKafkaOAuth {
+		if oauthJWKSURL == "" {
+			oauthJWKSURL = "file:///tmp/jwks.json"
+		} else {
+			preparation += "keytool -importcert -noprompt " +
+				"-alias golib-jwks-ca -file /tmp/jwks-ca.pem " +
+				"-keystore /tmp/jwks-truststore.p12 -storetype PKCS12 " +
+				"-storepass changeit >/dev/null 2>&1\n"
+		}
 		preparation += "export KAFKA_OPTS=" +
 			"\"-Dorg.apache.kafka.sasl.oauthbearer.allowed.urls=" +
-			"file:///tmp/jwks.json\"\n"
+			oauthJWKSURL
+		if strings.HasPrefix(oauthJWKSURL, "https://") {
+			preparation += " -Djavax.net.ssl.trustStore=" +
+				"/tmp/jwks-truststore.p12" +
+				" -Djavax.net.ssl.trustStoreType=PKCS12" +
+				" -Djavax.net.ssl.trustStorePassword=changeit"
+		}
+		preparation += "\"\n"
 	}
 
 	return "#!/bin/bash\n" +
@@ -1827,17 +1903,35 @@ func secureKafkaPrivateKeyPEM(
 func secureKafkaJWKS(t *testing.T, key *rsa.PublicKey) []byte {
 	t.Helper()
 
-	encoded, err := json.Marshal(map[string]any{
-		"keys": []map[string]string{{
+	return secureKafkaJWKSForKeys(t, []secureKafkaJWK{{
+		keyID: secureKafkaOAuthKeyID,
+		key:   key,
+	}})
+}
+
+type secureKafkaJWK struct {
+	keyID string
+	key   *rsa.PublicKey
+}
+
+func secureKafkaJWKSForKeys(t *testing.T, keys []secureKafkaJWK) []byte {
+	t.Helper()
+
+	encodedKeys := make([]map[string]string, 0, len(keys))
+	for _, key := range keys {
+		encodedKeys = append(encodedKeys, map[string]string{
 			"kty": "RSA",
-			"kid": "golib-test-key",
+			"kid": key.keyID,
 			"use": "sig",
 			"alg": "RS256",
-			"n":   base64.RawURLEncoding.EncodeToString(key.N.Bytes()),
+			"n":   base64.RawURLEncoding.EncodeToString(key.key.N.Bytes()),
 			"e": base64.RawURLEncoding.EncodeToString(
-				big.NewInt(int64(key.E)).Bytes(),
+				big.NewInt(int64(key.key.E)).Bytes(),
 			),
-		}},
+		})
+	}
+	encoded, err := json.Marshal(map[string]any{
+		"keys": encodedKeys,
 	})
 	if err != nil {
 		t.Fatalf("marshal secured Kafka JWKS: %v", err)
@@ -1869,10 +1963,30 @@ func (broker *secureKafkaBroker) issueOAuthTokenForIssuer(
 ) ([]byte, time.Time) {
 	t.Helper()
 
+	return issueSecureKafkaOAuthToken(
+		t,
+		broker.oauthKey,
+		secureKafkaOAuthKeyID,
+		issuer,
+		audience,
+		lifetime,
+	)
+}
+
+func issueSecureKafkaOAuthToken(
+	t *testing.T,
+	key *rsa.PrivateKey,
+	keyID string,
+	issuer string,
+	audience string,
+	lifetime time.Duration,
+) ([]byte, time.Time) {
+	t.Helper()
+
 	now := time.Now()
 	expiresAt := now.Add(lifetime)
 	header, err := json.Marshal(map[string]string{
-		"alg": "RS256", "typ": "JWT", "kid": "golib-test-key",
+		"alg": "RS256", "typ": "JWT", "kid": keyID,
 	})
 	if err != nil {
 		t.Fatalf("marshal secured Kafka JWT header: %v", err)
@@ -1893,7 +2007,7 @@ func (broker *secureKafkaBroker) issueOAuthTokenForIssuer(
 	digest := sha256.Sum256([]byte(signed))
 	signature, err := rsa.SignPKCS1v15(
 		rand.Reader,
-		broker.oauthKey,
+		key,
 		crypto.SHA256,
 		digest[:],
 	)
