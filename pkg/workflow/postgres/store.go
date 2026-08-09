@@ -537,7 +537,7 @@ func scanHistoryEvent(row rowScanner, instanceID string) (workflow.HistoryEvent,
 		return workflow.HistoryEvent{}, err
 	}
 	if sequence < 1 || attempt < 0 || attempt > int64(^uint32(0)) ||
-		kind < int16(workflow.EventInstanceStarted) || kind > int16(workflow.EventSignalReceived) {
+		kind < int16(workflow.EventInstanceStarted) || kind > int16(workflow.EventCompensationManuallyResolved) {
 		return workflow.HistoryEvent{}, ErrCorruptStore
 	}
 	definition := workflow.DefinitionReference{}

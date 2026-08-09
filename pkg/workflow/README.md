@@ -18,7 +18,7 @@ retry/dead-letter decisions, and synchronous lifecycle hooks. Durable timer
 schedules atomically create due work, timer workers persist firing before lease
 completion, and bounded inbound signals become idempotent transitions that must
 commit before acknowledgement. Automatic general step scheduling, compensation
-execution, operators, and optional integrations are not yet delivered.
+execution workers, operators, and optional integrations are not yet delivered.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that
@@ -53,6 +53,14 @@ transition idempotency boundary; a queue or broker adapter must acknowledge the
 message only after `TransitionStore.Commit` succeeds or confirms an exact
 idempotent replay. Optimistic conflicts require reloading history and deciding
 whether the signal is already accepted or no longer applicable.
+
+Compensation is explicit durable workflow state rather than an implied
+rollback. `NewCompensationSchedule` atomically records the schedule decision
+with `WorkCompensation`, and `NewCompensationAttemptStart` records the exact
+attempt and idempotency key before the compensating side effect begins. Replay
+preserves persisted schedule order, independently bounded retries, known
+failures, unknown outcomes, and manual resolutions. A manual resolution is
+reported as such; it is never represented as a successful rollback.
 
 ```go
 migration := postgres.SchemaMigration()

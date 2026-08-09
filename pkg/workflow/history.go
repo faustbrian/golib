@@ -105,6 +105,20 @@ const (
 	EventTimerFired EventKind = 18
 	// EventSignalReceived records one durably accepted deduplicated signal.
 	EventSignalReceived EventKind = 19
+	// EventCompensationScheduled records an explicit compensating activity.
+	EventCompensationScheduled EventKind = 20
+	// EventCompensationAttemptStarted records one compensating side-effect attempt.
+	EventCompensationAttemptStarted EventKind = 21
+	// EventCompensationAttemptSucceeded records known successful compensation.
+	EventCompensationAttemptSucceeded EventKind = 22
+	// EventCompensationAttemptFailed records known failed compensation.
+	EventCompensationAttemptFailed EventKind = 23
+	// EventCompensationAttemptUnknown records an uncertain compensation outcome.
+	EventCompensationAttemptUnknown EventKind = 24
+	// EventCompensationRetryScheduled records deterministic retry admission.
+	EventCompensationRetryScheduled EventKind = 25
+	// EventCompensationManuallyResolved records explicit operator resolution.
+	EventCompensationManuallyResolved EventKind = 26
 )
 
 // HistoryEventSpec supplies one immutable durable history record.
@@ -168,7 +182,7 @@ func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 
 func validHistoryEventSpec(spec HistoryEventSpec) bool {
 	if spec.Sequence == 0 || !instanceIDPattern.MatchString(spec.InstanceID) ||
-		spec.Kind < EventInstanceStarted || spec.Kind > EventSignalReceived ||
+		spec.Kind < EventInstanceStarted || spec.Kind > EventCompensationManuallyResolved ||
 		spec.OccurredAt.IsZero() || len(spec.Data) > MaxPayloadBytes {
 		return false
 	}
@@ -253,18 +267,19 @@ const (
 
 // Instance is an immutable replay result derived only from persisted history.
 type Instance struct {
-	id          string
-	definition  DefinitionReference
-	status      InstanceStatus
-	sequence    uint64
-	startedAt   time.Time
-	updatedAt   time.Time
-	input       []byte
-	result      []byte
-	successorID string
-	activities  map[string]ActivityProgress
-	timers      map[string]TimerProgress
-	signals     map[string]SignalProgress
+	id            string
+	definition    DefinitionReference
+	status        InstanceStatus
+	sequence      uint64
+	startedAt     time.Time
+	updatedAt     time.Time
+	input         []byte
+	result        []byte
+	successorID   string
+	activities    map[string]ActivityProgress
+	timers        map[string]TimerProgress
+	signals       map[string]SignalProgress
+	compensations map[string]CompensationProgress
 }
 
 // Replay deterministically reconstructs one instance from validated persisted
@@ -340,6 +355,19 @@ func (instance Instance) Signal(stepName string) (SignalProgress, bool) {
 // Signals returns replayed signal progress in stable step-name order.
 func (instance Instance) Signals() []SignalProgress { return sortedSignalProgress(instance.signals) }
 
+// Compensation returns immutable replayed progress for one activity's
+// explicit compensating action.
+func (instance Instance) Compensation(stepName string) (CompensationProgress, bool) {
+	progress, exists := instance.compensations[stepName]
+	return cloneCompensationProgress(progress), exists
+}
+
+// Compensations returns replayed compensation progress in persisted schedule
+// order.
+func (instance Instance) Compensations() []CompensationProgress {
+	return sortedCompensationProgress(instance.compensations)
+}
+
 // SnapshotDigest returns a deterministic digest of reconstructed persisted
 // state for diagnostics and replay comparison.
 func (instance Instance) SnapshotDigest() string {
@@ -356,8 +384,9 @@ func (instance Instance) SnapshotDigest() string {
 		Result                []byte
 		SuccessorID           string
 		Activities            []activityProgressSnapshot
-		Timers                []timerProgressSnapshot  `json:",omitempty"`
-		Signals               []signalProgressSnapshot `json:",omitempty"`
+		Timers                []timerProgressSnapshot        `json:",omitempty"`
+		Signals               []signalProgressSnapshot       `json:",omitempty"`
+		Compensations         []compensationProgressSnapshot `json:",omitempty"`
 	}{
 		ID: instance.id, DefinitionName: instance.definition.Name(),
 		DefinitionVersion:     instance.definition.Version(),
@@ -366,6 +395,7 @@ func (instance Instance) SnapshotDigest() string {
 		UpdatedAt: instance.updatedAt, Input: instance.input, Result: instance.result,
 		SuccessorID: instance.successorID, Activities: activityProgressSnapshots(instance.activities),
 		Timers: timerProgressSnapshots(instance.timers), Signals: signalProgressSnapshots(instance.signals),
+		Compensations: compensationProgressSnapshots(instance.compensations),
 	})
 	digest := sha256.Sum256(encoded)
 	return hex.EncodeToString(digest[:])
@@ -458,6 +488,13 @@ func (instance *Instance) apply(registry *Registry, event HistoryEvent) error {
 		if err := instance.applyWait(registry, event); err != nil {
 			return err
 		}
+	case EventCompensationScheduled, EventCompensationAttemptStarted,
+		EventCompensationAttemptSucceeded, EventCompensationAttemptFailed,
+		EventCompensationAttemptUnknown, EventCompensationRetryScheduled,
+		EventCompensationManuallyResolved:
+		if err := instance.applyCompensation(registry, event); err != nil {
+			return err
+		}
 	}
 
 	instance.sequence = event.sequence
@@ -486,6 +523,7 @@ func (instance *Instance) applyStart(registry *Registry, event HistoryEvent) err
 	instance.activities = make(map[string]ActivityProgress)
 	instance.timers = make(map[string]TimerProgress)
 	instance.signals = make(map[string]SignalProgress)
+	instance.compensations = make(map[string]CompensationProgress)
 	return nil
 }
 
@@ -495,6 +533,9 @@ func validEventFields(spec HistoryEventSpec) bool {
 	}
 	if spec.Kind >= EventTimerScheduled && spec.Kind <= EventSignalReceived {
 		return validWaitEventFields(spec)
+	}
+	if spec.Kind >= EventCompensationScheduled && spec.Kind <= EventCompensationManuallyResolved {
+		return validCompensationEventFields(spec)
 	}
 	return spec.StepName == "" && spec.Attempt == 0 && spec.IdempotencyKey == "" &&
 		spec.DueAt.IsZero() && spec.Code == "" && !spec.Retryable

@@ -28,6 +28,10 @@ and releases use Semantic Versioning.
 - Durable timer scheduling and firing with atomic due-work admission, plus
   bounded deduplicated signal acceptance that must commit before transport
   acknowledgement and replays from persisted decisions only.
+- Explicit ordered compensation history and durable first-attempt dispatch,
+  with independently bounded retries, stable idempotency identities, unknown
+  outcomes, and manual resolution that remains distinct from successful
+  rollback.
 - Immutable durable lifecycle history, deterministic replay, pinned definition
   verification, explicit persisted migration decisions, cancellation,
   termination, and continue-as-new outcomes.

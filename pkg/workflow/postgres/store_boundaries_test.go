@@ -270,7 +270,7 @@ func TestScanHistoryEventRejectsExactNumericAndPartialDefinitionBoundaries(t *te
 		replaceHistoryValue(valid, 0, int64(-1)),
 		replaceHistoryValue(valid, 8, int64(^uint32(0))+1),
 		replaceHistoryValue(valid, 1, int16(0)),
-		replaceHistoryValue(valid, 1, int16(workflow.EventSignalReceived+1)),
+		replaceHistoryValue(valid, 1, int16(workflow.EventCompensationManuallyResolved+1)),
 		replaceHistoryValue(valid, 3, "orders"),
 		replaceHistoryValue(valid, 4, "1"),
 		replaceHistoryValue(valid, 5, strings.Repeat("a", 64)),
@@ -295,8 +295,8 @@ func TestScanHistoryEventAcceptsExactPersistedNumericBoundaries(t *testing.T) {
 		t.Fatalf("maximum attempt: %v", err)
 	}
 	maximumKind := []any{
-		int64(1), int16(workflow.EventSignalReceived), now,
-		"", "", "", "", "approved", int64(0), "signal-1", (*time.Time)(nil), "", false, []byte(nil),
+		int64(1), int16(workflow.EventCompensationManuallyResolved), now,
+		"", "", "", "", "reserve", int64(0), "", (*time.Time)(nil), "accepted-loss", false, []byte(nil),
 	}
 	if _, err := scanHistoryEvent(&fakeRow{values: maximumKind}, "instance-1"); err != nil {
 		t.Fatalf("maximum event kind: %v", err)
