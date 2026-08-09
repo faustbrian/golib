@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add reproducible no-I/O consumer-group record and batch performance matrices
+  for sequential and cross-partition parallel handling plus a Kafka
+  consume-transform-produce matrix, separating the common transport floor from
+  root policy and optional observation with raw samples and allocation evidence
 - add a reproducible no-I/O producer performance matrix separating the common
   transport floor from root policy and root policy plus observation across
   synchronous single, batch, asynchronous API-window, and Kafka-transaction

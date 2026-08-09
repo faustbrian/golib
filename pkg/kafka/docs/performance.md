@@ -301,17 +301,21 @@ Allocations are reported but include client serialization and network request
 handling. The policy path intentionally owns caller bytes before admission, so
 its allocation delta from raw franz-go is part of the current public ownership
 contract. A separate
-[2026-08-10 no-I/O producer capture](performance-results/2026-08-10/README.md)
+[2026-08-10 no-I/O policy capture](performance-results/2026-08-10/README.md)
 now isolates the common transport floor from root policy and root policy plus
-one successful observer for synchronous single, synchronous batch,
-asynchronous API-window, and producer-transaction operations. That capture
-includes validation, allowlisting, defensive byte ownership, franz-go record
-mapping, lifecycle fencing, bounded delivery contexts, and result normalization
-while excluding broker, network, serialization, compression, retry, and
-storage latency. Existing package microbenchmarks separately isolate failure
-policy, partition workers, replay progress, inspection, and adapters. A common
-no-I/O end-to-end decomposition for consumer-group polling and
-consume-transform-produce remains outstanding.
+one successful observer across producer, consumer-group, and
+consume-transform-produce operations. Producer coverage includes synchronous
+single, synchronous batch, asynchronous API-window, and producer-transaction
+operations. Consumer coverage includes record and batch handling, one and four
+partitions, sequential and bounded-parallel partition handling, contiguous
+settlement, and commit. The consume-transform-produce coverage includes the
+complete source poll, bounded handling, transactional output, and commit path.
+The capture includes validation, allowlisting, defensive byte ownership,
+franz-go record mapping, lifecycle fencing, bounded contexts, settlement, and
+result normalization while excluding broker, network, group coordination,
+serialization, compression, retry, and storage latency. Existing package
+microbenchmarks separately isolate failure policy, partition workers, replay
+progress, inspection, and adapters.
 
 ## Remaining benchmark matrix
 

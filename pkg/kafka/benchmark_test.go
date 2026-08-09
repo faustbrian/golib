@@ -416,6 +416,477 @@ func (*benchmarkProducerBackend) EndTransaction(
 }
 func (*benchmarkProducerBackend) Close() {}
 
+// BenchmarkConsumerPolicyOverhead removes broker, network, group coordination,
+// and storage time from one complete poll, handler, contiguous settlement, and
+// commit cycle. The direct transport floor uses the same fetched records and
+// no-I/O backend as the root record and batch policy paths.
+func BenchmarkConsumerPolicyOverhead(b *testing.B) {
+	ctx := context.Background()
+	workloads := []struct {
+		name       string
+		records    int
+		partitions int
+		workers    int
+		batch      bool
+	}{
+		{name: "record/1-record/1-partition", records: 1, partitions: 1, workers: 1},
+		{name: "record/10-records/1-partition", records: 10, partitions: 1, workers: 1},
+		{name: "record/100-records/1-partition", records: 100, partitions: 1, workers: 1},
+		{name: "record/100-records/4-partitions/sequential", records: 100, partitions: 4, workers: 1},
+		{name: "record/100-records/4-partitions/parallel-4", records: 100, partitions: 4, workers: 4},
+		{name: "batch/10-records/1-partition", records: 10, partitions: 1, workers: 1, batch: true},
+		{name: "batch/100-records/1-partition", records: 100, partitions: 1, workers: 1, batch: true},
+		{name: "batch/100-records/4-partitions/sequential", records: 100, partitions: 4, workers: 1, batch: true},
+		{name: "batch/100-records/4-partitions/parallel-4", records: 100, partitions: 4, workers: 4, batch: true},
+	}
+
+	for _, workload := range workloads {
+		fixture := newBenchmarkFetchFixture(
+			"benchmark.source.v1",
+			workload.records,
+			workload.partitions,
+			1<<10,
+		)
+		b.Run(workload.name, func(b *testing.B) {
+			benchmarkConsumerPolicy(
+				b,
+				ctx,
+				fixture,
+				workload.workers,
+				workload.batch,
+			)
+		})
+	}
+}
+
+func benchmarkConsumerPolicy(
+	b *testing.B,
+	ctx context.Context,
+	fixture benchmarkFetchFixture,
+	workers int,
+	batch bool,
+) {
+	b.Helper()
+	backend := &benchmarkConsumerBackend{fixture: fixture}
+	b.Run("transport-floor", func(b *testing.B) {
+		run := func() {
+			fetches := backend.PollRecords(ctx, len(fixture.records))
+			records := fetches.Records()
+			if fetches.Err() != nil || len(records) != len(fixture.records) {
+				b.Fatal("no-I/O transport returned an invalid fetch")
+			}
+			if batch {
+				for _, partitionRecords := range fixture.partitionRecords {
+					if len(partitionRecords) == 0 {
+						b.Fatal("no-I/O transport returned an empty partition")
+					}
+				}
+			} else {
+				for _, record := range records {
+					if record.Topic != fixture.topic || len(record.Value) != 1<<10 {
+						b.Fatal("no-I/O transport returned an invalid record")
+					}
+				}
+			}
+			if err := backend.CommitRecords(ctx, fixture.lastRecords...); err != nil {
+				b.Fatal(err)
+			}
+			backend.AllowRebalance()
+			recycleFetchedRecords(records)
+		}
+		run()
+		b.SetBytes(fixture.bytes)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for b.Loop() {
+			run()
+		}
+	})
+
+	for _, observed := range []bool{false, true} {
+		name := "policy"
+		if observed {
+			name = "policy-observed"
+		}
+		b.Run(name, func(b *testing.B) {
+			consumer := benchmarkPolicyConsumer(
+				backend,
+				len(fixture.records),
+				workers,
+				observed,
+			)
+			recordHandler := HandlerFunc(func(
+				context.Context,
+				ConsumedMessage,
+			) error {
+				return nil
+			})
+			batchHandler := BatchHandlerFunc(func(
+				context.Context,
+				ConsumedBatch,
+			) error {
+				return nil
+			})
+			run := func() {
+				var result PollResult
+				var err error
+				if batch {
+					result, err = consumer.RunBatchOnce(ctx, batchHandler)
+				} else {
+					result, err = consumer.RunOnce(ctx, recordHandler)
+				}
+				if err != nil || result.Polled != len(fixture.records) ||
+					result.Processed != len(fixture.records) ||
+					result.Committed != len(fixture.records) {
+					b.Fatalf("consumer policy result = %#v, %v", result, err)
+				}
+			}
+			run()
+			b.SetBytes(fixture.bytes)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				run()
+			}
+		})
+	}
+}
+
+func benchmarkPolicyConsumer(
+	backend consumerBackend,
+	maxPollRecords int,
+	workers int,
+	observed bool,
+) *Consumer {
+	consumer := &Consumer{
+		client:                backend,
+		clientID:              "benchmark-consumer",
+		groupID:               "benchmark-consumer-v1",
+		limits:                DefaultMessageLimits(),
+		maxPollRecords:        maxPollRecords,
+		maxPausedPartitions:   64,
+		maxConcurrentHandlers: workers,
+		assignment: newConsumerAssignmentState(
+			64,
+			[]string{"benchmark.source.v1"},
+		),
+		rebalance:        newConsumerRebalanceState(RebalanceCancelHandler),
+		handlerTimeout:   time.Minute,
+		commitTimeout:    time.Minute,
+		rebalanceTimeout: time.Minute,
+		shutdownTimeout:  time.Minute,
+		subscribedTopics: map[string]struct{}{
+			"benchmark.source.v1": {},
+		},
+		pausedPartitions: make(map[TopicPartition]struct{}),
+	}
+	if observed {
+		consumer.observers = benchmarkObserverDispatcher()
+	}
+
+	return consumer
+}
+
+type benchmarkFetchFixture struct {
+	topic            string
+	fetches          kgo.Fetches
+	records          []*kgo.Record
+	partitionRecords [][]*kgo.Record
+	lastRecords      []*kgo.Record
+	bytes            int64
+}
+
+func newBenchmarkFetchFixture(
+	topic string,
+	recordCount int,
+	partitionCount int,
+	payloadBytes int,
+) benchmarkFetchFixture {
+	fixture := benchmarkFetchFixture{
+		topic:            topic,
+		records:          make([]*kgo.Record, 0, recordCount),
+		partitionRecords: make([][]*kgo.Record, partitionCount),
+		lastRecords:      make([]*kgo.Record, partitionCount),
+	}
+	value := bytes.Repeat([]byte{'v'}, payloadBytes)
+	key := []byte("aggregate-1")
+	headers := []kgo.RecordHeader{
+		{Key: "content-type", Value: []byte("application/octet-stream")},
+		{Key: "schema-version", Value: []byte("1")},
+	}
+	offsets := make([]int64, partitionCount)
+	for index := range recordCount {
+		partition := index % partitionCount
+		record := &kgo.Record{
+			Topic:       topic,
+			Partition:   int32(partition),
+			Offset:      offsets[partition],
+			Key:         key,
+			Value:       value,
+			Headers:     headers,
+			Timestamp:   time.Unix(1_700_000_000, 0),
+			LeaderEpoch: 1,
+		}
+		offsets[partition]++
+		fixture.records = append(fixture.records, record)
+		fixture.partitionRecords[partition] = append(
+			fixture.partitionRecords[partition],
+			record,
+		)
+		fixture.lastRecords[partition] = record
+		fixture.bytes += consumedRecordSize(record)
+	}
+	partitions := make([]kgo.FetchPartition, partitionCount)
+	for partition := range partitionCount {
+		partitions[partition] = kgo.FetchPartition{
+			Partition: int32(partition),
+			Records:   fixture.partitionRecords[partition],
+		}
+	}
+	fixture.fetches = kgo.Fetches{{
+		Topics: []kgo.FetchTopic{{Topic: topic, Partitions: partitions}},
+	}}
+
+	return fixture
+}
+
+type benchmarkConsumerBackend struct {
+	fixture benchmarkFetchFixture
+}
+
+func (backend *benchmarkConsumerBackend) PollRecords(
+	_ context.Context,
+	maximum int,
+) kgo.Fetches {
+	if maximum < len(backend.fixture.records) {
+		return kgo.NewErrFetch(ErrTooManyFetchedRecords)
+	}
+
+	return backend.fixture.fetches
+}
+
+func (backend *benchmarkConsumerBackend) CommitRecords(
+	_ context.Context,
+	records ...*kgo.Record,
+) error {
+	if len(records) != len(backend.fixture.lastRecords) {
+		return fmt.Errorf(
+			"benchmark commit record count = %d, want %d",
+			len(records),
+			len(backend.fixture.lastRecords),
+		)
+	}
+	for index, record := range records {
+		if record != backend.fixture.lastRecords[index] {
+			return fmt.Errorf("benchmark commit record %d changed", index)
+		}
+	}
+
+	return nil
+}
+
+func (*benchmarkConsumerBackend) AllowRebalance() {}
+func (*benchmarkConsumerBackend) LeaveGroupContext(context.Context) error {
+	return nil
+}
+func (*benchmarkConsumerBackend) PauseFetchPartitions(
+	map[string][]int32,
+) map[string][]int32 {
+	return nil
+}
+func (*benchmarkConsumerBackend) ResumeFetchPartitions(map[string][]int32) {}
+func (*benchmarkConsumerBackend) Close()                                   {}
+
+// BenchmarkTransactionProcessorPolicyOverhead removes broker, network,
+// coordinator, and storage time from the Kafka consume-transform-produce
+// boundary. Each source record publishes one output before the source poll is
+// committed through the same no-I/O transaction backend.
+func BenchmarkTransactionProcessorPolicyOverhead(b *testing.B) {
+	ctx := context.Background()
+	for _, recordCount := range []int{1, 10, 100} {
+		fixture := newBenchmarkFetchFixture(
+			"benchmark.source.v1",
+			recordCount,
+			1,
+			1<<10,
+		)
+		b.Run(fmt.Sprintf("%d-records/1024B", recordCount), func(b *testing.B) {
+			benchmarkTransactionProcessorPolicy(b, ctx, fixture)
+		})
+	}
+}
+
+func benchmarkTransactionProcessorPolicy(
+	b *testing.B,
+	ctx context.Context,
+	fixture benchmarkFetchFixture,
+) {
+	b.Helper()
+	backend := &benchmarkTransactionProcessorBackend{fixture: fixture}
+	output := benchmarkProducerRecord(1 << 10)
+	output.Topic = "benchmark.derived.v1"
+	rawOutput := franzRecord(output.owned())
+	b.Run("transport-floor", func(b *testing.B) {
+		run := func() {
+			fetches := backend.PollRecords(ctx, len(fixture.records))
+			records := fetches.Records()
+			if fetches.Err() != nil || len(records) != len(fixture.records) {
+				b.Fatal("no-I/O transaction transport returned an invalid fetch")
+			}
+			if err := backend.Begin(); err != nil {
+				b.Fatal(err)
+			}
+			for range records {
+				results := backend.ProduceSync(ctx, rawOutput)
+				if len(results) != 1 || results[0].Record != rawOutput ||
+					results[0].Err != nil {
+					b.Fatal("no-I/O transaction transport omitted an output")
+				}
+			}
+			committed, err := backend.End(ctx, kgo.TryCommit)
+			if err != nil || !committed {
+				b.Fatalf("no-I/O transaction end = %t, %v", committed, err)
+			}
+			recycleFetchedRecords(records)
+		}
+		run()
+		b.SetBytes(fixture.bytes + recordSize(output)*int64(len(fixture.records)))
+		b.ReportAllocs()
+		b.ResetTimer()
+		for b.Loop() {
+			run()
+		}
+	})
+
+	for _, observed := range []bool{false, true} {
+		name := "policy"
+		if observed {
+			name = "policy-observed"
+		}
+		b.Run(name, func(b *testing.B) {
+			processor := benchmarkPolicyTransactionProcessor(
+				backend,
+				len(fixture.records),
+				observed,
+			)
+			handler := TransactionHandlerFunc(func(
+				ctx context.Context,
+				_ ConsumedRecord,
+				transaction Transaction,
+			) error {
+				return transaction.Publish(ctx, output)
+			})
+			run := func() {
+				result, err := processor.RunOnce(ctx, handler)
+				if err != nil || result.Polled != len(fixture.records) ||
+					result.Processed != len(fixture.records) ||
+					result.Published != len(fixture.records) ||
+					!result.Committed {
+					b.Fatalf("transaction processor result = %#v, %v", result, err)
+				}
+			}
+			run()
+			b.SetBytes(
+				fixture.bytes + recordSize(output)*int64(len(fixture.records)),
+			)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				run()
+			}
+		})
+	}
+}
+
+func benchmarkPolicyTransactionProcessor(
+	backend transactionProcessorBackend,
+	maxPollRecords int,
+	observed bool,
+) *TransactionProcessor {
+	processor := &TransactionProcessor{
+		client:              backend,
+		clientID:            "benchmark-transaction-processor",
+		groupID:             "benchmark-transaction-processor-v1",
+		limits:              DefaultMessageLimits(),
+		maxPollRecords:      maxPollRecords,
+		processingTimeout:   time.Minute,
+		transactionEndTime:  time.Minute,
+		shutdownTimeout:     time.Minute,
+		deliveryWaitTimeout: time.Minute,
+		keyRequired:         true,
+		allowedTopics: map[string]struct{}{
+			"benchmark.derived.v1": {},
+		},
+		maxOutputRecords: maxPollRecords,
+		maxOutputBytes:   int64(maxPollRecords) * (2 << 10),
+	}
+	if observed {
+		processor.observers = benchmarkObserverDispatcher()
+	}
+
+	return processor
+}
+
+type benchmarkTransactionProcessorBackend struct {
+	fixture benchmarkFetchFixture
+}
+
+func (backend *benchmarkTransactionProcessorBackend) PollRecords(
+	_ context.Context,
+	maximum int,
+) kgo.Fetches {
+	if maximum < len(backend.fixture.records) {
+		return kgo.NewErrFetch(ErrTooManyFetchedRecords)
+	}
+
+	return backend.fixture.fetches
+}
+
+func (*benchmarkTransactionProcessorBackend) Begin() error { return nil }
+
+func (*benchmarkTransactionProcessorBackend) ProduceSync(
+	_ context.Context,
+	records ...*kgo.Record,
+) kgo.ProduceResults {
+	results := make(kgo.ProduceResults, len(records))
+	for index, record := range records {
+		record.Partition = 0
+		record.Offset = 1
+		results[index] = kgo.ProduceResult{Record: record}
+	}
+
+	return results
+}
+
+func (*benchmarkTransactionProcessorBackend) BufferedProduceRecords() int64 {
+	return 0
+}
+func (*benchmarkTransactionProcessorBackend) BufferedProduceBytes() int64 {
+	return 0
+}
+func (*benchmarkTransactionProcessorBackend) End(
+	_ context.Context,
+	try kgo.TransactionEndTry,
+) (bool, error) {
+	return try == kgo.TryCommit, nil
+}
+func (*benchmarkTransactionProcessorBackend) LeaveGroupContext(
+	context.Context,
+) error {
+	return nil
+}
+func (*benchmarkTransactionProcessorBackend) Close() {}
+
+func benchmarkObserverDispatcher() observerDispatcher {
+	return newObserverDispatcher(ObserverPolicy{
+		Observers: []ObserverFunc{
+			func(context.Context, Observation) error { return nil },
+		},
+		FailureHandler: func(context.Context, ObservationFailure) {},
+		Timeout:        time.Second,
+	})
+}
+
 func BenchmarkFailureHandlerSuccess(b *testing.B) {
 	ctx := context.Background()
 	record := ConsumedMessage{
