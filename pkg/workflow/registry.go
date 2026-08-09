@@ -57,6 +57,24 @@ func CompileRegistry(definitions []Definition, migrations []Migration) (*Registr
 		}
 		registry.definitions[key] = definition
 	}
+	for _, definition := range definitions {
+		for _, step := range definition.spec.Steps {
+			if step.Kind != StepChild {
+				continue
+			}
+			child, exists := registry.definitions[definitionKey{
+				name: step.ChildDefinition.Name(), version: step.ChildDefinition.Version(),
+			}]
+			if !exists {
+				return nil, fmt.Errorf("%w: child %s@%s", ErrDefinitionNotFound,
+					step.ChildDefinition.Name(), step.ChildDefinition.Version())
+			}
+			if child.Reference() != step.ChildDefinition {
+				return nil, fmt.Errorf("%w: child %s@%s", ErrDefinitionMismatch,
+					step.ChildDefinition.Name(), step.ChildDefinition.Version())
+			}
+		}
+	}
 
 	for _, migration := range migrations {
 		from := definitionKey{name: migration.Name, version: migration.FromVersion}

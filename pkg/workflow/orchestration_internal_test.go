@@ -73,9 +73,9 @@ func TestOrchestrationRejectsUnsupportedAndInvalidStepDecisions(t *testing.T) {
 	}
 
 	unsupportedDefinition, err := NewDefinition(DefinitionSpec{
-		Name: "child", Version: "1", Mode: Orchestration,
+		Name: "unsupported", Version: "1", Mode: Orchestration,
 		Steps: []StepSpec{{
-			Name: "child", Kind: StepChild, Target: "child.workflow", Timeout: time.Minute,
+			Name: "activity", Kind: StepActivity, Target: "activity.run", Timeout: time.Minute,
 			InputLimit: 1, ResultLimit: 1,
 			Retry: RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
 		}},
@@ -83,6 +83,7 @@ func TestOrchestrationRejectsUnsupportedAndInvalidStepDecisions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("construct unsupported definition: %v", err)
 	}
+	unsupportedDefinition.spec.Steps[0].Kind = StepKind(99)
 	unsupported := base
 	unsupported.definition = unsupportedDefinition.Reference()
 	if _, err := NewOrchestrationDecision(OrchestrationDecisionSpec{

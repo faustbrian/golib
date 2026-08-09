@@ -1,0 +1,7 @@
+Golib CloudEvents adapters
+Copyright (c) 2026 Brian Faust
+
+This module integrates with the CloudEvents implementation in the parent Golib
+module. It contains no copied CloudEvents specification fixtures or third-party
+source code. Normative source revisions and licence provenance are recorded in
+the parent module's docs/provenance.md and docs/specification-matrix.md.

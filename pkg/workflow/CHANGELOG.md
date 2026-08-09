@@ -7,6 +7,9 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Version-pinned child workflow definitions, atomic parent history and
+  `WorkChild` admission, bounded dispatch metadata, replayed child progress,
+  known terminal outcomes, and deterministic parent orchestration.
 - Persisted bounded signal and approval races with deterministic winner
   selection, immutable replayed race progress, and winner recording before
   later orchestration can advance.
@@ -65,3 +68,8 @@ and releases use Semantic Versioning.
   termination, and continue-as-new outcomes.
 - Immutable explicitly versioned workflow definitions, bounded activity and
   compensation policies, pinned registry lookup, and explicit migrations.
+
+### Changed
+
+- `StepChild` definitions now require `ChildDefinition`; existing child steps
+  must pin the exact registered child name, version, and fingerprint.

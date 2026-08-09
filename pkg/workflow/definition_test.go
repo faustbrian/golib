@@ -86,6 +86,7 @@ func TestDefinitionSupportsExplicitBoundedStepKinds(t *testing.T) {
 	child.Name = "child"
 	child.Kind = workflow.StepChild
 	child.Target = "child.workflow"
+	child.ChildDefinition = mustDefinition(t, "child.workflow", "1").Reference()
 
 	definition, err := workflow.NewDefinition(workflow.DefinitionSpec{
 		Name: "all.steps", Version: "1", Mode: workflow.Choreography, Deprecated: true,
@@ -326,7 +327,8 @@ func TestDefinitionRejectsAmbiguousControlFlowBranches(t *testing.T) {
 	}
 	child := workflow.StepSpec{
 		Name: "child", Kind: workflow.StepChild, Target: "child.workflow", Timeout: time.Second,
-		InputLimit: 1, ResultLimit: 1,
+		ChildDefinition: mustDefinition(t, "child.workflow", "1").Reference(),
+		InputLimit:      1, ResultLimit: 1,
 		Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
 	}
 	nonActivityBranch := []workflow.StepSpec{
@@ -372,6 +374,35 @@ func TestDefinitionRejectsAmbiguousControlFlowBranches(t *testing.T) {
 			Name: "control", Version: name, Mode: workflow.Orchestration, Steps: steps,
 		}); !errors.Is(err, workflow.ErrInvalidDefinition) {
 			t.Fatalf("%s error = %v", name, err)
+		}
+	}
+}
+
+func TestDefinitionRejectsUnpinnedOrMisplacedChildReferences(t *testing.T) {
+	t.Parallel()
+
+	child := mustDefinition(t, "child", "1")
+	valid := workflow.StepSpec{
+		Name: "child", Kind: workflow.StepChild, Target: "child", ChildDefinition: child.Reference(),
+		Timeout: time.Second, InputLimit: 1, ResultLimit: 1,
+		Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
+	}
+	invalid := []workflow.StepSpec{
+		func() workflow.StepSpec { value := valid; value.Retry = workflow.RetryPolicy{}; return value }(),
+		func() workflow.StepSpec {
+			value := valid
+			value.ChildDefinition = workflow.DefinitionReference{}
+			return value
+		}(),
+		func() workflow.StepSpec { value := valid; value.Target = "other"; return value }(),
+		func() workflow.StepSpec { value := valid; value.Kind = workflow.StepActivity; return value }(),
+	}
+	for index, step := range invalid {
+		if _, err := workflow.NewDefinition(workflow.DefinitionSpec{
+			Name: "parent", Version: "child-" + strconv.Itoa(index), Mode: workflow.Orchestration,
+			Steps: []workflow.StepSpec{step},
+		}); !errors.Is(err, workflow.ErrInvalidDefinition) {
+			t.Fatalf("invalid child reference %d error = %v", index, err)
 		}
 	}
 }

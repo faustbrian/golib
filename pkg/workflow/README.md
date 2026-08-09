@@ -24,8 +24,9 @@ starts before handlers and preserve unknown outcomes across redelivery.
 Ordered orchestration can schedule activities and timers, wait for signals and
 audited human approvals, atomically admit bounded parallel activity branches,
 join their persisted outcomes, select and persist bounded signal or approval
-race winners, and persist known terminal outcomes. Child orchestration, broader
-operator stores, and optional integrations are not yet delivered.
+race winners, schedule version-pinned child workflows, and persist known
+terminal outcomes. A child-start processor, broader operator stores, and
+optional integrations are not yet delivered.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that
@@ -68,6 +69,14 @@ winner cannot imply cancellation of an already-started external side effect.
 The earliest persisted receive time wins; definition order breaks an equal-time
 tie. `EventRaceWon` must commit before later steps advance, and replay never
 recomputes a different winner from signals accepted afterward.
+
+`StepChild` pins a complete `DefinitionReference`. `NewChildSchedule` commits
+the parent decision and `WorkChild` admission atomically before a caller-owned
+adapter creates the child instance. `DecodeChildDispatch` preserves the exact
+child identity across redelivery, and `NewChildOutcome` records a known child
+terminal result before parent orchestration advances. Creating a child remains
+an idempotent external operation; an uncertain start must be reconciled rather
+than treated as safely absent.
 
 `NewTimerSchedule` binds a timer-history decision and its `WorkTimer` record in
 one transition. A timer processor persists `NewTimerFire` and only then returns

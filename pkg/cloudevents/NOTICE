@@ -1,0 +1,6 @@
+cloudevents
+Copyright (c) 2026 Brian Faust
+
+Normative requirements and conformance scenarios are derived from CloudEvents
+specification, conformance, and SDK projects licensed under Apache License 2.0.
+Exact source revisions and file digests are recorded in docs/provenance.md.

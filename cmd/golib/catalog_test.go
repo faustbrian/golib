@@ -368,6 +368,10 @@ func TestInteroperabilityCatalogMetadata(t *testing.T) {
 		directory string
 		want      []string
 	}{
+		{directory: "pkg/cloudevents", want: []string{
+			"cloudevents/sdk-go v2.16.2",
+			"cloudevents/sdk-javascript v10.0.0 on Node.js 24.13.0",
+		}},
 		{directory: "pkg/ecma-regexp", want: []string{"Node.js", "Test262"}},
 		{directory: "pkg/wsdl", want: []string{"Java", "Apache Woden"}},
 		{directory: "pkg/xsd", want: []string{"Docker", "Eclipse Temurin 25 JAXP"}},
@@ -380,6 +384,54 @@ func TestInteroperabilityCatalogMetadata(t *testing.T) {
 		) {
 			t.Errorf("interoperabilityTools(%s) = %v", test.directory, got)
 		}
+	}
+}
+
+func TestCloudEventsSpecificationCatalogMetadata(t *testing.T) {
+	t.Parallel()
+	if got := specifications("pkg/cloudevents"); !slices.Equal(got, []string{
+		"CloudEvents specification 1.0.2",
+		"CloudEvents JSON event format 1.0.2",
+		"CloudEvents HTTP protocol binding 1.0.2",
+		"CloudEvents Kafka protocol binding 1.0.2",
+		"CloudEvents distributed tracing extension 1.0.2",
+		"CloudEvents partitioning extension 1.0.2",
+	}) {
+		t.Fatalf("specifications(pkg/cloudevents) = %v", got)
+	}
+	if got := conformanceCorpora("pkg/cloudevents"); !slices.Equal(got, []string{
+		"cloudevents/conformance v0.4.1 HTTP and Kafka features",
+	}) {
+		t.Fatalf("conformanceCorpora(pkg/cloudevents) = %v", got)
+	}
+}
+
+func TestOpenSearchSpecificationCatalogMetadata(t *testing.T) {
+	t.Parallel()
+	if got := specifications("pkg/search/adapters/opensearch"); !slices.Equal(
+		got,
+		[]string{"OpenSearch REST API 2.19.3 and 3.6.0"},
+	) {
+		t.Fatalf("specifications(pkg/search/adapters/opensearch) = %v", got)
+	}
+}
+
+func TestCloudEventsSpecificationCatalogMetadata(t *testing.T) {
+	t.Parallel()
+	if got := specifications("pkg/cloudevents"); !slices.Equal(got, []string{
+		"CloudEvents specification 1.0.2",
+		"CloudEvents JSON event format 1.0.2",
+		"CloudEvents HTTP protocol binding 1.0.2",
+		"CloudEvents Kafka protocol binding 1.0.2",
+		"CloudEvents distributed tracing extension 1.0.2",
+		"CloudEvents partitioning extension 1.0.2",
+	}) {
+		t.Fatalf("specifications(pkg/cloudevents) = %v", got)
+	}
+	if got := conformanceCorpora("pkg/cloudevents"); !slices.Equal(got, []string{
+		"cloudevents/conformance v0.4.1 HTTP and Kafka features",
+	}) {
+		t.Fatalf("conformanceCorpora(pkg/cloudevents) = %v", got)
 	}
 }
 

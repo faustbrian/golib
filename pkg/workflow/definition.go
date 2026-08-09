@@ -87,18 +87,20 @@ type CompensationSpec struct {
 
 // StepSpec is definition input. NewDefinition validates and deep-copies it.
 // Target names an activity, signal, child definition, or approval policy as
-// selected by Kind.
+// selected by Kind. ChildDefinition is required only for StepChild and pins
+// the exact child behavior fingerprint.
 type StepSpec struct {
-	Name         string
-	Kind         StepKind
-	Target       string
-	Branches     []string
-	Timeout      time.Duration
-	InputLimit   uint32
-	ResultLimit  uint32
-	Retry        RetryPolicy
-	FanOutLimit  uint32
-	Compensation *CompensationSpec
+	Name            string
+	Kind            StepKind
+	Target          string
+	ChildDefinition DefinitionReference
+	Branches        []string
+	Timeout         time.Duration
+	InputLimit      uint32
+	ResultLimit     uint32
+	Retry           RetryPolicy
+	FanOutLimit     uint32
+	Compensation    *CompensationSpec
 }
 
 // DefinitionSpec supplies one stable immutable workflow definition version.
@@ -277,11 +279,18 @@ func validateOrchestrationControlFlow(steps []StepSpec, kinds map[string]StepKin
 
 func validateStep(step StepSpec) error {
 	switch step.Kind {
-	case StepActivity, StepChild:
+	case StepActivity:
 		if !stableName.MatchString(step.Target) || step.Timeout <= 0 ||
 			!validPayloadLimit(step.InputLimit) || !validPayloadLimit(step.ResultLimit) ||
 			!validRetry(step.Retry) {
 			return invalidDefinition("step.activity")
+		}
+	case StepChild:
+		if !stableName.MatchString(step.Target) || !step.ChildDefinition.valid() ||
+			step.ChildDefinition.Name() != step.Target || step.Timeout <= 0 ||
+			!validPayloadLimit(step.InputLimit) || !validPayloadLimit(step.ResultLimit) ||
+			!validRetry(step.Retry) {
+			return invalidDefinition("step.child")
 		}
 	case StepSignal, StepApproval:
 		if !stableName.MatchString(step.Target) || step.Timeout <= 0 ||
@@ -302,6 +311,9 @@ func validateStep(step StepSpec) error {
 	}
 	if step.Kind != StepParallel && step.Kind != StepJoin && step.Kind != StepRace && len(step.Branches) != 0 {
 		return invalidDefinition("step.branches")
+	}
+	if step.Kind != StepChild && step.ChildDefinition != (DefinitionReference{}) {
+		return invalidDefinition("step.child_definition")
 	}
 
 	if step.Compensation != nil {

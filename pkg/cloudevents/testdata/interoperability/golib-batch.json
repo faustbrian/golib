@@ -1,0 +1,1 @@
+[{"data":{"value":42},"datacontenttype":"application/json","id":"golib-js","partitionkey":"partition-a","source":"/golib","specversion":"1.0","tenantid":"tenant-a","time":"2026-08-09T00:00:00Z","traceparent":"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01","type":"com.example.golib.javascript"}]

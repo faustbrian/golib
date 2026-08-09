@@ -1,0 +1,70 @@
+{
+  "schema": 1,
+  "reviewed_at": "2026-08-09",
+  "sources": [
+    {
+      "name": "CloudEvents specification",
+      "repository": "https://github.com/cloudevents/spec",
+      "version": "v1.0.2",
+      "revision": "fc1f6f31f5f011a72183f1bcea20c987cb683ade",
+      "license": "Apache-2.0",
+      "use": "core specification, JSON event and batch formats, HTTP and Kafka bindings, distributed tracing and partitioning extensions",
+      "files": [
+        {"path":"cloudevents/spec.md","sha256":"e327435c858d19fd171e4ab9781a01fc22dfa949d23c4220976529ebd16a1aa3"},
+        {"path":"cloudevents/formats/json-format.md","sha256":"30778f995a2c82f3ac6c4f7cd56415d675111990151c9ab67bd0a2de1d0e1ce5"},
+        {"path":"cloudevents/formats/cloudevents.json","sha256":"e28a6d252d7b7238d176618f6bbf6cde570b26a867bc5241563aed34c9dd1d83"},
+        {"path":"cloudevents/bindings/http-protocol-binding.md","sha256":"35b0bc7949dd95e1134867c0f3854d97f7d7f3adcfe7a9b378705489ccc65e83"},
+        {"path":"cloudevents/bindings/kafka-protocol-binding.md","sha256":"2935a0d3c01f61b66580a15cd2a7ebc7663919bfe0a9e97b7f0428cbe9fa2d8c"},
+        {"path":"cloudevents/extensions/distributed-tracing.md","sha256":"bf6cef7bc1a72c59eee126f5f5a3047f58d9961899fbfa9625c3ade3f28980a5"},
+        {"path":"cloudevents/extensions/partitioning.md","sha256":"38b5bf2b9e46a52917710f5ca2bba3cc3b5d91649f7a463293b6cd67634fa94e"},
+        {"path":"cloudevents/documented-extensions.md","sha256":"349f5ce2eaac0415cb9ba8e92ca59813831ccf9638f79560e460b372d6b88c90"}
+      ]
+    },
+    {
+      "name": "CloudEvents conformance",
+      "repository": "https://github.com/cloudevents/conformance",
+      "version": "v0.4.1",
+      "revision": "7a8ee0ac0e782bba1ba30e58c62d24d2e6c337e5",
+      "license": "Apache-2.0",
+      "use": "official HTTP and Kafka receiver scenarios",
+      "files": [
+        {"path":"features/http-protocol-binding.feature","sha256":"d24dc8f28cb529b77377216a4f2015dbb93644980a09dfd8f3bdd1705a23c40c","vendored_path":"testdata/conformance/http-protocol-binding.feature","vendored_sha256":"71654ab1de4b363e6cb433e2c4b77f950f39659fe0182de2e50f5ffd4195fd05","normalization":"final newline added"},
+        {"path":"features/kafka-protocol-binding.feature","sha256":"a3e6f08bde13e4b219f13036ef4da168f2e797e525c05f244c80767939251865","vendored_path":"testdata/conformance/kafka-protocol-binding.feature","vendored_sha256":"1c8286a82a1fc458bd51147f41d5a1cc58bc294b7360d744df35421593df5285","normalization":"final newline added"},
+        {"path":"README.md","sha256":"2fa1a478509c4b22bd8e5f8160317485df81a5d3c0760e977755250ea6e5cd54"}
+      ]
+    },
+    {
+      "name": "CloudEvents Go SDK",
+      "repository": "https://github.com/cloudevents/sdk-go",
+      "version": "v2.16.2",
+      "revision": "af3e8599b3316ab6b4b73ff69aa8ec0efddbb5bb",
+      "license": "Apache-2.0",
+      "use": "independent bidirectional JSON, HTTP, and Kafka interoperability"
+    },
+    {
+      "name": "CloudEvents JavaScript SDK",
+      "repository": "https://github.com/cloudevents/sdk-javascript",
+      "version": "v10.0.0",
+      "revision": "c23895145a2f055e8e90714401fc67252a0edf21",
+      "package_integrity": "sha512-uyzC+PpMMRawbouHO+3mlisr3QfEDObmo2pN4oTTF6dZncZgpIzdasZx0tRBFI1dMsqCLZZXMtz8cUuvYqHdbw==",
+      "lockfile_sha256": "81fb6cf67158ecb0fcf05299fa7bad3dbcfc04c9cae6737030b9df8444541a6d",
+      "license": "Apache-2.0",
+      "use": "independent non-Go JSON, HTTP, Kafka, batch, and extension interoperability"
+    },
+    {
+      "name": "Node.js npm runtime",
+      "repository": "https://github.com/nodejs/node",
+      "version": "v24.13.0",
+      "darwin_arm64_sha256": "d595961e563fcae057d4a0fb992f175a54d97fcc4a14dc2d474d92ddeea3b9f8",
+      "license": "MIT AND other licenses",
+      "use": "pinned supported runtime for the JavaScript interoperability gate"
+    },
+    {
+      "name": "CloudEvents specification errata review ceiling",
+      "repository": "https://github.com/cloudevents/spec",
+      "revision": "c2845a49bc9831be02f305a4a792401b932d77d4",
+      "license": "Apache-2.0",
+      "use": "review ceiling for selected stable-line clarifications; not a CloudEvents 1.0.3-wip support claim"
+    }
+  ]
+}

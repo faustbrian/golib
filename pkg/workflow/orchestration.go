@@ -43,6 +43,7 @@ type OrchestrationDecisionSpec struct {
 	Result         []byte
 	TenantID       string
 	CorrelationID  string
+	ChildID        string
 	Branches       []OrchestrationBranchSpec
 }
 
@@ -116,11 +117,48 @@ func NewOrchestrationDecision(spec OrchestrationDecisionSpec) (OrchestrationDeci
 			if err != nil || !done {
 				return decision, err
 			}
+		case StepChild:
+			decision, done, err := decideChildStep(spec, step)
+			if err != nil || !done {
+				return decision, err
+			}
 		default:
 			return OrchestrationDecision{}, ErrInvalidOrchestration
 		}
 	}
 	return orchestrationTerminal(spec, OrchestrationCompleted, "")
+}
+
+func decideChildStep(
+	spec OrchestrationDecisionSpec,
+	step StepSpec,
+) (OrchestrationDecision, bool, error) {
+	progress, exists := spec.Instance.Child(step.Name)
+	if !exists {
+		transition, err := NewChildSchedule(ChildScheduleSpec{
+			TransitionID: spec.TransitionID, WorkID: spec.WorkID, ChildID: spec.ChildID,
+			Instance: spec.Instance, Definition: spec.Definition, StepName: step.Name,
+			ScheduledAt: spec.DecidedAt, Deadline: spec.Deadline, Input: spec.Input,
+			TenantID: spec.TenantID, CorrelationID: spec.CorrelationID,
+		})
+		if err != nil {
+			return OrchestrationDecision{}, false, ErrInvalidOrchestration
+		}
+		return OrchestrationDecision{
+			kind: OrchestrationScheduled, stepName: step.Name, transition: transition,
+		}, false, nil
+	}
+	switch progress.Status() {
+	case ChildScheduled:
+		return orchestrationWait(step.Name), false, nil
+	case ChildSucceeded:
+		return OrchestrationDecision{}, true, nil
+	case ChildFailed:
+		decision, err := orchestrationTerminal(spec, OrchestrationFailed, step.Name)
+		return decision, false, err
+	default:
+		return OrchestrationDecision{}, false, ErrInvalidOrchestration
+	}
 }
 
 func decideRaceStep(

@@ -123,6 +123,12 @@ const (
 	EventOperatorCommandRecorded EventKind = 27
 	// EventRaceWon records the persisted winner of one explicit race.
 	EventRaceWon EventKind = 28
+	// EventChildScheduled records a version-pinned child before dispatch.
+	EventChildScheduled EventKind = 29
+	// EventChildCompleted records a known successful child outcome.
+	EventChildCompleted EventKind = 30
+	// EventChildFailed records a known failed child outcome.
+	EventChildFailed EventKind = 31
 )
 
 // HistoryEventSpec supplies one immutable durable history record.
@@ -186,22 +192,24 @@ func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 
 func validHistoryEventSpec(spec HistoryEventSpec) bool {
 	if spec.Sequence == 0 || !instanceIDPattern.MatchString(spec.InstanceID) ||
-		spec.Kind < EventInstanceStarted || spec.Kind > EventRaceWon ||
+		spec.Kind < EventInstanceStarted || spec.Kind > EventChildFailed ||
 		spec.OccurredAt.IsZero() || len(spec.Data) > MaxPayloadBytes {
 		return false
 	}
 	requiresDefinition := spec.Kind == EventInstanceStarted ||
-		spec.Kind == EventDefinitionMigrated || spec.Kind == EventContinuedAsNew
+		spec.Kind == EventDefinitionMigrated || spec.Kind == EventContinuedAsNew ||
+		spec.Kind == EventChildScheduled
 	if requiresDefinition && !spec.Definition.valid() {
 		return false
 	}
 	if !requiresDefinition && spec.Definition != (DefinitionReference{}) {
 		return false
 	}
-	if spec.Kind == EventContinuedAsNew && !instanceIDPattern.MatchString(spec.SuccessorID) {
+	childEvent := spec.Kind >= EventChildScheduled && spec.Kind <= EventChildFailed
+	if (spec.Kind == EventContinuedAsNew || childEvent) && !instanceIDPattern.MatchString(spec.SuccessorID) {
 		return false
 	}
-	if spec.Kind != EventContinuedAsNew && spec.SuccessorID != "" {
+	if spec.Kind != EventContinuedAsNew && !childEvent && spec.SuccessorID != "" {
 		return false
 	}
 	return validEventFields(spec)
@@ -284,6 +292,7 @@ type Instance struct {
 	timers          map[string]TimerProgress
 	signals         map[string]SignalProgress
 	races           map[string]RaceProgress
+	children        map[string]ChildProgress
 	compensations   map[string]CompensationProgress
 	operatorActions []OperatorActionRecord
 	pendingOperator OperatorAction
@@ -374,6 +383,15 @@ func (instance Instance) Race(stepName string) (RaceProgress, bool) {
 // Races returns persisted race winners in stable control-step order.
 func (instance Instance) Races() []RaceProgress { return sortedRaceProgress(instance.races) }
 
+// Child returns immutable replayed progress for one child-workflow step.
+func (instance Instance) Child(stepName string) (ChildProgress, bool) {
+	progress, exists := instance.children[stepName]
+	return cloneChildProgress(progress), exists
+}
+
+// Children returns child progress in stable step-name order.
+func (instance Instance) Children() []ChildProgress { return sortedChildProgress(instance.children) }
+
 // Compensation returns immutable replayed progress for one activity's
 // explicit compensating action.
 func (instance Instance) Compensation(stepName string) (CompensationProgress, bool) {
@@ -411,6 +429,7 @@ func (instance Instance) SnapshotDigest() string {
 		Timers                []timerProgressSnapshot        `json:",omitempty"`
 		Signals               []signalProgressSnapshot       `json:",omitempty"`
 		Races                 []raceProgressSnapshot         `json:",omitempty"`
+		Children              []childProgressSnapshot        `json:",omitempty"`
 		Compensations         []compensationProgressSnapshot `json:",omitempty"`
 		OperatorActions       []operatorActionSnapshot       `json:",omitempty"`
 	}{
@@ -422,6 +441,7 @@ func (instance Instance) SnapshotDigest() string {
 		SuccessorID: instance.successorID, Activities: activityProgressSnapshots(instance.activities),
 		Timers: timerProgressSnapshots(instance.timers), Signals: signalProgressSnapshots(instance.signals),
 		Races:           raceProgressSnapshots(instance.races),
+		Children:        childProgressSnapshots(instance.children),
 		Compensations:   compensationProgressSnapshots(instance.compensations),
 		OperatorActions: operatorActionSnapshots(instance.operatorActions),
 	})
@@ -525,6 +545,10 @@ func (instance *Instance) apply(registry *Registry, event HistoryEvent) error {
 		if err := instance.applyRace(registry, event); err != nil {
 			return err
 		}
+	case EventChildScheduled, EventChildCompleted, EventChildFailed:
+		if err := instance.applyChild(registry, event); err != nil {
+			return err
+		}
 	case EventCompensationScheduled, EventCompensationAttemptStarted,
 		EventCompensationAttemptSucceeded, EventCompensationAttemptFailed,
 		EventCompensationAttemptUnknown, EventCompensationRetryScheduled,
@@ -568,6 +592,7 @@ func (instance *Instance) applyStart(registry *Registry, event HistoryEvent) err
 	instance.timers = make(map[string]TimerProgress)
 	instance.signals = make(map[string]SignalProgress)
 	instance.races = make(map[string]RaceProgress)
+	instance.children = make(map[string]ChildProgress)
 	instance.compensations = make(map[string]CompensationProgress)
 	instance.operatorActions = nil
 	instance.pendingOperator = 0
@@ -589,6 +614,9 @@ func validEventFields(spec HistoryEventSpec) bool {
 	}
 	if spec.Kind == EventRaceWon {
 		return validRaceEventFields(spec)
+	}
+	if spec.Kind >= EventChildScheduled && spec.Kind <= EventChildFailed {
+		return validChildEventFields(spec)
 	}
 	return spec.StepName == "" && spec.Attempt == 0 && spec.IdempotencyKey == "" &&
 		spec.DueAt.IsZero() && spec.Code == "" && !spec.Retryable

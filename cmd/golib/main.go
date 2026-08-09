@@ -1096,6 +1096,12 @@ func requiredServices(directory string) []string {
 }
 
 func interoperabilityTools(directory string) []string {
+	if directory == "pkg/cloudevents" {
+		return []string{
+			"cloudevents/sdk-go v2.16.2",
+			"cloudevents/sdk-javascript v10.0.0 on Node.js 24.13.0",
+		}
+	}
 	if directory == "pkg/capability" {
 		return []string{"Python 3 standard-library HMAC implementation"}
 	}
@@ -1117,6 +1123,16 @@ func interoperabilityTools(directory string) []string {
 }
 
 func specifications(directory string) []string {
+	if directory == "pkg/cloudevents" {
+		return []string{
+			"CloudEvents specification 1.0.2",
+			"CloudEvents JSON event format 1.0.2",
+			"CloudEvents HTTP protocol binding 1.0.2",
+			"CloudEvents Kafka protocol binding 1.0.2",
+			"CloudEvents distributed tracing extension 1.0.2",
+			"CloudEvents partitioning extension 1.0.2",
+		}
+	}
 	if directory == "pkg/capability" {
 		return []string{"RFC 4231 HMAC-SHA-256 vectors", "RFC 8032 Ed25519 vectors"}
 	}
@@ -1161,6 +1177,9 @@ func specifications(directory string) []string {
 }
 
 func conformanceCorpora(directory string) []string {
+	if directory == "pkg/cloudevents" {
+		return []string{"cloudevents/conformance v0.4.1 HTTP and Kafka features"}
+	}
 	if directory == "pkg/capability" {
 		return []string{"RFC 4231 test case 6", "RFC 8032 section 7.1 test 1"}
 	}

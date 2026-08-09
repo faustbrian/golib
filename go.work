@@ -23,6 +23,8 @@ use (
 	./pkg/cli
 	./pkg/cli/benchmarks
 	./pkg/clock
+	./pkg/cloudevents
+	./pkg/cloudevents/adapters/golib
 	./pkg/concurrency-limit
 	./pkg/concurrency-limit/benchmarks/comparison
 	./pkg/concurrency-limit/integration/resilience
