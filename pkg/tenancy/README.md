@@ -80,3 +80,26 @@ from a consumer-owned `TenantPager`, returns exact page-and-offset resume tokens
 and derives every operation from the original unscoped base context. Tenant
 state therefore cannot survive into the next iteration. The capability records
 intent but applications must still authorize the operation.
+
+## PostgreSQL
+
+The `postgres` adapter keeps query and session enforcement explicit:
+
+- `Predicate` returns a quoted tenant equality clause and its owned argument;
+  callers still place the clause in every applicable query.
+- `Manager.WithTenant` leases one `database/sql` connection, clears any stale
+  session value, begins a transaction, installs the tenant with transaction-local
+  `set_config`, verifies it by reading it back, and resets the same leased
+  connection before it can return to the pool.
+- `Manager.WithSystem` accepts only explicit system scope and installs an empty
+  tenant setting. It does not bypass RLS or grant database privileges.
+- `NewRLSPlan` returns quoted `ENABLE`, `FORCE`, `CREATE POLICY`, and rollback
+  statements. Applications apply these statements through their migration
+  owner and should run application traffic through a non-owner role because
+  table owners and privileged roles can otherwise bypass RLS.
+
+The supplied RLS expression fails closed when the custom setting is absent or
+has been reset. Connection reset failures cause the physical connection to be
+discarded. Operations must use only the transaction passed to their callback;
+opening another connection or issuing tenant queries outside it bypasses this
+enforcement seam.

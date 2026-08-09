@@ -22,3 +22,5 @@ versioning once released.
   cancellation, shutdown, and task-error ownership.
 - Audited, bounded, cancellable, and resumable cross-tenant iteration that
   derives every tenant operation independently from an unscoped base context.
+- Explicit PostgreSQL predicates, transaction-local tenant settings with
+  readback and pool-reset safety, and migration-owned fail-closed RLS plans.
