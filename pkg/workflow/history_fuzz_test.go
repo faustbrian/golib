@@ -46,3 +46,31 @@ func FuzzHistoryEventValidation(f *testing.F) {
 		}
 	})
 }
+
+func FuzzActivityHistoryEventValidation(f *testing.F) {
+	f.Add(uint8(workflow.EventActivityScheduled), "execute", uint32(0), "", "", false, []byte("input"))
+	f.Add(uint8(workflow.EventActivityAttemptStarted), "execute", uint32(1), "key-1", "", false, []byte(nil))
+	f.Add(uint8(workflow.EventActivityAttemptUnknown), "execute", uint32(1), "", "transport-lost", false, []byte("details"))
+
+	f.Fuzz(func(t *testing.T, kind uint8, stepName string, attempt uint32, idempotencyKey, code string, retryable bool, data []byte) {
+		eventKind := workflow.EventKind(kind)
+		now := time.Unix(1, 0)
+		spec := workflow.HistoryEventSpec{
+			Sequence: 2, InstanceID: "instance-1", Kind: eventKind, OccurredAt: now,
+			StepName: stepName, Attempt: attempt, IdempotencyKey: idempotencyKey,
+			Code: code, Retryable: retryable, Data: data,
+		}
+		if eventKind == workflow.EventActivityAttemptStarted || eventKind == workflow.EventActivityRetryScheduled {
+			spec.DueAt = now.Add(time.Second)
+		}
+		event, err := workflow.NewHistoryEvent(spec)
+		if err != nil {
+			return
+		}
+		if event.StepName() != stepName || event.Attempt() != attempt ||
+			event.IdempotencyKey() != idempotencyKey || event.Code() != code ||
+			event.Retryable() != retryable || len(event.Data()) > workflow.MaxPayloadBytes {
+			t.Fatal("accepted activity event did not preserve validated bounds")
+		}
+	})
+}

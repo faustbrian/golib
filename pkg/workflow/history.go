@@ -87,37 +87,63 @@ const (
 	EventDefinitionMigrated EventKind = 9
 	// EventContinuedAsNew closes history in favor of an explicit successor.
 	EventContinuedAsNew EventKind = 10
+	// EventActivityScheduled records durable activity input before dispatch.
+	EventActivityScheduled EventKind = 11
+	// EventActivityAttemptStarted records one externally observable attempt.
+	EventActivityAttemptStarted EventKind = 12
+	// EventActivityAttemptSucceeded records a known successful attempt result.
+	EventActivityAttemptSucceeded EventKind = 13
+	// EventActivityAttemptFailed records a known failed attempt result.
+	EventActivityAttemptFailed EventKind = 14
+	// EventActivityAttemptUnknown records an attempt that may have committed.
+	EventActivityAttemptUnknown EventKind = 15
+	// EventActivityRetryScheduled records the deterministic next-attempt time.
+	EventActivityRetryScheduled EventKind = 16
 )
 
 // HistoryEventSpec supplies one immutable durable history record.
 type HistoryEventSpec struct {
-	Sequence    uint64
-	InstanceID  string
-	Kind        EventKind
-	OccurredAt  time.Time
-	Definition  DefinitionReference
-	SuccessorID string
-	Data        []byte
+	Sequence       uint64
+	InstanceID     string
+	Kind           EventKind
+	OccurredAt     time.Time
+	Definition     DefinitionReference
+	SuccessorID    string
+	StepName       string
+	Attempt        uint32
+	IdempotencyKey string
+	DueAt          time.Time
+	Code           string
+	Retryable      bool
+	Data           []byte
 }
 
 // HistoryEvent is one validated immutable persisted decision.
 type HistoryEvent struct {
-	sequence    uint64
-	instanceID  string
-	kind        EventKind
-	occurredAt  time.Time
-	definition  DefinitionReference
-	successorID string
-	data        []byte
+	sequence       uint64
+	instanceID     string
+	kind           EventKind
+	occurredAt     time.Time
+	definition     DefinitionReference
+	successorID    string
+	stepName       string
+	attempt        uint32
+	idempotencyKey string
+	dueAt          time.Time
+	code           string
+	retryable      bool
+	data           []byte
 }
 
 // NewHistoryEvent validates and owns one durable history record.
 func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 	if spec.Sequence == 0 || !instanceIDPattern.MatchString(spec.InstanceID) ||
-		spec.Kind < EventInstanceStarted || spec.Kind > EventContinuedAsNew ||
+		spec.Kind < EventInstanceStarted || spec.Kind > EventActivityRetryScheduled ||
 		spec.OccurredAt.IsZero() || len(spec.Data) > MaxPayloadBytes {
 		return HistoryEvent{}, ErrInvalidHistoryEvent
 	}
+	spec.OccurredAt = canonicalTime(spec.OccurredAt)
+	spec.DueAt = canonicalTime(spec.DueAt)
 	requiresDefinition := spec.Kind == EventInstanceStarted ||
 		spec.Kind == EventDefinitionMigrated || spec.Kind == EventContinuedAsNew
 	if requiresDefinition && !spec.Definition.valid() {
@@ -132,6 +158,9 @@ func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 	if spec.Kind != EventContinuedAsNew && spec.SuccessorID != "" {
 		return HistoryEvent{}, ErrInvalidHistoryEvent
 	}
+	if !validActivityEventFields(spec) {
+		return HistoryEvent{}, ErrInvalidHistoryEvent
+	}
 
 	return HistoryEvent{
 		sequence:    spec.Sequence,
@@ -140,7 +169,10 @@ func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 		occurredAt:  canonicalTime(spec.OccurredAt),
 		definition:  spec.Definition,
 		successorID: spec.SuccessorID,
-		data:        cloneBytes(spec.Data),
+		stepName:    spec.StepName, attempt: spec.Attempt,
+		idempotencyKey: spec.IdempotencyKey, dueAt: spec.DueAt,
+		code: spec.Code, retryable: spec.Retryable,
+		data: cloneBytes(spec.Data),
 	}, nil
 }
 
@@ -162,6 +194,24 @@ func (event HistoryEvent) Definition() DefinitionReference { return event.defini
 
 // SuccessorID returns the explicit continue-as-new successor identity.
 func (event HistoryEvent) SuccessorID() string { return event.successorID }
+
+// StepName returns the activity step selected by an activity event.
+func (event HistoryEvent) StepName() string { return event.stepName }
+
+// Attempt returns the one-based activity attempt selected by an attempt event.
+func (event HistoryEvent) Attempt() uint32 { return event.attempt }
+
+// IdempotencyKey returns the persisted external-attempt identity.
+func (event HistoryEvent) IdempotencyKey() string { return event.idempotencyKey }
+
+// DueAt returns a persisted attempt deadline or retry admission time.
+func (event HistoryEvent) DueAt() time.Time { return event.dueAt }
+
+// Code returns a stable known-failure or unknown-outcome code.
+func (event HistoryEvent) Code() string { return event.code }
+
+// Retryable reports the persisted known-failure retry classification.
+func (event HistoryEvent) Retryable() bool { return event.retryable }
 
 // Data returns an owned copy of persisted event data.
 func (event HistoryEvent) Data() []byte { return cloneBytes(event.data) }
@@ -199,6 +249,7 @@ type Instance struct {
 	input       []byte
 	result      []byte
 	successorID string
+	activities  map[string]ActivityProgress
 }
 
 // Replay deterministically reconstructs one instance from validated persisted
@@ -245,6 +296,17 @@ func (instance Instance) Result() []byte { return cloneBytes(instance.result) }
 // SuccessorID returns the explicit continue-as-new successor, when present.
 func (instance Instance) SuccessorID() string { return instance.successorID }
 
+// Activity returns immutable replayed progress for one definition activity.
+func (instance Instance) Activity(stepName string) (ActivityProgress, bool) {
+	progress, exists := instance.activities[stepName]
+	return cloneActivityProgress(progress), exists
+}
+
+// Activities returns replayed activity progress in stable step-name order.
+func (instance Instance) Activities() []ActivityProgress {
+	return sortedActivityProgress(instance.activities)
+}
+
 // SnapshotDigest returns a deterministic digest of reconstructed persisted
 // state for diagnostics and replay comparison.
 func (instance Instance) SnapshotDigest() string {
@@ -260,13 +322,14 @@ func (instance Instance) SnapshotDigest() string {
 		Input                 []byte
 		Result                []byte
 		SuccessorID           string
+		Activities            []activityProgressSnapshot
 	}{
 		ID: instance.id, DefinitionName: instance.definition.Name(),
 		DefinitionVersion:     instance.definition.Version(),
 		DefinitionFingerprint: instance.definition.Fingerprint(), Status: instance.status,
 		Sequence: instance.sequence, StartedAt: instance.startedAt,
 		UpdatedAt: instance.updatedAt, Input: instance.input, Result: instance.result,
-		SuccessorID: instance.successorID,
+		SuccessorID: instance.successorID, Activities: activityProgressSnapshots(instance.activities),
 	})
 	digest := sha256.Sum256(encoded)
 	return hex.EncodeToString(digest[:])
@@ -349,6 +412,12 @@ func (instance *Instance) apply(registry *Registry, event HistoryEvent) error {
 		}
 		instance.status = StatusContinuedAsNew
 		instance.successorID = event.successorID
+	case EventActivityScheduled, EventActivityAttemptStarted,
+		EventActivityAttemptSucceeded, EventActivityAttemptFailed,
+		EventActivityAttemptUnknown, EventActivityRetryScheduled:
+		if err := instance.applyActivity(registry, event); err != nil {
+			return err
+		}
 	}
 
 	instance.sequence = event.sequence
@@ -374,7 +443,39 @@ func (instance *Instance) applyStart(registry *Registry, event HistoryEvent) err
 	instance.startedAt = event.occurredAt
 	instance.updatedAt = event.occurredAt
 	instance.input = cloneBytes(event.data)
+	instance.activities = make(map[string]ActivityProgress)
 	return nil
+}
+
+func validActivityEventFields(spec HistoryEventSpec) bool {
+	activityKind := spec.Kind >= EventActivityScheduled && spec.Kind <= EventActivityRetryScheduled
+	if !activityKind {
+		return spec.StepName == "" && spec.Attempt == 0 && spec.IdempotencyKey == "" &&
+			spec.DueAt.IsZero() && spec.Code == "" && !spec.Retryable
+	}
+	if !stableName.MatchString(spec.StepName) || spec.Definition != (DefinitionReference{}) || spec.SuccessorID != "" {
+		return false
+	}
+	switch spec.Kind {
+	case EventActivityScheduled:
+		return spec.Attempt == 0 && spec.IdempotencyKey == "" && spec.DueAt.IsZero() &&
+			spec.Code == "" && !spec.Retryable
+	case EventActivityAttemptStarted:
+		return spec.Attempt > 0 && instanceIDPattern.MatchString(spec.IdempotencyKey) &&
+			spec.DueAt.After(spec.OccurredAt) && spec.Code == "" && !spec.Retryable && len(spec.Data) == 0
+	case EventActivityAttemptSucceeded:
+		return spec.Attempt > 0 && spec.IdempotencyKey == "" && spec.DueAt.IsZero() &&
+			spec.Code == "" && !spec.Retryable
+	case EventActivityAttemptFailed:
+		return spec.Attempt > 0 && spec.IdempotencyKey == "" && spec.DueAt.IsZero() &&
+			stableName.MatchString(spec.Code)
+	case EventActivityAttemptUnknown:
+		return spec.Attempt > 0 && spec.IdempotencyKey == "" && spec.DueAt.IsZero() &&
+			stableName.MatchString(spec.Code) && !spec.Retryable
+	default: // The bounded activity-kind check makes this retry scheduling.
+		return spec.Attempt > 0 && spec.IdempotencyKey == "" && spec.DueAt.After(spec.OccurredAt) &&
+			spec.Code == "" && !spec.Retryable && len(spec.Data) == 0
+	}
 }
 
 func validateReference(registry *Registry, reference DefinitionReference) error {
