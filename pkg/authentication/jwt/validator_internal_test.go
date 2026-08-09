@@ -324,7 +324,10 @@ func TestJWKAlgorithmFamiliesAndVerificationOperations(t *testing.T) {
 		Clock: authtest.NewClock(time.Unix(1, 0)),
 	}
 	valid := symmetricKeySet(t, "key", jwa.HS256(), "sig")
-	validKey, _ := valid.Key(0)
+	validKey, err := requiredJWKAt(valid, 0)
+	if err != nil {
+		t.Fatalf("requiredJWKAt(valid) error = %v", err)
+	}
 	_ = validKey.Set(jwk.KeyOpsKey, jwk.KeyOperationList{jwk.KeyOpVerify})
 	base.KeySet = valid
 	if _, err := New(base); err != nil {
@@ -332,7 +335,10 @@ func TestJWKAlgorithmFamiliesAndVerificationOperations(t *testing.T) {
 	}
 
 	invalid := symmetricKeySet(t, "key", jwa.HS256(), "sig")
-	invalidKey, _ := invalid.Key(0)
+	invalidKey, err := requiredJWKAt(invalid, 0)
+	if err != nil {
+		t.Fatalf("requiredJWKAt(invalid) error = %v", err)
+	}
 	_ = invalidKey.Set(jwk.KeyOpsKey, jwk.KeyOperationList{jwk.KeyOpEncrypt})
 	base.KeySet = invalid
 	if _, err := New(base); !errors.Is(err, authentication.ErrInvalidConfiguration) {
@@ -383,6 +389,76 @@ func TestValidateBearerAndProviderFailureBoundaries(t *testing.T) {
 	if _, err := validator.keySet(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
 		t.Fatalf("keySet(invalid set) error = %v", err)
 	}
+}
+
+func TestJWKExtractionRejectsMissingKeysAndAlgorithms(t *testing.T) {
+	t.Parallel()
+
+	missing := missingKeySet{delegatedJWKSet: jwk.NewSet()}
+	if err := validateJWKEntries(missing, nil); err == nil {
+		t.Fatal("validateJWKEntries(missing) error = nil")
+	}
+
+	key := keyFromRaw(t, []byte("01234567890123456789012345678901"))
+	untrusted := untrustedKeySet{delegatedJWKSet: jwk.NewSet(), key: key}
+	if _, err := requiredJWKAt(untrusted, 0); err == nil {
+		t.Fatal("requiredJWKAt(untrusted key) error = nil")
+	}
+	withoutAlgorithm := nilAlgorithmKey{Key: key}
+	withoutAlgorithmSet := singleKeySet{delegatedJWKSet: jwk.NewSet(), key: withoutAlgorithm}
+	if err := validateJWKEntries(withoutAlgorithmSet, nil); err == nil {
+		t.Fatal("validateJWKEntries(nil algorithm) error = nil")
+	}
+}
+
+type missingKeySet struct {
+	delegatedJWKSet
+}
+
+type delegatedJWKSet interface {
+	jwk.Set
+}
+
+func (missingKeySet) Len() int {
+	return 1
+}
+
+func (missingKeySet) Key(int) (jwk.Key, bool) {
+	return nil, false
+}
+
+type untrustedKeySet struct {
+	delegatedJWKSet
+	key jwk.Key
+}
+
+func (untrustedKeySet) Len() int {
+	return 1
+}
+
+func (set untrustedKeySet) Key(int) (jwk.Key, bool) {
+	return set.key, false
+}
+
+type singleKeySet struct {
+	delegatedJWKSet
+	key jwk.Key
+}
+
+func (set singleKeySet) Len() int {
+	return 1
+}
+
+func (set singleKeySet) Key(int) (jwk.Key, bool) {
+	return set.key, true
+}
+
+type nilAlgorithmKey struct {
+	jwk.Key
+}
+
+func (nilAlgorithmKey) Algorithm() (jwa.KeyAlgorithm, bool) {
+	return nil, true
 }
 
 func symmetricKeySet(t *testing.T, keyID string, algorithm jwa.SignatureAlgorithm, usage string) jwk.Set {

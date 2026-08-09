@@ -40,7 +40,9 @@ and `kid` string values. The algorithm must be in the configured allowlist and
 must match the selected JWK's declared algorithm and key type. `none`,
 deprecated algorithms, unknown algorithms, duplicate JSON members, invalid
 UTF-8, malformed JSON, duplicate key IDs, unknown critical headers, and JSON or
-nested serialization are rejected.
+nested serialization are rejected. Token-provided key references (`jku`,
+`jwk`, and `x5*`) are rejected. Unpaired UTF-16 escapes and excessively long
+JSON numbers are rejected before claim decoding.
 
 `MaxTokenBytes`, `MaxClaims`, `MaxClaimDepth`, and `MaxKeys` bound hostile
 inputs. Zero values select conservative defaults. Negative values and values
@@ -58,6 +60,11 @@ the pinned JWX version in these key families:
 - `ES256`, `ES256K`, `ES384`, and `ES512` with EC keys;
 - `Ed25519` with OKP keys.
 
+HMAC keys must contain at least 32, 48, or 64 bytes for HS256, HS384, or HS512.
+RSA keys must be public and have a modulus from 2048 through 8192 bits. EC keys
+must be public and use the algorithm's exact curve. `ES256K` is available only
+when the pinned JWX build includes its `jwx_es256k` support.
+
 Only algorithms explicitly supplied in `Config.Algorithms` are accepted. JWKs
 must have unique non-empty `kid` values and an `alg` in that allowlist. If
 present, `use` must be `sig`, and `key_ops` must include `verify`. Keep HMAC
@@ -74,10 +81,12 @@ static trust state.
 
 `NewRemote` accepts HTTPS by default, performs an initial bounded fetch, and
 then owns a JWX cache for that exact URL. The URL must not contain user info or
-a fragment. Redirects outside the exact configured URL are denied. Response
-bodies and initialization time are bounded. `Cache-Control: max-age` and
-`Expires` determine refresh time within the configured minimum and maximum
-intervals; absent or unusable cache headers fall back to the minimum.
+a fragment. All redirects and compressed responses are denied. Response
+bodies, aggregate headers, key count, concurrent operations, and initialization
+time are bounded. `Cache-Control: max-age` and `Expires` determine refresh time
+within the configured minimum and maximum intervals; absent or unusable cache
+headers fall back to the minimum. Each provider applies independent bounded
+refresh jitter (10 percent by default) to avoid synchronized fleet load.
 
 A successful refresh atomically replaces the cached set. A failed refresh
 returns `ErrAuthenticationUnavailable` and retains the last successful set.
@@ -86,12 +95,13 @@ issuer outage; it never accepts an unknown key. Applications that require
 fail-closed freshness must stop using or close the provider after their own
 freshness deadline.
 
-`Remote` is safe for concurrent validation and refresh. Each operation observes
-its caller context. `Close` rejects new work, cancels in-flight provider
-operations, waits for them to leave the provider, and shuts down cache-owned
-goroutines. A canceled close stops that caller waiting and reports the context
-error; if shutdown did not finish, a later `Close` may retry. The caller that
-creates a `Remote` owns it and must close it.
+`Remote` is safe for concurrent validation and refresh. Overlapping refreshes
+share one in-process fetch, and returned sets are deep copies. Each operation
+observes its caller context. `Close` rejects new work, cancels in-flight
+provider operations, waits for them to leave the provider, and shuts down
+cache-owned goroutines. A canceled close stops that caller waiting and reports
+the context error; if shutdown did not finish, a later `Close` may retry. The
+caller that creates a `Remote` owns it and must close it.
 
 ## Results and errors
 
@@ -125,6 +135,9 @@ The module is pre-v1. Public API compatibility is checked against
 `api/baseline.txt`, but minor releases may still require an intentional
 migration. The package follows the pinned JWX algorithm registry; review that
 dependency and this algorithm list when upgrading it.
+
+The RFC-derived acceptance, remote-boundary, and error matrix is recorded in
+[`docs/hardening.md`](docs/hardening.md).
 
 ## Security notes and tradeoffs
 

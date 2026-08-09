@@ -8,6 +8,13 @@ All notable changes to this module are documented here.
 
 - Reject invalid UTF-8 in protected headers and claim sets instead of allowing
   JSON decoding to replace malformed bytes.
+- Enforce algorithm-specific HMAC sizes, RSA modulus bounds, exact EC curves,
+  public-only asymmetric verification keys, and reject token-provided key
+  references, unpaired Unicode surrogates, and oversized JSON numbers.
+- Bound remote JWK headers, bodies, key counts, initialization, and concurrent
+  operations; reject redirects and compression; validate responses before
+  caching; deep-copy returned sets; coalesce refreshes; and independently
+  jitter refresh schedules across provider instances.
 
 ### Documentation
 

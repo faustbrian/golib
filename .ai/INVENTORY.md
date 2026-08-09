@@ -318,13 +318,13 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Field | Record |
 | --- | --- |
 | Goal | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` |
-| Scope | Strict compact JWT/JWS parsing, claim and algorithm policy, local and remote JWK ownership, bounded JWKS refresh, cancellation, redaction, interoperability, and documentation. |
-| Status | `pending-reexecution` to `verified` |
-| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/authentication/jwt` against an isolated snapshot containing only the completed JWT batch. |
-| Result | Passed every mandatory module gate, including 375/375 statements, 141/141 viable mutants, race, fuzz, API, docs, interoperability, security, and benchmarks; conformance was not applicable by catalog policy. |
+| Scope | Strict compact JWT/JWS parsing, algorithm-specific public verification keys, bounded claims and JSON, local and remote JWK ownership, bounded and validated JWKS responses, synchronized refresh, fleet jitter, cancellation, redaction, interoperability, and documentation. |
+| Status | `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/authentication/jwt` and the package `make conformance` lanes. |
+| Result | Passed every mandatory JWT module gate with 617/617 statements, 333/333 viable mutants, race, two 10,000-execution fuzz targets, clean NilAway, API, docs, interoperability, security, supply-chain checks, and benchmarks; all direct conformance lanes passed. |
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
-| Observed | 2026-08-09T03:48:26Z |
-| Gaps | The repository-wide wrapper remains independently blocked by missing `pkg/tenancy/LICENSE`; NilAway advisory diagnostics remain visible under repository policy. |
+| Observed | 2026-08-09T12:55:01Z |
+| Gaps | None within the scoped JWT module contract. |
 
 ### OpenID Connect ID-token validation evidence
 

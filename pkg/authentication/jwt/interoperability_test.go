@@ -2,6 +2,11 @@ package jwt_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/ed25519"
+	"crypto/elliptic"
+	"crypto/rand"
+	"errors"
 	"testing"
 	"time"
 
@@ -11,6 +16,7 @@ import (
 	golangjwt "github.com/golang-jwt/jwt/v5"
 	"github.com/lestrrat-go/jwx/v3/jwa"
 	"github.com/lestrrat-go/jwx/v3/jwk"
+	"github.com/lestrrat-go/jwx/v3/jws"
 	upstreamjwt "github.com/lestrrat-go/jwx/v3/jwt"
 )
 
@@ -136,4 +142,196 @@ func TestGolangJWTInteroperability(t *testing.T) {
 	if parsed == nil || !parsed.Valid {
 		t.Fatal("golang-jwt Parse(lestrrat-go) token is invalid")
 	}
+}
+
+func TestSupportedAlgorithmAndKeyMatrix(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0).UTC()
+	claims := map[string]any{
+		"sub": "service", "iss": "https://issuer.example.test", "aud": "orders",
+		"iat": now, "exp": now.Add(time.Hour),
+	}
+	tests := []struct {
+		name      string
+		algorithm jwa.SignatureAlgorithm
+		keys      func(*testing.T, jwa.SignatureAlgorithm) (jwk.Set, jwk.Key)
+	}{
+		{name: "HS256", algorithm: jwa.HS256(), keys: hmacKeys},
+		{name: "HS384", algorithm: jwa.HS384(), keys: hmacKeys},
+		{name: "HS512", algorithm: jwa.HS512(), keys: hmacKeys},
+		{name: "RS256", algorithm: jwa.RS256(), keys: matrixRSAKeys},
+		{name: "RS384", algorithm: jwa.RS384(), keys: matrixRSAKeys},
+		{name: "RS512", algorithm: jwa.RS512(), keys: matrixRSAKeys},
+		{name: "PS256", algorithm: jwa.PS256(), keys: matrixRSAKeys},
+		{name: "PS384", algorithm: jwa.PS384(), keys: matrixRSAKeys},
+		{name: "PS512", algorithm: jwa.PS512(), keys: matrixRSAKeys},
+		{name: "ES256", algorithm: jwa.ES256(), keys: ecdsaKeys(elliptic.P256())},
+		{name: "ES384", algorithm: jwa.ES384(), keys: ecdsaKeys(elliptic.P384())},
+		{name: "ES512", algorithm: jwa.ES512(), keys: ecdsaKeys(elliptic.P521())},
+		{name: "Ed25519", algorithm: jwa.EdDSAEd25519(), keys: ed25519Keys},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			keys, signer := tt.keys(t, tt.algorithm)
+			validator, err := authjwt.New(authjwt.Config{
+				Issuer: "https://issuer.example.test", Audience: "orders",
+				Algorithms: []jwa.SignatureAlgorithm{tt.algorithm}, KeySet: keys,
+				Clock: authtest.NewClock(now),
+			})
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+			principal, err := validator.ValidateBearer(context.Background(), signedToken(t, signer, tt.algorithm, claims))
+			if err != nil {
+				t.Fatalf("ValidateBearer() error = %v", err)
+			}
+			if principal.Subject() != "service" {
+				t.Fatalf("ValidateBearer() subject = %q", principal.Subject())
+			}
+		})
+	}
+}
+
+func TestRFC7520ExactCompactJWSIsValidJOSEButNotAJWT(t *testing.T) {
+	t.Parallel()
+
+	// RFC 7520 section 4.4, mirrored by ietf-jose/cookbook commit
+	// 13692b68bfc18b99557a5b1ed311fd5077bfff04.
+	const compact = "eyJhbGciOiJIUzI1NiIsImtpZCI6IjAxOGMwYWU1LTRkOWItNDcxYi1iZmQ2LWVlZjMxNGJjNzAzNyJ9.SXTigJlzIGEgZGFuZ2Vyb3VzIGJ1c2luZXNzLCBGcm9kbywgZ29pbmcgb3V0IHlvdXIgZG9vci4gWW91IHN0ZXAgb250byB0aGUgcm9hZCwgYW5kIGlmIHlvdSBkb24ndCBrZWVwIHlvdXIgZmVldCwgdGhlcmXigJlzIG5vIGtub3dpbmcgd2hlcmUgeW91IG1pZ2h0IGJlIHN3ZXB0IG9mZiB0by4.s0h6KThzkfBBBkLspW1h84VsJZFTsPPqMDA7g1Md7p0"
+	keys, err := jwk.Parse([]byte(`{"keys":[{"kty":"oct","kid":"018c0ae5-4d9b-471b-bfd6-eef314bc7037","use":"sig","alg":"HS256","k":"hJtXIZ2uSN5kbQfbtTNWbpdmhkV8FJG-Onbc6mxCcYg"}]}`))
+	if err != nil {
+		t.Fatalf("jwk.Parse() error = %v", err)
+	}
+	key, ok := keys.Key(0)
+	if !ok {
+		t.Fatal("RFC 7520 key is missing")
+	}
+	if _, err := jws.Verify([]byte(compact), jws.WithKey(jwa.HS256(), key)); err != nil {
+		t.Fatalf("jws.Verify(RFC 7520) error = %v", err)
+	}
+	validator, err := authjwt.New(authjwt.Config{
+		Issuer: "https://issuer.example.test", Audience: "orders",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.HS256()}, KeySet: keys,
+		Clock: authtest.NewClock(time.Unix(1_800_000_000, 0)),
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := validator.ValidateBearer(context.Background(), compact); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer(RFC 7520 JWS) error = %v, want rejected", err)
+	}
+}
+
+func TestDifferentialValidationKeepsExplicitlyStricterPolicy(t *testing.T) {
+	t.Parallel()
+
+	secret := []byte("01234567890123456789012345678901")
+	keys, signer := signingKeySet(t, secret, jwa.HS256())
+	now := time.Unix(1_800_000_000, 0).UTC()
+	claims := map[string]any{
+		"sub": "service", "iss": "https://issuer.example.test", "aud": "orders",
+		"iat": now, "exp": now.Add(time.Hour),
+	}
+	validator, err := authjwt.New(authjwt.Config{
+		Issuer: "https://issuer.example.test", Audience: "orders",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.HS256()}, KeySet: keys,
+		Clock: authtest.NewClock(now),
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	valid := signedToken(t, signer, jwa.HS256(), claims)
+	duplicate := signedPayload(t, signer, jwa.HS256(), []byte(
+		`{"sub":"service","sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1800000000,"exp":1800003600}`,
+	))
+	critical := signedTokenWithHeaders(t, signer, jwa.HS256(), claims, map[string]any{
+		"alg": "HS256", "kid": "key", "crit": []string{"policy"}, "policy": true,
+	})
+
+	tests := []struct {
+		name       string
+		token      string
+		wantStrict bool
+		wantPeer   bool
+	}{
+		{name: "valid", token: valid, wantStrict: true, wantPeer: true},
+		{name: "duplicate claim", token: duplicate, wantPeer: true},
+		{name: "unsupported critical header", token: critical, wantPeer: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, strictErr := validator.ValidateBearer(context.Background(), tt.token)
+			if got := strictErr == nil; got != tt.wantStrict {
+				t.Fatalf("strict acceptance = %v, error = %v", got, strictErr)
+			}
+			peer, peerErr := golangjwt.Parse(
+				tt.token,
+				func(*golangjwt.Token) (any, error) { return secret, nil },
+				golangjwt.WithValidMethods([]string{"HS256"}),
+				golangjwt.WithIssuer("https://issuer.example.test"),
+				golangjwt.WithAudience("orders"),
+				golangjwt.WithIssuedAt(), golangjwt.WithExpirationRequired(),
+				golangjwt.WithTimeFunc(func() time.Time { return now }),
+			)
+			if got := peerErr == nil && peer != nil && peer.Valid; got != tt.wantPeer {
+				t.Fatalf("golang-jwt acceptance = %v, error = %v", got, peerErr)
+			}
+		})
+	}
+}
+
+func hmacKeys(t *testing.T, algorithm jwa.SignatureAlgorithm) (jwk.Set, jwk.Key) {
+	t.Helper()
+	sizes := map[string]int{"HS256": 32, "HS384": 48, "HS512": 64}
+	return signingKeySet(t, make([]byte, sizes[algorithm.String()]), algorithm)
+}
+
+func matrixRSAKeys(t *testing.T, algorithm jwa.SignatureAlgorithm) (jwk.Set, jwk.Key) {
+	t.Helper()
+	return rsaKeys(t, "key", algorithm)
+}
+
+func ecdsaKeys(curve elliptic.Curve) func(*testing.T, jwa.SignatureAlgorithm) (jwk.Set, jwk.Key) {
+	return func(t *testing.T, algorithm jwa.SignatureAlgorithm) (jwk.Set, jwk.Key) {
+		t.Helper()
+		private, err := ecdsa.GenerateKey(curve, rand.Reader)
+		if err != nil {
+			t.Fatalf("ecdsa.GenerateKey() error = %v", err)
+		}
+		return signingKeySet(t, private, algorithm)
+	}
+}
+
+func ed25519Keys(t *testing.T, algorithm jwa.SignatureAlgorithm) (jwk.Set, jwk.Key) {
+	t.Helper()
+	_, private, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		t.Fatalf("ed25519.GenerateKey() error = %v", err)
+	}
+	return signingKeySet(t, private, algorithm)
+}
+
+func signingKeySet(t *testing.T, raw any, algorithm jwa.SignatureAlgorithm) (jwk.Set, jwk.Key) {
+	t.Helper()
+	signer, err := jwk.Import(raw)
+	if err != nil {
+		t.Fatalf("jwk.Import() error = %v", err)
+	}
+	if err := signer.Set(jwk.KeyIDKey, "key"); err != nil {
+		t.Fatalf("Set(kid) error = %v", err)
+	}
+	if err := signer.Set(jwk.AlgorithmKey, algorithm); err != nil {
+		t.Fatalf("Set(alg) error = %v", err)
+	}
+	verification := signer
+	if algorithm.String()[:1] != "H" {
+		verification, err = signer.PublicKey()
+		if err != nil {
+			t.Fatalf("PublicKey() error = %v", err)
+		}
+	}
+	set := jwk.NewSet()
+	if err := set.AddKey(verification); err != nil {
+		t.Fatalf("AddKey() error = %v", err)
+	}
+	return set, signer
 }

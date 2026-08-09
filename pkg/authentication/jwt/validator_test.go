@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -139,6 +141,42 @@ func TestValidatorRejectsMalformedNumericDates(t *testing.T) {
 	}
 }
 
+func TestValidatorHonorsExactNumericDateBoundaries(t *testing.T) {
+	t.Parallel()
+
+	keys, signer := rsaKeys(t, "key-1", jwa.RS256())
+	validator := newValidator(t, keys, authjwt.Config{
+		Issuer: "https://issuer.example.test", Audience: "orders",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, Clock: authtest.NewClock(jwtNow),
+	})
+	base := map[string]any{
+		"sub": "service", "iss": "https://issuer.example.test", "aud": "orders",
+		"iat": jwtNow, "exp": jwtNow.Add(time.Hour),
+	}
+	tests := []struct {
+		name      string
+		alter     func(map[string]any)
+		wantError bool
+	}{
+		{name: "expiration one second ahead", alter: func(claims map[string]any) { claims["exp"] = jwtNow.Add(time.Second) }},
+		{name: "expiration at now", alter: func(claims map[string]any) { claims["exp"] = jwtNow }, wantError: true},
+		{name: "not before at now", alter: func(claims map[string]any) { claims["nbf"] = jwtNow }},
+		{name: "not before one second ahead", alter: func(claims map[string]any) { claims["nbf"] = jwtNow.Add(time.Second) }, wantError: true},
+		{name: "issued at now", alter: func(claims map[string]any) { claims["iat"] = jwtNow }},
+		{name: "issued at one second ahead", alter: func(claims map[string]any) { claims["iat"] = jwtNow.Add(time.Second) }, wantError: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			claims := cloneMap(base)
+			tt.alter(claims)
+			_, err := validator.ValidateBearer(context.Background(), signedToken(t, signer, jwa.RS256(), claims))
+			if (err != nil) != tt.wantError {
+				t.Fatalf("ValidateBearer() error = %v, wantError = %v", err, tt.wantError)
+			}
+		})
+	}
+}
+
 func TestValidatorRejectsAlgorithmKeyAndHeaderAttacks(t *testing.T) {
 	t.Parallel()
 
@@ -158,11 +196,23 @@ func TestValidatorRejectsAlgorithmKeyAndHeaderAttacks(t *testing.T) {
 	critical := signedTokenWithHeaders(t, signer, jwa.RS256(), claims, map[string]any{
 		"alg": "RS256", "kid": "key-1", "typ": "JWT", "crit": []string{"custom"}, "custom": true,
 	})
+	remoteKeyReference := signedTokenWithHeaders(t, signer, jwa.RS256(), claims, map[string]any{
+		"alg": "RS256", "kid": "key-1", "jku": "https://attacker.example.test/keys",
+	})
+	embeddedKey, err := signer.PublicKey()
+	if err != nil {
+		t.Fatalf("PublicKey() error = %v", err)
+	}
+	embeddedKeyReference := signedTokenWithHeaders(t, signer, jwa.RS256(), claims, map[string]any{
+		"alg": "RS256", "kid": "key-1", "jwk": embeddedKey,
+	})
 	tests := map[string]string{
-		"none":             noneHeader + "." + parts[1] + ".",
-		"unknown key":      unknownKeyHeader + "." + parts[1] + "." + parts[2],
-		"unknown critical": critical,
-		"malformed":        "not-a-jwt",
+		"none":                   noneHeader + "." + parts[1] + ".",
+		"unknown key":            unknownKeyHeader + "." + parts[1] + "." + parts[2],
+		"unknown critical":       critical,
+		"remote key reference":   remoteKeyReference,
+		"embedded key reference": embeddedKeyReference,
+		"malformed":              "not-a-jwt",
 	}
 	for name, token := range tests {
 		token := token
@@ -170,6 +220,34 @@ func TestValidatorRejectsAlgorithmKeyAndHeaderAttacks(t *testing.T) {
 			t.Parallel()
 			if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(token)); !errors.Is(err, authentication.ErrCredentialsRejected) {
 				t.Fatalf("Authenticate() error = %v, want rejected", err)
+			}
+		})
+	}
+}
+
+func TestValidatorRejectsNonCanonicalBase64TruncationAndNestedPayloads(t *testing.T) {
+	t.Parallel()
+
+	keys, signer := rsaKeys(t, "key-1", jwa.RS256())
+	validator := newValidator(t, keys, authjwt.Config{
+		Issuer: "https://issuer.example.test", Audience: "orders",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, Clock: authtest.NewClock(jwtNow),
+	})
+	valid := signedToken(t, signer, jwa.RS256(), map[string]any{
+		"sub": "service", "iss": "https://issuer.example.test", "aud": "orders",
+		"iat": jwtNow, "exp": jwtNow.Add(time.Hour),
+	})
+	parts := strings.Split(valid, ".")
+	tests := map[string]string{
+		"noncanonical header base64url": nonCanonicalBase64URL(parts[0]) + "." + parts[1] + "." + parts[2],
+		"truncated signature":           parts[0] + "." + parts[1] + "." + parts[2][:len(parts[2])-1],
+		"nested compact payload":        signedPayload(t, signer, jwa.RS256(), []byte(`"`+valid+`"`)),
+		"JWE compact serialization":     "a.b.c.d.e",
+	}
+	for name, token := range tests {
+		t.Run(name, func(t *testing.T) {
+			if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) {
+				t.Fatalf("ValidateBearer() error = %v, want rejected", err)
 			}
 		})
 	}
@@ -279,10 +357,8 @@ func newValidator(t *testing.T, keys jwk.Set, configuration authjwt.Config) *aut
 
 func rsaKeys(t *testing.T, keyID string, algorithm jwa.SignatureAlgorithm) (jwk.Set, jwk.Key) {
 	t.Helper()
-	private, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("GenerateKey() error = %v", err)
-	}
+	private := freshRSAKey(t)
+	var err error
 	signer, err := jwk.Import(private)
 	if err != nil {
 		t.Fatalf("jwk.Import(private) error = %v", err)
@@ -302,6 +378,36 @@ func rsaKeys(t *testing.T, keyID string, algorithm jwa.SignatureAlgorithm) (jwk.
 		t.Fatalf("AddKey() error = %v", err)
 	}
 	return set, signer
+}
+
+var (
+	testRSAOnce sync.Once
+	testRSADER  []byte
+	testRSAErr  error
+)
+
+func freshRSAKey(t *testing.T) *rsa.PrivateKey {
+	t.Helper()
+	testRSAOnce.Do(func() {
+		key, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			testRSAErr = err
+			return
+		}
+		testRSADER, testRSAErr = x509.MarshalPKCS8PrivateKey(key)
+	})
+	if testRSAErr != nil {
+		t.Fatalf("prepare RSA fixture: %v", testRSAErr)
+	}
+	parsed, err := x509.ParsePKCS8PrivateKey(testRSADER)
+	if err != nil {
+		t.Fatalf("ParsePKCS8PrivateKey() error = %v", err)
+	}
+	private, ok := parsed.(*rsa.PrivateKey)
+	if !ok {
+		t.Fatalf("ParsePKCS8PrivateKey() type = %T", parsed)
+	}
+	return private
 }
 
 func signedToken(t *testing.T, signer jwk.Key, algorithm jwa.SignatureAlgorithm, claims map[string]any) string {
@@ -366,4 +472,24 @@ func cloneMap(source map[string]any) map[string]any {
 		clone[name] = value
 	}
 	return clone
+}
+
+func nonCanonicalBase64URL(encoded string) string {
+	const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+	unused := 0
+	switch len(encoded) % 4 {
+	case 2:
+		unused = 4
+	case 3:
+		unused = 2
+	default:
+		return encoded + "="
+	}
+	last := strings.IndexByte(alphabet, encoded[len(encoded)-1])
+	if last < 0 {
+		return encoded + "="
+	}
+	mask := (1 << unused) - 1
+	canonical := last &^ mask
+	return encoded[:len(encoded)-1] + string(alphabet[canonical|1])
 }

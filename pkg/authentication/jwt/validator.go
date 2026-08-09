@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math/bits"
 	"reflect"
 	"slices"
 	"strings"
@@ -25,11 +26,16 @@ import (
 const (
 	defaultMaxTokenBytes = 16 * 1024
 	defaultMaxKeys       = 64
+	maxJSONNumberBytes   = 128
+	minimumRSAKeyBits    = 2048
+	maximumRSAKeyBits    = 8192
 )
 
 var registeredClaims = map[string]struct{}{
 	"aud": {}, "exp": {}, "iat": {}, "iss": {}, "jti": {}, "nbf": {}, "sub": {},
 }
+
+var prohibitedKeyReferenceHeaders = []string{"jku", "jwk", "x5c", "x5t", "x5t#S256", "x5u"}
 
 // Clock supplies validation time and permits deterministic tests.
 //
@@ -378,31 +384,58 @@ func copyAndValidateKeySet(source jwk.Set, algorithms map[string]struct{}, maxim
 	if copied.Len() > maximum {
 		return nil, fmt.Errorf("%w: JWK set", authentication.ErrInvalidConfiguration)
 	}
-	for index := 0; index < copied.Len(); index++ {
-		key, _ := copied.Key(index)
-		keyID, hasKeyID := key.KeyID()
-		algorithm, hasAlgorithm := key.Algorithm()
-		if slices.Contains([]bool{hasKeyID, keyID != "", hasAlgorithm}, false) {
-			return nil, fmt.Errorf("%w: JWK identity", authentication.ErrInvalidConfiguration)
-		}
-		if _, allowed := algorithms[algorithm.String()]; !allowed {
-			return nil, fmt.Errorf("%w: JWK algorithm", authentication.ErrInvalidConfiguration)
-		}
-		if !keyTypeMatchesAlgorithm(key.KeyType(), algorithm.String()) {
-			return nil, fmt.Errorf("%w: JWK key type", authentication.ErrInvalidConfiguration)
-		}
-		if usage, exists := key.KeyUsage(); exists {
-			if usage != "sig" {
-				return nil, fmt.Errorf("%w: JWK usage", authentication.ErrInvalidConfiguration)
-			}
-		}
-		if operations, exists := key.KeyOps(); exists {
-			if !containsVerifyOperation(operations) {
-				return nil, fmt.Errorf("%w: JWK operation", authentication.ErrInvalidConfiguration)
-			}
-		}
+	if err := validateJWKEntries(copied, algorithms); err != nil {
+		return nil, fmt.Errorf("%w: JWK key", authentication.ErrInvalidConfiguration)
 	}
 	return copied, nil
+}
+
+func validateJWKEntries(set jwk.Set, algorithms map[string]struct{}) error {
+	for index := 0; index < set.Len(); index++ {
+		key, err := requiredJWKAt(set, index)
+		if err != nil {
+			return err
+		}
+		keyID, hasKeyID := key.KeyID()
+		algorithm, err := requiredJWKAlgorithm(key)
+		if slices.Contains([]bool{hasKeyID, keyID != "", err == nil}, false) {
+			return errors.New("JWK identity is invalid")
+		}
+		if algorithms != nil {
+			if _, allowed := algorithms[algorithm]; !allowed {
+				return errors.New("JWK algorithm is not allowed")
+			}
+		}
+		if !keyTypeMatchesAlgorithm(key.KeyType(), algorithm) {
+			return errors.New("JWK key type does not match its algorithm")
+		}
+		if err := validateKeyMaterial(key, algorithm); err != nil {
+			return err
+		}
+		if usage, exists := key.KeyUsage(); exists && usage != "sig" {
+			return errors.New("JWK usage is invalid")
+		}
+		if operations, exists := key.KeyOps(); exists && !containsVerifyOperation(operations) {
+			return errors.New("JWK operation is invalid")
+		}
+	}
+	return nil
+}
+
+func requiredJWKAt(set jwk.Set, index int) (jwk.Key, error) {
+	key, exists := set.Key(index)
+	if !exists || key == nil {
+		return nil, errors.New("JWK is missing")
+	}
+	return key, nil
+}
+
+func requiredJWKAlgorithm(key jwk.Key) (string, error) {
+	algorithm, exists := key.Algorithm()
+	if !exists || algorithm == nil {
+		return "", errors.New("JWK algorithm is missing")
+	}
+	return algorithm.String(), nil
 }
 
 func keyTypeMatchesAlgorithm(keyType jwa.KeyType, algorithm string) bool {
@@ -418,6 +451,73 @@ func keyTypeMatchesAlgorithm(keyType jwa.KeyType, algorithm string) bool {
 	default:
 		return false
 	}
+}
+
+func validateKeyMaterial(key jwk.Key, algorithm string) error {
+	if err := key.Validate(); err != nil {
+		return err
+	}
+	private, hasPrivateState := key.(interface{ IsPrivate() bool })
+	if hasPrivateState && private.IsPrivate() && key.KeyType() != jwa.OctetSeq() {
+		return errors.New("private asymmetric verification key")
+	}
+
+	switch {
+	case strings.HasPrefix(algorithm, "HS"):
+		symmetric, ok := key.(jwk.SymmetricKey)
+		if !ok {
+			return errors.New("invalid HMAC key")
+		}
+		octets, ok := symmetric.Octets()
+		minimum := map[string]int{"HS256": 32, "HS384": 48, "HS512": 64}[algorithm]
+		if !ok || minimum == 0 || len(octets) < minimum {
+			return errors.New("insufficient HMAC key strength")
+		}
+	case strings.HasPrefix(algorithm, "RS"), strings.HasPrefix(algorithm, "PS"):
+		public, ok := key.(jwk.RSAPublicKey)
+		if !ok {
+			return errors.New("invalid RSA verification key")
+		}
+		modulus, ok := public.N()
+		bits := significantBits(modulus)
+		if !ok || bits < minimumRSAKeyBits || bits > maximumRSAKeyBits {
+			return errors.New("unsafe RSA modulus")
+		}
+	case strings.HasPrefix(algorithm, "ES"):
+		public, ok := key.(jwk.ECDSAPublicKey)
+		if !ok {
+			return errors.New("invalid ECDSA verification key")
+		}
+		curve, ok := public.Crv()
+		expected := map[string]string{
+			"ES256": jwa.P256().String(), "ES256K": "secp256k1",
+			"ES384": jwa.P384().String(), "ES512": jwa.P521().String(),
+		}[algorithm]
+		if !ok || expected == "" || curve.String() != expected {
+			return errors.New("ECDSA curve does not match algorithm")
+		}
+	case algorithm == "Ed25519":
+		public, ok := key.(jwk.OKPPublicKey)
+		if !ok {
+			return errors.New("invalid Ed25519 verification key")
+		}
+		curve, ok := public.Crv()
+		if !ok || curve != jwa.Ed25519() {
+			return errors.New("OKP curve does not match algorithm")
+		}
+	default:
+		return errors.New("unsupported key algorithm")
+	}
+	return nil
+}
+
+func significantBits(encoded []byte) int {
+	for index, value := range encoded {
+		if value != 0 {
+			return (len(encoded)-index-1)*8 + 8 - bits.LeadingZeros8(value)
+		}
+	}
+	return 0
 }
 
 func containsVerifyOperation(operations jwk.KeyOperationList) bool {
@@ -470,12 +570,20 @@ func inspectCompactJWT(token string, algorithms map[string]struct{}, maxClaims, 
 	if _, critical := fields["crit"]; critical {
 		return errors.New("unsupported critical JWT header")
 	}
+	for _, name := range prohibitedKeyReferenceHeaders {
+		if _, exists := fields[name]; exists {
+			return errors.New("unsupported JWT key reference header")
+		}
+	}
 	return nil
 }
 
 func inspectJSONObject(encoded []byte, maxMembers, maxDepth int) error {
 	if !utf8.Valid(encoded) {
 		return errors.New("invalid UTF-8 in JWT JSON")
+	}
+	if err := validateJSONUnicodeEscapes(encoded); err != nil {
+		return err
 	}
 	decoder := json.NewDecoder(bytes.NewReader(encoded))
 	decoder.UseNumber()
@@ -497,6 +605,9 @@ func inspectJSONValue(decoder *json.Decoder, depth, maxMembers, maxDepth int, to
 	if !compound {
 		if top {
 			return errors.New("JWT JSON value is not an object")
+		}
+		if number, ok := token.(json.Number); ok && len(number.String()) > maxJSONNumberBytes {
+			return errors.New("JWT JSON number bound exceeded")
 		}
 		return nil
 	}
@@ -547,6 +658,81 @@ func inspectJSONValue(decoder *json.Decoder, depth, maxMembers, maxDepth int, to
 		return errors.New("JWT JSON value is not an object")
 	}
 	return nil
+}
+
+func validateJSONUnicodeEscapes(encoded []byte) error {
+	insideString := false
+	escaped := false
+	skipUntil := 0
+	for index, character := range encoded {
+		if index < skipUntil {
+			continue
+		}
+		if !insideString {
+			if character == '"' {
+				insideString = true
+			}
+			continue
+		}
+		if !escaped {
+			switch character {
+			case '\\':
+				escaped = true
+			case '"':
+				insideString = false
+			}
+			continue
+		}
+		escaped = false
+		if character != 'u' {
+			continue
+		}
+		value, ok := decodeHexQuad(encoded[index+1:])
+		if !ok {
+			continue
+		}
+		switch {
+		case value >= 0xD800 && value <= 0xDBFF:
+			if index+11 > len(encoded) {
+				return errors.New("invalid Unicode surrogate in JWT JSON")
+			}
+			if encoded[index+5] != '\\' {
+				return errors.New("invalid Unicode surrogate in JWT JSON")
+			}
+			if encoded[index+6] != 'u' {
+				return errors.New("invalid Unicode surrogate in JWT JSON")
+			}
+			low, valid := decodeHexQuad(encoded[index+7:])
+			if !valid || low < 0xDC00 || low > 0xDFFF {
+				return errors.New("invalid Unicode surrogate in JWT JSON")
+			}
+			skipUntil = index + 11
+		case value >= 0xDC00 && value <= 0xDFFF:
+			return errors.New("invalid Unicode surrogate in JWT JSON")
+		}
+	}
+	return nil
+}
+
+func decodeHexQuad(encoded []byte) (uint16, bool) {
+	if len(encoded) < 4 {
+		return 0, false
+	}
+	var value uint16
+	for _, character := range encoded[:4] {
+		value <<= 4
+		switch {
+		case character >= '0' && character <= '9':
+			value |= uint16(character - '0')
+		case character >= 'a' && character <= 'f':
+			value |= uint16(character-'a') + 10
+		case character >= 'A' && character <= 'F':
+			value |= uint16(character-'A') + 10
+		default:
+			return 0, false
+		}
+	}
+	return value, true
 }
 
 var _ authentication.Authenticator = (*Validator)(nil)
