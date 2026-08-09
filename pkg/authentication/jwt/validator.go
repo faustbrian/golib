@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	authentication "github.com/faustbrian/golib/pkg/authentication"
 	clockpkg "github.com/faustbrian/golib/pkg/clock"
@@ -473,6 +474,9 @@ func inspectCompactJWT(token string, algorithms map[string]struct{}, maxClaims, 
 }
 
 func inspectJSONObject(encoded []byte, maxMembers, maxDepth int) error {
+	if !utf8.Valid(encoded) {
+		return errors.New("invalid UTF-8 in JWT JSON")
+	}
 	decoder := json.NewDecoder(bytes.NewReader(encoded))
 	decoder.UseNumber()
 	if err := inspectJSONValue(decoder, 0, maxMembers, maxDepth, true); err != nil {

@@ -85,7 +85,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 18 | Fleet | `pending-reexecution` | `pkg/service/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3-17 |
 | 19 | Security | `pending-reexecution` | `pkg/secret-envelope/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 20 | Security | `pending-reexecution` | `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19 |
-| 21 | Authentication | `pending-reexecution` | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1, 13 |
 | 22 | Authentication | `pending-reexecution` | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | 21 |
 | 23 | Authentication | `pending-reexecution` | `pkg/authentication/authotel/.ai/{GOAL.md,GOAL_HARDEN.md}` | 21, 22 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
@@ -133,6 +132,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Goal | Status | Treatment |
 | --- | --- | --- |
 | `.ai/GOAL_MAINTENANCE.md` | `recurring` | Execute its cadence continuously and before each supported-Go, dependency, security, specification, or release transition. |
+| `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 32 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -167,6 +167,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
 | Observed | 2026-08-09T02:59:40Z |
 | Gaps | None within the scoped module contract. |
+
+### Strict JWT validation evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Strict compact JWT/JWS parsing, claim and algorithm policy, local and remote JWK ownership, bounded JWKS refresh, cancellation, redaction, interoperability, and documentation. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/authentication/jwt` against an isolated snapshot containing only the completed JWT batch. |
+| Result | Passed every mandatory module gate, including 375/375 statements, 141/141 viable mutants, race, fuzz, API, docs, interoperability, security, and benchmarks; conformance was not applicable by catalog policy. |
+| Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
+| Observed | 2026-08-09T03:48:26Z |
+| Gaps | The repository-wide wrapper remains independently blocked by missing `pkg/tenancy/LICENSE`; NilAway advisory diagnostics remain visible under repository policy. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,

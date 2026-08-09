@@ -4,6 +4,22 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Security
+
+- Reject invalid UTF-8 in protected headers and claim sets instead of allowing
+  JSON decoding to replace malformed bytes.
+
+### Documentation
+
+- Document strict claim and algorithm policy, local and remote key ownership,
+  fail-stale refresh behavior, cancellation, close semantics, error redaction,
+  adoption, migration, security tradeoffs, and compatibility.
+
+### Interoperability
+
+- Verify bidirectional HS256 compatibility with golang-jwt v5 in addition to
+  the pinned RFC 7520 JWK vector and lestrrat-go/jwx implementation.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.

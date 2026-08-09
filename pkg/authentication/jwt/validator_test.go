@@ -115,6 +115,30 @@ func TestValidatorRejectsInvalidJWTTrustDecisions(t *testing.T) {
 	}
 }
 
+func TestValidatorRejectsMalformedNumericDates(t *testing.T) {
+	t.Parallel()
+
+	keys, signer := rsaKeys(t, "key-1", jwa.RS256())
+	validator := newValidator(t, keys, authjwt.Config{
+		Issuer: "https://issuer.example.test", Audience: "orders",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, Clock: authtest.NewClock(jwtNow),
+	})
+	payloads := map[string]string{
+		"expiration": `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"exp":"later"}`,
+		"not before": `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"nbf":[],"exp":4102444800}`,
+		"issued at":  `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":"now","exp":4102444800}`,
+	}
+	for name, payload := range payloads {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			token := signedPayload(t, signer, jwa.RS256(), []byte(payload))
+			if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) {
+				t.Fatalf("ValidateBearer() error = %v, want rejected", err)
+			}
+		})
+	}
+}
+
 func TestValidatorRejectsAlgorithmKeyAndHeaderAttacks(t *testing.T) {
 	t.Parallel()
 
@@ -312,6 +336,26 @@ func signedTokenWithHeaders(t *testing.T, signer jwk.Key, algorithm jwa.Signatur
 	signed, err := upstreamjwt.Sign(token, upstreamjwt.WithKey(algorithm, signer, jws.WithProtectedHeaders(protected)))
 	if err != nil {
 		t.Fatalf("jwt.Sign() error = %v", err)
+	}
+	return string(signed)
+}
+
+func signedPayload(t *testing.T, signer jwk.Key, algorithm jwa.SignatureAlgorithm, payload []byte) string {
+	t.Helper()
+	protected := jws.NewHeaders()
+	if err := protected.Set("alg", algorithm); err != nil {
+		t.Fatalf("Headers.Set(alg) error = %v", err)
+	}
+	keyID, ok := signer.KeyID()
+	if !ok {
+		t.Fatal("signer has no key ID")
+	}
+	if err := protected.Set("kid", keyID); err != nil {
+		t.Fatalf("Headers.Set(kid) error = %v", err)
+	}
+	signed, err := jws.Sign(payload, jws.WithKey(algorithm, signer, jws.WithProtectedHeaders(protected)))
+	if err != nil {
+		t.Fatalf("jws.Sign() error = %v", err)
 	}
 	return string(signed)
 }

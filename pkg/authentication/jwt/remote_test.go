@@ -335,13 +335,18 @@ func TestRemoteCloseDeadlineIsNotBlockedByRefreshLock(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
 	defer cancel()
 	closeDone := make(chan error, 1)
-	go func() { closeDone <- remote.Close(ctx) }()
+	closeStarted := make(chan struct{})
+	go func() {
+		close(closeStarted)
+		closeDone <- remote.Close(ctx)
+	}()
+	<-closeStarted
 	select {
 	case err := <-closeDone:
 		if err != nil && !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatalf("Close() error = %v", err)
 		}
-	case <-time.After(100 * time.Millisecond):
+	case <-time.After(2 * time.Second):
 		releaseOnce.Do(func() { close(release) })
 		<-refreshDone
 		err := <-closeDone

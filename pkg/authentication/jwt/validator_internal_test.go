@@ -95,6 +95,7 @@ func TestInspectJSONObjectRejectsHostileJSONShapes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
 	}
+	invalidUTF8 := []byte{'{', '"', 'a', '"', ':', '"', 0xff, '"', '}'}
 	tests := [][]byte{
 		{},
 		[]byte(`1`),
@@ -106,6 +107,7 @@ func TestInspectJSONObjectRejectsHostileJSONShapes(t *testing.T) {
 		[]byte(`{"a":`),
 		[]byte(`{invalid}`),
 		[]byte(`}`),
+		invalidUTF8,
 		append([]byte(`{"a":`), append(largeArray, '}')...),
 	}
 	for index, encoded := range tests {

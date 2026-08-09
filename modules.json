@@ -1974,7 +1974,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`jwt` validates signed compact JWTs at the authentication boundary. It owns JWT/JWS parsing, signature and claim policy, static JWK sets, and a bounded remote JWKS cache. It does not extract HTTP credentials, discover OIDC providers, issue tokens, manage sessions, or make authorization decisions.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
@@ -1986,6 +1986,7 @@
       ],
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
+        "github.com/golang-jwt/jwt/v5",
         "github.com/lestrrat-go/httprc/v3",
         "github.com/lestrrat-go/jwx/v3"
       ],
@@ -2006,7 +2007,8 @@
           "file": "pkg/authentication/jwt/.ai/GOAL.md",
           "requirements_sha256": "f2b8dafe3904e29726eb104b11056e3f79d87d38fbcf9488978f3cdfbc840f3c",
           "implementation_evidence": [
-            "pkg/authentication/jwt/CHANGELOG.md"
+            "pkg/authentication/jwt/CHANGELOG.md",
+            "pkg/authentication/jwt/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -2037,7 +2039,8 @@
           "file": "pkg/authentication/jwt/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "023f5d82bbe76023d9665cb9b79e5c89da1b3712f051d50df5a8f0afd95b7e26",
           "implementation_evidence": [
-            "pkg/authentication/jwt/CHANGELOG.md"
+            "pkg/authentication/jwt/CHANGELOG.md",
+            "pkg/authentication/jwt/README.md"
           ],
           "verification_gates": [
             "format-check",
