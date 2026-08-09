@@ -18,6 +18,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- real PostgreSQL one-connection pool evidence proving partial readers retain
+  their connection until close or cancellation, blocked appends honor caller
+  deadlines without allocating a global position, and released capacity is
+  reusable
 - real PostgreSQL contention evidence proving globally duplicate message IDs
   commit exactly once without orphan streams or allocator gaps, and busy
   caller-owned event and checkpoint staging remains rollback-safe

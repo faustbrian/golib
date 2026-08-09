@@ -88,7 +88,11 @@ their causes for `errors.Is` and `errors.As`.
 
 Reads are bounded by the core read options. Returned iterators own their
 `pgx.Rows`; callers must always call `Close`. Cancellation stops iteration and
-closes the rows. Stream and global ordering are ascending and stable.
+closes the rows. A partial reader therefore retains its pool connection until
+close or cancellation. The one-connection pool test proves a competing append
+honors its caller deadline without allocating a global position, then succeeds
+at the next gap-free position after the iterator releases capacity. Stream and
+global ordering are ascending and stable.
 
 ## Caller-owned transactions
 
