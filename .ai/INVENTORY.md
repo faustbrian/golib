@@ -96,7 +96,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
 | 41 | Protocol | `pending` | `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1, 13, 19 |
-| 42 | Security | `pending` | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19, 21-23, 41 |
 | 44 | Audit | `pending` | `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 29-32, 43 |
 | 45 | Event contracts | `pending` | `pkg/schema-registry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26 |
 | 46 | Event interoperability | `pending` | `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-35, 43, 45 |
@@ -136,6 +135,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 39. Current scoped evidence verifies exact UTC encoding, bound-sensitive interval relations, persisted-input hardening, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/external-sort/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 40. Current scoped evidence verifies encrypted spill hardening and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 42. Current scoped evidence verifies canonical scoped capabilities and signed URLs, key lifecycle, replay and revocation adapters, hardening requirements, and every mandatory capability-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/tenancy/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 43. Current scoped evidence verifies explicit tenant identity, propagation, namespaces, administration, PostgreSQL/RLS, asynchronous lifecycle, hardening, documentation, and every mandatory tenancy-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
@@ -180,6 +180,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64, with compile checks for Windows, Plan 9, and JavaScript targets; no external services. |
 | Observed | 2026-08-09T06:44:38Z |
 | Gaps | None within the scoped external-sort contract. |
+
+### Signed capability and URL evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Canonical versioned capabilities, HMAC-SHA-256 and Ed25519 signing, bounded key resolution and lifecycle policy, deterministic signed URLs, explicit authorization, atomic replay, revocation, HTTP integration, durable PostgreSQL and Valkey adapters, hostile-input hardening, and complete public documentation. |
+| Status | `pending` to `verified` |
+| Evidence | Capability-module formatting, tidy, vet, unit and live integration tests, exact coverage, race, three 10,000-execution fuzz campaigns, API, conformance, independent interoperability, benchmarks, clean-consumer, mutation, safety, lint, static analysis, vulnerability, secret, license, and SBOM gates. |
+| Result | All mandatory capability-module gates passed. Exact statement coverage is 541/541 core, 88/88 `caphttp`, 84/84 memory, 91/91 PostgreSQL, and 38/38 Valkey; mutation killed 352/352, 44/44, 37/37, 51/51, and 38/38 viable mutants respectively, with 100% efficacy and mutator coverage. |
+| Environment | Go 1.26.5 on darwin/arm64 with a fresh task-owned disposable `GOCACHE` for every Go gate and gate-managed PostgreSQL and Valkey services. |
+| Observed | 2026-08-09T09:47:23Z |
+| Gaps | NilAway remains advisory and reports one production invariant around reparsing an internally canonical URL plus test-only constructor-flow warnings; mandatory analyzers and security gates pass. |
 
 ### Event-sourcing outbox adapter evidence
 
