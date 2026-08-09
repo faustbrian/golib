@@ -1,0 +1,306 @@
+package main
+
+import (
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+)
+
+func TestValidateSpecificationDecisionsAcceptsCompleteRegister(t *testing.T) {
+	t.Parallel()
+
+	root, current := validSpecificationDecisionFixture(t)
+	if err := validateSpecificationDecisions(root, current); err != nil {
+		t.Fatalf("validateSpecificationDecisions() error = %v", err)
+	}
+}
+
+func TestValidateSpecificationDecisionsAcceptsGroupedTerminalSectionAndEvidencePrefix(t *testing.T) {
+	t.Parallel()
+
+	root, current := validSpecificationDecisionFixture(t)
+	path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+	replaceFileText(t, path, "`TestSpecificationVector`", "`TestSpecification*`")
+	mustAppendFile(t, path, "\n## Unresolved and excluded behavior\n\nNo material decision is unresolved.\n")
+	replaceFileText(
+		t,
+		path,
+		"https://example.com/specification/1.0#behavior",
+		"http://example.com/specification/1.0#behavior",
+	)
+
+	if err := validateSpecificationDecisions(root, current); err != nil {
+		t.Fatalf("validateSpecificationDecisions() error = %v", err)
+	}
+}
+
+func TestValidateSpecificationDecisionsFailsClosed(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		mutate    func(t *testing.T, root string, current *catalog)
+		wantError string
+	}{
+		{
+			name: "provenance without specification metadata",
+			mutate: func(t *testing.T, _ string, current *catalog) {
+				t.Helper()
+				current.Modules[0].Specifications = nil
+			},
+			wantError: "specification metadata",
+		},
+		{
+			name: "missing decision register",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				if err := os.Remove(filepath.Join(root, "pkg/example/docs/specification-decisions.md")); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantError: "decision register",
+		},
+		{
+			name: "missing conformance corpus",
+			mutate: func(t *testing.T, _ string, current *catalog) {
+				t.Helper()
+				current.Modules[0].ConformanceCorpora = nil
+			},
+			wantError: "conformance corpus",
+		},
+		{
+			name: "missing provenance",
+			mutate: func(t *testing.T, _ string, current *catalog) {
+				t.Helper()
+				current.Modules[0].Provenance = nil
+			},
+			wantError: "provenance",
+		},
+		{
+			name: "duplicate identifier",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				mustAppendFile(t, path, "\n"+validDecisionEntry("EXAMPLE-DEC-001", "TestSpecificationVector"))
+			},
+			wantError: "duplicate decision identifier",
+		},
+		{
+			name: "malformed identifier",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "EXAMPLE-DEC-001", "example decision")
+			},
+			wantError: "stable decision identifier",
+		},
+		{
+			name: "missing required field",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "| Reconsider when |", "| Future review |")
+			},
+			wantError: "reconsider",
+		},
+		{
+			name: "unresolved decision",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "`resolved`", "`unresolved`")
+			},
+			wantError: "unresolved",
+		},
+		{
+			name: "unknown decision status",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "`resolved`", "`reviewed`")
+			},
+			wantError: "status",
+		},
+		{
+			name: "superseded decision without replacement",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "`resolved`", "`superseded`")
+			},
+			wantError: "replacement",
+		},
+		{
+			name: "missing executable evidence",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "`TestSpecificationVector`", "none")
+			},
+			wantError: "executable evidence",
+		},
+		{
+			name: "unknown executable evidence",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "TestSpecificationVector", "TestMissingVector")
+			},
+			wantError: "TestMissingVector",
+		},
+		{
+			name: "missing provenance file",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				if err := os.Remove(filepath.Join(root, "pkg/example/specification/manifest.tsv")); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantError: "manifest.tsv",
+		},
+		{
+			name: "malformed provenance row",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/specification/manifest.tsv")
+				mustAppendFile(t, path, "broken\t1.1\thttps://example.com/specification/1.1\tnot-a-digest\tpinned\n")
+			},
+			wantError: "sha256",
+		},
+		{
+			name: "conformance gate disabled",
+			mutate: func(t *testing.T, _ string, current *catalog) {
+				t.Helper()
+				current.Modules[0].Gates["conformance"] = false
+			},
+			wantError: "conformance gate",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			root, current := validSpecificationDecisionFixture(t)
+			test.mutate(t, root, &current)
+			err := validateSpecificationDecisions(root, current)
+			if err == nil || !strings.Contains(strings.ToLower(err.Error()), strings.ToLower(test.wantError)) {
+				t.Fatalf("validateSpecificationDecisions() error = %v, want containing %q", err, test.wantError)
+			}
+		})
+	}
+}
+
+func TestValidateSpecificationDecisionsIgnoresNonProductionAndNonSpecificationModules(t *testing.T) {
+	t.Parallel()
+
+	current := catalog{Modules: []module{
+		{Directory: "pkg/plain", Kind: "public library"},
+		{
+			Directory:      "pkg/harness",
+			Kind:           "interoperability harness",
+			Specifications: []string{"Example specification"},
+		},
+	}}
+	if err := validateSpecificationDecisions(t.TempDir(), current); err != nil {
+		t.Fatalf("validateSpecificationDecisions() error = %v", err)
+	}
+}
+
+func TestValidateSpecificationProvenanceRejectsMalformedNestedJSONDigest(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	path := filepath.Join(root, "pkg/example/specification/manifest.json")
+	mustWriteFile(t, path, `{
+  "repository": "https://example.com/specification",
+  "version": "1.0.0",
+  "files": [
+    {"path": "valid.json", "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"},
+    {"path": "broken.json", "sha256": "not-a-digest"}
+  ]
+}
+`)
+	err := validateSpecificationProvenance(
+		root,
+		"pkg/example",
+		"pkg/example/specification/manifest.json",
+	)
+	if err == nil || !strings.Contains(strings.ToLower(err.Error()), "sha256") {
+		t.Fatalf("validateSpecificationProvenance() error = %v, want invalid sha256", err)
+	}
+}
+
+func validSpecificationDecisionFixture(t *testing.T) (string, catalog) {
+	t.Helper()
+
+	root := t.TempDir()
+	mustWriteFile(
+		t,
+		filepath.Join(root, "pkg/example/docs/specification-decisions.md"),
+		"# Specification decisions\n\n"+validDecisionEntry("EXAMPLE-DEC-001", "TestSpecificationVector"),
+	)
+	mustWriteFile(
+		t,
+		filepath.Join(root, "pkg/example/specification/manifest.tsv"),
+		"id\tversion\turl\tsha256\tstatus\nexample\t1.0\thttps://example.com/specification/1.0\t0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\tpinned\n",
+	)
+	mustWriteFile(
+		t,
+		filepath.Join(root, "pkg/example/conformance_test.go"),
+		"package example\n\nfunc TestSpecificationVector(t *testing.T) {}\n",
+	)
+
+	return root, catalog{Modules: []module{{
+		Directory:          "pkg/example",
+		Kind:               "public library",
+		Specifications:     []string{"Example specification 1.0"},
+		ConformanceCorpora: []string{"Example vectors"},
+		Provenance:         []string{"pkg/example/specification/manifest.tsv"},
+		Gates:              map[string]bool{"conformance": true},
+	}}}
+}
+
+func validDecisionEntry(identifier, evidence string) string {
+	return "## " + identifier + ": Canonical behavior\n\n" +
+		"| Field | Decision |\n" +
+		"| --- | --- |\n" +
+		"| Status and owner | `resolved`; example maintainers |\n" +
+		"| Source | Example 1.0 [normative text](https://example.com/specification/1.0#behavior) |\n" +
+		"| Classification | Normative ambiguity |\n" +
+		"| Issue | The source permits two observable interpretations. |\n" +
+		"| Credible interpretations | Accept the first form or reject it. |\n" +
+		"| Known peer behavior | Maintained peer implementations disagree. |\n" +
+		"| Selected behavior | Reject the ambiguous form deterministically. |\n" +
+		"| Security and resource consequences | Input and work remain bounded. |\n" +
+		"| Compatibility and wire consequences | The rejected form is not accepted on the wire. |\n" +
+		"| Executable evidence | `" + evidence + "` and the pinned conformance corpus |\n" +
+		"| Public surface | `Parse` |\n" +
+		"| Upstream record | No published erratum changes this decision. |\n" +
+		"| Reconsider when | A new specification revision resolves the ambiguity. |\n"
+}
+
+func mustAppendFile(t *testing.T, path, contents string) {
+	t.Helper()
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	if _, err := file.WriteString(contents); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func replaceFileText(t *testing.T, path, old, replacement string) {
+	t.Helper()
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	updated := strings.Replace(string(contents), old, replacement, 1)
+	if updated == string(contents) {
+		t.Fatalf("fixture does not contain %q", old)
+	}
+	mustWriteFile(t, path, updated)
+}

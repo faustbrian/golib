@@ -5,6 +5,13 @@ documented in each module's changelog.
 
 ## Unreleased
 
+### Added
+
+- Add a repository-wide specification decision validator, canonical governance
+  contract, and pull request review section so specification-backed modules
+  fail visibly on missing provenance, unresolved interpretations, or stale
+  executable evidence.
+
 ### Fixed
 
 - Skip Docker discovery for service-free modules and bound server-version

@@ -12,7 +12,7 @@ else
 SELECT := --modules $(MODULES)
 endif
 
-.PHONY: manifests inventory select select-changed repository-check root-test \
+.PHONY: manifests inventory specification-decisions select select-changed repository-check root-test \
 	workflow-lint format format-check tidy tidy-check \
 	test workspace-test race coverage mutation fuzz lint staticcheck nilaway vet \
 	safety vulnerability secrets licenses sbom docs api interoperability benchmark \
@@ -23,6 +23,9 @@ manifests:
 
 inventory:
 	go run ./cmd/golib validate
+
+specification-decisions:
+	go run ./cmd/golib specifications
 
 select:
 	go run ./cmd/golib select $(SELECT)

@@ -36,6 +36,7 @@ Install the version from [`.go-version`](.go-version), then run:
 
 ```bash
 make inventory
+make specification-decisions
 make workspace-test MODULES=pkg/clock
 make check MODULES=pkg/jsonrpc
 make conformance MODULES=pkg/jsonrpc
@@ -48,7 +49,9 @@ selection expands through reverse owned dependencies. `make ci` runs the full
 repository contract. `api-update` intentionally refreshes a module's pinned
 export baseline after a reviewed compatible API change.
 Specification conformance and independent-implementation interoperability are
-separate attributable gates.
+separate attributable gates. The repository-wide
+[specification governance contract](docs/specification-governance.md) defines
+mandatory decision records, provenance, executable evidence, and review.
 
 ## Quality Contract
 

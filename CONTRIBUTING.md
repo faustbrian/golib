@@ -14,6 +14,12 @@ the behavior and migration impact. Public API changes require compatibility
 evidence and documentation. Specification behavior requires a decision record,
 fixture coverage, and interoperability evidence.
 
+Specification-backed changes must follow the
+[specification governance contract](docs/specification-governance.md), update
+the affected stable decision entries, and complete the Specification Decisions
+section of the pull request template. An unresolved interpretation or stale
+source pin is release-blocking; peer behavior cannot silently select policy.
+
 Do not add package-local workflows, permanent replacements, machine-specific
 paths, bypass flags, broad mutation exclusions, or aggregate quality metrics
 that hide a failing package.
@@ -24,6 +30,7 @@ Run during development:
 
 ```bash
 make inventory
+make specification-decisions
 make check MODULES=pkg/<library>
 ```
 

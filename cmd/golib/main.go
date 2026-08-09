@@ -107,7 +107,7 @@ type modFile struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fatal("usage: golib <manifest|validate|select|safety>")
+		fatal("usage: golib <manifest|validate|specifications|select|safety>")
 	}
 
 	root, err := repositoryRoot()
@@ -120,6 +120,8 @@ func main() {
 		manifest(root)
 	case "validate":
 		validate(root)
+	case "specifications":
+		validateSpecifications(root)
 	case "select":
 		selectModules(root, os.Args[2:])
 	case "safety":
