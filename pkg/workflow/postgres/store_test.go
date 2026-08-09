@@ -257,6 +257,98 @@ func TestHistoryDoesNotClaimMoreForAnExactlyFullPage(t *testing.T) {
 	}
 }
 
+func TestClaimReturnsStableFencedDueWork(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 9, 13, 0, 0, 0, time.UTC)
+	rows := &fakeRows{rows: [][]any{
+		{"work-1", int16(workflow.WorkActivity), "instance-1", int64(2), now.Add(-time.Second), now.Add(time.Hour), []byte("one"), "tenant-1", "correlation-1", int64(2), int64(4), now.Add(time.Minute)},
+		{"work-2", int16(workflow.WorkTimer), "instance-2", int64(3), now, now.Add(time.Hour), []byte(nil), "", "", int64(1), int64(1), now.Add(time.Minute)},
+	}}
+	database := &fakeDatabase{queryRows: rows}
+	request, err := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-1", Now: now, LeaseDuration: time.Minute, Limit: 2,
+	})
+	if err != nil {
+		t.Fatalf("construct request: %v", err)
+	}
+	leases, err := newStore(database, "workflow").Claim(context.Background(), request)
+	if err != nil {
+		t.Fatalf("claim work: %v", err)
+	}
+	if len(leases) != 2 || leases[0].Work().ID() != "work-1" || leases[0].Token() != 4 ||
+		leases[1].Work().Kind() != workflow.WorkTimer || database.lastQueryLimit != 2 {
+		t.Fatalf("claimed leases = %#v", leases)
+	}
+	if !strings.Contains(database.lastQuery, "FOR UPDATE SKIP LOCKED") ||
+		!strings.Contains(database.lastQuery, "lease_expires_at <= $1") {
+		t.Fatal("claim does not atomically recover expired leases")
+	}
+}
+
+func TestRenewCompleteAndFailRejectStaleFences(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 9, 13, 0, 0, 0, time.UTC)
+	renewal, err := workflow.NewWorkLeaseRenewal(workflow.WorkLeaseRenewalSpec{
+		WorkID: "work-1", Owner: "worker-1", Token: 3, Now: now, ExtendBy: time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("construct renewal: %v", err)
+	}
+	row := &fakeRow{values: []any{
+		"work-1", int16(workflow.WorkActivity), "instance-1", int64(2), now.Add(-time.Second),
+		now.Add(time.Hour), []byte(nil), "", "", int64(2), int64(3), now.Add(time.Minute),
+	}}
+	renewed, err := newStore(&fakeDatabase{row: row}, "workflow").Renew(context.Background(), renewal)
+	if err != nil || renewed.Token() != 3 || renewed.ExpiresAt() != now.Add(time.Minute) {
+		t.Fatalf("renewed lease = %#v, %v", renewed, err)
+	}
+	if _, err := newStore(&fakeDatabase{row: &fakeRow{err: pgx.ErrNoRows}}, "workflow").Renew(context.Background(), renewal); !errors.Is(err, workflow.ErrStaleWorkLease) {
+		t.Fatalf("stale renewal = %v", err)
+	}
+
+	completion, err := workflow.NewWorkCompletion(workflow.WorkCompletionSpec{
+		WorkID: "work-1", Owner: "worker-1", Token: 3, CompletedAt: now,
+	})
+	if err != nil {
+		t.Fatalf("construct completion: %v", err)
+	}
+	completedTx := &fakeTransaction{execResults: []commandResult{fakeCommandResult(1)}}
+	if err := newStore(&fakeDatabase{tx: completedTx}, "workflow").Complete(context.Background(), completion); err != nil || !completedTx.committed {
+		t.Fatalf("complete work = %v commit %t", err, completedTx.committed)
+	}
+	staleTx := &fakeTransaction{execResults: []commandResult{fakeCommandResult(0)}}
+	if err := newStore(&fakeDatabase{tx: staleTx}, "workflow").Complete(context.Background(), completion); !errors.Is(err, workflow.ErrStaleWorkLease) {
+		t.Fatalf("stale completion = %v", err)
+	}
+
+	retry, err := workflow.NewWorkFailure(workflow.WorkFailureSpec{
+		WorkID: "work-1", Owner: "worker-1", Token: 3, FailedAt: now,
+		Code: "temporary", Disposition: workflow.WorkRetry, RetryAt: now.Add(time.Second),
+	})
+	if err != nil {
+		t.Fatalf("construct retry: %v", err)
+	}
+	retryTx := &fakeTransaction{execResults: []commandResult{fakeCommandResult(1)}}
+	if err := newStore(&fakeDatabase{tx: retryTx}, "workflow").Fail(context.Background(), retry); err != nil ||
+		!strings.Contains(retryTx.execQueries[0], "state = 1") {
+		t.Fatalf("retry work = %v", err)
+	}
+	dead, err := workflow.NewWorkFailure(workflow.WorkFailureSpec{
+		WorkID: "work-1", Owner: "worker-1", Token: 3, FailedAt: now,
+		Code: "poison", Disposition: workflow.WorkDeadLetter,
+	})
+	if err != nil {
+		t.Fatalf("construct dead letter: %v", err)
+	}
+	deadTx := &fakeTransaction{execResults: []commandResult{fakeCommandResult(1)}}
+	if err := newStore(&fakeDatabase{tx: deadTx}, "workflow").Fail(context.Background(), dead); err != nil ||
+		!strings.Contains(deadTx.execQueries[0], "state = 4") {
+		t.Fatalf("dead-letter work = %v", err)
+	}
+}
+
 func mustCreateTransition(t *testing.T) workflow.Transition {
 	t.Helper()
 	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
@@ -338,6 +430,7 @@ type fakeDatabase struct {
 	queryRows      rowSet
 	queryErr       error
 	lastQueryLimit int32
+	lastQuery      string
 }
 
 func (database *fakeDatabase) Begin(context.Context) (transaction, error) {
@@ -347,11 +440,16 @@ func (database *fakeDatabase) Begin(context.Context) (transaction, error) {
 	return database.tx, nil
 }
 
-func (database *fakeDatabase) Query(_ context.Context, _ string, arguments ...any) (rowSet, error) {
+func (database *fakeDatabase) Query(_ context.Context, query string, arguments ...any) (rowSet, error) {
 	if database.queryErr != nil {
 		return nil, database.queryErr
 	}
-	database.lastQueryLimit = arguments[2].(int32)
+	database.lastQuery = query
+	for _, argument := range arguments {
+		if limit, ok := argument.(int32); ok {
+			database.lastQueryLimit = limit
+		}
+	}
 	return database.queryRows, nil
 }
 

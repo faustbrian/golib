@@ -19,6 +19,9 @@ and releases use Semantic Versioning.
   optimistic history-and-work commits, conflicting transition detection,
   idempotent exact replay, bounded stable pagination, and rollback-safe failure
   handling.
+- Bounded durable-work claims with atomic PostgreSQL admission, expiring leases,
+  monotonically increasing fencing tokens, crash recovery, renewal, explicit
+  retry times, stale-owner rejection, completion, and dead-letter disposition.
 - Immutable durable lifecycle history, deterministic replay, pinned definition
   verification, explicit persisted migration decisions, cancellation,
   termination, and continue-as-new outcomes.

@@ -73,6 +73,104 @@ func TestPostgreSQLAtomicTransitionsAndStableHistory(t *testing.T) {
 		t.Fatal("activity attempt deadline was not persisted")
 	}
 
+	claimTime := time.Date(2026, 8, 9, 12, 0, 2, 0, time.UTC)
+	claim, err := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-1", Now: claimTime, LeaseDuration: 30 * time.Second, Limit: 10,
+	})
+	if err != nil {
+		t.Fatalf("construct work claim: %v", err)
+	}
+	leases, err := store.Claim(ctx, claim)
+	if err != nil {
+		t.Fatalf("claim due work: %v", err)
+	}
+	if len(leases) != 1 || leases[0].Work().ID() != "work-1" ||
+		leases[0].Attempt() != 1 || leases[0].Token() != 1 {
+		t.Fatalf("claimed leases = %#v", leases)
+	}
+	earlyClaim, err := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-2", Now: leases[0].ExpiresAt().Add(-time.Nanosecond),
+		LeaseDuration: time.Minute, Limit: 10,
+	})
+	if err != nil {
+		t.Fatalf("construct competing claim: %v", err)
+	}
+	if competing, err := store.Claim(ctx, earlyClaim); err != nil || len(competing) != 0 {
+		t.Fatalf("live lease was reclaimed = %#v, %v", competing, err)
+	}
+	recoveryClaim, err := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-2", Now: leases[0].ExpiresAt(), LeaseDuration: 30 * time.Second, Limit: 10,
+	})
+	if err != nil {
+		t.Fatalf("construct recovery claim: %v", err)
+	}
+	recovered, err := store.Claim(ctx, recoveryClaim)
+	if err != nil || len(recovered) != 1 || recovered[0].Attempt() != 2 || recovered[0].Token() != 2 {
+		t.Fatalf("recovered claim = %#v, %v", recovered, err)
+	}
+	staleCompletion, err := workflow.NewWorkCompletion(workflow.WorkCompletionSpec{
+		WorkID: "work-1", Owner: "worker-1", Token: 1, CompletedAt: recoveryClaim.Now(),
+	})
+	if err != nil {
+		t.Fatalf("construct stale completion: %v", err)
+	}
+	if err := store.Complete(ctx, staleCompletion); !errors.Is(err, workflow.ErrStaleWorkLease) {
+		t.Fatalf("stale completion = %v", err)
+	}
+	renewal, err := workflow.NewWorkLeaseRenewal(workflow.WorkLeaseRenewalSpec{
+		WorkID: "work-1", Owner: "worker-2", Token: 2,
+		Now: recoveryClaim.Now().Add(10 * time.Second), ExtendBy: 10 * time.Second,
+	})
+	if err != nil {
+		t.Fatalf("construct renewal: %v", err)
+	}
+	renewed, err := store.Renew(ctx, renewal)
+	if err != nil || renewed.Token() != 2 || renewed.ExpiresAt() != renewal.Now().Add(10*time.Second) {
+		t.Fatalf("renew work = %#v, %v", renewed, err)
+	}
+	retryAt := renewed.ExpiresAt().Add(time.Second)
+	failure, err := workflow.NewWorkFailure(workflow.WorkFailureSpec{
+		WorkID: "work-1", Owner: "worker-2", Token: 2, FailedAt: renewal.Now(),
+		Code: "temporary", Disposition: workflow.WorkRetry, RetryAt: retryAt,
+	})
+	if err != nil {
+		t.Fatalf("construct retry failure: %v", err)
+	}
+	if err := store.Fail(ctx, failure); err != nil {
+		t.Fatalf("retry work: %v", err)
+	}
+	beforeRetry, err := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-3", Now: retryAt.Add(-time.Nanosecond), LeaseDuration: time.Minute, Limit: 10,
+	})
+	if err != nil {
+		t.Fatalf("construct early claim: %v", err)
+	}
+	if leases, err := store.Claim(ctx, beforeRetry); err != nil || len(leases) != 0 {
+		t.Fatalf("early retry claim = %#v, %v", leases, err)
+	}
+	afterRetry, err := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-3", Now: retryAt, LeaseDuration: time.Minute, Limit: 10,
+	})
+	if err != nil {
+		t.Fatalf("construct retry claim: %v", err)
+	}
+	retried, err := store.Claim(ctx, afterRetry)
+	if err != nil || len(retried) != 1 || retried[0].Attempt() != 3 || retried[0].Token() != 3 {
+		t.Fatalf("retried claim = %#v, %v", retried, err)
+	}
+	completion, err := workflow.NewWorkCompletion(workflow.WorkCompletionSpec{
+		WorkID: "work-1", Owner: "worker-3", Token: 3, CompletedAt: retryAt,
+	})
+	if err != nil {
+		t.Fatalf("construct completion: %v", err)
+	}
+	if err := store.Complete(ctx, completion); err != nil {
+		t.Fatalf("complete work: %v", err)
+	}
+	if leases, err := store.Claim(ctx, afterRetry); err != nil || len(leases) != 0 {
+		t.Fatalf("completed work was claimable = %#v, %v", leases, err)
+	}
+
 	failed := mustDuplicateWorkTransition(t, created.Definition())
 	if err := store.Commit(ctx, failed); err == nil || workflow.StoreCommitOutcomeOf(err) != workflow.StoreCommitNotCommitted {
 		t.Fatalf("duplicate-work transition = %v", err)

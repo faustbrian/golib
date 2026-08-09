@@ -336,6 +336,215 @@ func TestOperationErrorPreservesCauseWithoutExposingIt(t *testing.T) {
 	}
 }
 
+func TestWorkStoreRequestAndDriverFailureBoundaries(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 9, 13, 0, 0, 0, time.UTC)
+	claim := mustWorkClaim(t, now)
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	failure := errors.New("driver failure")
+	claimTests := []struct {
+		name    string
+		store   *Store
+		ctx     context.Context
+		request workflow.WorkClaimRequest
+		want    error
+	}{
+		{name: "nil store", ctx: context.Background(), request: claim, want: workflow.ErrInvalidStoreRequest},
+		{name: "nil database", store: &Store{}, ctx: context.Background(), request: claim, want: workflow.ErrInvalidStoreRequest},
+		{name: "nil context", store: newStore(&fakeDatabase{}, "workflow"), request: claim, want: workflow.ErrInvalidStoreRequest},
+		{name: "invalid request", store: newStore(&fakeDatabase{}, "workflow"), ctx: context.Background(), want: workflow.ErrInvalidStoreRequest},
+		{name: "canceled", store: newStore(&fakeDatabase{}, "workflow"), ctx: canceled, request: claim, want: context.Canceled},
+		{name: "query", store: newStore(&fakeDatabase{queryErr: failure}, "workflow"), ctx: context.Background(), request: claim, want: failure},
+		{name: "scan", store: newStore(&fakeDatabase{queryRows: &fakeRows{rows: [][]any{{}}, scanErr: failure}}, "workflow"), ctx: context.Background(), request: claim, want: failure},
+		{name: "iterate", store: newStore(&fakeDatabase{queryRows: &fakeRows{err: failure}}, "workflow"), ctx: context.Background(), request: claim, want: failure},
+	}
+	for _, test := range claimTests {
+		t.Run("claim "+test.name, func(t *testing.T) {
+			_, err := test.store.Claim(test.ctx, test.request)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("claim error = %v", err)
+			}
+		})
+	}
+
+	renewal := mustWorkRenewal(t, now)
+	renewTests := []struct {
+		name    string
+		store   *Store
+		ctx     context.Context
+		renewal workflow.WorkLeaseRenewal
+		want    error
+	}{
+		{name: "nil store", ctx: context.Background(), renewal: renewal, want: workflow.ErrInvalidStoreRequest},
+		{name: "nil database", store: &Store{}, ctx: context.Background(), renewal: renewal, want: workflow.ErrInvalidStoreRequest},
+		{name: "nil context", store: newStore(&fakeDatabase{}, "workflow"), renewal: renewal, want: workflow.ErrInvalidStoreRequest},
+		{name: "invalid renewal", store: newStore(&fakeDatabase{}, "workflow"), ctx: context.Background(), want: workflow.ErrInvalidStoreRequest},
+		{name: "canceled", store: newStore(&fakeDatabase{}, "workflow"), ctx: canceled, renewal: renewal, want: context.Canceled},
+		{name: "scan", store: newStore(&fakeDatabase{row: &fakeRow{err: failure}}, "workflow"), ctx: context.Background(), renewal: renewal, want: failure},
+	}
+	for _, test := range renewTests {
+		t.Run("renew "+test.name, func(t *testing.T) {
+			_, err := test.store.Renew(test.ctx, test.renewal)
+			if !errors.Is(err, test.want) {
+				t.Fatalf("renew error = %v", err)
+			}
+		})
+	}
+
+	completion := mustWorkCompletion(t, now)
+	deadLetter := mustWorkDeadLetter(t, now)
+	if err := (*Store)(nil).Complete(context.Background(), completion); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+		t.Fatalf("nil completion store = %v", err)
+	}
+	if err := (&Store{}).Complete(context.Background(), completion); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+		t.Fatalf("nil completion database = %v", err)
+	}
+	if err := newStore(&fakeDatabase{}, "workflow").Complete(nil, completion); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+		t.Fatalf("nil completion context = %v", err)
+	}
+	if err := newStore(&fakeDatabase{}, "workflow").Complete(context.Background(), workflow.WorkCompletion{}); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+		t.Fatalf("invalid completion = %v", err)
+	}
+	if err := newStore(&fakeDatabase{}, "workflow").Complete(canceled, completion); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled completion = %v", err)
+	}
+	if err := (*Store)(nil).Fail(context.Background(), deadLetter); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+		t.Fatalf("nil failure store = %v", err)
+	}
+	if err := (&Store{}).Fail(context.Background(), deadLetter); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+		t.Fatalf("nil failure database = %v", err)
+	}
+	if err := newStore(&fakeDatabase{}, "workflow").Fail(nil, deadLetter); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+		t.Fatalf("nil failure context = %v", err)
+	}
+	if err := newStore(&fakeDatabase{}, "workflow").Fail(context.Background(), workflow.WorkFailure{}); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+		t.Fatalf("invalid failure = %v", err)
+	}
+	if err := newStore(&fakeDatabase{}, "workflow").Fail(canceled, deadLetter); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled failure = %v", err)
+	}
+}
+
+func TestFencedMutationDriverFailuresRemainErrors(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 9, 13, 0, 0, 0, time.UTC)
+	completion := mustWorkCompletion(t, now)
+	failure := errors.New("driver failure")
+	tests := []struct {
+		name string
+		tx   *fakeTransaction
+		db   *fakeDatabase
+	}{
+		{name: "begin", db: &fakeDatabase{beginErr: failure}},
+		{name: "execute", tx: &fakeTransaction{execErrors: []error{failure}}},
+		{name: "commit", tx: &fakeTransaction{execResults: []commandResult{fakeCommandResult(1)}, commitErr: failure}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			database := test.db
+			if database == nil {
+				database = &fakeDatabase{tx: test.tx}
+			}
+			err := newStore(database, "workflow").Complete(context.Background(), completion)
+			if !errors.Is(err, failure) {
+				t.Fatalf("completion error = %v", err)
+			}
+		})
+	}
+}
+
+func TestClaimRejectsCorruptDurableWork(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 9, 13, 0, 0, 0, time.UTC)
+	valid := []any{"work-1", int16(workflow.WorkActivity), "instance-1", int64(2), now, now.Add(time.Hour), []byte(nil), "", "", int64(1), int64(1), now.Add(time.Minute)}
+	tests := []struct {
+		name      string
+		mutate    func([]any)
+		exactType bool
+	}{
+		{name: "kind below", mutate: func(row []any) { row[1] = int16(0) }, exactType: true},
+		{name: "kind above", mutate: func(row []any) { row[1] = int16(workflow.WorkCompensation + 1) }, exactType: true},
+		{name: "sequence", mutate: func(row []any) { row[3] = int64(0) }, exactType: true},
+		{name: "attempt below", mutate: func(row []any) { row[9] = int64(0) }, exactType: true},
+		{name: "attempt above", mutate: func(row []any) { row[9] = int64(^uint32(0)) + 1 }, exactType: true},
+		{name: "token", mutate: func(row []any) { row[10] = int64(0) }, exactType: true},
+		{name: "work", mutate: func(row []any) { row[0] = "unsafe work id" }},
+		{name: "lease", mutate: func(row []any) { row[11] = now.Add(-time.Second) }},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			row := append([]any(nil), valid...)
+			test.mutate(row)
+			_, err := scanWorkLease(&fakeRow{values: row}, "worker-1", now)
+			if test.exactType && err != ErrCorruptStore {
+				t.Fatalf("primitive corruption error = %v", err)
+			}
+			if !test.exactType && !errors.Is(err, ErrCorruptStore) {
+				t.Fatalf("corrupt claim error = %v", err)
+			}
+		})
+	}
+	maximum := append([]any(nil), valid...)
+	maximum[1] = int16(workflow.WorkCompensation)
+	maximum[3] = int64(1)
+	maximum[9] = int64(^uint32(0))
+	store := newStore(&fakeDatabase{queryRows: &fakeRows{rows: [][]any{maximum}}}, "workflow")
+	leases, err := store.Claim(context.Background(), mustWorkClaim(t, now))
+	if err != nil || len(leases) != 1 || leases[0].Attempt() != ^uint32(0) ||
+		leases[0].Work().Kind() != workflow.WorkCompensation {
+		t.Fatalf("maximum numeric claim = %#v, %v", leases, err)
+	}
+}
+
+func mustWorkClaim(t *testing.T, now time.Time) workflow.WorkClaimRequest {
+	t.Helper()
+	request, err := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-1", Now: now, LeaseDuration: time.Minute, Limit: 2,
+	})
+	if err != nil {
+		t.Fatalf("construct work claim: %v", err)
+	}
+	return request
+}
+
+func mustWorkRenewal(t *testing.T, now time.Time) workflow.WorkLeaseRenewal {
+	t.Helper()
+	renewal, err := workflow.NewWorkLeaseRenewal(workflow.WorkLeaseRenewalSpec{
+		WorkID: "work-1", Owner: "worker-1", Token: 1, Now: now, ExtendBy: time.Minute,
+	})
+	if err != nil {
+		t.Fatalf("construct renewal: %v", err)
+	}
+	return renewal
+}
+
+func mustWorkCompletion(t *testing.T, now time.Time) workflow.WorkCompletion {
+	t.Helper()
+	completion, err := workflow.NewWorkCompletion(workflow.WorkCompletionSpec{
+		WorkID: "work-1", Owner: "worker-1", Token: 1, CompletedAt: now,
+	})
+	if err != nil {
+		t.Fatalf("construct completion: %v", err)
+	}
+	return completion
+}
+
+func mustWorkDeadLetter(t *testing.T, now time.Time) workflow.WorkFailure {
+	t.Helper()
+	failure, err := workflow.NewWorkFailure(workflow.WorkFailureSpec{
+		WorkID: "work-1", Owner: "worker-1", Token: 1, FailedAt: now,
+		Code: "poison", Disposition: workflow.WorkDeadLetter,
+	})
+	if err != nil {
+		t.Fatalf("construct dead letter: %v", err)
+	}
+	return failure
+}
+
 func mustHistoryQuery(t *testing.T, after uint64, limit uint32) workflow.HistoryQuery {
 	t.Helper()
 	query, err := workflow.NewHistoryQuery(workflow.HistoryQuerySpec{

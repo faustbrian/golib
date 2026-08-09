@@ -95,6 +95,11 @@ type querySet struct {
 	updateInstance   string
 	history          string
 	instanceExists   string
+	claimWork        string
+	renewWork        string
+	completeWork     string
+	retryWork        string
+	deadLetterWork   string
 }
 
 // Store persists workflow transitions, history, and due work in PostgreSQL.
@@ -149,6 +154,47 @@ SET definition_name = $1, definition_version = $2,
 WHERE instance_id = $6 AND sequence = $7`,
 		history:        "SELECT sequence, kind, occurred_at, definition_name, definition_version, definition_fingerprint, successor_id, step_name, attempt, idempotency_key, due_at, code, retryable, data FROM " + history + " WHERE instance_id = $1 AND sequence > $2 ORDER BY sequence ASC LIMIT $3",
 		instanceExists: "SELECT EXISTS (SELECT 1 FROM " + instances + " WHERE instance_id = $1)",
+		claimWork: `WITH candidates AS (
+    SELECT work_id FROM ` + work + `
+    WHERE ((state = 1 AND available_at <= $1)
+        OR (state = 2 AND lease_expires_at <= $1))
+        AND deadline > $1
+    ORDER BY available_at, work_id
+    FOR UPDATE SKIP LOCKED
+    LIMIT $2
+), claimed AS (
+    UPDATE ` + work + ` AS work
+    SET state = 2, attempts = work.attempts + 1,
+        lease_owner = $3, lease_token = work.lease_token + 1,
+        lease_expires_at = LEAST($4, work.deadline)
+    FROM candidates
+    WHERE work.work_id = candidates.work_id
+    RETURNING work.work_id, work.kind, work.instance_id, work.sequence,
+        work.available_at, work.deadline, work.payload, work.tenant_id,
+        work.correlation_id, work.attempts, work.lease_token,
+        work.lease_expires_at
+)
+SELECT * FROM claimed ORDER BY available_at, work_id`,
+		renewWork: "UPDATE " + work + `
+SET lease_expires_at = LEAST($4, deadline)
+WHERE work_id = $1 AND state = 2 AND lease_owner = $2 AND lease_token = $3
+    AND lease_expires_at > $5 AND deadline > $5
+RETURNING work_id, kind, instance_id, sequence, available_at, deadline,
+    payload, tenant_id, correlation_id, attempts, lease_token, lease_expires_at`,
+		completeWork: "UPDATE " + work + `
+SET state = 3, completed_at = $4, lease_owner = NULL, lease_expires_at = NULL
+WHERE work_id = $1 AND state = 2 AND lease_owner = $2 AND lease_token = $3
+    AND lease_expires_at > $4`,
+		retryWork: "UPDATE " + work + `
+SET state = 1, available_at = $5, failure_code = $4,
+    lease_owner = NULL, lease_expires_at = NULL
+WHERE work_id = $1 AND state = 2 AND lease_owner = $2 AND lease_token = $3
+    AND lease_expires_at > $6`,
+		deadLetterWork: "UPDATE " + work + `
+SET state = 4, failure_code = $4, completed_at = $5,
+    lease_owner = NULL, lease_expires_at = NULL
+WHERE work_id = $1 AND state = 2 AND lease_owner = $2 AND lease_token = $3
+    AND lease_expires_at > $5`,
 	}}
 }
 
@@ -303,6 +349,119 @@ func (store *Store) History(ctx context.Context, query workflow.HistoryQuery) (w
 	return page, nil
 }
 
+// Claim atomically leases a stable bounded page of due work. Concurrent
+// claimers skip locked records; every successful claim increments its fencing
+// token and durable attempt count.
+func (store *Store) Claim(ctx context.Context, request workflow.WorkClaimRequest) ([]workflow.WorkLease, error) {
+	if store == nil || store.database == nil || ctx == nil || !request.Valid() {
+		return nil, workflow.ErrInvalidStoreRequest
+	}
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	expiresAt := request.Now().Add(request.LeaseDuration())
+	rows, err := store.database.Query(ctx, store.queries.claimWork,
+		request.Now(), int32(request.Limit()), request.Owner(), expiresAt)
+	if err != nil {
+		return nil, newOperationError("claim work", err)
+	}
+	defer rows.Close()
+	leases := make([]workflow.WorkLease, 0, request.Limit())
+	for rows.Next() {
+		lease, scanErr := scanWorkLease(rows, request.Owner(), request.Now())
+		if scanErr != nil {
+			return nil, newOperationError("scan claimed work", scanErr)
+		}
+		leases = append(leases, lease)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, newOperationError("iterate claimed work", err)
+	}
+	return leases, nil
+}
+
+// Renew extends one live lease without changing its fencing token. Missing,
+// expired, released, or differently owned records are stale.
+func (store *Store) Renew(ctx context.Context, renewal workflow.WorkLeaseRenewal) (workflow.WorkLease, error) {
+	if store == nil || store.database == nil || ctx == nil || !renewal.Valid() {
+		return workflow.WorkLease{}, workflow.ErrInvalidStoreRequest
+	}
+	if err := ctx.Err(); err != nil {
+		return workflow.WorkLease{}, err
+	}
+	expiresAt := renewal.Now().Add(renewal.ExtendBy())
+	lease, err := scanWorkLease(
+		store.database.QueryRow(ctx, store.queries.renewWork,
+			renewal.WorkID(), renewal.Owner(), renewal.Token(), expiresAt, renewal.Now()),
+		renewal.Owner(), renewal.Now(),
+	)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return workflow.WorkLease{}, workflow.ErrStaleWorkLease
+	}
+	if err != nil {
+		return workflow.WorkLease{}, newOperationError("renew work", err)
+	}
+	return lease, nil
+}
+
+// Complete records successful work only while the supplied ownership fence is
+// live. It never accepts stale-owner progression.
+func (store *Store) Complete(ctx context.Context, completion workflow.WorkCompletion) error {
+	if store == nil || store.database == nil || ctx == nil || !completion.Valid() {
+		return workflow.ErrInvalidStoreRequest
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return store.fencedExec(ctx, store.queries.completeWork, "complete work",
+		completion.WorkID(), completion.Owner(), completion.Token(), completion.CompletedAt())
+}
+
+// Fail durably releases known retryable work at its explicit admission time or
+// moves poison work to dead-letter state. A dead letter is not a completion.
+func (store *Store) Fail(ctx context.Context, failure workflow.WorkFailure) error {
+	if store == nil || store.database == nil || ctx == nil || !failure.Valid() {
+		return workflow.ErrInvalidStoreRequest
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if failure.Disposition() == workflow.WorkRetry {
+		return store.fencedExec(ctx, store.queries.retryWork, "retry work",
+			failure.WorkID(), failure.Owner(), failure.Token(), failure.Code(),
+			failure.RetryAt(), failure.FailedAt())
+	}
+	return store.fencedExec(ctx, store.queries.deadLetterWork, "dead-letter work",
+		failure.WorkID(), failure.Owner(), failure.Token(), failure.Code(), failure.FailedAt())
+}
+
+func (store *Store) fencedExec(ctx context.Context, query, operation string, arguments ...any) error {
+	result, err := store.databaseExec(ctx, query, arguments...)
+	if err != nil {
+		return newOperationError(operation, err)
+	}
+	if result.RowsAffected() != 1 {
+		return workflow.ErrStaleWorkLease
+	}
+	return nil
+}
+
+func (store *Store) databaseExec(ctx context.Context, query string, arguments ...any) (commandResult, error) {
+	tx, err := store.database.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer rollback(tx, ctx)
+	result, err := tx.Exec(ctx, query, arguments...)
+	if err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return result, nil
+}
+
 func transitionSequenceFits(transition workflow.Transition) bool {
 	events := transition.Events()
 	return events[len(events)-1].Sequence() <= maxPostgreSQLSequence
@@ -401,6 +560,44 @@ func scanHistoryEvent(row rowScanner, instanceID string) (workflow.HistoryEvent,
 	return event, nil
 }
 
+func scanWorkLease(
+	row rowScanner,
+	owner string,
+	claimedAt time.Time,
+) (workflow.WorkLease, error) {
+	var id, instanceID, tenantID, correlationID string
+	var kind int16
+	var sequence, attempts, token int64
+	var availableAt, deadline, expiresAt time.Time
+	var payload []byte
+	if err := row.Scan(
+		&id, &kind, &instanceID, &sequence, &availableAt, &deadline, &payload,
+		&tenantID, &correlationID, &attempts, &token, &expiresAt,
+	); err != nil {
+		return workflow.WorkLease{}, err
+	}
+	if kind < int16(workflow.WorkActivity) || kind > int16(workflow.WorkCompensation) ||
+		sequence < 1 || attempts < 1 || attempts > int64(^uint32(0)) || token < 1 {
+		return workflow.WorkLease{}, ErrCorruptStore
+	}
+	work, err := workflow.NewPendingWork(workflow.PendingWorkSpec{
+		ID: id, Kind: workflow.WorkKind(kind), InstanceID: instanceID,
+		Sequence: uint64(sequence), AvailableAt: availableAt, Deadline: deadline,
+		Payload: payload, TenantID: tenantID, CorrelationID: correlationID,
+	})
+	if err != nil {
+		return workflow.WorkLease{}, errors.Join(ErrCorruptStore, err)
+	}
+	lease, err := workflow.NewWorkLease(workflow.WorkLeaseSpec{
+		Work: work, Owner: owner, Token: uint64(token), Attempt: uint32(attempts),
+		ClaimedAt: claimedAt, ExpiresAt: expiresAt,
+	})
+	if err != nil {
+		return workflow.WorkLease{}, errors.Join(ErrCorruptStore, err)
+	}
+	return lease, nil
+}
+
 func notCommitted(cause error) error {
 	return workflow.NewStoreCommitError(workflow.StoreCommitNotCommitted, cause)
 }
@@ -430,3 +627,4 @@ func newOperationError(operation string, cause error) error {
 }
 
 var _ workflow.TransitionStore = (*Store)(nil)
+var _ workflow.WorkStore = (*Store)(nil)
