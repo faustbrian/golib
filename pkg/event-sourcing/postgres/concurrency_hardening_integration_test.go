@@ -11,6 +11,8 @@ import (
 
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
 	eventpostgres "github.com/faustbrian/golib/pkg/event-sourcing/postgres"
+	"github.com/faustbrian/golib/pkg/event-sourcing/projection"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -278,6 +280,362 @@ func TestPostgreSQLConcurrentIdentityAndSharedTransactionSafety(t *testing.T) {
 			t.Fatalf("recovery global position = %d, %t", recoveryPosition, exists)
 		}
 	})
+
+	t.Run("busy checkpoint transaction is rolled back completely", func(t *testing.T) {
+		const name = "shared-checkpoint-transaction"
+		projectionStore, err := eventpostgres.NewProjectionStore(
+			pool,
+			eventpostgres.Config{},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := projectionStore.Save(ctx, name, 0, 1); err != nil {
+			t.Fatalf("seed checkpoint: %v", err)
+		}
+
+		holder, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			cleanupCtx, cancel := context.WithTimeout(
+				context.Background(),
+				5*time.Second,
+			)
+			defer cancel()
+			_ = holder.Rollback(cleanupCtx)
+		}()
+		if _, err := holder.Exec(
+			ctx,
+			`SELECT 1
+	FROM event_sourcing.projections
+	WHERE name = $1
+	FOR UPDATE`,
+			name,
+		); err != nil {
+			t.Fatal(err)
+		}
+
+		shared, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			cleanupCtx, cancel := context.WithTimeout(
+				context.Background(),
+				5*time.Second,
+			)
+			defer cancel()
+			_ = shared.Rollback(cleanupCtx)
+		}()
+		var sharedPID uint32
+		if err := shared.QueryRow(ctx, "SELECT pg_backend_pid()").Scan(&sharedPID); err != nil {
+			t.Fatal(err)
+		}
+		writer, err := eventpostgres.NewTxCheckpointWriter(
+			shared,
+			eventpostgres.Config{},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		blockedResult := make(chan error, 1)
+		go func() {
+			blockedResult <- writer.Stage(ctx, name, 1, 2)
+		}()
+		waitForPostgreSQLLock(t, ctx, pool, sharedPID)
+
+		busyCtx, cancelBusy := context.WithTimeout(ctx, time.Second)
+		busyErr := writer.Stage(busyCtx, name, 1, 3)
+		cancelBusy()
+		if err := holder.Rollback(ctx); err != nil {
+			t.Fatal(err)
+		}
+
+		var stagedErr error
+		select {
+		case stagedErr = <-blockedResult:
+		case <-ctx.Done():
+			t.Fatalf("blocked checkpoint did not resolve: %v", ctx.Err())
+		}
+		if err := shared.Rollback(ctx); err != nil {
+			t.Fatal(err)
+		}
+		if !errors.Is(busyErr, context.DeadlineExceeded) {
+			t.Fatalf("busy checkpoint = %v", busyErr)
+		}
+		if stagedErr != nil {
+			t.Fatalf("blocked checkpoint = %v", stagedErr)
+		}
+
+		status, err := projectionStore.Status(ctx, name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		checkpoint, exists := status.Checkpoint()
+		if !exists || checkpoint != 1 {
+			t.Fatalf("rolled-back checkpoint = %d, %t", checkpoint, exists)
+		}
+		if err := projectionStore.Save(ctx, name, 1, 2); err != nil {
+			t.Fatalf("checkpoint recovery: %v", err)
+		}
+	})
+}
+
+func TestPostgreSQLProjectionControlRacesCheckpointWriters(t *testing.T) {
+	ctx, pool := newDerivedIntegrationPool(t)
+	store, err := eventpostgres.NewProjectionStore(
+		pool,
+		eventpostgres.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const name = "projection-control-race"
+	if err := store.Save(ctx, name, 0, 1); err != nil {
+		t.Fatal(err)
+	}
+
+	t.Run("checkpoint commits before a waiting pause", func(t *testing.T) {
+		tx, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			cleanupCtx, cancel := context.WithTimeout(
+				context.Background(),
+				5*time.Second,
+			)
+			defer cancel()
+			_ = tx.Rollback(cleanupCtx)
+		}()
+		writer, err := eventpostgres.NewTxCheckpointWriter(
+			tx,
+			eventpostgres.Config{},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := writer.Stage(ctx, name, 1, 2); err != nil {
+			t.Fatal(err)
+		}
+
+		control, controlPID := newProjectionRaceStore(t, ctx, pool)
+		type statusResult struct {
+			status projection.Status
+			err    error
+		}
+		pausedResult := make(chan statusResult, 1)
+		go func() {
+			status, pauseErr := control.Pause(ctx, name)
+			pausedResult <- statusResult{status: status, err: pauseErr}
+		}()
+		waitForPostgreSQLLock(t, ctx, pool, controlPID)
+		if err := tx.Commit(ctx); err != nil {
+			t.Fatal(err)
+		}
+		paused := <-pausedResult
+		if paused.err != nil {
+			t.Fatal(paused.err)
+		}
+		assertPostgreSQLStatus(
+			t,
+			paused.status,
+			projection.StatePaused,
+			2,
+			true,
+		)
+	})
+
+	t.Run("reset queued before resume removes the checkpoint", func(t *testing.T) {
+		holder, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			cleanupCtx, cancel := context.WithTimeout(
+				context.Background(),
+				5*time.Second,
+			)
+			defer cancel()
+			_ = holder.Rollback(cleanupCtx)
+		}()
+		lockProjection(t, ctx, holder, name)
+
+		resetStore, resetPID := newProjectionRaceStore(t, ctx, pool)
+		resumeStore, resumePID := newProjectionRaceStore(t, ctx, pool)
+		type statusResult struct {
+			status projection.Status
+			err    error
+		}
+		resetResult := make(chan statusResult, 1)
+		resumeResult := make(chan statusResult, 1)
+		go func() {
+			status, resetErr := resetStore.ResetCheckpoint(ctx, name, 2)
+			resetResult <- statusResult{status: status, err: resetErr}
+		}()
+		waitForPostgreSQLLock(t, ctx, pool, resetPID)
+		go func() {
+			status, resumeErr := resumeStore.Resume(ctx, name)
+			resumeResult <- statusResult{status: status, err: resumeErr}
+		}()
+		waitForPostgreSQLLock(t, ctx, pool, resumePID)
+		if err := holder.Rollback(ctx); err != nil {
+			t.Fatal(err)
+		}
+
+		reset := <-resetResult
+		if reset.err != nil {
+			t.Fatal(reset.err)
+		}
+		assertPostgreSQLStatus(
+			t,
+			reset.status,
+			projection.StatePaused,
+			0,
+			false,
+		)
+		resumed := <-resumeResult
+		if resumed.err != nil {
+			t.Fatal(resumed.err)
+		}
+		assertPostgreSQLStatus(
+			t,
+			resumed.status,
+			projection.StateRunning,
+			0,
+			false,
+		)
+	})
+
+	t.Run("resume queued before reset preserves the checkpoint", func(t *testing.T) {
+		if err := store.Save(ctx, name, 0, 1); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := store.Pause(ctx, name); err != nil {
+			t.Fatal(err)
+		}
+
+		holder, err := pool.Begin(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer func() {
+			cleanupCtx, cancel := context.WithTimeout(
+				context.Background(),
+				5*time.Second,
+			)
+			defer cancel()
+			_ = holder.Rollback(cleanupCtx)
+		}()
+		lockProjection(t, ctx, holder, name)
+
+		resumeStore, resumePID := newProjectionRaceStore(t, ctx, pool)
+		resetStore, resetPID := newProjectionRaceStore(t, ctx, pool)
+		type statusResult struct {
+			status projection.Status
+			err    error
+		}
+		resumeResult := make(chan statusResult, 1)
+		resetResult := make(chan statusResult, 1)
+		go func() {
+			status, resumeErr := resumeStore.Resume(ctx, name)
+			resumeResult <- statusResult{status: status, err: resumeErr}
+		}()
+		waitForPostgreSQLLock(t, ctx, pool, resumePID)
+		go func() {
+			status, resetErr := resetStore.ResetCheckpoint(ctx, name, 1)
+			resetResult <- statusResult{status: status, err: resetErr}
+		}()
+		waitForPostgreSQLLock(t, ctx, pool, resetPID)
+		if err := holder.Rollback(ctx); err != nil {
+			t.Fatal(err)
+		}
+
+		resumed := <-resumeResult
+		if resumed.err != nil {
+			t.Fatal(resumed.err)
+		}
+		assertPostgreSQLStatus(
+			t,
+			resumed.status,
+			projection.StateRunning,
+			1,
+			true,
+		)
+		reset := <-resetResult
+		if !errors.Is(reset.err, projection.ErrProjectionRunning) {
+			t.Fatalf("ResetCheckpoint() error = %v", reset.err)
+		}
+		assertPostgreSQLStatus(
+			t,
+			loadPostgreSQLStatus(t, ctx, store, name),
+			projection.StateRunning,
+			1,
+			true,
+		)
+	})
+}
+
+func newProjectionRaceStore(
+	t testing.TB,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+) (*eventpostgres.ProjectionStore, uint32) {
+	t.Helper()
+
+	config, err := pgxpool.ParseConfig(pool.Config().ConnString())
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.MaxConns = 1
+	racePool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(racePool.Close)
+	connection, err := racePool.Acquire(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var pid uint32
+	if err := connection.QueryRow(ctx, "SELECT pg_backend_pid()").Scan(&pid); err != nil {
+		connection.Release()
+		t.Fatal(err)
+	}
+	connection.Release()
+	store, err := eventpostgres.NewProjectionStore(
+		racePool,
+		eventpostgres.Config{},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return store, pid
+}
+
+func lockProjection(
+	t testing.TB,
+	ctx context.Context,
+	tx interface {
+		Exec(context.Context, string, ...any) (pgconn.CommandTag, error)
+	},
+	name string,
+) {
+	t.Helper()
+
+	if _, err := tx.Exec(
+		ctx,
+		`SELECT 1
+	FROM event_sourcing.projections
+	WHERE name = $1
+	FOR UPDATE`,
+		name,
+	); err != nil {
+		t.Fatal(err)
+	}
 }
 
 func currentPostgreSQLPosition(

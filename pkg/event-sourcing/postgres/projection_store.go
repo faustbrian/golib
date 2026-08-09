@@ -46,13 +46,18 @@ func NewProjectionStore(
 }
 
 // TxCheckpointWriter stages checkpoint advancement in a caller-owned
-// PostgreSQL transaction.
+// PostgreSQL transaction. It serializes its own Stage calls, and waiting
+// observes the supplied context. Callers must separately serialize direct
+// transaction use and calls through other wrappers because pgx transactions
+// are not concurrency safe.
 type TxCheckpointWriter struct {
-	store *ProjectionStore
+	store     *ProjectionStore
+	operation operationPermit
 }
 
 // NewTxCheckpointWriter constructs a writer bound to a caller-owned
-// transaction. The caller exclusively owns commit and rollback.
+// transaction. The caller exclusively owns commit, rollback, and coordination
+// with every other user of the transaction.
 func NewTxCheckpointWriter(
 	tx pgx.Tx,
 	config Config,
@@ -65,9 +70,16 @@ func NewTxCheckpointWriter(
 		return nil, ErrTransactionRequired
 	}
 
+	return newTxCheckpointWriter(
+		&ProjectionStore{database: tx, schema: schema},
+	), nil
+}
+
+func newTxCheckpointWriter(store *ProjectionStore) *TxCheckpointWriter {
 	return &TxCheckpointWriter{
-		store: &ProjectionStore{database: tx, schema: schema},
-	}, nil
+		store:     store,
+		operation: newOperationPermit(),
+	}
 }
 
 // Status returns one atomic run-state and optional checkpoint snapshot.
@@ -260,16 +272,21 @@ func (store *ProjectionStore) ResetCheckpoint(
 }
 
 // Stage writes one checkpoint advancement into the caller-owned transaction.
-// The update is not durable until the caller commits.
+// The update is not durable until the caller commits. Concurrent calls through
+// this writer are serialized; waiting stops when ctx is done.
 func (writer *TxCheckpointWriter) Stage(
 	ctx context.Context,
 	name string,
 	expected eventsourcing.GlobalPosition,
 	next eventsourcing.GlobalPosition,
 ) error {
-	if writer == nil {
+	if writer == nil || writer.operation == nil || ctx == nil {
 		return eventsourcing.ErrInvalidArgument
 	}
+	if err := writer.operation.acquire(ctx); err != nil {
+		return err
+	}
+	defer writer.operation.release()
 	if err := validateCheckpoint(
 		writer.store,
 		ctx,

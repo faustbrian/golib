@@ -1115,12 +1115,12 @@ func TestTransactionCheckpointWriterStagesAndPropagatesFailures(t *testing.T) {
 			pgconn.NewCommandTag("UPDATE 1"),
 		},
 	}
-	writer := &TxCheckpointWriter{
-		store: &ProjectionStore{
+	writer := newTxCheckpointWriter(
+		&ProjectionStore{
 			database: successDB,
 			schema:   defaultSchema,
 		},
-	}
+	)
 	if err := writer.Stage(
 		context.Background(),
 		"summary",
@@ -1148,6 +1148,14 @@ func TestTransactionCheckpointWriterStagesAndPropagatesFailures(t *testing.T) {
 	); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
 		t.Fatalf("Stage(invalid) error = %v", err)
 	}
+	if err := writer.Stage(
+		context.Background(),
+		"",
+		0,
+		1,
+	); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("Stage(invalid name) error = %v", err)
+	}
 	emptyWriter := &TxCheckpointWriter{}
 	if err := emptyWriter.Stage(
 		context.Background(),
@@ -1157,6 +1165,23 @@ func TestTransactionCheckpointWriterStagesAndPropagatesFailures(t *testing.T) {
 	); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
 		t.Fatalf("Stage(empty writer) error = %v", err)
 	}
+
+	waiting := newTxCheckpointWriter(&ProjectionStore{
+		database: &fakeDatabase{},
+		schema:   defaultSchema,
+	})
+	<-waiting.operation
+	cancelled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := waiting.Stage(
+		cancelled,
+		"summary",
+		0,
+		1,
+	); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Stage(waiting) error = %v", err)
+	}
+	waiting.operation.release()
 }
 
 func snapshotBeginner(

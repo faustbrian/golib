@@ -99,6 +99,28 @@ type transactionBeginner interface {
 	BeginTx(context.Context, pgx.TxOptions) (pgx.Tx, error)
 }
 
+type operationPermit chan struct{}
+
+func newOperationPermit() operationPermit {
+	permit := make(operationPermit, 1)
+	permit <- struct{}{}
+
+	return permit
+}
+
+func (permit operationPermit) acquire(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-permit:
+		return nil
+	}
+}
+
+func (permit operationPermit) release() {
+	permit <- struct{}{}
+}
+
 // Store persists immutable event messages in PostgreSQL.
 //
 // Store opens and commits one transaction for each append. Reads use the
@@ -134,7 +156,7 @@ type TxWriter struct {
 	// operation owns one serialization permit for this writer and is never
 	// closed. The caller still owns transaction-wide coordination with any
 	// other wrapper or direct pgx.Tx operation.
-	operation chan struct{}
+	operation operationPermit
 }
 
 // AppendPlan exposes the immutable data required to stage a prepared aggregate
@@ -162,10 +184,7 @@ func NewTx(tx pgx.Tx, config Config) (*TxWriter, error) {
 }
 
 func newTxWriter(store *Store) *TxWriter {
-	operation := make(chan struct{}, 1)
-	operation <- struct{}{}
-
-	return &TxWriter{store: store, operation: operation}
+	return &TxWriter{store: store, operation: newOperationPermit()}
 }
 
 // Append atomically persists one non-empty ordered stream batch.
@@ -370,14 +389,10 @@ func (writer *TxWriter) Stage(
 	if writer == nil || writer.operation == nil || ctx == nil {
 		return nil, notCommitted(eventsourcing.ErrInvalidArgument)
 	}
-	select {
-	case <-ctx.Done():
-		return nil, notCommitted(ctx.Err())
-	case <-writer.operation:
+	if err := writer.operation.acquire(ctx); err != nil {
+		return nil, notCommitted(err)
 	}
-	defer func() {
-		writer.operation <- struct{}{}
-	}()
+	defer writer.operation.release()
 	if err := validateAppend(
 		writer.store,
 		ctx,

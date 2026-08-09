@@ -211,9 +211,18 @@ caller commits. It never commits or rolls back. After any error, the caller
 must roll back. A commit error remains ambiguous, so recovery reads both the
 application model and durable checkpoint before retrying.
 
+One `TxCheckpointWriter` serializes its own concurrent `Stage` calls, and each
+waiter observes its context. The caller must still serialize direct transaction
+calls, commit, rollback, and access through event, outbox, or other wrappers.
+
 Pool-owned checkpoint advancement and reset wrap commit failures with
 `ErrCommitOutcomeUnknown`. Idempotent pause and resume operations can be
 retried and reconciled through `Status`.
+
+Real-database control races prove that checkpoint advancement, pause, resume,
+and reset follow PostgreSQL row-lock order without producing a mixed state. A
+checkpoint committed before pause is retained, reset queued before resume
+removes the checkpoint, and resume queued before reset preserves it.
 
 ## Schema and ordering
 
@@ -249,10 +258,10 @@ The real-database contention suite proves that concurrent writers on one new
 stream produce one committed winner and only optimistic conflicts, while
 concurrent independent streams all commit. Globally duplicate message IDs race
 to exactly one durable winner without orphan streams or allocator gaps. A busy
-caller-owned writer serializes a second call until its context expires, then a
-full rollback leaves neither call durable. The suite also verifies unique,
-gap-free, ascending global positions through the public global reader. This
-correctness evidence is not a throughput claim.
+caller-owned event or checkpoint writer serializes a second call until its
+context expires, then a full rollback leaves neither call durable. The suite
+also verifies unique, gap-free, ascending global positions through the public
+global reader. This correctness evidence is not a throughput claim.
 
 The PostgreSQL 14 through 18 integration matrix runs the public committed
 event-store conformance profile for atomic append, every expected-version mode,
