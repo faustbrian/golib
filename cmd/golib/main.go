@@ -1184,6 +1184,20 @@ func specifications(directory string) []string {
 			"RFC 9112 HTTP/1.1 request-target forms",
 		}
 	}
+	if directory == "pkg/wire" {
+		return []string{
+			"Go 1.26.5 encoding/json and encoding/xml contracts",
+			"RFC 8259 JSON",
+			"XML 1.0 Fifth Edition and Namespaces in XML 1.0 Third Edition",
+			"SOAP 1.1 and SOAP 1.2 Part 1 Second Edition",
+			"YAML 1.2.2",
+			"TOML 1.1.0",
+			"MessagePack format at 8aa09e2a6a91",
+			"RFC 7049 and RFC 8949 CBOR",
+			"CTAP 2.2 deterministic CBOR profile",
+			"BSON 1.1",
+		}
+	}
 	if directory == "pkg/authentication/oidc" {
 		return []string{
 			"OpenID Connect Core 1.0 incorporating errata set 2",
@@ -1253,6 +1267,12 @@ func conformanceCorpora(directory string) []string {
 	if directory == "pkg/router" {
 		return []string{
 			"Pinned normative-source matrix and ServeMux differential evidence",
+		}
+	}
+	if directory == "pkg/wire" {
+		return []string{
+			"Pinned normative-source matrix and format-specific decision evidence",
+			"Codec differential, hostile-input, round-trip, and official format fixtures",
 		}
 	}
 	if directory == "pkg/authentication/oidc" {
