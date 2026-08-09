@@ -17862,9 +17862,18 @@
       "build_tags": [],
       "test_tags": [],
       "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
+      "specifications": [
+        "Go 1.26.5 net/http and net/url contracts",
+        "RFC 3986 URI Generic Syntax",
+        "RFC 9110 HTTP Semantics",
+        "RFC 9112 HTTP/1.1 request-target forms"
+      ],
+      "conformance_corpora": [
+        "Pinned normative-source matrix and ServeMux differential evidence"
+      ],
+      "provenance": [
+        "pkg/router/specification/manifest.tsv"
+      ],
       "goal_files": [
         "pkg/router/.ai/GOAL.md",
         "pkg/router/.ai/GOAL_HARDEN.md",
@@ -17990,7 +17999,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,

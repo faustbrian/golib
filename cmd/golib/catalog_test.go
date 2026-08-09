@@ -481,6 +481,23 @@ func TestHTTPMiddlewareSpecificationCatalogMetadata(t *testing.T) {
 	}
 }
 
+func TestRouterSpecificationCatalogMetadata(t *testing.T) {
+	t.Parallel()
+	if got := specifications("pkg/router"); !slices.Equal(got, []string{
+		"Go 1.26.5 net/http and net/url contracts",
+		"RFC 3986 URI Generic Syntax",
+		"RFC 9110 HTTP Semantics",
+		"RFC 9112 HTTP/1.1 request-target forms",
+	}) {
+		t.Fatalf("specifications(pkg/router) = %v", got)
+	}
+	if got := conformanceCorpora("pkg/router"); !slices.Equal(got, []string{
+		"Pinned normative-source matrix and ServeMux differential evidence",
+	}) {
+		t.Fatalf("conformanceCorpora(pkg/router) = %v", got)
+	}
+}
+
 func TestXSDSpecificationCatalogMetadata(t *testing.T) {
 	t.Parallel()
 	if got := specifications("pkg/xsd"); !slices.Equal(

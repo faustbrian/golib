@@ -1176,6 +1176,14 @@ func specifications(directory string) []string {
 			"W3C Referrer Policy at cc435b05ca4a",
 		}
 	}
+	if directory == "pkg/router" {
+		return []string{
+			"Go 1.26.5 net/http and net/url contracts",
+			"RFC 3986 URI Generic Syntax",
+			"RFC 9110 HTTP Semantics",
+			"RFC 9112 HTTP/1.1 request-target forms",
+		}
+	}
 	if directory == "pkg/authentication/oidc" {
 		return []string{
 			"OpenID Connect Core 1.0 incorporating errata set 2",
@@ -1240,6 +1248,11 @@ func conformanceCorpora(directory string) []string {
 	if directory == "pkg/http-middleware" {
 		return []string{
 			"Pinned normative-source matrix and specification decision evidence",
+		}
+	}
+	if directory == "pkg/router" {
+		return []string{
+			"Pinned normative-source matrix and ServeMux differential evidence",
 		}
 	}
 	if directory == "pkg/authentication/oidc" {
