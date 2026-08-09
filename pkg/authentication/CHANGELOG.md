@@ -13,6 +13,12 @@ this project follows Semantic Versioning.
   static-entry bounds at their exact limits; reject forged result states and
   provider method mismatches without weakening fail-closed behavior.
 
+### Fixed
+
+- Return authentication unavailability instead of emitting a non-compliant
+  `401 Unauthorized` response when no valid `WWW-Authenticate` challenge is
+  available.
+
 ### Changed
 
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
@@ -32,6 +38,8 @@ this project follows Semantic Versioning.
 
 ### Added
 
+- An auditable specification decision register for Basic, bearer, API-key,
+  challenge, credential-source, middleware, composition, and rotation policy.
 - Constant-work static bearer authentication with bounded overlapping tokens
   and atomic whole-set replacement for credential rotation and revocation.
 - Immutable bounded principals, typed redacted credentials, explicit anonymous

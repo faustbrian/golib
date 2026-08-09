@@ -32,9 +32,15 @@ Basic follows RFC 7617 extraction shape without negotiating a charset. Bearer
 header grammar follows RFC 6750 `b64token` by default.
 `authhttp.WithBearerPipe` explicitly permits pipe-delimited opaque tokens for
 legacy contracts without weakening the default. Challenges use safely quoted
-and escaped auth parameters. JWT validation requires compact signed JWS and
-strict registered claims. OIDC accepts asymmetric algorithms explicitly listed
-in configuration and supported by the package.
+and escaped auth parameters. Middleware never emits 401 without at least one
+valid `WWW-Authenticate` challenge; missing challenge metadata maps to 503 as a
+server-side inability to complete the protocol. JWT validation requires compact
+signed JWS and strict registered claims. OIDC accepts asymmetric algorithms
+explicitly listed in configuration and supported by the package.
+
+The complete root-module interpretation contract is maintained in the
+[specification decision register](specification-decisions.md). JWT and OIDC own
+separate registers because they are independent modules and standards surfaces.
 
 ## Audited dependency lines
 

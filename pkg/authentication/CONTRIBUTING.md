@@ -21,6 +21,8 @@ must run their module-specific tests and tidy checks as well as the root suite.
   and network ownership explicit.
 - Bound every retained collection, body, token, cache, refresh, and wait.
 - Return stable classified failures without rendering secrets.
+- Record new ambiguities and interpretation changes in the
+  [specification decision register](docs/specification-decisions.md).
 - Copy principal data at construction and access boundaries.
 - Do not add authorization, account lifecycle, token issuance, or framework
   container behavior.

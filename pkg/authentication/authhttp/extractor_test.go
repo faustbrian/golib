@@ -61,6 +61,26 @@ func TestBasicAuthorizationExtractionIsStrict(t *testing.T) {
 	}
 }
 
+func TestBasicAuthorizationPreservesOctetsAndPasswordColons(t *testing.T) {
+	t.Parallel()
+
+	decoded := []byte{'a', 0xff, ':', 'p', ':', 0xfe}
+	credential, err := mustExtractor(t, authhttp.BasicAuthorization()).Extract(
+		requestWithHeaders([]string{
+			"Basic " + base64.StdEncoding.EncodeToString(decoded),
+		}),
+	)
+	if err != nil {
+		t.Fatalf("Extract() error = %v", err)
+	}
+	basicCredential, ok := credential.(authentication.BasicCredential)
+	if !ok ||
+		basicCredential.Username() != string(decoded[:2]) ||
+		basicCredential.Password() != string(decoded[3:]) {
+		t.Fatal("Extract() did not preserve Basic credential octets and delimiter semantics")
+	}
+}
+
 func TestBearerAuthorizationExtractionEnforcesGrammarAndBounds(t *testing.T) {
 	t.Parallel()
 

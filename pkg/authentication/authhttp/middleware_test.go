@@ -306,7 +306,7 @@ func TestMiddlewareContinuesPastNilOption(t *testing.T) {
 	}
 }
 
-func TestMiddlewareDropsInvalidFailureChallenges(t *testing.T) {
+func TestMiddlewareTreatsMissingOrInvalidFailureChallengesAsUnavailable(t *testing.T) {
 	t.Parallel()
 
 	extractor := extractorFunc(func(*http.Request) (authentication.Credential, error) {
@@ -329,9 +329,33 @@ func TestMiddlewareDropsInvalidFailureChallenges(t *testing.T) {
 		middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 			t.Fatal("next handler called")
 		})).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
-		if recorder.Code != http.StatusUnauthorized || len(recorder.Header().Values("WWW-Authenticate")) != 0 {
+		if recorder.Code != http.StatusServiceUnavailable ||
+			len(recorder.Header().Values("WWW-Authenticate")) != 0 ||
+			recorder.Body.String() != "authentication unavailable\n" {
 			t.Fatalf("response = status %d headers %#v", recorder.Code, recorder.Header())
 		}
+	}
+
+	fallback, err := authentication.NewChallenge("Bearer", map[string]string{"realm": "api"})
+	if err != nil {
+		t.Fatalf("NewChallenge() error = %v", err)
+	}
+	authenticator := middlewareAuthenticatorFunc(func(context.Context, authentication.Credential) (authentication.Result, error) {
+		return authentication.Result{}, authentication.NewFailure(authentication.FailureRejected,
+			authentication.WithChallenges(authentication.Challenge{}))
+	})
+	middleware, err := authhttp.NewMiddleware(extractor, authenticator, authhttp.WithChallenges(fallback))
+	if err != nil {
+		t.Fatalf("NewMiddleware() error = %v", err)
+	}
+	recorder := httptest.NewRecorder()
+	middleware(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+		t.Fatal("next handler called")
+	})).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/", nil))
+	challenges := recorder.Header().Values("WWW-Authenticate")
+	if recorder.Code != http.StatusUnauthorized ||
+		len(challenges) != 1 || challenges[0] != `Bearer realm="api"` {
+		t.Fatalf("response = status %d headers %#v", recorder.Code, recorder.Header())
 	}
 }
 

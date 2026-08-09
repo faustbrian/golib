@@ -24,7 +24,9 @@ successful responses as required by RFC 6750. Prefer headers.
 `NewMiddleware` authenticates, stores the principal under a private context
 key, and passes the original `http.ResponseWriter`, preserving optional
 interfaces. It returns 401 for credential failures and 503 for unavailable or
-unclassified failures. Configure fallback challenges with `WithChallenges`.
-Challenges are sorted and quoted safely.
+unclassified failures. A credential failure without a valid failure-specific or
+fallback challenge also returns 503 because RFC 9110 forbids a bare 401.
+Configure fallback challenges with `WithChallenges`. Challenges are sorted and
+quoted safely.
 
 The middleware does not authorize. See `authhttp.ExampleNewMiddleware`.

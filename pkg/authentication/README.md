@@ -95,6 +95,8 @@ it deliberately performs no role, permission, ownership, or policy checks.
 - Static secrets are compared through per-authenticator keyed HMAC-SHA-256
   digests with constant-time comparison.
 - Multiple credential sources are rejected as ambiguous.
+- A `401 Unauthorized` response is emitted only with at least one valid
+  `WWW-Authenticate` challenge; missing challenge metadata fails as unavailable.
 - Query and cookie credentials are disabled unless explicitly configured.
 - Query credential constructors are deprecated for new designs because URLs
   can be retained before the extractor sees them.
@@ -113,7 +115,9 @@ under [docs/guides](docs/guides), including HTTP, JSON-RPC, service accounts,
 credential rotation, and anonymous routes. Operational and compatibility
 material is in [docs/operations.md](docs/operations.md),
 [docs/troubleshooting.md](docs/troubleshooting.md), and
-[docs/compatibility.md](docs/compatibility.md).
+[docs/compatibility.md](docs/compatibility.md). Observable protocol choices are
+recorded in the
+[specification decision register](docs/specification-decisions.md).
 
 For a security review or rollout, use the [adoption checklist](docs/adoption.md),
 [threat model](docs/security/threat-model.md),

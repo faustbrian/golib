@@ -1,0 +1,4 @@
+id	version	role	status	sha256	bytes	url	value
+rfc7617-aladdin	RFC-7617	basic-aladdin-credential	pinned	cf4d418ed3de92d71f767db5391d5a2dacd40e1ce49e75d1137e2ecf4982d844	28	https://www.rfc-editor.org/rfc/rfc7617.html#section-2	QWxhZGRpbjpvcGVuIHNlc2FtZQ==
+rfc7617-utf8-pound	RFC-7617	basic-utf8-credential	pinned	687da00b09c83361bf3a2853b3a0c7d63ca5da870c8d3cdc20905c7aa546840a	16	https://www.rfc-editor.org/rfc/rfc7617.html#section-2.1	dGVzdDoxMjPCow==
+rfc6750-bearer-token	RFC-6750	bearer-b64token	pinned	b8e148545b13c78bc74da2f1a7275dd71e56ddece129d7d2f7b3ecc06f7994da	15	https://www.rfc-editor.org/rfc/rfc6750.html#section-2.1	mF_9.B5f-4.1JqM

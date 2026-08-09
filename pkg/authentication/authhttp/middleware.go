@@ -103,8 +103,13 @@ func writeFailure(writer http.ResponseWriter, err error, fallbackChallenges []st
 		if len(challenges) == 0 {
 			challenges = fallbackChallenges
 		}
-		for _, challenge := range challenges {
-			writer.Header().Add("WWW-Authenticate", challenge)
+		if len(challenges) == 0 {
+			status = http.StatusServiceUnavailable
+			message = "authentication unavailable"
+		} else {
+			for _, challenge := range challenges {
+				writer.Header().Add("WWW-Authenticate", challenge)
+			}
 		}
 	}
 	http.Error(writer, message, status)

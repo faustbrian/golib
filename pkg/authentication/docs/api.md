@@ -31,6 +31,11 @@ values select safe defaults.
 deprecated for new designs because credential-bearing URLs can be retained
 outside this package.
 
+`authhttp.NewMiddleware` emits `401 Unauthorized` only when a failure-specific
+or configured fallback challenge can populate `WWW-Authenticate`. If a
+credential failure has no valid challenge, it returns the secret-safe
+`503 Service Unavailable` response instead of producing an invalid bare 401.
+
 The examples are discoverable with:
 
 ```sh
