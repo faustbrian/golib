@@ -18,6 +18,8 @@ All notable changes to this module are documented here.
 - Reject unsupported money contexts and retain specific validation and
   arithmetic error identities through objective evaluation. Mixed-sign totals
   no longer depend on container iteration order near amount bounds.
+- Reject oversized type identifiers before any trimming, comparison, or sorting
+  work and prove ranking independence from solver candidate search order.
 
 ### Distribution
 

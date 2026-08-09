@@ -85,7 +85,9 @@ registry lookup.
 limits must keep both bounds positive. Empty or whitespace-only IDs, oversized
 IDs, empty mappings, excessive mappings, invalid Money values, duplicates,
 mixed currencies, mixed contexts, unsupported contexts, and disallowed
-negative values return `ErrInvalidCosts`. Specific causes remain detectable:
+negative values return `ErrInvalidCosts`. Identifier byte limits are checked
+before identifiers are copied, trimmed, compared, or sorted. Specific causes
+remain detectable:
 
 - `ErrDuplicateTypeID`
 - `ErrUnsupportedScale`

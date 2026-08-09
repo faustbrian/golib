@@ -110,14 +110,16 @@ func NewFromEntries(entries []Entry, policy Policy) (Costs, error) {
 
 func newFromEntries(entries []Entry, policy Policy) (Costs, error) {
 	limits := policy.Limits
+	for _, entry := range entries {
+		if uint64(len(entry.TypeID)) > uint64(limits.MaxIDBytes) || strings.TrimSpace(entry.TypeID) == "" {
+			return Costs{}, ErrInvalidCosts
+		}
+	}
 	owned := slices.Clone(entries)
 	slices.SortFunc(owned, func(left, right Entry) int {
 		return strings.Compare(left.TypeID, right.TypeID)
 	})
 	for index, entry := range owned {
-		if strings.TrimSpace(entry.TypeID) == "" || uint64(len(entry.TypeID)) > uint64(limits.MaxIDBytes) {
-			return Costs{}, ErrInvalidCosts
-		}
 		if index > 0 && entry.TypeID == owned[index-1].TypeID {
 			return Costs{}, invalidCosts(ErrDuplicateTypeID)
 		}

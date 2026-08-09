@@ -149,6 +149,19 @@ func TestCostObjectiveRejectsInvalidAndUnpriceablePlans(t *testing.T) {
 	if _, err := overflowing.Total(mustPlan(t, "box", "box")); !errors.Is(err, gomath.ErrLimitExceeded) {
 		t.Fatalf("Total(overflowing) error = %v, want ErrLimitExceeded", err)
 	}
+	minimum, err := maximum.Neg()
+	if err != nil {
+		t.Fatal(err)
+	}
+	policy := gomoney.DefaultPolicy()
+	policy.AllowNegativeCosts = true
+	underflowing, err := gomoney.NewWithPolicy(map[string]money.Money{"box": minimum}, policy)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := underflowing.Total(mustPlan(t, "box", "box")); !errors.Is(err, gomath.ErrLimitExceeded) {
+		t.Fatalf("Total(underflowing) error = %v, want ErrLimitExceeded", err)
+	}
 }
 
 func mustPlan(t *testing.T, typeIDs ...string) knapsack.Plan {

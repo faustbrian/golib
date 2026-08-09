@@ -22,6 +22,7 @@ import (
 	"github.com/faustbrian/golib/pkg/knapsack"
 	"github.com/faustbrian/golib/pkg/knapsack/geometry"
 	"github.com/faustbrian/golib/pkg/knapsack/objective/gomoney"
+	"github.com/faustbrian/golib/pkg/knapsack/solver"
 	"github.com/faustbrian/golib/pkg/math/decimal"
 	"github.com/faustbrian/golib/pkg/measurement"
 	"github.com/faustbrian/golib/pkg/money"
@@ -71,6 +72,41 @@ func TestDeterministicRankingAcrossProcessesAndArchitectures(t *testing.T) {
 		}
 		if !bytes.Equal(got, want) {
 			t.Fatalf("ranking process %d produced different bytes", process)
+		}
+	}
+}
+
+func TestExactSolverRankingIsIndependentOfContainerSearchOrder(t *testing.T) {
+	t.Parallel()
+
+	smallCost := mustEuro(t, "1.20")
+	largeCost, err := money.Parse("1.20", smallCost.Currency(), smallCost.Context())
+	if err != nil {
+		t.Fatal(err)
+	}
+	costs, err := gomoney.New(map[string]money.Money{
+		"small": smallCost,
+		"large": largeCost,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var want string
+	for index, priorities := range [][2]int64{{-10, 10}, {10, -10}} {
+		request := exactMoneyRequestWithContainerPriorities(t, priorities[0], priorities[1], true)
+		plan, solveErr := (solver.Exact{}).PackAll(
+			context.Background(), request.Normalized(), solver.Options{PlanObjective: costs},
+		)
+		if solveErr != nil {
+			t.Fatal(solveErr)
+		}
+		if index == 0 {
+			want = plan.CanonicalString()
+			continue
+		}
+		if plan.CanonicalString() != want {
+			t.Fatalf("container priority order changed canonical winner: %s != %s", plan.CanonicalString(), want)
 		}
 	}
 }
@@ -211,6 +247,10 @@ func planWithoutTesting(typeIDs ...string) (knapsack.Plan, error) {
 }
 
 func exactMoneyRequest(t testing.TB) knapsack.Request {
+	return exactMoneyRequestWithContainerPriorities(t, 0, 0, false)
+}
+
+func exactMoneyRequestWithContainerPriorities(t testing.TB, smallPriority, largePriority int64, equalCapacity bool) knapsack.Request {
 	t.Helper()
 	quantity := func(value int64, unit measurement.Unit) measurement.Quantity {
 		return measurement.MustNew(decimal.New(value), unit)
@@ -232,10 +272,15 @@ func exactMoneyRequest(t testing.TB) knapsack.Request {
 		}
 		items[index] = item
 	}
+	smallDimensions := itemDimensions
+	if equalCapacity {
+		smallDimensions.X = quantity(4, measurement.Metre)
+	}
 	small, err := knapsack.NewContainerType(knapsack.ContainerTypeSpec{
-		ID: "small", InternalDimensions: itemDimensions,
+		ID: "small", InternalDimensions: smallDimensions,
 		MaxContentWeight: quantity(2, measurement.Kilogram),
 		Stock:            knapsack.UnlimitedStock(),
+		Priority:         smallPriority,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -249,6 +294,7 @@ func exactMoneyRequest(t testing.TB) knapsack.Request {
 		},
 		MaxContentWeight: quantity(2, measurement.Kilogram),
 		Stock:            knapsack.UnlimitedStock(),
+		Priority:         largePriority,
 	})
 	if err != nil {
 		t.Fatal(err)

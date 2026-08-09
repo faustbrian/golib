@@ -183,6 +183,33 @@ func TestValidationCauseIsIndependentOfEntryOrder(t *testing.T) {
 	}
 }
 
+func TestOversizedTypeIDsAreRejectedBeforeSorting(t *testing.T) {
+	one := mustEuro(t, "1.00")
+	entries := []gomoney.Entry{
+		{TypeID: strings.Repeat("z", 9), Cost: one},
+		{TypeID: "box", Cost: one},
+		{TypeID: "box", Cost: one},
+	}
+
+	_, err := gomoney.NewFromEntries(entries, gomoney.Policy{
+		Limits: gomoney.Limits{MaxTypes: 3, MaxIDBytes: 8},
+	})
+	if !errors.Is(err, gomoney.ErrInvalidCosts) {
+		t.Fatalf("NewFromEntries() error = %v, want ErrInvalidCosts", err)
+	}
+	if errors.Is(err, gomoney.ErrDuplicateTypeID) {
+		t.Fatalf("NewFromEntries() inspected sortable entries after oversized ID: %v", err)
+	}
+	allocations := testing.AllocsPerRun(100, func() {
+		_, _ = gomoney.NewFromEntries(entries, gomoney.Policy{
+			Limits: gomoney.Limits{MaxTypes: 3, MaxIDBytes: 8},
+		})
+	})
+	if allocations != 0 {
+		t.Fatalf("NewFromEntries(oversized) allocations = %v, want 0 before cloning", allocations)
+	}
+}
+
 func TestEmptyPlanHasExactZeroTotal(t *testing.T) {
 	t.Parallel()
 
