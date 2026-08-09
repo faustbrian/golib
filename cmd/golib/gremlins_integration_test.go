@@ -101,6 +101,134 @@ func TestIsZero(t *testing.T) {
 	}
 }
 
+func TestGolibGremlinsDiffSelectsChangedNestedModuleSource(t *testing.T) {
+	root := testRepositoryRoot(t)
+	repository := t.TempDir()
+	module := filepath.Join(repository, "pkg", "fixture")
+	if err := os.MkdirAll(module, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(module, "go.mod"), "module example.test/fixture\n\ngo 1.26.5\n")
+	source := filepath.Join(module, "fixture.go")
+	writeFile(t, source, `package fixture
+
+func IsZero(value int) bool {
+	return value == 1
+}
+
+func IsOne(value int) bool {
+	return value == 0
+}
+`)
+	writeFile(t, filepath.Join(module, "fixture_test.go"), `package fixture
+
+import "testing"
+
+func TestIsZero(t *testing.T) {
+	if !IsZero(0) {
+		t.Fatal("zero was not recognized")
+	}
+	if IsZero(1) {
+		t.Fatal("non-zero value was recognized as zero")
+	}
+	if !IsOne(1) {
+		t.Fatal("one was not recognized")
+	}
+	if IsOne(0) {
+		t.Fatal("zero was recognized as one")
+	}
+}
+`)
+	for _, arguments := range [][]string{
+		{"init"},
+		{"config", "user.email", "golib@example.test"},
+		{"config", "user.name", "golib test"},
+		{"add", "pkg/fixture/go.mod", "pkg/fixture/fixture.go", "pkg/fixture/fixture_test.go"},
+		{"commit", "-m", "fixture baseline"},
+	} {
+		command := exec.Command("git", arguments...)
+		command.Dir = repository
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(arguments, " "), err, output)
+		}
+	}
+	writeFile(t, source, `package fixture
+
+func IsZero(value int) bool {
+	return value == 0
+}
+
+func IsOne(value int) bool {
+	return value == 1
+}
+`)
+
+	build := exec.Command(filepath.Join(root, "scripts", "build-golib-gremlins.sh"))
+	build.Dir = root
+	output, err := build.Output()
+	if err != nil {
+		t.Fatalf("build golib-gremlins: %v", err)
+	}
+	report := filepath.Join(t.TempDir(), "mutation.json")
+	command := exec.Command(
+		strings.TrimSpace(string(output)),
+		"unleash",
+		".",
+		"--diff",
+		"HEAD",
+		"--workers",
+		"1",
+		"--test-cpu",
+		"1",
+		"--timeout-coefficient",
+		"10",
+		"--threshold-efficacy",
+		"100",
+		"--threshold-mcover",
+		"100",
+		"--conditionals-negation",
+		"--output-statuses",
+		"lctvsr",
+		"--output",
+		report,
+	)
+	command.Dir = module
+	command.Env = environmentWith("GOWORK", "off")
+	if output, err = command.CombinedOutput(); err != nil {
+		t.Fatalf("execute nested-module diff mutant: %v\n%s", err, output)
+	}
+
+	contents, err := os.ReadFile(report)
+	if err != nil {
+		t.Fatalf("read nested-module mutation report: %v\n%s", err, output)
+	}
+	result := struct {
+		Files []struct {
+			Mutations []struct {
+				Status string `json:"status"`
+			} `json:"mutations"`
+		} `json:"files"`
+	}{}
+	if err := json.Unmarshal(contents, &result); err != nil {
+		t.Fatalf("decode nested-module mutation report: %v", err)
+	}
+	mutations := 0
+	for _, file := range result.Files {
+		for _, mutation := range file.Mutations {
+			if mutation.Status == "KILLED" {
+				mutations++
+				continue
+			}
+			if mutation.Status != "SKIPPED" {
+				t.Fatalf("nested-module diff mutant has status %s", mutation.Status)
+			}
+		}
+	}
+	if mutations != 2 {
+		t.Fatalf("golib-gremlins selected %d changed nested-module mutants, want 2", mutations)
+	}
+}
+
 func TestGolibGremlinsSkipsIntegrationWhenUnitTestKillsMutant(t *testing.T) {
 	module := gremlinsConditionalFixture(t)
 	writeFile(t, filepath.Join(module, "fixture_test.go"), gremlinsIsZeroUnitTest)

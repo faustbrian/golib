@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Resolve changed-line mutation selection relative to nested module roots and
+  preserve every non-contiguous added line in a diff hunk, preventing valid
+  mutants from being silently skipped in focused verification.
 - Resolve mutation fingerprints in a module-scoped dependency graph so an
   unrelated workspace module with an unpublished dependency cannot block a
   selected module's mutation gate.

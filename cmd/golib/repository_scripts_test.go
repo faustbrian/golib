@@ -1470,6 +1470,7 @@ require example.invalid/unpublished v0.0.0-20990101000000-deadbeefdead
 		"scripts/package-source-digest.sh",
 		"scripts/patches/gremlins-run-all-mutants.patch",
 		"scripts/patches/gremlins-shared-coverage.patch",
+		"scripts/patches/gremlins-module-relative-diff.patch",
 		"scripts/start-services.sh",
 	} {
 		writeFile(t, filepath.Join(repository, path), path+"\n")
@@ -1652,6 +1653,17 @@ func TestValue(t *testing.T) {
 		t.Fatal("shared coverage patch did not change mutation digest")
 	}
 	writeFile(t, coveragePatch, "scripts/patches/gremlins-shared-coverage.patch\n")
+	diffPatch := filepath.Join(
+		repository,
+		"scripts",
+		"patches",
+		"gremlins-module-relative-diff.patch",
+	)
+	writeFile(t, diffPatch, "revised module-relative diff patch\n")
+	if current := digest(); current == initial {
+		t.Fatal("module-relative diff patch did not change mutation digest")
+	}
+	writeFile(t, diffPatch, "scripts/patches/gremlins-module-relative-diff.patch\n")
 	writeFile(t, moduleSum, "example.test/dependency v0.0.0 h1:BBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBB=\n")
 	if current := digest(); current != initial {
 		t.Fatalf("module checksum changed mutation digest: %s != %s", current, initial)

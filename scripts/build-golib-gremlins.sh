@@ -9,8 +9,9 @@ source "${root}/.golib/versions.env"
 
 semantic_patch="${root}/scripts/patches/gremlins-run-all-mutants.patch"
 coverage_patch="${root}/scripts/patches/gremlins-shared-coverage.patch"
+diff_patch="${root}/scripts/patches/gremlins-module-relative-diff.patch"
 patch_digest="$(
-    cat "${semantic_patch}" "${coverage_patch}" |
+    cat "${semantic_patch}" "${coverage_patch}" "${diff_patch}" |
         shasum -a 256 |
         awk '{print $1}'
 )"
@@ -53,6 +54,7 @@ cp -R "${source_directory}" "${temporary}/source"
 chmod -R u+w "${temporary}/source"
 patch --batch --forward -d "${temporary}/source" -p1 <"${semantic_patch}" >&2
 patch --batch --forward -d "${temporary}/source" -p1 <"${coverage_patch}" >&2
+patch --batch --forward -d "${temporary}/source" -p1 <"${diff_patch}" >&2
 (
     cd "${temporary}/source"
     GOWORK=off go build -trimpath -buildvcs=false \
