@@ -14,6 +14,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- read-only append reconciliation by the exact original message identities,
+  envelopes, ordering, and expected version, distinguishing confirmed commit,
+  confirmed absence, and unsafe partial or divergent durable state
 - a serial real-database compatibility matrix for every upstream-supported
   PostgreSQL major version from 14 through 18, using exact current-minor image
   digests and the complete conformance, contention, recovery, promotion, and

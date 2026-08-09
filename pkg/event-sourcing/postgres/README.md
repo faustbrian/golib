@@ -47,6 +47,45 @@ statement failures are `CommitNotCommitted`; a commit error is
 `CommitUnknown` and requires reconciliation by message ID before retry.
 Messages are returned only after a successful commit.
 
+When `Append` returns `CommitUnknown`, call `ReconcileAppend` with the exact
+stream, expected-version value, and pending messages from the original attempt:
+
+```go
+messages, outcome, err := store.ReconcileAppend(
+	ctx,
+	stream,
+	expected,
+	pending,
+)
+switch outcome {
+case eventsourcing.CommitCommitted:
+	// Confirm the original save with messages. Do not append it again.
+case eventsourcing.CommitNotCommitted:
+	// Retrying the same immutable pending messages is safe.
+case eventsourcing.CommitUnknown:
+	// Stop and investigate err. A partial or divergent identity match is unsafe.
+}
+```
+
+Reconciliation does not mutate stored data. It queries the bounded original
+message-ID set and
+accepts a commit only when every stored envelope matches in the original order
+with contiguous stream versions and global positions. No identities means the
+append did not commit. Before reading identities it locks the transactional
+global-position allocator, so an original append still resolving its commit or
+rollback must finish before absence can be reported. Use a bounded operation
+context because this barrier waits behind in-flight appends. The adapter reads
+only IDs and positions while holding that lock, releases it, and then fetches
+the complete immutable envelopes so reconciliation does not amplify the global
+append lock with payload transfer or decoding. `SELECT FOR UPDATE` requires a
+locking-capable primary connection; a read-only transaction or replica cannot
+reconcile commit ambiguity. A partial, reordered, divergent, or wrong-version
+match
+returns `ErrAppendReconciliationMismatch` and remains unknown, so it cannot turn
+an ambiguous response into duplicate events by retrying. Database and scan
+failures return redacted `ErrAppendReconciliationFailed` errors while preserving
+their causes for `errors.Is` and `errors.As`.
+
 Reads are bounded by the core read options. Returned iterators own their
 `pgx.Rows`; callers must always call `Close`. Cancellation stops iteration and
 closes the rows. Stream and global ordering are ascending and stable.

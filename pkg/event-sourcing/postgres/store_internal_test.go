@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -680,6 +681,537 @@ func TestAppendPreservesDatabaseAndIntegrityFailures(t *testing.T) {
 	}
 }
 
+func TestReconcileAppendClassifiesDurableIdentityAndFailures(t *testing.T) {
+	t.Parallel()
+
+	stream := testStream(t)
+	pending := testPending(t, stream, "reconcile-1")
+	expected := eventsourcing.ExpectNewStream()
+	failure := errors.New("reconciliation read failure")
+	storeWithTransaction := func(database *fakeDatabase) (*Store, *fakeTx) {
+		tx := &fakeTx{fakeDatabase: database}
+
+		return &Store{
+			beginner: &fakeBeginner{tx: tx},
+			database: database,
+			schema:   defaultSchema,
+		}, tx
+	}
+	var nilStore *Store
+	if messages, outcome, err := nilStore.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		eventsourcing.ErrInvalidArgument,
+	) {
+		t.Fatalf("invalid reconciliation = %#v, %d, %v", messages, outcome, err)
+	}
+	invalid, _ := storeWithTransaction(&fakeDatabase{})
+	if messages, outcome, err := invalid.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		nil,
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		eventsourcing.ErrInvalidArgument,
+	) {
+		t.Fatalf("invalid batch reconciliation = %#v, %d, %v", messages, outcome, err)
+	}
+
+	beginFailure := &Store{
+		beginner: &fakeBeginner{err: failure},
+		database: &fakeDatabase{},
+		schema:   defaultSchema,
+	}
+	if messages, outcome, err := beginFailure.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		failure,
+	) || !errors.Is(
+		err,
+		ErrAppendReconciliationFailed,
+	) {
+		t.Fatalf("begin failure = %#v, %d, %v", messages, outcome, err)
+	} else if strings.Contains(err.Error(), failure.Error()) {
+		t.Fatalf("begin failure disclosed driver diagnostic: %q", err)
+	}
+
+	barrierDatabase := &fakeDatabase{rowScans: []scanFunc{
+		func([]any) error { return failure },
+	}}
+	barrierFailure, barrierTx := storeWithTransaction(barrierDatabase)
+	if messages, outcome, err := barrierFailure.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		failure,
+	) {
+		t.Fatalf("barrier failure = %#v, %d, %v", messages, outcome, err)
+	}
+	if barrierTx.rollbackCalls != 1 {
+		t.Fatalf("barrier failure rollback calls = %d", barrierTx.rollbackCalls)
+	}
+
+	corruptDatabase := &fakeDatabase{rowScans: []scanFunc{scanValues(int64(-1))}}
+	corrupt, _ := storeWithTransaction(corruptDatabase)
+	if messages, outcome, err := corrupt.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		eventsourcing.ErrCorruptHistory,
+	) {
+		t.Fatalf("corrupt barrier = %#v, %d, %v", messages, outcome, err)
+	}
+	corruptIdentityDatabase := &fakeDatabase{
+		rowScans: []scanFunc{scanValues(int64(0))},
+		rows: &fakeRows{scans: []scanFunc{
+			reconciliationIdentityScan(pending, 0, 1),
+		}},
+	}
+	corruptIdentity, _ := storeWithTransaction(corruptIdentityDatabase)
+	if messages, outcome, err := corruptIdentity.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		eventsourcing.ErrCorruptHistory,
+	) {
+		t.Fatalf("corrupt identity = %#v, %d, %v", messages, outcome, err)
+	}
+
+	queryDatabase := &fakeDatabase{
+		rowScans: []scanFunc{scanValues(int64(0))},
+		queryErr: failure,
+	}
+	queryFailure, _ := storeWithTransaction(queryDatabase)
+	if messages, outcome, err := queryFailure.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		failure,
+	) {
+		t.Fatalf("query failure = %#v, %d, %v", messages, outcome, err)
+	}
+
+	emptyRows := &fakeRows{}
+	emptyDatabase := &fakeDatabase{
+		rowScans:  []scanFunc{scanValues(int64(0))},
+		queryRows: []pgx.Rows{emptyRows},
+	}
+	empty, _ := storeWithTransaction(emptyDatabase)
+	if messages, outcome, err := empty.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitNotCommitted || err != nil {
+		t.Fatalf("empty reconciliation = %#v, %d, %v", messages, outcome, err)
+	}
+	if !emptyRows.closed {
+		t.Fatal("empty reconciliation did not close rows")
+	}
+	rollbackFailureRows := &fakeRows{}
+	rollbackFailureDatabase := &fakeDatabase{
+		rowScans:  []scanFunc{scanValues(int64(0))},
+		queryRows: []pgx.Rows{rollbackFailureRows},
+	}
+	rollbackFailure, rollbackFailureTx := storeWithTransaction(
+		rollbackFailureDatabase,
+	)
+	rollbackFailureTx.rollbackErr = failure
+	if messages, outcome, err := rollbackFailure.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		failure,
+	) {
+		t.Fatalf("rollback failure = %#v, %d, %v", messages, outcome, err)
+	}
+
+	scanFailureRows := &fakeRows{scans: []scanFunc{
+		func([]any) error { return failure },
+	}}
+	scanFailureDatabase := &fakeDatabase{
+		rowScans:  []scanFunc{scanValues(int64(0))},
+		queryRows: []pgx.Rows{scanFailureRows},
+	}
+	scanFailure, _ := storeWithTransaction(scanFailureDatabase)
+	if messages, outcome, err := scanFailure.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		failure,
+	) {
+		t.Fatalf("scan failure = %#v, %d, %v", messages, outcome, err)
+	}
+	if !scanFailureRows.closed {
+		t.Fatal("scan failure did not close rows")
+	}
+
+	rowFailureRows := &fakeRows{err: failure}
+	rowFailureDatabase := &fakeDatabase{
+		rowScans:  []scanFunc{scanValues(int64(0))},
+		queryRows: []pgx.Rows{rowFailureRows},
+	}
+	rowFailure, _ := storeWithTransaction(rowFailureDatabase)
+	if messages, outcome, err := rowFailure.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		failure,
+	) {
+		t.Fatalf("rows failure = %#v, %d, %v", messages, outcome, err)
+	}
+
+	identityRows := &fakeRows{scans: []scanFunc{
+		reconciliationIdentityScan(pending, 1, 1),
+	}}
+	matchingRows := &fakeRows{scans: []scanFunc{
+		messageScan(pending, 1, 1),
+	}}
+	database := &fakeDatabase{
+		rowScans:  []scanFunc{scanValues(int64(0))},
+		queryRows: []pgx.Rows{identityRows, matchingRows},
+	}
+	matching, matchingTx := storeWithTransaction(database)
+	messages, outcome, err := matching.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	)
+	if err != nil || outcome != eventsourcing.CommitCommitted || len(messages) != 1 {
+		t.Fatalf("matching reconciliation = %#v, %d, %v", messages, outcome, err)
+	}
+	if !matchingRows.closed {
+		t.Fatal("matching reconciliation did not close rows")
+	}
+	if matchingTx.rollbackCalls != 1 {
+		t.Fatalf("matching reconciliation rollback calls = %d", matchingTx.rollbackCalls)
+	}
+	if len(database.queryArgs) != 1 || !reflect.DeepEqual(
+		database.queryArgs[0],
+		[]string{pending.ID().String()},
+	) {
+		t.Fatalf("reconciliation query arguments = %#v", database.queryArgs)
+	}
+
+	mismatchDatabase := &fakeDatabase{
+		rowScans: []scanFunc{scanValues(int64(0))},
+		queryRows: []pgx.Rows{&fakeRows{scans: []scanFunc{
+			reconciliationIdentityScan(pending, 2, 2),
+		}}},
+	}
+	mismatch, _ := storeWithTransaction(mismatchDatabase)
+	if messages, outcome, err := mismatch.ReconcileAppend(
+		context.Background(),
+		stream,
+		expected,
+		[]eventsourcing.PendingMessage{pending},
+	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+		err,
+		ErrAppendReconciliationMismatch,
+	) {
+		t.Fatalf("mismatched reconciliation = %#v, %d, %v", messages, outcome, err)
+	}
+}
+
+func TestReconciliationRequiresExactAtomicBatch(t *testing.T) {
+	t.Parallel()
+
+	stream := testStream(t)
+	first := testPending(t, stream, "reconcile-1")
+	second := testPending(t, stream, "reconcile-2")
+	other := testPending(t, stream, "reconcile-other")
+	message := func(
+		pending eventsourcing.PendingMessage,
+		version uint64,
+		position eventsourcing.GlobalPosition,
+	) eventsourcing.Message {
+		result, err := eventsourcing.NewMessage(eventsourcing.MessageInput{
+			Pending:        pending,
+			StreamVersion:  version,
+			GlobalPosition: position,
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		return result
+	}
+
+	tests := map[string]struct {
+		expected  eventsourcing.ExpectedVersion
+		pending   []eventsourcing.PendingMessage
+		persisted []eventsourcing.Message
+		want      bool
+	}{
+		"exact batch": {
+			expected:  eventsourcing.ExpectExactVersion(4),
+			pending:   []eventsourcing.PendingMessage{first, second},
+			persisted: []eventsourcing.Message{message(first, 5, 8), message(second, 6, 9)},
+			want:      true,
+		},
+		"different lengths": {
+			expected:  eventsourcing.ExpectNewStream(),
+			pending:   []eventsourcing.PendingMessage{first, second},
+			persisted: []eventsourcing.Message{message(first, 1, 1)},
+		},
+		"new stream starts later": {
+			expected:  eventsourcing.ExpectNewStream(),
+			pending:   []eventsourcing.PendingMessage{first},
+			persisted: []eventsourcing.Message{message(first, 2, 2)},
+		},
+		"existing stream starts at one": {
+			expected:  eventsourcing.ExpectExistingStream(),
+			pending:   []eventsourcing.PendingMessage{first},
+			persisted: []eventsourcing.Message{message(first, 1, 1)},
+		},
+		"stream version gap": {
+			expected: eventsourcing.ExpectAnyVersion(),
+			pending:  []eventsourcing.PendingMessage{first, second},
+			persisted: []eventsourcing.Message{
+				message(first, 2, 2),
+				message(second, 4, 3),
+			},
+		},
+		"global position gap": {
+			expected: eventsourcing.ExpectAnyVersion(),
+			pending:  []eventsourcing.PendingMessage{first, second},
+			persisted: []eventsourcing.Message{
+				message(first, 2, 2),
+				message(second, 3, 4),
+			},
+		},
+		"missing global position": {
+			expected:  eventsourcing.ExpectAnyVersion(),
+			pending:   []eventsourcing.PendingMessage{first},
+			persisted: []eventsourcing.Message{message(first, 1, 0)},
+		},
+		"different envelope": {
+			expected:  eventsourcing.ExpectAnyVersion(),
+			pending:   []eventsourcing.PendingMessage{first},
+			persisted: []eventsourcing.Message{message(other, 1, 1)},
+		},
+	}
+	for name, test := range tests {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if got := reconciliationMatches(
+				test.expected,
+				test.pending,
+				test.persisted,
+			); got != test.want {
+				t.Fatalf("reconciliationMatches() = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
+func TestReconcileAppendReleasesBarrierBeforeEnvelopeRead(t *testing.T) {
+	t.Parallel()
+
+	stream := testStream(t)
+	pending := testPending(t, stream, "reconcile-release")
+	barrierRows := &fakeRows{scans: []scanFunc{
+		reconciliationIdentityScan(pending, 1, 1),
+	}}
+	barrierDatabase := &fakeDatabase{
+		rowScans: []scanFunc{scanValues(int64(0))},
+		rows:     barrierRows,
+	}
+	tx := &fakeTx{fakeDatabase: barrierDatabase}
+	envelopeRows := &fakeRows{scans: []scanFunc{
+		messageScan(pending, 1, 1),
+	}}
+	envelopeDatabase := &fakeDatabase{rows: envelopeRows}
+	store := &Store{
+		beginner: &fakeBeginner{tx: tx},
+		database: envelopeDatabase,
+		schema:   defaultSchema,
+	}
+
+	messages, outcome, err := store.ReconcileAppend(
+		context.Background(),
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{pending},
+	)
+	if err != nil || outcome != eventsourcing.CommitCommitted || len(messages) != 1 {
+		t.Fatalf("reconciliation = %#v, %d, %v", messages, outcome, err)
+	}
+	if tx.rollbackCalls != 1 {
+		t.Fatalf("barrier rollback calls = %d", tx.rollbackCalls)
+	}
+	if !barrierRows.closed || !envelopeRows.closed {
+		t.Fatalf(
+			"row closure: barrier=%t envelope=%t",
+			barrierRows.closed,
+			envelopeRows.closed,
+		)
+	}
+	if len(envelopeDatabase.queryArgs) != 1 {
+		t.Fatalf("envelope query calls = %#v", envelopeDatabase.queryArgs)
+	}
+}
+
+func TestReconcileAppendRejectsUnprovenEnvelopes(t *testing.T) {
+	t.Parallel()
+
+	stream := testStream(t)
+	pending := testPending(t, stream, "reconcile-envelope")
+	failure := errors.New("envelope read failure")
+	tests := map[string]struct {
+		database *fakeDatabase
+		want     error
+	}{
+		"query failure": {
+			database: &fakeDatabase{queryErr: failure},
+			want:     failure,
+		},
+		"scan failure": {
+			database: &fakeDatabase{rows: &fakeRows{scans: []scanFunc{
+				func([]any) error { return failure },
+			}}},
+			want: failure,
+		},
+		"rows failure": {
+			database: &fakeDatabase{rows: &fakeRows{err: failure}},
+			want:     failure,
+		},
+		"envelope changed after identity proof": {
+			database: &fakeDatabase{rows: &fakeRows{scans: []scanFunc{
+				messageScan(pending, 2, 1),
+			}}},
+			want: ErrAppendReconciliationMismatch,
+		},
+	}
+	for name, test := range tests {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			barrierRows := &fakeRows{scans: []scanFunc{
+				reconciliationIdentityScan(pending, 1, 1),
+			}}
+			tx := &fakeTx{fakeDatabase: &fakeDatabase{
+				rowScans: []scanFunc{scanValues(int64(0))},
+				rows:     barrierRows,
+			}}
+			store := &Store{
+				beginner: &fakeBeginner{tx: tx},
+				database: test.database,
+				schema:   defaultSchema,
+			}
+
+			messages, outcome, err := store.ReconcileAppend(
+				context.Background(),
+				stream,
+				eventsourcing.ExpectNewStream(),
+				[]eventsourcing.PendingMessage{pending},
+			)
+			if messages != nil || outcome != eventsourcing.CommitUnknown ||
+				!errors.Is(err, test.want) {
+				t.Fatalf("reconciliation = %#v, %d, %v", messages, outcome, err)
+			}
+			if tx.rollbackCalls != 1 || !barrierRows.closed {
+				t.Fatalf(
+					"barrier cleanup: rollbacks=%d rows_closed=%t",
+					tx.rollbackCalls,
+					barrierRows.closed,
+				)
+			}
+			if test.database.rows != nil && !test.database.rows.(*fakeRows).closed {
+				t.Fatal("envelope rows were not closed")
+			}
+		})
+	}
+}
+
+func TestReconciliationIdentitiesRequireExactAtomicBatch(t *testing.T) {
+	t.Parallel()
+
+	stream := testStream(t)
+	first := testPending(t, stream, "reconcile-identity-1")
+	second := testPending(t, stream, "reconcile-identity-2")
+	exact := []appendReconciliationIdentity{
+		{id: first.ID().String(), streamVersion: 4, globalPosition: 8},
+		{id: second.ID().String(), streamVersion: 5, globalPosition: 9},
+	}
+	tests := map[string]struct {
+		pending    []eventsourcing.PendingMessage
+		identities []appendReconciliationIdentity
+	}{
+		"different lengths": {
+			pending:    []eventsourcing.PendingMessage{first, second},
+			identities: exact[:1],
+		},
+		"different message ID": {
+			pending: []eventsourcing.PendingMessage{second, first},
+			identities: []appendReconciliationIdentity{
+				exact[0],
+				exact[1],
+			},
+		},
+		"stream version gap": {
+			pending: []eventsourcing.PendingMessage{first, second},
+			identities: []appendReconciliationIdentity{
+				exact[0],
+				{id: second.ID().String(), streamVersion: 6, globalPosition: 9},
+			},
+		},
+		"global position gap": {
+			pending: []eventsourcing.PendingMessage{first, second},
+			identities: []appendReconciliationIdentity{
+				exact[0],
+				{id: second.ID().String(), streamVersion: 5, globalPosition: 10},
+			},
+		},
+	}
+	for name, test := range tests {
+		test := test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			if reconciliationIdentitiesMatch(
+				eventsourcing.ExpectExactVersion(3),
+				test.pending,
+				test.identities,
+			) {
+				t.Fatal("reconciliation identities unexpectedly matched")
+			}
+		})
+	}
+}
+
 func TestReadBoundariesPreserveStoreSemantics(t *testing.T) {
 	t.Parallel()
 
@@ -1011,14 +1543,16 @@ func (row fakeRow) Scan(destinations ...any) error {
 }
 
 type fakeDatabase struct {
-	execErrs  []error
-	execTags  []pgconn.CommandTag
-	rowScans  []scanFunc
-	rows      pgx.Rows
-	queryErr  error
-	queryArgs []any
-	execCalls int
-	rowCalls  int
+	execErrs   []error
+	execTags   []pgconn.CommandTag
+	rowScans   []scanFunc
+	rows       pgx.Rows
+	queryErr   error
+	queryArgs  []any
+	queryRows  []pgx.Rows
+	execCalls  int
+	queryCalls int
+	rowCalls   int
 }
 
 type fakeBeginner struct {
@@ -1041,6 +1575,7 @@ type fakeTx struct {
 	pgx.Tx
 	*fakeDatabase
 	commitErr     error
+	rollbackErr   error
 	rollbackCalls int
 }
 
@@ -1077,6 +1612,9 @@ func (tx *fakeTx) Rollback(ctx context.Context) error {
 	if _, exists := ctx.Deadline(); !exists {
 		return errors.New("rollback context is unbounded")
 	}
+	if tx.rollbackErr != nil {
+		return tx.rollbackErr
+	}
 
 	return nil
 }
@@ -1103,9 +1641,14 @@ func (database *fakeDatabase) Query(
 	_ string,
 	arguments ...any,
 ) (pgx.Rows, error) {
+	index := database.queryCalls
+	database.queryCalls++
 	database.queryArgs = append([]any(nil), arguments...)
 	if database.queryErr != nil {
 		return nil, database.queryErr
+	}
+	if index < len(database.queryRows) {
+		return database.queryRows[index], nil
 	}
 	if database.rows == nil {
 		database.rows = &fakeRows{}
@@ -1136,6 +1679,55 @@ func appendDatabase(current, position int64) *fakeDatabase {
 			scanValues(position),
 		},
 	}
+}
+
+func messageScan(
+	pending eventsourcing.PendingMessage,
+	streamVersion int64,
+	globalPosition int64,
+) scanFunc {
+	correlationID, hasCorrelationID := pending.CorrelationID()
+	causationID, hasCausationID := pending.CausationID()
+	tenant, hasTenant := pending.Tenant()
+	partition, hasPartition := pending.Partition()
+	optional := func(value string, exists bool) *string {
+		if !exists {
+			return nil
+		}
+
+		return &value
+	}
+	event := pending.Event()
+
+	return scanValues(
+		globalPosition,
+		pending.ID().String(),
+		pending.Stream().AggregateType(),
+		pending.Stream().AggregateID(),
+		streamVersion,
+		event.Name().String(),
+		int64(event.Version()),
+		event.ContentType(),
+		event.Payload(),
+		encodeMetadata(pending.Metadata()),
+		pending.RecordedAt(),
+		optional(correlationID.String(), hasCorrelationID),
+		optional(causationID.String(), hasCausationID),
+		optional(tenant, hasTenant),
+		optional(partition, hasPartition),
+	)
+}
+
+func reconciliationIdentityScan(
+	pending eventsourcing.PendingMessage,
+	streamVersion int64,
+	globalPosition int64,
+) scanFunc {
+	return scanValues(
+		pending.ID().String(),
+		streamVersion,
+		globalPosition,
+	)
 }
 
 func scanValues(values ...any) scanFunc {

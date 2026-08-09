@@ -34,7 +34,35 @@ var (
 	ErrCommitOutcomeUnknown = errors.New(
 		"event-sourcing/postgres: transaction commit outcome is unknown",
 	)
+	// ErrAppendReconciliationMismatch reports stored message identities that do
+	// not prove the complete attempted append committed atomically.
+	ErrAppendReconciliationMismatch = errors.New(
+		"event-sourcing/postgres: append reconciliation mismatch",
+	)
+	// ErrAppendReconciliationFailed reports that durable identity could not be
+	// read completely and the append outcome therefore remains unknown.
+	ErrAppendReconciliationFailed = errors.New(
+		"event-sourcing/postgres: append reconciliation failed",
+	)
 )
+
+type appendReconciliationError struct {
+	cause error
+}
+
+type appendReconciliationIdentity struct {
+	id             string
+	streamVersion  uint64
+	globalPosition eventsourcing.GlobalPosition
+}
+
+func (*appendReconciliationError) Error() string {
+	return ErrAppendReconciliationFailed.Error()
+}
+
+func (err *appendReconciliationError) Unwrap() []error {
+	return []error{ErrAppendReconciliationFailed, err.cause}
+}
 
 // CommitError redacts a PostgreSQL commit failure while preserving its cause
 // and classifying the durable outcome as unknown.
@@ -163,6 +191,156 @@ func (store *Store) Append(
 	}
 
 	return messages, nil
+}
+
+// ReconcileAppend resolves an append whose commit outcome was unknown.
+//
+// The caller must supply the exact stream, expectation, and immutable pending
+// messages used by the original attempt. A complete exact match returns
+// CommitCommitted and the persisted messages. No matching message identities
+// returns CommitNotCommitted. A partial or divergent match remains
+// CommitUnknown and returns ErrAppendReconciliationMismatch. Reconciliation is
+// non-mutating and never retries the append. It briefly takes the original
+// append's global-position lock before reading complete envelopes, so callers
+// must supply a bounded context and a locking-capable primary connection.
+func (store *Store) ReconcileAppend(
+	ctx context.Context,
+	stream eventsourcing.StreamID,
+	expected eventsourcing.ExpectedVersion,
+	pending []eventsourcing.PendingMessage,
+) ([]eventsourcing.Message, eventsourcing.CommitOutcome, error) {
+	if store == nil || store.beginner == nil {
+		return nil, eventsourcing.CommitUnknown, eventsourcing.ErrInvalidArgument
+	}
+	if err := validateAppend(store, ctx, stream, expected, pending); err != nil {
+		return nil, eventsourcing.CommitUnknown, err
+	}
+	tx, err := store.beginner.BeginTx(ctx, pgx.TxOptions{})
+	if err != nil {
+		return nil, eventsourcing.CommitUnknown, reconciliationFailure(err)
+	}
+	barrierReleased := false
+	defer func() {
+		if !barrierReleased {
+			_ = rollbackReconciliationBarrier(tx)
+		}
+	}()
+
+	positions := pgx.Identifier{store.schema, "positions"}.Sanitize()
+	var lastPosition int64
+	if err := tx.QueryRow(
+		ctx,
+		"SELECT last_position FROM "+positions+
+			" WHERE singleton = true FOR UPDATE",
+	).Scan(&lastPosition); err != nil {
+		return nil, eventsourcing.CommitUnknown, reconciliationFailure(err)
+	}
+	if lastPosition < 0 {
+		return nil,
+			eventsourcing.CommitUnknown,
+			reconciliationFailure(eventsourcing.ErrCorruptHistory)
+	}
+
+	ids := make([]string, len(pending))
+	for index, message := range pending {
+		ids[index] = message.ID().String()
+	}
+	messages := pgx.Identifier{store.schema, "messages"}.Sanitize()
+	identities, err := queryReconciliationIdentities(ctx, tx, messages, ids)
+	if err != nil {
+		return nil, eventsourcing.CommitUnknown, reconciliationFailure(err)
+	}
+	identityOutcome := eventsourcing.CommitUnknown
+	identityErr := ErrAppendReconciliationMismatch
+	if len(identities) == 0 {
+		identityOutcome = eventsourcing.CommitNotCommitted
+		identityErr = nil
+	} else if reconciliationIdentitiesMatch(expected, pending, identities) {
+		identityOutcome = eventsourcing.CommitCommitted
+		identityErr = nil
+	}
+	if err := rollbackReconciliationBarrier(tx); err != nil {
+		return nil, eventsourcing.CommitUnknown, reconciliationFailure(err)
+	}
+	barrierReleased = true
+	if identityOutcome != eventsourcing.CommitCommitted {
+		return nil, identityOutcome, identityErr
+	}
+
+	rows, err := store.database.Query(
+		ctx,
+		selectMessageColumns("SELECT", messages)+
+			" WHERE message_id = ANY($1) ORDER BY global_position",
+		ids,
+	)
+	if err != nil {
+		return nil, eventsourcing.CommitUnknown, reconciliationFailure(err)
+	}
+	defer rows.Close()
+
+	persisted := make([]eventsourcing.Message, 0, len(pending))
+	for rows.Next() {
+		message, scanErr := scanMessage(rows)
+		if scanErr != nil {
+			return nil,
+				eventsourcing.CommitUnknown,
+				reconciliationFailure(scanErr)
+		}
+		persisted = append(persisted, message)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, eventsourcing.CommitUnknown, reconciliationFailure(err)
+	}
+	if !reconciliationMatches(expected, pending, persisted) {
+		return nil,
+			eventsourcing.CommitUnknown,
+			ErrAppendReconciliationMismatch
+	}
+
+	return persisted, eventsourcing.CommitCommitted, nil
+}
+
+func queryReconciliationIdentities(
+	ctx context.Context,
+	db database,
+	messages string,
+	ids []string,
+) ([]appendReconciliationIdentity, error) {
+	rows, err := db.Query(
+		ctx,
+		"SELECT message_id, stream_version, global_position FROM "+messages+
+			" WHERE message_id = ANY($1) ORDER BY global_position",
+		ids,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	identities := make([]appendReconciliationIdentity, 0, len(ids))
+	for rows.Next() {
+		var (
+			id             string
+			streamVersion  int64
+			globalPosition int64
+		)
+		if err := rows.Scan(&id, &streamVersion, &globalPosition); err != nil {
+			return nil, err
+		}
+		if streamVersion <= 0 || globalPosition <= 0 {
+			return nil, eventsourcing.ErrCorruptHistory
+		}
+		identities = append(identities, appendReconciliationIdentity{
+			id:             id,
+			streamVersion:  uint64(streamVersion),
+			globalPosition: eventsourcing.GlobalPosition(globalPosition),
+		})
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return identities, nil
 }
 
 // Stage writes one ordered batch into the caller-owned transaction.
@@ -582,6 +760,81 @@ func matchesExpected(
 	default:
 		return true
 	}
+}
+
+func reconciliationMatches(
+	expected eventsourcing.ExpectedVersion,
+	pending []eventsourcing.PendingMessage,
+	persisted []eventsourcing.Message,
+) bool {
+	if len(persisted) != len(pending) {
+		return false
+	}
+	firstVersion := persisted[0].StreamVersion()
+	if !matchesExpected(expected, firstVersion-1) {
+		return false
+	}
+	for index, actual := range persisted {
+		position, hasPosition := actual.GlobalPosition()
+		if !hasPosition || actual.StreamVersion() != firstVersion+uint64(index) {
+			return false
+		}
+		if index > 0 {
+			previousPosition, _ := persisted[index-1].GlobalPosition()
+			if position != previousPosition+1 {
+				return false
+			}
+		}
+		expectedMessage, err := eventsourcing.NewMessage(
+			eventsourcing.MessageInput{
+				Pending:        pending[index],
+				StreamVersion:  actual.StreamVersion(),
+				GlobalPosition: position,
+			},
+		)
+		if err != nil || !actual.Equal(expectedMessage) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func reconciliationIdentitiesMatch(
+	expected eventsourcing.ExpectedVersion,
+	pending []eventsourcing.PendingMessage,
+	identities []appendReconciliationIdentity,
+) bool {
+	if len(identities) != len(pending) {
+		return false
+	}
+	firstVersion := identities[0].streamVersion
+	if !matchesExpected(expected, firstVersion-1) {
+		return false
+	}
+	for index, identity := range identities {
+		if identity.id != pending[index].ID().String() ||
+			identity.streamVersion != firstVersion+uint64(index) {
+			return false
+		}
+		if index > 0 &&
+			identity.globalPosition != identities[index-1].globalPosition+1 {
+			return false
+		}
+	}
+
+	return true
+}
+
+func rollbackReconciliationBarrier(tx pgx.Tx) error {
+	rollbackCtx, cancel := rollbackContext(context.Background())
+	defer cancel()
+
+	return tx.Rollback(rollbackCtx)
+}
+
+func reconciliationFailure(cause error) error {
+	return &appendReconciliationError{cause: cause}
 }
 
 func duplicateMessage(err error) bool {
