@@ -82,7 +82,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 15 | Fleet | `pending-reexecution` | `pkg/feature-flags/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 7-9, 12 |
 | 16 | Fleet | `pending-reexecution` | `pkg/settings/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 7-9, 12 |
 | 17 | Fleet | `pending-reexecution` | `pkg/sequencer/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3-9 |
-| 18 | Fleet | `pending-reexecution` | `pkg/service/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3-17 |
+| 18 | Fleet | `pending-reexecution` | `pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md` | 3-17 |
 | 19 | Security | `pending-reexecution` | `pkg/secret-envelope/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 20 | Security | `pending-reexecution` | `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19 |
 | 23 | Authentication | `pending-reexecution` | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | 21, 22 |
@@ -135,12 +135,26 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 39. Current scoped evidence verifies exact UTC encoding, bound-sensitive interval relations, persisted-input hardening, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/external-sort/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 40. Current scoped evidence verifies encrypted spill hardening and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/service/.ai/GOAL_RESILIENCE.md` | `verified` | The base resilience goal formerly included in pending order 18 has current lifecycle, adoption, Kubernetes, exact coverage and mutation, documentation, API, security, supply-chain, race, and benchmark evidence; its separate `GOAL_RESILIENCE_HARDEN.md` remains pending. |
 | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 42. Current scoped evidence verifies canonical scoped capabilities and signed URLs, key lifecycle, replay and revocation adapters, hardening requirements, and every mandatory capability-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/tenancy/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 43. Current scoped evidence verifies explicit tenant identity, propagation, namespaces, administration, PostgreSQL/RLS, asynchronous lifecycle, hardening, documentation, and every mandatory tenancy-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
+
+### Service resilience integration evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/service/.ai/GOAL_RESILIENCE.md` |
+| Scope | Admission closure before cancellation, bounded accepted-work drain and policy cleanup, explicit inbound and outbound resilience placement, named application-owned policy construction, readiness and diagnostics, Kubernetes capacity and termination contracts, and API/RPC, worker, scheduler, and one-shot adoption. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/service`; `./scripts/run-modules.sh check --jobs 1 --modules pkg/service/integration/adoption`; package-local adoption `go test -race ./...`; `make tidy-check MODULES=pkg/service/benchmarks/platform`; and package-local `make kubernetes`. |
+| Result | Passed every mandatory affected-package gate, including exact 1368/1368, 124/124, 49/49, and 181/181 production statements; 765/765 viable mutants killed with 100% efficacy and mutant coverage; race, leak-sensitive lifecycle tests, four 10,000-execution fuzz targets, API, documentation, vulnerability, secrets, licenses, SBOM, clean-consumer interoperability, benchmarks, and the pinned kind v0.31.0 / Kubernetes v1.35.0 lifecycle contract. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each run; Docker 29.6.2 and the digest-pinned Kubernetes node image for the disposable-cluster gate. |
+| Observed | 2026-08-09T10:05:22Z |
+| Gaps | None within the scoped base resilience contract; `pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md` remains a separate pending campaign. |
 
 ### Explicit tenant isolation evidence
 
