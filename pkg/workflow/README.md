@@ -10,14 +10,36 @@ compilation, explicit version migrations, immutable lifecycle history, and
 deterministic replay. It also defines bounded explicit activity attempts and
 unknown-outcome semantics, including replay of persisted attempt starts,
 outcomes, and bounded retry admission times. Automatic step scheduling,
-PostgreSQL storage, workers, compensation, signals, timers, operators, and
-optional integrations are not yet delivered.
+workers, compensation, signals, timers, operators, and optional integrations
+are not yet delivered.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that
 contract without choosing a database driver, and commit failures distinguish
 not-committed, committed, and unknown durable outcomes. Callers must reconcile
 unknown outcomes by transition ID before retrying.
+
+The `postgres` package is the first durable adapter. Its versioned migration
+creates instance, transition, history, and due-work tables in a caller-owned
+schema. A commit uses optimistic sequence checks and one PostgreSQL transaction
+for the transition identity, contiguous history, due work, and current instance
+position. Exact transition replay is idempotent; conflicting identity reuse is
+rejected. History reads use a bounded stable forward cursor. A transport error
+from `COMMIT` is deliberately classified as unknown rather than retried as if
+nothing happened.
+
+```go
+migration := postgres.SchemaMigration()
+if _, err := pool.Exec(ctx, migration.Up); err != nil {
+	return err
+}
+
+store, err := postgres.New(pool, postgres.Config{}) // schema: workflow
+```
+
+The caller creates and owns the schema, applies migrations, owns the pool, and
+decides how migration rollback is authorized. The adapter does not publish or
+acknowledge external messages.
 
 The package does not claim exactly-once external side effects. Applications
 must make activities idempotent and treat unknown outcomes as requiring

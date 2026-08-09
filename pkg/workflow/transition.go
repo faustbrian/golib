@@ -1,6 +1,9 @@
 package workflow
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"time"
 )
@@ -134,6 +137,7 @@ type Transition struct {
 	definition       DefinitionReference
 	events           []HistoryEvent
 	work             []PendingWork
+	fingerprint      string
 }
 
 // NewTransition validates and owns one bounded atomic persistence plan.
@@ -147,6 +151,7 @@ func NewTransition(spec TransitionSpec) (Transition, error) {
 	if !transition.valid() {
 		return Transition{}, ErrInvalidTransitionPlan
 	}
+	transition.fingerprint = transitionFingerprint(transition)
 	return transition, nil
 }
 
@@ -161,6 +166,15 @@ func (transition Transition) ExpectedSequence() uint64 { return transition.expec
 
 // Definition returns the exact behavior identity that made this decision.
 func (transition Transition) Definition() DefinitionReference { return transition.definition }
+
+// Fingerprint returns a deterministic digest of the complete ordered plan for
+// distinguishing exact idempotent replay from conflicting ID reuse.
+func (transition Transition) Fingerprint() string { return transition.fingerprint }
+
+// Valid reports whether the transition was constructed with NewTransition.
+func (transition Transition) Valid() bool {
+	return transition.fingerprint != ""
+}
 
 // Events returns an owned ordered copy of the atomic history append.
 func (transition Transition) Events() []HistoryEvent {
@@ -183,7 +197,7 @@ func (transition Transition) valid() bool {
 	totalBytes := uint64(0)
 	eventTimes := make(map[uint64]time.Time, len(transition.events))
 	for index, event := range transition.events {
-		if !historyEventValid(event) || event.instanceID != transition.instanceID ||
+		if event.instanceID != transition.instanceID ||
 			event.sequence != firstSequence+uint64(index) ||
 			(!previousTime.IsZero() && event.occurredAt.Before(previousTime)) {
 			return false
@@ -205,7 +219,7 @@ func (transition Transition) valid() bool {
 	for _, work := range transition.work {
 		totalBytes += uint64(len(work.payload))
 		eventTime, exists := eventTimes[work.sequence]
-		if !work.valid() || work.instanceID != transition.instanceID || !exists ||
+		if work.instanceID != transition.instanceID || !exists ||
 			work.availableAt.Before(eventTime) {
 			return false
 		}
@@ -236,4 +250,71 @@ func clonePendingWork(items []PendingWork) []PendingWork {
 		cloned[index].payload = cloneBytes(work.payload)
 	}
 	return cloned
+}
+
+func transitionFingerprint(transition Transition) string {
+	type eventDocument struct {
+		Sequence              uint64
+		InstanceID            string
+		Kind                  EventKind
+		OccurredAt            time.Time
+		DefinitionName        string
+		DefinitionVersion     string
+		DefinitionFingerprint string
+		SuccessorID           string
+		StepName              string
+		Attempt               uint32
+		IdempotencyKey        string
+		DueAt                 time.Time
+		Code                  string
+		Retryable             bool
+		Data                  []byte
+	}
+	type workDocument struct {
+		ID            string
+		Kind          WorkKind
+		InstanceID    string
+		Sequence      uint64
+		AvailableAt   time.Time
+		Deadline      time.Time
+		Payload       []byte
+		TenantID      string
+		CorrelationID string
+	}
+	events := make([]eventDocument, 0, len(transition.events))
+	for _, event := range transition.events {
+		events = append(events, eventDocument{
+			Sequence: event.sequence, InstanceID: event.instanceID, Kind: event.kind,
+			OccurredAt: event.occurredAt, DefinitionName: event.definition.Name(),
+			DefinitionVersion:     event.definition.Version(),
+			DefinitionFingerprint: event.definition.Fingerprint(), SuccessorID: event.successorID,
+			StepName: event.stepName, Attempt: event.attempt, IdempotencyKey: event.idempotencyKey,
+			DueAt: event.dueAt, Code: event.code, Retryable: event.retryable, Data: event.data,
+		})
+	}
+	work := make([]workDocument, 0, len(transition.work))
+	for _, item := range transition.work {
+		work = append(work, workDocument{
+			ID: item.id, Kind: item.kind, InstanceID: item.instanceID, Sequence: item.sequence,
+			AvailableAt: item.availableAt, Deadline: item.deadline, Payload: item.payload,
+			TenantID: item.tenantID, CorrelationID: item.correlationID,
+		})
+	}
+	encoded, _ := json.Marshal(struct {
+		ID                    string
+		InstanceID            string
+		ExpectedSequence      uint64
+		DefinitionName        string
+		DefinitionVersion     string
+		DefinitionFingerprint string
+		Events                []eventDocument
+		Work                  []workDocument
+	}{
+		ID: transition.id, InstanceID: transition.instanceID,
+		ExpectedSequence: transition.expectedSequence,
+		DefinitionName:   transition.definition.Name(), DefinitionVersion: transition.definition.Version(),
+		DefinitionFingerprint: transition.definition.Fingerprint(), Events: events, Work: work,
+	})
+	digest := sha256.Sum256(encoded)
+	return hex.EncodeToString(digest[:])
 }

@@ -81,7 +81,7 @@ func (instance *Instance) applyActivity(registry *Registry, event HistoryEvent) 
 			stepName: event.stepName, status: ActivityProgressReady, input: cloneBytes(event.data),
 		}
 	case EventActivityAttemptStarted:
-		if instance.status != StatusRunning || !exists ||
+		if instance.status != StatusRunning ||
 			(progress.status != ActivityProgressReady && progress.status != ActivityProgressRetryWaiting) ||
 			event.attempt != progress.attempt+1 || event.attempt > step.Retry.MaxAttempts ||
 			event.dueAt != canonicalTime(event.occurredAt.Add(step.Timeout)) ||
@@ -129,7 +129,7 @@ func (instance *Instance) applyActivity(registry *Registry, event HistoryEvent) 
 		progress.retryable = false
 		instance.activities[event.stepName] = progress
 	case EventActivityRetryScheduled:
-		if instance.status != StatusRunning || !exists || progress.status != ActivityProgressFailed ||
+		if instance.status != StatusRunning || progress.status != ActivityProgressFailed ||
 			!progress.retryable || progress.attempt >= step.Retry.MaxAttempts || event.attempt != progress.attempt ||
 			event.dueAt != canonicalTime(event.occurredAt.Add(retryDelay(step.Retry, event.attempt))) {
 			return ErrInvalidTransition
@@ -141,9 +141,8 @@ func (instance *Instance) applyActivity(registry *Registry, event HistoryEvent) 
 	return nil
 }
 
-func activityOutcomeAllowed(status InstanceStatus, progress ActivityProgress, exists bool, event HistoryEvent) bool {
-	return !terminalStatus(status) && exists && progress.status == ActivityProgressRunning &&
-		event.attempt == progress.attempt
+func activityOutcomeAllowed(_ InstanceStatus, progress ActivityProgress, _ bool, event HistoryEvent) bool {
+	return progress.status == ActivityProgressRunning && event.attempt == progress.attempt
 }
 
 func definitionActivityStep(definition Definition, name string) (StepSpec, bool) {

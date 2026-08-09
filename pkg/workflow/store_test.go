@@ -30,6 +30,9 @@ func TestHistoryPageProvidesStableBoundedPagination(t *testing.T) {
 	if query.InstanceID() != "instance-1" || query.AfterSequence() != 1 || query.Limit() != 2 {
 		t.Fatal("history query was not preserved")
 	}
+	if !query.Valid() || (workflow.HistoryQuery{}).Valid() {
+		t.Fatal("history query validity was ambiguous")
+	}
 	if page.NextAfterSequence() != 3 || !page.HasMore() || len(page.Events()) != 2 {
 		t.Fatal("history page cursor was not preserved")
 	}
@@ -104,6 +107,7 @@ func TestHistoryPageRejectsUnstableAdapterOutput(t *testing.T) {
 		events  []workflow.HistoryEvent
 		hasMore bool
 	}{
+		{},
 		{events: []workflow.HistoryEvent{first}},
 		{query: query, events: []workflow.HistoryEvent{first, second, second}},
 		{query: query, events: []workflow.HistoryEvent{first}, hasMore: true},

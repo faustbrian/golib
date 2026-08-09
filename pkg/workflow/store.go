@@ -121,6 +121,9 @@ func (query HistoryQuery) AfterSequence() uint64 { return query.afterSequence }
 // Limit returns the maximum number of events in the page.
 func (query HistoryQuery) Limit() uint32 { return query.limit }
 
+// Valid reports whether the query is bounded and internally coherent.
+func (query HistoryQuery) Valid() bool { return query.valid() }
+
 func (query HistoryQuery) valid() bool {
 	return instanceIDPattern.MatchString(query.instanceID) && query.limit > 0 &&
 		query.limit <= MaxHistoryPageEvents && query.afterSequence != ^uint64(0)

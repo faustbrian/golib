@@ -37,8 +37,12 @@ func TestTransitionOwnsAtomicHistoryAndDueWork(t *testing.T) {
 		t.Fatalf("construct transition: %v", err)
 	}
 	if transition.ID() != "transition-1" || transition.InstanceID() != "instance-1" ||
-		transition.ExpectedSequence() != 1 || transition.Definition() != definition.Reference() {
+		transition.ExpectedSequence() != 1 || transition.Definition() != definition.Reference() || !transition.Valid() {
 		t.Fatal("transition identity was not preserved")
+	}
+	fingerprint := transition.Fingerprint()
+	if len(fingerprint) != 64 {
+		t.Fatalf("transition fingerprint length = %d", len(fingerprint))
 	}
 	events := transition.Events()
 	workItems := transition.Work()
@@ -57,6 +61,39 @@ func TestTransitionOwnsAtomicHistoryAndDueWork(t *testing.T) {
 	workItems[0] = workflow.PendingWork{}
 	if string(transition.Work()[0].Payload()) != "work-input" {
 		t.Fatal("transition returned caller-mutable work")
+	}
+	same, err := workflow.NewTransition(workflow.TransitionSpec{
+		ID: "transition-1", InstanceID: "instance-1", ExpectedSequence: 1,
+		Definition: definition.Reference(), Events: []workflow.HistoryEvent{event},
+		Work: []workflow.PendingWork{work},
+	})
+	if err != nil {
+		t.Fatalf("construct identical transition: %v", err)
+	}
+	if same.Fingerprint() != fingerprint {
+		t.Fatal("identical transition produced a different fingerprint")
+	}
+	changedWork, err := workflow.NewPendingWork(workflow.PendingWorkSpec{
+		ID: "work-1", Kind: workflow.WorkActivity, InstanceID: "instance-1",
+		Sequence: 2, AvailableAt: now, Deadline: now.Add(time.Minute), Payload: []byte("different"),
+		TenantID: "tenant-1", CorrelationID: "correlation-1",
+	})
+	if err != nil {
+		t.Fatalf("construct changed work: %v", err)
+	}
+	changed, err := workflow.NewTransition(workflow.TransitionSpec{
+		ID: "transition-1", InstanceID: "instance-1", ExpectedSequence: 1,
+		Definition: definition.Reference(), Events: []workflow.HistoryEvent{event},
+		Work: []workflow.PendingWork{changedWork},
+	})
+	if err != nil {
+		t.Fatalf("construct changed transition: %v", err)
+	}
+	if changed.Fingerprint() == fingerprint {
+		t.Fatal("changed transition reused the same fingerprint")
+	}
+	if (workflow.Transition{}).Valid() {
+		t.Fatal("zero transition reported valid")
 	}
 }
 
@@ -313,5 +350,30 @@ func TestTransitionBoundsAggregatePersistedPayload(t *testing.T) {
 	valid.Work = []workflow.PendingWork{work}
 	if _, err := workflow.NewTransition(valid); !errors.Is(err, workflow.ErrInvalidTransitionPlan) {
 		t.Fatalf("aggregate payload overflow error = %v", err)
+	}
+}
+
+func TestTransitionBoundsAggregatePayloadAcrossEvents(t *testing.T) {
+	t.Parallel()
+
+	definition := mustDefinition(t, "orders", "1")
+	now := time.Date(2026, 8, 9, 12, 0, 0, 0, time.UTC)
+	payloadSize := workflow.MaxTransitionBytes/2 + 1
+	events := []workflow.HistoryEvent{
+		mustHistoryEvent(t, workflow.HistoryEventSpec{
+			Sequence: 2, InstanceID: "instance-1", Kind: workflow.EventInstancePaused,
+			OccurredAt: now, Data: make([]byte, payloadSize),
+		}),
+		mustHistoryEvent(t, workflow.HistoryEventSpec{
+			Sequence: 3, InstanceID: "instance-1", Kind: workflow.EventInstanceResumed,
+			OccurredAt: now.Add(time.Second), Data: make([]byte, payloadSize),
+		}),
+	}
+	_, err := workflow.NewTransition(workflow.TransitionSpec{
+		ID: "transition-payload-events", InstanceID: "instance-1", ExpectedSequence: 1,
+		Definition: definition.Reference(), Events: events,
+	})
+	if !errors.Is(err, workflow.ErrInvalidTransitionPlan) {
+		t.Fatalf("aggregate event payload overflow error = %v", err)
 	}
 }

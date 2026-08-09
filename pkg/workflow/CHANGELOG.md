@@ -15,6 +15,10 @@ and releases use Semantic Versioning.
 - Immutable bounded transition plans that atomically couple optimistic history
   appends with due work, plus stable history pagination and explicit unknown
   commit outcomes for durable-store adapters.
+- PostgreSQL durable storage with a versioned caller-owned schema, atomic
+  optimistic history-and-work commits, conflicting transition detection,
+  idempotent exact replay, bounded stable pagination, and rollback-safe failure
+  handling.
 - Immutable durable lifecycle history, deterministic replay, pinned definition
   verification, explicit persisted migration decisions, cancellation,
   termination, and continue-as-new outcomes.

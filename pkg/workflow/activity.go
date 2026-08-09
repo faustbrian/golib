@@ -225,7 +225,7 @@ func (activity Activity) Name() string { return activity.name }
 // It does not recover panics or claim that context cancellation stopped an
 // arbitrary external operation.
 func (activity Activity) Execute(ctx context.Context, request ActivityRequest) (ActivityOutcome, error) {
-	if !stableName.MatchString(activity.name) || activity.handler == nil {
+	if activity.handler == nil {
 		return ActivityOutcome{}, ErrInvalidActivity
 	}
 	if ctx == nil || !request.valid() {
@@ -256,7 +256,7 @@ type ActivityRegistry struct {
 func CompileActivities(activities ...Activity) (*ActivityRegistry, error) {
 	registry := &ActivityRegistry{activities: make(map[string]Activity, len(activities))}
 	for _, activity := range activities {
-		if !stableName.MatchString(activity.name) || activity.handler == nil {
+		if activity.handler == nil {
 			return nil, ErrInvalidActivity
 		}
 		if _, exists := registry.activities[activity.name]; exists {

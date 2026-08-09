@@ -167,6 +167,9 @@ func TestDefinitionRejectsUnsafeOrAmbiguousSteps(t *testing.T) {
 	}
 
 	tests := map[string]func() workflow.DefinitionSpec{
+		"missing steps": func() workflow.DefinitionSpec {
+			return workflow.DefinitionSpec{Name: "payments", Version: "1", Mode: workflow.Orchestration}
+		},
 		"missing stable name": func() workflow.DefinitionSpec {
 			return workflow.DefinitionSpec{Version: "1", Mode: workflow.Orchestration, Steps: []workflow.StepSpec{validActivity}}
 		},
