@@ -9,19 +9,32 @@ import (
 	ruleenginemath "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath"
 )
 
-func BenchmarkDecimalGreaterThan(b *testing.B) {
-	operator := operatorByName(b, ruleenginemath.OpDecimalGreaterThan)
+func BenchmarkDecimalComparison(b *testing.B) {
 	left := ruleenginemath.Decimal(decimal.MustParse("100.0000000001"))
 	right := ruleenginemath.Decimal(decimal.MustParse("100"))
 	ctx := context.Background()
 
-	b.ReportAllocs()
-	for b.Loop() {
-		matched, err := operator.Evaluate(ctx, left, right)
-		if err != nil || !matched {
-			b.Fatalf("Evaluate() = %t, %v", matched, err)
+	b.Run("adapter", func(b *testing.B) {
+		operator := operatorByName(b, ruleenginemath.OpDecimalGreaterThan)
+		b.ReportAllocs()
+		for b.Loop() {
+			matched, err := operator.Evaluate(ctx, left, right)
+			if err != nil || !matched {
+				b.Fatalf("Evaluate() = %t, %v", matched, err)
+			}
 		}
-	}
+	})
+
+	b.Run("direct", func(b *testing.B) {
+		left := decimal.MustParse("100.0000000001")
+		right := decimal.MustParse("100")
+		b.ReportAllocs()
+		for b.Loop() {
+			if left.Cmp(right) <= 0 {
+				b.Fatal("direct comparison did not preserve ordering")
+			}
+		}
+	})
 }
 
 func operatorByName(

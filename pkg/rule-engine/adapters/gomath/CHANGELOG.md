@@ -4,6 +4,20 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Breaking
+
+- Replace the unversioned `decimal:` value tag and `decimal_*` operator names
+  with the collision-resistant v1 persistence contracts documented in the
+  module migration guide.
+
+### Added
+
+- Add caller-selected decimal limits with stable error identities for invalid
+  tags, noncanonical payloads, decimal syntax, resource limits, and
+  cancellation.
+- Document encoding, exactness, operators, composition, adoption, security,
+  compatibility, migration, and common integration questions.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.
