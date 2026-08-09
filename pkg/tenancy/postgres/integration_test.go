@@ -80,15 +80,13 @@ func TestPostgreSQLRLSAndPoolReuseIsolation(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("tenant A insert: %v", err)
 	}
-	if err := manager.WithTenant(ctx, database, tenantA, withRole(func(ctx context.Context, tx *sql.Tx) error {
+	err = manager.WithTenant(ctx, database, tenantA, withRole(func(ctx context.Context, tx *sql.Tx) error {
 		_, err := tx.ExecContext(ctx, `INSERT INTO "`+table+`" (tenant_id, item) VALUES ($1, $2)`, "tenant-b", "spoof")
-		var postgresError *pgconn.PgError
-		if !errors.As(err, &postgresError) || postgresError.Code != "42501" {
-			return fmt.Errorf("cross-tenant insert error = %w", err)
-		}
-		return nil
-	})); err != nil {
-		t.Fatal(err)
+		return err
+	}))
+	var postgresError *pgconn.PgError
+	if !errors.As(err, &postgresError) || postgresError.Code != "42501" {
+		t.Fatalf("cross-tenant insert error = %v", err)
 	}
 	if err := manager.WithTenant(ctx, database, tenantB, withRole(func(ctx context.Context, tx *sql.Tx) error {
 		statement, err := tx.PrepareContext(ctx, `SELECT count(*) FROM "`+table+`" WHERE tenant_id = $1`)
