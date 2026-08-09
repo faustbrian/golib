@@ -15,6 +15,16 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Normalize credential, outcome, and failure dimensions to the documented
+  closed value sets; clamp negative durations; complete each attempt exactly
+  once under duplicate or concurrent callbacks without making duplicates wait
+  for provider work; and isolate provider and observer panics without
+  disclosing panic values.
+- Define adapter telemetry convention version `1.0.0` without mislabeling it as
+  an OpenTelemetry instrumentation-module version or schema URL, and document
+  signal stability, bounded-provider prerequisites, provider ownership,
+  privacy, cancellation, concurrency, lifecycle, compatibility, and migration
+  policy.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

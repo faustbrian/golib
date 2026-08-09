@@ -86,7 +86,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 19 | Security | `pending-reexecution` | `pkg/secret-envelope/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 20 | Security | `pending-reexecution` | `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19 |
 | 22 | Authentication | `pending-reexecution` | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | 21 |
-| 23 | Authentication | `pending-reexecution` | `pkg/authentication/authotel/.ai/{GOAL.md,GOAL_HARDEN.md}` | 21, 22 |
+| 23 | Authentication | `pending-reexecution` | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | 21, 22 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 24, 25 |

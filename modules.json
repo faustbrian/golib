@@ -1848,7 +1848,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`authotel` is the optional OpenTelemetry adapter for [`authentication`](https://pkg.go.dev/github.com/faustbrian/golib/pkg/authentication). It turns completed authentication attempts into bounded traces and metrics. It does not authenticate credentials, make authorization decisions, configure an SDK, or own exporters.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
@@ -1883,7 +1883,8 @@
           "file": "pkg/authentication/authotel/.ai/GOAL.md",
           "requirements_sha256": "cb6dfb02c33498a456b6dff276898ce91e4a11bc5286ab07e122a4d86d04e0b5",
           "implementation_evidence": [
-            "pkg/authentication/authotel/CHANGELOG.md"
+            "pkg/authentication/authotel/CHANGELOG.md",
+            "pkg/authentication/authotel/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -1914,7 +1915,8 @@
           "file": "pkg/authentication/authotel/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "7b824c0b437c4276c2ad3f25404f870b887b25933d99769fa760336100a49b5c",
           "implementation_evidence": [
-            "pkg/authentication/authotel/CHANGELOG.md"
+            "pkg/authentication/authotel/CHANGELOG.md",
+            "pkg/authentication/authotel/README.md"
           ],
           "verification_gates": [
             "format-check",

@@ -11,10 +11,14 @@ import (
 )
 
 func ExampleNew() {
-	instrumenter, _ := authotel.New(authotel.Config{
+	instrumenter, err := authotel.New(authotel.Config{
 		TracerProvider: tracenoop.NewTracerProvider(),
 		MeterProvider:  metricnoop.NewMeterProvider(),
 	})
+	if err != nil {
+		fmt.Println("configuration error")
+		return
+	}
 	_, finish := instrumenter.Start(context.Background(), authentication.CredentialBearer)
 	finish(authentication.Event{Outcome: authentication.OutcomeAuthenticated})
 	fmt.Println("instrumented")
