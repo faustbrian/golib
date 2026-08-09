@@ -16,6 +16,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Catalog OpenRPC's supported 1.3.x and 1.4.x lines, adjacent standards, pinned
+  official examples, and generated conformance matrices instead of the stale
+  OpenRPC 1.3-only description.
 - Accept an explicit `release` field as a provenance version pin so structured
   source manifests do not need a redundant `version` alias.
 - Skip Docker discovery for service-free modules and bound server-version

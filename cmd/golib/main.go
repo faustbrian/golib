@@ -1274,7 +1274,11 @@ func specifications(directory string) []string {
 	case "openapi":
 		return []string{"OpenAPI 2.0, 3.0, and 3.1"}
 	case "openrpc":
-		return []string{"OpenRPC 1.3"}
+		return []string{
+			"OpenRPC 1.3.x and 1.4.x",
+			"JSON Schema Draft 7",
+			"JSON-RPC 2.0",
+		}
 	case "wsdl":
 		return []string{"WSDL 1.1 and 2.0"}
 	case "xsd":
@@ -1388,6 +1392,12 @@ func goalFiles(root, directory string) []string {
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasPrefix(entry.Name(), "GOAL") && strings.HasSuffix(entry.Name(), ".md") {
 			goals = append(goals, filepath.ToSlash(filepath.Join(directory, ".ai", entry.Name())))
+		}
+	case "openrpc":
+		return []string{
+			"Pinned OpenRPC 1.4.1 meta-schema and prose at 3a13c7a8bad248e6edd2d48339cd1c06b57f8f22",
+			"Pinned official OpenRPC examples at dce69463ba9a3ca2232506b734606fa97f25dd45",
+			"Generated normative and object-field evidence matrices",
 		}
 	}
 	sort.Strings(goals)
