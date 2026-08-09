@@ -2,6 +2,9 @@
 
 The authoritative executable evidence is pinned to JSON Schema Test Suite
 revision `c0b038ad7244712cf73650f44e90d0bc5704e8c7`.
+Fixture results are interpreted through the explicit
+[specification decision register](specification-decisions.md); passing a corpus
+does not silently resolve behavior the corpus leaves open.
 
 | Evidence | Current result |
 | --- | ---: |

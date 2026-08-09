@@ -10,8 +10,10 @@ The package has one compile-and-validate lifecycle:
 
 `NewCompiler` defaults to Draft 2020-12 and `DefaultLimits`. Its options
 select a dialect, replace limits, authorize a resource loader, enable format
-or content assertions, and register custom formats or vocabularies. Options
-are copied into the compiler; there is no process-wide registry.
+assertions or Draft 7 content assertions, and register custom formats or
+vocabularies. Draft 2019-09 and Draft 2020-12 content keywords remain
+annotations even when `WithContentAssertion` is present. Options are copied
+into the compiler; there is no process-wide registry.
 
 `Compiler.Compile` accepts UTF-8 JSON bytes. It parses exact JSON numbers,
 validates the document against the selected official meta-schema, resolves

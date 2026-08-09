@@ -7,7 +7,8 @@ required=(
 	docs/cookbook.md docs/dependencies.md docs/dialects.md docs/extensions.md
 	docs/faq.md docs/hardening-report.md docs/limits.md docs/matrices.md docs/output.md
 	docs/performance.md docs/quickstart.md docs/resolvers.md docs/security.md
-	docs/troubleshooting.md docs/versioning.md bowtie/README.md
+	docs/specification-decisions.md docs/troubleshooting.md docs/versioning.md
+	bowtie/README.md
 )
 for file in "${required[@]}"; do
 	if [[ ! -s "$file" ]]; then

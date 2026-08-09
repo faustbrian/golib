@@ -19,9 +19,11 @@ received by their `Load` method.
 
 ## A format or content value is not rejected
 
-Those keywords are annotations unless assertion behavior is explicitly
-enabled. Use `WithFormatAssertion` or `WithContentAssertion`. Also confirm the
-keyword exists in the selected dialect and vocabulary.
+Format is an annotation unless assertion behavior is explicitly enabled with
+`WithFormatAssertion`. `WithContentAssertion` enables the optional Draft 7
+content assertion behavior only. Draft 2019-09 and Draft 2020-12 content
+keywords remain annotations and cannot make the enclosing instance invalid.
+Also confirm the keyword exists in the selected dialect and vocabulary.
 
 ## Validation returns an error instead of `Valid == false`
 

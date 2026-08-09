@@ -5,6 +5,11 @@ Changelog structure and semantic versioning after v1.
 
 ## Unreleased
 
+- Add an auditable specification-decision register covering dialects,
+  vocabularies, annotations, references, exact data-model behavior, secure
+  resource loading, output, and optional conformance policy.
+- Restrict opt-in content assertion to Draft 7 so Draft 2019-09 and Draft
+  2020-12 content annotations cannot change the enclosing validation result.
 - Reject literal brackets in URI and IRI paths, queries, and fragments while
   retaining bracketed IP literals in authorities.
 - Short-circuit Draft 3 `type` and `disallow` schema alternatives after a

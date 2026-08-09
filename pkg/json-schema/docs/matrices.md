@@ -90,12 +90,14 @@ conditionals, dependent schemas, contains, and nested unevaluated applicators.
 | `examples` | — | — | annotation | annotation | annotation | annotation |
 | `readOnly`, `writeOnly` | — | — | — | annotation | annotation | annotation |
 | `deprecated` | — | — | — | — | annotation | annotation |
-| `contentEncoding`, `contentMediaType` | — | — | — | annotation / opt-in assertion | annotation / opt-in assertion | annotation / opt-in assertion |
+| `contentEncoding`, `contentMediaType` | — | — | — | annotation / opt-in assertion | annotation only | annotation only |
 | `contentSchema` | — | — | — | — | annotation | annotation |
 
-Content assertion recognizes RFC 4648 base64 and JSON or `+json` media types.
-Unknown encodings and media types remain annotations. `contentSchema`
-contributes an annotation only for strings when `contentMediaType` is present.
+Draft 7 content assertion recognizes RFC 4648 base64 and JSON or `+json` media
+types. Unknown encodings and media types remain annotations. Draft 2019-09 and
+Draft 2020-12 content keywords never affect the enclosing validation result.
+`contentSchema` contributes an annotation only for strings when
+`contentMediaType` is present.
 
 ## Standard formats
 

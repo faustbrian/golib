@@ -1,5 +1,10 @@
 # Compatibility, deprecation, and versioning
 
+The [specification decision register](specification-decisions.md) is part of
+the observable compatibility contract. A change to a resolved parsing,
+resolution, validation, annotation, or output decision requires compatibility
+review even when the earlier behavior was not documented elsewhere.
+
 The module follows semantic versioning after `v1.0.0`. Before v1, public API
 changes remain possible but require changelog entries, migration notes, and
 executable contract updates.

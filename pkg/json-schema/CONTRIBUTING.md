@@ -13,6 +13,14 @@ official fixture. Update the pinned suite only through
 `scripts/sync-official-suite.sh` after reviewing upstream changes and case
 counts.
 
+Contributors changing parsing, compilation, reference resolution, validation,
+annotations, output, or protocol behavior must review
+[`docs/specification-decisions.md`](docs/specification-decisions.md). Update an
+existing stable decision instead of replacing its history, or add a new stable
+decision with normative sources, alternatives, peer behavior, consequences,
+executable evidence, and reconsideration conditions. An unresolved material
+contradiction blocks the affected conformance or release claim.
+
 New keywords require dialect placement, schema form, meta-validation,
 compilation, evaluation, annotation/evaluated-location behavior, output,
 limits, cancellation, malformed-schema tests, cross-draft tests, and

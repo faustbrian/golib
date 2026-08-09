@@ -206,8 +206,8 @@ type Option func(*compilerConfig) error
     Option configures a Compiler without mutating shared global state.
 
 func WithContentAssertion() Option
-    WithContentAssertion enables validation of recognized content encodings and
-    media types. Content keywords are annotations unless this option is used.
+    WithContentAssertion enables Draft 7 validation of recognized content
+    encodings and media types. Later dialects keep content as annotations.
 
 func WithDialect(dialect Dialect) Option
     WithDialect selects the dialect used to compile schemas.

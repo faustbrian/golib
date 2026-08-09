@@ -77,8 +77,8 @@ func WithFormatAssertion() Option {
 	}
 }
 
-// WithContentAssertion enables validation of recognized content encodings and
-// media types. Content keywords are annotations unless this option is used.
+// WithContentAssertion enables Draft 7 validation of recognized content
+// encodings and media types. Later dialects keep content as annotations.
 func WithContentAssertion() Option {
 	return func(config *compilerConfig) error {
 		config.assertContent = true

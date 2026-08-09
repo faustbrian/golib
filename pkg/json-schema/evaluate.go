@@ -503,7 +503,7 @@ func (compiler *schemaCompiler) compile(value *jsonValue) (*schemaPlan, error) {
 					ErrInvalidSchema,
 				)
 			}
-			if compiler.assertContent {
+			if compiler.assertContent && dialect == Draft7 {
 				plan.contentEncoding = strings.ToLower(encoding.text)
 			}
 		}
@@ -514,7 +514,7 @@ func (compiler *schemaCompiler) compile(value *jsonValue) (*schemaPlan, error) {
 					ErrInvalidSchema,
 				)
 			}
-			if compiler.assertContent {
+			if compiler.assertContent && dialect == Draft7 {
 				plan.contentMediaType = mediaType.text
 			}
 		}

@@ -530,6 +530,63 @@ func TestContentKeywordsAreAnnotationsByDefault(t *testing.T) {
 	}
 }
 
+func TestContentAssertionIsLimitedToDraft7(t *testing.T) {
+	t.Parallel()
+
+	for _, dialect := range []jsonschema.Dialect{
+		jsonschema.Draft201909,
+		jsonschema.Draft202012,
+	} {
+		dialect := dialect
+		for _, test := range []struct {
+			name     string
+			schema   string
+			instance string
+		}{
+			{
+				name:     "encoding",
+				schema:   `{"contentEncoding":"base64"}`,
+				instance: `"%%%"`,
+			},
+			{
+				name:     "media type",
+				schema:   `{"contentMediaType":"application/json"}`,
+				instance: `"not JSON"`,
+			},
+		} {
+			test := test
+			t.Run(string(dialect)+"/"+test.name, func(t *testing.T) {
+				t.Parallel()
+
+				compiler, err := jsonschema.NewCompiler(
+					jsonschema.WithDialect(dialect),
+					jsonschema.WithContentAssertion(),
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+				schema, err := compiler.Compile(
+					context.Background(),
+					[]byte(test.schema),
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+				result, err := schema.Validate(
+					context.Background(),
+					[]byte(test.instance),
+				)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if !result.Valid {
+					t.Fatal("modern content annotation changed the enclosing validation result")
+				}
+			})
+		}
+	}
+}
+
 func TestCompilerBoundsLoadedSchemaResources(t *testing.T) {
 	t.Parallel()
 

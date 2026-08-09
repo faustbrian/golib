@@ -48,10 +48,12 @@ raw JSON; `ValidateValue` accepts Go values and preserves `json.Number` text.
 Verbose output units. `CollectAnnotations` returns retained successful-path
 annotations as a flat deterministic list.
 
-Format and content keywords are annotations by default. Enable recognized
-assertions explicitly with `WithFormatAssertion` and
-`WithContentAssertion`. Remote references require an explicit
-`ResourceLoader`; the core never performs network I/O.
+Format keywords are annotations by default; enable recognized assertions with
+`WithFormatAssertion`. Content keywords are annotations by default, and
+`WithContentAssertion` enables only Draft 7's optional assertion behavior.
+Draft 2019-09 and Draft 2020-12 content processing never changes the enclosing
+schema result. Remote references require an explicit `ResourceLoader`; the
+core never performs network I/O.
 
 ## Contracts
 
@@ -60,6 +62,7 @@ assertions explicitly with `WithFormatAssertion` and
 - [Architecture and evaluator lifecycle](docs/architecture.md)
 - [Dialect and keyword matrices](docs/matrices.md)
 - [Conformance evidence](docs/conformance.md)
+- [Specification decisions](docs/specification-decisions.md)
 - [Dialect selection and migration](docs/dialects.md)
 - [Resolvers and secure loading](docs/resolvers.md)
 - [Custom vocabularies, keywords, and formats](docs/extensions.md)
