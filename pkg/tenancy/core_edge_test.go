@@ -108,8 +108,8 @@ func TestScopeRequirementsAndEnforcementContracts(t *testing.T) {
 	tenant := tenancy.MustTenantID("tenant-a")
 	tenantScope, _ := tenancy.NewTenantScope(tenant, tenancy.Metadata{})
 	tenantContext, _ := tenancy.WithScope(context.Background(), tenantScope)
-	//nolint:staticcheck // Nil context rejection is the contract under test.
-	if _, ok := tenancy.ScopeFromContext(nil); ok {
+	//lint:ignore SA1012 Nil context rejection is the contract under test.
+	if _, ok := tenancy.ScopeFromContext(nil); ok { //nolint:staticcheck // Verifies nil-context rejection.
 		t.Fatal("ScopeFromContext(nil) reported scope")
 	}
 	if _, err := tenancy.RequireSystem(tenantContext); !errors.Is(err, tenancy.ErrSystemScopeRequired) {

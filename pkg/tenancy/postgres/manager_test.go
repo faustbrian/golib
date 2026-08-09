@@ -146,8 +146,8 @@ func TestManagerFailsClosedOnVerificationAndInvalidInputs(t *testing.T) {
 	if err := manager.WithTenant(context.Background(), database, scope, func(context.Context, *sql.Tx) error { return nil }); !errors.Is(err, tenancypostgres.ErrScopeVerification) {
 		t.Fatalf("WithTenant(mismatch) error = %v", err)
 	}
-	//nolint:staticcheck // Nil context rejection is the contract under test.
-	if err := manager.WithTenant(nil, database, scope, func(context.Context, *sql.Tx) error { return nil }); !errors.Is(err, tenancypostgres.ErrInvalidOperation) {
+	//lint:ignore SA1012 Nil context rejection is the contract under test.
+	if err := manager.WithTenant(nil, database, scope, func(context.Context, *sql.Tx) error { return nil }); !errors.Is(err, tenancypostgres.ErrInvalidOperation) { //nolint:staticcheck // Verifies nil-context rejection.
 		t.Fatalf("WithTenant(nil context) error = %v", err)
 	}
 	if err := manager.WithTenant(context.Background(), nil, scope, func(context.Context, *sql.Tx) error { return nil }); !errors.Is(err, tenancypostgres.ErrInvalidOperation) {

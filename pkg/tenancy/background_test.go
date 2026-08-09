@@ -124,8 +124,8 @@ func TestGroupReportsTaskErrorsOutsideSynchronization(t *testing.T) {
 func TestGroupValidatesConstructionAndSubmission(t *testing.T) {
 	t.Parallel()
 
-	//nolint:staticcheck // Nil context rejection is the contract under test.
-	if _, err := tenancy.NewGroup(nil, tenancy.GroupOptions{MaxConcurrent: 1}); !errors.Is(err, tenancy.ErrInvalidGroup) {
+	//lint:ignore SA1012 Nil context rejection is the contract under test.
+	if _, err := tenancy.NewGroup(nil, tenancy.GroupOptions{MaxConcurrent: 1}); !errors.Is(err, tenancy.ErrInvalidGroup) { //nolint:staticcheck // Verifies nil-context rejection.
 		t.Fatalf("NewGroup(nil) error = %v", err)
 	}
 	if _, err := tenancy.NewGroup(context.Background(), tenancy.GroupOptions{}); !errors.Is(err, tenancy.ErrInvalidGroup) {
@@ -158,8 +158,8 @@ func TestGroupValidatesConstructionAndSubmission(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewGroup(maximum) error = %v", err)
 	}
-	//nolint:staticcheck // Nil context rejection is the contract under test.
-	if err := validGroup.Shutdown(nil); !errors.Is(err, tenancy.ErrInvalidGroup) {
+	//lint:ignore SA1012 Nil context rejection is the contract under test.
+	if err := validGroup.Shutdown(nil); !errors.Is(err, tenancy.ErrInvalidGroup) { //nolint:staticcheck // Verifies nil-context rejection.
 		t.Fatalf("Shutdown(nil context) error = %v", err)
 	}
 	if err := shutdownWithin(t, validGroup); err != nil {
