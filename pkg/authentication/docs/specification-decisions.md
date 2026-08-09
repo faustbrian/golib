@@ -165,7 +165,7 @@ security, compatibility, executable-evidence, and changelog review.
 | Field | Decision |
 | --- | --- |
 | Status and owner | `resolved`; `authentication` maintainers |
-| Source | No HTTP authentication specification defines in-process composition across several validators for one credential kind; this is package-owned policy constrained by the failure taxonomy |
+| Source | No HTTP authentication specification defines in-process composition across several validators for one credential kind; this package-owned policy is constrained by the [RFC 9110 authentication framework](https://www.rfc-editor.org/rfc/rfc9110.html#section-11) and [RFC 6750 bearer error taxonomy](https://www.rfc-editor.org/rfc/rfc6750.html#section-3.1) |
 | Classification | Application composition and downgrade-prevention policy |
 | Issue | During rotation or migration, several authenticators can recognize the same credential kind. Falling through after malformed input, provider outage, cancellation, or an unclassified error can convert a terminal failure into acceptance by a weaker validator. |
 | Credible interpretations | First authenticator always decides; fall through after every error; race all validators; or fall through only after an explicit credential rejection while making every other outcome terminal. |
@@ -183,7 +183,7 @@ security, compatibility, executable-evidence, and changelog review.
 | Field | Decision |
 | --- | --- |
 | Status and owner | `resolved`; `authentication` maintainers |
-| Source | No wire specification defines in-memory credential storage or rotation; RFC 7617 and RFC 6750 require protection appropriate to reusable credentials but leave server implementation policy to the application |
+| Source | No wire specification defines in-memory credential storage or rotation; [RFC 7617 security considerations](https://www.rfc-editor.org/rfc/rfc7617.html#section-4) and [RFC 6750 security threats](https://www.rfc-editor.org/rfc/rfc6750.html#section-5.1) require protection appropriate to reusable credentials but leave server implementation policy to the application |
 | Classification | Defensive cryptographic comparison and lifecycle policy |
 | Issue | Direct string lookup leaks representation and can expose timing differences between known and unknown identifiers. In-place rotation can expose partial sets or revoke the previous set after a failed update. |
 | Credible interpretations | Store plaintext map keys; compare until first match; hash only secrets; mutate sets in place; or publish complete validated digest snapshots and compare every candidate. |

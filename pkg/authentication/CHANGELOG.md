@@ -15,6 +15,8 @@ this project follows Semantic Versioning.
 
 ### Fixed
 
+- Bind package-owned composition and static-secret lifecycle decisions to the
+  authoritative RFC authentication and credential-security constraints.
 - Return authentication unavailability instead of emitting a non-compliant
   `401 Unauthorized` response when no valid `WWW-Authenticate` challenge is
   available.
