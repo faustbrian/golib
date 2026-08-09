@@ -25,6 +25,9 @@ and releases use Semantic Versioning.
 - Bounded workers with deterministic clocks, tenant-fair admission, explicit
   processor dispositions, periodic lease renewal, stale-owner cancellation,
   graceful draining, bounded finalization, and synchronous lifecycle hooks.
+- Durable timer scheduling and firing with atomic due-work admission, plus
+  bounded deduplicated signal acceptance that must commit before transport
+  acknowledgement and replays from persisted decisions only.
 - Immutable durable lifecycle history, deterministic replay, pinned definition
   verification, explicit persisted migration decisions, cancellation,
   termination, and continue-as-new outcomes.

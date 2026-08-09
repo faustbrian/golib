@@ -99,6 +99,12 @@ const (
 	EventActivityAttemptUnknown EventKind = 15
 	// EventActivityRetryScheduled records the deterministic next-attempt time.
 	EventActivityRetryScheduled EventKind = 16
+	// EventTimerScheduled records a durable timer deadline before admission.
+	EventTimerScheduled EventKind = 17
+	// EventTimerFired records the persisted observation that a timer became due.
+	EventTimerFired EventKind = 18
+	// EventSignalReceived records one durably accepted deduplicated signal.
+	EventSignalReceived EventKind = 19
 )
 
 // HistoryEventSpec supplies one immutable durable history record.
@@ -162,7 +168,7 @@ func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 
 func validHistoryEventSpec(spec HistoryEventSpec) bool {
 	if spec.Sequence == 0 || !instanceIDPattern.MatchString(spec.InstanceID) ||
-		spec.Kind < EventInstanceStarted || spec.Kind > EventActivityRetryScheduled ||
+		spec.Kind < EventInstanceStarted || spec.Kind > EventSignalReceived ||
 		spec.OccurredAt.IsZero() || len(spec.Data) > MaxPayloadBytes {
 		return false
 	}
@@ -180,7 +186,7 @@ func validHistoryEventSpec(spec HistoryEventSpec) bool {
 	if spec.Kind != EventContinuedAsNew && spec.SuccessorID != "" {
 		return false
 	}
-	return validActivityEventFields(spec)
+	return validEventFields(spec)
 }
 
 // Sequence returns the contiguous instance-history position.
@@ -202,16 +208,16 @@ func (event HistoryEvent) Definition() DefinitionReference { return event.defini
 // SuccessorID returns the explicit continue-as-new successor identity.
 func (event HistoryEvent) SuccessorID() string { return event.successorID }
 
-// StepName returns the activity step selected by an activity event.
+// StepName returns the definition step selected by a step event.
 func (event HistoryEvent) StepName() string { return event.stepName }
 
 // Attempt returns the one-based activity attempt selected by an attempt event.
 func (event HistoryEvent) Attempt() uint32 { return event.attempt }
 
-// IdempotencyKey returns the persisted external-attempt identity.
+// IdempotencyKey returns the persisted external-attempt or signal identity.
 func (event HistoryEvent) IdempotencyKey() string { return event.idempotencyKey }
 
-// DueAt returns a persisted attempt deadline or retry admission time.
+// DueAt returns a persisted attempt, retry, or timer deadline.
 func (event HistoryEvent) DueAt() time.Time { return event.dueAt }
 
 // Code returns a stable known-failure or unknown-outcome code.
@@ -257,6 +263,8 @@ type Instance struct {
 	result      []byte
 	successorID string
 	activities  map[string]ActivityProgress
+	timers      map[string]TimerProgress
+	signals     map[string]SignalProgress
 }
 
 // Replay deterministically reconstructs one instance from validated persisted
@@ -314,6 +322,24 @@ func (instance Instance) Activities() []ActivityProgress {
 	return sortedActivityProgress(instance.activities)
 }
 
+// Timer returns immutable replayed progress for one definition timer.
+func (instance Instance) Timer(stepName string) (TimerProgress, bool) {
+	progress, exists := instance.timers[stepName]
+	return progress, exists
+}
+
+// Timers returns replayed timer progress in stable step-name order.
+func (instance Instance) Timers() []TimerProgress { return sortedTimerProgress(instance.timers) }
+
+// Signal returns immutable replayed progress for one definition signal wait.
+func (instance Instance) Signal(stepName string) (SignalProgress, bool) {
+	progress, exists := instance.signals[stepName]
+	return cloneSignalProgress(progress), exists
+}
+
+// Signals returns replayed signal progress in stable step-name order.
+func (instance Instance) Signals() []SignalProgress { return sortedSignalProgress(instance.signals) }
+
 // SnapshotDigest returns a deterministic digest of reconstructed persisted
 // state for diagnostics and replay comparison.
 func (instance Instance) SnapshotDigest() string {
@@ -330,6 +356,8 @@ func (instance Instance) SnapshotDigest() string {
 		Result                []byte
 		SuccessorID           string
 		Activities            []activityProgressSnapshot
+		Timers                []timerProgressSnapshot  `json:",omitempty"`
+		Signals               []signalProgressSnapshot `json:",omitempty"`
 	}{
 		ID: instance.id, DefinitionName: instance.definition.Name(),
 		DefinitionVersion:     instance.definition.Version(),
@@ -337,6 +365,7 @@ func (instance Instance) SnapshotDigest() string {
 		Sequence: instance.sequence, StartedAt: instance.startedAt,
 		UpdatedAt: instance.updatedAt, Input: instance.input, Result: instance.result,
 		SuccessorID: instance.successorID, Activities: activityProgressSnapshots(instance.activities),
+		Timers: timerProgressSnapshots(instance.timers), Signals: signalProgressSnapshots(instance.signals),
 	})
 	digest := sha256.Sum256(encoded)
 	return hex.EncodeToString(digest[:])
@@ -425,6 +454,10 @@ func (instance *Instance) apply(registry *Registry, event HistoryEvent) error {
 		if err := instance.applyActivity(registry, event); err != nil {
 			return err
 		}
+	case EventTimerScheduled, EventTimerFired, EventSignalReceived:
+		if err := instance.applyWait(registry, event); err != nil {
+			return err
+		}
 	}
 
 	instance.sequence = event.sequence
@@ -451,15 +484,23 @@ func (instance *Instance) applyStart(registry *Registry, event HistoryEvent) err
 	instance.updatedAt = event.occurredAt
 	instance.input = cloneBytes(event.data)
 	instance.activities = make(map[string]ActivityProgress)
+	instance.timers = make(map[string]TimerProgress)
+	instance.signals = make(map[string]SignalProgress)
 	return nil
 }
 
-func validActivityEventFields(spec HistoryEventSpec) bool {
-	activityKind := spec.Kind >= EventActivityScheduled && spec.Kind <= EventActivityRetryScheduled
-	if !activityKind {
-		return spec.StepName == "" && spec.Attempt == 0 && spec.IdempotencyKey == "" &&
-			spec.DueAt.IsZero() && spec.Code == "" && !spec.Retryable
+func validEventFields(spec HistoryEventSpec) bool {
+	if spec.Kind >= EventActivityScheduled && spec.Kind <= EventActivityRetryScheduled {
+		return validActivityEventFields(spec)
 	}
+	if spec.Kind >= EventTimerScheduled && spec.Kind <= EventSignalReceived {
+		return validWaitEventFields(spec)
+	}
+	return spec.StepName == "" && spec.Attempt == 0 && spec.IdempotencyKey == "" &&
+		spec.DueAt.IsZero() && spec.Code == "" && !spec.Retryable
+}
+
+func validActivityEventFields(spec HistoryEventSpec) bool {
 	if !stableName.MatchString(spec.StepName) || spec.Definition != (DefinitionReference{}) || spec.SuccessorID != "" {
 		return false
 	}

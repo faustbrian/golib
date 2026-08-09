@@ -14,9 +14,11 @@ claimed with bounded leases, monotonically increasing fencing tokens, crash
 recovery after lease expiry, renewal, retry admission, completion, and explicit
 dead-letter handling. Bounded workers add tenant-fair admission, lease renewal,
 stale-owner cancellation, graceful draining, deterministic clocks, explicit
-retry/dead-letter decisions, and synchronous lifecycle hooks. Automatic step
-scheduling, compensation execution, signals, timers, operators, and optional
-integrations are not yet delivered.
+retry/dead-letter decisions, and synchronous lifecycle hooks. Durable timer
+schedules atomically create due work, timer workers persist firing before lease
+completion, and bounded inbound signals become idempotent transitions that must
+commit before acknowledgement. Automatic general step scheduling, compensation
+execution, operators, and optional integrations are not yet delivered.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that
@@ -43,6 +45,14 @@ must first persist unknown-outcome/reconciliation state; returning an error does
 not make an uncertain side effect safe to redispatch. Worker shutdown stops new
 claims, cancels active processors, preserves any already-known disposition, and
 waits for processors to exit.
+
+`NewTimerSchedule` binds a timer-history decision and its `WorkTimer` record in
+one transition. A timer processor persists `NewTimerFire` and only then returns
+`WorkComplete`. `NewSignalAcceptance` uses the inbound message identity as the
+transition idempotency boundary; a queue or broker adapter must acknowledge the
+message only after `TransitionStore.Commit` succeeds or confirms an exact
+idempotent replay. Optimistic conflicts require reloading history and deciding
+whether the signal is already accepted or no longer applicable.
 
 ```go
 migration := postgres.SchemaMigration()
