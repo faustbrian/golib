@@ -100,9 +100,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 28 |
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
-| 36 | Leaf adapter | `pending-reexecution` | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 37 | Leaf adapter | `pending-reexecution` | `pkg/rule-engine/adapters/gomath/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
-| 38 | Leaf adapter | `pending-reexecution` | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 39 | Leaf adapter | `pending-reexecution` | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 40 | Hardening | `pending` | `pkg/external-sort/.ai/GOAL_HARDEN.md` | Existing external-sort implementation |
 | 41 | Protocol | `pending` | `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1, 13, 19 |
@@ -136,10 +134,39 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | --- | --- | --- |
 | `.ai/GOAL_MAINTENANCE.md` | `recurring` | Execute its cadence continuously and before each supported-Go, dependency, security, specification, or release transition. |
 | `pkg/outbox/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 32 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
+
+### Exact-money knapsack objective evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Exact-money cost configuration, totals, comparisons, errors, documentation, and module quality gates. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --modules pkg/knapsack/objective/gomoney` against the completed implementation. |
+| Result | Passed every mandatory module gate, including 95/95 statements, 38/38 viable mutants, race, fuzz, API, docs, and benchmarks. |
+| Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
+| Observed | 2026-08-09T02:56:01Z |
+| Gaps | The repository-wide wrapper remains independently blocked by missing `pkg/audit/LICENSE`; the scoped module contract is complete. |
+| Navigation | Implementation commit `91a2fd2124b24c8d03510fe86081e7a72c971102`. |
+
+### Exact measurement rule operator evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Versioned exact-quantity encoding, compatible-dimension comparison, stable error causes, limits, documentation, and module quality gates. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/rule-engine/adapters/gomeasurement` against the completed implementation. |
+| Result | Passed every mandatory module gate, including 51/51 statements, 24/24 viable mutants, race, fuzz, API, docs, and benchmarks. |
+| Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
+| Observed | 2026-08-09T02:59:40Z |
+| Gaps | None within the scoped module contract. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
