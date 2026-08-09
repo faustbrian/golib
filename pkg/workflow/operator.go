@@ -39,6 +39,8 @@ const (
 	// OperatorResolveCompensation records explicit manual reconciliation without
 	// reporting successful rollback.
 	OperatorResolveCompensation OperatorAction = 7
+	// OperatorApprove records a caller-authorized human approval decision.
+	OperatorApprove OperatorAction = 8
 )
 
 // String returns the stable persisted action name.
@@ -58,6 +60,8 @@ func (action OperatorAction) String() string {
 		return "compensate"
 	case OperatorResolveCompensation:
 		return "resolve-compensation"
+	case OperatorApprove:
+		return "approve"
 	default:
 		return ""
 	}
@@ -267,6 +271,8 @@ func operatorEventKind(action OperatorAction) EventKind {
 		return EventCompensationScheduled
 	case OperatorResolveCompensation:
 		return EventCompensationManuallyResolved
+	case OperatorApprove:
+		return EventSignalReceived
 	default:
 		return 0
 	}

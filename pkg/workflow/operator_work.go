@@ -130,6 +130,45 @@ func NewOperatorCompensationResolution(spec OperatorCompensationResolutionSpec) 
 	return newOperatorWorkTransition(spec.CommandID, spec.Instance, audit, action)
 }
 
+// OperatorApprovalSpec supplies caller-authorized audit identity and bounded
+// approval evidence for one human-approval step.
+type OperatorApprovalSpec struct {
+	CommandID  string
+	Instance   Instance
+	Definition Definition
+	StepName   string
+	Actor      string
+	Reason     string
+	OccurredAt time.Time
+	Payload    []byte
+}
+
+// NewOperatorApproval atomically records audit identity before accepting one
+// approval decision. Replay treats the approval as persisted step progress.
+func NewOperatorApproval(spec OperatorApprovalSpec) (Transition, error) {
+	audit, commandInstance, err := newOperatorWorkAudit(
+		spec.CommandID, spec.Instance, OperatorApprove, spec.Actor, spec.Reason, spec.OccurredAt,
+	)
+	if err != nil || spec.Definition.Reference() != spec.Instance.definition {
+		return Transition{}, ErrInvalidOperatorCommand
+	}
+	step, ok := definitionStep(spec.Definition, spec.StepName, StepApproval)
+	if !ok || len(spec.Payload) > int(step.InputLimit) {
+		return Transition{}, ErrInvalidOperatorCommand
+	}
+	accepted, _ := NewHistoryEvent(HistoryEventSpec{
+		Sequence: commandInstance.sequence + 1, InstanceID: commandInstance.id,
+		Kind: EventSignalReceived, OccurredAt: spec.OccurredAt, StepName: spec.StepName,
+		IdempotencyKey: spec.CommandID, Data: spec.Payload,
+	})
+	action, _ := NewTransition(TransitionSpec{
+		ID: spec.CommandID, InstanceID: commandInstance.id,
+		ExpectedSequence: commandInstance.sequence, Definition: commandInstance.definition,
+		Events: []HistoryEvent{accepted},
+	})
+	return newOperatorWorkTransition(spec.CommandID, spec.Instance, audit, action)
+}
+
 func newOperatorWorkAudit(
 	commandID string,
 	instance Instance,

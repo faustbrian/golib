@@ -49,6 +49,9 @@ and releases use Semantic Versioning.
 - Audited operator commands for activity retry, explicit compensation, and
   truthful manual compensation resolution, with audit history and due work
   committed through one optimistic transition.
+- Deterministic ordered orchestration decisions for activity, timer, signal,
+  and audited human-approval steps, including explicit waiting and truthful
+  known-failure terminal outcomes.
 - Bounded deterministic instance inspection and streaming history export over
   stable forward pages with explicit traversal limits.
 - Immutable durable lifecycle history, deterministic replay, pinned definition

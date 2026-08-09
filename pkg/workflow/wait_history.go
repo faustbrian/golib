@@ -77,6 +77,9 @@ func (instance *Instance) applyWait(registry *Registry, event HistoryEvent) erro
 	definition, _ := registry.Resolve(instance.definition.Name(), instance.definition.Version())
 	if event.kind == EventSignalReceived {
 		step, ok := definitionStep(definition, event.stepName, StepSignal)
+		if !ok {
+			step, ok = definitionStep(definition, event.stepName, StepApproval)
+		}
 		_, exists := instance.signals[event.stepName]
 		if !ok || (instance.status != StatusRunning && instance.status != StatusPaused) || exists ||
 			len(event.data) > int(step.InputLimit) {

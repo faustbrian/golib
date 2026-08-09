@@ -19,9 +19,12 @@ schedules atomically create due work, timer workers persist firing before lease
 completion, and bounded inbound signals become idempotent transitions that must
 commit before acknowledgement. Audited lifecycle operator commands atomically
 record the authorized caller identity and reason before pause, resume, cancel,
-or terminate. Automatic general step scheduling, compensation execution
-workers, broader operator stores, and optional integrations are not yet
-delivered.
+or terminate. Fenced activity and compensation processors persist attempt
+starts before handlers and preserve unknown outcomes across redelivery.
+Ordered orchestration can schedule activities and timers, wait for signals and
+audited human approvals, and persist known terminal outcomes. Parallel and
+child orchestration, broader operator stores, and optional integrations are not
+yet delivered.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that

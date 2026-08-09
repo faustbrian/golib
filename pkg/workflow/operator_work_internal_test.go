@@ -18,6 +18,9 @@ func TestOperatorWorkCommandsRejectInvalidAuditAndActionBoundaries(t *testing.T)
 	if _, err := NewOperatorCompensationResolution(OperatorCompensationResolutionSpec{}); !errors.Is(err, ErrInvalidOperatorCommand) {
 		t.Fatalf("zero resolution error = %v", err)
 	}
+	if _, err := NewOperatorApproval(OperatorApprovalSpec{}); !errors.Is(err, ErrInvalidOperatorCommand) {
+		t.Fatalf("zero approval error = %v", err)
+	}
 
 	now := time.Date(2026, 8, 10, 17, 0, 0, 0, time.UTC)
 	activityDefinition := internalActivityTransitionDefinition(t)
@@ -48,6 +51,13 @@ func TestOperatorWorkCommandsRejectInvalidAuditAndActionBoundaries(t *testing.T)
 		OccurredAt: now.Add(7 * time.Second),
 	}); !errors.Is(err, ErrInvalidOperatorCommand) {
 		t.Fatalf("invalid resolution action error = %v", err)
+	}
+	if _, err := NewOperatorApproval(OperatorApprovalSpec{
+		CommandID: "operator-approval", Instance: failedCompensation, Definition: compensationDefinition,
+		StepName: "missing", Actor: "operator-1", Reason: "manual-approval",
+		OccurredAt: now.Add(7 * time.Second),
+	}); !errors.Is(err, ErrInvalidOperatorCommand) {
+		t.Fatalf("invalid approval action error = %v", err)
 	}
 }
 
