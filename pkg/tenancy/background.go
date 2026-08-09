@@ -54,7 +54,8 @@ func NewGroup(parent context.Context, options GroupOptions) (*Group, error) {
 }
 
 // Submit starts one explicitly scoped task after acquiring bounded capacity.
-// Waiting for capacity observes both submitCtx and the group lifetime.
+// The task preserves submitCtx values, deadline, and cancellation while also
+// remaining owned and cancellable by the group lifetime.
 func (group *Group) Submit(
 	submitCtx context.Context,
 	scope Scope,
@@ -69,12 +70,26 @@ func (group *Group) Submit(
 	if !scope.Valid() || operation == nil {
 		return ErrInvalidOperation
 	}
+	if err := submitCtx.Err(); err != nil {
+		return err
+	}
+	if err := group.ctx.Err(); err != nil {
+		return err
+	}
 	select {
 	case group.semaphore <- struct{}{}:
 	case <-submitCtx.Done():
 		return submitCtx.Err()
 	case <-group.ctx.Done():
 		return group.ctx.Err()
+	}
+	if err := submitCtx.Err(); err != nil {
+		<-group.semaphore
+		return err
+	}
+	if err := group.ctx.Err(); err != nil {
+		<-group.semaphore
+		return err
 	}
 
 	group.mutex.Lock()
@@ -86,7 +101,7 @@ func (group *Group) Submit(
 	group.active++
 	group.mutex.Unlock()
 
-	go group.run(scope, operation)
+	go group.run(submitCtx, scope, operation)
 	return nil
 }
 
@@ -115,9 +130,19 @@ func (group *Group) Shutdown(ctx context.Context) error {
 	return group.wait(ctx)
 }
 
-func (group *Group) run(scope Scope, operation func(context.Context) error) {
+func (group *Group) run(
+	submitCtx context.Context,
+	scope Scope,
+	operation func(context.Context) error,
+) {
 	defer group.complete()
-	scoped, err := WithScope(group.ctx, scope)
+	taskContext, cancel := context.WithCancel(submitCtx)
+	stopGroupCancellation := context.AfterFunc(group.ctx, cancel)
+	defer func() {
+		stopGroupCancellation()
+		cancel()
+	}()
+	scoped, err := WithScope(taskContext, scope)
 	if err == nil {
 		err = operation(scoped)
 	}

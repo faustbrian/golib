@@ -28,5 +28,6 @@ printf '%s\n' 'package consumer' \
     'var _ = tenancyhttp.New' \
     'var _ = tenancyjsonrpc.New' \
     'var _ = tenancypostgres.NewManager' > consumer/consumer.go
+cp "${module_directory}/scripts/clean-consumer/consumer_test.go.tmpl" consumer/consumer_test.go
 GOWORK=off go mod tidy
 GOWORK=off go test ./...

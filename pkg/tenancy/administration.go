@@ -72,10 +72,17 @@ func IterateTenants(
 	cursor := options.Resume.Cursor
 	offset := options.Resume.Offset
 	seen := make(map[TenantID]struct{})
+	seenCursors := make(map[string]struct{})
+	pages := 0
 	for {
 		if err := ctx.Err(); err != nil {
 			return result, err
 		}
+		if _, repeated := seenCursors[cursor]; repeated || pages == options.MaxTenants+1 {
+			return result, ErrInvalidIteration
+		}
+		seenCursors[cursor] = struct{}{}
+		pages++
 		page, pageErr := source.ListTenants(ctx, cursor, options.PageSize)
 		if pageErr != nil {
 			return result, pageErr

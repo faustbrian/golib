@@ -7,10 +7,15 @@ separation; bounded asynchronous close and shutdown; administrative resume and
 partial failure; PostgreSQL pool reuse, rollback, readback, reset failure, and
 RLS plans; randomized multi-tenant models; races; and fuzz targets.
 
-The build-tagged PostgreSQL test adds live forced-RLS, prepared-statement,
-cross-tenant mutation, rollback, and one-connection pool proof. It is valid only
-when run against a real PostgreSQL service with `POSTGRES_URL`; a skipped run is
-not interoperability evidence.
+Integration-domain evidence covers the owned `Integration` contract and its
+state model. It does not prove application-owned provider clients or envelopes;
+those consumers require their own executable composition fixtures.
+
+The build-tagged PostgreSQL test adds a restricted application login, forced
+and restrictive RLS, cross-tenant reads and mutations, alternating prepared
+plans, rollback, cancellation, stale state, backend replacement, and concurrent
+pool proof. It is valid only when run against a real PostgreSQL service with
+`POSTGRES_URL`; a skipped run is not interoperability evidence.
 
 Coverage and mutation gates operate per production package. Exact statement
 coverage does not by itself prove meaningful assertions, and mutation results

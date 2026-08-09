@@ -4,6 +4,8 @@
 package tenancypostgres
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -53,20 +55,23 @@ func Predicate(scope tenancy.Scope, column string, parameter int) (QueryPredicat
 
 // RLSOptions identify one table-owned tenant isolation policy.
 type RLSOptions struct {
-	Table   string
-	Column  string
-	Policy  string
-	Setting string
+	Table       string
+	Column      string
+	Policy      string
+	GrantPolicy string
+	Setting     string
 }
 
 // RLSPlan contains explicit migration statements. Apply them through the
 // application's migration owner; this package performs no automatic DDL.
 type RLSPlan struct {
-	Enable  string
-	Force   string
-	Create  string
-	Drop    string
-	Setting string
+	Enable      string
+	Force       string
+	CreateGrant string
+	Create      string
+	DropGrant   string
+	Drop        string
+	Setting     string
 }
 
 // NewRLSPlan validates and quotes identifiers and creates a fail-closed policy
@@ -75,21 +80,36 @@ func NewRLSPlan(options RLSOptions) (RLSPlan, error) {
 	table, tableErr := quoteIdentifier(options.Table, 2)
 	column, columnErr := quoteIdentifier(options.Column, 1)
 	policy, policyErr := quoteIdentifier(options.Policy, 1)
+	grantPolicyValue := options.GrantPolicy
+	if grantPolicyValue == "" {
+		grantPolicyValue = derivedGrantPolicy(options.Policy)
+	}
+	grantPolicy, grantPolicyErr := quoteIdentifier(grantPolicyValue, 1)
 	setting := options.Setting
 	if setting == "" {
 		setting = DefaultSetting
 	}
-	if tableErr != nil || columnErr != nil || policyErr != nil || !validSetting(setting) {
+	if tableErr != nil || columnErr != nil || policyErr != nil || grantPolicyErr != nil ||
+		grantPolicyValue == options.Policy || !validSetting(setting) {
 		return RLSPlan{}, ErrInvalidRLSOptions
 	}
 	expression := column + " = NULLIF(current_setting('" + setting + "', true), '')"
 	return RLSPlan{
-		Enable:  "ALTER TABLE " + table + " ENABLE ROW LEVEL SECURITY",
-		Force:   "ALTER TABLE " + table + " FORCE ROW LEVEL SECURITY",
-		Create:  "CREATE POLICY " + policy + " ON " + table + " USING (" + expression + ") WITH CHECK (" + expression + ")",
-		Drop:    "DROP POLICY IF EXISTS " + policy + " ON " + table,
-		Setting: setting,
+		Enable:      "ALTER TABLE " + table + " ENABLE ROW LEVEL SECURITY",
+		Force:       "ALTER TABLE " + table + " FORCE ROW LEVEL SECURITY",
+		CreateGrant: "CREATE POLICY " + grantPolicy + " ON " + table + " AS PERMISSIVE USING (" + expression + ") WITH CHECK (" + expression + ")",
+		Create:      "CREATE POLICY " + policy + " ON " + table + " AS RESTRICTIVE USING (" + expression + ") WITH CHECK (" + expression + ")",
+		DropGrant:   "DROP POLICY IF EXISTS " + grantPolicy + " ON " + table,
+		Drop:        "DROP POLICY IF EXISTS " + policy + " ON " + table,
+		Setting:     setting,
 	}, nil
+}
+
+func derivedGrantPolicy(policy string) string {
+	const maximumPrefix = maximumIdentifierBytes - len("_grant_") - 16
+	prefix := policy[:min(len(policy), maximumPrefix)]
+	digest := sha256.Sum256([]byte(policy))
+	return prefix + "_grant_" + hex.EncodeToString(digest[:8])
 }
 
 func quoteIdentifier(value string, maximumSegments int) (string, error) {

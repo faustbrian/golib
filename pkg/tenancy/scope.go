@@ -60,6 +60,12 @@ func (metadata Metadata) Values() map[string]string {
 	return maps.Clone(metadata.values)
 }
 
+// String returns a redacted representation for diagnostics.
+func (metadata Metadata) String() string { return "metadata_[redacted]" }
+
+// GoString returns a redacted representation for Go-syntax diagnostics.
+func (metadata Metadata) GoString() string { return metadata.String() }
+
 func (metadata Metadata) equal(other Metadata) bool {
 	return maps.Equal(metadata.values, other.values)
 }
@@ -104,6 +110,12 @@ func (reason AdministrativeReason) Purpose() string { return reason.purpose }
 // Reference returns an optional external audit or change reference.
 func (reason AdministrativeReason) Reference() string { return reason.reference }
 
+// String returns a redacted representation for diagnostics.
+func (reason AdministrativeReason) String() string { return "administrative_reason_[redacted]" }
+
+// GoString returns a redacted representation for Go-syntax diagnostics.
+func (reason AdministrativeReason) GoString() string { return reason.String() }
+
 func (reason AdministrativeReason) valid() bool {
 	return validPrintable(reason.actor, maxActorBytes, false) &&
 		validPrintable(reason.purpose, maxPurposeBytes, false) &&
@@ -121,6 +133,12 @@ type SystemCapability struct {
 func NewSystemCapability(reason AdministrativeReason) SystemCapability {
 	return SystemCapability{reason: reason, valid: reason.valid()}
 }
+
+// String returns a redacted representation for diagnostics.
+func (capability SystemCapability) String() string { return "system_capability_[redacted]" }
+
+// GoString returns a redacted representation for Go-syntax diagnostics.
+func (capability SystemCapability) GoString() string { return capability.String() }
 
 // Scope is an immutable explicit operation scope. Its zero value is invalid.
 type Scope struct {
@@ -185,6 +203,23 @@ func (scope Scope) Equal(other Scope) bool {
 	return scope.kind == other.kind && scope.tenant.Equal(other.tenant) &&
 		scope.reason == other.reason && scope.metadata.equal(other.metadata)
 }
+
+// String returns a redacted representation for diagnostics.
+func (scope Scope) String() string {
+	switch scope.kind {
+	case ScopeTenant:
+		return "tenant_scope_[redacted]"
+	case ScopeSystem:
+		return "system_scope_[redacted]"
+	case ScopeUnscoped:
+		return "unscoped_scope_[redacted]"
+	default:
+		return "invalid_scope_[redacted]"
+	}
+}
+
+// GoString returns a redacted representation for Go-syntax diagnostics.
+func (scope Scope) GoString() string { return scope.String() }
 
 func cloneMetadata(metadata Metadata) Metadata {
 	return Metadata{values: maps.Clone(metadata.values)}

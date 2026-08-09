@@ -1,9 +1,11 @@
 GO ?= go
 FUZZ_TIME ?= 2s
 BENCH_TIME ?= 100ms
+SOAK_TIME ?= 30s
+SOAK_TIMEOUT ?= 2m
 
 .PHONY: benchmark check clean-consumer coverage docs format format-check fuzz \
-	integration mutation race test tidy-check vet
+	integration mutation race soak test tidy-check vet
 
 format:
 	gofmt -w .
@@ -22,6 +24,10 @@ coverage:
 
 race:
 	GOWORK=off $(GO) test -race ./...
+
+soak:
+	TENANCY_SOAK_DURATION="$(SOAK_TIME)" GOWORK=off $(GO) test -race . \
+		-run '^TestIntegrationConcurrentSoak$$' -count=1 -timeout="$(SOAK_TIMEOUT)"
 
 fuzz:
 	./scripts/check-fuzz.sh "$(FUZZ_TIME)"

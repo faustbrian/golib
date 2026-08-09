@@ -8,8 +8,12 @@ Applications own the wire envelope and provider client.
 Senders inject only tenant scope and refuse populated metadata. Receivers make
 the trust decision before accepting scope into context. Namespace keys use a
 versioned length-delimited HMAC over scope, boundary, and logical key, so the
-same logical value cannot collide between tenants or integration domains and
-raw tenant data is not disclosed.
+same logical value is collision-resistant and unambiguously separated between
+tenants and integration domains, while raw tenant data is not disclosed.
+
+`Integration.Key` also requires tenant scope. System-wide and deliberately
+unscoped operations must use a separately designed administrative namespace;
+they cannot silently share a tenant integration namespace.
 
 Correlation IDs do not identify tenants. Idempotency records, workflow IDs,
 event stream names, scheduler entries, search indexes, queue deduplication IDs,

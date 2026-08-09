@@ -73,4 +73,14 @@ func TestIntegrationContractsFailClosed(t *testing.T) {
 	if err := nilIntegration.Send(context.Background(), tenancy.MapCarrier{}); !errors.Is(err, tenancy.ErrInvalidIntegration) {
 		t.Fatalf("nil Send() error = %v", err)
 	}
+
+	encoder, _ := tenancy.NewNamespaceEncoder([]byte("0123456789abcdef0123456789abcdef"))
+	reason, _ := tenancy.NewAdministrativeReason("operator", "maintenance", "OPS-1")
+	system, _ := tenancy.NewSystemScope(tenancy.NewSystemCapability(reason), tenancy.Metadata{})
+	unscoped, _ := tenancy.NewUnscopedScope(reason, tenancy.Metadata{})
+	for _, scope := range []tenancy.Scope{system, unscoped} {
+		if _, err := integration.Key(encoder, scope, "shared"); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
+			t.Fatalf("Key(%v) error = %v", scope.Kind(), err)
+		}
+	}
 }

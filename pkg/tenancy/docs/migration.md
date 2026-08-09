@@ -19,3 +19,15 @@
 During rollout, fail closed when new scope is required. A compatibility default
 tenant hides missing propagation and can turn deployment mistakes into data
 leaks.
+
+The clean-consumer fixture executes an external-module rollout slice: an
+authenticated HTTP hop, direct-backend and confused-deputy rejection, an
+explicit PostgreSQL predicate, duplicate JSON-RPC rejection, and scoped cache
+keys whose misses never fall back to a legacy or another tenant's key.
+
+Earlier `RLSPlan` consumers that executed only `Create` or `Drop` must update
+their migrations. `Create` is now the restrictive isolation half and requires
+`CreateGrant` first; `Drop` removes only the restrictive half and requires
+`DropGrant` first for fail-closed rollback. Treat the pair as one migration
+unit. Code that executes only one field still compiles but no longer represents
+a complete plan.

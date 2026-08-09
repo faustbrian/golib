@@ -72,7 +72,8 @@ explicitly; extraction never promotes system or unscoped work into a tenant.
 
 `Group` owns every goroutine it starts. Submission is bounded and cancellable;
 `Close` drains work and `Shutdown` cancels it. Each task receives only its
-submitted immutable scope, derived from the group parent context.
+submitted immutable scope while preserving the submission context's values,
+deadline, and cancellation. Group-parent cancellation also cancels every task.
 
 `IterateTenants` requires a system scope with an administrative actor, purpose,
 and optional reference, plus a mandatory audit callback. It reads bounded pages
@@ -93,8 +94,9 @@ The `postgres` adapter keeps query and session enforcement explicit:
   connection before it can return to the pool.
 - `Manager.WithSystem` accepts only explicit system scope and installs an empty
   tenant setting. It does not bypass RLS or grant database privileges.
-- `NewRLSPlan` returns quoted `ENABLE`, `FORCE`, `CREATE POLICY`, and rollback
-  statements. Applications apply these statements through their migration
+- `NewRLSPlan` returns quoted `ENABLE`, `FORCE`, paired permissive and
+  restrictive `CREATE POLICY`, and rollback statements. Applications apply
+  these statements through their migration
   owner and should run application traffic through a non-owner role because
   table owners and privileged roles can otherwise bypass RLS.
 
@@ -116,3 +118,5 @@ they cannot prove isolation in application paths that bypass those seams.
 Detailed adoption and security guidance is in [`docs/`](docs/): trust and
 service propagation, integrations, PostgreSQL/RLS, administration, migration,
 static-analysis boundaries, hardening evidence, security caveats, and FAQ.
+The current threat-to-test mapping and residual trust boundaries are recorded
+in [`docs/security-review.md`](docs/security-review.md).

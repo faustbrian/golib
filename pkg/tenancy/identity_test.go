@@ -3,6 +3,7 @@ package tenancy_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -55,6 +56,42 @@ func TestTenantIDIsCanonicalOpaqueAndSerializable(t *testing.T) {
 
 	if got := id.Redacted(); got == id.Value() || !strings.HasPrefix(got, "tenant_") {
 		t.Fatalf("Redacted() = %q", got)
+	}
+}
+
+func TestScopeDiagnosticsDoNotDiscloseOwnedIdentity(t *testing.T) {
+	t.Parallel()
+
+	const (
+		rawTenant = "tenant-private"
+		rawValue  = "metadata-private"
+		rawActor  = "operator-private"
+		rawReason = "reason-private"
+		rawRef    = "reference-private"
+	)
+	metadata, _ := tenancy.NewMetadata(map[string]string{"region": rawValue})
+	tenantScope, _ := tenancy.NewTenantScope(tenancy.MustTenantID(rawTenant), metadata)
+	reason, _ := tenancy.NewAdministrativeReason(rawActor, rawReason, rawRef)
+	capability := tenancy.NewSystemCapability(reason)
+	systemScope, _ := tenancy.NewSystemScope(capability, metadata)
+	unscopedScope, _ := tenancy.NewUnscopedScope(reason, metadata)
+
+	for name, value := range map[string]any{
+		"tenant ID":  tenancy.MustTenantID(rawTenant),
+		"metadata":   metadata,
+		"reason":     reason,
+		"capability": capability,
+		"scope":      tenantScope,
+		"system":     systemScope,
+		"unscoped":   unscopedScope,
+		"invalid":    tenancy.Scope{},
+	} {
+		formatted := fmt.Sprintf("%s %q %v %+v %#v", value, value, value, value, value)
+		for _, secret := range []string{rawTenant, rawValue, rawActor, rawReason, rawRef} {
+			if strings.Contains(formatted, secret) {
+				t.Fatalf("%s diagnostics disclosed %q: %s", name, secret, formatted)
+			}
+		}
 	}
 }
 

@@ -50,6 +50,7 @@ func TestRLSPlanFailsClosedAndUsesTransactionLocalSetting(t *testing.T) {
 
 	plan, err := tenancypostgres.NewRLSPlan(tenancypostgres.RLSOptions{
 		Table: "shipping.orders", Column: "tenant_id", Policy: "tenant_isolation",
+		GrantPolicy: "tenant_grant",
 	})
 	if err != nil {
 		t.Fatalf("NewRLSPlan() error = %v", err)
@@ -57,7 +58,9 @@ func TestRLSPlanFailsClosedAndUsesTransactionLocalSetting(t *testing.T) {
 	wantExpression := `"tenant_id" = NULLIF(current_setting('app.tenant_id', true), '')`
 	if plan.Enable != `ALTER TABLE "shipping"."orders" ENABLE ROW LEVEL SECURITY` ||
 		plan.Force != `ALTER TABLE "shipping"."orders" FORCE ROW LEVEL SECURITY` ||
-		plan.Create != `CREATE POLICY "tenant_isolation" ON "shipping"."orders" USING (`+wantExpression+`) WITH CHECK (`+wantExpression+`)` ||
+		plan.CreateGrant != `CREATE POLICY "tenant_grant" ON "shipping"."orders" AS PERMISSIVE USING (`+wantExpression+`) WITH CHECK (`+wantExpression+`)` ||
+		plan.Create != `CREATE POLICY "tenant_isolation" ON "shipping"."orders" AS RESTRICTIVE USING (`+wantExpression+`) WITH CHECK (`+wantExpression+`)` ||
+		plan.DropGrant != `DROP POLICY IF EXISTS "tenant_grant" ON "shipping"."orders"` ||
 		plan.Drop != `DROP POLICY IF EXISTS "tenant_isolation" ON "shipping"."orders"` {
 		t.Fatalf("RLS plan = %#v", plan)
 	}
@@ -71,6 +74,8 @@ func TestRLSPlanFailsClosedAndUsesTransactionLocalSetting(t *testing.T) {
 		{Table: "catalog.shipping.orders", Column: "tenant_id", Policy: "tenant_isolation"},
 		{Table: "orders", Column: "tenant id", Policy: "tenant_isolation"},
 		{Table: "orders", Column: "tenant_id", Policy: "bad policy"},
+		{Table: "orders", Column: "tenant_id", Policy: "tenant_isolation", GrantPolicy: "bad policy"},
+		{Table: "orders", Column: "tenant_id", Policy: "tenant_isolation", GrantPolicy: "tenant_isolation"},
 		{Table: "orders", Column: "tenant_id", Policy: "tenant_isolation", Setting: "bad'setting"},
 		{Table: "orders", Column: "tenant_id", Policy: "tenant_isolation", Setting: "app.bad-setting"},
 	}
@@ -78,6 +83,13 @@ func TestRLSPlanFailsClosedAndUsesTransactionLocalSetting(t *testing.T) {
 		if _, err := tenancypostgres.NewRLSPlan(options); !errors.Is(err, tenancypostgres.ErrInvalidRLSOptions) {
 			t.Fatalf("NewRLSPlan(%#v) error = %v", options, err)
 		}
+	}
+	longPolicy := strings.Repeat("p", 63)
+	longPlan, err := tenancypostgres.NewRLSPlan(tenancypostgres.RLSOptions{
+		Table: "orders", Column: "tenant_id", Policy: longPolicy,
+	})
+	if err != nil || len(longPlan.CreateGrant) == 0 {
+		t.Fatalf("derived grant policy = %#v, %v", longPlan, err)
 	}
 }
 

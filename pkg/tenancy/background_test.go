@@ -74,6 +74,21 @@ func TestGroupSubmissionAndShutdownAreCancellable(t *testing.T) {
 		t.Fatalf("Submit(first) error = %v", err)
 	}
 	waitForSignal(t, started)
+	waitingContext, cancelWaiting := context.WithCancel(context.Background())
+	waitingReached := make(chan struct{})
+	waitingResult := make(chan error, 1)
+	go func() {
+		waitingResult <- group.Submit(
+			&doneSignalingContext{Context: waitingContext, reached: waitingReached},
+			scope,
+			func(context.Context) error { return nil },
+		)
+	}()
+	waitForSignal(t, waitingReached)
+	cancelWaiting()
+	if err := waitForError(t, waitingResult); !errors.Is(err, context.Canceled) {
+		t.Fatalf("Submit(cancelled while waiting) error = %v", err)
+	}
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
 	if err := group.Submit(cancelled, scope, func(context.Context) error { return nil }); !errors.Is(err, context.Canceled) {
@@ -83,6 +98,159 @@ func TestGroupSubmissionAndShutdownAreCancellable(t *testing.T) {
 	defer shutdownCancel()
 	if err := group.Shutdown(shutdownContext); err != nil {
 		t.Fatalf("Shutdown() error = %v", err)
+	}
+}
+
+func TestGroupRejectsAlreadyCancelledTaskLifetimeBeforeStartingWork(t *testing.T) {
+	t.Parallel()
+
+	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
+	for iteration := range 128 {
+		groupParent, cancelGroup := context.WithCancel(context.Background())
+		group, err := tenancy.NewGroup(groupParent, tenancy.GroupOptions{MaxConcurrent: 1})
+		if err != nil {
+			t.Fatalf("iteration %d: NewGroup() error = %v", iteration, err)
+		}
+		submitContext, cancelSubmit := context.WithCancel(context.Background())
+		cancelSubmit()
+		started := make(chan struct{}, 1)
+		err = group.Submit(submitContext, scope, func(context.Context) error {
+			started <- struct{}{}
+			return nil
+		})
+		if shutdownErr := shutdownWithin(t, group); shutdownErr != nil {
+			t.Fatalf("iteration %d: Shutdown() error = %v", iteration, shutdownErr)
+		}
+		cancelGroup()
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("iteration %d: Submit(cancelled context) error = %v", iteration, err)
+		}
+		select {
+		case <-started:
+			t.Fatalf("iteration %d: cancelled submission started work", iteration)
+		default:
+		}
+	}
+
+	t.Run("cancelled group parent", func(t *testing.T) {
+		parent, cancelParent := context.WithCancel(context.Background())
+		group, _ := tenancy.NewGroup(parent, tenancy.GroupOptions{MaxConcurrent: 1})
+		cancelParent()
+		started := make(chan struct{}, 1)
+		err := group.Submit(context.Background(), scope, func(context.Context) error {
+			started <- struct{}{}
+			return nil
+		})
+		if shutdownErr := shutdownWithin(t, group); shutdownErr != nil {
+			t.Fatalf("Shutdown() error = %v", shutdownErr)
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Submit(cancelled group) error = %v", err)
+		}
+		select {
+		case <-started:
+			t.Fatal("cancelled group started work")
+		default:
+		}
+	})
+
+	t.Run("submit cancelled immediately after capacity acquisition", func(t *testing.T) {
+		group, _ := tenancy.NewGroup(context.Background(), tenancy.GroupOptions{MaxConcurrent: 1})
+		base, cancelSubmit := context.WithCancel(context.Background())
+		submitContext := &secondErrorHookContext{Context: base, hook: cancelSubmit}
+		err := group.Submit(submitContext, scope, func(context.Context) error {
+			t.Error("cancelled submission started work")
+			return nil
+		})
+		if shutdownErr := shutdownWithin(t, group); shutdownErr != nil {
+			t.Fatalf("Shutdown() error = %v", shutdownErr)
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Submit(cancelled after acquisition) error = %v", err)
+		}
+	})
+
+	t.Run("group cancelled immediately after capacity acquisition", func(t *testing.T) {
+		parent, cancelParent := context.WithCancel(context.Background())
+		group, _ := tenancy.NewGroup(parent, tenancy.GroupOptions{MaxConcurrent: 1})
+		submitContext := &secondErrorHookContext{
+			Context: context.Background(),
+			hook:    cancelParent,
+		}
+		err := group.Submit(submitContext, scope, func(context.Context) error {
+			t.Error("cancelled group started work")
+			return nil
+		})
+		if shutdownErr := shutdownWithin(t, group); shutdownErr != nil {
+			t.Fatalf("Shutdown() error = %v", shutdownErr)
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("Submit(group cancelled after acquisition) error = %v", err)
+		}
+	})
+}
+
+func TestGroupTaskPreservesSubmitContext(t *testing.T) {
+	t.Parallel()
+
+	type contextKey struct{}
+	reported := make(chan error, 1)
+	observed := make(chan struct {
+		value       string
+		hasDeadline bool
+	}, 1)
+	group, err := tenancy.NewGroup(context.Background(), tenancy.GroupOptions{
+		MaxConcurrent: 1,
+		HandleError: func(_ tenancy.Scope, err error) {
+			reported <- err
+		},
+	})
+	if err != nil {
+		t.Fatalf("NewGroup() error = %v", err)
+	}
+	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
+	submitContext, cancelSubmit := context.WithTimeout(
+		context.WithValue(context.Background(), contextKey{}, "request-value"),
+		time.Second,
+	)
+	if err := group.Submit(submitContext, scope, func(ctx context.Context) error {
+		_, hasDeadline := ctx.Deadline()
+		value, _ := ctx.Value(contextKey{}).(string)
+		observed <- struct {
+			value       string
+			hasDeadline bool
+		}{value: value, hasDeadline: hasDeadline}
+		<-ctx.Done()
+		return ctx.Err()
+	}); err != nil {
+		cancelSubmit()
+		t.Fatalf("Submit() error = %v", err)
+	}
+	var got struct {
+		value       string
+		hasDeadline bool
+	}
+	select {
+	case got = <-observed:
+	case <-time.After(time.Second):
+		cancelSubmit()
+		t.Fatal("task did not receive the submission context")
+	}
+	if got.value != "request-value" || !got.hasDeadline {
+		cancelSubmit()
+		t.Fatalf("task context = %#v", got)
+	}
+	cancelSubmit()
+	select {
+	case err := <-reported:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("reported error = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("submission cancellation was not reported")
+	}
+	if err := closeWithin(t, group); err != nil {
+		t.Fatalf("Close() error = %v", err)
 	}
 }
 
@@ -199,4 +367,18 @@ func TestGroupValidatesConstructionAndSubmission(t *testing.T) {
 	if err := shutdownWithin(t, validGroup); err != nil {
 		t.Fatalf("Shutdown(valid) error = %v", err)
 	}
+}
+
+type secondErrorHookContext struct {
+	context.Context
+	calls int
+	hook  func()
+}
+
+func (ctx *secondErrorHookContext) Err() error {
+	ctx.calls++
+	if ctx.calls == 2 {
+		ctx.hook()
+	}
+	return ctx.Context.Err()
 }

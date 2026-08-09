@@ -5,6 +5,7 @@ import (
 	"errors"
 	"reflect"
 	"testing"
+	"time"
 
 	"github.com/faustbrian/golib/pkg/tenancy"
 )
@@ -126,6 +127,63 @@ func TestAdministrativeIterationStopsAtAuditOperationAndCancellation(t *testing.
 	}
 }
 
+func TestAdministrativeResumeRepeatsFailedTenantWithCompleteAttribution(t *testing.T) {
+	t.Parallel()
+
+	system := systemScope(t)
+	source := &tenantPagerStub{pages: map[string]tenancy.TenantPage{
+		"snapshot-v1": {Tenants: tenantIDs("tenant-a", "tenant-b")},
+	}}
+	var auditTenants []string
+	var operationTenants []string
+	audit := func(ctx context.Context, reason tenancy.AdministrativeReason, tenant tenancy.TenantID) error {
+		resolved, err := tenancy.RequireSystem(ctx)
+		if err != nil || !resolved.Equal(system) || reason != system.AdministrativeReason() {
+			return errors.New("administrative attribution was not preserved")
+		}
+		auditTenants = append(auditTenants, tenant.Value())
+		return nil
+	}
+	failure := errors.New("import checkpoint failed")
+	options := tenancy.IterationOptions{
+		PageSize: 2, MaxTenants: 2, Resume: tenancy.ResumeToken{Cursor: "snapshot-v1"}, Audit: audit,
+	}
+	result, err := tenancy.IterateTenants(context.Background(), system, source, options,
+		func(ctx context.Context, tenant tenancy.TenantID) error {
+			if err := tenancy.AssertTenant(ctx, tenant); err != nil {
+				return err
+			}
+			if ctxScope, _ := tenancy.RequireScope(ctx); ctxScope.AdministrativeReason() != (tenancy.AdministrativeReason{}) {
+				return errors.New("system reason promoted into tenant operation")
+			}
+			operationTenants = append(operationTenants, tenant.Value())
+			if tenant.Equal(tenancy.MustTenantID("tenant-b")) {
+				return failure
+			}
+			return nil
+		})
+	if !errors.Is(err, failure) || result.Processed != 1 ||
+		result.Resume != (tenancy.ResumeToken{Cursor: "snapshot-v1", Offset: 1}) {
+		t.Fatalf("failed import result = %#v, %v", result, err)
+	}
+	options.Resume = result.Resume
+	resumed, err := tenancy.IterateTenants(context.Background(), system, source, options,
+		func(ctx context.Context, tenant tenancy.TenantID) error {
+			if err := tenancy.AssertTenant(ctx, tenant); err != nil {
+				return err
+			}
+			operationTenants = append(operationTenants, tenant.Value())
+			return nil
+		})
+	if err != nil || !resumed.Complete || resumed.Processed != 1 {
+		t.Fatalf("resumed import result = %#v, %v", resumed, err)
+	}
+	if !reflect.DeepEqual(auditTenants, []string{"tenant-a", "tenant-b", "tenant-b"}) ||
+		!reflect.DeepEqual(operationTenants, []string{"tenant-a", "tenant-b", "tenant-b"}) {
+		t.Fatalf("audit = %#v, operations = %#v", auditTenants, operationTenants)
+	}
+}
+
 func TestAdministrativeIterationValidatesEveryBoundary(t *testing.T) {
 	t.Parallel()
 
@@ -189,8 +247,69 @@ func TestAdministrativeIterationAcceptsExactResourceLimits(t *testing.T) {
 	}
 }
 
+func TestAdministrativeIterationRejectsCursorCycles(t *testing.T) {
+	t.Parallel()
+
+	system := systemScope(t)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	source := tenantPagerFunc(func(_ context.Context, cursor string, _ int) (tenancy.TenantPage, error) {
+		switch cursor {
+		case "":
+			return tenancy.TenantPage{NextCursor: "a"}, nil
+		case "a":
+			return tenancy.TenantPage{NextCursor: "b"}, nil
+		default:
+			return tenancy.TenantPage{NextCursor: "a"}, nil
+		}
+	})
+
+	_, err := tenancy.IterateTenants(ctx, system, source, tenancy.IterationOptions{
+		PageSize: 1, MaxTenants: 1,
+		Audit: func(context.Context, tenancy.AdministrativeReason, tenancy.TenantID) error { return nil },
+	}, func(context.Context, tenancy.TenantID) error { return nil })
+	if !errors.Is(err, tenancy.ErrInvalidIteration) {
+		t.Fatalf("IterateTenants(cursor cycle) error = %v", err)
+	}
+}
+
+func TestAdministrativeIterationRejectsUnboundedDistinctPages(t *testing.T) {
+	t.Parallel()
+
+	system := systemScope(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	calls := 0
+	source := tenantPagerFunc(func(_ context.Context, cursor string, _ int) (tenancy.TenantPage, error) {
+		calls++
+		switch cursor {
+		case "":
+			return tenancy.TenantPage{NextCursor: "a"}, nil
+		case "a":
+			return tenancy.TenantPage{NextCursor: "b"}, nil
+		default:
+			cancel()
+			return tenancy.TenantPage{NextCursor: "c"}, nil
+		}
+	})
+
+	_, err := tenancy.IterateTenants(ctx, system, source, tenancy.IterationOptions{
+		PageSize: 1, MaxTenants: 1,
+		Audit: func(context.Context, tenancy.AdministrativeReason, tenancy.TenantID) error { return nil },
+	}, func(context.Context, tenancy.TenantID) error { return nil })
+	if !errors.Is(err, tenancy.ErrInvalidIteration) || calls != 2 {
+		t.Fatalf("IterateTenants(unbounded pages) calls = %d, error = %v", calls, err)
+	}
+}
+
 type tenantPagerStub struct {
 	pages map[string]tenancy.TenantPage
+}
+
+type tenantPagerFunc func(context.Context, string, int) (tenancy.TenantPage, error)
+
+func (pager tenantPagerFunc) ListTenants(ctx context.Context, cursor string, size int) (tenancy.TenantPage, error) {
+	return pager(ctx, cursor, size)
 }
 
 func (pager *tenantPagerStub) ListTenants(_ context.Context, cursor string, _ int) (tenancy.TenantPage, error) {

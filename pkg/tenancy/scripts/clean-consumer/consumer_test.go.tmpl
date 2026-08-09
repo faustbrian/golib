@@ -1,0 +1,80 @@
+package consumer_test
+
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/faustbrian/golib/pkg/tenancy"
+	tenancyhttp "github.com/faustbrian/golib/pkg/tenancy/http"
+	tenancyjsonrpc "github.com/faustbrian/golib/pkg/tenancy/jsonrpc"
+	tenancypostgres "github.com/faustbrian/golib/pkg/tenancy/postgres"
+)
+
+func TestAuthenticatedHopAndPersistenceCompositionFailsClosed(t *testing.T) {
+	type authenticatedPeerKey struct{}
+	tenantA, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
+	tenantB, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-b"), tenancy.Metadata{})
+	adapter, err := tenancyhttp.New(tenancyhttp.Options{
+		Trust: func(request *http.Request) bool {
+			peer, _ := request.Context().Value(authenticatedPeerKey{}).(string)
+			return peer == "orders"
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	direct := httptest.NewRequest(http.MethodGet, "http://backend.test/orders", nil)
+	direct.Header.Set(tenancyhttp.DefaultHeader, "tenant-a")
+	direct.Header.Set("X-Service-Identity", "orders")
+	if _, err := adapter.Accept(direct); !errors.Is(err, tenancy.ErrTenantMetadataUntrusted) {
+		t.Fatalf("direct backend error = %v", err)
+	}
+	trusted := direct.Clone(context.WithValue(context.Background(), authenticatedPeerKey{}, "orders"))
+	accepted, err := adapter.Accept(trusted)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := tenancy.AssertTenant(accepted, tenantA.TenantID()); err != nil {
+		t.Fatal(err)
+	}
+	preScoped, _ := tenancy.WithScope(trusted.Context(), tenantB)
+	if _, err := adapter.Accept(trusted.WithContext(preScoped)); !errors.Is(err, tenancy.ErrConflictingScope) {
+		t.Fatalf("conflicting deputy error = %v", err)
+	}
+	predicate, err := tenancypostgres.Predicate(tenantA, "tenant_id", 1)
+	if err != nil || predicate.Arguments[0] != "tenant-a" {
+		t.Fatalf("predicate = %#v, %v", predicate, err)
+	}
+}
+
+func TestWireAndNamespaceMigrationCompositionRejectsAmbiguity(t *testing.T) {
+	codec, err := tenancyjsonrpc.New(tenancyjsonrpc.Options{
+		Trust: func(context.Context) bool { return true },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := codec.Extract(context.Background(),
+		[]byte(`{"tenant_id":"tenant-a","tenant_id":"tenant-b"}`),
+	); !errors.Is(err, tenancy.ErrTenantMetadataConflicting) {
+		t.Fatalf("conflicting JSON-RPC error = %v", err)
+	}
+	encoder, err := tenancy.NewNamespaceEncoder([]byte("0123456789abcdef0123456789abcdef"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	tenantA, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
+	tenantB, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-b"), tenancy.Metadata{})
+	keyA, _ := encoder.Encode(tenantA, tenancy.NamespaceCache, "orders/42")
+	keyB, _ := encoder.Encode(tenantB, tenancy.NamespaceCache, "orders/42")
+	if keyA == keyB {
+		t.Fatal("tenant namespaces collided")
+	}
+	cache := map[string]string{keyA: "tenant-a-order"}
+	if _, found := cache[keyB]; found {
+		t.Fatal("scoped miss fell back to another tenant or a legacy key")
+	}
+}

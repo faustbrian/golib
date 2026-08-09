@@ -71,8 +71,10 @@ func NewManager(config Config) (*Manager, error) {
 }
 
 // WithTenant leases one connection, clears stale session state, installs and
-// verifies a transaction-local tenant ID, invokes operation, and resets the
-// same leased session before pool reuse.
+// verifies a transaction-local tenant ID, invokes operation, verifies that the
+// callback returned with the same setting, and resets the same leased session
+// before pool reuse. The callback is a trusted persistence boundary and must
+// not mutate the configured setting.
 func (manager *Manager) WithTenant(
 	ctx context.Context,
 	database Connector,
@@ -117,40 +119,50 @@ func (manager *Manager) execute(
 	if err != nil {
 		return err
 	}
-	connection, err := database.Conn(ctx)
+	connection, err := database.Conn(scoped)
 	if err != nil {
 		return err
 	}
 	if connection == nil {
 		return ErrInvalidOperation
 	}
-	if _, err := connection.ExecContext(ctx, resetSessionSQL, manager.setting); err != nil {
+	if _, err := connection.ExecContext(scoped, resetSessionSQL, manager.setting); err != nil {
 		discardConnection(connection)
 		return errors.Join(fmt.Errorf("%w: %w", ErrSessionReset, err), connection.Close())
 	}
 	defer func() {
-		resultErr = errors.Join(resultErr, manager.resetAndClose(ctx, connection))
+		resultErr = errors.Join(resultErr, manager.resetAndClose(scoped, connection))
 	}()
 
-	tx, err := connection.BeginTx(ctx, &manager.txOptions)
+	tx, err := connection.BeginTx(scoped, &manager.txOptions)
 	defer rollback(tx)
 	if err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, setTransactionSQL, manager.setting, expected); err != nil {
+	if _, err := tx.ExecContext(scoped, setTransactionSQL, manager.setting, expected); err != nil {
 		return err
 	}
+	if err := verifyTransactionScope(scoped, tx, manager.setting, expected); err != nil {
+		return err
+	}
+	if err := operation(scoped, tx); err != nil {
+		return err
+	}
+	if err := verifyTransactionScope(scoped, tx, manager.setting, expected); err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+func verifyTransactionScope(ctx context.Context, tx *sql.Tx, setting, expected string) error {
 	var observed sql.NullString
-	if err := tx.QueryRowContext(ctx, readSettingSQL, manager.setting).Scan(&observed); err != nil {
+	if err := tx.QueryRowContext(ctx, readSettingSQL, setting).Scan(&observed); err != nil {
 		return fmt.Errorf("%w: %w", ErrScopeVerification, err)
 	}
 	if !observed.Valid || observed.String != expected {
 		return ErrScopeVerification
 	}
-	if err := operation(scoped, tx); err != nil {
-		return err
-	}
-	return tx.Commit()
+	return nil
 }
 
 func rollback(tx *sql.Tx) {

@@ -61,6 +61,9 @@ func (id TenantID) Redacted() string { return redactedTenantID }
 // String returns a redacted representation to prevent accidental disclosure.
 func (id TenantID) String() string { return id.Redacted() }
 
+// GoString returns a redacted representation for Go-syntax diagnostics.
+func (id TenantID) GoString() string { return id.Redacted() }
+
 // MarshalText serializes the canonical raw identifier for a trusted boundary.
 func (id TenantID) MarshalText() ([]byte, error) {
 	if err := validateTenantID(id.value); err != nil {

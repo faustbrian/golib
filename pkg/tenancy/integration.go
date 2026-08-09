@@ -100,6 +100,9 @@ func (integration *Integration) Key(
 	if !integration.valid() {
 		return "", ErrInvalidIntegration
 	}
+	if !scope.Valid() || scope.Kind() != ScopeTenant {
+		return "", ErrTenantScopeRequired
+	}
 	if logicalKey == "" {
 		return "", ErrInvalidNamespaceInput
 	}

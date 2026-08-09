@@ -101,6 +101,69 @@ func TestManagerRequiresExplicitSystemScopeAndClearsStaleSessionState(t *testing
 	}
 }
 
+func TestManagerRollsBackWhenOperationChangesTenantScope(t *testing.T) {
+	database, _ := newFakeDatabase(t)
+	manager, _ := tenancypostgres.NewManager(tenancypostgres.Config{})
+	tenantA := tenantScopeFor(t, "tenant-a")
+	tenantB := tenantScopeFor(t, "tenant-b")
+
+	err := manager.WithTenant(context.Background(), database, tenantA, func(ctx context.Context, tx *sql.Tx) error {
+		if _, err := tx.ExecContext(
+			ctx,
+			"SELECT set_config($1, $2, true)",
+			tenancypostgres.DefaultSetting,
+			"tenant-b",
+		); err != nil {
+			return err
+		}
+		_, err := tx.ExecContext(ctx, "test_write", "cross-tenant", "leaked")
+		return err
+	})
+	if !errors.Is(err, tenancypostgres.ErrScopeVerification) {
+		t.Fatalf("WithTenant(scope changed) error = %v", err)
+	}
+
+	if err := manager.WithTenant(context.Background(), database, tenantB, func(ctx context.Context, tx *sql.Tx) error {
+		var value string
+		if err := tx.QueryRowContext(ctx, "test_read", "cross-tenant").Scan(&value); !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("changed scope committed cross-tenant row: %q, %w", value, err)
+		}
+		return nil
+	}); err != nil {
+		t.Fatalf("WithTenant(after scope change) error = %v", err)
+	}
+}
+
+func TestManagerPropagatesTenantScopeToConnectionAcquisition(t *testing.T) {
+	database, _ := newFakeDatabase(t)
+	manager, _ := tenancypostgres.NewManager(tenancypostgres.Config{})
+	tenant := tenantScopeFor(t, "tenant-a")
+	parent, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	wantDeadline, _ := parent.Deadline()
+	connector := connectorFunc(func(ctx context.Context) (*sql.Conn, error) {
+		if err := tenancy.AssertTenant(ctx, tenant.TenantID()); err != nil {
+			return nil, err
+		}
+		gotDeadline, ok := ctx.Deadline()
+		if !ok || !gotDeadline.Equal(wantDeadline) {
+			return nil, fmt.Errorf("connection deadline = %v, %t, want %v", gotDeadline, ok, wantDeadline)
+		}
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		default:
+		}
+		return database.Conn(ctx)
+	})
+
+	if err := manager.WithTenant(parent, connector, tenant, func(context.Context, *sql.Tx) error {
+		return nil
+	}); err != nil {
+		t.Fatalf("WithTenant() error = %v", err)
+	}
+}
+
 func TestManagerDiscardsConnectionWhenCleanupFails(t *testing.T) {
 	database, state := newFakeDatabase(t)
 	manager, _ := tenancypostgres.NewManager(tenancypostgres.Config{CleanupTimeout: time.Second})
