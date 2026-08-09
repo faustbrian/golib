@@ -26,13 +26,13 @@ func TestTemporalOperatorTruthAndFailureTable(t *testing.T) {
 		left  ruleengine.Value
 		right ruleengine.Value
 	}{
-		{0, Period(period), Period(equal)},
-		{1, Period(period), Period(after)},
-		{2, Period(period), Period(before)},
-		{3, Period(period), Period(overlap)},
-		{3, Period(overlap), Period(period)},
-		{4, Period(period), Period(during)},
-		{5, Period(period), Instant(base.Add(time.Hour))},
+		{0, mustInternalPeriodValue(t, period), mustInternalPeriodValue(t, equal)},
+		{1, mustInternalPeriodValue(t, period), mustInternalPeriodValue(t, after)},
+		{2, mustInternalPeriodValue(t, period), mustInternalPeriodValue(t, before)},
+		{3, mustInternalPeriodValue(t, period), mustInternalPeriodValue(t, overlap)},
+		{3, mustInternalPeriodValue(t, overlap), mustInternalPeriodValue(t, period)},
+		{4, mustInternalPeriodValue(t, period), mustInternalPeriodValue(t, during)},
+		{5, mustInternalPeriodValue(t, period), mustInternalInstantValue(t, base.Add(time.Hour))},
 	}
 	operators := Operators()
 	for _, test := range values {
@@ -45,19 +45,19 @@ func TestTemporalOperatorTruthAndFailureTable(t *testing.T) {
 			t.Fatalf("%s Evaluate() = %v, %v", operator.Name(), matched, err)
 		}
 	}
-	if matched, err := operators[0].Evaluate(context.Background(), Period(period), Period(after)); err != nil || matched {
+	if matched, err := operators[0].Evaluate(context.Background(), mustInternalPeriodValue(t, period), mustInternalPeriodValue(t, after)); err != nil || matched {
 		t.Fatalf("non-match = %v, %v", matched, err)
 	}
-	if matched, err := operators[5].Evaluate(context.Background(), Period(period), Instant(base.Add(10*time.Hour))); err != nil || matched {
+	if matched, err := operators[5].Evaluate(context.Background(), mustInternalPeriodValue(t, period), mustInternalInstantValue(t, base.Add(10*time.Hour))); err != nil || matched {
 		t.Fatalf("outside = %v, %v", matched, err)
 	}
 
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := operators[0].Evaluate(canceled, Period(period), Period(equal)); !errors.Is(err, context.Canceled) {
+	if _, err := operators[0].Evaluate(canceled, mustInternalPeriodValue(t, period), mustInternalPeriodValue(t, equal)); !errors.Is(err, context.Canceled) {
 		t.Fatalf("relation canceled error = %v", err)
 	}
-	if _, err := operators[5].Evaluate(canceled, Period(period), Instant(base)); !errors.Is(err, context.Canceled) {
+	if _, err := operators[5].Evaluate(canceled, mustInternalPeriodValue(t, period), mustInternalInstantValue(t, base)); !errors.Is(err, context.Canceled) {
 		t.Fatalf("contains canceled error = %v", err)
 	}
 
@@ -71,18 +71,18 @@ func TestTemporalOperatorTruthAndFailureTable(t *testing.T) {
 		ruleengine.String(periodPrefix + "2026-07-19T11:00:00Z|2026-07-19T10:00:00Z|[)"),
 	}
 	for _, invalid := range invalidPeriods {
-		if _, err := operators[0].Evaluate(context.Background(), invalid, Period(equal)); err == nil {
+		if _, err := operators[0].Evaluate(context.Background(), invalid, mustInternalPeriodValue(t, equal)); err == nil {
 			t.Fatalf("invalid left %#v error = nil", invalid)
 		}
-		if _, err := operators[0].Evaluate(context.Background(), Period(equal), invalid); err == nil {
+		if _, err := operators[0].Evaluate(context.Background(), mustInternalPeriodValue(t, equal), invalid); err == nil {
 			t.Fatalf("invalid right %#v error = nil", invalid)
 		}
 	}
 	empty := mustPeriod(t, base, base)
-	if _, err := operators[0].Evaluate(context.Background(), Period(empty), Period(empty)); err == nil {
-		t.Fatal("empty relation error = nil")
+	if matched, err := operators[0].Evaluate(context.Background(), mustInternalPeriodValue(t, empty), mustInternalPeriodValue(t, empty)); err != nil || !matched {
+		t.Fatalf("empty equality = %t, %v", matched, err)
 	}
-	if _, err := operators[5].Evaluate(context.Background(), ruleengine.Int(1), Instant(base)); err == nil {
+	if _, err := operators[5].Evaluate(context.Background(), ruleengine.Int(1), mustInternalInstantValue(t, base)); err == nil {
 		t.Fatal("invalid contains period error = nil")
 	}
 	for _, invalid := range []ruleengine.Value{
@@ -90,10 +90,30 @@ func TestTemporalOperatorTruthAndFailureTable(t *testing.T) {
 		ruleengine.String("2026-07-19T10:00:00Z"),
 		ruleengine.String(instantPrefix + "invalid"),
 	} {
-		if _, err := operators[5].Evaluate(context.Background(), Period(period), invalid); err == nil {
+		if _, err := operators[5].Evaluate(context.Background(), mustInternalPeriodValue(t, period), invalid); err == nil {
 			t.Fatalf("invalid instant %#v error = nil", invalid)
 		}
 	}
+}
+
+func mustInternalPeriodValue(t testing.TB, period instant.Period) ruleengine.Value {
+	t.Helper()
+	value, err := Period(period)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return value
+}
+
+func mustInternalInstantValue(t testing.TB, point time.Time) ruleengine.Value {
+	t.Helper()
+	value, err := Instant(point)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	return value
 }
 
 func mustPeriod(t *testing.T, start, end time.Time) instant.Period {

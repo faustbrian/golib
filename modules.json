@@ -17983,7 +17983,8 @@
           "file": "pkg/rule-engine/adapters/gotemporal/.ai/GOAL.md",
           "requirements_sha256": "25fa67e8e71e4a8f082cc3cf9a0a9470dd27e04c30e388e69377147caefbfb15",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gotemporal/CHANGELOG.md"
+            "pkg/rule-engine/adapters/gotemporal/CHANGELOG.md",
+            "pkg/rule-engine/adapters/gotemporal/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -18014,7 +18015,8 @@
           "file": "pkg/rule-engine/adapters/gotemporal/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "3b716edb8cccb702a5952d6e575041bc91d54d3c30f77119e6b0145c25a00be3",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gotemporal/CHANGELOG.md"
+            "pkg/rule-engine/adapters/gotemporal/CHANGELOG.md",
+            "pkg/rule-engine/adapters/gotemporal/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -18061,7 +18063,7 @@
       "module_path": "github.com/faustbrian/golib/pkg/rule-engine/benchmarks/competitors",
       "go_version": "1.26.5",
       "packages": [],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`gotemporal` is the optional bridge between exact `temporal/instant` periods and the deterministic custom-operator boundary in `rule-engine`. It encodes instants and periods as tagged strings so the core engine does not acquire a temporal dependency.",
       "lifecycle": "internal",
       "kind": "benchmark harness",
       "releasable": false,

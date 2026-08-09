@@ -25,17 +25,28 @@ func BenchmarkPeriodContainsInstant(b *testing.B) {
 	if err != nil {
 		b.Fatal(err)
 	}
-	left := ruleenginetemporal.Period(period)
-	right := ruleenginetemporal.Instant(start.Add(time.Minute))
+	left := mustEncodedPeriod(b, period)
+	right := mustEncodedInstant(b, start.Add(time.Minute))
 	ctx := context.Background()
 
-	b.ReportAllocs()
-	for b.Loop() {
-		matched, evaluateErr := operator.Evaluate(ctx, left, right)
-		if evaluateErr != nil || !matched {
-			b.Fatalf("Evaluate() = %t, %v", matched, evaluateErr)
+	b.Run("adapter_parse_and_evaluate", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			matched, evaluateErr := operator.Evaluate(ctx, left, right)
+			if evaluateErr != nil || !matched {
+				b.Fatalf("Evaluate() = %t, %v", matched, evaluateErr)
+			}
 		}
-	}
+	})
+	b.Run("direct_temporal_membership", func(b *testing.B) {
+		point := start.Add(time.Minute)
+		b.ReportAllocs()
+		for b.Loop() {
+			if !period.Includes(point) {
+				b.Fatal("Includes() = false")
+			}
+		}
+	})
 }
 
 func temporalOperatorByName(
