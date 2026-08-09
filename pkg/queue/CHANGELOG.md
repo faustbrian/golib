@@ -45,6 +45,9 @@ versioning and Keep a Changelog structure.
   handlers before release. Legacy `Release` retains its force-compatible
   behavior. Graceful withdrawal also releases a reserved management admission
   before the scheduler exits.
+- `Queue.ReleaseContext` now contains concrete worker shutdown panics as the
+  stable, secret-safe `ErrWorkerShutdownPanic` result and caches that terminal
+  result across repeated release calls.
 - Handler backoff now retries only retryable failures. Permanent, malformed,
   canceled, and infrastructure outcomes reach backend settlement after the
   first handler execution instead of repeating a known terminal or uncertain

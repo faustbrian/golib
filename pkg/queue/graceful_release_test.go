@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"runtime"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -58,6 +59,16 @@ type releaseWorker struct {
 	handler  func(context.Context, core.TaskMessage) error
 	shutdown chan struct{}
 	stopErr  error
+}
+
+type panickingReleaseWorker struct {
+	releaseWorker
+	shutdownCalls atomic.Int32
+}
+
+func (worker *panickingReleaseWorker) Shutdown() error {
+	worker.shutdownCalls.Add(1)
+	panic("sensitive worker shutdown value")
 }
 
 func (worker *releaseWorker) Run(ctx context.Context, task core.TaskMessage) error {
@@ -416,6 +427,36 @@ func TestReleaseContextReturnsWorkerShutdownFailure(t *testing.T) {
 
 	if err = coordinator.ReleaseContext(boundedReleaseContext(t)); !errors.Is(err, shutdownErr) {
 		t.Fatalf("ReleaseContext() error = %v, want shutdown failure", err)
+	}
+}
+
+func TestReleaseContextContainsAndCachesWorkerShutdownPanic(t *testing.T) {
+	worker := &panickingReleaseWorker{releaseWorker: releaseWorker{
+		handler: func(context.Context, core.TaskMessage) error { return nil },
+	}}
+	coordinator, err := queue.NewQueue(
+		queue.WithWorker(worker),
+		queue.WithWorkerCount(0),
+	)
+	if err != nil {
+		t.Fatalf("NewQueue() error = %v", err)
+	}
+
+	for call := 0; call < 2; call++ {
+		err = coordinator.ReleaseContext(boundedReleaseContext(t))
+		if !errors.Is(err, queue.ErrWorkerShutdownPanic) {
+			t.Fatalf(
+				"ReleaseContext(%d) error = %v, want worker shutdown panic",
+				call,
+				err,
+			)
+		}
+		if strings.Contains(err.Error(), "sensitive") {
+			t.Fatal("ReleaseContext() disclosed the worker panic value")
+		}
+	}
+	if worker.shutdownCalls.Load() != 1 {
+		t.Fatalf("worker shutdown calls = %d, want 1", worker.shutdownCalls.Load())
 	}
 }
 

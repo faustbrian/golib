@@ -132,7 +132,7 @@ func (q *Queue) Shutdown() {
 
 		if _, inMemory := q.worker.(*Ring); !inMemory ||
 			atomic.LoadInt32(&q.drainFlag) == 0 {
-			q.shutdownErr = q.worker.Shutdown()
+			q.shutdownErr = q.shutdownWorker()
 		}
 		if q.shutdownErr != nil {
 			q.safeLogError(q.shutdownErr)
@@ -140,6 +140,16 @@ func (q *Queue) Shutdown() {
 		close(q.quit)
 		q.observe(Event{Kind: EventShutdownCompleted})
 	})
+}
+
+func (q *Queue) shutdownWorker() (err error) {
+	defer func() {
+		if recover() != nil {
+			err = ErrWorkerShutdownPanic
+		}
+	}()
+
+	return q.worker.Shutdown()
 }
 
 // Release performs a graceful shutdown and waits for all goroutines to finish.

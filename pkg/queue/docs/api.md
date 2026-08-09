@@ -13,6 +13,8 @@ maps the stable concepts new adopters need.
   submissions and stops backend intake without releasing the worker.
   `ReleaseContext` and `WaitContext` add service-owned bounds;
   `ReleaseContext` drains admitted work before transport release.
+- `ErrWorkerShutdownPanic` classifies a contained concrete worker shutdown
+  panic without retaining or formatting its value.
 - `Queue.Queue` submits byte-backed messages; `Queue.QueueTask` submits local
   functions.
 - `WithWorkerCount`, `WithQueueSize`, `WithRetryInterval`, `WithLogger`,

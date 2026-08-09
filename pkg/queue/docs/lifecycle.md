@@ -30,6 +30,9 @@ publish to finish, joins admitted handlers without cancelling their contexts,
 and closes the concrete worker only after the drain completes. The supplied
 context bounds both waits. If it expires, the transport remains open and a
 later call may resume release.
+Concrete worker shutdown panics are contained as `ErrWorkerShutdownPanic`, do
+not disclose their values, and remain the cached terminal result on every
+later release call.
 Backend `Request` operations retain their configured request bound so intake
 withdrawal cannot wait forever. If management lifecycle gating reserved the
 next backend request but the scheduler has not started it, graceful withdrawal

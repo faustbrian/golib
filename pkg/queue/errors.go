@@ -30,4 +30,8 @@ var (
 	// ErrSettlementPanic reports a recovered backend settlement callback panic
 	// without exposing its arbitrary panic value.
 	ErrSettlementPanic = errors.New("golang-queue: settlement panic")
+
+	// ErrWorkerShutdownPanic reports a recovered concrete worker shutdown panic
+	// without exposing or retaining its arbitrary panic value.
+	ErrWorkerShutdownPanic = errors.New("golang-queue: worker shutdown panic")
 )
