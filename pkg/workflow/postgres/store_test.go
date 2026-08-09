@@ -280,8 +280,9 @@ func TestClaimReturnsStableFencedDueWork(t *testing.T) {
 		leases[1].Work().Kind() != workflow.WorkTimer || database.lastQueryLimit != 2 {
 		t.Fatalf("claimed leases = %#v", leases)
 	}
-	if !strings.Contains(database.lastQuery, "FOR UPDATE SKIP LOCKED") ||
-		!strings.Contains(database.lastQuery, "lease_expires_at <= $1") {
+	if !strings.Contains(database.lastQuery, "FOR UPDATE OF work SKIP LOCKED") ||
+		!strings.Contains(database.lastQuery, "lease_expires_at <= $1") ||
+		!strings.Contains(database.lastQuery, "PARTITION BY tenant_id") {
 		t.Fatal("claim does not atomically recover expired leases")
 	}
 }

@@ -154,14 +154,20 @@ SET definition_name = $1, definition_version = $2,
 WHERE instance_id = $6 AND sequence = $7`,
 		history:        "SELECT sequence, kind, occurred_at, definition_name, definition_version, definition_fingerprint, successor_id, step_name, attempt, idempotency_key, due_at, code, retryable, data FROM " + history + " WHERE instance_id = $1 AND sequence > $2 ORDER BY sequence ASC LIMIT $3",
 		instanceExists: "SELECT EXISTS (SELECT 1 FROM " + instances + " WHERE instance_id = $1)",
-		claimWork: `WITH candidates AS (
-    SELECT work_id FROM ` + work + `
-    WHERE ((state = 1 AND available_at <= $1)
-        OR (state = 2 AND lease_expires_at <= $1))
-        AND deadline > $1
-    ORDER BY available_at, work_id
-    FOR UPDATE SKIP LOCKED
-    LIMIT $2
+		claimWork: `WITH due AS (
+	SELECT work_id, available_at,
+	    row_number() OVER (PARTITION BY tenant_id ORDER BY available_at, work_id) AS tenant_rank
+	FROM ` + work + `
+	WHERE ((state = 1 AND available_at <= $1)
+	    OR (state = 2 AND lease_expires_at <= $1))
+	    AND deadline > $1
+	), candidates AS (
+	SELECT work.work_id
+	FROM ` + work + ` AS work
+	JOIN due ON due.work_id = work.work_id
+	ORDER BY due.tenant_rank, due.available_at, work.work_id
+	FOR UPDATE OF work SKIP LOCKED
+	LIMIT $2
 ), claimed AS (
     UPDATE ` + work + ` AS work
     SET state = 2, attempts = work.attempts + 1,

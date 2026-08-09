@@ -12,9 +12,11 @@ unknown-outcome semantics, including replay of persisted attempt starts,
 outcomes, and bounded retry admission times. Durable work can be atomically
 claimed with bounded leases, monotonically increasing fencing tokens, crash
 recovery after lease expiry, renewal, retry admission, completion, and explicit
-dead-letter handling. Automatic step scheduling, worker process loops,
-compensation, signals, timers, operators, and optional integrations are not yet
-delivered.
+dead-letter handling. Bounded workers add tenant-fair admission, lease renewal,
+stale-owner cancellation, graceful draining, deterministic clocks, explicit
+retry/dead-letter decisions, and synchronous lifecycle hooks. Automatic step
+scheduling, compensation execution, signals, timers, operators, and optional
+integrations are not yet delivered.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that
@@ -33,6 +35,14 @@ nothing happened. Due-work claims use atomic locked admission with stable
 ordering. Lease expiry never exceeds the persisted work deadline, and every
 retry or crash recovery increments the attempt and fencing token so a stale
 owner cannot complete or release work.
+
+A `WorkProcessor` must honor cancellation and stop all of its goroutines before
+returning. It must persist the workflow transition represented by a work item
+before returning `WorkComplete`. If an external activity outcome is unknown, it
+must first persist unknown-outcome/reconciliation state; returning an error does
+not make an uncertain side effect safe to redispatch. Worker shutdown stops new
+claims, cancels active processors, preserves any already-known disposition, and
+waits for processors to exit.
 
 ```go
 migration := postgres.SchemaMigration()

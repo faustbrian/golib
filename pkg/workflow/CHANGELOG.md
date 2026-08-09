@@ -22,6 +22,9 @@ and releases use Semantic Versioning.
 - Bounded durable-work claims with atomic PostgreSQL admission, expiring leases,
   monotonically increasing fencing tokens, crash recovery, renewal, explicit
   retry times, stale-owner rejection, completion, and dead-letter disposition.
+- Bounded workers with deterministic clocks, tenant-fair admission, explicit
+  processor dispositions, periodic lease renewal, stale-owner cancellation,
+  graceful draining, bounded finalization, and synchronous lifecycle hooks.
 - Immutable durable lifecycle history, deterministic replay, pinned definition
   verification, explicit persisted migration decisions, cancellation,
   termination, and continue-as-new outcomes.
