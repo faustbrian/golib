@@ -21,6 +21,7 @@ import (
 	outboxpostgres "github.com/faustbrian/golib/pkg/outbox/postgres"
 	outboxrelay "github.com/faustbrian/golib/pkg/outbox/relay"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/testcontainers/testcontainers-go"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
@@ -226,9 +227,11 @@ func TestStagerMappingFailureRequiresCallerRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	codecLimits := gooutbox.DefaultLimits()
+	codecLimits.MaxIDBytes = 1
 	codec, err := gooutbox.NewEnvelopeCodec(
-		gooutbox.FixedTopic(""),
-		gooutbox.DefaultLimits(),
+		gooutbox.FixedTopic("account-events"),
+		codecLimits,
 	)
 	if err != nil {
 		t.Fatal(err)
@@ -259,6 +262,51 @@ func TestStagerMappingFailureRequiresCallerRollback(t *testing.T) {
 	}
 	if err := tx.Rollback(ctx); err != nil {
 		t.Fatal(err)
+	}
+	assertStoredCounts(t, ctx, pool, 0, 0)
+}
+
+func TestStagerMappingFailureCannotBeCommittedByCaller(t *testing.T) {
+	ctx, pool := newIntegrationPool(t)
+	writer, err := outboxpostgres.NewWriter(outboxpostgres.WriterConfig{
+		Limits: gooutbox.DefaultLimits(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	codecLimits := gooutbox.DefaultLimits()
+	codecLimits.MaxIDBytes = 1
+	codec, err := gooutbox.NewEnvelopeCodec(
+		gooutbox.FixedTopic("account-events"),
+		codecLimits,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stager, err := gooutbox.NewStager(
+		tx,
+		eventpostgres.Config{},
+		writer,
+		codec,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream := mustStream(t)
+	if _, err := stager.Stage(
+		ctx,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{testPending(t, stream)},
+	); !errors.Is(err, gooutbox.ErrEnvelopeEncoding) {
+		t.Fatalf("Stage error = %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatalf("caller commit after staging failure = %v", err)
 	}
 	assertStoredCounts(t, ctx, pool, 0, 0)
 }
@@ -571,6 +619,12 @@ func newIntegrationPool(t testing.TB) (context.Context, *pgxpool.Pool) {
 		tcpostgres.WithUsername("event_sourcing_outbox"),
 		tcpostgres.WithPassword("event_sourcing_outbox"),
 		tcpostgres.BasicWaitStrategies(),
+		testcontainers.WithCmd(
+			"postgres",
+			"-c", "fsync=on",
+			"-c", "synchronous_commit=on",
+			"-c", "full_page_writes=on",
+		),
 	)
 	if err != nil {
 		t.Fatalf("start PostgreSQL %s: %v", version, err)

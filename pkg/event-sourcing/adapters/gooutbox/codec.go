@@ -94,17 +94,35 @@ func (err *EnvelopeError) Unwrap() []error {
 	return []error{err.category, err.cause}
 }
 
-// TopicResolver selects one bounded outbox topic for a persisted message.
+// TopicMessage exposes only immutable pre-persistence fields so routing can be
+// resolved before PostgreSQL stream locks are acquired. PendingMessage and
+// Message both implement this contract.
+type TopicMessage interface {
+	ID() eventsourcing.MessageID
+	Stream() eventsourcing.StreamID
+	Event() eventsourcing.EncodedEvent
+	Metadata() map[string]string
+	RecordedAt() time.Time
+	CorrelationID() (eventsourcing.MessageID, bool)
+	CausationID() (eventsourcing.MessageID, bool)
+	Tenant() (string, bool)
+	Partition() (string, bool)
+}
+
+// TopicResolver selects one bounded outbox topic from immutable message data
+// available before persistence. It cannot observe store-assigned positions.
+// Implementations must be deterministic for the same TopicMessage, bounded,
+// side-effect-free, concurrency-safe, and must not perform blocking IO.
 type TopicResolver interface {
-	ResolveTopic(eventsourcing.Message) (string, error)
+	ResolveTopic(TopicMessage) (string, error)
 }
 
 // TopicResolverFunc adapts a function to TopicResolver.
-type TopicResolverFunc func(eventsourcing.Message) (string, error)
+type TopicResolverFunc func(TopicMessage) (string, error)
 
 // ResolveTopic implements TopicResolver.
 func (resolver TopicResolverFunc) ResolveTopic(
-	message eventsourcing.Message,
+	message TopicMessage,
 ) (string, error) {
 	if resolver == nil {
 		return "", ErrResolverRequired
@@ -115,7 +133,7 @@ func (resolver TopicResolverFunc) ResolveTopic(
 
 // FixedTopic routes every message to one topic.
 func FixedTopic(topic string) TopicResolver {
-	return TopicResolverFunc(func(eventsourcing.Message) (string, error) {
+	return TopicResolverFunc(func(TopicMessage) (string, error) {
 		return topic, nil
 	})
 }
@@ -166,14 +184,30 @@ func (codec *EnvelopeCodec) Encode(
 	if codec == nil || codec.resolver == nil || message.ID().IsZero() {
 		return outbox.Envelope{}, ErrEnvelopeInvalid
 	}
-	topic, err := resolveTopic(codec.resolver, message)
+	topic, err := codec.resolveTopic(message)
 	if err != nil {
-		return outbox.Envelope{}, envelopeFailure(ErrEnvelopeInvalid, err)
-	}
-	if !validTopic(topic, codec.limits.MaxTopicBytes) {
-		return outbox.Envelope{}, ErrEnvelopeInvalid
+		return outbox.Envelope{}, err
 	}
 
+	return codec.encodeResolved(message, topic)
+}
+
+func (codec *EnvelopeCodec) resolveTopic(message TopicMessage) (string, error) {
+	topic, err := resolveTopic(codec.resolver, message)
+	if err != nil {
+		return "", envelopeFailure(ErrEnvelopeInvalid, err)
+	}
+	if !validTopic(topic, codec.limits.MaxTopicBytes) {
+		return "", ErrEnvelopeInvalid
+	}
+
+	return topic, nil
+}
+
+func (codec *EnvelopeCodec) encodeResolved(
+	message eventsourcing.Message,
+	topic string,
+) (outbox.Envelope, error) {
 	metadataJSON, _ := json.Marshal(message.Metadata())
 	event := message.Event()
 	metadata := map[string]string{
@@ -333,7 +367,7 @@ func (codec *EnvelopeCodec) Decode(
 
 func resolveTopic(
 	resolver TopicResolver,
-	message eventsourcing.Message,
+	message TopicMessage,
 ) (topic string, err error) {
 	defer func() {
 		if recover() != nil {

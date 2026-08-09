@@ -41,7 +41,7 @@ func TestEnvelopeCodecRejectsInvalidConstructionAndEncoding(t *testing.T) {
 		},
 		"resolver error": {
 			resolver: TopicResolverFunc(
-				func(eventsourcing.Message) (string, error) {
+				func(TopicMessage) (string, error) {
 					return "", sentinel
 				},
 			),
@@ -85,7 +85,7 @@ func TestEnvelopeCodecContainsTopicResolverPanic(t *testing.T) {
 
 	codec := mustCodec(
 		t,
-		TopicResolverFunc(func(eventsourcing.Message) (string, error) {
+		TopicResolverFunc(func(TopicMessage) (string, error) {
 			panic("sensitive panic value")
 		}),
 		outbox.DefaultLimits(),
@@ -104,7 +104,7 @@ func TestEnvelopeCodecRedactsTopicResolverError(t *testing.T) {
 	sentinel := errors.New("sensitive resolver diagnostic")
 	codec := mustCodec(
 		t,
-		TopicResolverFunc(func(eventsourcing.Message) (string, error) {
+		TopicResolverFunc(func(TopicMessage) (string, error) {
 			return "", sentinel
 		}),
 		outbox.DefaultLimits(),

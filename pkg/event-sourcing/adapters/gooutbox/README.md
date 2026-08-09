@@ -2,9 +2,10 @@
 
 `gooutbox` composes the public event-sourcing PostgreSQL writer and the public
 outbox PostgreSQL writer. Neither core imports the other. `Stager` writes event
-rows and one outbox envelope per event through an existing caller-owned
-`pgx.Tx`. The adapter never begins, commits, rolls back, or publishes from that
-transaction and never claims exactly-once delivery.
+rows and one outbox envelope per event through a savepoint inside an existing
+caller-owned `pgx.Tx`. It releases that savepoint only after both batches stage
+and rolls it back after any error. The adapter never commits or publishes from
+the outer transaction and never claims exactly-once delivery.
 
 ## Quick start
 
@@ -108,7 +109,7 @@ if plan.Empty() {
 }
 messages, err := stager.StagePlan(ctx, plan)
 if err != nil {
-	return err // roll back; nothing was committed by Stager
+	return err // this call's savepoint was rolled back; caller should roll back
 }
 if err := tx.Commit(ctx); err != nil {
 	_, unknownErr := repository.MarkCommitUnknown(
@@ -128,10 +129,13 @@ return err
 ```
 
 `Stager` deliberately does not implement `eventsourcing.EventStore`: a
-successful stage is not a committed append. It never commits, rolls back,
-dispatches, or acknowledges aggregate lifecycle state. Applications that use
-the ordinary repository `Save` method must migrate to `PrepareSave`,
-`StagePlan`, and `ConfirmCommitted` as shown above.
+successful stage is not a committed append. It owns only an internal
+savepoint; it never commits the outer transaction, dispatches, or acknowledges
+aggregate lifecycle state. If savepoint release or rollback itself fails,
+`Stager` marks the outer transaction failed so a partially staged batch cannot
+later be committed; the caller still owns and must perform its rollback.
+Applications that use the ordinary repository `Save` method must migrate to
+`PrepareSave`, `StagePlan`, and `ConfirmCommitted` as shown above.
 
 `StagePlan` accepts the adapter-owned `AppendPlan` contract, which the core
 `eventsourcing.SavePlan` implements. The lower-level `Stage` method remains
@@ -157,13 +161,46 @@ unknown reserved metadata, malformed values, mismatched message,
 idempotency, or ordering identities, and replay markers. Applications must
 configure the outbox writer with the exact same limits as the codec.
 
+Custom topic resolvers receive `gooutbox.TopicMessage`, which exposes only
+immutable fields available before persistence. Routing therefore completes
+before a stream row is locked and cannot depend on store-assigned stream
+versions or global positions. Migrate resolvers declared with
+`eventsourcing.Message` by changing their parameter type to
+`gooutbox.TopicMessage`; the stable ID, stream, event, metadata, recorded time,
+correlation, causation, tenant, and partition accessors remain available. A
+resolver must be deterministic for identical input, bounded, side-effect-free,
+concurrency-safe, and free of blocking I/O so exact retries retain canonical
+envelope bytes.
+
 ## Transactions, crashes, and recovery
 
-Validation, event staging, envelope mapping, and outbox insertion failures
-return `CommitNotCommitted`; the caller must roll back. The adapter cannot
-return `CommitUnknown` because it never commits. If the caller's PostgreSQL
-commit returns an error, the caller must classify the outcome as ambiguous and
-must not acknowledge the aggregate.
+Dependency, context, stream, expectation, message-batch validation, and topic
+resolution happen before the savepoint and therefore before any PostgreSQL
+lock. Event staging, envelope construction from the resolved topics, and outbox
+insertion happen inside one savepoint. Any such failure rolls back that
+savepoint, so even a later caller commit cannot persist only the event or only
+the envelope. A savepoint lifecycle failure marks the outer transaction failed,
+returns `ErrTransactionStaging`, and requires caller rollback without performing
+that rollback on the caller's behalf. The adapter cannot return `CommitUnknown`
+because it never commits the outer transaction. If the caller's PostgreSQL commit returns
+an error, the caller must classify the outcome as ambiguous and must not
+acknowledge the aggregate.
+
+The complete state sequence is:
+
+1. validate immutable stream, expectation, messages, codec, and limits;
+2. resolve every topic without holding a database lock;
+3. open a nested savepoint;
+4. lock and validate the stream version;
+5. allocate global positions and stage every event row;
+6. derive canonical envelopes and stage them in one outbox statement;
+7. release the savepoint, leaving both batches pending in the outer transaction;
+8. let the caller commit or roll back the outer transaction;
+9. on a lost commit response, reconcile the complete prepared event and outbox
+   identities before confirmation or exact retry;
+10. confirm aggregate state only after a known or reconciled commit;
+11. let the independent relay publish at least once, with consumer idempotency
+    keyed by the envelope ID.
 
 For an unknown commit, do not retry with new message IDs. Read the event store
 and outbox by the prepared message IDs, compare the complete expected batch,
@@ -209,27 +246,32 @@ rollback; they are never silently truncated. Keep events materially below the
 absolute bounds and include adapter serialization overhead in capacity tests.
 
 The adapter starts no goroutines and does not own the pool, transaction, relay,
-or publisher lifecycle. Run the relay under an application-owned bounded
-context with explicit shutdown and retry policy.
+or publisher lifecycle. A `Stager` and its transaction must be used serially;
+concurrent writers use independent caller-owned transactions and `Stager`
+instances. Run the relay under an application-owned bounded context with
+explicit shutdown and retry policy.
 
 ## Performance evidence
 
-The integration benchmark compares single-message PostgreSQL appends through
-the event store alone and through caller-owned transaction staging with one
-same-transaction outbox row. Both paths use the same validated message shape,
-new-stream expectation, PostgreSQL schema, connection pool, and commit
-boundary. Envelope encoding and insertion are deliberately measured only on
+The integration benchmark compares PostgreSQL appends in atomic batches of 1,
+10, 100, and 1000 through the event store alone and through caller-owned
+transaction staging with one same-transaction outbox row per event. Both paths
+use the same validated message shapes, new-stream expectation, PostgreSQL
+schema, connection pool, and commit boundary. It verifies exact durable row
+counts and the stream-version and outbox-identity index plans after each
+workload. Envelope encoding and insertion are deliberately measured only on
 the adapter path because they are its production overhead. Run with:
 
 ```console
-go test -tags=integration -run '^$' \
-  -bench '^BenchmarkPostgreSQLOutboxAppendOverhead$' \
-  -benchmem -count=10
+make benchmark BENCH_COUNT=10 POSTGRES_BENCH_TIME=3x
 ```
 
-Report the pinned PostgreSQL image, database settings, hardware, Go version,
-sample count, and raw `benchstat` analysis. These local transactions do not
-measure relay publication or Kafka delivery.
+The canonical gate performs one untimed warm-up per mode, captures ten fresh
+samples with the mode order balanced five-to-five, and measures at least three
+committed appends per large-batch sample. It prints the pinned PostgreSQL image,
+actual durability settings, hardware and Go environment, then reports both the
+raw measurements and `benchstat` distribution analysis. These local
+transactions do not measure relay publication or Kafka delivery.
 
 ## Adoption, compatibility, and migration
 

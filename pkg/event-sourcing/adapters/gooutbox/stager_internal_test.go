@@ -3,6 +3,7 @@ package gooutbox
 import (
 	"context"
 	"errors"
+	"strconv"
 	"testing"
 	"time"
 
@@ -189,6 +190,399 @@ func TestNewStagerRejectsInvalidEventConfiguration(t *testing.T) {
 	}
 }
 
+func TestStagerRollsBackSavepointAfterEveryStatementFailure(t *testing.T) {
+	t.Parallel()
+
+	sentinel := errors.New("sensitive statement failure")
+	tests := map[string]struct {
+		execErrors map[int]error
+		rowErrors  map[int]error
+		want       error
+	}{
+		"create stream": {
+			execErrors: map[int]error{0: sentinel},
+			want:       sentinel,
+		},
+		"lock stream": {
+			rowErrors: map[int]error{0: sentinel},
+			want:      sentinel,
+		},
+		"allocate positions": {
+			rowErrors: map[int]error{1: sentinel},
+			want:      sentinel,
+		},
+		"insert event": {
+			rowErrors: map[int]error{2: sentinel},
+			want:      sentinel,
+		},
+		"advance stream": {
+			execErrors: map[int]error{1: sentinel},
+			want:       sentinel,
+		},
+		"insert outbox": {
+			execErrors: map[int]error{2: sentinel},
+			want:       ErrOutboxWrite,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			transaction := &fakeTransaction{
+				rows:       []int64{0, 1, 1},
+				execErrors: test.execErrors,
+				rowErrors:  test.rowErrors,
+			}
+			stager := mustStager(
+				t,
+				transaction,
+				FixedTopic("account-events"),
+			)
+			stream, pending := internalPending(t)
+			messages, err := stager.Stage(
+				t.Context(),
+				stream,
+				eventsourcing.ExpectNewStream(),
+				[]eventsourcing.PendingMessage{pending},
+			)
+			if messages != nil || !errors.Is(err, test.want) ||
+				eventsourcing.AppendCommitOutcome(err) !=
+					eventsourcing.CommitNotCommitted {
+				t.Fatalf("Stage() = %#v, %v; want %v", messages, err, test.want)
+			}
+			if transaction.savepointBegins != 1 ||
+				transaction.savepointRollbacks != 1 ||
+				transaction.savepointReleases != 0 ||
+				transaction.rollbackCalls != 0 ||
+				!transaction.savepointRollbackBound {
+				t.Fatalf("transaction lifecycle = %#v", transaction)
+			}
+		})
+	}
+}
+
+func TestStagerContainsSavepointLifecycleFailures(t *testing.T) {
+	t.Parallel()
+
+	sentinel := errors.New("sensitive savepoint failure")
+	t.Run("begin", func(t *testing.T) {
+		t.Parallel()
+
+		transaction := &fakeTransaction{beginErr: sentinel}
+		stager := mustStager(t, transaction, FixedTopic("account-events"))
+		stream, pending := internalPending(t)
+		_, err := stager.Stage(
+			t.Context(),
+			stream,
+			eventsourcing.ExpectNewStream(),
+			[]eventsourcing.PendingMessage{pending},
+		)
+		if !errors.Is(err, ErrTransactionStaging) ||
+			!errors.Is(err, sentinel) || err.Error() != ErrTransactionStaging.Error() ||
+			transaction.rollbackCalls != 0 {
+			t.Fatalf("Stage error = %v; transaction = %#v", err, transaction)
+		}
+	})
+	t.Run("release", func(t *testing.T) {
+		t.Parallel()
+
+		transaction := &fakeTransaction{
+			rows:                []int64{0, 1, 1},
+			savepointReleaseErr: sentinel,
+		}
+		stager := mustStager(t, transaction, FixedTopic("account-events"))
+		stream, pending := internalPending(t)
+		_, err := stager.Stage(
+			t.Context(),
+			stream,
+			eventsourcing.ExpectNewStream(),
+			[]eventsourcing.PendingMessage{pending},
+		)
+		if !errors.Is(err, ErrTransactionStaging) ||
+			!errors.Is(err, sentinel) || transaction.savepointReleases != 1 ||
+			transaction.savepointRollbacks != 1 ||
+			transaction.rollbackCalls != 0 || transaction.execCalls != 3 {
+			t.Fatalf("Stage error = %v; transaction = %#v", err, transaction)
+		}
+	})
+	t.Run("invalid internal event configuration", func(t *testing.T) {
+		t.Parallel()
+
+		transaction := &fakeTransaction{}
+		stager := mustStager(t, transaction, FixedTopic("account-events"))
+		stager.eventConfig.Schema = "unsupported"
+		stream, pending := internalPending(t)
+		_, err := stager.Stage(
+			t.Context(),
+			stream,
+			eventsourcing.ExpectNewStream(),
+			[]eventsourcing.PendingMessage{pending},
+		)
+		if err == nil || transaction.savepointRollbacks != 1 ||
+			transaction.rollbackCalls != 0 {
+			t.Fatalf("Stage error = %v; transaction = %#v", err, transaction)
+		}
+	})
+	t.Run("rollback", func(t *testing.T) {
+		t.Parallel()
+
+		outboxFailure := errors.New("sensitive outbox failure")
+		transaction := &fakeTransaction{
+			rows:                  []int64{0, 1, 1},
+			execErrors:            map[int]error{2: outboxFailure},
+			savepointRollbackErr:  sentinel,
+			savepointRollbackWait: true,
+		}
+		stager := mustStager(t, transaction, FixedTopic("account-events"))
+		stager.cleanupTimeout = time.Millisecond
+		stream, pending := internalPending(t)
+		_, err := stager.Stage(
+			t.Context(),
+			stream,
+			eventsourcing.ExpectNewStream(),
+			[]eventsourcing.PendingMessage{pending},
+		)
+		if !errors.Is(err, ErrOutboxWrite) ||
+			!errors.Is(err, ErrTransactionStaging) ||
+			!errors.Is(err, outboxFailure) || !errors.Is(err, sentinel) ||
+			!errors.Is(err, context.DeadlineExceeded) ||
+			err.Error() != ErrTransactionStaging.Error() ||
+			transaction.savepointRollbacks != 1 ||
+			transaction.rollbackCalls != 0 || transaction.execCalls != 4 ||
+			transaction.transactionFailureContext ==
+				transaction.savepointRollbackContext ||
+			!transaction.transactionFailureBound {
+			t.Fatalf("Stage error = %v; transaction = %#v", err, transaction)
+		}
+	})
+}
+
+func TestStagerDoesNotOpenSavepointForPreflightCancellation(t *testing.T) {
+	t.Parallel()
+
+	transaction := &fakeTransaction{rows: []int64{0, 1, 1}}
+	stager := mustStager(t, transaction, FixedTopic("account-events"))
+	stream, pending := internalPending(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_, err := stager.Stage(
+		ctx,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{pending},
+	)
+	if !errors.Is(err, context.Canceled) || transaction.savepointBegins != 0 ||
+		transaction.savepointRollbacks != 0 {
+		t.Fatalf("Stage error = %v; transaction = %#v", err, transaction)
+	}
+}
+
+func TestStagerRejectsNilContextBeforeTransaction(t *testing.T) {
+	t.Parallel()
+
+	transaction := &fakeTransaction{}
+	stager := mustStager(t, transaction, FixedTopic("account-events"))
+	stream, pending := internalPending(t)
+	var nilContext context.Context
+	_, err := stager.Stage(
+		nilContext,
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{pending},
+	)
+	if !errors.Is(err, eventsourcing.ErrInvalidArgument) ||
+		transaction.savepointBegins != 0 {
+		t.Fatalf("Stage error = %v; transaction = %#v", err, transaction)
+	}
+}
+
+func TestStageInputAcceptsMaximumBatchSize(t *testing.T) {
+	t.Parallel()
+
+	stream, template := internalPending(t)
+	pending := make(
+		[]eventsourcing.PendingMessage,
+		eventsourcing.MaxAppendMessages,
+	)
+	for index := range pending {
+		message, err := eventsourcing.NewPendingMessage(
+			eventsourcing.PendingMessageInput{
+				ID:         "maximum-message-" + strconv.Itoa(index),
+				Stream:     stream,
+				Event:      template.Event(),
+				RecordedAt: template.RecordedAt(),
+			},
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		pending[index] = message
+	}
+	if err := validateStageInput(
+		t.Context(),
+		stream,
+		eventsourcing.ExpectNewStream(),
+		pending,
+	); err != nil {
+		t.Fatalf("validate maximum batch: %v", err)
+	}
+}
+
+func TestStagerRejectsInvalidBatchBeforeResolverOrTransaction(t *testing.T) {
+	t.Parallel()
+
+	stream, pending := internalPending(t)
+	otherStream, err := eventsourcing.NewStreamID("account", "account-2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tooLarge := make(
+		[]eventsourcing.PendingMessage,
+		eventsourcing.MaxAppendMessages+1,
+	)
+	for index := range tooLarge {
+		tooLarge[index] = pending
+	}
+	tests := map[string]struct {
+		stream   eventsourcing.StreamID
+		expected eventsourcing.ExpectedVersion
+		pending  []eventsourcing.PendingMessage
+		want     error
+	}{
+		"stream": {
+			expected: eventsourcing.ExpectNewStream(),
+			pending:  []eventsourcing.PendingMessage{pending},
+			want:     eventsourcing.ErrInvalidArgument,
+		},
+		"expectation": {
+			stream:  stream,
+			pending: []eventsourcing.PendingMessage{pending},
+			want:    eventsourcing.ErrInvalidArgument,
+		},
+		"empty batch": {
+			stream:   stream,
+			expected: eventsourcing.ExpectNewStream(),
+			want:     eventsourcing.ErrInvalidArgument,
+		},
+		"oversized batch": {
+			stream:   stream,
+			expected: eventsourcing.ExpectNewStream(),
+			pending:  tooLarge,
+			want:     eventsourcing.ErrInvalidArgument,
+		},
+		"zero message": {
+			stream:   stream,
+			expected: eventsourcing.ExpectNewStream(),
+			pending:  []eventsourcing.PendingMessage{{}},
+			want:     eventsourcing.ErrInvalidArgument,
+		},
+		"wrong message stream": {
+			stream:   otherStream,
+			expected: eventsourcing.ExpectNewStream(),
+			pending:  []eventsourcing.PendingMessage{pending},
+			want:     eventsourcing.ErrInvalidArgument,
+		},
+		"duplicate message": {
+			stream:   stream,
+			expected: eventsourcing.ExpectNewStream(),
+			pending:  []eventsourcing.PendingMessage{pending, pending},
+			want:     eventsourcing.ErrDuplicateMessageID,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			transaction := &fakeTransaction{}
+			resolverCalls := 0
+			stager := mustStager(
+				t,
+				transaction,
+				TopicResolverFunc(func(TopicMessage) (string, error) {
+					resolverCalls++
+
+					return "account-events", nil
+				}),
+			)
+			_, err := stager.Stage(
+				t.Context(),
+				test.stream,
+				test.expected,
+				test.pending,
+			)
+			if !errors.Is(err, test.want) || resolverCalls != 0 ||
+				transaction.savepointBegins != 0 {
+				t.Fatalf(
+					"Stage error = %v; resolver calls = %d; transaction = %#v",
+					err,
+					resolverCalls,
+					transaction,
+				)
+			}
+		})
+	}
+}
+
+func TestStagerResolvesTopicsBeforeOpeningSavepoint(t *testing.T) {
+	t.Parallel()
+
+	transaction := &fakeTransaction{rows: []int64{0, 1, 1}}
+	resolver := TopicResolverFunc(func(TopicMessage) (string, error) {
+		if transaction.savepointBegins != 0 || transaction.execCalls != 0 ||
+			transaction.rowIndex != 0 {
+			return "", errors.New("resolver ran while transaction work was active")
+		}
+
+		return "account-events", nil
+	})
+	stager := mustStager(t, transaction, resolver)
+	stream, pending := internalPending(t)
+	if _, err := stager.Stage(
+		t.Context(),
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{pending},
+	); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestStagerRollsBackWhenResolvedEnvelopeExceedsLimits(t *testing.T) {
+	t.Parallel()
+
+	transaction := &fakeTransaction{rows: []int64{0, 1, 1}}
+	writer, err := outboxpostgres.NewWriter(outboxpostgres.WriterConfig{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	limits := outbox.DefaultLimits()
+	limits.MaxIDBytes = 1
+	codec, err := NewEnvelopeCodec(FixedTopic("account-events"), limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stager, err := NewStager(
+		transaction,
+		eventpostgres.Config{},
+		writer,
+		codec,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stream, pending := internalPending(t)
+	_, err = stager.Stage(
+		t.Context(),
+		stream,
+		eventsourcing.ExpectNewStream(),
+		[]eventsourcing.PendingMessage{pending},
+	)
+	if !errors.Is(err, ErrEnvelopeEncoding) ||
+		transaction.savepointRollbacks != 1 || transaction.rollbackCalls != 0 {
+		t.Fatalf("Stage error = %v; transaction = %#v", err, transaction)
+	}
+}
+
 func mustStager(
 	t *testing.T,
 	transaction pgx.Tx,
@@ -253,21 +647,40 @@ func internalPending(
 }
 
 type fakeTransaction struct {
-	rows          []int64
-	rowIndex      int
-	execErrors    map[int]error
-	execCalls     int
-	commitErr     error
-	commitCalls   int
-	rollbackCalls int
-	rollbackUntil time.Time
-	rollbackBound bool
+	rows                      []int64
+	rowIndex                  int
+	rowErrors                 map[int]error
+	execErrors                map[int]error
+	execCalls                 int
+	beginErr                  error
+	commitErr                 error
+	commitCalls               int
+	rollbackCalls             int
+	rollbackUntil             time.Time
+	rollbackBound             bool
+	savepointBegins           int
+	savepointReleases         int
+	savepointReleaseErr       error
+	savepointRollbacks        int
+	savepointRollbackErr      error
+	savepointRollbackWait     bool
+	savepointRollbackUntil    time.Time
+	savepointRollbackBound    bool
+	savepointRollbackContext  context.Context
+	transactionFailureContext context.Context
+	transactionFailureUntil   time.Time
+	transactionFailureBound   bool
 }
 
 func (transaction *fakeTransaction) Begin(
 	context.Context,
 ) (pgx.Tx, error) {
-	return nil, errors.New("unexpected Begin")
+	transaction.savepointBegins++
+	if transaction.beginErr != nil {
+		return nil, transaction.beginErr
+	}
+
+	return &fakeSavepoint{fakeTransaction: transaction}, nil
 }
 
 func (transaction *fakeTransaction) Commit(context.Context) error {
@@ -312,12 +725,17 @@ func (transaction *fakeTransaction) Prepare(
 }
 
 func (transaction *fakeTransaction) Exec(
-	_ context.Context,
+	ctx context.Context,
 	_ string,
 	_ ...any,
 ) (pgconn.CommandTag, error) {
 	index := transaction.execCalls
 	transaction.execCalls++
+	if index == 3 && transaction.savepointRollbackErr != nil {
+		transaction.transactionFailureContext = ctx
+		transaction.transactionFailureUntil,
+			transaction.transactionFailureBound = ctx.Deadline()
+	}
 	if err := transaction.execErrors[index]; err != nil {
 		return pgconn.CommandTag{}, err
 	}
@@ -338,24 +756,54 @@ func (transaction *fakeTransaction) QueryRow(
 	_ string,
 	_ ...any,
 ) pgx.Row {
+	index := transaction.rowIndex
 	value := transaction.rows[transaction.rowIndex]
 	transaction.rowIndex++
 
-	return fakeRow{value: value}
+	return fakeRow{value: value, err: transaction.rowErrors[index]}
 }
 
 func (*fakeTransaction) Conn() *pgx.Conn {
 	return nil
 }
 
+type fakeSavepoint struct {
+	*fakeTransaction
+}
+
+func (savepoint *fakeSavepoint) Commit(context.Context) error {
+	savepoint.savepointReleases++
+
+	return savepoint.savepointReleaseErr
+}
+
+func (savepoint *fakeSavepoint) Rollback(ctx context.Context) error {
+	savepoint.savepointRollbacks++
+	savepoint.savepointRollbackContext = ctx
+	savepoint.savepointRollbackUntil,
+		savepoint.savepointRollbackBound = ctx.Deadline()
+	if savepoint.savepointRollbackWait {
+		<-ctx.Done()
+
+		return errors.Join(savepoint.savepointRollbackErr, ctx.Err())
+	}
+
+	return savepoint.savepointRollbackErr
+}
+
 type fakeRow struct {
 	value int64
+	err   error
 }
 
 func (row fakeRow) Scan(destinations ...any) error {
+	if row.err != nil {
+		return row.err
+	}
 	*destinations[0].(*int64) = row.value
 
 	return nil
 }
 
 var _ pgx.Tx = (*fakeTransaction)(nil)
+var _ pgx.Tx = (*fakeSavepoint)(nil)

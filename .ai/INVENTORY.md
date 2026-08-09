@@ -87,7 +87,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 24, 25 |
 | 27 | Queue | `pending-reexecution` | `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` | 18 |
-| 29 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md` | 28 |
 | 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 29 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 28 |
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
@@ -126,7 +125,8 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/outbox/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 32. Current scoped evidence verifies payload-safe propagation and telemetry, exact relay publication and settlement semantics, bounded cooperative-provider lifecycle, concurrency and retention safety, convention mapping, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/queue/queueservice/.ai/GOAL.md` | `verified` | Former pending order 27. Current scoped evidence verifies the lifecycle adapter contract, exact coverage and mutation, API, documentation, safety, Redis and Valkey backend integration, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 29 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 29 has current scoped implementation and mandatory gate evidence. |
+| `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 29. Current scoped evidence verifies transactional atomicity, commit-ambiguity recovery, stable retry and publication identity, concurrent and replica writers, process and database failure handling, hostile envelope boundaries, and equivalent-durability performance; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomath/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 37. Current scoped evidence verifies exact decimal persistence and comparison behavior, hostile-input and concurrency hardening, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -245,7 +245,20 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Result | Passed every mandatory module gate, including PostgreSQL 18 interoperability, race, two 10,000-execution fuzz targets, 138/138 statements, 66/66 viable mutants, security, API, docs, and benchmarks. |
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE` and the gate-managed PostgreSQL 18 service. |
 | Observed | 2026-08-09T04:56:04Z |
-| Gaps | None within the scoped base-goal contract; `GOAL_HARDEN.md` remains a separate pending campaign. Live wrapper revalidation was invalidated by concurrent unrelated `modules.json`, `packages.json`, and `go.work` changes after the isolated snapshot passed. |
+| Gaps | None within the scoped base-goal contract. Live wrapper revalidation was invalidated by concurrent unrelated `modules.json`, `packages.json`, and `go.work` changes after the isolated snapshot passed. |
+
+### Event-sourcing outbox adapter hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md` |
+| Scope | Savepoint-contained event and envelope staging; database-statement, cancellation, deadlock, serialization, pool-loss, process-death, failover, and commit-boundary failures; exact ambiguity reconciliation and retry identity; concurrent connection and replica races; canonical hostile envelope boundaries; relay duplication; and equivalent-durability transactional overhead. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `GOLIB_VERIFICATION_SNAPSHOT=1 ./scripts/run-modules.sh check --jobs 1 --modules pkg/event-sourcing/adapters/gooutbox` against a stable snapshot of the completed package inputs. |
+| Result | Passed every mandatory module gate, including PostgreSQL 18 interoperability, race, four 10,000-execution fuzz targets, exact 181/181 statement coverage, and 85/85 viable mutants killed with zero lived, uncovered, timed-out, or skipped mutants. Durable PostgreSQL benchmarks used `fsync=on`, `synchronous_commit=on`, ten fresh samples with balanced mode order, and three committed operations per batch of 1, 10, 100, and 1000; direct `benchstat` A/B analysis quantified latency and allocation tradeoffs without a durability mismatch. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories and digest-pinned PostgreSQL 18.4 containers. |
+| Observed | 2026-08-09T16:34:21Z |
+| Gaps | NilAway remains advisory with one test-only variadic-slice diagnostic. The vulnerability gate reports one imported-package vulnerability that production code does not call, and the SBOM gate emits a non-failing main-module-version warning; no atomicity, ambiguity, race, wire, or performance finding remains within the scoped hardening contract. |
 
 ### Exact decimal rule operator evidence
 
