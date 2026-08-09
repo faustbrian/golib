@@ -437,7 +437,7 @@ func TestReleasePlanDefaultsUnreleasedModulesToV1(t *testing.T) {
 	}
 }
 
-func TestReleasePlanUsesConfiguredPreV1InitialVersion(t *testing.T) {
+func TestReleasePlanDefaultsVerkleTreeInitialReleaseToV1(t *testing.T) {
 	t.Parallel()
 
 	root := testRepositoryRoot(t)
@@ -450,7 +450,7 @@ func TestReleasePlanUsesConfiguredPreV1InitialVersion(t *testing.T) {
 	command.Dir = root
 	output, err := command.CombinedOutput()
 	if err != nil {
-		t.Fatalf("plan pre-v1 initial release: %v\n%s", err, output)
+		t.Fatalf("plan verkle-tree initial release: %v\n%s", err, output)
 	}
 
 	var plan struct {
@@ -460,16 +460,16 @@ func TestReleasePlanUsesConfiguredPreV1InitialVersion(t *testing.T) {
 		Tag             string `json:"tag"`
 	}
 	if err := json.Unmarshal(output, &plan); err != nil {
-		t.Fatalf("decode pre-v1 release plan: %v\n%s", err, output)
+		t.Fatalf("decode verkle-tree release plan: %v\n%s", err, output)
 	}
 	if plan.Module != "pkg/verkle-tree" || plan.CurrentVersion != "unreleased" ||
-		plan.ProposedVersion != "v0.1.0" ||
-		plan.Tag != "pkg/verkle-tree/v0.1.0" {
-		t.Fatalf("unexpected pre-v1 initial release plan: %+v", plan)
+		plan.ProposedVersion != "v1.0.0" ||
+		plan.Tag != "pkg/verkle-tree/v1.0.0" {
+		t.Fatalf("unexpected verkle-tree initial release plan: %+v", plan)
 	}
 }
 
-func TestReleasePlanRejectsWrongConfiguredInitialVersion(t *testing.T) {
+func TestReleasePlanRejectsFormerVerkleTreePreV1Version(t *testing.T) {
 	t.Parallel()
 
 	root := testRepositoryRoot(t)
@@ -478,16 +478,16 @@ func TestReleasePlanRejectsWrongConfiguredInitialVersion(t *testing.T) {
 		filepath.Join(root, "scripts", "release.sh"),
 		"--plan",
 		"--version",
-		"v1.0.0",
+		"v0.1.0",
 		"pkg/verkle-tree",
 	)
 	command.Dir = root
 	output, err := command.CombinedOutput()
 	if err == nil {
-		t.Fatalf("release plan accepted the wrong configured initial version:\n%s", output)
+		t.Fatalf("release plan accepted the former pre-v1 initial version:\n%s", output)
 	}
-	if !strings.Contains(string(output), "initial release must be v0.1.0") {
-		t.Fatalf("release plan returned the wrong configured-version failure:\n%s", output)
+	if !strings.Contains(string(output), "initial release must be v1.0.0") {
+		t.Fatalf("release plan returned the wrong initial-version failure:\n%s", output)
 	}
 }
 

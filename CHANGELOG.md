@@ -65,6 +65,8 @@ documented in each module's changelog.
 
 ### Changed
 
+- Remove the final module-specific pre-v1 release exception so every currently
+  unpublished releasable module plans its first public tag as `v1.0.0`.
 - Keep Kafka and Verkle Tree implementation and verification outside the
   repository-hardening execution lane while consuming their specialist-owned
   evidence at the final repository release boundary.
