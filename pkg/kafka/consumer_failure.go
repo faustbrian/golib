@@ -63,9 +63,8 @@ var (
 	ErrInvalidFailureClassification = errors.New(
 		"kafka: consumer failure classification is invalid",
 	)
-	// ErrFailureRecordInvalid identifies a retry or dead-letter record that
-	// cannot preserve all source data and bounded metadata under configured
-	// record limits.
+	// ErrFailureRecordInvalid identifies a source, retry, or dead-letter record
+	// whose Kafka metadata or material violates the configured bounded policy.
 	ErrFailureRecordInvalid = errors.New(
 		"kafka: consumer failure record is invalid",
 	)
@@ -320,10 +319,10 @@ const (
 
 // NewFailureHandler constructs a reusable handler decorator implementing
 // explicit stop, bounded retry, retry-topic, dead-letter, or delegated failure
-// policy. Each invocation retains the fetched record before the wrapped
-// handler runs and gives every attempt an isolated copy, so handler mutation
-// cannot alter later attempts or failure publication. Construction allocates
-// no durable resources.
+// policy. Each invocation validates the source metadata and record limits
+// before retaining bytes or calling the wrapped handler, then gives every
+// attempt an isolated copy so handler mutation cannot alter later attempts or
+// failure publication. Construction allocates no durable resources.
 func NewFailureHandler(config FailureHandlerConfig) (Handler, error) {
 	handler, err := newFailureHandler(config, waitFailureBackoff)
 	if err != nil {
@@ -492,6 +491,9 @@ func (handler *failureHandler) Handle(
 	if ctx == nil {
 		return ErrContextRequired
 	}
+	if err := validateFailureRecord(record, handler.limits); err != nil {
+		return err
+	}
 
 	source := record.Retain()
 	for attempt := 1; ; attempt++ {
@@ -556,6 +558,29 @@ func (handler *failureHandler) Handle(
 
 		return handler.resolve(ctx, failure)
 	}
+}
+
+func validateFailureRecord(record ConsumedMessage, limits MessageLimits) error {
+	if record.Partition < 0 || record.Offset < 0 || record.LeaderEpoch < -1 {
+		return ErrFailureRecordInvalid
+	}
+	switch record.TimestampType {
+	case TimestampUnknown, TimestampCreateTime, TimestampLogAppendTime:
+	default:
+		return ErrFailureRecordInvalid
+	}
+
+	err := (ProducerRecord{
+		Topic:   record.Topic,
+		Key:     record.Key,
+		Value:   record.Value,
+		Headers: record.Headers,
+	}).validate(limits)
+	if err != nil {
+		return errors.Join(ErrFailureRecordInvalid, err)
+	}
+
+	return nil
 }
 
 func (handler *failureHandler) classify(err error) (

@@ -280,7 +280,10 @@ func TestFailureHandlerConfigValidateAndDefaultRetryCategory(t *testing.T) {
 	}
 	config.Retry.Categories = []ErrorCategory{ErrorPermanent}
 
-	if err := handler.Handle(context.Background(), ConsumedMessage{}); err != nil ||
+	if err := handler.Handle(
+		context.Background(),
+		ConsumedMessage{Topic: "events"},
+	); err != nil ||
 		attempts != 2 {
 		t.Fatalf("Handle() error/attempts = %v/%d", err, attempts)
 	}
@@ -500,6 +503,113 @@ func TestFailureHandlerPreservesFetchedBytesAcrossAttempts(t *testing.T) {
 	}
 }
 
+func TestFailureHandlerRejectsUnsafeSourceBeforeHandlerAdmission(t *testing.T) {
+	tests := []struct {
+		name   string
+		record ConsumedMessage
+		limits MessageLimits
+		want   error
+	}{
+		{
+			name: "value limit",
+			record: ConsumedMessage{
+				Topic:     "events",
+				Partition: 0,
+				Offset:    1,
+				Value:     []byte("too large"),
+			},
+			limits: func() MessageLimits {
+				limits := DefaultMessageLimits()
+				limits.MaxValueBytes = 1
+
+				return limits
+			}(),
+			want: ErrValueTooLarge,
+		},
+		{
+			name:   "invalid partition",
+			record: ConsumedMessage{Topic: "events", Partition: -1, Offset: 1},
+			limits: DefaultMessageLimits(),
+		},
+		{
+			name:   "invalid offset",
+			record: ConsumedMessage{Topic: "events", Partition: 0, Offset: -1},
+			limits: DefaultMessageLimits(),
+		},
+		{
+			name: "invalid timestamp type",
+			record: ConsumedMessage{
+				Topic:         "events",
+				Partition:     0,
+				Offset:        1,
+				TimestampType: TimestampType(2),
+			},
+			limits: DefaultMessageLimits(),
+		},
+		{
+			name: "invalid leader epoch",
+			record: ConsumedMessage{
+				Topic:       "events",
+				Partition:   0,
+				Offset:      1,
+				LeaderEpoch: -2,
+			},
+			limits: DefaultMessageLimits(),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			handlerCalls := 0
+			handler, err := NewFailureHandler(FailureHandlerConfig{
+				Handler: HandlerFunc(func(context.Context, ConsumedMessage) error {
+					handlerCalls++
+
+					return nil
+				}),
+				Limits: test.limits,
+			})
+			if err != nil {
+				t.Fatalf("NewFailureHandler() error = %v", err)
+			}
+
+			err = handler.Handle(context.Background(), test.record)
+
+			if !errors.Is(err, ErrFailureRecordInvalid) ||
+				(test.want != nil && !errors.Is(err, test.want)) ||
+				handlerCalls != 0 {
+				t.Fatalf("Handle() error/handler calls = %#v/%d", err, handlerCalls)
+			}
+		})
+	}
+}
+
+func TestFailureHandlerAcceptsUnknownTimestampAndLeaderEpoch(t *testing.T) {
+	called := false
+	handler, err := NewFailureHandler(FailureHandlerConfig{
+		Handler: HandlerFunc(func(_ context.Context, record ConsumedMessage) error {
+			called = record.TimestampType == TimestampUnknown && record.LeaderEpoch == -1
+
+			return nil
+		}),
+	})
+	if err != nil {
+		t.Fatalf("NewFailureHandler() error = %v", err)
+	}
+
+	err = handler.Handle(context.Background(), ConsumedMessage{
+		Topic:         "events",
+		Partition:     0,
+		Offset:        0,
+		TimestampType: TimestampUnknown,
+		LeaderEpoch:   -1,
+	})
+
+	if err != nil || !called {
+		t.Fatalf("Handle() error/called = %v/%t", err, called)
+	}
+}
+
 func TestConsumerSettlesOnlyDefiniteFailurePublication(t *testing.T) {
 
 	source := &kgo.Record{
@@ -706,7 +816,7 @@ func TestFailureHandlerExhaustionIsExplicit(t *testing.T) {
 		t.Fatalf("newFailureHandler() error = %v", err)
 	}
 
-	got := handler.Handle(context.Background(), ConsumedMessage{})
+	got := handler.Handle(context.Background(), ConsumedMessage{Topic: "events"})
 
 	var failureErr *FailureHandlingError
 	if !errors.Is(got, ErrConsumerFailureStopped) ||
@@ -784,7 +894,10 @@ func TestFailureHandlerContainsClassifierFailures(t *testing.T) {
 				t.Fatalf("NewFailureHandler() error = %v", err)
 			}
 
-			got := handler.Handle(context.Background(), ConsumedMessage{})
+			got := handler.Handle(
+				context.Background(),
+				ConsumedMessage{Topic: "events"},
+			)
 
 			var failureErr *FailureHandlingError
 			if !errors.Is(got, test.want) ||
@@ -828,7 +941,10 @@ func TestFailureHandlerContainsHandlerAndTerminalCallbackPanics(t *testing.T) {
 		t.Fatalf("NewFailureHandler(publisher) error = %v", err)
 	}
 
-	delegateErr := delegateHandler.Handle(context.Background(), ConsumedMessage{})
+	delegateErr := delegateHandler.Handle(
+		context.Background(),
+		ConsumedMessage{Topic: "events"},
+	)
 	publisherErr := publisherHandler.Handle(
 		context.Background(),
 		ConsumedMessage{Topic: "events"},
@@ -921,7 +1037,7 @@ func TestFailureHandlerDelegateErrorRemainsUnsettled(t *testing.T) {
 		t.Fatalf("NewFailureHandler() error = %v", err)
 	}
 
-	got := handler.Handle(context.Background(), ConsumedMessage{})
+	got := handler.Handle(context.Background(), ConsumedMessage{Topic: "events"})
 
 	var failureErr *FailureHandlingError
 	if !errors.Is(got, ErrFailureDelegate) ||
@@ -950,7 +1066,7 @@ func TestFailureHandlerContextAndInternalFailClosedPaths(t *testing.T) {
 
 	internal := handler.(*failureHandler)
 	internal.mode = FailureMode(255)
-	got := internal.Handle(context.Background(), ConsumedMessage{})
+	got := internal.Handle(context.Background(), ConsumedMessage{Topic: "events"})
 	if !errors.Is(got, ErrInvalidFailurePolicy) {
 		t.Fatalf("Handle(invalid internal mode) error = %v", got)
 	}

@@ -232,6 +232,26 @@ func TestBatchFailureHandlerRejectsInvalidBatchesBeforeRetention(t *testing.T) {
 			}(),
 			want: ErrHeaderKeyRequired,
 		},
+		{
+			name: "record timestamp type",
+			batch: func() ConsumedBatch {
+				batch := testFailureBatch()
+				batch.Records[0].TimestampType = TimestampType(2)
+
+				return batch
+			}(),
+			want: ErrFailureRecordInvalid,
+		},
+		{
+			name: "record leader epoch",
+			batch: func() ConsumedBatch {
+				batch := testFailureBatch()
+				batch.Records[0].LeaderEpoch = -2
+
+				return batch
+			}(),
+			want: ErrFailureRecordInvalid,
+		},
 		{name: "aggregate bytes", batch: valid, maxBytes: 1, want: ErrBatchTooLarge},
 	}
 

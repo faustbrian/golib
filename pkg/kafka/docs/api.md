@@ -327,7 +327,11 @@ observers run after package assignment and rebalance locks are released. They
 cannot re-enter mutating or lifecycle operations on that consumer.
 
 `NewFailureHandler` decorates the per-record `Handler` contract without
-changing `Consumer` or exposing franz-go. `FailureRetryPolicy` bounds selected
+changing `Consumer` or exposing franz-go. Before retaining bytes or invoking
+the wrapped handler, it validates the source topic, partition, offset,
+timestamp type, leader epoch, and complete record material against its copied
+`Limits`; rejection returns `ErrFailureRecordInvalid` and the underlying
+record-limit identity where one applies. `FailureRetryPolicy` bounds selected
 error categories to 1 through 32 total attempts with capped,
 cancellation-aware exponential backoff. `FailureModeStop` is the zero terminal
 mode. `FailureModeRetryTopic` and `FailureModeDeadLetter` require a

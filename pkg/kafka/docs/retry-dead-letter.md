@@ -13,6 +13,12 @@ actions explicit and preserves partition settlement rules described by
 `NewBatchFailureHandler` decorates the whole-partition `BatchHandler` contract.
 Both use `FailureModeStop` as the zero terminal mode.
 
+Both decorators validate source Kafka coordinates, timestamp metadata, and
+complete record material before retaining bytes or invoking application
+callbacks. Invalid source input fails closed with `ErrFailureRecordInvalid`
+(and `ErrInvalidFailureBatch` for the batch boundary); a specific record-limit
+identity remains available through `errors.Is` when applicable.
+
 | Strategy | Package behavior | Source settlement |
 | --- | --- | --- |
 | stop | Return a redacted `FailureHandlingError`. | No settlement for the failed record. Kafka may redeliver it. |
@@ -104,15 +110,16 @@ retry record is routed again, its prior ordered metadata headers remain intact
 and the next complete schema block is appended. This preserves the hop and
 attempt history without trusting an unverified caller-supplied counter.
 
-Every added header counts against `FailureHandlerConfig.Limits`. If all
+Every source record and added header counts against
+`FailureHandlerConfig.Limits`. If all
 original data and metadata cannot fit, publication fails closed with
 `ErrFailureRecordInvalid` and the source record remains unsettled. Applications
 must reserve header-count and byte headroom for the 11 metadata headers. Record
-bytes supplied to the publisher are owned copies. The decorator retains the
-source before the first wrapped handler call and gives each in-process attempt
-an isolated copy; mutation by one attempt cannot change later attempts or the
-published failure record. `HandlerFailure` remains borrowed during delegate
-calls; call `Retain` before storing it.
+bytes supplied to the publisher are owned copies. The decorator validates the
+source before retaining it or calling the wrapped handler, then gives each
+in-process attempt an isolated copy; mutation by one attempt cannot change
+later attempts or the published failure record. `HandlerFailure` remains
+borrowed during delegate calls; call `Retain` before storing it.
 
 Batch publication appends two more headers to every record:
 `golib.kafka.failure.batch-index` is the zero-based position in the source

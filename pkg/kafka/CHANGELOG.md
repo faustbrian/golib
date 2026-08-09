@@ -131,6 +131,10 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- reject per-record failure-policy inputs whose Kafka coordinates, timestamp
+  metadata, or configured record limits are invalid before retaining bytes or
+  invoking application callbacks; whole-batch policy now applies the same
+  source-record metadata validation consistently
 - classify transaction-processor source poll and group-join failures as
   redacted `ConsumerError` values so applications can distinguish bounded
   retryable infrastructure failures without parsing franz-go errors

@@ -251,12 +251,14 @@ bytes have the same borrowed lifetime as per-record handling. `Retain` returns
 an owned slice with deeply copied record bytes.
 
 `NewBatchFailureHandler` keeps failure decisions at this same settlement unit.
-It validates and retains the complete source batch before the first handler
-attempt, gives each bounded retry an isolated copy, and never interprets an
-application error as a partial success. Stop, exhausted retry, failed delegate,
-or failed publication leaves the entire partition batch unsettled. A nil
-delegate result or a definite successful publication of every target record
-resolves the complete batch and allows normal settlement at its final offset.
+It validates every source record's Kafka coordinates, timestamp metadata, and
+configured material limits before retaining the complete source batch or
+calling the first handler. It gives each bounded retry an isolated copy and
+never interprets an application error as a partial success. Stop, exhausted
+retry, failed delegate, or failed publication leaves the entire partition batch
+unsettled. A nil delegate result or a definite successful publication of every
+target record resolves the complete batch and allows normal settlement at its
+final offset.
 
 Retry-topic and dead-letter modes use one bounded target publication call with
 input-ordered results and source metadata on every record. Target keys can
@@ -286,6 +288,12 @@ decorates the per-record handler with explicit stop, bounded category-selected
 in-process retry, versioned retry-topic, versioned dead-letter, or
 application-delegated policy. The default terminal mode stops and returns a
 redacted error without settling the record.
+
+The decorator validates the source topic, partition, offset, timestamp type,
+leader epoch, key, value, and headers under its copied `Limits` before retaining
+bytes or invoking any application callback. Invalid input returns
+`ErrFailureRecordInvalid`; no handler, classifier, publisher, or delegate is
+admitted.
 
 A definite retry or dead-letter publish result turns that decorated handler
 call into a success. The consumer then submits its normal contiguous source

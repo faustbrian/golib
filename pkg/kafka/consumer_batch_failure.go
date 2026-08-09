@@ -379,12 +379,12 @@ func validateFailureBatch(
 			record.Offset < 0 || (index != 0 && record.Offset <= priorOffset) {
 			return ErrInvalidFailureBatch
 		}
+		if err := validateFailureRecord(record, limits); err != nil {
+			return errors.Join(ErrInvalidFailureBatch, err)
+		}
 		producerRecord := ProducerRecord{
 			Topic: record.Topic, Key: record.Key, Value: record.Value,
 			Headers: record.Headers,
-		}
-		if err := producerRecord.validate(limits); err != nil {
-			return errors.Join(ErrInvalidFailureBatch, err)
 		}
 		size := recordSize(producerRecord)
 		if size > maxBytes-total {
