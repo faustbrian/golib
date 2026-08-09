@@ -288,6 +288,9 @@ versioning and Keep a Changelog structure.
 
 ### Fixed
 
+- Apply the configured Redis Streams command timeout to direct enqueue so a
+  stalled append remains bounded consistently with source settlement and the
+  Valkey Streams producer.
 - Keep module-archive tests scoped to files shipped with the queue module;
   repository-root workflow policy remains owned by the root verification gate.
 - Made in-memory ring shutdown completion durable so draining the final task

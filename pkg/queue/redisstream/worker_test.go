@@ -182,6 +182,26 @@ func TestWorkerBackpressuresInsteadOfTrimmingPendingDelivery(t *testing.T) {
 	require.NoError(t, worker.Shutdown())
 }
 
+func TestWorkerBoundsDirectEnqueueWithCommandTimeout(t *testing.T) {
+	server := miniredis.RunT(t)
+	const commandTimeout = 20 * time.Millisecond
+	worker, err := NewWorkerE(
+		WithAddr(server.Addr()),
+		WithCommandTimeout(commandTimeout),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, worker.Shutdown()) })
+	hook := &deadlineRecordingHook{}
+	worker.rdb.(*redis.Client).AddHook(hook)
+	message := job.NewMessage(rawMessage("payload"))
+	started := time.Now()
+
+	require.ErrorIs(t, worker.Queue(&message), context.DeadlineExceeded)
+	require.True(t, hook.ok, "direct enqueue did not carry a command deadline")
+	assert.True(t, hook.deadline.After(started))
+	assert.False(t, hook.deadline.After(hook.observed.Add(commandTimeout)))
+}
+
 func TestWorkerReportsEnqueueAndAcknowledgementProtocolFailures(t *testing.T) {
 
 	worker, _ := newFaultControlWorker(t)
@@ -250,7 +270,7 @@ func TestWorkerConsumesMessagesQueuedBeforeConsumerGroupStarts(t *testing.T) {
 		WithGroup("workers"),
 		WithConsumer("worker-1"),
 		WithBlockTime(time.Millisecond),
-		WithRequestTimeout(20*time.Millisecond),
+		WithRequestTimeout(time.Second),
 	)
 	require.NoError(t, err)
 	message := job.NewMessage(rawMessage("queued-before-start"))
@@ -727,3 +747,32 @@ func workerWithTask(task redis.XMessage) *Worker {
 type rawMessage string
 
 func (m rawMessage) Bytes() []byte { return []byte(m) }
+
+type deadlineRecordingHook struct {
+	deadline time.Time
+	observed time.Time
+	ok       bool
+}
+
+func (hook *deadlineRecordingHook) DialHook(next redis.DialHook) redis.DialHook {
+	return next
+}
+
+func (hook *deadlineRecordingHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, command redis.Cmder) error {
+		if command.Name() == "eval" {
+			hook.observed = time.Now()
+			hook.deadline, hook.ok = ctx.Deadline()
+			if !hook.ok {
+				return errors.New("direct enqueue lacks a command deadline")
+			}
+			<-ctx.Done()
+			return ctx.Err()
+		}
+		return next(ctx, command)
+	}
+}
+
+func (hook *deadlineRecordingHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return next
+}

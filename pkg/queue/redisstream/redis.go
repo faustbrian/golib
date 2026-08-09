@@ -400,7 +400,8 @@ func (w *Worker) Shutdown() error {
 }
 
 func (w *Worker) queue(body string) error {
-	ctx := context.Background()
+	ctx, cancel := context.WithTimeout(context.Background(), w.opts.commandTimeout)
+	defer cancel()
 	outcome, err := w.rdb.Eval(
 		ctx, redisEnqueueScript, []string{w.opts.streamName},
 		w.opts.maxLength, body,
