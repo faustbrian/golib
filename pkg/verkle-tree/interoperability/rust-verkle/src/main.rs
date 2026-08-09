@@ -7,6 +7,7 @@ use ipa_multipoint::{
     transcript::Transcript,
 };
 use sha2::{Digest, Sha256};
+use std::collections::BTreeMap;
 use verkle_trie::{
     constants::new_crs,
     database::memory_db::MemoryDb,
@@ -336,6 +337,178 @@ fn print_tree_roots() {
     );
 }
 
+#[derive(Clone, Copy)]
+enum TreeUpdate {
+    Set([u8; 32], [u8; 32]),
+    Delete([u8; 32]),
+}
+
+fn tree_root(entries: &[([u8; 32], [u8; 32])]) -> Element {
+    let mut trie = Trie::new(VerkleConfig::new(MemoryDb::new()));
+    trie.insert(entries.iter().copied());
+    trie.root_commitment()
+}
+
+fn encode_transition_entries(entries: &[([u8; 32], [u8; 32])]) -> String {
+    if entries.is_empty() {
+        return "-".to_owned();
+    }
+    entries
+        .iter()
+        .map(|(key, value)| format!("{}:{}", encode_hex(key), encode_hex(value)))
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn encode_transition_updates(updates: &[TreeUpdate]) -> String {
+    updates
+        .iter()
+        .map(|update| match update {
+            TreeUpdate::Set(key, value) => {
+                format!("set:{}:{}", encode_hex(key), encode_hex(value))
+            }
+            TreeUpdate::Delete(key) => format!("delete:{}", encode_hex(key)),
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+fn print_transition_row(
+    case: &str,
+    pre_entries: Vec<([u8; 32], [u8; 32])>,
+    updates: Vec<TreeUpdate>,
+) {
+    let pre_root = tree_root(&pre_entries);
+    let mut post_entries = pre_entries.iter().copied().collect::<BTreeMap<_, _>>();
+    for update in updates.iter().copied() {
+        match update {
+            TreeUpdate::Set(key, value) => {
+                post_entries.insert(key, value);
+            }
+            TreeUpdate::Delete(key) => {
+                post_entries.remove(&key);
+            }
+        }
+    }
+    let post_entries = post_entries.into_iter().collect::<Vec<_>>();
+    let post_root = tree_root(&post_entries);
+    println!(
+        "{case}\t{}\t{}\t{}\t{}",
+        encode_transition_entries(&pre_entries),
+        encode_transition_updates(&updates),
+        encode_hex(&pre_root.to_bytes()),
+        encode_hex(&post_root.to_bytes()),
+    );
+}
+
+fn print_transitions() {
+    println!("case\tpre_entries\tupdates\tpre_root_commitment_be\tpost_root_commitment_be");
+
+    let updated = tree_key(0x10, 0x01);
+    print_transition_row(
+        "update-present",
+        vec![(updated, tree_value(0x11))],
+        vec![TreeUpdate::Set(updated, tree_value(0x22))],
+    );
+
+    let existing_suffix = tree_key(0x20, 0x01);
+    let inserted_suffix = tree_key(0x20, 0xc8);
+    print_transition_row(
+        "insert-absent-suffix",
+        vec![(existing_suffix, tree_value(0x21))],
+        vec![TreeUpdate::Set(inserted_suffix, tree_value(0x22))],
+    );
+
+    let existing_root_branch = tree_key(0x30, 0x01);
+    let inserted_root_branch = tree_key(0x40, 0x02);
+    print_transition_row(
+        "insert-missing-root-stem",
+        vec![(existing_root_branch, tree_value(0x31))],
+        vec![TreeUpdate::Set(inserted_root_branch, tree_value(0x41))],
+    );
+
+    let mut collision_existing = tree_key(0x50, 0x01);
+    collision_existing[1] = 0x10;
+    let mut collision_inserted = tree_key(0x50, 0x02);
+    collision_inserted[1] = 0x20;
+    print_transition_row(
+        "insert-different-stem-collision",
+        vec![(collision_existing, tree_value(0x51))],
+        vec![TreeUpdate::Set(collision_inserted, tree_value(0x52))],
+    );
+
+    let retained_delete = tree_key(0x60, 0x01);
+    let retained_member = tree_key(0x60, 0x02);
+    print_transition_row(
+        "delete-retained-stem-member",
+        vec![
+            (retained_delete, tree_value(0x61)),
+            (retained_member, tree_value(0x62)),
+        ],
+        vec![TreeUpdate::Delete(retained_delete)],
+    );
+
+    let last_member = tree_key(0x61, 0x01);
+    print_transition_row(
+        "delete-last-stem-to-empty",
+        vec![(last_member, tree_value(0x63))],
+        vec![TreeUpdate::Delete(last_member)],
+    );
+
+    let mut deepest_left = tree_key(0x70, 0x01);
+    deepest_left[2] = 0x01;
+    let mut deepest_right = tree_key(0x70, 0x02);
+    deepest_right[2] = 0x02;
+    print_transition_row(
+        "delete-collision-collapse",
+        vec![
+            (deepest_left, tree_value(0x71)),
+            (deepest_right, tree_value(0x72)),
+        ],
+        vec![TreeUpdate::Delete(deepest_left)],
+    );
+
+    let absent_delete_present = tree_key(0x80, 0x01);
+    let absent_delete = tree_key(0x90, 0x02);
+    print_transition_row(
+        "delete-absent-stem-noop",
+        vec![(absent_delete_present, tree_value(0x81))],
+        vec![TreeUpdate::Delete(absent_delete)],
+    );
+
+    let mut replaced = tree_key(0xa0, 0x01);
+    replaced[1] = 0x10;
+    replaced[2] = 0x10;
+    let mut collapsed_sibling = tree_key(0xa0, 0x02);
+    collapsed_sibling[1] = 0x40;
+    let mut replacement = tree_key(0xa0, 0x03);
+    replacement[1] = 0x10;
+    replacement[2] = 0x30;
+    print_transition_row(
+        "mixed-replace-and-collapse",
+        vec![
+            (replaced, tree_value(0xa1)),
+            (collapsed_sibling, tree_value(0xa2)),
+        ],
+        vec![
+            TreeUpdate::Delete(collapsed_sibling),
+            TreeUpdate::Set(replacement, tree_value(0xa3)),
+            TreeUpdate::Delete(replaced),
+        ],
+    );
+
+    let present_zero = tree_key(0xb0, 0x01);
+    let absent_suffix = tree_key(0xb0, 0x02);
+    print_transition_row(
+        "set-present-zero-and-delete-absent",
+        vec![(present_zero, tree_value(0xb1))],
+        vec![
+            TreeUpdate::Delete(absent_suffix),
+            TreeUpdate::Set(present_zero, [0_u8; 32]),
+        ],
+    );
+}
+
 fn topology_key(stem: [u8; 31]) -> [u8; 32] {
     let mut key = [0_u8; 32];
     key[..31].copy_from_slice(&stem);
@@ -485,6 +658,7 @@ fn main() {
         Some("multiproof") => print_multiproof(),
         Some("tree-proof") => print_tree_proof(),
         Some("tree-roots") => print_tree_roots(),
+        Some("transitions") => print_transitions(),
         Some("topology") => print_topology(),
         Some("verify-go-witness") => verify_go_witness(
             &arguments.next().expect("missing Go execution witness path"),
@@ -497,7 +671,7 @@ fn main() {
         _ => panic!(
             "usage: verkle-tree-rust-encoding-vectors \
              <encodings|commitment-hashes|leaf-vectors|generators|vector-commitments|\
-             multiproof|tree-proof|tree-roots|\
+             multiproof|tree-proof|tree-roots|transitions|\
              topology|\
              verify-go-witness|\
              update-go-witness>"

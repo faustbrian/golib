@@ -375,8 +375,10 @@ topology-collapsing deletion, and new-stem insertion through authenticated
 missing or different paths are supported, including canonical collision
 subtrees, deepest valid collisions, multi-stem batches, and shared ancestors.
 Authenticated absent deletion is a deterministic no-op. Results are checked
-against stateful post-state roots; the present-stem corpus additionally has
-pinned Rust agreement.
+against stateful post-state roots. Ten transition corpora additionally match
+pre-state and post-state roots independently rebuilt by the pinned Rust trie,
+including absent-stem insertion and deletion collapse; the present-stem
+execution-witness corpus also agrees with the Rust incremental updater.
 Explicit limits bound updates, commitment changes, commitment-to-field maps,
 path lookups, witness and proof bytes, strict point decoding, and temporary
 bytes. The canonical witness decoder returns an unverified owned container;

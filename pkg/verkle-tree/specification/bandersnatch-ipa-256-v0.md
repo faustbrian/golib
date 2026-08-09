@@ -988,6 +988,16 @@ claim and does not establish persisted-read compatibility, an incremental
 update algorithm, proof or witness compatibility, a production backend, or
 general Rust compatibility.
 
+A separate independently generated Rust corpus fixes ten exact pre-state and
+post-state root pairs for Set, absent-suffix and absent-stem insertion,
+different-stem collision insertion, present and absent deletion, collision
+collapse, mixed replacement, and present-zero replacement. The Rust harness
+applies operations to an ordered key/value map and rebuilds the complete trie;
+it does not use the Rust incremental stateless updater. Agreement therefore
+proves the mathematical roots for those exact transitions while leaving proof
+format, witness format, incremental mechanics, and general compatibility
+outside the claim.
+
 ## State Transition Reference Model
 
 The package's independent slow reference model fixes state behavior before
@@ -1107,7 +1117,10 @@ checked corpora.
 The pinned Rust stateless updater's absent-stem panic is a limitation of that
 reference path, not a requirement of this profile. It does not block
 package-owned absent-stem behavior once that behavior is specified and proven
-through independent state-transition and commitment evidence.
+through independent state-transition and commitment evidence. The pinned Rust
+full-rebuild transition corpus supplies that root evidence for exact
+absent-stem, deletion, and collision-collapse cases without treating the
+incremental-updater defect as expected behavior.
 
 [RFC2119]: https://www.rfc-editor.org/rfc/rfc2119
 [RFC8174]: https://www.rfc-editor.org/rfc/rfc8174

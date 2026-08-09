@@ -17,7 +17,7 @@ measure the already-defined operations under a recorded environment.
 | Generic `verkle-tree` v1 | Not frozen | Future stable package profile | None |
 | `verkletree-bandersnatch-ipa-256-v0` | Package-owned normative pre-v1 identity | Implemented package profile | Conformant immutable snapshots; canonical self-authenticating snapshot bytes; canonical Set/Delete transitions; profile-bound roots; aggregate membership/non-membership proofs including empty-root absence; Set witnesses for present, missing, different, and empty-root paths; absent, topology-preserving, and authenticated topology-collapsing Delete witnesses with verified pre/post roots; capability-checked canonical storage writes; bounded isolated reconstruction, audit, retained-publication replacement, pruning, and unpublished-write recovery; bounded vector commitments; strict encodings; and independent verifier reconstruction. This does not claim restoration of corrupt published state, stable API or wire compatibility, a concrete adapter, external audit, production suitability, or Ethereum compatibility. |
 | `ethereum/go-verkle` | `aa0a270c0ed03faa6c502e0d96bf26189d1d6542` | Go differential research | One deterministic tree root, aggregate membership/non-membership proof, and bounded stateless-update corpus agree with the pinned Rust trie; no general tree, API, wire, or production compatibility |
-| `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, five width-256 vector commitments, six complete tree roots, raw three-opening and zero-evaluation proofs, stem path hints, one tree root/proof corpus, and its bounded present-stem stateless update agree with Go; no general tree, API, wire, or production compatibility |
+| `crate-crypto/rust-verkle` | `e27b8b4edf1992b4afa636c2fc7983bcc27ddb88` | Independent differential research | Canonical scalar and Banderwagon commitment encoding, ordered generator-set digest, five width-256 vector commitments, six complete tree roots, ten rebuilt pre/post transition-root pairs, raw three-opening and zero-evaluation proofs, stem path hints, one tree root/proof corpus, and its bounded present-stem stateless update agree with Go; no general tree, API, wire, or production compatibility |
 | `ethereumjs/verkle-cryptography-wasm` | Git `2a814ff6fe0fb62e0a711e7b52a8e6db37e09733`; npm `0.4.8` | EthereumJS WASM delivery-lineage research | The repository declares maintenance by the Ethereum Foundation JavaScript team but wraps `crate-crypto/rust-verkle` revision `309cdcba4088e698689dc33b8ee071c2d064b2ae`; it is not a second independent cryptographic implementation and adds no tree, proof, wire, or production compatibility claim |
 | `DeWebProtocol/malt` IPA | Git `da66c340f3bccc43a11f9f2a3b16f1a698a897e4`; release `v0.0.6` | Active Go candidate research | Its public package wraps an internal source copy of `go-ipa` revision `53bbb0ceb27adb011950fd0fce885ad6d4516f84` with MALT-specific cell hashing and transcripts; shared lineage and incompatible, unbounded decoding and execution boundaries establish no independent, backend, tree, proof, wire, or production compatibility claim |
 | `paulmillr/micro-eth-signer` Verkle history | Last implementation `87e6757ebb56a91fd1a8b6d02a400cfe08b605fd`; removed by `d98fb3189259f23d43ed5472c63a429d8d4b9d63` | Historical independent TypeScript research | The Noble-based TypeScript implementation had independent Banderwagon, transcript, commitment, IPA, and multiproof code, but upstream removed it on 2025-11-20 after Verkle left its Ethereum roadmap; it is retired, not a maintained differential target, and establishes no compatibility claim |
@@ -124,16 +124,27 @@ value. The pinned Rust updater does not handle insertion at an
 commitment and panics. The package-owned missing/different-stem insertion
 algorithm therefore uses the independently checked stateful tree as its oracle
 and makes no Rust-updater agreement claim. The positive cross-implementation
-corpus does not establish alternate layouts, absent-stem insertion, deletion,
-conflicting or reordered updates, canonical JSON, malformed-input parity, or
-production safety.
+updater corpus does not establish alternate layouts, absent-stem insertion,
+deletion, conflicting or reordered updates, canonical JSON, malformed-input
+parity, or production safety.
+
+A separate ten-case Rust corpus avoids that incremental-updater path. It
+applies Set and Delete operations to an independent ordered key/value map and
+rebuilds complete pre-state and post-state tries. The Go stateful tree and
+cryptographically verified stateless updater reproduce every emitted root for
+present replacement, absent-suffix and absent-stem insertion, collision
+insertion, retained and last-member deletion, collision collapse, absent
+deletion, mixed replacement, and present-zero replacement. This proves the
+mathematical roots for those exact transitions; it does not prove Rust
+incremental-update mechanics or general transition compatibility.
 
 The same pinned Rust trie generates a separate topology corpus for empty,
 single-stem, byte-one collision, and maximum byte-30 collision trees. The Go
 topology model independently reproduces every emitted path depth, extension
 status, and encountered different stem. This establishes fresh-tree path
-agreement only. Canonical deletion collapse is package-owned behavior and is
-not claimed to match the incremental Rust or Go references.
+agreement only. One rebuilt post-state collision-collapse root agrees with the
+new transition corpus; general incremental collapse remains package-owned
+behavior and is not claimed to match the Rust updater.
 
 A separate six-state Rust corpus independently commits the empty tree, a
 present-zero value, a patterned singleton, both suffix halves under one stem,

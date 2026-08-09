@@ -53,6 +53,9 @@ All notable changes to `verkle-tree` will be documented in this file.
   surplus disclosure, and duplicate expectations before proof arithmetic.
 - Add stateless witness application against a caller-trusted pre-state root,
   rejecting cross-root replay before proof arithmetic.
+- Add ten pinned Rust full-rebuild transition corpora covering present and
+  absent Set/Delete behavior, collision insertion and collapse, mixed updates,
+  and present-zero replacement without relying on Rust's incremental updater.
 - Add hostile canonical-witness fuzz application through complete proof
   verification, post-state derivation, and claimed-root comparison.
 - Add hostile persisted root-node fuzz loading through complete bounded
