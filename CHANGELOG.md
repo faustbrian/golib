@@ -16,6 +16,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Accept an explicit `release` field as a provenance version pin so structured
+  source manifests do not need a redundant `version` alias.
 - Skip Docker discovery for service-free modules and bound server-version
   discovery elsewhere, so an unrelated unresponsive daemon cannot stall every
   verification lane.

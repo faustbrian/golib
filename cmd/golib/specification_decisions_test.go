@@ -231,6 +231,19 @@ func TestValidateSpecificationProvenanceRejectsMalformedNestedJSONDigest(t *test
 	}
 }
 
+func TestValidateSpecificationJSONAcceptsReleaseAsVersionPin(t *testing.T) {
+	t.Parallel()
+
+	err := validateSpecificationJSON([]byte(`{
+  "source": "https://example.com/specification/tree/v1.2.3",
+  "release": "v1.2.3",
+  "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+}`))
+	if err != nil {
+		t.Fatalf("validateSpecificationJSON() error = %v", err)
+	}
+}
+
 func TestSelectSpecificationDecisionModules(t *testing.T) {
 	t.Parallel()
 

@@ -262,7 +262,7 @@ func inspectSpecificationJSON(value any, path string, state *specificationJSONSt
 				state.hasURL = true
 			}
 			switch normalizedKey {
-			case "version", "revision", "commit", "mergecommit", "retrieved", "retrievedat", "reviewedat", "generatedat", "released":
+			case "version", "revision", "release", "commit", "mergecommit", "retrieved", "retrievedat", "reviewedat", "generatedat", "released":
 				if isText && strings.TrimSpace(text) != "" {
 					state.hasPin = true
 				}
