@@ -1301,6 +1301,66 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/capability",
+      "directory": ".",
+      "name": "capability",
+      "import_path": "github.com/faustbrian/golib/pkg/capability",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/capability",
+      "directory": "caphttp",
+      "name": "caphttp",
+      "import_path": "github.com/faustbrian/golib/pkg/capability/caphttp",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/capability",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/capability/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/capability",
+      "directory": "postgres",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/capability/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/capability",
+      "directory": "valkey",
+      "name": "valkey",
+      "import_path": "github.com/faustbrian/golib/pkg/capability/valkey",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/circuit-breaker",
       "directory": ".",
       "name": "breaker",

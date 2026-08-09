@@ -1063,6 +1063,9 @@ func requiredServices(directory string) []string {
 	if directory == "pkg/outbox/adapters/goqueue" {
 		return []string{"redis", "valkey"}
 	}
+	if directory == "pkg/capability" {
+		return []string{"postgresql", "valkey"}
+	}
 	library := libraryName(directory)
 	services := []string{}
 	postgresLibraries := []string{
@@ -1093,6 +1096,9 @@ func requiredServices(directory string) []string {
 }
 
 func interoperabilityTools(directory string) []string {
+	if directory == "pkg/capability" {
+		return []string{"Python 3 standard-library HMAC implementation"}
+	}
 	if directory == "pkg/authentication/oidc" {
 		return []string{"Google, Keycloak, and Dex provider metadata profiles"}
 	}
@@ -1111,6 +1117,9 @@ func interoperabilityTools(directory string) []string {
 }
 
 func specifications(directory string) []string {
+	if directory == "pkg/capability" {
+		return []string{"RFC 4231 HMAC-SHA-256 vectors", "RFC 8032 Ed25519 vectors"}
+	}
 	if directory == "pkg/authentication/oidc" {
 		return []string{
 			"OpenID Connect Core 1.0 incorporating errata set 2",
@@ -1152,6 +1161,9 @@ func specifications(directory string) []string {
 }
 
 func conformanceCorpora(directory string) []string {
+	if directory == "pkg/capability" {
+		return []string{"RFC 4231 test case 6", "RFC 8032 section 7.1 test 1"}
+	}
 	if directory == "pkg/authentication/oidc" {
 		return []string{"OpenID Connect Core 1.0 Section 2 ID-token claim vector"}
 	}

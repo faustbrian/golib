@@ -17,6 +17,7 @@ use (
 	./pkg/bulkhead/integration/resilience
 	./pkg/cache
 	./pkg/calendar
+	./pkg/capability
 	./pkg/circuit-breaker
 	./pkg/circuit-breaker/integration/consumers
 	./pkg/cli
@@ -355,5 +356,7 @@ replace github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison 
 replace github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience v0.0.0 => ./pkg/concurrency-limit/integration/resilience
 
 replace github.com/faustbrian/golib/pkg/resilience v0.0.0 => ./pkg/resilience
+
+replace github.com/faustbrian/golib/pkg/capability v0.0.0 => ./pkg/capability
 
 replace github.com/faustbrian/golib/pkg/tenancy v0.0.0 => ./pkg/tenancy

@@ -3777,6 +3777,193 @@
       }
     },
     {
+      "directory": "pkg/capability",
+      "module_path": "github.com/faustbrian/golib/pkg/capability",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/capability",
+          "directory": ".",
+          "name": "capability",
+          "import_path": "github.com/faustbrian/golib/pkg/capability",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/capability",
+          "directory": "caphttp",
+          "name": "caphttp",
+          "import_path": "github.com/faustbrian/golib/pkg/capability/caphttp",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/capability",
+          "directory": "memory",
+          "name": "memory",
+          "import_path": "github.com/faustbrian/golib/pkg/capability/memory",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/capability",
+          "directory": "postgres",
+          "name": "postgres",
+          "import_path": "github.com/faustbrian/golib/pkg/capability/postgres",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/capability",
+          "directory": "valkey",
+          "name": "valkey",
+          "import_path": "github.com/faustbrian/golib/pkg/capability/valkey",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`capability` issues and verifies narrowly scoped, tamper-evident, expiring Go capabilities and signed URLs. It is designed for downloads, uploads, invitations, callbacks, one-time actions, delegated access, and service-to-service handoffs.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/capability/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/jackc/pgx/v5",
+        "github.com/valkey-io/valkey-go"
+      ],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [
+        "Python 3 standard-library HMAC implementation"
+      ],
+      "specifications": [
+        "RFC 4231 HMAC-SHA-256 vectors",
+        "RFC 8032 Ed25519 vectors"
+      ],
+      "conformance_corpora": [
+        "RFC 4231 test case 6",
+        "RFC 8032 section 7.1 test 1"
+      ],
+      "provenance": [
+        "pkg/capability/specification/manifest.tsv"
+      ],
+      "goal_files": [
+        "pkg/capability/.ai/GOAL.md",
+        "pkg/capability/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/capability/.ai/GOAL.md",
+          "requirements_sha256": "48a694e34decc3f9cdad875ddddaceb673d02dd3b7caeb03011a95636e5012fc",
+          "implementation_evidence": [
+            "pkg/capability/CHANGELOG.md",
+            "pkg/capability/README.md",
+            "pkg/capability/docs/api.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/capability/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "78b58fbcabfa7ed873b87b005d9fb5d6111b45cd6ff189373581d61a0ed079e5",
+          "implementation_evidence": [
+            "pkg/capability/CHANGELOG.md",
+            "pkg/capability/README.md",
+            "pkg/capability/docs/api.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": true,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/circuit-breaker",
       "module_path": "github.com/faustbrian/golib/pkg/circuit-breaker",
       "go_version": "1.26.5",
