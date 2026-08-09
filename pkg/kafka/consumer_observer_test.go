@@ -255,6 +255,112 @@ func TestConsumerObserversReportRecordCommitAndPollOutcomes(t *testing.T) {
 	}
 }
 
+func TestConsumerObserversReportScheduledFailureHandlerRetry(t *testing.T) {
+	const retryScheduledKind ObservationKind = 33
+
+	var observations []Observation
+	policy, err := normalizeObserverPolicy(ObserverPolicy{
+		Observers: []ObserverFunc{
+			func(_ context.Context, observation Observation) error {
+				observations = append(observations, observation)
+
+				return nil
+			},
+		},
+		FailureHandler: func(context.Context, ObservationFailure) {},
+	})
+	if err != nil {
+		t.Fatalf("normalize observer policy: %v", err)
+	}
+	attempts := 0
+	observationsBeforeBackoff := -1
+	failureHandler, err := newFailureHandler(
+		FailureHandlerConfig{
+			Handler: HandlerFunc(func(context.Context, ConsumedMessage) error {
+				attempts++
+				if attempts == 1 {
+					return errors.New("retryable application failure")
+				}
+
+				return nil
+			}),
+			Classifier: FailureClassifierFunc(func(error) ErrorCategory {
+				return ErrorRetryable
+			}),
+			Retry: FailureRetryPolicy{
+				MaxAttempts:    2,
+				InitialBackoff: time.Millisecond,
+				MaxBackoff:     time.Millisecond,
+			},
+		},
+		func(context.Context, time.Duration) error {
+			observationsBeforeBackoff = len(observations)
+
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("newFailureHandler() error = %v", err)
+	}
+	record := &kgo.Record{
+		Topic: "events", Partition: 1, Offset: 4,
+		Key: []byte("key"), Value: []byte("value"),
+	}
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{fetches: recordFetches(record)},
+		10,
+		time.Second,
+		time.Second,
+	)
+	consumer.clientID = "projection"
+	consumer.groupID = "projection-v1"
+	consumer.observers = newObserverDispatcher(policy)
+
+	result, err := consumer.RunOnce(context.Background(), failureHandler)
+
+	if err != nil {
+		t.Fatalf("RunOnce() error = %v", err)
+	}
+	if result != (PollResult{Polled: 1, Processed: 1, Committed: 1}) ||
+		attempts != 2 || observationsBeforeBackoff != 1 {
+		t.Fatalf(
+			"RunOnce() result/attempts/observations before backoff = %#v/%d/%d",
+			result,
+			attempts,
+			observationsBeforeBackoff,
+		)
+	}
+	if len(observations) != 4 {
+		t.Fatalf("observations = %#v", observations)
+	}
+	retry := observations[0]
+	if retry.Kind != retryScheduledKind ||
+		retry.Kind.String() != "consumer.retry_scheduled" ||
+		retry.ClientID != "projection" ||
+		retry.GroupID != "projection-v1" ||
+		retry.Topic != "events" ||
+		retry.Partition != 1 || !retry.PartitionKnown ||
+		retry.Offset != 4 || !retry.OffsetKnown ||
+		retry.RecordCount != 1 || retry.PartitionCount != 1 ||
+		retry.ProcessedCount != 0 || retry.CommittedCount != 0 ||
+		retry.RecordBytes == 0 || retry.Succeeded ||
+		retry.Category != ErrorRetryable || retry.StartedAt.IsZero() ||
+		retry.Duration < 0 || retry.Validate() != nil {
+		t.Fatalf("retry observation = %#v", retry)
+	}
+	if kinds := []ObservationKind{
+		observations[1].Kind,
+		observations[2].Kind,
+		observations[3].Kind,
+	}; !reflect.DeepEqual(kinds, []ObservationKind{
+		ObservationConsumeRecord,
+		ObservationConsumeCommit,
+		ObservationConsumePoll,
+	}) {
+		t.Fatalf("post-retry observation kinds = %v", kinds)
+	}
+}
+
 func TestConsumerPollObservationDoesNotTruncateExactRecordLimit(t *testing.T) {
 
 	var got Observation
@@ -436,6 +542,110 @@ func TestConsumerObserversReportPartitionBatchOutcome(t *testing.T) {
 			consumedRecordSize(records[1]) ||
 		!batch.Succeeded {
 		t.Fatalf("batch observation = %#v", batch)
+	}
+}
+
+func TestConsumerObserversReportScheduledBatchFailureRetry(t *testing.T) {
+	var observations []Observation
+	policy, err := normalizeObserverPolicy(ObserverPolicy{
+		Observers: []ObserverFunc{
+			func(_ context.Context, observation Observation) error {
+				observations = append(observations, observation)
+
+				return nil
+			},
+		},
+		FailureHandler: func(context.Context, ObservationFailure) {},
+	})
+	if err != nil {
+		t.Fatalf("normalize observer policy: %v", err)
+	}
+	attempts := 0
+	observationsBeforeBackoff := -1
+	failureHandler, err := newBatchFailureHandler(
+		BatchFailureHandlerConfig{
+			Handler: BatchHandlerFunc(func(context.Context, ConsumedBatch) error {
+				attempts++
+				if attempts == 1 {
+					return errors.New("retryable batch failure")
+				}
+
+				return nil
+			}),
+			Classifier: FailureClassifierFunc(func(error) ErrorCategory {
+				return ErrorRetryable
+			}),
+			Retry: FailureRetryPolicy{
+				MaxAttempts:    2,
+				InitialBackoff: time.Millisecond,
+				MaxBackoff:     time.Millisecond,
+			},
+		},
+		func(context.Context, time.Duration) error {
+			observationsBeforeBackoff = len(observations)
+
+			return nil
+		},
+	)
+	if err != nil {
+		t.Fatalf("newBatchFailureHandler() error = %v", err)
+	}
+	records := []*kgo.Record{
+		{Topic: "events", Partition: 1, Offset: 4, Key: []byte("one")},
+		{Topic: "events", Partition: 1, Offset: 5, Key: []byte("two")},
+	}
+	consumer := consumerWithBackend(
+		&recordingConsumerBackend{fetches: recordFetches(records...)},
+		10,
+		time.Second,
+		time.Second,
+	)
+	consumer.clientID = "batch-projection"
+	consumer.groupID = "batch-projection-v1"
+	consumer.observers = newObserverDispatcher(policy)
+
+	result, err := consumer.RunBatchOnce(context.Background(), failureHandler)
+
+	if err != nil {
+		t.Fatalf("RunBatchOnce() error = %v", err)
+	}
+	if result != (PollResult{Polled: 2, Processed: 2, Committed: 2}) ||
+		attempts != 2 || observationsBeforeBackoff != 1 {
+		t.Fatalf(
+			"RunBatchOnce() result/attempts/observations before backoff = %#v/%d/%d",
+			result,
+			attempts,
+			observationsBeforeBackoff,
+		)
+	}
+	if len(observations) != 4 {
+		t.Fatalf("observations = %#v", observations)
+	}
+	retry := observations[0]
+	if retry.Kind != ObservationConsumeRetryScheduled ||
+		retry.ClientID != "batch-projection" ||
+		retry.GroupID != "batch-projection-v1" ||
+		retry.Topic != "events" ||
+		retry.Partition != 1 || !retry.PartitionKnown ||
+		retry.Offset != 5 || !retry.OffsetKnown ||
+		retry.RecordCount != 2 || retry.PartitionCount != 1 ||
+		retry.ProcessedCount != 0 || retry.CommittedCount != 0 ||
+		retry.RecordBytes != consumedRecordSize(records[0])+
+			consumedRecordSize(records[1]) ||
+		retry.Succeeded || retry.Category != ErrorRetryable ||
+		retry.StartedAt.IsZero() || retry.Duration < 0 || retry.Validate() != nil {
+		t.Fatalf("batch retry observation = %#v", retry)
+	}
+	if kinds := []ObservationKind{
+		observations[1].Kind,
+		observations[2].Kind,
+		observations[3].Kind,
+	}; !reflect.DeepEqual(kinds, []ObservationKind{
+		ObservationConsumeBatch,
+		ObservationConsumeCommit,
+		ObservationConsumePoll,
+	}) {
+		t.Fatalf("post-retry observation kinds = %v", kinds)
 	}
 }
 

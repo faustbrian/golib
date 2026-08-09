@@ -87,6 +87,9 @@ func (consumer *Consumer) processRecordPartition(
 			if !admitted {
 				return result
 			}
+			if consumer.observers.enabled() {
+				handlerCtx = withFailureRetryObserver(handlerCtx, consumer)
+			}
 			err = callHandler(handlerCtx, handler, message)
 			if cause := finish(); cause != nil {
 				err = errors.Join(err, cause)
@@ -112,6 +115,29 @@ func (consumer *Consumer) processRecordPartition(
 	}
 
 	return result
+}
+
+func (consumer *Consumer) observeFailureRetry(
+	ctx context.Context,
+	retry failureRetryObservation,
+) {
+	consumer.dispatchObservation(ctx, Observation{
+		Kind:           ObservationConsumeRetryScheduled,
+		StartedAt:      retry.startedAt,
+		Duration:       time.Since(retry.startedAt),
+		ClientID:       consumer.clientID,
+		GroupID:        consumer.groupID,
+		Topic:          strings.Clone(retry.topic),
+		Partition:      retry.partition,
+		PartitionKnown: true,
+		Offset:         retry.offset,
+		OffsetKnown:    true,
+		RecordCount:    retry.records,
+		PartitionCount: 1,
+		RecordBytes:    retry.recordBytes,
+		Succeeded:      false,
+		Category:       retry.category,
+	})
 }
 
 func (consumer *Consumer) processBatchPartition(
@@ -155,6 +181,9 @@ func (consumer *Consumer) processBatchPartition(
 			)
 
 			return consumerPartitionResult{}
+		}
+		if consumer.observers.enabled() {
+			handlerCtx = withFailureRetryObserver(handlerCtx, consumer)
 		}
 		err = callBatchHandler(handlerCtx, handler, consumed)
 		if cause := finish(); cause != nil {

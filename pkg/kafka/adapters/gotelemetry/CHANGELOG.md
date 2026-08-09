@@ -11,6 +11,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- internal spans and adapter-owned operation metrics for bounded consumer retry
+  decisions without double-counting semantic consumption or processing
 - bounded `kafka.authentication.method` broker-connect span attributes that
   identify the configured SASL flow without credentials or a fabricated
   standalone authentication span

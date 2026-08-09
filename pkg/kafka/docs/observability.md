@@ -2,10 +2,11 @@
 
 The root module exposes a vendor-neutral `ObserverPolicy`. The current surface
 reports producer delivery plus consumer poll, record-handler, batch-handler,
-offset-commit, assignment, revocation, ownership-loss, blocked-rebalance, group
-management error, Kafka transaction begin/commit/abort, broker connection,
-broker request, broker throttle, broker disconnect, and replay plan, record,
-run, and shutdown completion. Producer, consumer, and transaction-processor
+offset-commit, bounded in-process retry scheduling, assignment, revocation,
+ownership-loss, blocked-rebalance, group management error, Kafka transaction
+begin/commit/abort, broker connection, broker request, broker throttle, broker
+disconnect, and replay plan, record, run, and shutdown completion. Producer,
+consumer, and transaction-processor
 shutdown attempts plus inspector cluster, topic, consumer-group,
 dependency-health, readiness, shutdown, and broker events use the same
 contract. The franz-go hook bridge is private;
@@ -85,6 +86,9 @@ Every callback context is callback-scoped and must not be retained.
 - `ObservationConsumeCommit` after one contiguous offset-commit attempt;
 - `ObservationConsumePoll` after the complete bounded poll cycle and before
   its rebalance gate is released;
+- `ObservationConsumeRetryScheduled` after one failed record or whole-batch
+  handler attempt is classified for another bounded in-process attempt and
+  before its cancellation-aware backoff begins;
 - `ObservationConsumeAssigned` after a validated assignment is applied;
 - `ObservationConsumeRevoked` after a validated revocation is applied;
 - `ObservationConsumeLost` after fatal ownership loss clears the assignment;
@@ -143,6 +147,7 @@ exporting a public observation rather than reimplementing these invariants.
 | Consume batch | `RecordCount` is the partition-batch size; `ProcessedCount` equals it only after handler success; offset is the batch's last source offset |
 | Consume commit | `RecordCount` and `ProcessedCount` are the contiguous records represented by the commit; `PartitionCount` is the number of submitted partition offsets; `CommittedCount` is zero on commit failure |
 | Consume poll | `RecordCount`, `ProcessedCount`, and `CommittedCount` match the returned `PollResult` while within policy bounds; `PartitionCount` counts validated fetched topic-partitions |
+| Consume retry scheduled | `RecordCount` is one record or the complete partition batch; partition and last source offset identify the retry unit; processing and commit counts are zero because the later attempt has not run |
 | Consume assigned/revoked | `PartitionCount` is the validated callback partition count; invalid metadata fails the event and oversized counts are clipped to `MaxAssignedPartitions` and marked truncated |
 | Consume lost | `PartitionCount` is bounded callback metadata; the event always fails with `ErrorFenced` because ownership is already lost, while malformed metadata cannot prevent assignment clearing |
 | Consume blocked | Reports only a signal received while a bounded poll owns franz-go's rebalance gate; it does not claim that a broker rebalance completed |
@@ -205,6 +210,12 @@ draining, flushing, and close. Consumer and transaction-processor shutdown
 duration covers waiting for the active runner, the dynamic-member group leave,
 and close. Incomplete attempts retain their stable cancellation, timeout, or
 other redacted error category; a successful retry is a separate event.
+Consume-retry duration starts immediately before the failed handler attempt and
+ends after its error is classified and selected for retry. It excludes observer
+dispatch, the subsequent backoff, and the later attempt. The event means
+"scheduled", not "executed": cancellation during backoff can prevent that later
+attempt. It does not report Kafka redelivery after a poll, rebalance, restart,
+or process failure.
 
 `Producer.Diagnostic` and `TransactionProcessor.Diagnostic` are pull-based
 local snapshots, not observer events. They provide payload-free lifecycle,
@@ -248,24 +259,27 @@ Observers must not call the client that invoked them. Producer, consumer,
 transaction-processor, replay, and inspector operations using the callback
 context fail with `ErrObserverReentry`. Their `Shutdown` and `Close` methods,
 plus context-free mutating consumer operations, also fail with that error while
-a callback is active, even when the callback replaces its context. This
-conservative fence can reject a concurrent lifecycle call from another
-goroutine while an observer is running. Replacing the callback context for any
-other operation violates the contract. The package holds no client lifecycle
-lock while application observer code runs.
+a callback is active, even when the callback replaces its context. Per-record
+and whole-batch failure decorators also reject the callback context, preventing
+an observer from recursively scheduling another retry event. This conservative
+fence can reject a concurrent lifecycle call from another goroutine while an
+observer is running. Replacing the callback context for any other operation
+violates the contract. The package holds no client lifecycle lock while
+application observer code runs.
 
 ## Current boundary
 
 The root observer model currently covers producer delivery, nontransactional
-consumer processing, commits, group lifecycle, producer and
+consumer processing, bounded in-process retry scheduling, commits, group
+lifecycle, producer and
 consume-transform-produce transaction lifecycle, replay planning, record
 outcomes, aggregate progress and shutdown, inspector read-only operations,
 dependency health, readiness, and shutdown, plus producer, consumer,
 transaction-processor, replay, and inspector broker activity. Producer,
 consumer, and transaction-processor shutdown attempts are also covered.
-Retry and complete broker rebalance timing remain unimplemented. Authentication
-state is reported honestly as part of broker connection initialization because
-that is the lifecycle boundary supplied by franz-go.
+Kafka redelivery and complete broker rebalance timing remain unimplemented.
+Authentication state is reported honestly as part of broker connection
+initialization because that is the lifecycle boundary supplied by franz-go.
 
 The standard-library [`kafka/adapters/golog`](../adapters/golog) package
 translates every current stable root observation into one fixed `log/slog`

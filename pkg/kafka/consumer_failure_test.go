@@ -1063,6 +1063,17 @@ func TestFailureHandlerContextAndInternalFailClosedPaths(t *testing.T) {
 	if got := handler.Handle(nilContext, ConsumedMessage{}); !errors.Is(got, ErrContextRequired) {
 		t.Fatalf("Handle(nil) error = %v", got)
 	}
+	observerCtx := context.WithValue(
+		context.Background(),
+		observerContextKey{},
+		true,
+	)
+	if got := handler.Handle(
+		observerCtx,
+		ConsumedMessage{Topic: "events"},
+	); !errors.Is(got, ErrObserverReentry) {
+		t.Fatalf("Handle(observer context) error = %v", got)
+	}
 
 	internal := handler.(*failureHandler)
 	internal.mode = FailureMode(255)

@@ -93,12 +93,13 @@ also configured with that limit.
 `ConsumerConfig.Validate` applies the same defaults and checks without
 allocating a client. Optional `ConsumerConfig.Observers` report payload-free
 record, partition-batch, commit, complete poll, assignment, revocation,
-ownership-loss, blocked-rebalance, and group-management-error outcomes. They
-execute synchronously, can run concurrently across partition workers and
-franz-go callback goroutines, and cannot re-enter consumer mutation or
-lifecycle operations. Processing observers run before the poll releases its
-rebalance gate; lifecycle observers run only after package assignment or
-rebalance state locks are released. See the
+ownership-loss, blocked-rebalance, group-management-error, and bounded
+in-process retry-scheduling outcomes. They execute synchronously, can run
+concurrently across partition workers and franz-go callback goroutines, and
+cannot re-enter consumer mutation or lifecycle operations. Processing and
+retry-scheduling observers run before the poll releases its rebalance gate;
+lifecycle observers run only after package assignment or rebalance state locks
+are released. See the
 [observability guide](observability.md).
 The heartbeat, handler, and commit deadlines together must be strictly less
 than the rebalance timeout. This preserves time for franz-go to detect the
@@ -294,6 +295,14 @@ leader epoch, key, value, and headers under its copied `Limits` before retaining
 bytes or invoking any application callback. Invalid input returns
 `ErrFailureRecordInvalid`; no handler, classifier, publisher, or delegate is
 admitted.
+
+When this decorator runs inside a configured `Consumer`, each failed attempt
+selected for another bounded in-process attempt emits
+`ObservationConsumeRetryScheduled` before backoff. The payload-free event
+contains the source partition, last offset, record count, conservative bytes,
+and stable failure category. It does not mean the next attempt ran: rebalance
+or caller cancellation can stop the backoff first. Direct decorator calls
+outside a consumer have no observer sink, and Kafka redelivery is not inferred.
 
 A definite retry or dead-letter publish result turns that decorated handler
 call into a success. The consumer then submits its normal contiguous source

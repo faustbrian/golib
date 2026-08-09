@@ -299,6 +299,17 @@ func TestBatchFailureHandlerRejectsInvalidBatchesBeforeRetention(t *testing.T) {
 	if got := handler.HandleBatch(nilContext, valid); !errors.Is(got, ErrContextRequired) {
 		t.Fatalf("HandleBatch(nil) error = %v", got)
 	}
+	observerCtx := context.WithValue(
+		context.Background(),
+		observerContextKey{},
+		true,
+	)
+	if got := handler.HandleBatch(
+		observerCtx,
+		valid,
+	); !errors.Is(got, ErrObserverReentry) {
+		t.Fatalf("HandleBatch(observer context) error = %v", got)
+	}
 }
 
 func TestFailureBatchValidationAcceptsExactCountBytesAndOffsetZero(t *testing.T) {

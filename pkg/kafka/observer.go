@@ -116,6 +116,9 @@ const (
 	// consume-transform-produce processor shutdown attempt that acquired
 	// lifecycle ownership.
 	ObservationTransactionProcessorShutdown
+	// ObservationConsumeRetryScheduled reports one failed handler attempt that
+	// selected a bounded in-process retry before its backoff wait begins.
+	ObservationConsumeRetryScheduled
 )
 
 // String returns the stable low-cardinality observation name.
@@ -177,6 +180,8 @@ func (kind ObservationKind) String() string {
 		return "consumer.shutdown"
 	case ObservationTransactionProcessorShutdown:
 		return "transaction_processor.shutdown"
+	case ObservationConsumeRetryScheduled:
+		return "consumer.retry_scheduled"
 	case ObservationBrokerConnect:
 		return "broker.connect"
 	case ObservationBrokerRequest:
@@ -300,7 +305,7 @@ func (observation Observation) Validate() error {
 	if observation.Kind < ObservationProduceRecord {
 		return ErrInvalidObservation
 	}
-	if observation.Kind > ObservationTransactionProcessorShutdown {
+	if observation.Kind > ObservationConsumeRetryScheduled {
 		return ErrInvalidObservation
 	}
 	if observation.StartedAt.IsZero() ||
@@ -335,6 +340,7 @@ func (observation Observation) Validate() error {
 			!validErrorCategory(observation.Category)) ||
 		!validObservationAuthentication(observation) ||
 		!validObservationRecordCardinality(observation) ||
+		!validConsumeRetryObservation(observation) ||
 		!validReplayObservationProgress(observation) ||
 		!validInspectorObservationMetadata(observation) {
 		return ErrInvalidObservation
@@ -464,7 +470,8 @@ func validObservationRecordCardinality(observation Observation) bool {
 		return observation.RecordCount == 1
 	case ObservationProduceBatch,
 		ObservationConsumeBatch,
-		ObservationConsumeCommit:
+		ObservationConsumeCommit,
+		ObservationConsumeRetryScheduled:
 		return observation.RecordCount > 0
 	case ObservationConsumePoll:
 		return true
@@ -474,6 +481,20 @@ func validObservationRecordCardinality(observation Observation) bool {
 			observation.CommittedCount == 0 &&
 			observation.RecordBytes == 0
 	}
+}
+
+func validConsumeRetryObservation(observation Observation) bool {
+	if observation.Kind != ObservationConsumeRetryScheduled {
+		return true
+	}
+
+	return !observation.Succeeded &&
+		observation.PartitionCount == 1 &&
+		observation.PartitionKnown &&
+		observation.OffsetKnown &&
+		observation.ProcessedCount == 0 &&
+		observation.CommittedCount == 0 &&
+		observation.RecordBytes > 0
 }
 
 func validReplayObservationProgress(observation Observation) bool {

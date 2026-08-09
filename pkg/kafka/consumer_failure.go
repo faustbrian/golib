@@ -297,6 +297,35 @@ func (err *FailureHandlingError) DeliveryResults() []DeliveryResult {
 
 type failureWait func(context.Context, time.Duration) error
 
+type failureRetryObservation struct {
+	startedAt   time.Time
+	topic       string
+	partition   int32
+	offset      int64
+	records     int
+	recordBytes int64
+	category    ErrorCategory
+}
+
+type failureRetryObserver interface {
+	observeFailureRetry(context.Context, failureRetryObservation)
+}
+
+type failureRetryObserverContextKey struct{}
+
+func withFailureRetryObserver(
+	ctx context.Context,
+	observer failureRetryObserver,
+) context.Context {
+	return context.WithValue(ctx, failureRetryObserverContextKey{}, observer)
+}
+
+func failureRetryObserverFromContext(ctx context.Context) failureRetryObserver {
+	observer, _ := ctx.Value(failureRetryObserverContextKey{}).(failureRetryObserver)
+
+	return observer
+}
+
 type failureHandler struct {
 	handler         Handler
 	classifier      FailureClassifier
@@ -491,12 +520,24 @@ func (handler *failureHandler) Handle(
 	if ctx == nil {
 		return ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
+	}
 	if err := validateFailureRecord(record, handler.limits); err != nil {
 		return err
 	}
 
 	source := record.Retain()
+	retryObserver := failureRetryObserverFromContext(ctx)
+	var retryRecordBytes int64
+	if retryObserver != nil {
+		retryRecordBytes = failureConsumedRecordSize(source)
+	}
 	for attempt := 1; ; attempt++ {
+		var startedAt time.Time
+		if retryObserver != nil {
+			startedAt = time.Now()
+		}
 		handlerErr := callHandler(ctx, handler.handler, source.Retain())
 		if handlerErr == nil {
 			return nil
@@ -542,6 +583,20 @@ func (handler *failureHandler) Handle(
 		if attempt < handler.retry.MaxAttempts &&
 			handler.retryable(category) {
 			delay := failureBackoff(handler.retry, attempt)
+			if retryObserver != nil {
+				retryObserver.observeFailureRetry(
+					ctx,
+					failureRetryObservation{
+						startedAt:   startedAt,
+						topic:       source.Topic,
+						partition:   source.Partition,
+						offset:      source.Offset,
+						records:     1,
+						recordBytes: retryRecordBytes,
+						category:    category,
+					},
+				)
+			}
 			if err := handler.wait(ctx, delay); err != nil {
 				return newFailureHandlingError(
 					FailureStageBackoff,
@@ -558,6 +613,13 @@ func (handler *failureHandler) Handle(
 
 		return handler.resolve(ctx, failure)
 	}
+}
+
+func failureConsumedRecordSize(record ConsumedMessage) int64 {
+	return recordSize(ProducerRecord{
+		Topic: record.Topic, Key: record.Key, Value: record.Value,
+		Headers: record.Headers,
+	})
 }
 
 func validateFailureRecord(record ConsumedMessage, limits MessageLimits) error {

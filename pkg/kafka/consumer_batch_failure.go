@@ -279,6 +279,9 @@ func (handler *batchFailureHandler) HandleBatch(
 	if ctx == nil {
 		return ErrContextRequired
 	}
+	if isObserverContext(ctx) {
+		return ErrObserverReentry
+	}
 	if err := validateFailureBatch(
 		batch,
 		handler.limits,
@@ -289,7 +292,16 @@ func (handler *batchFailureHandler) HandleBatch(
 	}
 
 	source := batch.Retain()
+	retryObserver := failureRetryObserverFromContext(ctx)
+	var retryRecordBytes int64
+	if retryObserver != nil {
+		retryRecordBytes = failureBatchRecordBytes(source)
+	}
 	for attempt := 1; ; attempt++ {
+		var startedAt time.Time
+		if retryObserver != nil {
+			startedAt = time.Now()
+		}
 		handlerErr := callBatchHandler(ctx, handler.handler, source.Retain())
 		if handlerErr == nil {
 			return nil
@@ -335,6 +347,20 @@ func (handler *batchFailureHandler) HandleBatch(
 		if attempt < handler.retry.MaxAttempts {
 			if handler.retryable(category) {
 				delay := failureBackoff(handler.retry, attempt)
+				if retryObserver != nil {
+					retryObserver.observeFailureRetry(
+						ctx,
+						failureRetryObservation{
+							startedAt:   startedAt,
+							topic:       source.Topic,
+							partition:   source.Partition,
+							offset:      source.Records[len(source.Records)-1].Offset,
+							records:     len(source.Records),
+							recordBytes: retryRecordBytes,
+							category:    category,
+						},
+					)
+				}
 				if err := handler.wait(ctx, delay); err != nil {
 					return newFailureHandlingError(
 						FailureStageBackoff,
@@ -352,6 +378,15 @@ func (handler *batchFailureHandler) HandleBatch(
 
 		return handler.resolve(ctx, failure)
 	}
+}
+
+func failureBatchRecordBytes(batch ConsumedBatch) int64 {
+	var total int64
+	for _, record := range batch.Records {
+		total += failureConsumedRecordSize(record)
+	}
+
+	return total
 }
 
 func validateFailureBatch(

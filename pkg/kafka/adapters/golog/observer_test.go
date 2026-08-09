@@ -471,6 +471,51 @@ func TestObserverEmitsStableFailureCategoryAtConfiguredLevel(t *testing.T) {
 	}
 }
 
+func TestObserverEmitsScheduledConsumerRetry(t *testing.T) {
+	t.Parallel()
+
+	var output bytes.Buffer
+	adapter, err := New(Config{
+		Logger: slog.New(slog.NewJSONHandler(&output, nil)),
+		Identities: IdentityPolicy{
+			AllowedTopics: []string{"events"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	observation := kafka.Observation{
+		Kind:           kafka.ObservationConsumeRetryScheduled,
+		StartedAt:      time.Unix(1, 0),
+		Duration:       time.Millisecond,
+		Topic:          "events",
+		Partition:      1,
+		PartitionKnown: true,
+		Offset:         4,
+		OffsetKnown:    true,
+		RecordCount:    2,
+		PartitionCount: 1,
+		RecordBytes:    128,
+		Category:       kafka.ErrorRetryable,
+	}
+	if err := adapter.Observer()(context.Background(), observation); err != nil {
+		t.Fatalf("Observer() error = %v", err)
+	}
+	var record map[string]any
+	if err := json.Unmarshal(output.Bytes(), &record); err != nil {
+		t.Fatalf("Unmarshal() error = %v", err)
+	}
+	if record["kafka.operation"] != "consumer.retry_scheduled" ||
+		record["kafka.outcome"] != "failure" ||
+		record["error.type"] != "retryable" ||
+		record["kafka.record.count"] != float64(2) ||
+		record["messaging.destination.name"] != "events" ||
+		record["messaging.destination.partition.id"] != float64(1) ||
+		record["messaging.kafka.message.offset"] != float64(4) {
+		t.Fatalf("retry record = %#v", record)
+	}
+}
+
 func TestObserverIsSafeForConcurrentCalls(t *testing.T) {
 	t.Parallel()
 

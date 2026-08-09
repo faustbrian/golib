@@ -42,6 +42,15 @@ initial delay, a maximum delay no smaller than the initial delay, and a maximum
 of 5 minutes. Empty retry categories default to `ErrorRetryable`; no other
 category is retried implicitly.
 
+When a failure decorator runs as the handler of a `Consumer` with observers,
+each failed record or complete partition-batch attempt selected for another
+bounded in-process attempt emits `ObservationConsumeRetryScheduled` before its
+backoff. The event exposes only copied Kafka coordinates, record count,
+conservative bytes, and stable category. It records the decision, not execution
+of the next attempt; cancellation can stop backoff after the event. Direct
+decorator use has no consumer observer sink, and the event does not represent
+Kafka redelivery.
+
 An optional `FailureClassifier` maps application errors to the package's stable
 low-cardinality categories. Without one, package, context, franz-go, and Kafka
 errors use the normal package classifier and an arbitrary application error is

@@ -75,6 +75,7 @@ website content.
 | consume poll | `poll [topic]`, `CLIENT` | `messaging.client.operation.duration`, `messaging.client.consumed.messages` |
 | consume record or batch | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
 | consume commit | `commit [topic]`, `CLIENT` | `messaging.client.operation.duration` |
+| consume retry scheduled | `kafka consumer.retry_scheduled`, `INTERNAL` | adapter-owned policy metrics only |
 | successfully processed replay record | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
 | skipped or failed replay record | `kafka replay.record`, `CLIENT` | adapter-owned policy metrics only |
 | replay plan, run, shutdown | `kafka replay.*`, `CLIENT` | adapter-owned policy metrics only |
@@ -96,6 +97,10 @@ Every root observation also emits:
 
 These `kafka.*` metrics are adapter-owned policy metrics, not OpenTelemetry
 messaging semantic conventions.
+Retry-scheduled observations increment only the adapter-owned operation and
+duration metrics. They do not increment semantic consumed-message or process
+metrics because the event records a retry decision before backoff, not another
+completed receive or processing operation.
 Replay plan, record, and run spans also carry fixed
 `kafka.replay.processed`, `kafka.replay.skipped`, `kafka.replay.failed`, and
 `kafka.replay.remaining` signed-64-bit attributes. Source topic is exported

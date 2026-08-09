@@ -312,7 +312,8 @@ record payloads through the error string.
 
 `ConsumerConfig.Observers` uses the same copied, ordered `ObserverPolicy` as
 the producer. Consumer events report each record or partition-batch processing
-attempt, each offset-commit attempt, the final bounded poll result, assignment,
+attempt, each bounded in-process retry selected after a failed handler attempt,
+each offset-commit attempt, the final bounded poll result, assignment,
 revocation, ownership loss, blocked rebalances, group-management errors, and
 broker connection, Kafka request, throttle, and disconnect activity.
 Broker-connect observations identify the configured bounded
@@ -325,6 +326,10 @@ not change handler, commit, or poll outcomes. Consumer observers run before the
 poll releases its rebalance gate when they report processing; lifecycle
 observers run after package assignment and rebalance locks are released. They
 cannot re-enter mutating or lifecycle operations on that consumer.
+`ObservationConsumeRetryScheduled` identifies the validated source partition
+and last offset of the record or complete partition batch, with zero processed
+and committed counts. It is emitted before backoff, so it does not claim that
+the later attempt ran or that Kafka redelivered the source record.
 
 `NewFailureHandler` decorates the per-record `Handler` contract without
 changing `Consumer` or exposing franz-go. Before retaining bytes or invoking

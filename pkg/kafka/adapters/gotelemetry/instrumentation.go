@@ -1053,6 +1053,11 @@ func messagingOperation(observation kafka.Observation) operationDescriptor {
 			spanName: "kafka consumer.group_error",
 			spanKind: trace.SpanKindInternal,
 		}
+	case kafka.ObservationConsumeRetryScheduled:
+		return operationDescriptor{
+			spanName: "kafka consumer.retry_scheduled",
+			spanKind: trace.SpanKindInternal,
+		}
 	case kafka.ObservationTransactionBegin:
 		return operationDescriptor{
 			spanName: "kafka transaction.begin",

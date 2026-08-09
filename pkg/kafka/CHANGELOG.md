@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- report each record or whole-partition-batch handler failure selected for a
+  bounded in-process retry through a stable payload-free consumer observation,
+  before cancellation-aware backoff and without claiming Kafka redelivery;
+  failure decorators reject observer-callback reentry
 - prove a least-privilege transactional producer receives stable redacted
   `ErrorAuthorization` identity before its transactional-ID ACL is granted,
   commits after the live grant, and cannot expose a later transaction after

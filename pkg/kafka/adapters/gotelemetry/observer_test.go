@@ -319,6 +319,7 @@ func TestObserverCoversEveryStableKafkaObservation(t *testing.T) {
 		kafka.ObservationProducerShutdown,
 		kafka.ObservationConsumerShutdown,
 		kafka.ObservationTransactionProcessorShutdown,
+		kafka.ObservationConsumeRetryScheduled,
 	}
 	observer := instrumentation.Observer()
 	for index, kind := range kinds {
@@ -355,6 +356,17 @@ func TestObserverCoversEveryStableKafkaObservation(t *testing.T) {
 			observation.DependencyHealthy = true
 			observation.Ready = true
 			observation.ConsecutiveSuccesses = 1
+		case kafka.ObservationConsumeRetryScheduled:
+			observation.Succeeded = false
+			observation.Category = kafka.ErrorRetryable
+			observation.Topic = "events"
+			observation.Partition = 1
+			observation.PartitionKnown = true
+			observation.Offset = 4
+			observation.OffsetKnown = true
+			observation.RecordCount = 1
+			observation.PartitionCount = 1
+			observation.RecordBytes = 64
 		}
 		if err := observer(context.Background(), observation); err != nil {
 			t.Fatalf("observe %s: %v", kind, err)

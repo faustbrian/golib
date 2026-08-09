@@ -11,6 +11,76 @@ import (
 	"github.com/twmb/franz-go/pkg/kgo"
 )
 
+func FuzzObservationValidation(f *testing.F) {
+	f.Add(
+		uint8(ObservationConsumeRetryScheduled),
+		int64(time.Millisecond),
+		"client",
+		"group",
+		"events",
+		int32(1),
+		int64(4),
+		1,
+		1,
+		int64(64),
+		false,
+		uint8(ErrorRetryable),
+	)
+	f.Add(
+		uint8(255),
+		int64(-1),
+		string([]byte{0xff}),
+		" ",
+		".",
+		int32(-1),
+		int64(-1),
+		-1,
+		-1,
+		int64(-1),
+		true,
+		uint8(255),
+	)
+
+	f.Fuzz(func(
+		t *testing.T,
+		kind uint8,
+		duration int64,
+		clientID string,
+		groupID string,
+		topic string,
+		partition int32,
+		offset int64,
+		recordCount int,
+		partitionCount int,
+		recordBytes int64,
+		succeeded bool,
+		category uint8,
+	) {
+		observation := Observation{
+			Kind:           ObservationKind(kind),
+			StartedAt:      time.Unix(1, 0),
+			Duration:       time.Duration(duration),
+			ClientID:       clientID,
+			GroupID:        groupID,
+			Topic:          topic,
+			Partition:      partition,
+			PartitionKnown: partition >= 0,
+			Offset:         offset,
+			OffsetKnown:    offset >= 0,
+			RecordCount:    recordCount,
+			PartitionCount: partitionCount,
+			RecordBytes:    recordBytes,
+			Succeeded:      succeeded,
+			Category:       ErrorCategory(category),
+		}
+		if err := observation.Validate(); err != nil &&
+			!errors.Is(err, ErrInvalidObservation) {
+			t.Fatalf("Validate() error = %v", err)
+		}
+		_ = observation.Kind.String()
+	})
+}
+
 func FuzzFetchDecompression(f *testing.F) {
 	f.Add(uint8(kgo.CodecNone), uint32(4), []byte("1234"))
 	f.Add(uint8(kgo.CodecGzip), uint32(1<<20), []byte("malformed"))

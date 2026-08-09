@@ -718,6 +718,7 @@ func TestObservationKindString(t *testing.T) {
 		ObservationProducerShutdown:             "producer.shutdown",
 		ObservationConsumerShutdown:             "consumer.shutdown",
 		ObservationTransactionProcessorShutdown: "transaction_processor.shutdown",
+		ObservationConsumeRetryScheduled:        "consumer.retry_scheduled",
 		ObservationBrokerConnect:                "broker.connect",
 		ObservationBrokerRequest:                "broker.request",
 		ObservationBrokerThrottle:               "broker.throttle",
@@ -765,6 +766,7 @@ func TestObservationKindValuesRemainStable(t *testing.T) {
 		ObservationProducerShutdown:             30,
 		ObservationConsumerShutdown:             31,
 		ObservationTransactionProcessorShutdown: 32,
+		ObservationConsumeRetryScheduled:        33,
 	} {
 		if kind != want {
 			t.Fatalf("ObservationKind value = %d, want %d", kind, want)
@@ -844,6 +846,44 @@ func TestObservationValidationRejectsMetadataOutsideThePublicContract(
 			ErrInvalidObservation,
 		) {
 			t.Fatalf("invalid observation %d error = %v", index, err)
+		}
+	}
+}
+
+func TestObservationValidationEnforcesScheduledRetryMetadata(t *testing.T) {
+	base := Observation{
+		Kind:           ObservationConsumeRetryScheduled,
+		StartedAt:      time.Unix(1, 0),
+		Duration:       time.Millisecond,
+		Topic:          "events",
+		Partition:      1,
+		PartitionKnown: true,
+		Offset:         4,
+		OffsetKnown:    true,
+		RecordCount:    1,
+		PartitionCount: 1,
+		RecordBytes:    64,
+		Category:       ErrorRetryable,
+	}
+	if err := base.Validate(); err != nil {
+		t.Fatalf("valid retry observation error = %v", err)
+	}
+	mutations := []func(*Observation){
+		func(value *Observation) { value.Succeeded = true },
+		func(value *Observation) { value.Category = ErrorUnknown },
+		func(value *Observation) { value.RecordCount = 0 },
+		func(value *Observation) { value.PartitionCount = 0 },
+		func(value *Observation) { value.PartitionKnown = false },
+		func(value *Observation) { value.OffsetKnown = false },
+		func(value *Observation) { value.ProcessedCount = 1 },
+		func(value *Observation) { value.CommittedCount = 1 },
+		func(value *Observation) { value.RecordBytes = 0 },
+	}
+	for index, mutate := range mutations {
+		observation := base
+		mutate(&observation)
+		if err := observation.Validate(); !errors.Is(err, ErrInvalidObservation) {
+			t.Fatalf("invalid retry observation %d error = %v", index, err)
 		}
 	}
 }
