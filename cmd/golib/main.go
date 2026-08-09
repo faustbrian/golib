@@ -1258,6 +1258,13 @@ func specifications(directory string) []string {
 	}
 	prefix := libraryName(directory)
 	switch prefix {
+	case "ecma-regexp":
+		return []string{
+			"ECMA-262 16th edition (ECMAScript 2025)",
+			"TC39 Test262 at 26058a01fdbc8dad9ded0e97133190098ea8c5d8",
+			"Unicode 16.0.0",
+			"JSON Schema Draft 2020-12 regular expressions",
+		}
 	case "json-schema":
 		return []string{"JSON Schema drafts 4, 6, 7, 2019-09, and 2020-12", "JSON-Schema-Test-Suite"}
 	case "jsonapi":

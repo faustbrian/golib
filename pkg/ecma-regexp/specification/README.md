@@ -21,8 +21,11 @@ Go package does not expose. Exact accounting is in `conformance/test262.tsv`.
 
 `conformance/requirements.tsv` maps normative obligations to executable
 evidence. A row is complete only when its evidence exercises the whole stated
-requirement. `conformance/decisions.tsv` records deliberate interpretations,
-ambiguities, and errata decisions.
+requirement. The canonical
+[specification decision register](../docs/specification-decisions.md) records
+the complete rationale and consequences for deliberate interpretations,
+ambiguities, and policy. `conformance/decisions.tsv` is its compact source
+index.
 
 `conformance/features.tsv` reconciles every Test262 feature tag present in the
 pinned RegExp corpus and records the only current RegExp proposal outside the

@@ -1,5 +1,14 @@
 id	topic	decision	rationale	status
-DEC-001	edition	Support exactly ECMA-262 16th edition (ECMAScript 2025) initially.	A closed edition prevents accidental acceptance of future syntax.	accepted
-DEC-002	indices	Expose UTF-16 code-unit indices as normative and byte/rune mappings as additional metadata.	ECMAScript observes UTF-16 while Go strings are bytes.	accepted
-DEC-003	invalid-utf8	Treat Go input as a sequence of decoded runes with each invalid byte represented by U+FFFD, while preserving byte offsets.	This follows Go range decoding and is covered by an explicit byte, rune, and UTF-16 index vector.	accepted
-DEC-004	unicode	Use generated Unicode 16.0.0 property, case-folding, identifier, and properties-of-strings tables.	The generator digest-checks the pinned UCD and emoji sources before emitting immutable tables.	accepted
+ECMAREGEXP-DEC-001	edition	Support exactly ECMA-262 16th edition (ECMAScript 2025).	A closed edition prevents accidental acceptance of future syntax and proposals.	resolved
+ECMAREGEXP-DEC-002	surface	Implement Pattern and matcher semantics without the JavaScript RegExp object model.	The Go package does not expose constructors, prototypes, species, descriptors, coercion, or RegExp.escape.	resolved
+ECMAREGEXP-DEC-003	indices	Expose UTF-16 code-unit indices as normative and byte/rune mappings as additional metadata.	ECMAScript observes UTF-16 while Go strings are bytes.	resolved
+ECMAREGEXP-DEC-004	invalid-utf8	Represent each invalid Go-string byte as U+FFFD while preserving byte offsets.	This follows Go decoding and preserves a deterministic mapping for input ECMAScript strings cannot represent directly.	resolved
+ECMAREGEXP-DEC-005	unicode	Use generated Unicode 16.0.0 property, case-folding, identifier, and properties-of-strings tables.	Digest-pinned generated data makes Unicode behavior independent from the host toolchain.	resolved
+ECMAREGEXP-DEC-006	grammar-modes	Select exact legacy, Unicode, or Unicode Sets grammar and expose Annex B only in legacy mode.	A permissive union grammar would accept patterns forbidden by their flags.	resolved
+ECMAREGEXP-DEC-007	duplicate-names	Permit duplicate named captures only in statically disjoint alternatives.	This implements edition-16 early errors without ambiguous participating captures.	resolved
+ECMAREGEXP-DEC-008	state-and-progress	Use UTF-16 lastIndex and mode-aware progress after empty collection matches.	This preserves ECMAScript state while guaranteeing repeated operations terminate.	resolved
+ECMAREGEXP-DEC-009	json-schema	Compile JSON Schema patterns with Unicode and unanchored search semantics.	JSON Schema requires ECMA-262 compatibility but serializes no JavaScript flags.	resolved
+ECMAREGEXP-DEC-010	limits	Preserve ECMAScript semantics under explicit synchronous resource and cancellation limits.	Finite visible budgets avoid hidden workers and unbounded backtracking.	resolved
+ECMAREGEXP-DEC-011	test262	Classify every pinned RegExp fixture by the exact applicable behavior executed.	Raw file counts would overstate conformance to JavaScript host-object behavior outside the package surface.	resolved
+ECMAREGEXP-DEC-012	differential	Compare equivalent semantics across at least two independent JavaScript engine families and classify every divergence.	Peer output is evidence but cannot override normative prose or the pinned edition.	resolved
+ECMAREGEXP-DEC-013	replacement-and-split	Implement substitutions and splitting over exact UTF-16 boundaries with bounded output.	Go byte slicing alone cannot preserve ECMAScript token and surrogate semantics.	resolved

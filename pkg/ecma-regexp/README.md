@@ -50,6 +50,7 @@ Unicode semantics and the required unanchored search behavior.
 ## Documentation
 
 - [Support and compatibility](docs/support.md)
+- [Specification decisions](docs/specification-decisions.md)
 - [Syntax, flags, Unicode, and captures](docs/syntax.md)
 - [API and index semantics](docs/api.md)
 - [Replacement behavior](docs/replacement.md)

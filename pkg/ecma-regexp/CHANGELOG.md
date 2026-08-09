@@ -9,6 +9,8 @@ and this project intends to use semantic versioning after its first release.
 
 ### Changed
 
+- Provision Test262 in a task-owned disposable directory for conformance and
+  provenance gates instead of relying on shared `/tmp` state.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   instead of maintaining package-local exclusions and reduced thresholds.
 - Mutation campaigns reuse the external Test262 coverage baseline while
@@ -27,6 +29,9 @@ and this project intends to use semantic versioning after its first release.
 
 ### Added
 
+- A canonical, evidence-linked specification decision register covering the
+  supported edition, Pattern-only scope, text and index models, Unicode modes,
+  JSON Schema behavior, bounded execution, Test262, and peer interoperability.
 - Closed ECMAScript 2025 tokenizer, parser, immutable AST, compiler, and
   bounded matcher.
 - Captures, backreferences, lookaround, scoped modifiers, Annex B grammar,

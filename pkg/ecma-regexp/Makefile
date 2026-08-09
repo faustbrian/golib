@@ -62,13 +62,14 @@ mutation:
 	./scripts/check-mutation.sh
 
 test262:
-	TEST262_ROOT=/tmp/ecma-regexp-test262 $(GO) test . \
-		-run '^TestTest262' -count=1
+	./scripts/run-test262.sh test
 
 test262-sync:
+	: "$${TEST262_ROOT:?TEST262_ROOT is required}"
 	./scripts/sync-test262.sh
 
-conformance: test262-sync provenance test262
+conformance:
+	./scripts/run-test262.sh all
 
 interoperability: differential
 
@@ -79,7 +80,7 @@ safety:
 	./scripts/check-safety.sh
 
 provenance:
-	./scripts/check-provenance.sh
+	./scripts/run-test262.sh provenance
 
 workflows:
 	$(GO) run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION) .github/workflows/*.yml

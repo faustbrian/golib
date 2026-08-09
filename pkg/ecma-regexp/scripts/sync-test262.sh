@@ -3,7 +3,7 @@ set -euo pipefail
 
 commit="26058a01fdbc8dad9ded0e97133190098ea8c5d8"
 repository="https://github.com/tc39/test262.git"
-target="${TEST262_ROOT:-/tmp/ecma-regexp-test262}"
+target="${TEST262_ROOT:?TEST262_ROOT is required}"
 
 if [[ -d "$target/.git" ]]; then
   test "$(git -C "$target" rev-parse HEAD)" = "$commit"
@@ -15,6 +15,11 @@ if [[ -e "$target" ]]; then
 fi
 
 temporary="$(mktemp -d "${TMPDIR:-/tmp}/ecma-regexp-test262.XXXXXX")"
+cleanup() {
+  chmod -R u+w "$temporary" 2>/dev/null || true
+  find "$temporary" -depth -delete 2>/dev/null || true
+}
+trap cleanup EXIT HUP INT TERM
 git clone --filter=blob:none --no-checkout "$repository" "$temporary"
 git -C "$temporary" sparse-checkout init --cone
 git -C "$temporary" sparse-checkout set \
@@ -24,3 +29,4 @@ git -C "$temporary" sparse-checkout set \
 git -C "$temporary" fetch --depth=1 origin "$commit"
 git -C "$temporary" checkout --detach "$commit"
 mv "$temporary" "$target"
+trap - EXIT HUP INT TERM
