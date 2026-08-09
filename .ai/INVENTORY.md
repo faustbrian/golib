@@ -92,7 +92,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
 | 41 | Protocol | `pending` | `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1, 13, 19 |
-| 44 | Audit | `pending` | `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 29-32, 43 |
 | 45 | Event contracts | `pending` | `pkg/schema-registry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26 |
 | 46 | Event interoperability | `pending` | `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-35, 43, 45 |
 | 47 | Durable orchestration | `pending` | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 27-35, 43, 44, 46 |
@@ -138,6 +137,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/service/.ai/GOAL_RESILIENCE.md` | `verified` | The base resilience goal formerly included in pending order 18 has current lifecycle, adoption, Kubernetes, exact coverage and mutation, documentation, API, security, supply-chain, race, and benchmark evidence; its separate `GOAL_RESILIENCE_HARDEN.md` remains pending. |
 | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 42. Current scoped evidence verifies canonical scoped capabilities and signed URLs, key lifecycle, replay and revocation adapters, hardening requirements, and every mandatory capability-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/tenancy/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 43. Current scoped evidence verifies explicit tenant identity, propagation, namespaces, administration, PostgreSQL/RLS, asynchronous lifecycle, hardening, documentation, and every mandatory tenancy-module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 44. Current scoped evidence verifies immutable bounded audit records, explicit delivery and privacy policy, deterministic integrity, bounded query/export and retention contracts, the memory adapter, the durable PostgreSQL adapter, hardening requirements, and every mandatory audit-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
@@ -364,6 +364,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with Redis and Valkey configured to equivalent 16-entry stream capacity and a task-owned disposable `GOCACHE`. |
 | Observed | 2026-08-09T04:53:58Z |
 | Gaps | NilAway advisory diagnostics remain visible under repository policy. The outer live-worktree audit saw unrelated concurrent `modules.json` input drift after the isolated snapshot had verified both goal files; it did not invalidate the scoped snapshot result. |
+
+### Durable audit records evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Immutable bounded records, actors, subjects, context, changes, explicit failure modes, pre-persistence redaction, deterministic canonical encoding and integrity, bounded query/export and retention, memory test storage, and the separately releasable PostgreSQL adapter. |
+| Status | `pending` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/audit,pkg/audit/postgres`; direct PostgreSQL 14-18 integration runs; and direct release dry-runs for `pkg/audit` and `pkg/audit/postgres`. |
+| Result | Passed every mandatory audit-module gate, including exact 670/670 core, 127/127 memory, and 100% PostgreSQL statement coverage; 395/395 core, 74/74 memory, and 172/172 PostgreSQL viable mutants; race, leak and stress checks; registered fuzz targets; PostgreSQL transaction, privilege, fault, backup/restore, retention, and interoperability scenarios; API, documentation, security, supply-chain, benchmark, and clean-consumer checks. |
+| Environment | Go 1.26.5 on darwin/arm64 with PostgreSQL 14, 15, 16, 17, and 18 containers and task-owned disposable `GOCACHE` directories removed after each bounded run. |
+| Observed | 2026-08-09T13:28:51Z |
+| Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped audit contract. |
 
 ### Exact temporal rule operator evidence
 

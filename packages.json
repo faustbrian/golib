@@ -483,6 +483,42 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/audit",
+      "directory": ".",
+      "name": "audit",
+      "import_path": "github.com/faustbrian/golib/pkg/audit",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/audit",
+      "directory": "memory",
+      "name": "memory",
+      "import_path": "github.com/faustbrian/golib/pkg/audit/memory",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/audit/postgres",
+      "directory": ".",
+      "name": "postgres",
+      "import_path": "github.com/faustbrian/golib/pkg/audit/postgres",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/authentication",
       "directory": ".",
       "name": "authentication",

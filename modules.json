@@ -1584,6 +1584,208 @@
       }
     },
     {
+      "directory": "pkg/audit",
+      "module_path": "github.com/faustbrian/golib/pkg/audit",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/audit",
+          "directory": ".",
+          "name": "audit",
+          "import_path": "github.com/faustbrian/golib/pkg/audit",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/audit",
+          "directory": "memory",
+          "name": "memory",
+          "import_path": "github.com/faustbrian/golib/pkg/audit/memory",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`audit` is an infrastructure-neutral Go library for immutable-by-contract, security-relevant and business-relevant records. It records who did what, to which stable resource, when, from where, and with what outcome.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/audit/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/audit/postgres"
+      ],
+      "external_runtime_dependencies": [
+        "go.uber.org/goleak"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/audit/.ai/GOAL.md",
+        "pkg/audit/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/audit/.ai/GOAL.md",
+          "requirements_sha256": "f2ce15856837800c81e4ef9cf216ae03bf0cce423d1d755ee2080db561f6baa7",
+          "implementation_evidence": [
+            "pkg/audit/CHANGELOG.md",
+            "pkg/audit/README.md",
+            "pkg/audit/docs/README.md",
+            "pkg/audit/docs/api.md",
+            "pkg/audit/docs/hardening.md",
+            "pkg/audit/docs/threat-model.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/audit/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "80b83064ae23f82d4e982bfcffe9d9ddc7cae9695cbb727fc4e7516837fd64f3",
+          "implementation_evidence": [
+            "pkg/audit/CHANGELOG.md",
+            "pkg/audit/README.md",
+            "pkg/audit/docs/README.md",
+            "pkg/audit/docs/api.md",
+            "pkg/audit/docs/hardening.md",
+            "pkg/audit/docs/threat-model.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/audit/postgres",
+      "module_path": "github.com/faustbrian/golib/pkg/audit/postgres",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/audit/postgres",
+          "directory": ".",
+          "name": "postgres",
+          "import_path": "github.com/faustbrian/golib/pkg/audit/postgres",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This separately releasable adapter persists `audit.Record` values in an append-only PostgreSQL schema with idempotent record-ID insertion, stable bounded queries and exports, caller-owned transaction staging, and legal-hold-aware archive-before-delete retention.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/audit/postgres/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/audit",
+        "github.com/faustbrian/golib/pkg/postgres"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/jackc/pgx/v5",
+        "go.uber.org/goleak"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/authentication",
       "module_path": "github.com/faustbrian/golib/pkg/authentication",
       "go_version": "1.26.5",
@@ -15379,6 +15581,7 @@
         "github.com/faustbrian/golib/pkg/service"
       ],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/audit/postgres",
         "github.com/faustbrian/golib/pkg/postgres/examples/migrations",
         "github.com/faustbrian/golib/pkg/queue-control-plane",
         "github.com/faustbrian/golib/pkg/service/integration/adoption"
