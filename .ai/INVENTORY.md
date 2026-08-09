@@ -160,14 +160,14 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Field | Record |
 | --- | --- |
 | Goal | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` |
-| Scope | Exact-money cost configuration, totals, comparisons, errors, documentation, and module quality gates. |
+| Scope | Exact totals and ordering across signed values, randomized candidates, concurrent solver reuse, bounded callback fuzzing, repeated processes, architectures, hostile configuration, errors, dependencies, and lookup/comparison benchmarks. |
 | Status | `pending-reexecution` to `verified` |
-| Evidence | `./scripts/run-modules.sh check --modules pkg/knapsack/objective/gomoney` against the completed implementation. |
-| Result | Passed every mandatory module gate, including 95/95 statements, 38/38 viable mutants, race, fuzz, API, docs, and benchmarks. |
-| Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
-| Observed | 2026-08-09T02:56:01Z |
-| Gaps | The repository-wide wrapper remains independently blocked by missing `pkg/audit/LICENSE`; the scoped module contract is complete. |
-| Navigation | Implementation commit `91a2fd2124b24c8d03510fe86081e7a72c971102`. |
+| Evidence | `./scripts/check-module.sh pkg/knapsack/objective/gomoney check`, targeted `darwin/amd64` deterministic-ranking execution, and root `make inventory` at the hardening checkpoint. |
+| Result | Passed every mandatory module gate, including 95/95 statements, 38/38 viable mutants, race, three fuzz targets with 10,000 executions each, security, API, docs, and benchmarks; deterministic ranking also passed on `darwin/amd64`. |
+| Environment | Go 1.26.5 on `darwin/arm64` for module gates and `darwin/amd64` for the targeted cross-architecture check; no external services. |
+| Observed | 2026-08-09T04:32:51Z |
+| Gaps | None within the scoped goal contract; current root inventory revalidation is blocked by independently stale `modules.json`. |
+| Navigation | Hardening commit `d9ca6f2cd236a938907f925d3ebb2eaa43537e11`. |
 
 ### Exact measurement rule operator evidence
 
