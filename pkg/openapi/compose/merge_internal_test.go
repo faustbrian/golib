@@ -410,7 +410,9 @@ func TestPrepareIncomingContinuesPastNonConflictingEntries(t *testing.T) {
 				)},
 			),
 			incoming: testComponentsRoot(t,
-				jsonvalue.Member{Name: "responses", Value: testObject(t)},
+				jsonvalue.Member{Name: "responses", Value: testObject(t,
+					jsonvalue.Member{Name: "OK", Value: jsonvalue.Null()},
+				)},
 				jsonvalue.Member{Name: "schemas", Value: testObject(t,
 					jsonvalue.Member{Name: "Pet", Value: different},
 				)},
@@ -466,6 +468,115 @@ func TestPrepareIncomingContinuesPastNonConflictingEntries(t *testing.T) {
 			}
 			if calls != test.wantCalls {
 				t.Fatalf("resolver calls = %d, want %d", calls, test.wantCalls)
+			}
+		})
+	}
+}
+
+func TestSwaggerComponentsRemainAnOpaqueRootConflict(t *testing.T) {
+	t.Parallel()
+
+	existing := testComponentsRoot(t,
+		jsonvalue.Member{Name: "schemas", Value: testObject(t,
+			jsonvalue.Member{Name: "Existing", Value: jsonvalue.Null()},
+		)},
+	)
+	incoming := testComponentsRoot(t,
+		jsonvalue.Member{Name: "schemas", Value: testObject(t,
+			jsonvalue.Member{Name: "Incoming", Value: jsonvalue.Null()},
+		)},
+	)
+	calls := 0
+	merger := newPreparationMerger(
+		specversion.DialectSwagger20,
+		func(conflict Conflict) (ConflictDecision, error) {
+			calls++
+			if conflict.Pointer() != "/components" {
+				t.Fatalf("conflict pointer = %q, want /components", conflict.Pointer())
+			}
+			return KeepExisting, nil
+		},
+	)
+	merged, err := merger.mergeRoot(existing, incoming, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 {
+		t.Fatalf("resolver calls = %d, want one opaque root conflict", calls)
+	}
+	equal, err := merger.semanticEqual(merged, existing)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !equal {
+		t.Fatal("Swagger components conflict did not preserve the existing root value")
+	}
+}
+
+func TestPrepareIncomingSkipsOneSidedMalformedRegistries(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		existing jsonvalue.Value
+		incoming jsonvalue.Value
+	}{
+		{
+			name: "existing registry is scalar",
+			existing: testComponentsRoot(t,
+				jsonvalue.Member{Name: "responses", Value: jsonvalue.Boolean(false)},
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: jsonvalue.Null()},
+				)},
+			),
+			incoming: testComponentsRoot(t,
+				jsonvalue.Member{Name: "responses", Value: testObject(t)},
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: jsonvalue.Boolean(true)},
+				)},
+			),
+		},
+		{
+			name: "incoming registry is scalar",
+			existing: testComponentsRoot(t,
+				jsonvalue.Member{Name: "responses", Value: testObject(t)},
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: jsonvalue.Null()},
+				)},
+			),
+			incoming: testComponentsRoot(t,
+				jsonvalue.Member{Name: "responses", Value: jsonvalue.Boolean(false)},
+				jsonvalue.Member{Name: "schemas", Value: testObject(t,
+					jsonvalue.Member{Name: "Pet", Value: jsonvalue.Boolean(true)},
+				)},
+			),
+		},
+	}
+
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			calls := 0
+			merger := newPreparationMerger(
+				specversion.DialectOAS32,
+				func(Conflict) (ConflictDecision, error) {
+					calls++
+					return KeepExisting, nil
+				},
+			)
+			if _, err := merger.prepareIncoming(test.existing, test.incoming, 1); err != nil {
+				t.Fatal(err)
+			}
+			if calls != 1 {
+				t.Fatalf("resolver calls = %d, want later schema collision to remain reachable", calls)
+			}
+			if merger.preparedEntries != 3 {
+				t.Fatalf(
+					"prepared entries = %d, want two registries and only the valid schema member",
+					merger.preparedEntries,
+				)
 			}
 		})
 	}

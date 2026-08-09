@@ -136,9 +136,12 @@ func selection(
 }
 
 func targetKind(target string) TargetKind {
-	if strings.HasPrefix(target, "./") || strings.HasPrefix(target, "../") ||
-		strings.HasPrefix(target, "/") || strings.HasPrefix(target, "#") ||
-		strings.ContainsAny(target, "/?#:") {
+	for _, prefix := range []string{"./", "../", "/", "#"} {
+		if strings.HasPrefix(target, prefix) {
+			return TargetURIReference
+		}
+	}
+	if strings.ContainsAny(target, "/?#:") {
 		return TargetURIReference
 	}
 	return TargetSchemaName

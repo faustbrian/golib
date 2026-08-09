@@ -547,14 +547,11 @@ func (merger *documentMerger) prepareIncoming(
 		merger.options.ResolveConflict == nil {
 		return incomingRoot, nil
 	}
-	existingComponents, existingOK := existingRoot.Lookup("components")
-	incomingComponents, incomingOK := incomingRoot.Lookup("components")
-	if !existingOK || !incomingOK {
-		return incomingRoot, nil
-	}
+	existingComponents, _ := existingRoot.Lookup("components")
+	incomingComponents, _ := incomingRoot.Lookup("components")
 	existingRegistries, existingOK := existingComponents.Members()
-	incomingRegistries, incomingOK := incomingComponents.Members()
-	if !existingOK || !incomingOK {
+	incomingRegistries, _ := incomingComponents.Members()
+	if !existingOK {
 		return incomingRoot, nil
 	}
 	existingByRegistry := make(map[string]jsonvalue.Value, len(existingRegistries))
@@ -575,8 +572,8 @@ func (merger *documentMerger) prepareIncoming(
 			continue
 		}
 		existingMembers, existingObject := existingRegistry.Members()
-		incomingMembers, incomingObject := incomingRegistry.Value.Members()
-		if !existingObject || !incomingObject {
+		incomingMembers, _ := incomingRegistry.Value.Members()
+		if !existingObject {
 			continue
 		}
 		existingByName := make(map[string]jsonvalue.Value, len(existingMembers))
@@ -843,7 +840,7 @@ func (merger *documentMerger) semanticEqual(
 		}
 		switch comparison.left.Kind() {
 		case jsonvalue.NullKind:
-			continue
+			// Values with the same null kind are already semantically equal.
 		case jsonvalue.BooleanKind:
 			leftValue, _ := comparison.left.Bool()
 			rightValue, _ := comparison.right.Bool()

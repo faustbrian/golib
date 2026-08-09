@@ -374,14 +374,13 @@ func compareSecuritySchemes(
 	rightByName := memberValues(right)
 	leftNames := memberNames(left)
 	for _, scheme := range left {
-		if _, exists := rightByName[scheme.Name]; exists {
-			continue
-		}
-		if err := collector.append(Change{
-			kind: SecuritySchemeRemoved, classification: Breaking,
-			pointer: pointer + "/" + escapePointer(scheme.Name),
-		}); err != nil {
-			return err
+		if _, exists := rightByName[scheme.Name]; !exists {
+			if err := collector.append(Change{
+				kind: SecuritySchemeRemoved, classification: Breaking,
+				pointer: pointer + "/" + escapePointer(scheme.Name),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	for _, scheme := range left {
@@ -398,30 +397,32 @@ func compareSecuritySchemes(
 			referenceMetadataNames("securitySchemes", dialect),
 		)
 		schemePointer := pointer + "/" + escapePointer(scheme.Name)
-		if leftValid && rightValid {
-			if err := compareExtensions(
-				collector, leftResolved, rightResolved, schemePointer,
-			); err != nil {
+		equal := false
+		if leftValid {
+			if rightValid {
+				if err := compareExtensions(
+					collector, leftResolved, rightResolved, schemePointer,
+				); err != nil {
+					return err
+				}
+				equal = equalObjectWithoutExtensions(leftResolved, rightResolved)
+			}
+		} else if !rightValid {
+			equal = semanticValueEqual(scheme.Value, replacement)
+		}
+		if !equal {
+			classification := Conditional
+			if !leftValid {
+				classification = Unknown
+			} else if !rightValid {
+				classification = Unknown
+			}
+			if err := collector.append(Change{
+				kind: SecuritySchemeChanged, classification: classification,
+				pointer: schemePointer,
+			}); err != nil {
 				return err
 			}
-		}
-		if leftValid && rightValid &&
-			equalObjectWithoutExtensions(leftResolved, rightResolved) {
-			continue
-		}
-		if !leftValid && !rightValid &&
-			semanticValueEqual(scheme.Value, replacement) {
-			continue
-		}
-		classification := Conditional
-		if !leftValid || !rightValid {
-			classification = Unknown
-		}
-		if err := collector.append(Change{
-			kind: SecuritySchemeChanged, classification: classification,
-			pointer: schemePointer,
-		}); err != nil {
-			return err
 		}
 	}
 	for _, scheme := range right {
@@ -872,34 +873,32 @@ func compareParameters(
 					return err
 				}
 			}
-			continue
-		}
-		if leftRequired == rightRequired {
+		} else if leftRequired == rightRequired {
 			if err := compareParameterContractWithRoots(
 				collector, leftRoot, rightRoot,
 				parameter, rightParameter, dialect,
 			); err != nil {
 				return err
 			}
-			continue
-		}
-		kind := ParameterOptional
-		classification := Compatible
-		if rightRequired {
-			kind = ParameterRequired
-			classification = Breaking
-		}
-		if err := collector.append(Change{
-			kind: kind, classification: classification,
-			pointer: rightParameter.pointer + "/required",
-		}); err != nil {
-			return err
-		}
-		if err := compareParameterContractWithRoots(
-			collector, leftRoot, rightRoot,
-			parameter, rightParameter, dialect,
-		); err != nil {
-			return err
+		} else {
+			kind := ParameterOptional
+			classification := Compatible
+			if rightRequired {
+				kind = ParameterRequired
+				classification = Breaking
+			}
+			if err := collector.append(Change{
+				kind: kind, classification: classification,
+				pointer: rightParameter.pointer + "/required",
+			}); err != nil {
+				return err
+			}
+			if err := compareParameterContractWithRoots(
+				collector, leftRoot, rightRoot,
+				parameter, rightParameter, dialect,
+			); err != nil {
+				return err
+			}
 		}
 	}
 	for _, parameter := range left.identified {
@@ -1382,7 +1381,14 @@ func compareOperationContent(
 	}
 	leftID, leftIDPresent, leftIDValid := optionalText(left, "operationId")
 	rightID, rightIDPresent, rightIDValid := optionalText(right, "operationId")
-	if leftIDPresent != rightIDPresent || leftIDValid != rightIDValid || leftID != rightID {
+	idChanged := leftIDPresent != rightIDPresent
+	if !idChanged {
+		idChanged = leftIDValid != rightIDValid
+	}
+	if !idChanged {
+		idChanged = leftID != rightID
+	}
+	if idChanged {
 		if err := collector.append(Change{
 			kind: OperationIDChanged, classification: Conditional,
 			pointer: pointer + "/operationId",
@@ -1456,14 +1462,13 @@ func compareOperationTags(
 		rightByName[tag.name] = tag
 	}
 	for _, tag := range left {
-		if _, exists := rightByName[tag.name]; exists {
-			continue
-		}
-		if err := collector.append(Change{
-			kind: TagRemoved, classification: Conditional,
-			pointer: pointer + "/tags/" + fmt.Sprint(tag.index),
-		}); err != nil {
-			return err
+		if _, exists := rightByName[tag.name]; !exists {
+			if err := collector.append(Change{
+				kind: TagRemoved, classification: Conditional,
+				pointer: pointer + "/tags/" + fmt.Sprint(tag.index),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	for _, tag := range right {
@@ -1593,11 +1598,10 @@ func indexedStrings(value jsonvalue.Value, present bool) ([]swaggerScheme, bool)
 		if !text {
 			return nil, false
 		}
-		if _, duplicate := seen[name]; duplicate {
-			continue
+		if _, duplicate := seen[name]; !duplicate {
+			seen[name] = struct{}{}
+			result = append(result, swaggerScheme{name: name, index: index})
 		}
-		seen[name] = struct{}{}
-		result = append(result, swaggerScheme{name: name, index: index})
 	}
 	return result, true
 }
@@ -1650,14 +1654,13 @@ func compareCallbacksWithRoots(
 	rightByName := memberValues(right)
 	leftNames := memberNames(left)
 	for _, callback := range left {
-		if _, exists := rightByName[callback.Name]; exists {
-			continue
-		}
-		if err := collector.append(Change{
-			kind: CallbackRemoved, classification: Conditional,
-			pointer: pointer + "/callbacks/" + escapePointer(callback.Name),
-		}); err != nil {
-			return err
+		if _, exists := rightByName[callback.Name]; !exists {
+			if err := collector.append(Change{
+				kind: CallbackRemoved, classification: Conditional,
+				pointer: pointer + "/callbacks/" + escapePointer(callback.Name),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	for _, leftCallback := range left {
@@ -1674,31 +1677,40 @@ func compareCallbacksWithRoots(
 			collector, rightRoot, rightCallback, dialect, rightComparison,
 			referenceMetadataNames("callbacks", dialect),
 		)
-		if !leftValid || !rightValid {
-			if !leftValid && !rightValid &&
-				semanticValueEqual(leftCallback.Value, rightCallback) {
-				continue
+		if !leftValid {
+			equal := false
+			if !rightValid {
+				equal = semanticValueEqual(leftCallback.Value, rightCallback)
 			}
+			if !equal {
+				if err := collector.append(Change{
+					kind: CallbackChanged, classification: Unknown,
+					pointer: callbackPointer,
+				}); err != nil {
+					return err
+				}
+			}
+		} else if !rightValid {
 			if err := collector.append(Change{
 				kind: CallbackChanged, classification: Unknown,
 				pointer: callbackPointer,
 			}); err != nil {
 				return err
 			}
-			continue
-		}
-		leftCallback.Value = leftResolved
-		rightCallback = rightResolved
-		if err := compareExtensions(
-			collector, leftCallback.Value, rightCallback, callbackPointer,
-		); err != nil {
-			return err
-		}
-		if err := compareCallbackExpressionsWithRoots(
-			collector, leftRoot, rightRoot, leftCallback.Value, rightCallback,
-			callbackPointer, dialect,
-		); err != nil {
-			return err
+		} else {
+			leftCallback.Value = leftResolved
+			rightCallback = rightResolved
+			if err := compareExtensions(
+				collector, leftCallback.Value, rightCallback, callbackPointer,
+			); err != nil {
+				return err
+			}
+			if err := compareCallbackExpressionsWithRoots(
+				collector, leftRoot, rightRoot, leftCallback.Value, rightCallback,
+				callbackPointer, dialect,
+			); err != nil {
+				return err
+			}
 		}
 	}
 	for _, callback := range right {
@@ -1743,14 +1755,13 @@ func compareCallbackExpressionsWithRoots(
 	rightByExpression := memberValues(right)
 	leftExpressions := memberNames(left)
 	for _, expression := range left {
-		if _, exists := rightByExpression[expression.Name]; exists {
-			continue
-		}
-		if err := collector.append(Change{
-			kind: CallbackExpressionRemoved, classification: Conditional,
-			pointer: pointer + "/" + escapePointer(expression.Name),
-		}); err != nil {
-			return err
+		if _, exists := rightByExpression[expression.Name]; !exists {
+			if err := collector.append(Change{
+				kind: CallbackExpressionRemoved, classification: Conditional,
+				pointer: pointer + "/" + escapePointer(expression.Name),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	for _, leftExpression := range left {
@@ -1767,35 +1778,43 @@ func compareCallbackExpressionsWithRoots(
 			collector, rightRoot, rightExpression, dialect, rightComparison,
 			referenceMetadataNames("pathItems", dialect),
 		)
-		if !leftValid || !rightValid {
-			if !leftValid && !rightValid &&
-				semanticValueEqual(leftExpression.Value, rightExpression) {
-				continue
+		if !leftValid {
+			equal := false
+			if !rightValid {
+				equal = semanticValueEqual(leftExpression.Value, rightExpression)
 			}
+			if !equal {
+				if err := collector.append(Change{
+					kind: CallbackExpressionChanged, classification: Unknown,
+					pointer: expressionPointer,
+				}); err != nil {
+					return err
+				}
+			}
+		} else if !rightValid {
 			if err := collector.append(Change{
 				kind: CallbackExpressionChanged, classification: Unknown,
 				pointer: expressionPointer,
 			}); err != nil {
 				return err
 			}
-			continue
-		}
-		if err := compareCallbackOperationsWithRoots(
-			collector, leftRoot, rightRoot, leftResolved, rightResolved,
-			expressionPointer, dialect,
-		); err != nil {
-			return err
+		} else {
+			if err := compareCallbackOperationsWithRoots(
+				collector, leftRoot, rightRoot, leftResolved, rightResolved,
+				expressionPointer, dialect,
+			); err != nil {
+				return err
+			}
 		}
 	}
 	for _, expression := range right {
-		if _, exists := leftExpressions[expression.Name]; exists {
-			continue
-		}
-		if err := collector.append(Change{
-			kind: CallbackExpressionAdded, classification: Conditional,
-			pointer: pointer + "/" + escapePointer(expression.Name),
-		}); err != nil {
-			return err
+		if _, exists := leftExpressions[expression.Name]; !exists {
+			if err := collector.append(Change{
+				kind: CallbackExpressionAdded, classification: Conditional,
+				pointer: pointer + "/" + escapePointer(expression.Name),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -1847,22 +1866,21 @@ func compareCallbackOperationsWithRoots(
 	rightByName := memberValues(right)
 	for _, leftOperation := range left {
 		rightOperation, exists := rightByName[leftOperation.Name]
-		if !exists {
-			continue
-		}
-		operationLocation := pointer + "/" + leftOperation.Name
-		if err := compareParameters(
-			collector, leftRoot, rightRoot,
-			leftPathItem, leftOperation.Value,
-			rightPathItem, rightOperation, pointer, operationLocation, dialect,
-		); err != nil {
-			return err
-		}
-		if err := compareOperationContent(
-			collector, leftRoot, rightRoot, leftPathItem, rightPathItem,
-			leftOperation.Value, rightOperation, operationLocation, dialect,
-		); err != nil {
-			return err
+		if exists {
+			operationLocation := pointer + "/" + leftOperation.Name
+			if err := compareParameters(
+				collector, leftRoot, rightRoot,
+				leftPathItem, leftOperation.Value,
+				rightPathItem, rightOperation, pointer, operationLocation, dialect,
+			); err != nil {
+				return err
+			}
+			if err := compareOperationContent(
+				collector, leftRoot, rightRoot, leftPathItem, rightPathItem,
+				leftOperation.Value, rightOperation, operationLocation, dialect,
+			); err != nil {
+				return err
+			}
 		}
 	}
 	for _, operation := range right {
@@ -1953,16 +1971,13 @@ func compareEffectiveServers(
 			}); err != nil {
 				return err
 			}
-			continue
-		}
-		if equalServerVariables(server, rightServer) {
-			continue
-		}
-		if err := collector.append(Change{
-			kind: ServerChanged, classification: Conditional,
-			pointer: pointer + "/servers/" + fmt.Sprint(rightServer.index),
-		}); err != nil {
-			return err
+		} else if !equalServerVariables(server, rightServer) {
+			if err := collector.append(Change{
+				kind: ServerChanged, classification: Conditional,
+				pointer: pointer + "/servers/" + fmt.Sprint(rightServer.index),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	for _, server := range right {
@@ -1979,11 +1994,13 @@ func compareEffectiveServers(
 	if len(left) == len(right) && sameServerURLs(left, right) {
 		return nil
 	}
-	if len(left) == len(right) && sameServerURLSet(leftByURL, rightByURL) {
-		return collector.append(Change{
-			kind: ServerOrderChanged, classification: Conditional,
-			pointer: pointer + "/servers",
-		})
+	if len(left) == len(right) {
+		if sameServerURLSet(leftByURL, rightByURL) {
+			return collector.append(Change{
+				kind: ServerOrderChanged, classification: Conditional,
+				pointer: pointer + "/servers",
+			})
+		}
 	}
 	return nil
 }
@@ -2007,7 +2024,10 @@ func normalizeServers(value jsonvalue.Value, present bool) ([]serverContract, bo
 		return []serverContract{{url: "/", index: 0}}, true
 	}
 	elements, valid := value.Elements()
-	if !valid || len(elements) == 0 {
+	if !valid {
+		return nil, false
+	}
+	if len(elements) == 0 {
 		return nil, false
 	}
 	result := make([]serverContract, 0, len(elements))
@@ -2015,7 +2035,10 @@ func normalizeServers(value jsonvalue.Value, present bool) ([]serverContract, bo
 	for index, element := range elements {
 		urlValue, urlPresent := element.Lookup("url")
 		url, urlValid := urlValue.Text()
-		if !urlPresent || !urlValid {
+		if !urlPresent {
+			return nil, false
+		}
+		if !urlValid {
 			return nil, false
 		}
 		if _, duplicate := seen[url]; duplicate {
@@ -2077,9 +2100,13 @@ func compareEffectiveSecurity(
 ) error {
 	left, leftPresent := effectiveSecurity(leftRoot, leftOperation)
 	right, rightPresent := effectiveSecurity(rightRoot, rightOperation)
-	if leftPresent == rightPresent &&
-		(!leftPresent || semanticValueEqual(left, right)) {
-		return nil
+	if leftPresent == rightPresent {
+		if !leftPresent {
+			return nil
+		}
+		if semanticValueEqual(left, right) {
+			return nil
+		}
 	}
 	leftState, leftKey, leftValid := normalizeSecurity(left, leftPresent)
 	rightState, rightKey, rightValid := normalizeSecurity(right, rightPresent)
@@ -2207,11 +2234,18 @@ func compareRequestBody(
 		collector, rightRoot, right, dialect, rightComparison,
 		referenceMetadataNames("requestBodies", dialect),
 	)
-	if !leftValid || !rightValid {
-		if !leftValid && !rightValid &&
-			semanticValueEqual(leftOriginal, rightOriginal) {
-			return nil
+	if !leftValid {
+		if !rightValid {
+			if semanticValueEqual(leftOriginal, rightOriginal) {
+				return nil
+			}
 		}
+		return collector.append(Change{
+			kind: RequestBodyChanged, classification: Unknown,
+			pointer: pointer + "/requestBody",
+		})
+	}
+	if !rightValid {
 		return collector.append(Change{
 			kind: RequestBodyChanged, classification: Unknown,
 			pointer: pointer + "/requestBody",
@@ -2285,14 +2319,13 @@ func compareResponses(
 	rightByName := memberValues(rightResponses)
 	leftNames := memberNames(leftResponses)
 	for _, response := range leftResponses {
-		if _, exists := rightByName[response.Name]; exists {
-			continue
-		}
-		if err := collector.append(Change{
-			kind: ResponseRemoved, classification: Conditional,
-			pointer: pointer + "/responses/" + escapePointer(response.Name),
-		}); err != nil {
-			return err
+		if _, exists := rightByName[response.Name]; !exists {
+			if err := collector.append(Change{
+				kind: ResponseRemoved, classification: Conditional,
+				pointer: pointer + "/responses/" + escapePointer(response.Name),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	for _, response := range rightResponses {
@@ -2308,84 +2341,92 @@ func compareResponses(
 	}
 	for _, leftResponse := range leftResponses {
 		rightResponse, exists := rightByName[leftResponse.Name]
-		if !exists {
-			continue
-		}
-		responsePointer := pointer + "/responses/" + escapePointer(leftResponse.Name)
-		leftOriginal := leftResponse.Value
-		rightOriginal := rightResponse
-		leftResolved, leftValid := resolveInternalComparable(
-			collector, leftRoot, leftOriginal, dialect, leftComparison,
-			referenceMetadataNames("responses", dialect),
-		)
-		rightResolved, rightValid := resolveInternalComparable(
-			collector, rightRoot, rightOriginal, dialect, rightComparison,
-			referenceMetadataNames("responses", dialect),
-		)
-		if !leftValid || !rightValid {
-			if !leftValid && !rightValid &&
-				semanticValueEqual(leftOriginal, rightOriginal) {
-				continue
+		if exists {
+			responsePointer := pointer + "/responses/" + escapePointer(leftResponse.Name)
+			leftOriginal := leftResponse.Value
+			rightOriginal := rightResponse
+			leftResolved, leftValid := resolveInternalComparable(
+				collector, leftRoot, leftOriginal, dialect, leftComparison,
+				referenceMetadataNames("responses", dialect),
+			)
+			rightResolved, rightValid := resolveInternalComparable(
+				collector, rightRoot, rightOriginal, dialect, rightComparison,
+				referenceMetadataNames("responses", dialect),
+			)
+			if !leftValid {
+				changed := rightValid
+				if !changed {
+					changed = !semanticValueEqual(leftOriginal, rightOriginal)
+				}
+				if changed {
+					if err := collector.append(Change{
+						kind: ResponseChanged, classification: Unknown,
+						pointer: responsePointer,
+					}); err != nil {
+						return err
+					}
+				}
+			} else if !rightValid {
+				if err := collector.append(Change{
+					kind: ResponseChanged, classification: Unknown,
+					pointer: responsePointer,
+				}); err != nil {
+					return err
+				}
+			} else {
+				leftResponse.Value = leftResolved
+				rightResponse = rightResolved
+				if err := compareExtensions(
+					collector, leftResponse.Value, rightResponse, responsePointer,
+				); err != nil {
+					return err
+				}
+				if dialect == openapi.DialectSwagger20 {
+					if err := compareSwaggerResponseContract(
+						collector, leftRoot, rightRoot,
+						leftResponse.Value, rightResponse, responsePointer, dialect,
+					); err != nil {
+						return err
+					}
+				} else {
+					if err := compareResponseHeaders(
+						collector, leftRoot, rightRoot,
+						leftResponse.Value, rightResponse, responsePointer, dialect,
+					); err != nil {
+						return err
+					}
+					if err := compareResponseLinksWithRoots(
+						collector, leftRoot, rightRoot,
+						leftResponse.Value, rightResponse, responsePointer, dialect,
+					); err != nil {
+						return err
+					}
+					leftContent := contentMembers(leftResponse.Value)
+					rightContent := contentMembers(rightResponse)
+					if err := compareMediaTypes(
+						collector,
+						leftContent,
+						rightContent,
+						responsePointer+"/content",
+						ResponseMediaTypeRemoved,
+						ResponseMediaTypeAdded,
+					); err != nil {
+						return err
+					}
+					if err := compareCommonMediaTypeSchemas(
+						collector, leftRoot, rightRoot, leftContent, rightContent,
+						responsePointer+"/content", schemaInResponse, dialect,
+					); err != nil {
+						return err
+					}
+					if err := compareCommonMediaTypeMetadata(
+						collector, leftContent, rightContent,
+						responsePointer+"/content", schemaInResponse,
+					); err != nil {
+						return err
+					}
+				}
 			}
-			if err := collector.append(Change{
-				kind: ResponseChanged, classification: Unknown,
-				pointer: responsePointer,
-			}); err != nil {
-				return err
-			}
-			continue
-		}
-		leftResponse.Value = leftResolved
-		rightResponse = rightResolved
-		if err := compareExtensions(
-			collector, leftResponse.Value, rightResponse, responsePointer,
-		); err != nil {
-			return err
-		}
-		if dialect == openapi.DialectSwagger20 {
-			if err := compareSwaggerResponseContract(
-				collector, leftRoot, rightRoot,
-				leftResponse.Value, rightResponse, responsePointer, dialect,
-			); err != nil {
-				return err
-			}
-			continue
-		}
-		if err := compareResponseHeaders(
-			collector, leftRoot, rightRoot,
-			leftResponse.Value, rightResponse, responsePointer, dialect,
-		); err != nil {
-			return err
-		}
-		if err := compareResponseLinksWithRoots(
-			collector, leftRoot, rightRoot,
-			leftResponse.Value, rightResponse, responsePointer, dialect,
-		); err != nil {
-			return err
-		}
-		leftContent := contentMembers(leftResponse.Value)
-		rightContent := contentMembers(rightResponse)
-		if err := compareMediaTypes(
-			collector,
-			leftContent,
-			rightContent,
-			responsePointer+"/content",
-			ResponseMediaTypeRemoved,
-			ResponseMediaTypeAdded,
-		); err != nil {
-			return err
-		}
-		if err := compareCommonMediaTypeSchemas(
-			collector, leftRoot, rightRoot, leftContent, rightContent,
-			responsePointer+"/content", schemaInResponse, dialect,
-		); err != nil {
-			return err
-		}
-		if err := compareCommonMediaTypeMetadata(
-			collector, leftContent, rightContent,
-			responsePointer+"/content", schemaInResponse,
-		); err != nil {
-			return err
 		}
 	}
 	return nil
@@ -2416,17 +2457,27 @@ func compareSwaggerResponseContract(
 			collector, rightRoot, rightSchema, dialect, rightComparison,
 		)
 	}
-	equalSchema := leftPresent == rightPresent &&
-		(!leftPresent || (leftValid && rightValid &&
-			semanticValueEqual(leftResolved, rightResolved)) ||
-			(!leftValid && !rightValid &&
-				semanticValueEqual(leftSchema, rightSchema)))
+	equalSchema := leftPresent == rightPresent
+	if equalSchema {
+		if leftPresent {
+			equalSchema = false
+			if leftValid {
+				if rightValid {
+					equalSchema = semanticValueEqual(leftResolved, rightResolved)
+				}
+			} else if !rightValid {
+				equalSchema = semanticValueEqual(leftSchema, rightSchema)
+			}
+		}
+	}
 	if !equalSchema {
 		kind, classification := classifyMediaTypeSchema(
 			leftResolved, leftPresent, rightResolved, rightPresent,
 			schemaInResponse,
 		)
-		if !leftValid || !rightValid {
+		if !leftValid {
+			classification = Unknown
+		} else if !rightValid {
 			classification = Unknown
 		}
 		if err := collector.append(Change{
@@ -2467,37 +2518,37 @@ func compareResponseHeaders(
 			}); err != nil {
 				return err
 			}
-			continue
-		}
-		leftResolved, leftValid := resolveInternalComparable(
-			collector, leftRoot, header.Value, dialect, leftComparison,
-			referenceMetadataNames("headers", dialect),
-		)
-		rightResolved, rightValid := resolveInternalComparable(
-			collector, rightRoot, rightHeader.Value, dialect, rightComparison,
-			referenceMetadataNames("headers", dialect),
-		)
-		headerPointer := pointer + "/headers/" + escapePointer(rightHeader.Name)
-		if leftValid && rightValid {
-			if err := compareExtensions(
-				collector, leftResolved, rightResolved, headerPointer,
-			); err != nil {
-				return err
+		} else {
+			leftResolved, leftValid := resolveInternalComparable(
+				collector, leftRoot, header.Value, dialect, leftComparison,
+				referenceMetadataNames("headers", dialect),
+			)
+			rightResolved, rightValid := resolveInternalComparable(
+				collector, rightRoot, rightHeader.Value, dialect, rightComparison,
+				referenceMetadataNames("headers", dialect),
+			)
+			headerPointer := pointer + "/headers/" + escapePointer(rightHeader.Name)
+			equal := false
+			if leftValid {
+				if rightValid {
+					if err := compareExtensions(
+						collector, leftResolved, rightResolved, headerPointer,
+					); err != nil {
+						return err
+					}
+					equal = equalObjectWithoutExtensions(leftResolved, rightResolved)
+				}
+			} else if !rightValid {
+				equal = semanticValueEqual(header.Value, rightHeader.Value)
 			}
-		}
-		if leftValid && rightValid &&
-			equalObjectWithoutExtensions(leftResolved, rightResolved) {
-			continue
-		}
-		if !leftValid && !rightValid &&
-			semanticValueEqual(header.Value, rightHeader.Value) {
-			continue
-		}
-		if err := collector.append(Change{
-			kind: ResponseHeaderChanged, classification: Unknown,
-			pointer: headerPointer,
-		}); err != nil {
-			return err
+			if !equal {
+				if err := collector.append(Change{
+					kind: ResponseHeaderChanged, classification: Unknown,
+					pointer: headerPointer,
+				}); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	for _, header := range right {
@@ -2526,14 +2577,17 @@ func compareSwaggerResponseExamples(
 	rightByName := memberValues(right)
 	for _, example := range left {
 		replacement, exists := rightByName[example.Name]
-		if exists && semanticValueEqual(example.Value, replacement) {
-			continue
+		equal := false
+		if exists {
+			equal = semanticValueEqual(example.Value, replacement)
 		}
-		if err := collector.append(Change{
-			kind: ResponseExampleChanged, classification: Conditional,
-			pointer: pointer + "/examples/" + escapePointer(example.Name),
-		}); err != nil {
-			return err
+		if !equal {
+			if err := collector.append(Change{
+				kind: ResponseExampleChanged, classification: Conditional,
+				pointer: pointer + "/examples/" + escapePointer(example.Name),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	for _, example := range right {
@@ -2570,56 +2624,58 @@ func compareCommonMediaTypeMetadata(
 	rightValues := memberValues(right)
 	for _, leftMediaType := range left {
 		rightMediaType, exists := rightValues[leftMediaType.Name]
-		if !exists {
-			continue
-		}
-		mediaPointer := pointer + "/" + escapePointer(leftMediaType.Name)
-		if err := compareExtensions(
-			collector, leftMediaType.Value, rightMediaType, mediaPointer,
-		); err != nil {
-			return err
-		}
-		if !equalOptionalMember(leftMediaType.Value, rightMediaType, "encoding") {
-			kind := RequestEncodingChanged
-			if direction == schemaInResponse {
-				kind = ResponseEncodingChanged
-			}
-			classification := Breaking
-			leftEncoding, leftPresent := leftMediaType.Value.Lookup("encoding")
-			rightEncoding, rightPresent := rightMediaType.Lookup("encoding")
-			if (leftPresent && leftEncoding.Kind() != jsonvalue.ObjectKind) ||
-				(rightPresent && rightEncoding.Kind() != jsonvalue.ObjectKind) {
-				classification = Unknown
-			}
-			if err := collector.append(Change{
-				kind: kind, classification: classification,
-				pointer: mediaPointer + "/encoding",
-			}); err != nil {
+		if exists {
+			mediaPointer := pointer + "/" + escapePointer(leftMediaType.Name)
+			if err := compareExtensions(
+				collector, leftMediaType.Value, rightMediaType, mediaPointer,
+			); err != nil {
 				return err
 			}
-		}
-		exampleChanged := !equalOptionalMember(
-			leftMediaType.Value, rightMediaType, "example",
-		)
-		examplesChanged := !equalOptionalMember(
-			leftMediaType.Value, rightMediaType, "examples",
-		)
-		if !exampleChanged && !examplesChanged {
-			continue
-		}
-		kind := RequestExampleChanged
-		if direction == schemaInResponse {
-			kind = ResponseExampleChanged
-		}
-		name := "example"
-		if !exampleChanged {
-			name = "examples"
-		}
-		if err := collector.append(Change{
-			kind: kind, classification: Conditional,
-			pointer: mediaPointer + "/" + name,
-		}); err != nil {
-			return err
+			if !equalOptionalMember(leftMediaType.Value, rightMediaType, "encoding") {
+				kind := RequestEncodingChanged
+				if direction == schemaInResponse {
+					kind = ResponseEncodingChanged
+				}
+				classification := Breaking
+				leftEncoding, leftPresent := leftMediaType.Value.Lookup("encoding")
+				rightEncoding, rightPresent := rightMediaType.Lookup("encoding")
+				if (leftPresent && leftEncoding.Kind() != jsonvalue.ObjectKind) ||
+					(rightPresent && rightEncoding.Kind() != jsonvalue.ObjectKind) {
+					classification = Unknown
+				}
+				if err := collector.append(Change{
+					kind: kind, classification: classification,
+					pointer: mediaPointer + "/encoding",
+				}); err != nil {
+					return err
+				}
+			}
+			exampleChanged := !equalOptionalMember(
+				leftMediaType.Value, rightMediaType, "example",
+			)
+			examplesChanged := !equalOptionalMember(
+				leftMediaType.Value, rightMediaType, "examples",
+			)
+			metadataChanged := exampleChanged
+			if !metadataChanged {
+				metadataChanged = examplesChanged
+			}
+			if metadataChanged {
+				kind := RequestExampleChanged
+				if direction == schemaInResponse {
+					kind = ResponseExampleChanged
+				}
+				name := "example"
+				if !exampleChanged {
+					name = "examples"
+				}
+				if err := collector.append(Change{
+					kind: kind, classification: Conditional,
+					pointer: mediaPointer + "/" + name,
+				}); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
@@ -2672,54 +2728,54 @@ func compareResponseLinksWithRoots(
 	rightByName := memberValues(right)
 	leftNames := memberNames(left)
 	for _, link := range left {
-		if _, exists := rightByName[link.Name]; exists {
-			continue
-		}
-		if err := collector.append(Change{
-			kind: LinkRemoved, classification: Conditional,
-			pointer: pointer + "/links/" + escapePointer(link.Name),
-		}); err != nil {
-			return err
+		if _, exists := rightByName[link.Name]; !exists {
+			if err := collector.append(Change{
+				kind: LinkRemoved, classification: Conditional,
+				pointer: pointer + "/links/" + escapePointer(link.Name),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	for _, leftLink := range left {
 		rightLink, exists := rightByName[leftLink.Name]
-		if !exists {
-			continue
-		}
-		leftResolved, leftValid := resolveInternalComparable(
-			collector, leftRoot, leftLink.Value, dialect, leftComparison,
-			referenceMetadataNames("links", dialect),
-		)
-		rightResolved, rightValid := resolveInternalComparable(
-			collector, rightRoot, rightLink, dialect, rightComparison,
-			referenceMetadataNames("links", dialect),
-		)
-		linkPointer := pointer + "/links/" + escapePointer(leftLink.Name)
-		if leftValid && rightValid {
-			if err := compareExtensions(
-				collector, leftResolved, rightResolved, linkPointer,
-			); err != nil {
-				return err
+		if exists {
+			leftResolved, leftValid := resolveInternalComparable(
+				collector, leftRoot, leftLink.Value, dialect, leftComparison,
+				referenceMetadataNames("links", dialect),
+			)
+			rightResolved, rightValid := resolveInternalComparable(
+				collector, rightRoot, rightLink, dialect, rightComparison,
+				referenceMetadataNames("links", dialect),
+			)
+			linkPointer := pointer + "/links/" + escapePointer(leftLink.Name)
+			equal := false
+			classification := Conditional
+			if leftValid {
+				if rightValid {
+					if err := compareExtensions(
+						collector, leftResolved, rightResolved, linkPointer,
+					); err != nil {
+						return err
+					}
+					equal = equalObjectWithoutExtensions(leftResolved, rightResolved)
+				} else {
+					classification = Unknown
+				}
+			} else {
+				classification = Unknown
+				if !rightValid {
+					equal = equalObjectWithoutExtensions(leftLink.Value, rightLink)
+				}
 			}
-		}
-		if leftValid && rightValid &&
-			equalObjectWithoutExtensions(leftResolved, rightResolved) {
-			continue
-		}
-		classification := Conditional
-		if !leftValid || !rightValid {
-			if !leftValid && !rightValid &&
-				equalObjectWithoutExtensions(leftLink.Value, rightLink) {
-				continue
+			if !equal {
+				if err := collector.append(Change{
+					kind: LinkChanged, classification: classification,
+					pointer: linkPointer,
+				}); err != nil {
+					return err
+				}
 			}
-			classification = Unknown
-		}
-		if err := collector.append(Change{
-			kind: LinkChanged, classification: classification,
-			pointer: linkPointer,
-		}); err != nil {
-			return err
 		}
 	}
 	for _, link := range right {
@@ -2777,44 +2833,57 @@ func compareCommonMediaTypeSchemas(
 	rightValues := memberValues(right)
 	for _, leftMediaType := range left {
 		rightMediaType, exists := rightValues[leftMediaType.Name]
-		if !exists {
-			continue
-		}
-		leftSchema, leftPresent := leftMediaType.Value.Lookup("schema")
-		rightSchema, rightPresent := rightMediaType.Lookup("schema")
-		leftComparable := leftSchema
-		rightComparable := rightSchema
-		leftValid := true
-		rightValid := true
-		if leftPresent {
-			leftComparable, leftValid = resolveInternalSchema(
-				collector, leftRoot, leftSchema, dialect, leftComparison,
-			)
-		}
-		if rightPresent {
-			rightComparable, rightValid = resolveInternalSchema(
-				collector, rightRoot, rightSchema, dialect, rightComparison,
-			)
-		}
-		if leftPresent == rightPresent &&
-			(!leftPresent || (leftValid && rightValid &&
-				semanticValueEqual(leftComparable, rightComparable)) ||
-				(!leftValid && !rightValid &&
-					semanticValueEqual(leftSchema, rightSchema))) {
-			continue
-		}
-		kind, classification := classifyMediaTypeSchema(
-			leftComparable, leftPresent,
-			rightComparable, rightPresent, direction,
-		)
-		if (leftPresent && !leftValid) || (rightPresent && !rightValid) {
-			classification = Unknown
-		}
-		if err := collector.append(Change{
-			kind: kind, classification: classification,
-			pointer: pointer + "/" + escapePointer(leftMediaType.Name) + "/schema",
-		}); err != nil {
-			return err
+		if exists {
+			leftSchema, leftPresent := leftMediaType.Value.Lookup("schema")
+			rightSchema, rightPresent := rightMediaType.Lookup("schema")
+			leftComparable := leftSchema
+			rightComparable := rightSchema
+			leftValid := true
+			rightValid := true
+			if leftPresent {
+				leftComparable, leftValid = resolveInternalSchema(
+					collector, leftRoot, leftSchema, dialect, leftComparison,
+				)
+			}
+			if rightPresent {
+				rightComparable, rightValid = resolveInternalSchema(
+					collector, rightRoot, rightSchema, dialect, rightComparison,
+				)
+			}
+			equal := leftPresent == rightPresent
+			if equal {
+				if leftPresent {
+					equal = false
+					if leftValid {
+						if rightValid {
+							equal = semanticValueEqual(leftComparable, rightComparable)
+						}
+					} else if !rightValid {
+						equal = semanticValueEqual(leftSchema, rightSchema)
+					}
+				}
+			}
+			if !equal {
+				kind, classification := classifyMediaTypeSchema(
+					leftComparable, leftPresent,
+					rightComparable, rightPresent, direction,
+				)
+				if leftPresent {
+					if !leftValid {
+						classification = Unknown
+					}
+				} else if rightPresent {
+					if !rightValid {
+						classification = Unknown
+					}
+				}
+				if err := collector.append(Change{
+					kind: kind, classification: classification,
+					pointer: pointer + "/" + escapePointer(leftMediaType.Name) + "/schema",
+				}); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
@@ -2842,13 +2911,26 @@ func classifyMediaTypeSchema(
 	classification := Unknown
 	leftBoolean, leftIsBoolean := left.Bool()
 	rightBoolean, rightIsBoolean := right.Bool()
-	if leftIsBoolean && rightIsBoolean && leftBoolean != rightBoolean {
-		widened := !leftBoolean && rightBoolean
-		if (direction == schemaInRequest && widened) ||
-			(direction == schemaInResponse && !widened) {
-			classification = Compatible
-		} else {
-			classification = Breaking
+	if leftIsBoolean {
+		if rightIsBoolean {
+			if leftBoolean != rightBoolean {
+				widened := !leftBoolean
+				if widened {
+					widened = rightBoolean
+				}
+				compatible := false
+				switch direction {
+				case schemaInRequest:
+					compatible = widened
+				case schemaInResponse:
+					compatible = !widened
+				}
+				if compatible {
+					classification = Compatible
+				} else {
+					classification = Breaking
+				}
+			}
 		}
 	}
 	if direction == schemaInRequest {
@@ -3080,11 +3162,16 @@ func equalResolvedSchemaMember(
 	rightResolved, rightValid := resolveInternalSchema(
 		collector, rightRoot, rightSchema, dialect, rightComparison,
 	)
-	if leftValid && rightValid {
-		return semanticValueEqual(leftResolved, rightResolved)
+	if leftValid {
+		if rightValid {
+			return semanticValueEqual(leftResolved, rightResolved)
+		}
+		return false
 	}
-	return !leftValid && !rightValid &&
-		semanticValueEqual(leftSchema, rightSchema)
+	if rightValid {
+		return false
+	}
+	return semanticValueEqual(leftSchema, rightSchema)
 }
 
 func resolvePathItems(
@@ -3097,15 +3184,18 @@ func resolvePathItems(
 	result := append([]jsonvalue.Member(nil), items...)
 	for index := range result {
 		members, object := result[index].Value.Members()
-		if !object || len(members) != 1 || members[0].Name != "$ref" {
-			continue
-		}
-		resolved, valid := resolveInternalComparable(
-			collector, root, result[index].Value, dialect, side,
-			referenceMetadataNames("pathItems", dialect),
-		)
-		if valid {
-			result[index].Value = resolved
+		if object {
+			if len(members) == 1 {
+				if members[0].Name == "$ref" {
+					resolved, valid := resolveInternalComparable(
+						collector, root, result[index].Value, dialect, side,
+						referenceMetadataNames("pathItems", dialect),
+					)
+					if valid {
+						result[index].Value = resolved
+					}
+				}
+			}
 		}
 	}
 	return result
@@ -3122,21 +3212,19 @@ func overlayReferenceMetadata(
 	}
 	for _, name := range metadataNames {
 		override, present := referenceValue.Lookup(name)
-		if !present {
-			continue
-		}
-		replaced := false
-		for index := range targetMembers {
-			if targetMembers[index].Name == name {
-				targetMembers[index].Value = override
-				replaced = true
-				break
+		if present {
+			replaced := false
+			for index := range targetMembers {
+				if targetMembers[index].Name == name {
+					targetMembers[index].Value = override
+					replaced = true
+				}
 			}
-		}
-		if !replaced {
-			targetMembers = append(targetMembers, jsonvalue.Member{
-				Name: name, Value: override,
-			})
+			if !replaced {
+				targetMembers = append(targetMembers, jsonvalue.Member{
+					Name: name, Value: override,
+				})
+			}
 		}
 	}
 	result, _ := jsonvalue.Object(targetMembers)
@@ -3175,7 +3263,10 @@ func contentMembers(value jsonvalue.Value) []jsonvalue.Member {
 
 func namedObjectMembers(value jsonvalue.Value, name string) []jsonvalue.Member {
 	object, exists := value.Lookup(name)
-	if !exists || object.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return nil
+	}
+	if object.Kind() != jsonvalue.ObjectKind {
 		return nil
 	}
 	members, _ := object.Members()
@@ -3191,14 +3282,13 @@ func compareCommonContainerExtensions(
 	rightByName := memberValues(right)
 	for _, container := range left {
 		replacement, exists := rightByName[container.Name]
-		if !exists {
-			continue
-		}
-		if err := compareExtensions(
-			collector, container.Value, replacement,
-			base+"/"+escapePointer(container.Name),
-		); err != nil {
-			return err
+		if exists {
+			if err := compareExtensions(
+				collector, container.Value, replacement,
+				base+"/"+escapePointer(container.Name),
+			); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -3216,27 +3306,29 @@ func compareExtensions(
 	leftNames := memberNames(leftExtensions)
 	for _, extension := range leftExtensions {
 		replacement, exists := rightByName[extension.Name]
-		if exists && semanticValueEqual(extension.Value, replacement) {
-			continue
+		equal := false
+		if exists {
+			equal = semanticValueEqual(extension.Value, replacement)
 		}
-		if err := collector.append(Change{
-			kind:           ExtensionChanged,
-			classification: collector.extensionClassification,
-			pointer:        pointer + "/" + escapePointer(extension.Name),
-		}); err != nil {
-			return err
+		if !equal {
+			if err := collector.append(Change{
+				kind:           ExtensionChanged,
+				classification: collector.extensionClassification,
+				pointer:        pointer + "/" + escapePointer(extension.Name),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	for _, extension := range rightExtensions {
-		if _, exists := leftNames[extension.Name]; exists {
-			continue
-		}
-		if err := collector.append(Change{
-			kind:           ExtensionChanged,
-			classification: collector.extensionClassification,
-			pointer:        pointer + "/" + escapePointer(extension.Name),
-		}); err != nil {
-			return err
+		if _, exists := leftNames[extension.Name]; !exists {
+			if err := collector.append(Change{
+				kind:           ExtensionChanged,
+				classification: collector.extensionClassification,
+				pointer:        pointer + "/" + escapePointer(extension.Name),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -3355,14 +3447,13 @@ func collectRemovedContainers(
 ) error {
 	rightNames := memberNames(right)
 	for _, member := range left {
-		if _, exists := rightNames[member.Name]; exists {
-			continue
-		}
-		if err := collector.append(Change{
-			kind: kind, classification: Breaking,
-			pointer: base + "/" + escapePointer(member.Name),
-		}); err != nil {
-			return err
+		if _, exists := rightNames[member.Name]; !exists {
+			if err := collector.append(Change{
+				kind: kind, classification: Breaking,
+				pointer: base + "/" + escapePointer(member.Name),
+			}); err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -3430,19 +3521,17 @@ func collectAddedOperations(
 	leftValues := memberValues(left)
 	for _, container := range right {
 		leftValue, exists := leftValues[container.Name]
-		if !exists {
-			continue
-		}
-		leftOperations := memberNames(operationMembers(leftValue, dialect))
-		for _, operation := range operationMembers(container.Value, dialect) {
-			if _, exists := leftOperations[operation.Name]; exists {
-				continue
-			}
-			if err := collector.append(Change{
-				kind: OperationAdded, classification: Additive,
-				pointer: operationPointer(base, container.Name, operation.Name),
-			}); err != nil {
-				return err
+		if exists {
+			leftOperations := memberNames(operationMembers(leftValue, dialect))
+			for _, operation := range operationMembers(container.Value, dialect) {
+				if _, exists := leftOperations[operation.Name]; !exists {
+					if err := collector.append(Change{
+						kind: OperationAdded, classification: Additive,
+						pointer: operationPointer(base, container.Name, operation.Name),
+					}); err != nil {
+						return err
+					}
+				}
 			}
 		}
 	}
@@ -3451,7 +3540,10 @@ func collectAddedOperations(
 
 func objectMembers(root jsonvalue.Value, name string, paths bool) []jsonvalue.Member {
 	value, exists := root.Lookup(name)
-	if !exists || value.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return nil
+	}
+	if value.Kind() != jsonvalue.ObjectKind {
 		return nil
 	}
 	members, _ := value.Members()
@@ -3481,19 +3573,22 @@ func operationMembers(pathItem jsonvalue.Value, dialect openapi.Dialect) []jsonv
 	members, _ := pathItem.Members()
 	var result []jsonvalue.Member
 	for _, member := range members {
-		if _, exists := allowed[member.Name]; exists &&
-			member.Value.Kind() == jsonvalue.ObjectKind {
-			result = append(result, member)
+		if _, exists := allowed[member.Name]; exists {
+			if member.Value.Kind() == jsonvalue.ObjectKind {
+				result = append(result, member)
+			}
 		}
 	}
 	if dialect == openapi.DialectOAS32 {
 		additional, exists := pathItem.Lookup("additionalOperations")
-		if exists && additional.Kind() == jsonvalue.ObjectKind {
-			additionalMembers, _ := additional.Members()
-			for _, member := range additionalMembers {
-				if member.Value.Kind() == jsonvalue.ObjectKind {
-					member.Name = "additionalOperations/" + escapePointer(member.Name)
-					result = append(result, member)
+		if exists {
+			if additional.Kind() == jsonvalue.ObjectKind {
+				additionalMembers, _ := additional.Members()
+				for _, member := range additionalMembers {
+					if member.Value.Kind() == jsonvalue.ObjectKind {
+						member.Name = "additionalOperations/" + escapePointer(member.Name)
+						result = append(result, member)
+					}
 				}
 			}
 		}

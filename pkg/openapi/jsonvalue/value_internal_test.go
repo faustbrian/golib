@@ -5,6 +5,21 @@ import (
 	"testing"
 )
 
+func TestMarshalRejectsEachNonPositiveLimitIndependently(t *testing.T) {
+	t.Parallel()
+	want := ErrMarshalLimit.Error() + ": limits must be positive"
+
+	for _, limits := range []MarshalLimits{
+		{MaxBytes: 0, MaxDepth: 1, MaxNodes: 1},
+		{MaxBytes: 1, MaxDepth: 0, MaxNodes: 1},
+		{MaxBytes: 1, MaxDepth: 1, MaxNodes: 0},
+	} {
+		if _, err := Null().MarshalJSONWithLimits(limits); !errors.Is(err, ErrMarshalLimit) || err.Error() != want {
+			t.Fatalf("MarshalJSONWithLimits(%+v) error = %v", limits, err)
+		}
+	}
+}
+
 func TestMarshalContainerBudgetAccounting(t *testing.T) {
 	t.Parallel()
 

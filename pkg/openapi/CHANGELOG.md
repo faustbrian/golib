@@ -4,6 +4,12 @@
 
 ### Changed
 
+- Preserve operation-diff traversal, limit propagation, and `Unknown`
+  classifications when callbacks, request bodies, responses, links, security
+  schemes, or media schemas contain unresolved or malformed references.
+- Keep Swagger 2.0 component conflicts at the opaque root boundary and skip
+  malformed one-sided OpenAPI component registries without hiding later valid
+  component collisions.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   and remove package, timeout, integration, and exclusion overrides.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

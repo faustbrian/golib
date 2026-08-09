@@ -321,6 +321,60 @@ func TestCallbackComparisonsPropagateCollectorLimits(t *testing.T) {
 	}
 }
 
+func TestAsymmetricResolutionChangesPropagateCollectorLimits(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		run  func(*changeCollector) error
+	}{
+		{
+			name: "callback",
+			run: func(collector *changeCollector) error {
+				return compareCallbacks(
+					collector,
+					testValue(t, `{"callbacks":{"event":{}}}`),
+					testValue(t, `{"callbacks":{"event":{"$ref":"#/missing"}}}`),
+					"/operation", openapi.DialectOAS32,
+				)
+			},
+		},
+		{
+			name: "callback expression",
+			run: func(collector *changeCollector) error {
+				return compareCallbackExpressions(
+					collector,
+					testValue(t, `{"event":{}}`),
+					testValue(t, `{"event":{"$ref":"#/missing"}}`),
+					"/callback", openapi.DialectOAS32,
+				)
+			},
+		},
+		{
+			name: "response",
+			run: func(collector *changeCollector) error {
+				empty := testValue(t, `{}`)
+				return compareResponses(
+					collector, empty, empty,
+					testValue(t, `{"responses":{"200":{}}}`),
+					testValue(t, `{"responses":{"200":{"$ref":"#/missing"}}}`),
+					"/operation", openapi.DialectOAS32,
+				)
+			},
+		},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			collector := changeCollector{ctx: context.Background(), maximum: 0}
+			if err := test.run(&collector); !errors.Is(err, ErrLimitExceeded) {
+				t.Fatalf("asymmetric resolution change error = %v", err)
+			}
+		})
+	}
+}
+
 func TestResponseLinkComparisonPropagatesCollectorLimits(t *testing.T) {
 	t.Parallel()
 
@@ -476,6 +530,17 @@ func TestResolvedComparisonDefensiveEquality(t *testing.T) {
 		&collector, empty, empty, empty, empty, "schema", openapi.DialectOAS31,
 	) {
 		t.Fatal("absent schema members differed")
+	}
+	valid := testValue(t, `{"schema":{}}`)
+	if equalResolvedSchemaMember(
+		&collector, empty, empty, valid, invalid, "schema", openapi.DialectOAS31,
+	) {
+		t.Fatal("valid left schema and invalid right schema compared equal")
+	}
+	if equalResolvedSchemaMember(
+		&collector, empty, empty, invalid, valid, "schema", openapi.DialectOAS31,
+	) {
+		t.Fatal("invalid left schema and valid right schema compared equal")
 	}
 
 	target := testValue(t, `{"description":"old","value":1}`)
@@ -699,6 +764,11 @@ func TestExactTraversalAndComparisonBoundaries(t *testing.T) {
 	); err != nil || len(collector.changes) != 0 {
 		t.Fatalf("equal malformed servers = %#v, %v", collector.changes, err)
 	}
+	for _, raw := range []string{`[]`, `[{"url":1}]`} {
+		if servers, valid := normalizeServers(testValue(t, raw), true); valid || servers != nil {
+			t.Fatalf("malformed servers %s normalized as %#v, %t", raw, servers, valid)
+		}
+	}
 
 	collector = changeCollector{ctx: context.Background(), maximum: 8}
 	leftSecurity := testValue(t, `{"security":[{"oauth":["write","read"]}]}`)
@@ -707,6 +777,21 @@ func TestExactTraversalAndComparisonBoundaries(t *testing.T) {
 		&collector, empty, empty, leftSecurity, rightSecurity, "/operation",
 	); err != nil || len(collector.changes) != 0 {
 		t.Fatalf("normalized equal security = %#v, %v", collector.changes, err)
+	}
+
+	collector = changeCollector{ctx: context.Background(), maximum: 8}
+	identicalSecurity := testValue(t, `{"security":[{"oauth":["read"]}]}`)
+	if err := compareEffectiveSecurity(
+		&collector, empty, empty, identicalSecurity, identicalSecurity, "/operation",
+	); err != nil || len(collector.changes) != 0 {
+		t.Fatalf("identical security = %#v, %v", collector.changes, err)
+	}
+
+	if members := namedObjectMembers(testValue(t, `{"content":[]}`), "content"); members != nil {
+		t.Fatalf("malformed named object members = %#v", members)
+	}
+	if members := objectMembers(testValue(t, `{"paths":[]}`), "paths", true); members != nil {
+		t.Fatalf("malformed root object members = %#v", members)
 	}
 }
 
@@ -747,6 +832,18 @@ func TestDocumentLevelComparisonsPropagateLimits(t *testing.T) {
 		&collector, invalidSecurity, invalidSecurity, openapi.DialectOAS31,
 	); err != nil || len(collector.changes) != 0 {
 		t.Fatalf("equal invalid security = %#v, %v", collector.changes, err)
+	}
+
+	collector = changeCollector{ctx: context.Background(), maximum: 8}
+	if err := compareSecuritySchemes(
+		&collector,
+		testValue(t, `{"components":{"securitySchemes":{"auth":{"type":"http","scheme":"bearer"}}}}`),
+		invalidSecurity,
+		openapi.DialectOAS31,
+	); err != nil || len(collector.changes) != 1 ||
+		collector.changes[0].kind != SecuritySchemeChanged ||
+		collector.changes[0].classification != Unknown {
+		t.Fatalf("valid-to-invalid security changes = %#v, %v", collector.changes, err)
 	}
 
 	collector = changeCollector{ctx: context.Background(), maximum: 0}
@@ -931,6 +1028,18 @@ func TestOperationAndResponseNestedFailures(t *testing.T) {
 	}
 
 	collector = changeCollector{ctx: context.Background(), maximum: 8}
+	if err := compareRequestBody(
+		&collector, empty, empty,
+		testValue(t, `{"requestBody":{"content":{}}}`),
+		testValue(t, `{"requestBody":{"$ref":true}}`),
+		"/operation", openapi.DialectOAS31,
+	); err != nil || len(collector.changes) != 1 ||
+		collector.changes[0].kind != RequestBodyChanged ||
+		collector.changes[0].classification != Unknown {
+		t.Fatalf("valid-to-invalid request body changes = %#v, %v", collector.changes, err)
+	}
+
+	collector = changeCollector{ctx: context.Background(), maximum: 8}
 	invalidResponses := testValue(t, `{"responses":{"200":{"$ref":true}}}`)
 	if err := compareResponses(
 		&collector, empty, empty, invalidResponses, invalidResponses,
@@ -955,6 +1064,18 @@ func TestOperationAndResponseNestedFailures(t *testing.T) {
 		&collector, invalidLinks, invalidLinks, "/response",
 	); err != nil || len(collector.changes) != 0 {
 		t.Fatalf("equal invalid links = %#v, %v", collector.changes, err)
+	}
+
+	collector = changeCollector{ctx: context.Background(), maximum: 8}
+	if err := compareResponseLinksWithRoots(
+		&collector, empty, empty,
+		testValue(t, `{"links":{"next":{"operationId":"next"}}}`),
+		testValue(t, `{"links":{"next":{"$ref":true}}}`),
+		"/response", openapi.DialectOAS31,
+	); err != nil || len(collector.changes) != 1 ||
+		collector.changes[0].kind != LinkChanged ||
+		collector.changes[0].classification != Unknown {
+		t.Fatalf("valid-to-invalid link changes = %#v, %v", collector.changes, err)
 	}
 
 	for _, test := range []struct {
@@ -1061,6 +1182,25 @@ func TestInvalidSchemaClassificationsAndExtensionEquality(t *testing.T) {
 	}
 
 	collector = changeCollector{ctx: context.Background(), maximum: 8}
+	unresolvedSchema := testValue(t, `{"schema":{"$ref":"#/missing"}}`)
+	if err := compareSwaggerResponseContract(
+		&collector, empty, empty, unresolvedSchema, unresolvedSchema,
+		"/response", openapi.DialectSwagger20,
+	); err != nil || len(collector.changes) != 0 {
+		t.Fatalf("equal unresolved Swagger schemas = %#v, %v", collector.changes, err)
+	}
+
+	collector = changeCollector{ctx: context.Background(), maximum: 8}
+	if err := compareSwaggerResponseContract(
+		&collector, empty, empty,
+		testValue(t, `{"schema":{"type":"string"}}`), unresolvedSchema,
+		"/response", openapi.DialectSwagger20,
+	); err != nil || len(collector.changes) != 1 ||
+		collector.changes[0].classification != Unknown {
+		t.Fatalf("valid-to-unresolved Swagger schema changes = %#v, %v", collector.changes, err)
+	}
+
+	collector = changeCollector{ctx: context.Background(), maximum: 8}
 	left := []jsonvalue.Member{{
 		Name:  "application/json",
 		Value: testValue(t, `{"schema":{"$ref":"#/missing"}}`),
@@ -1075,6 +1215,28 @@ func TestInvalidSchemaClassificationsAndExtensionEquality(t *testing.T) {
 	); err != nil || len(collector.changes) != 1 ||
 		collector.changes[0].classification != Unknown {
 		t.Fatalf("invalid schema changes = %#v, %v", collector.changes, err)
+	}
+
+	collector = changeCollector{ctx: context.Background(), maximum: 8}
+	equalUnresolved := []jsonvalue.Member{{
+		Name: "application/json", Value: testValue(t, `{"schema":{"$ref":"#/missing"}}`),
+	}}
+	if err := compareCommonMediaTypeSchemas(
+		&collector, empty, empty, equalUnresolved, equalUnresolved, "/content",
+		schemaInResponse, openapi.DialectOAS31,
+	); err != nil || len(collector.changes) != 0 {
+		t.Fatalf("equal unresolved media schemas = %#v, %v", collector.changes, err)
+	}
+
+	collector = changeCollector{ctx: context.Background(), maximum: 8}
+	left = []jsonvalue.Member{{Name: "application/json", Value: empty}}
+	right = equalUnresolved
+	if err := compareCommonMediaTypeSchemas(
+		&collector, empty, empty, left, right, "/content",
+		schemaInResponse, openapi.DialectOAS31,
+	); err != nil || len(collector.changes) != 1 ||
+		collector.changes[0].classification != Unknown {
+		t.Fatalf("absent-to-unresolved media schema changes = %#v, %v", collector.changes, err)
 	}
 
 	collector = changeCollector{ctx: context.Background(), maximum: 1}
