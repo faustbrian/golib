@@ -91,6 +91,12 @@ an ambiguous response into duplicate events by retrying. Database and scan
 failures return redacted `ErrAppendReconciliationFailed` errors while preserving
 their causes for `errors.Is` and `errors.As`.
 
+The real-database failure-boundary suite proxies the PostgreSQL wire protocol,
+allows `COMMIT` to complete durably, and drops its response before the client
+can observe it. Across PostgreSQL 14 through 18, `Append` reports
+`CommitUnknown`, repeated reconciliation confirms the one committed envelope,
+and the stream retains exactly one version and global position.
+
 Reads are bounded by the core read options. Returned iterators own their
 `pgx.Rows`; callers must always call `Close`. Cancellation stops iteration and
 closes the rows. A partial reader therefore retains its pool connection until
