@@ -18,6 +18,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- PostgreSQL 14 through 18 allocator evidence proving independent writers queue
+  only at the singleton ordering row, resume with unique gap-free positions,
+  and keep vacuumed single-row storage growth within 64 KiB after 2,048 updates
 - PostgreSQL 14 through 18 upgrade evidence from the only prior schema version,
   preserving event writers and history across the derived-state migration
   without optional extensions

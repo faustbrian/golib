@@ -265,7 +265,14 @@ This ensures a global reader cannot checkpoint a later committed event while
 an earlier position remains uncommitted. It is a correctness-first tradeoff:
 global ordering can become the append throughput bottleneck. Benchmarks and
 capacity tests must include this lock rather than comparing against unordered
-or sequence-only inserts.
+or sequence-only inserts. The real-database allocator suite queues eight
+independent writers behind the singleton row, proves no writer completes while
+that lock is held, and then observes unique, gap-free positions after release.
+It also disables autovacuum, performs 2,048 committed allocator updates, runs
+explicit `VACUUM (ANALYZE)`, and bounds the one-row relation's physical growth
+to 64 KiB across PostgreSQL 14 through 18. Operators must still monitor lock
+waits, relation size, and vacuum health under their actual append rate and
+long-running transactions.
 
 The real-database contention suite proves that concurrent writers on one new
 stream produce one committed winner and only optimistic conflicts, while
