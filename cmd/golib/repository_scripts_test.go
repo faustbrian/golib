@@ -2318,7 +2318,11 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 	if err := os.Chmod(digestScript, 0o700); err != nil {
 		t.Fatal(err)
 	}
-	writeFile(t, filepath.Join(repository, "scripts", "check-gates.txt"), "test\nmutation\n")
+	writeFile(
+		t,
+		filepath.Join(repository, "scripts", "check-gates.txt"),
+		"test\nmutation\nnilaway\n",
+	)
 	writeFile(t, filepath.Join(repository, "modules.json"), `{
   "modules": [{
     "directory": "pkg/sample",
@@ -2353,7 +2357,7 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 		t.Fatalf("create evidence revision: %v\n%s", err, output)
 	}
 
-	writeEvidence := func(gate, logContents string) {
+	writeEvidence := func(gate, result, logContents string) {
 		t.Helper()
 		logPath := filepath.Join(
 			repository,
@@ -2373,18 +2377,18 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
   "schema_version": 1,
   "module": "pkg/sample",
   "gate": %q,
-  "result": "passed",
+  "result": %q,
   "exit_code": 0,
   "execution_revision": "proof",
   "input_digest": "current-digest",
   "completed_input_digest": "current-digest",
   "log_sha256": "%x",
   "completed_at": "2026-07-24T00:00:00Z"
-}`, gate, logDigest),
+}`, gate, result, logDigest),
 		)
 	}
-	writeEvidence("test", "test passed\n")
-	writeEvidence("mutation", "mutation passed\n")
+	writeEvidence("test", "passed", "test passed\n")
+	writeEvidence("mutation", "passed", "mutation passed\n")
 
 	verify := exec.Command(
 		filepath.Join(repository, "scripts", "verify-gate-evidence.sh"),
@@ -2395,6 +2399,53 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 	if output, err := verify.CombinedOutput(); err != nil {
 		t.Fatalf("verify current evidence: %v\n%s", err, output)
 	}
+
+	writeEvidence(
+		"nilaway",
+		"advisory",
+		"[pkg/sample] NilAway advisory exit status: 1\n",
+	)
+	verify = exec.Command(
+		filepath.Join(repository, "scripts", "verify-gate-evidence.sh"),
+		"pkg/sample",
+		"nilaway",
+	)
+	verify.Dir = repository
+	if output, err := verify.CombinedOutput(); err != nil {
+		t.Fatalf("verify NilAway advisory evidence: %v\n%s", err, output)
+	}
+
+	writeEvidence("nilaway", "advisory", "nilaway passed without diagnostics\n")
+	verify = exec.Command(
+		filepath.Join(repository, "scripts", "verify-gate-evidence.sh"),
+		"pkg/sample",
+		"nilaway",
+	)
+	verify.Dir = repository
+	if output, err := verify.CombinedOutput(); err == nil {
+		t.Fatalf("verifier accepted malformed NilAway advisory evidence:\n%s", output)
+	}
+
+	writeEvidence(
+		"test",
+		"advisory",
+		"[pkg/sample] NilAway advisory exit status: 1\n",
+	)
+	verify = exec.Command(
+		filepath.Join(repository, "scripts", "verify-gate-evidence.sh"),
+		"pkg/sample",
+		"test",
+	)
+	verify.Dir = repository
+	if output, err := verify.CombinedOutput(); err == nil {
+		t.Fatalf("verifier accepted advisory evidence for a mandatory gate:\n%s", output)
+	}
+	writeEvidence("test", "passed", "test passed\n")
+	writeEvidence(
+		"nilaway",
+		"advisory",
+		"[pkg/sample] NilAway advisory exit status: 1\n",
+	)
 
 	writeFile(
 		t,
@@ -2410,7 +2461,7 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 	if output, err := verify.CombinedOutput(); err == nil {
 		t.Fatalf("verifier accepted a tampered log:\n%s", output)
 	}
-	writeEvidence("test", "test passed\n")
+	writeEvidence("test", "passed", "test passed\n")
 
 	audit := exec.Command(
 		filepath.Join(repository, "scripts", "audit-goals.sh"),
@@ -2435,7 +2486,7 @@ func TestGateEvidenceVerificationAndGoalAuditFailClosed(t *testing.T) {
 	if report.VerificationStatus != "verified" ||
 		len(report.Goals) != 1 ||
 		report.Goals[0].VerificationStatus != "verified" ||
-		len(report.GateEvidence) != 2 {
+		len(report.GateEvidence) != 3 {
 		t.Fatalf("goal audit report = %+v", report)
 	}
 }

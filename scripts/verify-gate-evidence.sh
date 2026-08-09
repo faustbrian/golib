@@ -41,7 +41,10 @@ jq -e \
         .schema_version == 1 and
         .module == $module and
         .gate == $gate and
-        .result == "passed" and
+        (
+            .result == "passed" or
+            ($gate == "nilaway" and .result == "advisory")
+        ) and
         .exit_code == 0 and
         .input_digest == $input_digest and
         .completed_input_digest == $input_digest and
@@ -50,3 +53,9 @@ jq -e \
     printf '[%s] stale or invalid %s evidence\n' "${module}" "${gate}" >&2
     exit 1
 }
+
+if [[ "$(jq -r '.result' "${evidence}")" == "advisory" ]] &&
+    ! grep -Eq 'NilAway advisory exit status: [1-9][0-9]*$' "${log}"; then
+    printf '[%s] stale or invalid %s evidence\n' "${module}" "${gate}" >&2
+    exit 1
+fi

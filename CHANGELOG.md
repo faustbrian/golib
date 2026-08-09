@@ -7,6 +7,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Accept well-formed advisory NilAway evidence during goal audits while
+  continuing to reject advisory outcomes for every mandatory gate.
 - Scope gate fingerprints to the tool versions and service images that can
   affect each selected gate, preventing unrelated version-pin changes from
   invalidating otherwise identical verification and mutation evidence.
