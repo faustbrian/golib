@@ -7,7 +7,7 @@ ACTIONLINT_VERSION ?= v1.7.12
 FUZZ_TIME ?= 2s
 BENCH_TIME ?= 100ms
 
-.PHONY: api-compat benchmark check check-all coverage docs format \
+.PHONY: api-compat benchmark check check-all conformance coverage docs format \
 	format-check fuzz integration lint mutation nilaway provenance race \
 	safety staticcheck test tidy-check vet vuln workflows
 
@@ -62,6 +62,9 @@ api-compat:
 integration:
 	./scripts/check-integrations.sh
 
+conformance:
+	./scripts/check-conformance.sh
+
 safety:
 	./scripts/check-safety.sh
 
@@ -72,7 +75,7 @@ workflows:
 	$(GO) run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION) .github/workflows/*.yml
 
 check: tidy-check format-check vet staticcheck lint test coverage race fuzz \
-	mutation benchmark docs api-compat integration safety provenance vuln workflows
+	mutation benchmark docs api-compat integration conformance safety provenance vuln workflows
 
 # NilAway remains visible but advisory until upstream supports every selected
 # Go analyzer without false positives.

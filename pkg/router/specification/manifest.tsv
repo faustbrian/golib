@@ -1,0 +1,5 @@
+id	version	sections	role	url	sha256	status
+go-net-http	Go-1.26.5	net/http,net/url	matcher-request-and-URL-contracts	https://go.dev/dl/go1.26.5.src.tar.gz	495be4bc87176ac567392e5b4116abd98466d33d7b49d41e764ccc6976b2dc42	pinned
+rfc3986	RFC-3986	2-5	URI-syntax-and-resolution	https://www.rfc-editor.org/rfc/rfc3986.txt	3102dae4b68cebe40337730312fcb612297b8928547267e8b3d1ee6002b2d683	pinned
+rfc9110	RFC-9110	7,9,10,15	HTTP-semantics	https://www.rfc-editor.org/rfc/rfc9110.txt	21c1cdce6ab0e5509b04d84a28000836c7a087cf786efe6f04877ebfff47232a	pinned
+rfc9112	RFC-9112	3	HTTP-request-target-forms	https://www.rfc-editor.org/rfc/rfc9112.txt	e4f426bac6206b67fdf9e0da826154f70588db2133a0a86b15cde4ff725d8937	pinned

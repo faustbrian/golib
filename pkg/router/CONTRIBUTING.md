@@ -8,4 +8,9 @@ standard-library differential evidence. Security-sensitive changes must add an
 adversarial regression or fuzz seed. Public API changes must update the API
 baseline, changelog, and compatibility documentation.
 
+Matching, dispatch, redirect, host, request-target, path-value, mount, or URL
+generation changes must also update the specification decision register,
+pinned source matrix, and linked executable evidence. Preserve superseded
+decisions rather than erasing their history.
+
 By participating, you agree to follow [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).

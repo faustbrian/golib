@@ -44,6 +44,8 @@ immutable `http.Handler` safe for concurrent serving and introspection.
 ## Contracts
 
 - [Semantics](docs/semantics.md)
+- [Specification decisions](docs/specification-decisions.md)
+- [Pinned conformance matrix](specification/README.md)
 - [Compatibility](docs/compatibility.md)
 - [Behavior matrices](docs/matrices.md)
 - [Resource limits](docs/limits.md)

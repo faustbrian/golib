@@ -50,6 +50,9 @@ misses.
 The complete status, precedence, redirect, middleware, mount, and generation
 tables are frozen in [Behavior Matrices](matrices.md).
 
+The [specification decision register](specification-decisions.md) separates
+preserved Go and HTTP behavior from deliberate extensions and defensive policy.
+
 The package converts only panics raised synchronously while it calls
 `ServeMux.Handle` with package-produced patterns and only when the recovered
 value is a non-runtime error, which is the standard library's controlled

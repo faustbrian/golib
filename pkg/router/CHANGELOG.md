@@ -14,6 +14,9 @@ Versioning.
 
 ### Added
 
+- A pinned specification decision register and focused conformance gate for
+  Go routing, HTTP semantics, request-target forms, and URI generation.
+
 - An explicit request-target byte budget enforced before dispatch matching.
 - Blocking architecture checks for production goroutines and process-global
   HTTP registration.
