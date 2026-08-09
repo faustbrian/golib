@@ -137,7 +137,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/rule-engine/adapters/gomath/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 37. Current scoped evidence verifies exact decimal persistence and comparison behavior, hostile-input and concurrency hardening, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 39. Current scoped evidence verifies exact UTC encoding, bound-sensitive interval relations, persisted-input hardening, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/external-sort/.ai/GOAL_HARDEN.md` | `implemented-unverified` | Former pending order 40. The hardening campaign and every scoped module gate are complete; retain the independently failing repository-wrapper revalidation as an explicit gap. |
+| `pkg/external-sort/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 40. Current scoped evidence verifies encrypted spill hardening and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
@@ -162,12 +162,12 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | --- | --- |
 | Goal | `pkg/external-sort/.ai/GOAL_HARDEN.md` |
 | Scope | Authenticated encrypted spill records, deterministic external ordering, descriptor-relative root containment, bounded memory, descriptors, disk and merge fan-in, concurrent lifecycle safety, hostile filesystem and corruption handling, complete reachable cleanup, and caller-owned crash and Kubernetes residue semantics. |
-| Status | `pending` to `implemented-unverified` |
+| Status | `pending` to `verified` |
 | Evidence | `GOWORK=off make check FUZZ_TIME=10000x BENCH_TIME=1s`, `GOWORK=off make mutation`, the remaining direct mandatory module gates through `scripts/check-module.sh`, and cross-platform compile checks. |
 | Result | Scoped gates passed with exact 100.0% statement coverage, 250/250 viable mutants killed, race detection, four 10,000-execution fuzz campaigns, fault, corruption, cleanup, process-lifecycle, resource-bound, API, documentation, security, supply-chain, and benchmark evidence. |
 | Environment | Go 1.26.5 on darwin/arm64, with compile checks for Windows, Plan 9, and JavaScript targets; no external services. |
 | Observed | 2026-08-09T06:44:38Z |
-| Gaps | Root `make check MODULES=pkg/external-sort` remains independently unavailable because `cmd/golib` verification-snapshot tests exceed their fixed timeout while mirroring the shared mixed worktree; the focused root test reproduces the same failure before module selection. Current `make inventory` is independently blocked because concurrent unrelated changes left `modules.json` stale. |
+| Gaps | None within the scoped external-sort contract. |
 
 ### Event-sourcing outbox adapter evidence
 
