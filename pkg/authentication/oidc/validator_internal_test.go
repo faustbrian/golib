@@ -2,6 +2,8 @@ package oidc
 
 import (
 	"context"
+	"crypto/sha256"
+	"crypto/sha512"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -169,11 +171,11 @@ func TestConfigurationAcceptsExactUpperBounds(t *testing.T) {
 	configuration := Config{
 		Issuer: "https://issuer.example.test", ClientID: "client",
 		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(time.Unix(1, 0)),
-		ClockSkew: 24 * time.Hour, MaxTokenBytes: 1,
+		ClockSkew: 24 * time.Hour, MaxTokenBytes: maximumTokenBytes,
 		MaxClaims: authentication.MaxClaims, MaxClaimDepth: authentication.MaxClaimDepth,
-		MaxHTTPBodyBytes: 1, DiscoveryTimeout: time.Nanosecond, MaxKeys: 1,
-		MinRefreshInterval: time.Nanosecond, MaxRefreshInterval: time.Nanosecond,
-		MaxRefreshWaiters: 1,
+		MaxHTTPBodyBytes: maximumHTTPBodyBytes, DiscoveryTimeout: maximumDiscoveryWait, MaxKeys: maximumJWKCount,
+		MinRefreshInterval: maximumRefreshInterval, MaxRefreshInterval: maximumRefreshInterval,
+		MaxRefreshWaiters: maximumRefreshWaiters,
 	}
 	if _, err := NewWithKeySet(configuration, valueKeySet{}); err != nil {
 		t.Fatalf("NewWithKeySet(exact bounds) error = %v", err)
@@ -190,6 +192,36 @@ func TestConfigurationAcceptsExactUpperBounds(t *testing.T) {
 	applyDefaults(&defaults)
 	if defaults.ClockSkew != 5*time.Minute {
 		t.Errorf("default ClockSkew = %v, want 5m", defaults.ClockSkew)
+	}
+}
+
+func TestConfigurationRejectsResourceLimitExpansion(t *testing.T) {
+	t.Parallel()
+
+	base := Config{
+		Issuer: "https://issuer.example.test", ClientID: "client",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(time.Unix(1, 0)),
+	}
+	tests := map[string]func(*Config){
+		"token bytes":       func(configuration *Config) { configuration.MaxTokenBytes = 1<<20 + 1 },
+		"HTTP body":         func(configuration *Config) { configuration.MaxHTTPBodyBytes = 16<<20 + 1 },
+		"discovery timeout": func(configuration *Config) { configuration.DiscoveryTimeout = 5*time.Minute + time.Nanosecond },
+		"keys":              func(configuration *Config) { configuration.MaxKeys = 4097 },
+		"minimum refresh": func(configuration *Config) {
+			configuration.MinRefreshInterval = 24*time.Hour + time.Nanosecond
+			configuration.MaxRefreshInterval = configuration.MinRefreshInterval
+		},
+		"refresh interval": func(configuration *Config) { configuration.MaxRefreshInterval = 24*time.Hour + time.Nanosecond },
+		"refresh waiters":  func(configuration *Config) { configuration.MaxRefreshWaiters = 4097 },
+	}
+	for name, expand := range tests {
+		t.Run(name, func(t *testing.T) {
+			configuration := base
+			expand(&configuration)
+			if _, err := NewWithKeySet(configuration, valueKeySet{}); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+				t.Fatalf("NewWithKeySet() error = %v", err)
+			}
+		})
 	}
 }
 
@@ -279,6 +311,54 @@ func TestNumericDateBoundariesAndFraction(t *testing.T) {
 		if _, err := numericDate(json.RawMessage(encoded)); err == nil {
 			t.Errorf("numericDate(%s) error = nil", encoded)
 		}
+	}
+}
+
+func TestTokenHashAlgorithmsAndMalformedHeaders(t *testing.T) {
+	t.Parallel()
+
+	value := "bound-value"
+	sha256Digest := sha256.Sum256([]byte(value))
+	sha384Digest := sha512.Sum384([]byte(value))
+	sha512Digest := sha512.Sum512([]byte(value))
+	tests := []struct {
+		algorithm string
+		digest    []byte
+	}{
+		{algorithm: "RS256", digest: sha256Digest[:]},
+		{algorithm: "PS384", digest: sha384Digest[:]},
+		{algorithm: "ES512", digest: sha512Digest[:]},
+	}
+	for _, tt := range tests {
+		expected := base64.RawURLEncoding.EncodeToString(tt.digest[:len(tt.digest)/2])
+		if !validTokenHash(tt.algorithm, value, expected) {
+			t.Errorf("validTokenHash(%s) = false", tt.algorithm)
+		}
+	}
+	if validTokenHash("EdDSA", value, "ignored") {
+		t.Fatal("validTokenHash(EdDSA) = true")
+	}
+
+	validHeader := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256"}`)) + ".claims.signature"
+	if algorithm, err := compactTokenAlgorithm(validHeader); err != nil || algorithm != "RS256" {
+		t.Fatalf("compactTokenAlgorithm(valid) = %q, %v", algorithm, err)
+	}
+	for _, raw := range []string{
+		"missing-separator",
+		"!.claims.signature",
+		base64.RawURLEncoding.EncodeToString([]byte(`{`)) + ".claims.signature",
+		base64.RawURLEncoding.EncodeToString([]byte(`{}`)) + ".claims.signature",
+	} {
+		if _, err := compactTokenAlgorithm(raw); err == nil {
+			t.Errorf("compactTokenAlgorithm(%q) error = nil", raw)
+		}
+	}
+
+	if err := verifyTokenBinding(validHeader, &upstreamoidc.IDToken{}, TokenBinding{AccessToken: value}); err == nil {
+		t.Fatal("verifyTokenBinding(missing claims) error = nil")
+	}
+	if err := verifyTokenBinding("invalid", &upstreamoidc.IDToken{}, TokenBinding{AccessToken: value}); err == nil {
+		t.Fatal("verifyTokenBinding(invalid header) error = nil")
 	}
 }
 

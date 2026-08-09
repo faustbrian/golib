@@ -85,7 +85,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 18 | Fleet | `pending-reexecution` | `pkg/service/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3-17 |
 | 19 | Security | `pending-reexecution` | `pkg/secret-envelope/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 20 | Security | `pending-reexecution` | `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19 |
-| 22 | Authentication | `pending-reexecution` | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | 21 |
 | 23 | Authentication | `pending-reexecution` | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | 21, 22 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
@@ -130,6 +129,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | --- | --- | --- |
 | `.ai/GOAL_MAINTENANCE.md` | `recurring` | Execute its cadence continuously and before each supported-Go, dependency, security, specification, or release transition. |
 | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 22. Current scoped evidence verifies OpenID Connect discovery and ID-token policy, bounded synchronized metadata and JWKS rotation, caller-owned nonce validation, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 31. Current scoped evidence verifies canonical synchronous publication, explicit acceptance ambiguity, stable duplicate identity, durable Redis and Valkey relay windows, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 32 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
@@ -235,6 +235,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
 | Observed | 2026-08-09T03:48:26Z |
 | Gaps | The repository-wide wrapper remains independently blocked by missing `pkg/tenancy/LICENSE`; NilAway advisory diagnostics remain visible under repository policy. |
+
+### OpenID Connect ID-token validation evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Exact issuer, discovery metadata, signature algorithms and public keys, audiences and `azp`, temporal claims, subject, caller-owned nonce validation, optional token hashes, bounded synchronized metadata and JWKS rotation, outage policy, cancellation, redaction, interoperability, and documentation. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/authentication/oidc` against an immutable repository snapshot, followed by successful live-input fingerprint revalidation. |
+| Result | Passed every mandatory module gate, including 697/697 statements, 320/320 viable mutants, race, five 10,000-execution fuzz targets, lint, Staticcheck, vulnerability, secrets, licenses, SBOM, API, docs, conformance, representative-provider interoperability, and benchmarks. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run; no external services. |
+| Observed | 2026-08-09T06:22:55Z |
+| Gaps | None within the scoped OIDC goal contract; NilAway advisory example-flow diagnostics remain visible under repository policy. |
 
 ### Outbox queue publisher evidence
 

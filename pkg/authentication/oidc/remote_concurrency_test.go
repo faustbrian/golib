@@ -7,6 +7,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -50,7 +51,16 @@ func TestRemoteKeySetRefreshWaitHonorsCancellation(t *testing.T) {
 		_, err := set.VerifySignature(ctx, token)
 		waiterDone <- err
 	}()
-	time.Sleep(10 * time.Millisecond)
+	deadline := time.NewTimer(time.Second)
+	defer deadline.Stop()
+	for len(set.waiters) != cap(set.waiters) {
+		select {
+		case <-deadline.C:
+			t.Fatal("refresh waiter did not enter the synchronized wait")
+		default:
+			runtime.Gosched()
+		}
+	}
 	cancel()
 	if err := <-waiterDone; !errors.Is(err, context.Canceled) {
 		t.Fatalf("VerifySignature(canceled waiter) error = %v", err)
@@ -147,6 +157,78 @@ func TestRemoteKeySetLimitsRefreshAndRevalidatesHTTPResponse(t *testing.T) {
 	}
 	if got := requests.Load(); got != 2 {
 		t.Fatalf("revalidated-cache requests = %d, want 2", got)
+	}
+}
+
+func TestRemoteKeySetRefreshesRotationMissBeforeCacheExpiry(t *testing.T) {
+	t.Parallel()
+
+	clock := authtest.NewClock(time.Unix(1, 0))
+	first := mustRSAKey(t)
+	second := mustRSAKey(t)
+	encode := func(key jose.JSONWebKey) []byte {
+		body, err := json.Marshal(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{key}})
+		if err != nil {
+			t.Fatalf("Marshal() error = %v", err)
+		}
+		return body
+	}
+	var requests atomic.Int64
+	set := testRemoteKeySet(t, clock, 2, roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+		key := jose.JSONWebKey{Key: &first.PublicKey, KeyID: "first", Algorithm: "RS256", Use: "sig"}
+		if requests.Add(1) == 2 {
+			key = jose.JSONWebKey{Key: &second.PublicKey, KeyID: "second", Algorithm: "RS256", Use: "sig"}
+		}
+		return jwkResponse(request, http.StatusOK, encode(key), http.Header{"Cache-Control": {"max-age=60"}}), nil
+	}))
+	firstToken := signCompact(t, first, "first", []byte(`{}`))
+	secondToken := signCompact(t, second, "second", []byte(`{}`))
+	if _, err := set.VerifySignature(context.Background(), firstToken); err != nil {
+		t.Fatalf("VerifySignature(first) error = %v", err)
+	}
+	clock.Advance(2 * time.Second)
+	if _, err := set.VerifySignature(context.Background(), secondToken); err != nil {
+		t.Fatalf("VerifySignature(rotated before expiry) error = %v", err)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Fatalf("rotation requests = %d, want 2", got)
+	}
+}
+
+func TestRemoteKeySetKeepsFreshKnownKeyAfterRotationProbeOutage(t *testing.T) {
+	t.Parallel()
+
+	clock := authtest.NewClock(time.Unix(1, 0))
+	private := mustRSAKey(t)
+	known := jose.JSONWebKey{Key: &private.PublicKey, KeyID: "known", Algorithm: "RS256", Use: "sig"}
+	body, err := json.Marshal(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{known}})
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	var requests atomic.Int64
+	set := testRemoteKeySet(t, clock, 2, roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+		if requests.Add(1) == 1 {
+			return jwkResponse(request, http.StatusOK, body, http.Header{"Cache-Control": {"max-age=60"}}), nil
+		}
+		return jwkResponse(request, http.StatusServiceUnavailable, nil, nil), nil
+	}))
+	knownToken := signCompact(t, private, "known", []byte(`{}`))
+	unknownToken := signCompact(t, private, "unknown", []byte(`{}`))
+	if _, err := set.VerifySignature(context.Background(), knownToken); err != nil {
+		t.Fatalf("VerifySignature(known) error = %v", err)
+	}
+	clock.Advance(2 * time.Second)
+	if _, err := set.VerifySignature(context.Background(), unknownToken); err == nil {
+		t.Fatal("VerifySignature(rotation probe outage) error = nil")
+	}
+	if _, err := set.VerifySignature(context.Background(), unknownToken); err == nil {
+		t.Fatal("VerifySignature(cached rotation probe outage) error = nil")
+	}
+	if _, err := set.VerifySignature(context.Background(), knownToken); err != nil {
+		t.Fatalf("VerifySignature(fresh known after probe outage) error = %v", err)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Fatalf("outage requests = %d, want 2", got)
 	}
 }
 

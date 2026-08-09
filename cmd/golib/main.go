@@ -1093,6 +1093,9 @@ func requiredServices(directory string) []string {
 }
 
 func interoperabilityTools(directory string) []string {
+	if directory == "pkg/authentication/oidc" {
+		return []string{"Google, Keycloak, and Dex provider metadata profiles"}
+	}
 	switch libraryName(directory) {
 	case "wsdl":
 		return []string{"Java", "Apache Woden"}
@@ -1108,6 +1111,12 @@ func interoperabilityTools(directory string) []string {
 }
 
 func specifications(directory string) []string {
+	if directory == "pkg/authentication/oidc" {
+		return []string{
+			"OpenID Connect Core 1.0 incorporating errata set 2",
+			"OpenID Connect Discovery 1.0 incorporating errata set 2",
+		}
+	}
 	if directory == "pkg/kafka" {
 		return []string{
 			"Apache Kafka protocol and client semantics",
@@ -1143,6 +1152,9 @@ func specifications(directory string) []string {
 }
 
 func conformanceCorpora(directory string) []string {
+	if directory == "pkg/authentication/oidc" {
+		return []string{"OpenID Connect Core 1.0 Section 2 ID-token claim vector"}
+	}
 	prefix := libraryName(directory)
 	switch prefix {
 	case "ecma-regexp":

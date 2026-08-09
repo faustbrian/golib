@@ -1,0 +1,2 @@
+id	version	role	status	sha256	bytes	url
+oidc-core-section-2	final-errata-2	official-id-token-claims-vector	pinned	497a5ec161e1d595d297519bbfd928d5d6ceb0c80335cbcccbab28b1bab4cba8	223	https://openid.net/specs/openid-connect-core-1_0.html#IDToken

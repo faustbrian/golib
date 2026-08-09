@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -27,7 +28,7 @@ func TestValidatorAuthenticatesStrictOIDCIDToken(t *testing.T) {
 	private := rsaKey(t)
 	validator := staticValidator(t, private, authoidc.Config{
 		Issuer: "https://issuer.example.test", ClientID: "client-1",
-		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+		TrustedAudiences: []string{"other"}, Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
 	})
 	token := signIDToken(t, private, map[string]any{
 		"sub": "user-1", "iss": "https://issuer.example.test",
@@ -85,6 +86,10 @@ func TestValidatorEnforcesOIDCClaimsAndAuthorizedParty(t *testing.T) {
 		{name: "future issued at", alter: func(claims map[string]any) { claims["iat"] = oidcNow.Add(2 * time.Minute).Unix() }},
 		{name: "multiple audience missing azp", alter: func(claims map[string]any) { claims["aud"] = []string{"client-1", "other"} }},
 		{name: "multiple audience wrong azp", alter: func(claims map[string]any) { claims["aud"] = []string{"client-1", "other"}; claims["azp"] = "other" }},
+		{name: "duplicate audience", alter: func(claims map[string]any) {
+			claims["aud"] = []string{"client-1", "client-1"}
+			claims["azp"] = "client-1"
+		}},
 	}
 	for _, tt := range tests {
 		tt := tt
@@ -97,6 +102,43 @@ func TestValidatorEnforcesOIDCClaimsAndAuthorizedParty(t *testing.T) {
 				t.Fatalf("Authenticate() error = %v, want rejected", err)
 			}
 		})
+	}
+}
+
+func TestValidatorRequiresExactIssuerDespiteUpstreamCompatibilityAliases(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://accounts.google.com", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "accounts.google.com", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+	})
+
+	if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer() error = %v, want rejected", err)
+	}
+}
+
+func TestValidatorRejectsUntrustedAdditionalAudiences(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test",
+		"aud": []string{"client-1", "other"}, "azp": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+	})
+
+	if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer() error = %v, want rejected", err)
 	}
 }
 
@@ -131,6 +173,53 @@ func TestValidatorAppliesConfiguredClockSkewToAllNumericDates(t *testing.T) {
 	}
 }
 
+func TestValidatorAcceptsFractionalAuthenticationTime(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+		"auth_time": float64(oidcNow.Add(-time.Minute).Unix()) + 0.5,
+	})
+
+	principal, err := validator.ValidateBearer(context.Background(), token)
+	if err != nil {
+		t.Fatalf("ValidateBearer() error = %v", err)
+	}
+	want := oidcNow.Add(-time.Minute).Add(500 * time.Millisecond)
+	if !principal.AuthenticatedAt().Equal(want) {
+		t.Fatalf("AuthenticatedAt() = %v, want %v", principal.AuthenticatedAt(), want)
+	}
+}
+
+func TestValidatorAcceptsEpochAuthenticationTime(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+		"auth_time": 0,
+	})
+
+	principal, err := validator.ValidateBearer(context.Background(), token)
+	if err != nil {
+		t.Fatalf("ValidateBearer() error = %v", err)
+	}
+	if !principal.AuthenticatedAt().Equal(time.Unix(0, 0).UTC()) {
+		t.Fatalf("AuthenticatedAt() = %v", principal.AuthenticatedAt())
+	}
+}
+
 func TestValidatorUsesNonceCallback(t *testing.T) {
 	t.Parallel()
 
@@ -160,6 +249,67 @@ func TestValidatorUsesNonceCallback(t *testing.T) {
 	claims["nonce"] = "wrong"
 	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(signIDToken(t, private, claims))); !errors.Is(err, authentication.ErrCredentialsRejected) {
 		t.Fatalf("Authenticate(wrong nonce) error = %v", err)
+	}
+}
+
+func TestValidatorContainsNonceCallbackPanic(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+		NonceValidator: authoidc.NonceValidatorFunc(func(context.Context, string) error {
+			panic("nonce-secret")
+		}),
+	})
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(), "nonce": "nonce-secret",
+	})
+
+	if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer() error = %v, want rejected", err)
+	}
+}
+
+func TestValidateIDTokenBindsAccessTokenAndAuthorizationCode(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	accessToken := "access-token"
+	authorizationCode := "authorization-code"
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+		"at_hash": oidcHash(accessToken), "c_hash": oidcHash(authorizationCode),
+	})
+
+	principal, err := validator.ValidateIDToken(context.Background(), token, authoidc.TokenBinding{
+		AccessToken: accessToken, AuthorizationCode: authorizationCode,
+	})
+	if err != nil {
+		t.Fatalf("ValidateIDToken() error = %v", err)
+	}
+	if _, exposed := principal.Claims()["at_hash"]; exposed {
+		t.Fatal("principal exposed at_hash")
+	}
+	if _, exposed := principal.Claims()["c_hash"]; exposed {
+		t.Fatal("principal exposed c_hash")
+	}
+	if _, err := validator.ValidateIDToken(context.Background(), token, authoidc.TokenBinding{
+		AccessToken: "different", AuthorizationCode: authorizationCode,
+	}); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateIDToken(mismatched access token) error = %v", err)
+	}
+	if _, err := validator.ValidateIDToken(context.Background(), token, authoidc.TokenBinding{
+		AccessToken: accessToken, AuthorizationCode: "different",
+	}); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateIDToken(mismatched code) error = %v", err)
 	}
 }
 
@@ -207,7 +357,6 @@ func TestValidatorRejectsInvalidPrincipalClaimShapes(t *testing.T) {
 	}{
 		{name: "numeric scope", alter: func(claims map[string]any) { claims["scope"] = 1 }},
 		{name: "empty tenant", alter: func(claims map[string]any) { claims["tenant"] = "" }},
-		{name: "zero auth time", alter: func(claims map[string]any) { claims["auth_time"] = 0 }},
 		{name: "string auth time", alter: func(claims map[string]any) { claims["auth_time"] = "yesterday" }},
 		{name: "numeric authorized party", alter: func(claims map[string]any) { claims["azp"] = 42 }},
 		{name: "string not before", alter: func(claims map[string]any) { claims["nbf"] = "tomorrow" }},
@@ -249,6 +398,8 @@ func TestValidatorHonorsCancellationAndConfiguration(t *testing.T) {
 		{Issuer: "issuer", ClientID: "client", Algorithms: []string{"none"}, Clock: authtest.NewClock(oidcNow)},
 		{Issuer: "issuer", ClientID: "client", Algorithms: []string{"HS256"}, Clock: authtest.NewClock(oidcNow)},
 		{Issuer: "issuer", ClientID: "client", Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow), MaxClaims: authentication.MaxClaims + 1},
+		{Issuer: "https://issuer.example.test", ClientID: "client", TrustedAudiences: []string{""}, Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow)},
+		{Issuer: "https://issuer.example.test", ClientID: "client", TrustedAudiences: []string{"client"}, Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow)},
 	}
 	for index, configuration := range invalid {
 		if _, err := authoidc.NewWithKeySet(configuration, keySet); !errors.Is(err, authentication.ErrInvalidConfiguration) {
@@ -304,4 +455,9 @@ func cloneClaims(source map[string]any) map[string]any {
 		clone[name] = value
 	}
 	return clone
+}
+
+func oidcHash(value string) string {
+	digest := sha256.Sum256([]byte(value))
+	return base64.RawURLEncoding.EncodeToString(digest[:len(digest)/2])
 }

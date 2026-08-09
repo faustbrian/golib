@@ -6,6 +6,9 @@ import (
 	"bytes"
 	"cmp"
 	"context"
+	"crypto/sha256"
+	"crypto/sha512"
+	"crypto/subtle"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -25,6 +28,15 @@ import (
 
 const defaultMaxTokenBytes = 16 * 1024
 
+const (
+	maximumTokenBytes      = 1 << 20
+	maximumHTTPBodyBytes   = 16 << 20
+	maximumDiscoveryWait   = 5 * time.Minute
+	maximumJWKCount        = 4096
+	maximumRefreshInterval = 24 * time.Hour
+	maximumRefreshWaiters  = 4096
+)
+
 var supportedAlgorithms = map[string]struct{}{
 	"RS256": {}, "RS384": {}, "RS512": {},
 	"PS256": {}, "PS384": {}, "PS512": {},
@@ -33,7 +45,7 @@ var supportedAlgorithms = map[string]struct{}{
 }
 
 var registeredClaims = map[string]struct{}{
-	"at_hash": {}, "aud": {}, "auth_time": {}, "azp": {}, "exp": {},
+	"at_hash": {}, "aud": {}, "auth_time": {}, "azp": {}, "c_hash": {}, "exp": {},
 	"iat": {}, "iss": {}, "jti": {}, "nbf": {}, "nonce": {}, "sub": {},
 }
 
@@ -58,20 +70,28 @@ func (f NonceValidatorFunc) ValidateNonce(ctx context.Context, nonce string) err
 	return f(ctx, nonce)
 }
 
+// TokenBinding supplies front-channel values that an ID token cryptographically
+// binds through at_hash or c_hash. Values are used only during the call.
+type TokenBinding struct {
+	AccessToken       string
+	AuthorizationCode string
+}
+
 // Config defines a strict OIDC ID-token trust boundary.
 type Config struct {
-	Issuer         string
-	ClientID       string
-	Algorithms     []string
-	Clock          Clock
-	ClockSkew      time.Duration
-	NonceValidator NonceValidator
-	MaxTokenBytes  int
-	MaxClaims      int
-	MaxClaimDepth  int
-	ScopeClaim     string
-	TenantClaim    string
-	InsecureHTTP   bool
+	Issuer           string
+	ClientID         string
+	TrustedAudiences []string
+	Algorithms       []string
+	Clock            Clock
+	ClockSkew        time.Duration
+	NonceValidator   NonceValidator
+	MaxTokenBytes    int
+	MaxClaims        int
+	MaxClaimDepth    int
+	ScopeClaim       string
+	TenantClaim      string
+	InsecureHTTP     bool
 
 	HTTPClient         *http.Client
 	MaxHTTPBodyBytes   int64
@@ -84,17 +104,19 @@ type Config struct {
 
 // Validator authenticates signed OIDC ID-token bearer credentials.
 type Validator struct {
-	verifier       *upstreamoidc.IDTokenVerifier
-	clientID       string
-	algorithms     map[string]struct{}
-	clock          Clock
-	clockSkew      time.Duration
-	nonceValidator NonceValidator
-	maxTokenBytes  int
-	maxClaims      int
-	maxClaimDepth  int
-	scopeClaim     string
-	tenantClaim    string
+	verifier         *upstreamoidc.IDTokenVerifier
+	issuer           string
+	clientID         string
+	trustedAudiences map[string]struct{}
+	algorithms       map[string]struct{}
+	clock            Clock
+	clockSkew        time.Duration
+	nonceValidator   NonceValidator
+	maxTokenBytes    int
+	maxClaims        int
+	maxClaimDepth    int
+	scopeClaim       string
+	tenantClaim      string
 }
 
 // NewWithKeySet creates a validator from an upstream standards-compliant key set.
@@ -119,8 +141,9 @@ func NewWithKeySet(configuration Config, keySet upstreamoidc.KeySet) (*Validator
 
 func newValidator(configuration Config, algorithms map[string]struct{}, verifier *upstreamoidc.IDTokenVerifier) *Validator {
 	return &Validator{
-		verifier: verifier, clientID: configuration.ClientID,
-		algorithms: algorithms, clock: configuration.Clock, clockSkew: configuration.ClockSkew,
+		verifier: verifier, issuer: configuration.Issuer, clientID: configuration.ClientID,
+		trustedAudiences: trustedAudienceSet(configuration),
+		algorithms:       algorithms, clock: configuration.Clock, clockSkew: configuration.ClockSkew,
 		nonceValidator: configuration.NonceValidator,
 		maxTokenBytes:  configuration.MaxTokenBytes, maxClaims: configuration.MaxClaims,
 		maxClaimDepth: configuration.MaxClaimDepth,
@@ -153,6 +176,24 @@ func (v *Validator) Authenticate(ctx context.Context, credential authentication.
 
 // ValidateBearer verifies a bounded OIDC ID token.
 func (v *Validator) ValidateBearer(ctx context.Context, rawToken string) (authentication.Principal, error) {
+	return v.validateIDToken(ctx, rawToken, TokenBinding{})
+}
+
+// ValidateIDToken verifies an ID token and any supplied access-token or
+// authorization-code hash bindings.
+func (v *Validator) ValidateIDToken(
+	ctx context.Context,
+	rawToken string,
+	binding TokenBinding,
+) (authentication.Principal, error) {
+	return v.validateIDToken(ctx, rawToken, binding)
+}
+
+func (v *Validator) validateIDToken(
+	ctx context.Context,
+	rawToken string,
+	binding TokenBinding,
+) (authentication.Principal, error) {
 	if err := ctx.Err(); err != nil {
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureUnavailable,
 			authentication.WithFailureCause(err))
@@ -177,6 +218,9 @@ func (v *Validator) ValidateBearer(ctx context.Context, rawToken string) (authen
 		}
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
 	}
+	if err := verifyTokenBinding(rawToken, token, binding); err != nil {
+		return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
+	}
 	principal, err := v.principal(ctx, token)
 	if err != nil {
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
@@ -184,8 +228,72 @@ func (v *Validator) ValidateBearer(ctx context.Context, rawToken string) (authen
 	return principal, nil
 }
 
+func verifyTokenBinding(rawToken string, token *upstreamoidc.IDToken, binding TokenBinding) error {
+	if binding.AccessToken == "" && binding.AuthorizationCode == "" {
+		return nil
+	}
+	algorithm, err := compactTokenAlgorithm(rawToken)
+	if err != nil {
+		return authentication.ErrInvalidPrincipal
+	}
+	var hashes struct {
+		AccessToken       string `json:"at_hash"`
+		AuthorizationCode string `json:"c_hash"`
+	}
+	if err := token.Claims(&hashes); err != nil {
+		return authentication.ErrInvalidPrincipal
+	}
+	if binding.AccessToken != "" && !validTokenHash(algorithm, binding.AccessToken, hashes.AccessToken) {
+		return authentication.ErrInvalidPrincipal
+	}
+	if binding.AuthorizationCode != "" && !validTokenHash(algorithm, binding.AuthorizationCode, hashes.AuthorizationCode) {
+		return authentication.ErrInvalidPrincipal
+	}
+	return nil
+}
+
+func compactTokenAlgorithm(rawToken string) (string, error) {
+	encoded, _, found := strings.Cut(rawToken, ".")
+	if !found {
+		return "", authentication.ErrInvalidPrincipal
+	}
+	header, err := base64.RawURLEncoding.Strict().DecodeString(encoded)
+	if err != nil {
+		return "", authentication.ErrInvalidPrincipal
+	}
+	var fields struct {
+		Algorithm string `json:"alg"`
+	}
+	if err := json.Unmarshal(header, &fields); err != nil || fields.Algorithm == "" {
+		return "", authentication.ErrInvalidPrincipal
+	}
+	return fields.Algorithm, nil
+}
+
+func validTokenHash(algorithm, value, expected string) bool {
+	var digest []byte
+	switch {
+	case strings.HasSuffix(algorithm, "256"):
+		sum := sha256.Sum256([]byte(value))
+		digest = sum[:]
+	case strings.HasSuffix(algorithm, "384"):
+		sum := sha512.Sum384([]byte(value))
+		digest = sum[:]
+	case strings.HasSuffix(algorithm, "512"):
+		sum := sha512.Sum512([]byte(value))
+		digest = sum[:]
+	default:
+		return false
+	}
+	actual := base64.RawURLEncoding.EncodeToString(digest[:len(digest)/2])
+	return subtle.ConstantTimeCompare([]byte(actual), []byte(expected)) == 1
+}
+
 func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) (authentication.Principal, error) {
 	now := v.clock.Now()
+	if token.Issuer != v.issuer {
+		return authentication.Principal{}, authentication.ErrInvalidPrincipal
+	}
 	if token.IssuedAt.IsZero() {
 		return authentication.Principal{}, authentication.ErrInvalidPrincipal
 	}
@@ -203,7 +311,7 @@ func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) 
 	_ = token.Claims(&rawClaims)
 	var protocol struct {
 		AuthorizedParty string          `json:"azp"`
-		AuthTime        *int64          `json:"auth_time"`
+		AuthTime        json.RawMessage `json:"auth_time"`
 		NotBefore       json.RawMessage `json:"nbf"`
 	}
 	if err := token.Claims(&protocol); err != nil {
@@ -219,8 +327,18 @@ func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) 
 		(protocol.AuthorizedParty != "" && protocol.AuthorizedParty != v.clientID) {
 		return authentication.Principal{}, authentication.ErrInvalidPrincipal
 	}
+	seenAudiences := make(map[string]struct{}, len(token.Audience))
+	for _, audience := range token.Audience {
+		if _, duplicate := seenAudiences[audience]; duplicate {
+			return authentication.Principal{}, authentication.ErrInvalidPrincipal
+		}
+		if _, trusted := v.trustedAudiences[audience]; !trusted {
+			return authentication.Principal{}, authentication.ErrInvalidPrincipal
+		}
+		seenAudiences[audience] = struct{}{}
+	}
 	if v.nonceValidator != nil {
-		if err := v.nonceValidator.ValidateNonce(ctx, token.Nonce); err != nil {
+		if err := validateNonce(ctx, v.nonceValidator, token.Nonce); err != nil {
 			return authentication.Principal{}, authentication.ErrInvalidPrincipal
 		}
 	}
@@ -240,11 +358,12 @@ func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) 
 		}
 	}
 	authenticatedAt := token.IssuedAt
-	if protocol.AuthTime != nil {
-		if *protocol.AuthTime <= 0 || time.Unix(*protocol.AuthTime, 0).After(now.Add(v.clockSkew)) {
+	if len(protocol.AuthTime) > 0 {
+		parsedAuthTime, err := numericDate(protocol.AuthTime)
+		if err != nil || parsedAuthTime.After(now.Add(v.clockSkew)) {
 			return authentication.Principal{}, authentication.ErrInvalidPrincipal
 		}
-		authenticatedAt = time.Unix(*protocol.AuthTime, 0).UTC()
+		authenticatedAt = parsedAuthTime
 	}
 
 	return authentication.NewPrincipal(authentication.PrincipalSpec{
@@ -252,6 +371,15 @@ func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) 
 		Audiences: token.Audience, TenantHints: tenants, Scopes: scopes,
 		Claims: claims, AuthenticatedAt: authenticatedAt,
 	})
+}
+
+func validateNonce(ctx context.Context, validator NonceValidator, nonce string) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = authentication.ErrInvalidPrincipal
+		}
+	}()
+	return validator.ValidateNonce(ctx, nonce)
 }
 
 func (v *Validator) excludedPrincipalClaim(name string) bool {
@@ -366,7 +494,26 @@ func validateConfig(configuration Config) (map[string]struct{}, error) {
 		}
 		allowed[algorithm] = struct{}{}
 	}
+	trusted := map[string]struct{}{configuration.ClientID: {}}
+	for _, audience := range configuration.TrustedAudiences {
+		if audience == "" {
+			return nil, fmt.Errorf("%w: OIDC trusted audience", authentication.ErrInvalidConfiguration)
+		}
+		if _, duplicate := trusted[audience]; duplicate {
+			return nil, fmt.Errorf("%w: duplicate OIDC trusted audience", authentication.ErrInvalidConfiguration)
+		}
+		trusted[audience] = struct{}{}
+	}
 	return allowed, nil
+}
+
+func trustedAudienceSet(configuration Config) map[string]struct{} {
+	trusted := make(map[string]struct{}, len(configuration.TrustedAudiences)+1)
+	trusted[configuration.ClientID] = struct{}{}
+	for _, audience := range configuration.TrustedAudiences {
+		trusted[audience] = struct{}{}
+	}
+	return trusted
 }
 
 func validIssuerURL(issuer *url.URL, allowHTTP bool) bool {
@@ -399,16 +546,23 @@ func validConfigLimits(configuration Config) bool {
 		cmp.Compare(configuration.ClockSkew, time.Duration(0)) != -1,
 		cmp.Compare(configuration.ClockSkew, 24*time.Hour) != 1,
 		cmp.Compare(configuration.MaxTokenBytes, 0) == 1,
+		cmp.Compare(configuration.MaxTokenBytes, maximumTokenBytes) != 1,
 		cmp.Compare(configuration.MaxClaims, 0) == 1,
 		cmp.Compare(configuration.MaxClaims, authentication.MaxClaims) != 1,
 		cmp.Compare(configuration.MaxClaimDepth, 0) == 1,
 		cmp.Compare(configuration.MaxClaimDepth, authentication.MaxClaimDepth) != 1,
 		cmp.Compare(configuration.MaxHTTPBodyBytes, int64(0)) == 1,
+		cmp.Compare(configuration.MaxHTTPBodyBytes, int64(maximumHTTPBodyBytes)) != 1,
 		cmp.Compare(configuration.DiscoveryTimeout, time.Duration(0)) == 1,
+		cmp.Compare(configuration.DiscoveryTimeout, maximumDiscoveryWait) != 1,
 		cmp.Compare(configuration.MaxKeys, 0) == 1,
+		cmp.Compare(configuration.MaxKeys, maximumJWKCount) != 1,
 		cmp.Compare(configuration.MinRefreshInterval, time.Duration(0)) == 1,
+		cmp.Compare(configuration.MinRefreshInterval, maximumRefreshInterval) != 1,
 		cmp.Compare(configuration.MaxRefreshInterval, configuration.MinRefreshInterval) != -1,
+		cmp.Compare(configuration.MaxRefreshInterval, maximumRefreshInterval) != 1,
 		cmp.Compare(configuration.MaxRefreshWaiters, 0) == 1,
+		cmp.Compare(configuration.MaxRefreshWaiters, maximumRefreshWaiters) != 1,
 		configuration.ScopeClaim != configuration.TenantClaim,
 		len(configuration.Algorithms) != 0,
 		configuration.NonceValidator == nil || !isNilNonceValidator(configuration.NonceValidator),

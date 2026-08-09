@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"math/bits"
+	"math/rand/v2"
 	"net/http"
 	"net/url"
 	"slices"
@@ -29,6 +30,12 @@ var errHTTPBodyTooLarge = errors.New("OIDC HTTP response exceeds configured boun
 
 var errOIDCRefreshBusy = errors.New("OIDC JWK refresh waiter limit exceeded")
 
+var errOIDCDiscoveryUnavailable = errors.New("OIDC discovery unavailable")
+
+var errOIDCMetadataInvalid = errors.New("OIDC discovery metadata is invalid")
+
+var errOIDCKeysUnavailable = errors.New("OIDC keys unavailable")
+
 // New discovers an OIDC provider and creates a synchronous, bounded key-set
 // validator. It starts no background goroutines.
 func New(ctx context.Context, configuration Config) (*Validator, error) {
@@ -45,36 +52,165 @@ func New(ctx context.Context, configuration Config) (*Validator, error) {
 	discoveryContext, cancel := context.WithTimeout(ctx, configuration.DiscoveryTimeout)
 	defer cancel()
 	discoveryContext = upstreamoidc.ClientContext(discoveryContext, client)
-	provider, err := upstreamoidc.NewProvider(discoveryContext, configuration.Issuer)
+	metadata, err := discoverProvider(
+		discoveryContext,
+		configuration.Issuer,
+		client,
+		configuration.InsecureHTTP,
+		algorithms,
+	)
 	if err != nil {
+		if errors.Is(err, errOIDCMetadataInvalid) {
+			return nil, fmt.Errorf("%w: OIDC discovery metadata", authentication.ErrInvalidConfiguration)
+		}
+		cause := errOIDCDiscoveryUnavailable
+		if contextErr := discoveryContext.Err(); contextErr != nil {
+			cause = contextErr
+		}
 		return nil, authentication.NewFailure(authentication.FailureUnavailable,
-			authentication.WithFailureCause(err))
-	}
-	var metadata struct {
-		JWKSetURL string `json:"jwks_uri"`
-	}
-	if err := provider.Claims(&metadata); err != nil || !validRemoteURL(metadata.JWKSetURL, configuration.InsecureHTTP) {
-		return nil, fmt.Errorf("%w: OIDC discovery metadata", authentication.ErrInvalidConfiguration)
+			authentication.WithFailureCause(cause))
 	}
 	keySet := &remoteKeySet{
 		url: metadata.JWKSetURL, client: client,
+		issuer: configuration.Issuer, insecureHTTP: configuration.InsecureHTTP,
 		algorithms: joseAlgorithms(configuration.Algorithms), allowed: algorithms,
 		maxBodyBytes: configuration.MaxHTTPBodyBytes, maxKeys: configuration.MaxKeys,
+		jitter:             rand.Uint64(),
 		clock:              configuration.Clock,
 		minRefreshInterval: configuration.MinRefreshInterval,
 		maxRefreshInterval: configuration.MaxRefreshInterval,
 		waiters:            make(chan struct{}, configuration.MaxRefreshWaiters),
 	}
+	if err := keySet.initialize(discoveryContext); err != nil {
+		return nil, authentication.NewFailure(authentication.FailureUnavailable,
+			authentication.WithFailureCause(redactedProviderError(discoveryContext, err)))
+	}
 	return NewWithKeySet(configuration, keySet)
+}
+
+func discoverProvider(
+	ctx context.Context,
+	issuer string,
+	client *http.Client,
+	insecureHTTP bool,
+	allowed map[string]struct{},
+) (providerMetadata, error) {
+	providerContext := upstreamoidc.ClientContext(ctx, client)
+	provider, err := upstreamoidc.NewProvider(providerContext, issuer)
+	if err != nil {
+		var mismatch *upstreamoidc.IssuerMismatchError
+		if errors.As(err, &mismatch) {
+			return providerMetadata{}, errOIDCMetadataInvalid
+		}
+		return providerMetadata{}, errOIDCDiscoveryUnavailable
+	}
+	var metadata providerMetadata
+	if err := provider.Claims(&metadata); err != nil || !validProviderMetadata(metadata, insecureHTTP, allowed) {
+		return providerMetadata{}, errOIDCMetadataInvalid
+	}
+	return metadata, nil
+}
+
+type providerMetadata struct {
+	AuthorizationEndpoint string   `json:"authorization_endpoint"`
+	TokenEndpoint         string   `json:"token_endpoint"`
+	UserInfoEndpoint      string   `json:"userinfo_endpoint"`
+	JWKSetURL             string   `json:"jwks_uri"`
+	RegistrationEndpoint  string   `json:"registration_endpoint"`
+	Scopes                []string `json:"scopes_supported"`
+	ResponseTypes         []string `json:"response_types_supported"`
+	SubjectTypes          []string `json:"subject_types_supported"`
+	SigningAlgorithms     []string `json:"id_token_signing_alg_values_supported"`
+}
+
+func validProviderMetadata(metadata providerMetadata, insecureHTTP bool, allowed map[string]struct{}) bool {
+	if !validRemoteURL(metadata.AuthorizationEndpoint, insecureHTTP) ||
+		!validRemoteURL(metadata.JWKSetURL, insecureHTTP) {
+		return false
+	}
+	if metadata.TokenEndpoint != "" && !validRemoteURL(metadata.TokenEndpoint, insecureHTTP) {
+		return false
+	}
+	if metadata.UserInfoEndpoint != "" && !validRemoteURL(metadata.UserInfoEndpoint, insecureHTTP) {
+		return false
+	}
+	if metadata.RegistrationEndpoint != "" && !validRemoteURL(metadata.RegistrationEndpoint, insecureHTTP) {
+		return false
+	}
+	responseTypes, valid := uniqueStrings(metadata.ResponseTypes)
+	if !valid {
+		return false
+	}
+	requiresTokenEndpoint := false
+	for responseType := range responseTypes {
+		parts := strings.Fields(responseType)
+		if len(parts) == 0 {
+			return false
+		}
+		if slices.Contains(parts, "code") {
+			requiresTokenEndpoint = true
+		}
+	}
+	if requiresTokenEndpoint && metadata.TokenEndpoint == "" {
+		return false
+	}
+	subjectTypes, valid := uniqueStrings(metadata.SubjectTypes)
+	if !valid {
+		return false
+	}
+	for subjectType := range subjectTypes {
+		if subjectType != "public" && subjectType != "pairwise" {
+			return false
+		}
+	}
+	algorithms, valid := uniqueStrings(metadata.SigningAlgorithms)
+	if !valid {
+		return false
+	}
+	if _, required := algorithms["RS256"]; !required {
+		return false
+	}
+	for algorithm := range allowed {
+		if _, advertised := algorithms[algorithm]; !advertised {
+			return false
+		}
+	}
+	if len(metadata.Scopes) > 0 {
+		scopes, scopesValid := uniqueStrings(metadata.Scopes)
+		if !scopesValid || !slices.Contains(metadata.Scopes, "openid") || len(scopes) == 0 {
+			return false
+		}
+	}
+	return true
+}
+
+func uniqueStrings(values []string) (map[string]struct{}, bool) {
+	if len(values) == 0 {
+		return nil, false
+	}
+	unique := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if value == "" {
+			return nil, false
+		}
+		if _, duplicate := unique[value]; duplicate {
+			return nil, false
+		}
+		unique[value] = struct{}{}
+	}
+	return unique, true
 }
 
 type remoteKeySet struct {
 	url                string
+	issuer             string
+	insecureHTTP       bool
 	client             *http.Client
 	algorithms         []jose.SignatureAlgorithm
 	allowed            map[string]struct{}
 	maxBodyBytes       int64
 	maxKeys            int
+	jitter             uint64
 	clock              Clock
 	minRefreshInterval time.Duration
 	maxRefreshInterval time.Duration
@@ -85,9 +221,22 @@ type remoteKeySet struct {
 	refreshing   bool
 	refreshDone  chan struct{}
 	nextRefresh  time.Time
+	nextAttempt  time.Time
 	refreshErr   error
 	etag         string
 	lastModified string
+}
+
+func (set *remoteKeySet) initialize(ctx context.Context) error {
+	set.mutex.Lock()
+	set.refreshing = true
+	set.refreshDone = make(chan struct{})
+	started := set.now()
+	set.mutex.Unlock()
+
+	result, err := set.fetchConditional(ctx, "", "")
+	set.finishRefresh(started, result, err)
+	return err
 }
 
 func (set *remoteKeySet) VerifySignature(ctx context.Context, rawToken string) ([]byte, error) {
@@ -101,16 +250,26 @@ func (set *remoteKeySet) VerifySignature(ctx context.Context, rawToken string) (
 		return nil, errors.New("invalid OIDC signature structure")
 	}
 	keyID := signed.Signatures[0].Header.KeyID
-	if keyID == "" {
-		return nil, errors.New("OIDC key ID is required")
+	set.mutex.Lock()
+	now := set.now()
+	keys := append([]jose.JSONWebKey(nil), set.keys...)
+	fresh := now.Before(set.nextRefresh) || set.nextRefresh.IsZero() && len(keys) > 0
+	nextAttempt := set.nextAttempt
+	refreshErr := set.refreshErr
+	set.mutex.Unlock()
+	if fresh {
+		if payload, found, verifyErr := verifyWithKeys(signed, keyID, keys); found {
+			return payload, verifyErr
+		}
+		if now.Before(nextAttempt) {
+			if refreshErr != nil {
+				reportUnavailable(ctx, redactedProviderError(ctx, refreshErr))
+				return nil, errors.New("OIDC keys unavailable")
+			}
+			return nil, errors.New("OIDC key ID not found")
+		}
 	}
 
-	set.mutex.Lock()
-	keys := append([]jose.JSONWebKey(nil), set.keys...)
-	set.mutex.Unlock()
-	if payload, found, err := verifyWithKeys(signed, keyID, keys); found {
-		return payload, err
-	}
 	switch err := set.acquireWaiter(ctx); err {
 	case nil:
 	default:
@@ -120,11 +279,6 @@ func (set *remoteKeySet) VerifySignature(ctx context.Context, rawToken string) (
 	defer set.releaseWaiter()
 
 	for {
-		payload, found, err := set.verifyCurrent(signed, keyID)
-		if found {
-			return payload, err
-		}
-
 		set.mutex.Lock()
 		now := set.now()
 		if set.refreshing {
@@ -138,30 +292,67 @@ func (set *remoteKeySet) VerifySignature(ctx context.Context, rawToken string) (
 				return nil, ctx.Err()
 			}
 		}
-		if !set.nextRefresh.IsZero() && now.Before(set.nextRefresh) {
-			refreshErr := set.refreshErr
-			set.mutex.Unlock()
-			switch refreshErr {
-			case nil:
-			default:
-				reportUnavailable(ctx, refreshErr)
+		keys := append([]jose.JSONWebKey(nil), set.keys...)
+		nextRefresh := set.nextRefresh
+		fresh := now.Before(nextRefresh) || nextRefresh.IsZero() && len(keys) > 0
+		nextAttempt := set.nextAttempt
+		refreshErr := set.refreshErr
+		set.mutex.Unlock()
+		if fresh {
+			if payload, found, err := verifyWithKeys(signed, keyID, keys); found {
+				return payload, err
+			}
+		}
+		if now.Before(nextAttempt) {
+			if refreshErr != nil || !fresh {
+				reportUnavailable(ctx, redactedProviderError(ctx, refreshErr))
 				return nil, errors.New("OIDC keys unavailable")
 			}
 			return nil, errors.New("OIDC key ID not found")
 		}
 
-		set.refreshing = true
-		set.refreshDone = make(chan struct{})
-		etag, lastModified := set.etag, set.lastModified
+		set.mutex.Lock()
+		claimed := !refreshStateChanged(set.refreshing, set.nextAttempt, set.nextRefresh, nextAttempt, nextRefresh)
+		var etag, lastModified string
+		if claimed {
+			set.refreshing = true
+			set.refreshDone = make(chan struct{})
+			etag, lastModified = set.etag, set.lastModified
+		}
 		set.mutex.Unlock()
 
-		result, fetchErr := set.fetchConditional(ctx, etag, lastModified)
-		set.finishRefresh(now, result, fetchErr)
-		if fetchErr != nil {
-			reportUnavailable(ctx, fetchErr)
-			return nil, errors.New("OIDC keys unavailable")
+		if claimed {
+			result, fetchErr := set.refresh(ctx, etag, lastModified)
+			set.finishRefresh(now, result, fetchErr)
+			if fetchErr != nil {
+				reportUnavailable(ctx, redactedProviderError(ctx, fetchErr))
+				return nil, errors.New("OIDC keys unavailable")
+			}
 		}
 	}
+}
+
+func refreshStateChanged(
+	refreshing bool,
+	nextAttempt time.Time,
+	nextRefresh time.Time,
+	observedAttempt time.Time,
+	observedRefresh time.Time,
+) bool {
+	return refreshing || !nextAttempt.Equal(observedAttempt) || !nextRefresh.Equal(observedRefresh)
+}
+
+func redactedProviderError(ctx context.Context, err error) error {
+	if contextErr := ctx.Err(); contextErr != nil {
+		return contextErr
+	}
+	if errors.Is(err, context.Canceled) {
+		return context.Canceled
+	}
+	if errors.Is(err, context.DeadlineExceeded) {
+		return context.DeadlineExceeded
+	}
+	return errOIDCKeysUnavailable
 }
 
 func (set *remoteKeySet) acquireWaiter(ctx context.Context) error {
@@ -185,36 +376,42 @@ func (set *remoteKeySet) releaseWaiter() {
 	}
 }
 
-func (set *remoteKeySet) verifyCurrent(
-	signed *jose.JSONWebSignature,
-	keyID string,
-) ([]byte, bool, error) {
-	set.mutex.Lock()
-	keys := append([]jose.JSONWebKey(nil), set.keys...)
-	set.mutex.Unlock()
-	return verifyWithKeys(signed, keyID, keys)
-}
-
 func (set *remoteKeySet) finishRefresh(started time.Time, result fetchResult, err error) {
 	set.mutex.Lock()
 	defer set.mutex.Unlock()
 	minimum, maximum := set.refreshBounds()
 	set.refreshErr = err
-	set.nextRefresh = started.Add(minimum)
+	set.nextAttempt = started.Add(minimum)
 	if err == nil {
 		if !result.notModified {
 			set.keys = result.keys
-		}
-		if result.etag != "" {
 			set.etag = result.etag
-		}
-		if result.lastModified != "" {
 			set.lastModified = result.lastModified
+			if result.jwkSetURL != "" {
+				set.url = result.jwkSetURL
+			}
+		} else {
+			if result.etag != "" {
+				set.etag = result.etag
+			}
+			if result.lastModified != "" {
+				set.lastModified = result.lastModified
+			}
 		}
-		set.nextRefresh = started.Add(cacheLifetime(result.header, minimum, maximum))
+		lifetime := cacheLifetime(result.header, minimum, maximum)
+		set.nextRefresh = started.Add(set.refreshLifetime(lifetime, minimum))
 	}
 	set.refreshing = false
 	close(set.refreshDone)
+}
+
+func (set *remoteKeySet) refreshLifetime(lifetime, minimum time.Duration) time.Duration {
+	window := (lifetime - minimum) / 10
+	if window <= 0 {
+		return lifetime
+	}
+	offset := time.Duration(set.jitter % uint64(window+1))
+	return lifetime - offset
 }
 
 func (set *remoteKeySet) now() time.Time {
@@ -238,12 +435,20 @@ func (set *remoteKeySet) refreshBounds() (time.Duration, time.Duration) {
 
 func verifyWithKeys(signed *jose.JSONWebSignature, keyID string, keys []jose.JSONWebKey) ([]byte, bool, error) {
 	found := false
+	algorithm := signed.Signatures[0].Header.Algorithm
 	for _, key := range keys {
-		if key.KeyID == keyID {
-			found = true
-			if payload, err := signed.Verify(key.Key); err == nil {
-				return payload, true, nil
-			}
+		if keyID != "" && key.KeyID != keyID {
+			continue
+		}
+		if key.Algorithm != "" && key.Algorithm != algorithm {
+			continue
+		}
+		if !joseKeyMatchesAlgorithm(key.Key, algorithm) {
+			continue
+		}
+		found = true
+		if payload, err := signed.Verify(key.Key); err == nil {
+			return payload, true, nil
 		}
 	}
 	if found {
@@ -262,12 +467,36 @@ func (set *remoteKeySet) fetch(ctx context.Context) ([]jose.JSONWebKey, error) {
 	return result.keys, nil
 }
 
+func (set *remoteKeySet) refresh(ctx context.Context, etag, lastModified string) (fetchResult, error) {
+	set.mutex.Lock()
+	url := set.url
+	set.mutex.Unlock()
+	if set.issuer != "" {
+		metadata, err := discoverProvider(ctx, set.issuer, set.client, set.insecureHTTP, set.allowed)
+		if err != nil {
+			if contextErr := ctx.Err(); contextErr != nil {
+				return fetchResult{}, contextErr
+			}
+			return fetchResult{}, errors.New("OIDC discovery refresh failed")
+		}
+		if metadata.JWKSetURL != url {
+			url = metadata.JWKSetURL
+			etag = ""
+			lastModified = ""
+		}
+	}
+	result, err := set.fetchConditionalURL(ctx, url, etag, lastModified)
+	result.jwkSetURL = url
+	return result, err
+}
+
 type fetchResult struct {
 	keys         []jose.JSONWebKey
 	notModified  bool
 	header       http.Header
 	etag         string
 	lastModified string
+	jwkSetURL    string
 }
 
 func (set *remoteKeySet) fetchConditional(
@@ -275,7 +504,16 @@ func (set *remoteKeySet) fetchConditional(
 	etag string,
 	lastModified string,
 ) (fetchResult, error) {
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, set.url, nil)
+	return set.fetchConditionalURL(ctx, set.url, etag, lastModified)
+}
+
+func (set *remoteKeySet) fetchConditionalURL(
+	ctx context.Context,
+	rawURL string,
+	etag string,
+	lastModified string,
+) (fetchResult, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, rawURL, nil)
 	switch err {
 	case nil:
 	default:
@@ -330,19 +568,15 @@ func (set *remoteKeySet) fetchConditional(
 	seen := make(map[string]struct{}, len(parsed.Keys))
 	keys := make([]jose.JSONWebKey, len(parsed.Keys))
 	for index, key := range parsed.Keys {
-		if !validJWKMetadata(key) {
+		if !validJWKMetadata(key) || !jwkMatchesAllowedAlgorithms(key, set.allowed) {
 			return fetchResult{}, errors.New("OIDC JWK metadata is invalid")
 		}
-		if _, duplicate := seen[key.KeyID]; duplicate {
-			return fetchResult{}, errors.New("OIDC JWK IDs are ambiguous")
+		if key.KeyID != "" {
+			if _, duplicate := seen[key.KeyID]; duplicate {
+				return fetchResult{}, errors.New("OIDC JWK IDs are ambiguous")
+			}
+			seen[key.KeyID] = struct{}{}
 		}
-		if _, allowed := set.allowed[key.Algorithm]; !allowed {
-			return fetchResult{}, errors.New("OIDC JWK algorithm is disallowed")
-		}
-		if !joseKeyMatchesAlgorithm(key.Key, key.Algorithm) {
-			return fetchResult{}, errors.New("OIDC JWK key type is invalid")
-		}
-		seen[key.KeyID] = struct{}{}
 		keys[index] = key
 	}
 	result.keys = keys
@@ -351,28 +585,54 @@ func (set *remoteKeySet) fetchConditional(
 
 func validJWKMetadata(key jose.JSONWebKey) bool {
 	return !slices.Contains([]bool{
-		key.KeyID != "", key.Valid(), key.IsPublic(), key.Algorithm != "", key.Use == "sig",
+		key.Valid(), key.IsPublic(), key.Use == "" || key.Use == "sig",
 	}, false)
+}
+
+func jwkMatchesAllowedAlgorithms(key jose.JSONWebKey, allowed map[string]struct{}) bool {
+	if key.Algorithm != "" {
+		_, permitted := allowed[key.Algorithm]
+		return permitted && joseKeyMatchesAlgorithm(key.Key, key.Algorithm)
+	}
+	for algorithm := range allowed {
+		if joseKeyMatchesAlgorithm(key.Key, algorithm) {
+			return true
+		}
+	}
+	return false
 }
 
 func joseKeyMatchesAlgorithm(key any, algorithm string) bool {
 	switch {
 	case strings.HasPrefix(algorithm, "RS"), strings.HasPrefix(algorithm, "PS"):
-		_, ok := key.(*rsa.PublicKey)
-		return ok
+		publicKey, ok := key.(*rsa.PublicKey)
+		return ok && publicKey.N != nil && publicKey.N.BitLen() >= 2048 && publicKey.N.BitLen() <= 8192
 	case strings.HasPrefix(algorithm, "ES"):
 		publicKey, ok := key.(*ecdsa.PublicKey)
-		if !ok {
+		if !ok || publicKey.Curve == nil {
+			return false
+		}
+		if !validECDSAPublicKey(publicKey) {
 			return false
 		}
 		expectedBits := map[string]int{"ES256": 256, "ES384": 384, "ES512": 521}[algorithm]
-		return expectedBits != 0 && publicKey.Curve.Params().BitSize == expectedBits
+		return expectedBits != 0 && publicKey.Params().BitSize == expectedBits
 	case algorithm == "EdDSA":
-		_, ok := key.(ed25519.PublicKey)
-		return ok
+		publicKey, ok := key.(ed25519.PublicKey)
+		return ok && len(publicKey) == ed25519.PublicKeySize
 	default:
 		return false
 	}
+}
+
+func validECDSAPublicKey(publicKey *ecdsa.PublicKey) (valid bool) {
+	defer func() {
+		if recover() != nil {
+			valid = false
+		}
+	}()
+	_, err := publicKey.Bytes()
+	return err == nil
 }
 
 func cacheLifetime(header http.Header, minimum, maximum time.Duration) time.Duration {
@@ -479,7 +739,7 @@ func hardenedClient(source *http.Client, maximum int64) *http.Client {
 	if source != nil {
 		*client = *source
 	}
-	if client.Timeout == 0 {
+	if client.Timeout <= 0 || client.Timeout > 30*time.Second {
 		client.Timeout = 30 * time.Second
 	}
 	client.CheckRedirect = func(*http.Request, []*http.Request) error {

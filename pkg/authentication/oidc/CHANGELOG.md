@@ -4,6 +4,26 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+### Security
+
+- Enforce exact token issuers, trusted additional audiences, duplicate-audience
+  rejection, provider-advertised algorithms, strict metadata, and fail-closed
+  JWKS expiry during provider outages.
+- Bound and synchronize discovery plus metadata/JWKS refresh, eagerly initialize
+  keys, probe unknown key IDs after a cooldown, spread refresh with per-instance
+  jitter, and redact provider failures.
+- Enforce hard configuration ceilings and algorithm-specific public-key shape
+  and size bounds before accepting provider keys.
+- Support caller-owned nonce replay checks with panic containment and optional
+  `at_hash` and `c_hash` validation through `ValidateIDToken`.
+
+### Added
+
+- Add `TrustedAudiences`, `TokenBinding`, and `ValidateIDToken` for explicit
+  multi-audience and front-channel token-binding policy.
+- Document supported profiles, exclusions, setup, adoption, cache rotation,
+  concurrency, cancellation, resource lifetime, security, migration, and FAQ.
+
 ### Distribution
 
 - Include the canonical MIT licence in the independently published module.

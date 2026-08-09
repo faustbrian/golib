@@ -2102,7 +2102,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`oidc` discovers an OpenID Provider and validates signed OpenID Connect ID tokens. It owns the authentication trust boundary only: applications retain OAuth authorization flows, redirects, sessions, cookies, middleware, nonce storage, and authorization policy.",
       "lifecycle": "pre-v1",
       "kind": "public library",
       "releasable": true,
@@ -2120,10 +2120,19 @@
       "required_services": [],
       "build_tags": [],
       "test_tags": [],
-      "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
+      "interoperability_tools": [
+        "Google, Keycloak, and Dex provider metadata profiles"
+      ],
+      "specifications": [
+        "OpenID Connect Core 1.0 incorporating errata set 2",
+        "OpenID Connect Discovery 1.0 incorporating errata set 2"
+      ],
+      "conformance_corpora": [
+        "OpenID Connect Core 1.0 Section 2 ID-token claim vector"
+      ],
+      "provenance": [
+        "pkg/authentication/oidc/specification/manifest.tsv"
+      ],
       "goal_files": [
         "pkg/authentication/oidc/.ai/GOAL.md",
         "pkg/authentication/oidc/.ai/GOAL_HARDEN.md"
@@ -2134,7 +2143,8 @@
           "file": "pkg/authentication/oidc/.ai/GOAL.md",
           "requirements_sha256": "605322fd930835382dab2fd1178eeb20fecc31d145af302a6edd91fe0606c481",
           "implementation_evidence": [
-            "pkg/authentication/oidc/CHANGELOG.md"
+            "pkg/authentication/oidc/CHANGELOG.md",
+            "pkg/authentication/oidc/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -2165,7 +2175,8 @@
           "file": "pkg/authentication/oidc/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "8ef6d81bad586eef5726d80042c8c5c399dabadcfe7fef7c75b301a17fc602bd",
           "implementation_evidence": [
-            "pkg/authentication/oidc/CHANGELOG.md"
+            "pkg/authentication/oidc/CHANGELOG.md",
+            "pkg/authentication/oidc/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -2196,7 +2207,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,

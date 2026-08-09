@@ -16,7 +16,7 @@ import (
 	jose "github.com/go-jose/go-jose/v4"
 )
 
-func TestDiscoveryValidatorRotatesKeysAndKeepsStaleKeysOnOutage(t *testing.T) {
+func TestDiscoveryValidatorRotatesKeysAndFailsClosedWhenCacheExpiresDuringOutage(t *testing.T) {
 	t.Parallel()
 
 	first := rsaKey(t)
@@ -55,11 +55,14 @@ func TestDiscoveryValidatorRotatesKeysAndKeepsStaleKeysOnOutage(t *testing.T) {
 
 	state.set("second", &second.PublicKey, http.StatusServiceUnavailable)
 	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(secondToken)); err != nil {
-		t.Fatalf("Authenticate(cached during outage) error = %v", err)
+		t.Fatalf("Authenticate(fresh cached key during outage) error = %v", err)
+	}
+	clock.Advance(time.Second)
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(secondToken)); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
+		t.Fatalf("Authenticate(expired cached key during outage) error = %v", err)
 	}
 	third := rsaKey(t)
 	thirdToken := signIDTokenWithKeyID(t, third, "third", claims)
-	clock.Advance(time.Second)
 	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(thirdToken)); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
 		t.Fatalf("Authenticate(unknown during outage) error = %v", err)
 	}
@@ -114,6 +117,61 @@ func TestConcurrentOIDCAuthenticationAndRotationAreRaceSafe(t *testing.T) {
 	group.Wait()
 }
 
+func TestDiscoveryMetadataAndKeysRefreshTogether(t *testing.T) {
+	t.Parallel()
+
+	first := rsaKey(t)
+	second := rsaKey(t)
+	keyPath := "/keys/first"
+	var keyPathMutex sync.RWMutex
+	server := httptest.NewServer(nil)
+	server.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/.well-known/openid-configuration" {
+			keyPathMutex.RLock()
+			currentKeyPath := keyPath
+			keyPathMutex.RUnlock()
+			_ = json.NewEncoder(writer).Encode(map[string]any{
+				"issuer": server.URL, "authorization_endpoint": server.URL + "/authorize",
+				"token_endpoint": server.URL + "/token", "jwks_uri": server.URL + currentKeyPath,
+				"response_types_supported":              []string{"code"},
+				"subject_types_supported":               []string{"public"},
+				"id_token_signing_alg_values_supported": []string{"RS256"},
+			})
+			return
+		}
+		key := jose.JSONWebKey{Key: &first.PublicKey, KeyID: "first", Algorithm: "RS256", Use: "sig"}
+		if request.URL.Path == "/keys/second" {
+			key = jose.JSONWebKey{Key: &second.PublicKey, KeyID: "second", Algorithm: "RS256", Use: "sig"}
+		}
+		_ = json.NewEncoder(writer).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{key}})
+	})
+	t.Cleanup(server.Close)
+	clock := authtest.NewClock(oidcNow)
+	validator, err := authoidc.New(context.Background(), authoidc.Config{
+		Issuer: server.URL, ClientID: "client", Algorithms: []string{"RS256"},
+		Clock: clock, InsecureHTTP: true, HTTPClient: server.Client(),
+		DiscoveryTimeout: time.Second, MinRefreshInterval: time.Second,
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	claims := map[string]any{
+		"sub": "user", "iss": server.URL, "aud": "client",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+	}
+	if _, err := validator.ValidateBearer(context.Background(), signIDTokenWithKeyID(t, first, "first", claims)); err != nil {
+		t.Fatalf("ValidateBearer(first) error = %v", err)
+	}
+
+	keyPathMutex.Lock()
+	keyPath = "/keys/second"
+	keyPathMutex.Unlock()
+	clock.Advance(time.Second)
+	if _, err := validator.ValidateBearer(context.Background(), signIDTokenWithKeyID(t, second, "second", claims)); err != nil {
+		t.Fatalf("ValidateBearer(second) error = %v", err)
+	}
+}
+
 func TestDiscoveryAndJWKRequestsAreBoundedAndCancelable(t *testing.T) {
 	t.Parallel()
 
@@ -163,6 +221,8 @@ func (state *oidcServerState) handler(writer http.ResponseWriter, request *http.
 		_ = json.NewEncoder(writer).Encode(map[string]any{
 			"issuer": state.issuer, "authorization_endpoint": state.issuer + "/authorize",
 			"token_endpoint": state.issuer + "/token", "jwks_uri": state.issuer + "/keys",
+			"response_types_supported":              []string{"code"},
+			"subject_types_supported":               []string{"public"},
 			"id_token_signing_alg_values_supported": []string{"RS256"},
 		})
 		return
