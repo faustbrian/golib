@@ -1352,6 +1352,12 @@ func conformanceCorpora(directory string) []string {
 			"ethereum/tests TrieTests at c67e485ff8b5be9abc8ad15345ec21aa22e290d9",
 			"go-ethereum transition receipt fixtures at 117e067f0f0bae1a17082321f224dedb6765b10f",
 		}
+	case "openrpc":
+		return []string{
+			"Pinned OpenRPC 1.4.1 meta-schema and prose at 3a13c7a8bad248e6edd2d48339cd1c06b57f8f22",
+			"Pinned official OpenRPC examples at dce69463ba9a3ca2232506b734606fa97f25dd45",
+			"Generated normative and object-field evidence matrices",
+		}
 	case "xsd":
 		return []string{"W3C XML Schema Test Suite"}
 	default:
@@ -1392,12 +1398,6 @@ func goalFiles(root, directory string) []string {
 	for _, entry := range entries {
 		if !entry.IsDir() && strings.HasPrefix(entry.Name(), "GOAL") && strings.HasSuffix(entry.Name(), ".md") {
 			goals = append(goals, filepath.ToSlash(filepath.Join(directory, ".ai", entry.Name())))
-		}
-	case "openrpc":
-		return []string{
-			"Pinned OpenRPC 1.4.1 meta-schema and prose at 3a13c7a8bad248e6edd2d48339cd1c06b57f8f22",
-			"Pinned official OpenRPC examples at dce69463ba9a3ca2232506b734606fa97f25dd45",
-			"Generated normative and object-field evidence matrices",
 		}
 	}
 	sort.Strings(goals)
