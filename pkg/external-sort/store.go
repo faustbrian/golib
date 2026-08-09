@@ -228,7 +228,8 @@ func (Store) MarshalJSON() ([]byte, error) {
 }
 
 // Add copies one record into the bounded in-memory chunk. A failed Add does
-// not retain the supplied record and may be retried.
+// not retain the supplied record and may be retried unless temporary cleanup
+// fails, in which case only Close is accepted.
 func (store *Store) Add(ctx context.Context, record []byte) error {
 	if store == nil || ctx == nil {
 		return ErrInvalidConfiguration
@@ -381,7 +382,7 @@ func validateParent(parent string) error {
 	return nil
 }
 
-func (store *Store) spill(ctx context.Context) error {
+func (store *Store) spill(ctx context.Context) (result error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -394,8 +395,12 @@ func (store *Store) spill(ctx context.Context) error {
 	complete := false
 	defer func() {
 		if !complete {
-			_ = file.Close()
-			_ = store.remove(path)
+			closeErr := file.Close()
+			removeErr := store.remove(path)
+			if closeErr != nil || removeErr != nil {
+				store.closing = true
+				result = ErrStorage
+			}
 		}
 	}()
 	if err := file.Chmod(0o600); err != nil {
@@ -455,14 +460,22 @@ func (store *Store) openReaders() ([]*chunkReader, error) {
 			return nil, ErrStorage
 		}
 		readers = append(readers, &chunkReader{
-			file:        file,
-			cipher:      store.cipher,
-			recordBytes: store.config.RecordBytes,
-			chunkIndex:  uint64(index),
+			file:            file,
+			cipher:          store.cipher,
+			recordBytes:     store.config.RecordBytes,
+			chunkIndex:      uint64(index),
+			expectedRecords: uint64(store.expectedChunkRecords(index)),
 		})
 	}
 
 	return readers, nil
+}
+
+func (store *Store) expectedChunkRecords(index int) int {
+	return min(
+		store.config.ChunkRecords,
+		store.total-index*store.config.ChunkRecords,
+	)
 }
 
 func merge(
@@ -513,11 +526,12 @@ func merge(
 }
 
 type chunkReader struct {
-	file        chunkFile
-	cipher      cipher.AEAD
-	recordBytes int
-	chunkIndex  uint64
-	recordIndex uint64
+	file            chunkFile
+	cipher          cipher.AEAD
+	recordBytes     int
+	chunkIndex      uint64
+	recordIndex     uint64
+	expectedRecords uint64
 }
 
 type chunkFile interface {
@@ -538,16 +552,29 @@ func openChunk(path string) (chunkFile, error) {
 }
 
 func (reader *chunkReader) next() ([]byte, error) {
+	if reader.recordIndex == reader.expectedRecords {
+		var trailing [1]byte
+		count, err := reader.file.Read(trailing[:])
+		if count == 0 && errors.Is(err, io.EOF) {
+			return nil, io.EOF
+		}
+		if count == 0 && err != nil {
+			return nil, ErrStorage
+		}
+
+		return nil, ErrCorrupt
+	}
 	encryptedRecordBytes := reader.cipher.NonceSize() +
 		reader.recordBytes +
 		reader.cipher.Overhead()
 	record := make([]byte, encryptedRecordBytes)
-	count, err := io.ReadFull(reader.file, record)
-	if errors.Is(err, io.EOF) && count == 0 {
-		return nil, io.EOF
-	}
+	_, err := io.ReadFull(reader.file, record)
 	if err != nil {
 		clear(record)
+		if !errors.Is(err, io.EOF) &&
+			!errors.Is(err, io.ErrUnexpectedEOF) {
+			return nil, ErrStorage
+		}
 
 		return nil, ErrCorrupt
 	}

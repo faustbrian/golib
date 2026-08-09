@@ -163,6 +163,22 @@ func TestMergeSkipsEmptyReadersAndTerminatesAfterTheLastRecord(t *testing.T) {
 func TestChunkReaderRejectsAmbiguousEOFAndWrongPlaintextSize(t *testing.T) {
 	t.Parallel()
 
+	t.Run("storage read error", func(t *testing.T) {
+		t.Parallel()
+
+		reader := &chunkReader{
+			file: &fakeChunkFile{
+				reader: errorReader{err: errors.New("read failed")},
+			},
+			cipher:          fixedAEAD{plaintext: []byte{1}},
+			recordBytes:     1,
+			expectedRecords: 1,
+		}
+		if _, err := reader.next(); !errors.Is(err, ErrStorage) {
+			t.Fatalf("next() error = %v, want storage", err)
+		}
+	})
+
 	t.Run("zero byte non-EOF error", func(t *testing.T) {
 		t.Parallel()
 
@@ -170,8 +186,9 @@ func TestChunkReaderRejectsAmbiguousEOFAndWrongPlaintextSize(t *testing.T) {
 			file: &fakeChunkFile{
 				reader: errorReader{err: io.ErrUnexpectedEOF},
 			},
-			cipher:      fixedAEAD{plaintext: []byte{1}},
-			recordBytes: 1,
+			cipher:          fixedAEAD{plaintext: []byte{1}},
+			recordBytes:     1,
+			expectedRecords: 1,
 		}
 		if _, err := reader.next(); !errors.Is(err, ErrCorrupt) {
 			t.Fatalf("next() error = %v, want corrupt", err)
@@ -185,13 +202,52 @@ func TestChunkReaderRejectsAmbiguousEOFAndWrongPlaintextSize(t *testing.T) {
 			file: &fakeChunkFile{
 				reader: bytes.NewReader(make([]byte, 4)),
 			},
-			cipher:      fixedAEAD{plaintext: []byte{1}},
-			recordBytes: 2,
+			cipher:          fixedAEAD{plaintext: []byte{1}},
+			recordBytes:     2,
+			expectedRecords: 1,
 		}
 		if _, err := reader.next(); !errors.Is(err, ErrCorrupt) {
 			t.Fatalf("next() error = %v, want corrupt", err)
 		}
 	})
+
+	t.Run("expected boundary storage read error", func(t *testing.T) {
+		t.Parallel()
+
+		reader := &chunkReader{
+			file: &fakeChunkFile{
+				reader: errorReader{err: errors.New("read failed")},
+			},
+			cipher: fixedAEAD{},
+		}
+		if _, err := reader.next(); !errors.Is(err, ErrStorage) {
+			t.Fatalf("next() error = %v, want storage", err)
+		}
+	})
+
+	t.Run("trailing byte with read error", func(t *testing.T) {
+		t.Parallel()
+
+		reader := &chunkReader{
+			file: &fakeChunkFile{
+				reader: dataErrorReader{err: errors.New("read failed")},
+			},
+			cipher: fixedAEAD{},
+		}
+		if _, err := reader.next(); !errors.Is(err, ErrCorrupt) {
+			t.Fatalf("next() error = %v, want corrupt", err)
+		}
+	})
+}
+
+type dataErrorReader struct {
+	err error
+}
+
+func (reader dataErrorReader) Read(destination []byte) (int, error) {
+	destination[0] = 1
+
+	return 1, reader.err
 }
 
 func TestAdditionalDataEncodesEveryUnsignedFieldInOrder(t *testing.T) {

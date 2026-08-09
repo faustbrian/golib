@@ -468,6 +468,13 @@ func TestStoreRejectsEntropyFailureWithoutRetainingRecord(t *testing.T) {
 	) {
 		t.Fatalf("Add() error = %v, want entropy", err)
 	}
+	entries, err := os.ReadDir(store.directory)
+	if err != nil {
+		t.Fatalf("ReadDir() error = %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("entropy failure left %d temporary artifacts", len(entries))
+	}
 	store.entropy = bytes.NewReader(make([]byte, store.cipher.NonceSize()))
 	if err := store.Add(context.Background(), record); err != nil {
 		t.Fatalf("retry Add() error = %v", err)
@@ -521,6 +528,32 @@ func TestStoreRejectsEntropyFailureWithoutRetainingRecord(t *testing.T) {
 	}
 	if err := rollbackStore.Close(); err != nil {
 		t.Fatalf("rollback Close() error = %v", err)
+	}
+}
+
+func TestStoreReadsAFreshNonceForEveryTemporaryRecord(t *testing.T) {
+	t.Parallel()
+
+	parent := ownerOnlyTemporaryDirectory(t)
+	store := openTestStore(t, newTestFactory(t, parent, 4, 2, 2))
+	nonceBytes := store.cipher.NonceSize()
+	firstNonce := bytes.Repeat([]byte{1}, nonceBytes)
+	secondNonce := bytes.Repeat([]byte{2}, nonceBytes)
+	store.entropy = bytes.NewReader(append(bytes.Clone(firstNonce), secondNonce...))
+	addTestRecords(t, store, []byte{2, 2, 2, 2}, []byte{1, 1, 1, 1})
+
+	contents, err := os.ReadFile(store.chunks[0])
+	if err != nil {
+		t.Fatalf("ReadFile() error = %v", err)
+	}
+	encryptedRecordBytes := nonceBytes + store.config.RecordBytes + store.cipher.Overhead()
+	if len(contents) != 2*encryptedRecordBytes {
+		t.Fatalf("chunk bytes = %d, want %d", len(contents), 2*encryptedRecordBytes)
+	}
+	actualFirst := contents[:nonceBytes]
+	actualSecond := contents[encryptedRecordBytes : encryptedRecordBytes+nonceBytes]
+	if !bytes.Equal(actualFirst, firstNonce) || !bytes.Equal(actualSecond, secondNonce) {
+		t.Fatalf("temporary records did not consume distinct nonce bytes")
 	}
 }
 
@@ -601,6 +634,36 @@ func TestStoreFailsClosedForChunkWriteSyncCloseAndCancellation(t *testing.T) {
 		}
 	})
 
+	t.Run("cleanup failure seals store", func(t *testing.T) {
+		t.Parallel()
+
+		parent := ownerOnlyTemporaryDirectory(t)
+		store := openTestStore(t, newTestFactory(t, parent, 4, 1, 1))
+		store.entropy = errorReader{err: errors.New("entropy unavailable")}
+		store.remove = func(string) error {
+			return errors.New("remove failed")
+		}
+		if err := store.Add(
+			context.Background(),
+			[]byte{1, 2, 3, 4},
+		); !errors.Is(err, ErrStorage) {
+			t.Fatalf("Add() error = %v, want storage", err)
+		}
+		if err := store.Add(
+			context.Background(),
+			[]byte{1, 2, 3, 4},
+		); !errors.Is(err, ErrClosed) {
+			t.Fatalf("Add(after cleanup failure) error = %v, want closed", err)
+		}
+		workDirectory := store.directory
+		if err := store.Close(); err != nil {
+			t.Fatalf("Close() error = %v", err)
+		}
+		if _, err := os.Stat(workDirectory); !errors.Is(err, os.ErrNotExist) {
+			t.Fatalf("temporary directory remains after Close: %v", err)
+		}
+	})
+
 	t.Run("cancel before spill", func(t *testing.T) {
 		t.Parallel()
 
@@ -653,6 +716,31 @@ func TestStoreAuthenticatesChunkPositionAndRejectsCorruption(t *testing.T) {
 				t.Fatalf("Truncate() error = %v", err)
 			}
 		},
+		"complete final record removed": func(t *testing.T, path string, recordBytes int) {
+			t.Helper()
+			info, err := os.Stat(path)
+			if err != nil {
+				t.Fatalf("Stat() error = %v", err)
+			}
+			encryptedBytes := int64(12 + recordBytes + 16)
+			if err := os.Truncate(path, info.Size()-encryptedBytes); err != nil {
+				t.Fatalf("Truncate() error = %v", err)
+			}
+		},
+		"trailing byte appended": func(t *testing.T, path string, _ int) {
+			t.Helper()
+			file, err := os.OpenFile(path, os.O_APPEND|os.O_WRONLY, 0)
+			if err != nil {
+				t.Fatalf("OpenFile() error = %v", err)
+			}
+			if _, err := file.Write([]byte{0}); err != nil {
+				_ = file.Close()
+				t.Fatalf("Write() error = %v", err)
+			}
+			if err := file.Close(); err != nil {
+				t.Fatalf("Close() error = %v", err)
+			}
+		},
 		"ciphertext changed": func(t *testing.T, path string, _ int) {
 			t.Helper()
 			contents, err := os.ReadFile(path)
@@ -693,9 +781,18 @@ func TestStoreAuthenticatesChunkPositionAndRejectsCorruption(t *testing.T) {
 				[]byte{1, 1, 1, 1},
 			)
 			mutate(t, store.chunks[0], factory.config.RecordBytes)
+			yielded := 0
+			unexpectedYield := errors.New("corrupt chunk yielded excess records")
 			if err := store.ForEachSorted(
 				context.Background(),
-				func([]byte) error { return nil },
+				func([]byte) error {
+					yielded++
+					if yielded > factory.config.MaximumRecords {
+						return unexpectedYield
+					}
+
+					return nil
+				},
 			); !errors.Is(err, ErrCorrupt) {
 				t.Fatalf("ForEachSorted() error = %v, want corrupt", err)
 			}
@@ -703,6 +800,35 @@ func TestStoreAuthenticatesChunkPositionAndRejectsCorruption(t *testing.T) {
 				t.Fatalf("Close() error = %v", err)
 			}
 		})
+	}
+}
+
+func TestStoreRejectsCrossChunkSubstitution(t *testing.T) {
+	t.Parallel()
+
+	parent := ownerOnlyTemporaryDirectory(t)
+	store := openTestStore(t, newTestFactory(t, parent, 4, 1, 2))
+	addTestRecords(t, store, []byte{1, 1, 1, 1}, []byte{2, 2, 2, 2})
+	first, err := os.ReadFile(store.chunks[0])
+	if err != nil {
+		t.Fatalf("ReadFile(first) error = %v", err)
+	}
+	second, err := os.ReadFile(store.chunks[1])
+	if err != nil {
+		t.Fatalf("ReadFile(second) error = %v", err)
+	}
+	if err := os.WriteFile(store.chunks[0], second, 0o600); err != nil {
+		t.Fatalf("WriteFile(first) error = %v", err)
+	}
+	if err := os.WriteFile(store.chunks[1], first, 0o600); err != nil {
+		t.Fatalf("WriteFile(second) error = %v", err)
+	}
+
+	if err := store.ForEachSorted(
+		context.Background(),
+		func([]byte) error { return nil },
+	); !errors.Is(err, ErrCorrupt) {
+		t.Fatalf("ForEachSorted() error = %v, want corrupt", err)
 	}
 }
 

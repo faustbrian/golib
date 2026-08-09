@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Fixed
+
+- Reject whole-record truncation and trailing encrypted bytes instead of
+  accepting a shortened or extended chunk as complete, while reporting
+  underlying read failures as typed storage errors and sealing a store when
+  failed temporary-file cleanup would otherwise permit artifact accumulation.
+
 ### Added
 
 - Bounded lexicographic external sorting for caller-defined fixed-size records.
@@ -12,4 +19,5 @@
   preservation, deterministic cleanup, fuzzing, benchmarks, and exact
   statement-coverage evidence.
 - Exact boundary and mutation coverage for resource ceilings, merge
-  termination, authenticated framing, and ordering helpers.
+  termination, authenticated framing, cross-chunk substitution, nonce
+  consumption, and ordering helpers.
