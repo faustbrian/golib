@@ -8629,9 +8629,23 @@
       "build_tags": [],
       "test_tags": [],
       "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
+      "specifications": [
+        "Go 1.26.5 net/http and context contracts",
+        "RFC 9110 HTTP Semantics",
+        "RFC 9111 HTTP Caching",
+        "RFC 7239 Forwarded HTTP Extension",
+        "RFC 6797 HTTP Strict Transport Security",
+        "RFC 7034 X-Frame-Options",
+        "WHATWG Fetch CORS protocol at 586cd2a44c2a",
+        "WHATWG URL origin model at 9dc3827fc722",
+        "W3C Referrer Policy at cc435b05ca4a"
+      ],
+      "conformance_corpora": [
+        "Pinned normative-source matrix and specification decision evidence"
+      ],
+      "provenance": [
+        "pkg/http-middleware/specification/manifest.tsv"
+      ],
       "goal_files": [
         "pkg/http-middleware/.ai/GOAL.md",
         "pkg/http-middleware/.ai/GOAL_HARDEN.md",
@@ -8760,7 +8774,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,

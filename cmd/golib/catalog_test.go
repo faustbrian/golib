@@ -458,6 +458,28 @@ func TestHTTPClientSpecificationCatalogMetadata(t *testing.T) {
 	}
 }
 
+func TestHTTPMiddlewareSpecificationCatalogMetadata(t *testing.T) {
+	t.Parallel()
+	if got := specifications("pkg/http-middleware"); !slices.Equal(got, []string{
+		"Go 1.26.5 net/http and context contracts",
+		"RFC 9110 HTTP Semantics",
+		"RFC 9111 HTTP Caching",
+		"RFC 7239 Forwarded HTTP Extension",
+		"RFC 6797 HTTP Strict Transport Security",
+		"RFC 7034 X-Frame-Options",
+		"WHATWG Fetch CORS protocol at 586cd2a44c2a",
+		"WHATWG URL origin model at 9dc3827fc722",
+		"W3C Referrer Policy at cc435b05ca4a",
+	}) {
+		t.Fatalf("specifications(pkg/http-middleware) = %v", got)
+	}
+	if got := conformanceCorpora("pkg/http-middleware"); !slices.Equal(got, []string{
+		"Pinned normative-source matrix and specification decision evidence",
+	}) {
+		t.Fatalf("conformanceCorpora(pkg/http-middleware) = %v", got)
+	}
+}
+
 func TestXSDSpecificationCatalogMetadata(t *testing.T) {
 	t.Parallel()
 	if got := specifications("pkg/xsd"); !slices.Equal(
