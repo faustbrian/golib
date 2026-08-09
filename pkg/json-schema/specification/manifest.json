@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "reviewed_at": "2026-08-10",
+  "sources": [
+    {
+      "id": "json-schema-test-suite",
+      "name": "JSON Schema Test Suite",
+      "url": "https://github.com/json-schema-org/JSON-Schema-Test-Suite",
+      "version": "commit c0b038ad7244712cf73650f44e90d0bc5704e8c7",
+      "revision": "c0b038ad7244712cf73650f44e90d0bc5704e8c7",
+      "sha256": "d5a43e81e0840e03ffb589079bcfd9b6108f09d6a312b52a7dcc9b767bf36985",
+      "digest_scope": "immutable GitHub archive",
+      "license": "MIT",
+      "use": "mandatory, optional, remote-reference, annotation, and output conformance fixtures for every supported released dialect",
+      "evidence": [
+        {
+          "path": "specification/official-suite.env",
+          "sha256": "e18b79d45cf38dd2f0cbb68ac15909340ca874d782392b0f7391b36ca0c14252"
+        },
+        {
+          "path": "specification/official-suite.sha256",
+          "sha256": "056bfae038a34f20b281d44b88f957f5d09e404352731a9d779c1eba079a3190"
+        },
+        {
+          "path": "specification/official-suite.symlinks",
+          "sha256": "230af118829f9b87317cb4a0f04b1741f701b46b2f82494c1468a62c4c40bc33"
+        },
+        {
+          "path": "specification/official-suite-results.tsv",
+          "sha256": "ae653d64a90af3df049d830341fae1f5bdb11905be70c24cd0b5c176449e05cc"
+        }
+      ]
+    },
+    {
+      "id": "official-meta-schemas",
+      "name": "Official JSON Schema meta-schemas",
+      "url": "https://json-schema.org/specification",
+      "version": "Draft 3 through Draft 2020-12",
+      "retrieved_at": "2026-07-19",
+      "sha256": "52013ccbbe1bab9d1347a182c31d66975536bd51dba8488bceb3ef7757ee01fe",
+      "digest_scope": "local checksum manifest for the individually published resources",
+      "license": "BSD-3-Clause OR AFL-3.0",
+      "use": "offline meta-validation and vocabulary resources for every supported dialect",
+      "evidence": [
+        {
+          "path": "specification/official-meta-schemas.sources.tsv",
+          "sha256": "f776173c0682285d12071966b7c13c78deb983b60010e82ec09fc48415a07a55"
+        },
+        {
+          "path": "specification/official-meta-schemas.sha256",
+          "sha256": "52013ccbbe1bab9d1347a182c31d66975536bd51dba8488bceb3ef7757ee01fe"
+        }
+      ]
+    },
+    {
+      "id": "bowtie",
+      "name": "Bowtie interoperability reports",
+      "url": "https://github.com/bowtie-json-schema/bowtie",
+      "version": "2026.6.1",
+      "generated_at": "2026-07-20",
+      "sha256": "41d61f443eb32b842ac3cee41b6ff30208c3635a4fc1ff5125dee7b2d2a73691",
+      "digest_scope": "local checksum manifest for the retained reports",
+      "license": "MIT",
+      "use": "independent protocol and per-dialect interoperability evidence",
+      "evidence": [
+        {
+          "path": "bowtie/reports/SHA256SUMS",
+          "sha256": "41d61f443eb32b842ac3cee41b6ff30208c3635a4fc1ff5125dee7b2d2a73691"
+        }
+      ]
+    }
+  ]
+}

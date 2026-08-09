@@ -116,6 +116,7 @@ provenance:
 	./scripts/check-official-suite.sh
 	./scripts/check-official-meta-schemas.sh
 	./scripts/check-conformance-manifest.sh
+	$(GO) test . -run '^TestSpecificationManifestPinsEveryConformanceSource$$' -count=1
 
 conformance: provenance
 	$(GO) test . -run '^TestOfficial' -count=1

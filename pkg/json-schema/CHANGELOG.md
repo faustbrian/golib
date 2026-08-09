@@ -5,6 +5,9 @@ Changelog structure and semantic versioning after v1.
 
 ## Unreleased
 
+- Add a machine-validated provenance manifest that binds the official test
+  suite, published meta-schemas, and Bowtie interoperability reports to their
+  existing checksummed evidence.
 - Add an auditable specification-decision register covering dialects,
   vocabularies, annotations, references, exact data-model behavior, secure
   resource loading, output, and optional conformance policy.

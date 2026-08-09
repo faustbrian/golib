@@ -1,5 +1,10 @@
 # Normative and conformance inputs
 
+[`manifest.json`](manifest.json) is the structured provenance index for the
+official suite, published meta-schemas, and Bowtie evidence. Its source pins
+and referenced local digests are checked by
+`TestSpecificationManifestPinsEveryConformanceSource`.
+
 The official JSON Schema Test Suite is pinned to commit
 `c0b038ad7244712cf73650f44e90d0bc5704e8c7`, committed upstream on
 2026-07-14. The upstream repository is
