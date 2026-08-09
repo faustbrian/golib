@@ -112,3 +112,7 @@ targets, randomized cross-tenant namespace models, concurrent isolation stress,
 and allocation-reporting benchmarks for context propagation, namespace
 encoding, and tenant assertions. These tests prove the owned enforcement seams;
 they cannot prove isolation in application paths that bypass those seams.
+
+Detailed adoption and security guidance is in [`docs/`](docs/): trust and
+service propagation, integrations, PostgreSQL/RLS, administration, migration,
+static-analysis boundaries, hardening evidence, security caveats, and FAQ.

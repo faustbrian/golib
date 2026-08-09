@@ -26,3 +26,5 @@ versioning once released.
   readback and pool-reset safety, and migration-owned fail-closed RLS plans.
 - Reusable `tenancytest` scope helpers plus property, concurrency, fuzz, and
   allocation benchmark coverage for tenant isolation boundaries.
+- Complete trust, integration, PostgreSQL, administration, migration, security,
+  analyzer-boundary, hardening, FAQ, and clean-consumer guidance and tooling.
