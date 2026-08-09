@@ -6,6 +6,11 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add a reproducible no-I/O producer performance matrix separating the common
+  transport floor from root policy and root policy plus observation across
+  synchronous single, batch, asynchronous API-window, and Kafka-transaction
+  workloads, with raw samples, allocations, environment fingerprints, and
+  variance-preserving analysis
 - report the measured local interval from package entry into franz-go's
   blocked callback to poll-gate release, with distinct successful,
   callback-canceled, and bounded

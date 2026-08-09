@@ -300,9 +300,18 @@ than production budgets.
 Allocations are reported but include client serialization and network request
 handling. The policy path intentionally owns caller bytes before admission, so
 its allocation delta from raw franz-go is part of the current public ownership
-contract. Existing package microbenchmarks isolate individual validation,
-failure-policy, replay-progress, worker, and inspection operations, but a
-complete end-to-end policy-overhead decomposition remains outstanding.
+contract. A separate
+[2026-08-10 no-I/O producer capture](performance-results/2026-08-10/README.md)
+now isolates the common transport floor from root policy and root policy plus
+one successful observer for synchronous single, synchronous batch,
+asynchronous API-window, and producer-transaction operations. That capture
+includes validation, allowlisting, defensive byte ownership, franz-go record
+mapping, lifecycle fencing, bounded delivery contexts, and result normalization
+while excluding broker, network, serialization, compression, retry, and
+storage latency. Existing package microbenchmarks separately isolate failure
+policy, partition workers, replay progress, inspection, and adapters. A common
+no-I/O end-to-end decomposition for consumer-group polling and
+consume-transform-produce remains outstanding.
 
 ## Remaining benchmark matrix
 

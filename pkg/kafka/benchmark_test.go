@@ -3,7 +3,9 @@ package kafka
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"testing"
+	"time"
 
 	"github.com/twmb/franz-go/pkg/kadm"
 	"github.com/twmb/franz-go/pkg/kgo"
@@ -49,6 +51,370 @@ func BenchmarkMessageValidation(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkProducerPolicyOverhead removes broker, network, serialization, and
+// retry time from the measurement. Every case uses the same synchronous
+// no-I/O transport seam so the delta isolates root policy work: validation,
+// allowlist enforcement, byte ownership, franz-go record mapping, lifecycle
+// fencing, delivery normalization, and optional observation.
+func BenchmarkProducerPolicyOverhead(b *testing.B) {
+	ctx := context.Background()
+	for _, payloadBytes := range []int{128, 1 << 10, 64 << 10} {
+		record := benchmarkProducerRecord(payloadBytes)
+		b.Run(fmt.Sprintf("single/%dB", payloadBytes), func(b *testing.B) {
+			benchmarkProducerSinglePolicy(b, ctx, record)
+		})
+	}
+
+	for _, batchRecords := range []int{10, 100} {
+		for _, payloadBytes := range []int{128, 1 << 10} {
+			records := make([]ProducerRecord, batchRecords)
+			for index := range records {
+				records[index] = benchmarkProducerRecord(payloadBytes)
+			}
+			b.Run(fmt.Sprintf(
+				"batch/%d-records/%dB",
+				batchRecords,
+				payloadBytes,
+			), func(b *testing.B) {
+				benchmarkProducerBatchPolicy(b, ctx, records)
+			})
+		}
+	}
+
+	for _, windowRecords := range []int{10, 100} {
+		for _, payloadBytes := range []int{128, 1 << 10} {
+			record := benchmarkProducerRecord(payloadBytes)
+			b.Run(fmt.Sprintf(
+				"async/%d-records/%dB",
+				windowRecords,
+				payloadBytes,
+			), func(b *testing.B) {
+				benchmarkProducerAsyncPolicy(
+					b,
+					ctx,
+					record,
+					windowRecords,
+				)
+			})
+		}
+	}
+
+	for _, transactionRecords := range []int{1, 10} {
+		records := make([]ProducerRecord, transactionRecords)
+		for index := range records {
+			records[index] = benchmarkProducerRecord(1 << 10)
+		}
+		b.Run(fmt.Sprintf(
+			"transaction/%d-records/1024B",
+			transactionRecords,
+		), func(b *testing.B) {
+			benchmarkProducerTransactionPolicy(b, ctx, records)
+		})
+	}
+}
+
+func benchmarkProducerSinglePolicy(
+	b *testing.B,
+	ctx context.Context,
+	record ProducerRecord,
+) {
+	b.Helper()
+	backend := &benchmarkProducerBackend{}
+	rawRecord := franzRecord(record.owned())
+	b.Run("transport-floor", func(b *testing.B) {
+		b.SetBytes(recordSize(record))
+		b.ReportAllocs()
+		for b.Loop() {
+			results := backend.ProduceSync(ctx, rawRecord)
+			if len(results) != 1 || results[0].Record != rawRecord ||
+				results[0].Err != nil {
+				b.Fatal("no-I/O transport returned an invalid delivery")
+			}
+		}
+	})
+	for _, observed := range []bool{false, true} {
+		name := "policy"
+		if observed {
+			name = "policy-observed"
+		}
+		b.Run(name, func(b *testing.B) {
+			producer := benchmarkPolicyProducer(backend, observed)
+			result := producer.PublishRecord(ctx, record)
+			if result.Err != nil || result.Topic != record.Topic ||
+				result.Partition != 0 || result.Offset != 1 {
+				b.Fatalf("PublishRecord() warm-up result = %#v", result)
+			}
+			b.SetBytes(recordSize(record))
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				result = producer.PublishRecord(ctx, record)
+				if result.Err != nil || result.Partition != 0 ||
+					result.Offset != 1 {
+					b.Fatalf("PublishRecord() result = %#v", result)
+				}
+			}
+		})
+	}
+}
+
+func benchmarkProducerBatchPolicy(
+	b *testing.B,
+	ctx context.Context,
+	records []ProducerRecord,
+) {
+	b.Helper()
+	backend := &benchmarkProducerBackend{}
+	rawRecords := make([]*kgo.Record, len(records))
+	var bytes int64
+	for index, record := range records {
+		rawRecords[index] = franzRecord(record.owned())
+		bytes += recordSize(record)
+	}
+	b.Run("transport-floor", func(b *testing.B) {
+		b.SetBytes(bytes)
+		b.ReportAllocs()
+		for b.Loop() {
+			results := backend.ProduceSync(ctx, rawRecords...)
+			if len(results) != len(rawRecords) || results[0].Err != nil {
+				b.Fatal("no-I/O transport returned an invalid batch")
+			}
+		}
+	})
+	for _, observed := range []bool{false, true} {
+		name := "policy"
+		if observed {
+			name = "policy-observed"
+		}
+		b.Run(name, func(b *testing.B) {
+			producer := benchmarkPolicyProducer(backend, observed)
+			results, err := producer.PublishBatch(ctx, records)
+			if err != nil || len(results) != len(records) {
+				b.Fatalf("PublishBatch() warm-up = %d results, %v", len(results), err)
+			}
+			b.SetBytes(bytes)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				results, err = producer.PublishBatch(ctx, records)
+				if err != nil || len(results) != len(records) ||
+					results[0].Partition != 0 || results[0].Offset != 1 {
+					b.Fatalf(
+						"PublishBatch() = %d results, %v",
+						len(results),
+						err,
+					)
+				}
+			}
+		})
+	}
+}
+
+func benchmarkProducerAsyncPolicy(
+	b *testing.B,
+	ctx context.Context,
+	record ProducerRecord,
+	windowRecords int,
+) {
+	b.Helper()
+	backend := &benchmarkProducerBackend{}
+	rawRecord := franzRecord(record.owned())
+	var rawDelivery *kgo.Record
+	rawPromise := func(delivered *kgo.Record, err error) {
+		if err == nil {
+			rawDelivery = delivered
+		}
+	}
+	b.Run("transport-floor", func(b *testing.B) {
+		b.SetBytes(recordSize(record) * int64(windowRecords))
+		b.ReportAllocs()
+		for b.Loop() {
+			for range windowRecords {
+				backend.Produce(ctx, rawRecord, rawPromise)
+			}
+			if rawDelivery != rawRecord {
+				b.Fatal("no-I/O transport omitted an asynchronous delivery")
+			}
+		}
+	})
+	for _, observed := range []bool{false, true} {
+		name := "policy"
+		if observed {
+			name = "policy-observed"
+		}
+		b.Run(name, func(b *testing.B) {
+			producer := benchmarkPolicyProducer(backend, observed)
+			deliveries := make([]<-chan DeliveryResult, windowRecords)
+			b.SetBytes(recordSize(record) * int64(windowRecords))
+			b.ReportAllocs()
+			for b.Loop() {
+				for index := range deliveries {
+					var err error
+					deliveries[index], err = producer.PublishAsync(ctx, record)
+					if err != nil {
+						b.Fatalf("PublishAsync() error = %v", err)
+					}
+				}
+				for _, delivery := range deliveries {
+					result := <-delivery
+					if result.Err != nil || result.Partition != 0 ||
+						result.Offset != 1 {
+						b.Fatalf("PublishAsync() result = %#v", result)
+					}
+				}
+			}
+		})
+	}
+}
+
+func benchmarkProducerTransactionPolicy(
+	b *testing.B,
+	ctx context.Context,
+	records []ProducerRecord,
+) {
+	b.Helper()
+	backend := &benchmarkProducerBackend{}
+	rawRecords := make([]*kgo.Record, len(records))
+	var bytes int64
+	for index, record := range records {
+		rawRecords[index] = franzRecord(record.owned())
+		bytes += recordSize(record)
+	}
+	b.Run("transport-floor", func(b *testing.B) {
+		b.SetBytes(bytes)
+		b.ReportAllocs()
+		for b.Loop() {
+			if err := backend.BeginTransaction(); err != nil {
+				b.Fatal(err)
+			}
+			for _, record := range rawRecords {
+				results := backend.ProduceSync(ctx, record)
+				if len(results) != 1 || results[0].Err != nil {
+					b.Fatal("no-I/O transport returned an invalid transaction delivery")
+				}
+			}
+			if err := backend.EndTransaction(ctx, kgo.TryCommit); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+	for _, observed := range []bool{false, true} {
+		name := "policy"
+		if observed {
+			name = "policy-observed"
+		}
+		b.Run(name, func(b *testing.B) {
+			producer := benchmarkPolicyProducer(backend, observed)
+			producer.transactionsEnabled = true
+			producer.transactionEndTimeout = time.Minute
+			callback := func(transaction Transaction) error {
+				for _, record := range records {
+					if err := transaction.Publish(ctx, record); err != nil {
+						return err
+					}
+				}
+
+				return nil
+			}
+			if err := producer.RunTransaction(ctx, callback); err != nil {
+				b.Fatalf("RunTransaction() warm-up error = %v", err)
+			}
+			b.SetBytes(bytes)
+			b.ReportAllocs()
+			b.ResetTimer()
+			for b.Loop() {
+				if err := producer.RunTransaction(ctx, callback); err != nil {
+					b.Fatalf("RunTransaction() error = %v", err)
+				}
+			}
+		})
+	}
+}
+
+func benchmarkProducerRecord(payloadBytes int) ProducerRecord {
+	return ProducerRecord{
+		Topic: "benchmark.events.v1",
+		Key:   []byte("aggregate-1"),
+		Value: bytes.Repeat([]byte{'v'}, payloadBytes),
+		Headers: []Header{
+			{Key: "content-type", Value: []byte("application/octet-stream")},
+			{Key: "schema-version", Value: []byte("1")},
+		},
+		Timestamp: time.Unix(1_700_000_000, 0),
+	}
+}
+
+func benchmarkPolicyProducer(
+	backend producerBackend,
+	observed bool,
+) *Producer {
+	producer := &Producer{
+		client:              backend,
+		clientID:            "benchmark-producer",
+		limits:              DefaultMessageLimits(),
+		keyRequired:         true,
+		maxBatchRecords:     100,
+		maxBatchBytes:       1 << 20,
+		deliveryWaitTimeout: time.Minute,
+		allowedTopics: map[string]struct{}{
+			"benchmark.events.v1": {},
+		},
+	}
+	if observed {
+		producer.observers = newObserverDispatcher(ObserverPolicy{
+			Observers: []ObserverFunc{
+				func(context.Context, Observation) error { return nil },
+			},
+			FailureHandler: func(context.Context, ObservationFailure) {},
+			Timeout:        time.Second,
+		})
+	}
+
+	return producer
+}
+
+type benchmarkProducerBackend struct{}
+
+func (*benchmarkProducerBackend) ProduceSync(
+	_ context.Context,
+	records ...*kgo.Record,
+) kgo.ProduceResults {
+	results := make(kgo.ProduceResults, len(records))
+	for index, record := range records {
+		record.Partition = 0
+		record.Offset = 1
+		results[index] = kgo.ProduceResult{Record: record}
+	}
+
+	return results
+}
+
+func (*benchmarkProducerBackend) Produce(
+	_ context.Context,
+	record *kgo.Record,
+	promise func(*kgo.Record, error),
+) {
+	record.Partition = 0
+	record.Offset = 1
+	promise(record, nil)
+}
+
+func (*benchmarkProducerBackend) BufferedProduceRecords() int64 { return 0 }
+func (*benchmarkProducerBackend) BufferedProduceBytes() int64   { return 0 }
+func (*benchmarkProducerBackend) Flush(context.Context) error   { return nil }
+func (*benchmarkProducerBackend) Ping(context.Context) error    { return nil }
+func (*benchmarkProducerBackend) BeginTransaction() error       { return nil }
+func (*benchmarkProducerBackend) AbortBufferedRecords(context.Context) error {
+	return nil
+}
+func (*benchmarkProducerBackend) EndTransaction(
+	context.Context,
+	kgo.TransactionEndTry,
+) error {
+	return nil
+}
+func (*benchmarkProducerBackend) Close() {}
 
 func BenchmarkFailureHandlerSuccess(b *testing.B) {
 	ctx := context.Background()
