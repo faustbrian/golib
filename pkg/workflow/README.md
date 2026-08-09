@@ -13,6 +13,12 @@ outcomes, and bounded retry admission times. Automatic step scheduling,
 PostgreSQL storage, workers, compensation, signals, timers, operators, and
 optional integrations are not yet delivered.
 
+`Transition` is the persistence boundary: its contiguous history events and
+bounded due-work records must commit atomically. `TransitionStore` exposes that
+contract without choosing a database driver, and commit failures distinguish
+not-committed, committed, and unknown durable outcomes. Callers must reconcile
+unknown outcomes by transition ID before retrying.
+
 The package does not claim exactly-once external side effects. Applications
 must make activities idempotent and treat unknown outcomes as requiring
 reconciliation before retry.

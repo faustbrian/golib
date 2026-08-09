@@ -137,28 +137,12 @@ type HistoryEvent struct {
 
 // NewHistoryEvent validates and owns one durable history record.
 func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
-	if spec.Sequence == 0 || !instanceIDPattern.MatchString(spec.InstanceID) ||
-		spec.Kind < EventInstanceStarted || spec.Kind > EventActivityRetryScheduled ||
-		spec.OccurredAt.IsZero() || len(spec.Data) > MaxPayloadBytes {
+	if spec.OccurredAt.IsZero() {
 		return HistoryEvent{}, ErrInvalidHistoryEvent
 	}
 	spec.OccurredAt = canonicalTime(spec.OccurredAt)
 	spec.DueAt = canonicalTime(spec.DueAt)
-	requiresDefinition := spec.Kind == EventInstanceStarted ||
-		spec.Kind == EventDefinitionMigrated || spec.Kind == EventContinuedAsNew
-	if requiresDefinition && !spec.Definition.valid() {
-		return HistoryEvent{}, ErrInvalidHistoryEvent
-	}
-	if !requiresDefinition && spec.Definition != (DefinitionReference{}) {
-		return HistoryEvent{}, ErrInvalidHistoryEvent
-	}
-	if spec.Kind == EventContinuedAsNew && !instanceIDPattern.MatchString(spec.SuccessorID) {
-		return HistoryEvent{}, ErrInvalidHistoryEvent
-	}
-	if spec.Kind != EventContinuedAsNew && spec.SuccessorID != "" {
-		return HistoryEvent{}, ErrInvalidHistoryEvent
-	}
-	if !validActivityEventFields(spec) {
+	if !validHistoryEventSpec(spec) {
 		return HistoryEvent{}, ErrInvalidHistoryEvent
 	}
 
@@ -166,7 +150,7 @@ func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 		sequence:    spec.Sequence,
 		instanceID:  spec.InstanceID,
 		kind:        spec.Kind,
-		occurredAt:  canonicalTime(spec.OccurredAt),
+		occurredAt:  spec.OccurredAt,
 		definition:  spec.Definition,
 		successorID: spec.SuccessorID,
 		stepName:    spec.StepName, attempt: spec.Attempt,
@@ -174,6 +158,29 @@ func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 		code: spec.Code, retryable: spec.Retryable,
 		data: cloneBytes(spec.Data),
 	}, nil
+}
+
+func validHistoryEventSpec(spec HistoryEventSpec) bool {
+	if spec.Sequence == 0 || !instanceIDPattern.MatchString(spec.InstanceID) ||
+		spec.Kind < EventInstanceStarted || spec.Kind > EventActivityRetryScheduled ||
+		spec.OccurredAt.IsZero() || len(spec.Data) > MaxPayloadBytes {
+		return false
+	}
+	requiresDefinition := spec.Kind == EventInstanceStarted ||
+		spec.Kind == EventDefinitionMigrated || spec.Kind == EventContinuedAsNew
+	if requiresDefinition && !spec.Definition.valid() {
+		return false
+	}
+	if !requiresDefinition && spec.Definition != (DefinitionReference{}) {
+		return false
+	}
+	if spec.Kind == EventContinuedAsNew && !instanceIDPattern.MatchString(spec.SuccessorID) {
+		return false
+	}
+	if spec.Kind != EventContinuedAsNew && spec.SuccessorID != "" {
+		return false
+	}
+	return validActivityEventFields(spec)
 }
 
 // Sequence returns the contiguous instance-history position.

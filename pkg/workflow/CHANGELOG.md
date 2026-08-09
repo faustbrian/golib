@@ -12,6 +12,9 @@ and releases use Semantic Versioning.
   distinct success, known-failure, and unknown-outcome results.
 - Deterministic replay of durably scheduled activity attempts, known outcomes,
   unknown outcomes, and bounded exponential retry admission decisions.
+- Immutable bounded transition plans that atomically couple optimistic history
+  appends with due work, plus stable history pagination and explicit unknown
+  commit outcomes for durable-store adapters.
 - Immutable durable lifecycle history, deterministic replay, pinned definition
   verification, explicit persisted migration decisions, cancellation,
   termination, and continue-as-new outcomes.
