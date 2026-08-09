@@ -27,6 +27,11 @@ authentication and client-certificate providers. Existing connections retain
 their negotiated trust state; use overlap-first rotation and force bounded
 reconnection before retiring an old root. See the [security guide](security.md)
 for ownership, redaction, failure, and rollout semantics.
+`OAuthBearerProvider` is the explicit external-token acquisition seam. The
+package bounds each invocation and validates and copies its result; the
+provider owns endpoint TLS, HTTP limits, token caching, refresh policy, and
+identity-provider-specific fields. A new Kafka SASL session invokes the
+provider again, including broker-enforced reauthentication.
 
 Broker addresses and Kafka client, group, transactional, instance, and rack
 identifiers must be valid UTF-8 without control characters or surrounding

@@ -162,7 +162,10 @@ material. Use `TrustAnchorProvider` for bounded overlap-first server trust
 rotation; it supplies the complete root set for each new TLS connection and
 cannot be combined with static `TLS.RootCAs`. PLAIN, SCRAM-SHA-256,
 SCRAM-SHA-512, and OAUTHBEARER use the package's bounded credential-provider
-contracts; no franz-go authentication type appears in the public API.
+contracts; no franz-go authentication type appears in the public API. An OAuth
+provider may acquire `client_credentials` tokens from an external HTTPS
+endpoint, but the provider owns endpoint trust, request and response bounds,
+token caching, refresh scheduling, and identity-provider-specific behavior.
 Unencrypted connections require the visibly development-only
 `DevelopmentPlaintextSecurity()` policy and cannot be combined with
 authentication. The independently versioned
@@ -416,7 +419,10 @@ record; retired tokens remain valid until their signed expiry. A separate
 fixture refreshes Kafka's production validator from a verified HTTPS JWKS,
 accepts a new RS256 signing key during overlap, then rejects the still-valid
 retired key after its removal. RFC 7628 broker error challenges are normalized
-to a stable redacted authentication identity. Three provider-backed PLAIN
+to a stable redacted authentication identity. Another fixture obtains and
+refreshes those signed tokens from a verified HTTPS `client_credentials`
+endpoint, proves cancellation reaches the endpoint, rejects an untrusted peer,
+and preserves every acknowledged record. Three provider-backed PLAIN
 producers additionally recover after a bounded broker
 restart replaces the server credential, verify every acknowledged record, and
 reject the retired password. This does not claim zero-downtime PLAIN rotation.

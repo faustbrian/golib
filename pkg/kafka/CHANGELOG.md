@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove a caller-owned OAuth `client_credentials` provider acquires and
+  refreshes signed tokens from a verified HTTPS endpoint under bounded,
+  cancellation-aware, redacted policy before Kafka authentication
 - prove Kafka's production OAUTHBEARER validator refreshes a verified HTTPS
   JWKS, accepts an overlap-first RS256 signing-key rollover, rejects the retired
   key after refresh, preserves every acknowledged record, and returns a stable

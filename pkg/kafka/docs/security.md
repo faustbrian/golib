@@ -40,6 +40,16 @@ failures become classifiable, redacted errors. Username, password, token,
 authorization ID, extension, certificate, and request metadata are validated
 and bounded before use. Returned byte slices and maps are copied.
 
+An `OAuthBearerProvider` may use OAuth 2.0 `client_credentials` against an
+external token endpoint. The root module deliberately does not own an OAuth
+HTTP client, discovery, token cache, or identity-provider schema. A production
+provider must use verified HTTPS, keep secrets out of URLs, honor the supplied
+context, bound request and response bytes, require the expected status and
+`Bearer` token type, derive a conservative future expiry, refresh before that
+expiry, and return redacted errors. The package invokes it for each new SASL
+session; an established connection is refreshed only when Kafka reconnects or
+broker-enforced reauthentication creates a new session.
+
 Username, password, and authorization identifiers are valid UTF-8, exclude NUL,
 and are limited to 8 KiB each. OAUTHBEARER tokens follow RFC 6750 `b64token`
 syntax and are limited to 1 MiB. OAuth extensions follow RFC 7628 framing: at
@@ -134,6 +144,12 @@ The fixtures prove:
   a provider-backed producer with that key, then rejects the still-valid token
   under the retired key after a later JWKS refresh; RFC 7628 error challenges
   retain only stable authentication-failure identity, not their body; and
+- external OAUTHBEARER token acquisition: a caller-owned provider posts the
+  OAuth 2.0 `client_credentials` grant to a verified HTTPS endpoint, bounds and
+  validates its JSON response, propagates cancellation to the endpoint,
+  rejects an untrusted peer without disclosing its secret, refreshes the token
+  under broker-enforced reauthentication, and preserves every acknowledged
+  record; and
 - live mTLS client-certificate renewal: three independent producers observe
   Kafka's broker-enforced idle disconnect, invoke every package provider with a
   separately issued replacement certificate signed by the same CA, reconnect,
@@ -158,11 +174,11 @@ and the pinned
 [SASL channel reconfiguration source](https://github.com/apache/kafka/blob/4.3.1/clients/src/main/java/org/apache/kafka/common/network/SaslChannelBuilder.java#L189-L207).
 
 This proves interoperability only with the pinned Apache fixture. Prolonged
-multi-client mTLS rollover stress, external OAuth token acquisition,
+multi-client mTLS rollover stress, specific external OAuth identity providers,
 zero-downtime multi-broker PLAIN cutover, transactional-ID authorization
 failures, ACL changes during live traffic, and managed-service authentication
-remain separate required evidence. The fixture does not use Kafka's
-non-production unsecured OAUTHBEARER implementation and does not claim
+remain separate required evidence. The fixtures do not use Kafka's
+non-production unsecured OAUTHBEARER implementation and do not claim
 compatibility with a particular OAuth identity provider.
 
 MSK IAM authentication and OpenTelemetry remain absent from the root module.
@@ -180,6 +196,11 @@ The authentication wire rules follow [RFC 4616](https://www.rfc-editor.org/rfc/r
 for PLAIN, [RFC 5802](https://www.rfc-editor.org/rfc/rfc5802) for SCRAM,
 [RFC 7628](https://www.rfc-editor.org/rfc/rfc7628) for OAUTHBEARER, and
 [RFC 6750](https://www.rfc-editor.org/rfc/rfc6750) for bearer-token syntax.
+[RFC 6749 section 4.4](https://www.rfc-editor.org/rfc/rfc6749#section-4.4)
+defines the exercised `client_credentials` acquisition flow.
+Kafka's
+[production OAUTHBEARER client guidance](https://kafka.apache.org/43/security/authentication-using-sasl/#configuring-production-kafka-clients)
+documents the corresponding token-endpoint and client-credential settings.
 Kafka's
 [broker reauthentication configuration](https://kafka.apache.org/43/generated/kafka_config.html#connections.max.reauth.ms)
 and
