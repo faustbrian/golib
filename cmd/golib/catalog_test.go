@@ -375,6 +375,7 @@ func TestInteroperabilityCatalogMetadata(t *testing.T) {
 		{directory: "pkg/ecma-regexp", want: []string{"Node.js", "Test262"}},
 		{directory: "pkg/wsdl", want: []string{"Java", "Apache Woden"}},
 		{directory: "pkg/xsd", want: []string{"Docker", "Eclipse Temurin 25 JAXP"}},
+		{directory: "pkg/search/adapters/opensearch", want: []string{"OpenSearch 2.19.3", "OpenSearch 3.6.0", "opensearch-go/v4 v4.7.3"}},
 		{directory: "pkg/jsonrpc", want: []string{}},
 	}
 	for _, test := range tests {
@@ -502,6 +503,7 @@ func TestConformanceRequired(t *testing.T) {
 	}{
 		{name: "public specification", kind: "public library", specifications: []string{"Example 1.0"}, want: true},
 		{name: "public corpus", kind: "public library", corpora: []string{"Official suite"}, want: true},
+		{name: "adapter specification", kind: "adapter", specifications: []string{"Example 1.0"}, want: true},
 		{name: "ordinary library", kind: "public library"},
 		{name: "benchmark harness", kind: "benchmark harness", specifications: []string{"Example 1.0"}},
 	}

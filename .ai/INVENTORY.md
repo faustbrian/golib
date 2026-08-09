@@ -95,7 +95,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 46 | Event interoperability | `pending` | `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-35, 43, 45 |
 | 47 | Durable orchestration | `pending` | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 27-35, 43, 44, 46 |
 | 48 | Search | `pending` | `pkg/search/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 29-32, 43 |
-| 49 | Search adapter | `pending` | `pkg/search/adapters/opensearch/.ai/{GOAL.md,GOAL_HARDEN.md}` | 48 |
 | 50 | Ecosystem cohesion | `pending` | `.ai/GOAL_COHESION.md` | 3-49 |
 | 51 | Resilience audit | `pending` | `.ai/GOAL_RESILIENCE_HARDEN.md` | 3-50 |
 | 52 | Repository audit | `pending-reexecution` | `.ai/GOAL_COMPATIBILITY.md` | 3-51 |
@@ -133,6 +132,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/external-sort/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 40. Current scoped evidence verifies encrypted spill hardening and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/feature-flags/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 15. Current scoped evidence verifies bounded fleet bootstrap, refresh, invalidation, degraded evaluation, provider resilience composition, Kubernetes lifecycle behavior, and every mandatory feature-flags module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/sequencer/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 17. Current scoped evidence verifies leaderless fleet lifecycle, fenced renewal and takeover recovery, mixed-binary registry compatibility, bounded shared retry ownership, Kubernetes operational semantics, and every mandatory sequencer module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/search/adapters/opensearch/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 49. Current scoped evidence verifies the production OpenSearch adapter, hardening requirements, OpenSearch 2.19.3 and 3.6.0 compatibility, exact coverage and mutation, and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/settings/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 16. Current scoped evidence verifies immutable bounded snapshots, explicit per-class degradation, monotonic writes and reads, bounded fleet convergence and lifecycle, PostgreSQL and Valkey interoperability, and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/service/.ai/GOAL_RESILIENCE.md` | `verified` | The base resilience goal formerly included in pending order 18 has current lifecycle, adoption, Kubernetes, exact coverage and mutation, documentation, API, security, supply-chain, race, and benchmark evidence; its separate `GOAL_RESILIENCE_HARDEN.md` remains pending. |
 | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 42. Current scoped evidence verifies canonical scoped capabilities and signed URLs, key lifecycle, replay and revocation adapters, hardening requirements, and every mandatory capability-module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -403,6 +403,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
 | Observed | 2026-08-09T10:12:10Z |
 | Gaps | None within the affected Temporal and owned `rule-engine` module scope. |
+
+### OpenSearch adapter evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/search/adapters/opensearch/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Production OpenSearch transport, authentication and AWS signing, query translation, exact writes and bulk outcomes, PIT/search-after pagination, index lifecycle and migration, resilience and diagnostics, projection and rebuild workflows, documentation, and affected-package quality gates. |
+| Status | `pending` to `verified` |
+| Evidence | Package-scoped gates for `pkg/search` and `pkg/search/adapters/opensearch`; direct OpenSearch 2.19.3 and 3.6.0 conformance; and the multi-node rolling-upgrade interoperability lane. |
+| Result | Passed every mandatory affected-package gate, including exact 100% statement coverage (838/838 shared-search and 1165/1165 OpenSearch adapter statements), 794/794 shared-search and 903/903 OpenSearch adapter viable mutants with 100% efficacy and mutator coverage, race, fuzzing, API, documentation, security, supply-chain, clean-consumer, benchmark, multi-node failover, credential rotation, and rolling-upgrade scenarios. |
+| Environment | Go 1.26.5 on darwin/arm64 with OpenSearch 2.19.3 and 3.6.0 containers and task-owned disposable `GOCACHE` directories removed after each bounded run. |
+| Observed | 2026-08-09T19:53:00Z |
+| Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped OpenSearch adapter contract. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,

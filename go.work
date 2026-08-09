@@ -103,6 +103,8 @@ use (
 	./pkg/rule-engine/adapters/gotemporal
 	./pkg/rule-engine/benchmarks/competitors
 	./pkg/scheduler
+	./pkg/search
+	./pkg/search/adapters/opensearch
 	./pkg/secret-envelope
 	./pkg/secret-store/adapters/awssecretsmanager
 	./pkg/semaphore
@@ -302,6 +304,10 @@ replace github.com/faustbrian/golib/pkg/rule-engine/benchmarks/competitors v0.0.
 replace github.com/faustbrian/golib/pkg/rule-engine v0.0.0 => ./pkg/rule-engine
 
 replace github.com/faustbrian/golib/pkg/scheduler v0.0.0 => ./pkg/scheduler
+
+replace github.com/faustbrian/golib/pkg/search v0.0.0 => ./pkg/search
+
+replace github.com/faustbrian/golib/pkg/search/adapters/opensearch v0.0.0 => ./pkg/search/adapters/opensearch
 
 replace github.com/faustbrian/golib/pkg/secret-envelope v0.0.0 => ./pkg/secret-envelope
 

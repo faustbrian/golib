@@ -1,0 +1,14 @@
+# OpenSearch adapter documentation
+
+- [Compatibility and capabilities](compatibility.md)
+- [Operations and deployment](operations.md)
+- [AWS authentication and managed deployments](aws.md)
+- [Security and authentication](security.md)
+- [Mappings and analyzer ownership](mappings.md)
+- [Pagination and cursor ownership](pagination.md)
+- [Migration, rebuild, replay, and reconciliation](rebuild.md)
+- [Capacity, dashboards, and alerts](observability.md)
+- [Upgrades and backup boundaries](upgrades.md)
+- [Troubleshooting](troubleshooting.md)
+- [API and compatibility inventory](api-inventory.md)
+- [Hardening and real-cluster exercises](hardening.md)

@@ -548,7 +548,8 @@ func validateOwnedDependencyVersion(directory, path, version string) error {
 }
 
 func conformanceRequired(kind string, specifications, corpora []string) bool {
-	return kind == "public library" && (len(specifications) != 0 || len(corpora) != 0)
+	return (kind == "public library" || kind == "adapter") &&
+		(len(specifications) != 0 || len(corpora) != 0)
 }
 
 func validateModuleLicense(root, directory string, releasable bool) error {
@@ -1108,6 +1109,9 @@ func interoperabilityTools(directory string) []string {
 	if directory == "pkg/authentication/oidc" {
 		return []string{"Google, Keycloak, and Dex provider metadata profiles"}
 	}
+	if directory == "pkg/search/adapters/opensearch" {
+		return []string{"OpenSearch 2.19.3", "OpenSearch 3.6.0", "opensearch-go/v4 v4.7.3"}
+	}
 	switch libraryName(directory) {
 	case "wsdl":
 		return []string{"Java", "Apache Woden"}
@@ -1183,6 +1187,9 @@ func specifications(directory string) []string {
 			"Apache Kafka protocol and client semantics",
 			"implemented Kafka Improvement Proposals",
 		}
+	}
+	if directory == "pkg/search/adapters/opensearch" {
+		return []string{"OpenSearch REST API 2.19.3 and 3.6.0"}
 	}
 	prefix := libraryName(directory)
 	switch prefix {

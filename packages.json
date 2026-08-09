@@ -6355,6 +6355,42 @@
       "build_tags": []
     },
     {
+      "module_directory": "pkg/search",
+      "directory": ".",
+      "name": "search",
+      "import_path": "github.com/faustbrian/golib/pkg/search",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/search/adapters/opensearch",
+      "directory": ".",
+      "name": "opensearch",
+      "import_path": "github.com/faustbrian/golib/pkg/search/adapters/opensearch",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/search",
+      "directory": "searchtest",
+      "name": "searchtest",
+      "import_path": "github.com/faustbrian/golib/pkg/search/searchtest",
+      "kind": "test support",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
       "module_directory": "pkg/secret-envelope",
       "directory": ".",
       "name": "secretenvelope",
