@@ -29,7 +29,7 @@ trust boundaries and are not implied by protocol conformance.
 | Oversized or deeply nested JSON | Core, configured, and Atomic unmarshal | byte, depth, member, item, and total-value limits; duplicate and UTF-8 preflight | limit transport body size before allocation |
 | Huge decoded query families | `QueryParser.Parse` | name, value, total-byte, selector, list, parameter, and value counts | limit encoded request-target size |
 | Header and candidate explosion | `Negotiator` | header, candidate, URI count/length, and configured URI limits | configure server header limits |
-| Ambiguous or duplicate input | JSON codecs | duplicate-member rejection, strict unknown-member rules, presence-aware models | map typed failures without leaking request bodies |
+| Ambiguous, duplicate, or non-compliant input | JSON codecs | duplicate-member rejection, non-compliant-member discard, strict recognized-member validation, presence-aware models | map typed failures without leaking request bodies |
 | Numeric precision loss | attributes, meta, extension values | `json.Number` preservation | convert numbers with domain-specific range checks |
 | Extension/profile confusion | configured `Codec`, `Negotiator` | unique absolute URIs, unique namespaces, scope-specific registration, core validation before profile semantics | keep codec and negotiator URI sets aligned |
 | Malicious validator or callback | extension, profile, cursor, sort seams | bounded invocation count; panic containment; redacted wrapper errors; profile mutation detection | make callbacks bounded, pure, deterministic, and thread-safe; never expose retained causes to clients |

@@ -181,11 +181,6 @@ func TestUnmarshalRejectsMalformedDocuments(t *testing.T) {
 			path:    "/jsonapi",
 			code:    "type",
 		},
-		"unknown jsonapi member": {
-			payload: `{"jsonapi":{"unknown":true},"data":null}`,
-			path:    "/jsonapi/unknown",
-			code:    "unknown-member",
-		},
 		"jsonapi version is not string": {
 			payload: `{"jsonapi":{"version":1},"data":null}`,
 			path:    "/jsonapi/version",
@@ -210,16 +205,6 @@ func TestUnmarshalRejectsMalformedDocuments(t *testing.T) {
 			payload: `{"jsonapi":{"meta":[]},"data":null}`,
 			path:    "/jsonapi/meta",
 			code:    "type",
-		},
-		"unknown top-level member": {
-			payload: `{"data":null,"unknown":true}`,
-			path:    "/unknown",
-			code:    "unknown-member",
-		},
-		"unknown resource member": {
-			payload: `{"data":{"type":"articles","id":"1","unknown":true}}`,
-			path:    "/data/unknown",
-			code:    "unknown-member",
 		},
 		"resource collection is null": {
 			payload: `{"data":null,"included":null}`,
@@ -281,11 +266,6 @@ func TestUnmarshalRejectsMalformedDocuments(t *testing.T) {
 			path:    "/data/relationships/author",
 			code:    "type",
 		},
-		"unknown relationship member": {
-			payload: `{"data":{"type":"articles","id":"1","relationships":{"author":{"unknown":true}}}}`,
-			path:    "/data/relationships/author/unknown",
-			code:    "unknown-member",
-		},
 		"relationship links is not object": {
 			payload: `{"data":{"type":"articles","id":"1","relationships":{"author":{"links":[]}}}}`,
 			path:    "/data/relationships/author/links",
@@ -300,11 +280,6 @@ func TestUnmarshalRejectsMalformedDocuments(t *testing.T) {
 			payload: `{"data":{"type":"articles","id":"1","relationships":{"tags":{"data":[null]}}}}`,
 			path:    "/data/relationships/tags/data/0",
 			code:    "type",
-		},
-		"unknown identifier member": {
-			payload: `{"data":{"type":"articles","id":"1","relationships":{"author":{"data":{"type":"people","id":"9","unknown":true}}}}}`,
-			path:    "/data/relationships/author/data/unknown",
-			code:    "unknown-member",
 		},
 		"identifier type is not string": {
 			payload: `{"data":{"type":"articles","id":"1","relationships":{"author":{"data":{"type":1,"id":"9"}}}}}`,
@@ -335,11 +310,6 @@ func TestUnmarshalRejectsMalformedDocuments(t *testing.T) {
 			payload: `{"data":null,"links":{"self":42}}`,
 			path:    "/links/self",
 			code:    "type",
-		},
-		"unknown link object member": {
-			payload: `{"data":null,"links":{"self":{"href":"/articles","unknown":true}}}`,
-			path:    "/links/self/unknown",
-			code:    "unknown-member",
 		},
 		"link href is not string": {
 			payload: `{"data":null,"links":{"self":{"href":1}}}`,
@@ -391,11 +361,6 @@ func TestUnmarshalRejectsMalformedDocuments(t *testing.T) {
 			path:    "/errors/0",
 			code:    "type",
 		},
-		"unknown error member": {
-			payload: `{"errors":[{"unknown":true}]}`,
-			path:    "/errors/0/unknown",
-			code:    "unknown-member",
-		},
 		"error status is not string": {
 			payload: `{"errors":[{"status":409}]}`,
 			path:    "/errors/0/status",
@@ -410,11 +375,6 @@ func TestUnmarshalRejectsMalformedDocuments(t *testing.T) {
 			payload: `{"errors":[{"links":[]}]}`,
 			path:    "/errors/0/links",
 			code:    "type",
-		},
-		"unknown error source member": {
-			payload: `{"errors":[{"source":{"unknown":true}}]}`,
-			path:    "/errors/0/source/unknown",
-			code:    "unknown-member",
 		},
 		"error meta is not object": {
 			payload: `{"errors":[{"meta":[]}]}`,

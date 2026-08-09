@@ -34,6 +34,15 @@ make check
 
 Separate normative JSON:API requirements, recommendations, official extensions, profiles, and application conventions. Every protocol claim MUST cite authoritative specification text and have conformance fixtures.
 
+### Specification decision review
+
+Changes to parsing, validation, serialization, negotiation, extensions,
+profiles, or protocol behavior MUST review
+`docs/specification-decisions.md`. Update a stable decision instead of
+silently changing it. A newly discovered ambiguity or contradiction MUST stay
+visibly unresolved until its authorities, interpretations, selected behavior,
+consequences, executable evidence, and reconsideration condition are recorded.
+
 ## Local Verification
 
 Run the complete local gate:

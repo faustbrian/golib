@@ -39,6 +39,7 @@ required=(
   docs/releasing.md
   docs/repository-standards.md
   docs/conformance.md
+  docs/specification-decisions.md
   docs/extensions-and-profiles.md
   docs/features.md
   docs/recommendations.md

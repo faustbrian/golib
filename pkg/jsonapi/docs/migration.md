@@ -10,9 +10,11 @@
 5. map typed errors to your HTTP error policy;
 6. add canonical fixtures before switching production responses.
 
-Expect stricter behavior: duplicate members, unknown members, invalid links,
-identity conflicts, and compound-document linkage errors will no longer pass
-silently.
+Expect stricter validation of recognized behavior: duplicate members, invalid
+links, identity conflicts, and compound-document linkage errors will no longer
+pass silently. JSON:API requires non-compliant members to be ignored, so the
+decoder discards them rather than rejecting or retaining them. Register an
+applied extension with `Codec` when its namespaced members need semantics.
 
 The package boundary also rejects malformed UTF-8 and applies the documented
 `DefaultDecodeLimits`. Keep the defaults for ordinary endpoints, lower them for

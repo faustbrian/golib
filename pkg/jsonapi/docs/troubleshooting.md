@@ -1,10 +1,12 @@
 # Troubleshooting
 
-## `unknown-member` while decoding
+## An extension member disappears while decoding
 
-The JSON pointer identifies a member not permitted in that JSON:API-defined
-object. Check spelling and scope. For extension semantics, register the exact
-namespaced member and decode through `Codec`; otherwise use attributes or meta.
+The core decoder ignores and discards non-compliant members as JSON:API
+requires. To retain extension semantics, register the exact namespaced member
+at its permitted scope and decode through `Codec`. Otherwise use attributes or
+meta for application data. Encoding an unregistered `AdditionalMembers` entry
+still fails because the package does not emit undeclared extension semantics.
 
 ## `duplicate-member` on apparently valid JSON
 

@@ -15,6 +15,7 @@ Use this index to evaluate specification coverage before production adoption.
 - [Go safety and concurrency](go-safety-and-concurrency.md)
 - [Supported features](features.md)
 - [Conformance evidence](conformance.md)
+- [Specification decisions](specification-decisions.md)
 - [Extensions and profiles](extensions-and-profiles.md)
 - [JSON:API recommendations](recommendations.md)
 - [Compatibility](compatibility.md)

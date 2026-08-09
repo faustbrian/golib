@@ -143,14 +143,11 @@ func TestUnmarshalIgnoresAtMembersInDefinedContainers(t *testing.T) {
 	}
 }
 
-func TestAtMembersDoNotHideLaterUnknownMembers(t *testing.T) {
+func TestAtAndNonCompliantMembersAreIgnored(t *testing.T) {
 	t.Parallel()
 
-	_, err := Unmarshal([]byte(`{"@context":{},"unknown":true,"data":null}`))
-	var decodeError *DecodeError
-	if !errors.As(err, &decodeError) || decodeError.Code != "unknown-member" ||
-		decodeError.Path != "/unknown" {
-		t.Fatalf("unknown member after @ member escaped: %T %#v", err, decodeError)
+	if _, err := Unmarshal([]byte(`{"@context":{},"unknown":true,"data":null}`)); err != nil {
+		t.Fatalf("ignored members were rejected: %v", err)
 	}
 }
 

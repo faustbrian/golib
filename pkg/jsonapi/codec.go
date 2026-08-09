@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"sort"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -107,9 +106,7 @@ func decodeDocument(payload []byte) (Document, error) {
 	if err != nil {
 		return Document{}, err
 	}
-	if err := rejectUnknown(root, "", "jsonapi", "links", "data", "included", "errors", "meta"); err != nil {
-		return Document{}, err
-	}
+	discardUnknown(root, "jsonapi", "links", "data", "included", "errors", "meta")
 
 	var document Document
 	if raw, exists := root["jsonapi"]; exists {
@@ -256,9 +253,7 @@ func decodeJSONAPI(raw json.RawMessage, path string) (JSONAPI, error) {
 	if err != nil {
 		return JSONAPI{}, err
 	}
-	if err := rejectUnknown(object, path, "version", "ext", "profile", "meta"); err != nil {
-		return JSONAPI{}, err
-	}
+	discardUnknown(object, "version", "ext", "profile", "meta")
 
 	var result JSONAPI
 	if value, exists := object["version"]; exists {
@@ -338,9 +333,7 @@ func decodeResource(raw json.RawMessage, path string) (ResourceObject, error) {
 	if err != nil {
 		return ResourceObject{}, err
 	}
-	if err := rejectUnknown(object, path, "type", "id", "lid", "attributes", "relationships", "links", "meta"); err != nil {
-		return ResourceObject{}, err
-	}
+	discardUnknown(object, "type", "id", "lid", "attributes", "relationships", "links", "meta")
 
 	var resource ResourceObject
 	for name, target := range map[string]*string{
@@ -416,14 +409,13 @@ func decodeRelationships(raw json.RawMessage, path string) (Relationships, error
 
 	relationships := make(Relationships, len(object))
 	for name, value := range object {
-		if strings.HasPrefix(name, "@") {
-			continue
+		if !strings.HasPrefix(name, "@") {
+			relationship, decodeErr := decodeRelationship(value, path+"/"+escapePointerToken(name))
+			if decodeErr != nil {
+				return nil, decodeErr
+			}
+			relationships[name] = relationship
 		}
-		relationship, decodeErr := decodeRelationship(value, path+"/"+escapePointerToken(name))
-		if decodeErr != nil {
-			return nil, decodeErr
-		}
-		relationships[name] = relationship
 	}
 
 	return relationships, nil
@@ -434,9 +426,7 @@ func decodeRelationship(raw json.RawMessage, path string) (Relationship, error) 
 	if err != nil {
 		return Relationship{}, err
 	}
-	if err := rejectUnknown(object, path, "links", "data", "meta"); err != nil {
-		return Relationship{}, err
-	}
+	discardUnknown(object, "links", "data", "meta")
 
 	var relationship Relationship
 	if value, exists := object["links"]; exists {
@@ -504,9 +494,7 @@ func decodeIdentifier(raw json.RawMessage, path string) (Identifier, error) {
 	if err != nil {
 		return Identifier{}, err
 	}
-	if err := rejectUnknown(object, path, "type", "id", "lid", "meta"); err != nil {
-		return Identifier{}, err
-	}
+	discardUnknown(object, "type", "id", "lid", "meta")
 
 	var identifier Identifier
 	for name, target := range map[string]*string{
@@ -581,9 +569,8 @@ func decodeLink(raw json.RawMessage, path string) (Link, error) {
 	if err != nil {
 		return Link{}, err
 	}
-	if err := rejectUnknown(
+	discardUnknown(
 		object,
-		path,
 		"href",
 		"rel",
 		"describedby",
@@ -591,9 +578,7 @@ func decodeLink(raw json.RawMessage, path string) (Link, error) {
 		"type",
 		"hreflang",
 		"meta",
-	); err != nil {
-		return Link{}, err
-	}
+	)
 	var result Link
 	result.object = true
 	if value, exists := object["href"]; exists {
@@ -692,9 +677,7 @@ func decodeError(raw json.RawMessage, path string) (ErrorObject, error) {
 	if err != nil {
 		return ErrorObject{}, err
 	}
-	if err := rejectUnknown(object, path, "id", "links", "status", "code", "title", "detail", "source", "meta"); err != nil {
-		return ErrorObject{}, err
-	}
+	discardUnknown(object, "id", "links", "status", "code", "title", "detail", "source", "meta")
 
 	var result ErrorObject
 	fields := []struct {
@@ -747,9 +730,7 @@ func decodeErrorSource(raw json.RawMessage, path string) (ErrorSource, error) {
 	if err != nil {
 		return ErrorSource{}, err
 	}
-	if err := rejectUnknown(object, path, "pointer", "parameter", "header"); err != nil {
-		return ErrorSource{}, err
-	}
+	discardUnknown(object, "pointer", "parameter", "header")
 
 	var result ErrorSource
 	fields := []struct {
@@ -815,31 +796,17 @@ func decodeObject(raw []byte, path string) (map[string]json.RawMessage, error) {
 	return object, nil
 }
 
-func rejectUnknown(object map[string]json.RawMessage, path string, allowed ...string) error {
+func discardUnknown(object map[string]json.RawMessage, allowed ...string) {
 	known := make(map[string]struct{}, len(allowed))
 	for _, name := range allowed {
 		known[name] = struct{}{}
 	}
 
-	names := make([]string, 0, len(object))
 	for name := range object {
-		names = append(names, name)
-	}
-	sort.Strings(names)
-	for _, name := range names {
-		if !strings.HasPrefix(name, "@") {
-			if _, exists := known[name]; !exists {
-				return decodeFailure(
-					path+"/"+escapePointerToken(name),
-					"unknown-member",
-					"member is not defined by JSON:API",
-					nil,
-				)
-			}
+		if _, exists := known[name]; !exists {
+			delete(object, name)
 		}
 	}
-
-	return nil
 }
 
 func decodeString(raw json.RawMessage, path string, target *string) error {

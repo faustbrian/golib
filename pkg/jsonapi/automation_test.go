@@ -50,6 +50,7 @@ func TestSharedRepositoryContract(t *testing.T) {
 		"docs/performance.md",
 		"docs/hardening.md",
 		"docs/security.md",
+		"docs/specification-decisions.md",
 		"docs/releasing.md",
 		"docs/repository-standards.md",
 	}
@@ -199,6 +200,36 @@ func TestGitHubActionsUseFullCommitSHAs(t *testing.T) {
 		}
 		if err := file.Close(); err != nil {
 			t.Fatal(err)
+		}
+	}
+}
+
+func TestSpecificationDecisionRegister(t *testing.T) {
+	t.Parallel()
+
+	contents, err := os.ReadFile("docs/specification-decisions.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	register := string(contents)
+	for _, required := range []string{
+		"JSONAPI-DEC-001",
+		"JSONAPI-DEC-002",
+		"JSONAPI-DEC-003",
+		"JSONAPI-DEC-004",
+		"JSONAPI-DEC-005",
+		"JSONAPI-DEC-006",
+		"JSONAPI-DEC-007",
+		"JSONAPI-DEC-008",
+		"JSONAPI-DEC-009",
+		"JSONAPI-DEC-010",
+		"## Unresolved decisions",
+		"Known peer behavior",
+		"Reconsider when",
+		"Executable evidence",
+	} {
+		if !strings.Contains(register, required) {
+			t.Errorf("specification decision register does not contain %q", required)
 		}
 	}
 }

@@ -14,6 +14,8 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Ignore non-compliant members during core and Atomic decoding as required by
+  JSON:API 1.1 while retaining strict validation for recognized members.
 - Avoid speculative capacity arithmetic when encoding registered additional
   members; the buffer now grows from the already bounded core document size.
 - Regenerated the complete machine-readable documentation bundle from the
@@ -26,6 +28,8 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- An auditable specification-decision register covering JSON:API core,
+  extensions, profiles, recommendations, and application-policy boundaries.
 - A standardized OSS repository skeleton covering policy, documentation,
   legal notices, Go tooling, pinned CI, security, and release automation.
 - Evidence-driven audit and hardening goal covering JSON:API 1.1, Atomic

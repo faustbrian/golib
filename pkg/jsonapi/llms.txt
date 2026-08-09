@@ -29,4 +29,5 @@
 - [Go Safety And Concurrency](docs/go-safety-and-concurrency.md)
 - [JSON:API recommendations](docs/recommendations.md)
 - [Repository Standards](docs/repository-standards.md)
+- [JSON:API specification decisions](docs/specification-decisions.md)
 - [Threat model](docs/threat-model.md)

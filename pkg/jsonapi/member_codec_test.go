@@ -181,16 +181,17 @@ func TestCodecRejectsInvalidRegisteredMemberValue(t *testing.T) {
 	}
 }
 
-func TestCoreCodecRejectsUnregisteredExtensionMember(t *testing.T) {
+func TestCoreCodecIgnoresUnregisteredExtensionMember(t *testing.T) {
 	t.Parallel()
 
-	_, err := Unmarshal([]byte(`{
+	document, err := Unmarshal([]byte(`{
 		"data":{"type":"articles","id":"1","version:id":"42"}
 	}`))
-	var decodeError *DecodeError
-	if !errors.As(err, &decodeError) || decodeError.Path != "/data/version:id" ||
-		decodeError.Code != "unknown-member" {
-		t.Fatalf("unexpected unregistered member error: %T %#v", err, decodeError)
+	if err != nil {
+		t.Fatalf("unregistered member was rejected: %v", err)
+	}
+	if document.Data.one.AdditionalMembers != nil {
+		t.Fatalf("unregistered member was retained: %#v", document.Data.one.AdditionalMembers)
 	}
 }
 
@@ -299,14 +300,15 @@ func TestCodecRoundTripsTopLevelExtensionMemberAsSemanticContent(t *testing.T) {
 	}
 }
 
-func TestCoreCodecRejectsTopLevelExtensionMemberAsSemanticContent(t *testing.T) {
+func TestCoreCodecIgnoresTopLevelExtensionMemberAsSemanticContent(t *testing.T) {
 	t.Parallel()
 
-	_, err := Unmarshal([]byte(`{"version:manifest":{"revision":42}}`))
-	var decodeError *DecodeError
-	if !errors.As(err, &decodeError) || decodeError.Path != "/version:manifest" ||
-		decodeError.Code != "unknown-member" {
-		t.Fatalf("unexpected core decode error: %T %#v", err, decodeError)
+	document, err := Unmarshal([]byte(`{"version:manifest":{"revision":42},"data":null}`))
+	if err != nil {
+		t.Fatalf("unregistered member was rejected: %v", err)
+	}
+	if document.AdditionalMembers != nil {
+		t.Fatalf("unregistered member was retained: %#v", document.AdditionalMembers)
 	}
 
 	_, err = Marshal(Document{
@@ -352,16 +354,16 @@ func TestCodecRoundTripsRelationshipExtensionMemberAsSemanticContent(t *testing.
 	}
 }
 
-func TestCoreCodecRejectsRelationshipExtensionMember(t *testing.T) {
+func TestCoreCodecIgnoresRelationshipExtensionMember(t *testing.T) {
 	t.Parallel()
 
-	payload := []byte(`{"data":{"type":"articles","id":"1","relationships":{"history":{"version:state":"archived"}}}}`)
-	_, err := Unmarshal(payload)
-	var decodeError *DecodeError
-	if !errors.As(err, &decodeError) ||
-		decodeError.Path != "/data/relationships/history/version:state" ||
-		decodeError.Code != "unknown-member" {
-		t.Fatalf("unexpected core decode error: %T %#v", err, decodeError)
+	payload := []byte(`{"data":{"type":"articles","id":"1","relationships":{"history":{"data":null,"version:state":"archived"}}}}`)
+	document, err := Unmarshal(payload)
+	if err != nil {
+		t.Fatalf("unregistered member was rejected: %v", err)
+	}
+	if document.Data.one.Relationships["history"].AdditionalMembers != nil {
+		t.Fatalf("unregistered member was retained: %#v", document.Data.one.Relationships["history"].AdditionalMembers)
 	}
 
 	_, err = Marshal(Document{Data: ResourceData(ResourceObject{
@@ -448,16 +450,16 @@ func TestCodecRoundTripsIdentifierExtensionMember(t *testing.T) {
 	}
 }
 
-func TestCoreCodecRejectsIdentifierExtensionMember(t *testing.T) {
+func TestCoreCodecIgnoresIdentifierExtensionMember(t *testing.T) {
 	t.Parallel()
 
 	payload := []byte(`{"data":{"type":"articles","id":"1","relationships":{"author":{"data":{"type":"people","id":"9","version:etag":"abc"}}}}}`)
-	_, err := Unmarshal(payload)
-	var decodeError *DecodeError
-	if !errors.As(err, &decodeError) ||
-		decodeError.Path != "/data/relationships/author/data/version:etag" ||
-		decodeError.Code != "unknown-member" {
-		t.Fatalf("unexpected core decode error: %T %#v", err, decodeError)
+	document, err := Unmarshal(payload)
+	if err != nil {
+		t.Fatalf("unregistered member was rejected: %v", err)
+	}
+	if document.Data.one.Relationships["author"].Data.one.AdditionalMembers != nil {
+		t.Fatalf("unregistered member was retained: %#v", document.Data.one.Relationships["author"].Data.one.AdditionalMembers)
 	}
 
 	_, err = Marshal(Document{Data: ResourceData(ResourceObject{
@@ -550,16 +552,16 @@ func TestCodecRoundTripsJSONAPIObjectExtensionMember(t *testing.T) {
 	}
 }
 
-func TestCoreCodecRejectsJSONAPIObjectExtensionMember(t *testing.T) {
+func TestCoreCodecIgnoresJSONAPIObjectExtensionMember(t *testing.T) {
 	t.Parallel()
 
 	payload := []byte(`{"jsonapi":{"version":"1.1","version:build":"2026.07"},"data":null}`)
-	_, err := Unmarshal(payload)
-	var decodeError *DecodeError
-	if !errors.As(err, &decodeError) ||
-		decodeError.Path != "/jsonapi/version:build" ||
-		decodeError.Code != "unknown-member" {
-		t.Fatalf("unexpected core decode error: %T %#v", err, decodeError)
+	document, err := Unmarshal(payload)
+	if err != nil {
+		t.Fatalf("unregistered member was rejected: %v", err)
+	}
+	if document.JSONAPI.AdditionalMembers != nil {
+		t.Fatalf("unregistered member was retained: %#v", document.JSONAPI.AdditionalMembers)
 	}
 
 	_, err = Marshal(Document{
@@ -640,16 +642,16 @@ func TestRegisteredExtensionMemberCanQualifyErrorObject(t *testing.T) {
 	}
 }
 
-func TestCoreCodecRejectsErrorObjectExtensionMember(t *testing.T) {
+func TestCoreCodecIgnoresErrorObjectExtensionMember(t *testing.T) {
 	t.Parallel()
 
 	payload := []byte(`{"errors":[{"status":"409","version:retryable":true}]}`)
-	_, err := Unmarshal(payload)
-	var decodeError *DecodeError
-	if !errors.As(err, &decodeError) ||
-		decodeError.Path != "/errors/0/version:retryable" ||
-		decodeError.Code != "unknown-member" {
-		t.Fatalf("unexpected core decode error: %T %#v", err, decodeError)
+	document, err := Unmarshal(payload)
+	if err != nil {
+		t.Fatalf("unregistered member was rejected: %v", err)
+	}
+	if document.Errors[0].AdditionalMembers != nil {
+		t.Fatalf("unregistered member was retained: %#v", document.Errors[0].AdditionalMembers)
 	}
 
 	_, err = Marshal(Document{Errors: []ErrorObject{{
@@ -700,16 +702,16 @@ func TestCodecRoundTripsErrorSourceExtensionMember(t *testing.T) {
 	}
 }
 
-func TestCoreCodecRejectsErrorSourceExtensionMember(t *testing.T) {
+func TestCoreCodecIgnoresErrorSourceExtensionMember(t *testing.T) {
 	t.Parallel()
 
 	payload := []byte(`{"errors":[{"source":{"pointer":"/data","version:input":"body"}}]}`)
-	_, err := Unmarshal(payload)
-	var decodeError *DecodeError
-	if !errors.As(err, &decodeError) ||
-		decodeError.Path != "/errors/0/source/version:input" ||
-		decodeError.Code != "unknown-member" {
-		t.Fatalf("unexpected core decode error: %T %#v", err, decodeError)
+	document, err := Unmarshal(payload)
+	if err != nil {
+		t.Fatalf("unregistered member was rejected: %v", err)
+	}
+	if document.Errors[0].Source.AdditionalMembers != nil {
+		t.Fatalf("unregistered member was retained: %#v", document.Errors[0].Source.AdditionalMembers)
 	}
 
 	_, err = Marshal(Document{Errors: []ErrorObject{{Source: &ErrorSource{
@@ -762,16 +764,16 @@ func TestCodecRoundTripsNestedLinkObjectExtensionMembers(t *testing.T) {
 	}
 }
 
-func TestCoreCodecRejectsLinkObjectExtensionMember(t *testing.T) {
+func TestCoreCodecIgnoresLinkObjectExtensionMember(t *testing.T) {
 	t.Parallel()
 
 	payload := []byte(`{"links":{"self":{"href":"/articles","version:cache":"hit"}},"data":null}`)
-	_, err := Unmarshal(payload)
-	var decodeError *DecodeError
-	if !errors.As(err, &decodeError) ||
-		decodeError.Path != "/links/self/version:cache" ||
-		decodeError.Code != "unknown-member" {
-		t.Fatalf("unexpected core decode error: %T %#v", err, decodeError)
+	document, err := Unmarshal(payload)
+	if err != nil {
+		t.Fatalf("unregistered member was rejected: %v", err)
+	}
+	if document.Links["self"].additionalMembers != nil {
+		t.Fatalf("unregistered member was retained: %#v", document.Links["self"].additionalMembers)
 	}
 
 	_, err = Marshal(Document{

@@ -50,10 +50,11 @@ default:
 }
 ```
 
-Decoding is strict for JSON:API-defined objects. Duplicate JSON members and
-unknown members are rejected. Members beginning with `@` are ignored as the
-specification requires. Registered extension members are handled through a
-configured codec.
+Decoding rejects duplicate JSON members and invalid recognized members.
+Non-compliant members, including members beginning with `@`, are ignored and
+are not reproduced when the document is marshaled again. Registered extension
+members are handled through a configured codec before the remaining core
+document is decoded.
 
 ## Validate request-specific shapes
 

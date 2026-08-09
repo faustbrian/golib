@@ -4,11 +4,16 @@ Each row links a primary section and executable evidence. The rows group
 closely related normative statements; they do not infer server routing,
 persistence, authorization, or business semantics from package tests.
 
+Material ambiguities and authority conflicts are preserved in the
+[specification decision register](specification-decisions.md). This matrix
+shows coverage; the register explains why an observable interpretation was
+selected.
+
 ## JSON:API 1.1 core
 
 | Classification | Requirement and primary section | Implementation | Executable evidence |
 | --- | --- | --- | --- |
-| Core | [Top-level document shape and member exclusivity](https://jsonapi.org/format/#document-top-level) | strict root codec and validator | `codec_test.go`, `validation_test.go`, `presence_test.go` |
+| Core | [Top-level document shape, member exclusivity, and non-compliant-member handling](https://jsonapi.org/format/#document-top-level) | presence-aware root codec, non-compliant-member discard, and validator | `codec_test.go`, `unknown_member_test.go`, `validation_test.go`, `presence_test.go` |
 | Core | [Resource objects and identity](https://jsonapi.org/format/#document-resource-objects) | presence-aware resources and contextual identity rules | `document_test.go`, `identity_validation_test.go`, `context_validation_test.go` |
 | Core | [Resource fields and namespace constraints](https://jsonapi.org/format/#document-resource-object-fields) | field/member validator | `validation_edge_test.go`, `ownership_test.go` |
 | Core | [Resource identifier objects](https://jsonapi.org/format/#document-resource-identifier-objects) | identifier codec and validator | `identity_validation_test.go`, `validation_edge_test.go` |

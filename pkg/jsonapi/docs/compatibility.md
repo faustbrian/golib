@@ -1,5 +1,10 @@
 # Compatibility policy
 
+Resolved choices in the
+[specification decision register](specification-decisions.md) are part of this
+policy. Changing one requires specification review and a changelog entry even
+when exported Go signatures do not change.
+
 ## Versioning
 
 The project follows Semantic Versioning.

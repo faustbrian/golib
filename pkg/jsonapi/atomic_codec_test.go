@@ -139,7 +139,7 @@ func TestAtomicCodecRoundTripsResultDataAndDocumentLinks(t *testing.T) {
 	}
 }
 
-func TestUnmarshalAtomicRejectsForbiddenAndUnknownMembers(t *testing.T) {
+func TestUnmarshalAtomicRejectsForbiddenAndMalformedMembers(t *testing.T) {
 	t.Parallel()
 
 	tests := map[string]struct {
@@ -167,11 +167,6 @@ func TestUnmarshalAtomicRejectsForbiddenAndUnknownMembers(t *testing.T) {
 			path:    "/included",
 			code:    "forbidden",
 		},
-		"unknown top-level member": {
-			payload: `{"meta":{},"unknown":true}`,
-			path:    "/unknown",
-			code:    "unknown-member",
-		},
 		"jsonapi is not object": {
 			payload: `{"jsonapi":[],"meta":{}}`,
 			path:    "/jsonapi",
@@ -192,11 +187,6 @@ func TestUnmarshalAtomicRejectsForbiddenAndUnknownMembers(t *testing.T) {
 			path:    "/atomic:operations/0",
 			code:    "type",
 		},
-		"unknown operation member": {
-			payload: `{"atomic:operations":[{"op":"remove","href":"/articles/1","unknown":true}]}`,
-			path:    "/atomic:operations/0/unknown",
-			code:    "unknown-member",
-		},
 		"duplicate operation member": {
 			payload: `{"atomic:operations":[{"op":"remove","op":"add","href":"/articles/1"}]}`,
 			path:    "/atomic:operations/0/op",
@@ -211,11 +201,6 @@ func TestUnmarshalAtomicRejectsForbiddenAndUnknownMembers(t *testing.T) {
 			payload: `{"atomic:operations":[{"op":"remove","ref":null}]}`,
 			path:    "/atomic:operations/0/ref",
 			code:    "type",
-		},
-		"unknown reference member": {
-			payload: `{"atomic:operations":[{"op":"remove","ref":{"type":"articles","id":"1","unknown":true}}]}`,
-			path:    "/atomic:operations/0/ref/unknown",
-			code:    "unknown-member",
 		},
 		"reference type is not string": {
 			payload: `{"atomic:operations":[{"op":"remove","ref":{"type":1,"id":"1"}}]}`,
@@ -261,11 +246,6 @@ func TestUnmarshalAtomicRejectsForbiddenAndUnknownMembers(t *testing.T) {
 			payload: `{"atomic:results":[null]}`,
 			path:    "/atomic:results/0",
 			code:    "type",
-		},
-		"unknown result member": {
-			payload: `{"atomic:results":[{"unknown":true}]}`,
-			path:    "/atomic:results/0/unknown",
-			code:    "unknown-member",
 		},
 		"result data has scalar shape": {
 			payload: `{"atomic:results":[{"data":1}]}`,

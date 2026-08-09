@@ -30,10 +30,11 @@ values are supported without using reflection to infer JSON:API structure.
 Core decoding proceeds in this order:
 
 1. verify valid JSON and reject duplicate object members;
-2. decode JSON:API-defined objects while rejecting unknown members;
-3. ignore `@`-members where forward-compatible processing requires it;
+2. extract registered extension members when a configured `Codec` is used;
+3. discard non-compliant members from JSON:API-defined objects;
 4. preserve JSON numbers with `json.Number`;
-5. validate document shape, identities, linkage, links, and context;
+5. validate every recognized member, document shape, identity, linkage, link,
+   and context invariant;
 6. return typed `DecodeError` or `ValidationError` values.
 
 A configured `Codec` first extracts registered extension members from their
@@ -60,7 +61,9 @@ that distinction:
   and optional value validators;
 - `ProfileDefinition` registers an absolute URI and optional whole-document
   semantic validator;
-- unknown extension members remain invalid core members;
+- unregistered or unapplied extension members are ignored during decoding and
+  are not retained;
+- encoding extension members requires an applied, scope-specific registration;
 - application behavior outside these seams remains the caller's concern.
 
 ## Atomic execution boundary

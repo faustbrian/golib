@@ -20,8 +20,8 @@ Status meanings:
 | Compound documents and full linkage | Implemented | included-resource validation |
 | Local identifiers | Implemented | `LID`, identity validation |
 | Null, to-one, and to-many data presence | Implemented | explicit constructors and round trips |
-| Duplicate and unknown member rejection | Implemented | strict decoder |
-| `@`-member forward compatibility | Implemented | recursive stripping in defined containers |
+| Duplicate-member rejection | Implemented | duplicate-aware decoder |
+| Non-compliant member forward compatibility | Implemented | ignore-on-decode across defined containers |
 | JSON:API 1.1 link objects | Implemented | `LinkObject`, nested `describedby`, `hreflang` |
 | Extension/profile declarations | Implemented | `JSONAPI.Ext`, `JSONAPI.Profile`, URI validation |
 | Extension-defined members | Implemented | registered `Codec` scopes, including links and link objects |

@@ -77,18 +77,15 @@ func UnmarshalAtomicWithLimits(
 			nil,
 		)
 	}
-	if err := rejectUnknown(
+	discardUnknown(
 		root,
-		"",
 		"jsonapi",
 		"links",
 		"atomic:operations",
 		"atomic:results",
 		"errors",
 		"meta",
-	); err != nil {
-		return AtomicDocument{}, err
-	}
+	)
 
 	var document AtomicDocument
 	if raw, exists := root["jsonapi"]; exists {
@@ -254,9 +251,7 @@ func decodeAtomicOperation(raw json.RawMessage, path string) (AtomicOperation, e
 	if err != nil {
 		return AtomicOperation{}, err
 	}
-	if err := rejectUnknown(object, path, "op", "ref", "href", "data", "meta"); err != nil {
-		return AtomicOperation{}, err
-	}
+	discardUnknown(object, "op", "ref", "href", "data", "meta")
 
 	var operation AtomicOperation
 	if value, exists := object["op"]; exists {
@@ -302,9 +297,7 @@ func decodeAtomicReference(raw json.RawMessage, path string) (AtomicReference, e
 	if err != nil {
 		return AtomicReference{}, err
 	}
-	if err := rejectUnknown(object, path, "type", "id", "lid", "relationship"); err != nil {
-		return AtomicReference{}, err
-	}
+	discardUnknown(object, "type", "id", "lid", "relationship")
 
 	var reference AtomicReference
 	fields := []struct {
@@ -359,9 +352,7 @@ func decodeAtomicResult(raw json.RawMessage, path string) (AtomicResult, error) 
 	if err != nil {
 		return AtomicResult{}, err
 	}
-	if err := rejectUnknown(object, path, "data", "meta"); err != nil {
-		return AtomicResult{}, err
-	}
+	discardUnknown(object, "data", "meta")
 
 	var result AtomicResult
 	if value, exists := object["data"]; exists {
