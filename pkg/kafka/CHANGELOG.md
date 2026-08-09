@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove three independent OAUTHBEARER producers cross three broker-enforced
+  reauthentication cycles through successive signed-JWT replacements, refresh
+  every provider, and preserve every acknowledged record without claiming
+  immediate rejection of still-valid retired tokens
 - extend live mTLS renewal evidence to three independent producers, require
   every certificate provider after broker-enforced reconnect, and preserve all
   acknowledged records in exact broker order

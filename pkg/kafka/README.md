@@ -409,10 +409,14 @@ An authenticated but ACL-denied principal also proves producer and inspector
 authorization failures. Three independent producers for each SCRAM mechanism
 cross broker-enforced reauthentication through three successive credential
 replacements, refresh every provider, verify every acknowledged record, and
-reject every retired secret. Three provider-backed PLAIN producers additionally
-recover after a bounded broker restart replaces the server credential, verify
-every acknowledged record, and reject the retired password. This does not
-claim zero-downtime PLAIN rotation. Three independent mTLS producers also
+reject every retired secret. Three independent OAUTHBEARER producers similarly
+cross three broker-enforced reauthentication cycles through successive signed
+JWT replacements, refresh every provider, and preserve every acknowledged
+record; retired tokens remain valid until their signed expiry. Three
+provider-backed PLAIN producers additionally recover after a bounded broker
+restart replaces the server credential, verify every acknowledged record, and
+reject the retired password. This does not claim zero-downtime PLAIN rotation.
+Three independent mTLS producers also
 reconnect after broker-enforced idle disconnects, obtain a separately issued
 replacement certificate from every provider, and preserve every acknowledged
 record. A compact-only Apache topic also proves replay fails closed on a missing

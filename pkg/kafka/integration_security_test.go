@@ -1597,6 +1597,8 @@ func secureKafkaServerProperties(mode secureKafkaMode, endpoint string) string {
 	case secureKafkaOAuth:
 		properties += "ssl.client.auth=none\n" +
 			"sasl.enabled.mechanisms=OAUTHBEARER\n" +
+			"listener.name.sasl_ssl.oauthbearer." +
+			"connections.max.reauth.ms=3000\n" +
 			"listener.name.sasl_ssl.oauthbearer.sasl.jaas.config=" +
 			"org.apache.kafka.common.security.oauthbearer." +
 			"OAuthBearerLoginModule required;\n" +

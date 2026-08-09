@@ -124,6 +124,11 @@ The fixtures prove:
   replacements, invoke every package provider again, preserve every
   acknowledged record, and reject every retired credential on a new
   connection; and
+- live OAUTHBEARER token replacement: three independent producers cross
+  Kafka's three-second broker-enforced reauthentication lifetime through three
+  successive signed-JWT replacements, invoke every package provider again, and
+  preserve every acknowledged record; retired tokens are not claimed rejected
+  before their signed expiry; and
 - live mTLS client-certificate renewal: three independent producers observe
   Kafka's broker-enforced idle disconnect, invoke every package provider with a
   separately issued replacement certificate signed by the same CA, reconnect,
@@ -148,8 +153,8 @@ and the pinned
 [SASL channel reconfiguration source](https://github.com/apache/kafka/blob/4.3.1/clients/src/main/java/org/apache/kafka/common/network/SaslChannelBuilder.java#L189-L207).
 
 This proves interoperability only with the pinned Apache fixture. Prolonged
-multi-client mTLS rollover stress, OAuth rotation stress, zero-downtime
-multi-broker PLAIN cutover, JWKS refresh and signing-key rollover,
+multi-client mTLS rollover stress, external OAuth token acquisition,
+zero-downtime multi-broker PLAIN cutover, JWKS refresh and signing-key rollover,
 transactional-ID authorization failures, ACL changes during live traffic, and
 managed-service authentication remain separate required evidence. The fixture
 does not use Kafka's
