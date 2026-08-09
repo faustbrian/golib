@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Scope gate fingerprints to the tool versions and service images that can
+  affect each selected gate, preventing unrelated version-pin changes from
+  invalidating otherwise identical verification and mutation evidence.
 - Resolve changed-line mutation selection relative to nested module roots and
   preserve every non-contiguous added line in a diff hunk, preventing valid
   mutants from being silently skipped in focused verification without

@@ -1448,7 +1448,7 @@ require example.invalid/unpublished v0.0.0-20990101000000-deadbeefdead
     "module_path": "example.test/example",
     "owned_dependencies": [],
     "test_tags": [],
-    "required_services": [],
+    "required_services": ["postgresql"],
     "go_version": "1.26.5",
     "gates": {"mutation": true},
     "packages": [
@@ -1459,7 +1459,11 @@ require example.invalid/unpublished v0.0.0-20990101000000-deadbeefdead
   }]
 }`)
 	writeFile(t, filepath.Join(repository, "packages.json"), `{"packages":[]}`)
-	writeFile(t, filepath.Join(repository, ".golib", "versions.env"), "GREMLINS_VERSION=v0.6.0\n")
+	versionsFile := filepath.Join(repository, ".golib", "versions.env")
+	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+POSTGRES_IMAGE=postgres:18.4-alpine
+KEYCLOAK_IMAGE=keycloak:first
+`)
 	writeFile(t, filepath.Join(repository, ".golib", "mutation-zero-inventory.json"), `{"packages":[]}`)
 	for _, path := range []string{
 		"scripts/build-golib-gremlins.sh",
@@ -1603,6 +1607,31 @@ func TestValue(t *testing.T) {
 
 	initial := digest()
 	legacyInitial := digestWithResolution("legacy-stable")
+	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+POSTGRES_IMAGE=postgres:18.4-alpine
+KEYCLOAK_IMAGE=keycloak:second
+`)
+	if current := digest(); current != initial {
+		t.Fatalf("unrelated tool version changed mutation digest: %s != %s", current, initial)
+	}
+	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+POSTGRES_IMAGE=postgres:18.5-alpine
+KEYCLOAK_IMAGE=keycloak:second
+`)
+	if current := digest(); current == initial {
+		t.Fatal("required service image did not change mutation digest")
+	}
+	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.1
+POSTGRES_IMAGE=postgres:18.4-alpine
+KEYCLOAK_IMAGE=keycloak:second
+`)
+	if current := digest(); current == initial {
+		t.Fatal("mutation tool version did not change mutation digest")
+	}
+	writeFile(t, versionsFile, `GREMLINS_VERSION=v0.6.0
+POSTGRES_IMAGE=postgres:18.4-alpine
+KEYCLOAK_IMAGE=keycloak:second
+`)
 	moduleCatalog := filepath.Join(repository, "modules.json")
 	catalogContents, err := os.ReadFile(moduleCatalog)
 	if err != nil {
@@ -1804,6 +1833,7 @@ func TestGateInputDigestTracksDocumentationOnlyForRelevantGates(t *testing.T) {
       "directory": "pkg/example",
       "module_path": "example.test/example",
       "owned_dependencies": [],
+      "required_services": ["postgresql"],
       "gates": {
         "documentation": true,
         "security": true,
@@ -1883,7 +1913,11 @@ go 1.26.5
 	writeTestFile(t, snapshotOrchestratorScript, "snapshot orchestration\n")
 	versionsFile := filepath.Join(root, ".golib", "versions.env")
 	mutationInventory := filepath.Join(root, ".golib", "mutation-zero-inventory.json")
-	writeTestFile(t, versionsFile, "TOOL_VERSION=v1.0.0\n")
+	writeTestFile(t, versionsFile, `GOLANGCI_LINT_VERSION=v1.0.0
+GITLEAKS_VERSION=v1.0.0
+POSTGRES_IMAGE=postgres:18.4-alpine
+KEYCLOAK_IMAGE=keycloak:first
+`)
 	writeTestFile(t, mutationInventory, "{\"packages\":[]}\n")
 
 	initialize := exec.Command("git", "init", "--quiet")
@@ -1976,11 +2010,41 @@ go 1.26.5
 			testBefore,
 		)
 	}
-	writeTestFile(t, versionsFile, "TOOL_VERSION=v1.0.1\n")
-	if current := digest("test"); current == testBefore {
-		t.Fatal("tool versions did not change test digest")
+	writeTestFile(t, versionsFile, `GOLANGCI_LINT_VERSION=v1.0.0
+GITLEAKS_VERSION=v1.0.0
+POSTGRES_IMAGE=postgres:18.4-alpine
+KEYCLOAK_IMAGE=keycloak:second
+`)
+	if current := digest("test"); current != testBefore {
+		t.Fatalf("unrelated tool version changed test digest: %s != %s", current, testBefore)
 	}
-	writeTestFile(t, versionsFile, "TOOL_VERSION=v1.0.0\n")
+	if current := digest("lint"); current != lintBefore {
+		t.Fatalf("unrelated tool version changed lint digest: %s != %s", current, lintBefore)
+	}
+	writeTestFile(t, versionsFile, `GOLANGCI_LINT_VERSION=v1.0.1
+GITLEAKS_VERSION=v1.0.0
+POSTGRES_IMAGE=postgres:18.4-alpine
+KEYCLOAK_IMAGE=keycloak:second
+`)
+	if current := digest("test"); current != testBefore {
+		t.Fatalf("lint version changed test digest: %s != %s", current, testBefore)
+	}
+	if current := digest("lint"); current == lintBefore {
+		t.Fatal("lint version did not change lint digest")
+	}
+	writeTestFile(t, versionsFile, `GOLANGCI_LINT_VERSION=v1.0.0
+GITLEAKS_VERSION=v1.0.0
+POSTGRES_IMAGE=postgres:18.5-alpine
+KEYCLOAK_IMAGE=keycloak:second
+`)
+	if current := digest("test"); current == testBefore {
+		t.Fatal("required service image did not change test digest")
+	}
+	writeTestFile(t, versionsFile, `GOLANGCI_LINT_VERSION=v1.0.0
+GITLEAKS_VERSION=v1.0.0
+POSTGRES_IMAGE=postgres:18.4-alpine
+KEYCLOAK_IMAGE=keycloak:second
+`)
 	writeTestFile(t, mutationCommandScript, "revised mutation command\n")
 	if current := digest("test"); current != testBefore {
 		t.Fatalf(

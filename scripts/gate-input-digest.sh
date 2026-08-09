@@ -41,6 +41,63 @@ append_value() {
     printf 'value  %s=%s\n' "$1" "$2" >>"${manifest}"
 }
 
+append_version_value() {
+    local name="$1"
+    local value
+    if ! value="$({
+        # shellcheck source=/dev/null
+        source "${root}/.golib/versions.env"
+        set +u
+        printf '%s' "${!name}"
+    })" || [[ -z "${value}" ]]; then
+        printf 'required version value is missing: %s\n' "${name}" >&2
+        exit 1
+    fi
+    append_value "version:${name}" "${value}"
+}
+
+append_required_service_versions() {
+    local service variable
+    while IFS= read -r service; do
+        [[ -n "${service}" ]] || continue
+        case "${service}" in
+            postgresql) variable=POSTGRES_IMAGE ;;
+            valkey) variable=VALKEY_IMAGE ;;
+            redis) variable=REDIS_IMAGE ;;
+            nats) variable=NATS_IMAGE ;;
+            nsq) variable=NSQ_IMAGE ;;
+            rabbitmq) variable=RABBITMQ_IMAGE ;;
+            *)
+                printf 'unsupported required service %s for %s\n' \
+                    "${service}" "${module}" >&2
+                exit 1
+                ;;
+        esac
+        append_version_value "${variable}"
+    done < <(jq -r --arg directory "${module}" '
+        .modules[]
+        | select(.directory == $directory)
+        | (.required_services // [])[]
+    ' "${root}/modules.json" | LC_ALL=C sort -u)
+}
+
+append_gate_tool_versions() {
+    case "${gate}" in
+        lint) append_version_value GOLANGCI_LINT_VERSION ;;
+        staticcheck) append_version_value STATICCHECK_VERSION ;;
+        nilaway) append_version_value NILAWAY_VERSION ;;
+        vulnerability) append_version_value GOVULNCHECK_VERSION ;;
+        secrets) append_version_value GITLEAKS_VERSION ;;
+        licenses) append_version_value GO_LICENSES_VERSION ;;
+        sbom) append_version_value CYCLONEDX_VERSION ;;
+        api|api-update) append_version_value APIDIFF_VERSION ;;
+        workflow) append_version_value ACTIONLINT_VERSION ;;
+        # Interoperability scripts may use package-specific pinned tools that
+        # are not yet represented individually in the module catalog.
+        interoperability) append_file "${root}/.golib/versions.env" ;;
+    esac
+}
+
 append_file() {
     local file="$1"
     local relative digest
@@ -133,7 +190,8 @@ append_module_files() {
 }
 
 append_tool_inputs() {
-    append_file "${root}/.golib/versions.env"
+    append_version_value GREMLINS_VERSION
+    append_required_service_versions
     append_file "${root}/scripts/internal/mutation-command.sh"
     append_file "${root}/scripts/internal/mutation-coverage.sh"
     append_file "${root}/scripts/patches/gremlins-run-all-mutants.patch"
@@ -169,12 +227,13 @@ append_verification_environment() {
 append_verification_tool_files() {
     local check_module_digest
     local paths=(
-        .golib/versions.env
         scripts/create-verification-snapshot.sh
         scripts/run-modules.sh
         scripts/start-services.sh
         scripts/stop-services.sh
     )
+    append_gate_tool_versions
+    append_required_service_versions
     case "${gate}" in
         format-check|workspace-test|safety|benchmark|release-public) ;;
         *)
