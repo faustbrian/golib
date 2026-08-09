@@ -237,7 +237,7 @@ func TestTotalIsExactAcrossOrderSensitiveIntermediateMagnitudes(t *testing.T) {
 	}
 }
 
-func mustEuro(t *testing.T, amount string) money.Money {
+func mustEuro(t testing.TB, amount string) money.Money {
 	t.Helper()
 	code, err := currency.Parse("EUR")
 	if err != nil {

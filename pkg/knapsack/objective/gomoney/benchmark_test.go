@@ -113,6 +113,47 @@ func BenchmarkComparisonOverhead(b *testing.B) {
 	})
 }
 
+func BenchmarkLookupOverhead(b *testing.B) {
+	one := mustEuro(b, "1.25")
+	zero, err := one.Sub(one)
+	if err != nil {
+		b.Fatal(err)
+	}
+	costs, err := gomoney.New(map[string]money.Money{"box": one})
+	if err != nil {
+		b.Fatal(err)
+	}
+	plan := benchmarkPlan(b, "box")
+
+	b.Run("objective", func(b *testing.B) {
+		var total money.Money
+		b.ReportAllocs()
+		for b.Loop() {
+			total, err = costs.Total(plan)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+		if !total.Valid() {
+			b.Fatal("unexpected invalid total")
+		}
+	})
+
+	b.Run("direct_money", func(b *testing.B) {
+		var total money.Money
+		b.ReportAllocs()
+		for b.Loop() {
+			total, err = zero.Add(one)
+			if err != nil {
+				b.Fatal(err)
+			}
+		}
+		if !total.Valid() {
+			b.Fatal("unexpected invalid total")
+		}
+	})
+}
+
 func benchmarkPlan(b *testing.B, typeIDs ...string) knapsack.Plan {
 	b.Helper()
 	containers := make([]knapsack.ContainerInstance, len(typeIDs))

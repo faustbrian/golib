@@ -1,14 +1,18 @@
 package gomoney_test
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"math/rand/v2"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/international/currency"
 	"github.com/faustbrian/golib/pkg/knapsack/objective/gomoney"
+	"github.com/faustbrian/golib/pkg/knapsack/solver"
 	"github.com/faustbrian/golib/pkg/money"
 )
 
@@ -25,9 +29,9 @@ func TestTotalsAndOrderingMatchDirectExactMoneyArithmetic(t *testing.T) {
 		directCosts := make(map[string]money.Money, len(entries))
 		for index := range entries {
 			typeID := fmt.Sprintf("type-%d", index)
-			minorUnits := random.Int64N(10_000)
+			amount := random.Int64N(20_001) - 10_000
 			cost, err := money.Parse(
-				fmt.Sprintf("%d.%02d", minorUnits/100, minorUnits%100),
+				strconv.FormatInt(amount, 10),
 				euro,
 				moneyContext,
 			)
@@ -45,11 +49,13 @@ func TestTotalsAndOrderingMatchDirectExactMoneyArithmetic(t *testing.T) {
 			reversed := entries[len(entries)-1-index]
 			reverse[reversed.TypeID] = reversed.Cost
 		}
-		forwardCosts, err := gomoney.New(forward)
+		policy := gomoney.DefaultPolicy()
+		policy.AllowNegativeCosts = true
+		forwardCosts, err := gomoney.NewWithPolicy(forward, policy)
 		if err != nil {
 			t.Fatal(err)
 		}
-		reverseCosts, err := gomoney.New(reverse)
+		reverseCosts, err := gomoney.NewWithPolicy(reverse, policy)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -97,25 +103,39 @@ func TestCostsAreSafeForConcurrentSolverUse(t *testing.T) {
 	t.Parallel()
 
 	one := mustEuro(t, "1.00")
-	costs, err := gomoney.New(map[string]money.Money{"box": one})
+	large, err := money.Parse("3.00", one.Currency(), one.Context())
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan := mustPlan(t, "box", "box")
+	costs, err := gomoney.New(map[string]money.Money{"small": one, "large": large})
+	if err != nil {
+		t.Fatal(err)
+	}
+	request := exactMoneyRequest(t)
+	want, err := (solver.Exact{}).PackAll(
+		context.Background(), request.Normalized(), solver.Options{PlanObjective: costs},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	const workers = 16
 	errorsFound := make(chan error, workers)
 	var wait sync.WaitGroup
 	for range workers {
 		wait.Go(func() {
-			for range 100 {
-				total, totalErr := costs.Total(plan)
-				if totalErr != nil {
-					errorsFound <- totalErr
+			for range 5 {
+				plan, solveErr := (solver.Exact{}).PackAll(
+					context.Background(),
+					request.Normalized(),
+					solver.Options{PlanObjective: costs},
+				)
+				if solveErr != nil {
+					errorsFound <- solveErr
 					return
 				}
-				if total.String() != "2.00 EUR" {
-					errorsFound <- fmt.Errorf("concurrent total = %s", total.String())
+				if plan.CanonicalString() != want.CanonicalString() {
+					errorsFound <- errors.New("concurrent solver ranking changed")
 					return
 				}
 			}

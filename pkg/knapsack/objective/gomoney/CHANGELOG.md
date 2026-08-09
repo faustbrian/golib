@@ -10,6 +10,8 @@ All notable changes to this module are documented here.
   empty-plan totals, and module adoption and API documentation.
 - Add allocation-aware total and comparison benchmarks plus bounded fuzz and
   property coverage for exact mappings and hostile identifiers.
+- Add cross-process ranking goldens, concurrent solver reuse, solver-callback
+  fuzzing, direct lookup benchmarks, and an ambient-dependency policy audit.
 
 ### Fixed
 

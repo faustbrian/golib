@@ -1,6 +1,7 @@
 package gomoney_test
 
 import (
+	"context"
 	"errors"
 	"strconv"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/faustbrian/golib/pkg/international/currency"
 	"github.com/faustbrian/golib/pkg/knapsack/objective/gomoney"
+	"github.com/faustbrian/golib/pkg/knapsack/solver"
 	"github.com/faustbrian/golib/pkg/money"
 )
 
@@ -102,6 +104,107 @@ func FuzzCostMappings(f *testing.F) {
 		equal, equalErr := firstTotal.Equal(secondTotal)
 		if equalErr != nil || !equal {
 			t.Fatalf("totals differ: %s and %s (%v)", firstTotal, secondTotal, equalErr)
+		}
+	})
+}
+
+func FuzzSolverCostObjective(f *testing.F) {
+	f.Add(int64(60), int64(150), uint8(2), false, false)
+	f.Add(int64(-60), int64(-150), uint8(3), true, false)
+	f.Add(int64(0), int64(0), uint8(1), false, false)
+	f.Add(int64(1<<62), int64(-(1 << 62)), uint8(2), true, true)
+
+	euro, err := currency.Parse("EUR")
+	if err != nil {
+		f.Fatal(err)
+	}
+	moneyContext, err := money.CustomContext(2)
+	if err != nil {
+		f.Fatal(err)
+	}
+	request := exactMoneyRequest(f)
+
+	f.Fuzz(func(t *testing.T, smallAmount, largeAmount int64, rawMaxTypes uint8, reverse, cancelled bool) {
+		small, parseErr := money.Parse(strconv.FormatInt(smallAmount, 10), euro, moneyContext)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		large, parseErr := money.Parse(strconv.FormatInt(largeAmount, 10), euro, moneyContext)
+		if parseErr != nil {
+			t.Fatal(parseErr)
+		}
+		mapping := make(map[string]money.Money, 2)
+		if reverse {
+			mapping["large"] = large
+			mapping["small"] = small
+		} else {
+			mapping["small"] = small
+			mapping["large"] = large
+		}
+		maximumTypes := uint32(rawMaxTypes % 4)
+		costs, newErr := gomoney.NewWithPolicy(mapping, gomoney.Policy{
+			Limits:             gomoney.Limits{MaxTypes: maximumTypes, MaxIDBytes: 5},
+			AllowNegativeCosts: true,
+		})
+		if maximumTypes < 2 {
+			if !errors.Is(newErr, gomoney.ErrInvalidCosts) {
+				t.Fatalf("constructor limit error = %v", newErr)
+			}
+			return
+		}
+		if newErr != nil {
+			t.Fatal(newErr)
+		}
+		mapping["small"] = large
+		delete(mapping, "large")
+
+		ctx, cancel := canceledContext(cancelled)
+		defer cancel()
+		first, solveErr := (solver.Exact{}).PackAll(
+			ctx, request.Normalized(), solver.Options{PlanObjective: costs},
+		)
+		if cancelled {
+			if !errors.Is(solveErr, context.Canceled) {
+				t.Fatalf("cancelled solver error = %v", solveErr)
+			}
+			return
+		}
+		if solveErr != nil {
+			t.Fatal(solveErr)
+		}
+		second, solveErr := (solver.Exact{}).PackAll(
+			context.Background(), request.Normalized(),
+			solver.Options{PlanObjective: costs},
+		)
+		if solveErr != nil {
+			t.Fatal(solveErr)
+		}
+		if first.CanonicalString() != second.CanonicalString() {
+			t.Fatal("identical solver callbacks produced different plans")
+		}
+
+		zero, zeroErr := small.Sub(small)
+		if zeroErr != nil {
+			t.Fatal(zeroErr)
+		}
+		want := zero
+		for _, container := range first.Containers() {
+			cost := small
+			if container.TypeID == "large" {
+				cost = large
+			}
+			want, zeroErr = want.Add(cost)
+			if zeroErr != nil {
+				t.Fatal(zeroErr)
+			}
+		}
+		got, totalErr := costs.Total(first)
+		if totalErr != nil {
+			t.Fatal(totalErr)
+		}
+		equal, equalErr := got.Equal(want)
+		if equalErr != nil || !equal {
+			t.Fatalf("solver total = %s, direct total = %s (%v)", got, want, equalErr)
 		}
 	})
 }
