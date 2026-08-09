@@ -26,6 +26,8 @@ versioning once released.
   treating exit after cancellation as normal shutdown.
 - Reject concurrent or repeated typed-worker run calls so exactly one backend
   intake loop owns deliveries and settlement.
+- Stabilize durable recovery verification by keeping replacement-worker test
+  leases beyond the active handler and settlement window.
 
 ### Added
 

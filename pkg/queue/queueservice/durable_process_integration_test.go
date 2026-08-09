@@ -24,7 +24,7 @@ import (
 
 const durableBackendProcessHelper = "QUEUE_SERVICE_DURABLE_BACKEND_PROCESS_HELPER"
 
-const durableProcessLease = time.Second
+const durableProcessLease = 3 * time.Second
 
 func TestDurableBackendProcessTerminationDuplicateWindowAndRecovery(t *testing.T) {
 	backends := []struct {
