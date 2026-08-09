@@ -107,7 +107,7 @@ func (loader *FSLoader) Load(ctx context.Context, identifier string) ([]byte, er
 		)
 	}
 	name := strings.TrimPrefix(requested.Path, loader.base.Path)
-	if !fs.ValidPath(name) || name == "." {
+	if !validFilesystemResourcePath(name) {
 		return nil, fmt.Errorf(
 			"%w: %q",
 			ErrResourceNotFound,
@@ -122,6 +122,10 @@ func (loader *FSLoader) Load(ctx context.Context, identifier string) ([]byte, er
 		return nil, err
 	}
 	return raw, nil
+}
+
+func validFilesystemResourcePath(name string) bool {
+	return fs.ValidPath(name) && name != "."
 }
 
 // CompositeLoader tries loaders in order and falls through only when a loader

@@ -158,7 +158,6 @@ var (
 	uuidPattern = regexp.MustCompile(
 		`^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$`,
 	)
-	schemePattern = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9+.-]*$`)
 )
 
 var cssColors = map[string]struct{}{
@@ -202,7 +201,7 @@ func validDate(value string) bool {
 	day, _ := strconv.Atoi(match[3])
 	parsed := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
 
-	return parsed.Year() == year && int(parsed.Month()) == month && parsed.Day() == day
+	return parsed.Format("2006-01-02") == value
 }
 
 func validTime(value string) bool {
@@ -240,15 +239,11 @@ func validTime(value string) bool {
 }
 
 func validLegacyTime(value string) bool {
-	if len(value) != len("00:00:00") || value[2] != ':' || value[5] != ':' {
+	if len(value) != len("00:00:00") {
 		return false
 	}
-	hour, hourErr := strconv.Atoi(value[0:2])
-	minute, minuteErr := strconv.Atoi(value[3:5])
-	second, secondErr := strconv.Atoi(value[6:8])
-
-	return hourErr == nil && minuteErr == nil && secondErr == nil &&
-		hour <= 23 && minute <= 59 && second <= 59
+	_, err := time.Parse("15:04:05", value)
+	return err == nil
 }
 
 func validDateTime(value string) bool {
@@ -333,22 +328,14 @@ func validRegexWithLimits(value string, limits Limits) (bool, error) {
 			Limit:    limits.MaxRegexBytes,
 		}
 	}
-	if strings.Contains(value, "(?P<") || strings.Contains(value, "(?P=") {
-		return false, nil
-	}
 	escaped := false
 	for _, character := range []byte(value) {
 		if escaped {
 			escaped = false
-			if character == '\\' {
-				continue
-			}
 			if isASCIIAlpha(character) && !strings.ContainsRune("bfnrtvcdDsSwWpPkux", rune(character)) {
 				return false, nil
 			}
-			continue
-		}
-		if character == '\\' {
+		} else if character == '\\' {
 			escaped = true
 		}
 	}
@@ -415,7 +402,7 @@ func lastUnquotedAt(value string) int {
 			separator = index
 		}
 	}
-	if quoted || escaped {
+	if quoted {
 		return -1
 	}
 	return separator
@@ -430,13 +417,9 @@ func validLocalPart(value string, international bool) bool {
 		for _, character := range value[1 : len(value)-1] {
 			if escaped {
 				escaped = false
-				continue
-			}
-			if character == '\\' {
+			} else if character == '\\' {
 				escaped = true
-				continue
-			}
-			if character == '"' || invalidEmailRune(character, international) {
+			} else if character == '"' || invalidEmailRune(character, international) {
 				return false
 			}
 		}
@@ -516,10 +499,6 @@ func validASCIILabel(label string) bool {
 }
 
 func validIDNHostname(value string) bool {
-	if value == "" || !utf8.ValidString(value) ||
-		strings.HasPrefix(value, ".") || strings.HasSuffix(value, ".") {
-		return false
-	}
 	normalized, err := idna.Lookup.ToUnicode(value)
 	if err != nil {
 		return false
@@ -631,17 +610,24 @@ func validIRIReference(value string) bool {
 }
 
 func parseIdentifier(value string, international bool) (*url.URL, bool) {
-	if !utf8.ValidString(value) || strings.ContainsAny(value, "\\\"<>[]{}^`| \t\r\n") {
-		// Brackets are permitted only as the delimiters of an IP literal.
-		if !strings.Contains(value, "[") || strings.ContainsAny(value, "\\\"<>{}^`| \t\r\n") {
-			return nil, false
-		}
+	if !utf8.ValidString(value) {
+		return nil, false
 	}
-	if !validPercentEncoding(value) || !international && !isASCII(value) {
+	if strings.ContainsAny(value, "\\\"<>{}^`| \t\r\n") {
+		return nil, false
+	}
+	if !validPercentEncoding(value) || (!international && !isASCII(value)) {
 		return nil, false
 	}
 	parsed, err := url.Parse(value)
-	if err != nil || parsed.Scheme != "" && !schemePattern.MatchString(parsed.Scheme) {
+	if err != nil {
+		return nil, false
+	}
+	// Literal brackets are valid only when they came from the parsed authority.
+	if strings.Count(value, "[") != strings.Count(parsed.Host, "[") {
+		return nil, false
+	}
+	if strings.Count(value, "]") != strings.Count(parsed.Host, "]") {
 		return nil, false
 	}
 	if parsed.Host != "" && !validIdentifierAuthority(parsed, international) {
@@ -674,14 +660,15 @@ func validIdentifierAuthority(parsed *url.URL, international bool) bool {
 }
 
 func validPercentEncoding(value string) bool {
-	for index := 0; index < len(value); index++ {
-		if value[index] != '%' {
-			continue
+	for value != "" {
+		if value[0] != '%' {
+			value = value[1:]
+		} else {
+			if len(value) < 3 || !isHex(value[1]) || !isHex(value[2]) {
+				return false
+			}
+			value = value[3:]
 		}
-		if index+2 >= len(value) || !isHex(value[index+1]) || !isHex(value[index+2]) {
-			return false
-		}
-		index += 2
 	}
 	return true
 }

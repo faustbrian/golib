@@ -210,7 +210,7 @@ func (compiler *schemaCompiler) vocabularyPolicy(value *jsonValue) (vocabularyPo
 		return policy, nil
 	}
 	root := compiler.resources[resourceIdentifier]
-	if root == nil || root.kind != kindObject {
+	if root == nil {
 		compiler.vocabularyPolicies[resourceIdentifier] = policy
 		return policy, nil
 	}
@@ -1265,8 +1265,9 @@ func (
 	if err != nil {
 		return nil, "", err
 	}
-	parsed, err := url.Parse(reference)
-	if err != nil || parsed.Fragment == "" {
+	// resolveReference has already parsed and normalized the same reference.
+	parsed, _ := url.Parse(reference)
+	if parsed.Fragment == "" {
 		return target, "", nil
 	}
 	resource := compiler.resourceFor[target]
@@ -1482,13 +1483,14 @@ func compileSchemaArray(
 	if value.kind != kindArray || !allowEmpty && len(value.array) == 0 {
 		return nil, fmt.Errorf("schema array must not be empty")
 	}
-	compiler.combinatorBranches += len(value.array)
-	if compiler.combinatorBranches > compiler.limits.MaxCombinatorBranches {
+	branchCount := compiler.combinatorBranches + len(value.array)
+	if branchCount > compiler.limits.MaxCombinatorBranches {
 		return nil, &LimitError{
 			Resource: "combinator branches",
 			Limit:    compiler.limits.MaxCombinatorBranches,
 		}
 	}
+	compiler.combinatorBranches = branchCount
 
 	plans := make([]*schemaPlan, 0, len(value.array))
 	for index, item := range value.array {
@@ -1927,43 +1929,20 @@ func (
 		}
 	}
 	if len(plan.types) > 0 {
-		matched := false
-		for _, expected := range plan.types {
-			if expected.schema != nil {
-				valid, err := expected.schema.evaluate(instance, dialect, state)
-				if err != nil {
-					return false, err
-				}
-				if valid {
-					matched = true
-					break
-				}
-
-				continue
-			}
-			if matchesType(instance, expected.name, dialect) {
-				matched = true
-				break
-			}
+		matched, err := anyTypePlanMatches(plan.types, instance, dialect, state)
+		if err != nil {
+			return false, err
 		}
 		if !matched {
 			return false, nil
 		}
 	}
-	for _, disallowed := range plan.disallowedTypes {
-		if disallowed.schema != nil {
-			valid, err := disallowed.schema.evaluate(instance, dialect, state)
-			if err != nil {
-				return false, err
-			}
-			if valid {
-				return false, nil
-			}
-			continue
-		}
-		if matchesType(instance, disallowed.name, dialect) {
-			return false, nil
-		}
+	disallowed, err := anyTypePlanMatches(plan.disallowedTypes, instance, dialect, state)
+	if err != nil {
+		return false, err
+	}
+	if disallowed {
+		return false, nil
 	}
 	allValid := true
 	for _, child := range plan.allOf {
@@ -2035,14 +2014,7 @@ func (
 		}
 	}
 	if plan.hasEnum {
-		matched := false
-		for _, candidate := range plan.enum {
-			if equalJSON(candidate, instance) {
-				matched = true
-				break
-			}
-		}
-		if !matched {
+		if !jsonValuesContain(plan.enum, instance) {
 			return false, nil
 		}
 	}
@@ -2108,10 +2080,7 @@ func (
 		if !cardinalityWithin(len(instance.array), plan.minItems, plan.maxItems) {
 			return false, nil
 		}
-		for index, itemPlan := range plan.prefixItems {
-			if index >= len(instance.array) {
-				break
-			}
+		for index, itemPlan := range plan.prefixItems[:min(len(plan.prefixItems), len(instance.array))] {
 			valid, err := itemPlan.evaluate(instance.array[index], dialect, state)
 			if err != nil {
 				return false, err
@@ -2599,18 +2568,16 @@ func (
 		}
 	}
 	for name := range instance.object {
-		matched := false
 		for _, pattern := range plan.patternProperties {
 			patternMatched, err := pattern.pattern.matchString(name)
 			if err != nil {
 				return nil, err
 			}
 			if patternMatched {
-				matched = true
 				evaluated[name] = struct{}{}
 			}
 		}
-		if _, configured := plan.properties[name]; !configured && !matched && plan.additionalProperties != nil {
+		if plan.additionalProperties != nil {
 			evaluated[name] = struct{}{}
 		}
 	}
@@ -2794,6 +2761,32 @@ func matchesType(value *jsonValue, expected string, dialect Dialect) bool {
 	}
 }
 
+func anyTypePlanMatches(
+	types []typePlan,
+	instance *jsonValue,
+	dialect Dialect,
+	state *evaluationState,
+) (bool, error) {
+	for _, candidate := range types {
+		if candidate.schema == nil {
+			if matchesType(instance, candidate.name, dialect) {
+				return true, nil
+			}
+			continue
+		}
+
+		matched, err := candidate.schema.evaluate(instance, dialect, state)
+		if err != nil {
+			return false, err
+		}
+		if matched {
+			return true, nil
+		}
+	}
+
+	return false, nil
+}
+
 func isInteger(number string, dialect Dialect) bool {
 	if !dialect.usesMathematicalIntegers() {
 		return !strings.ContainsAny(number, ".eE")
@@ -2812,11 +2805,8 @@ func isInteger(number string, dialect Dialect) bool {
 		}
 	}
 
-	integer, fraction, hasFraction := strings.Cut(mantissa, ".")
-	digits := integer
-	if hasFraction {
-		digits += fraction
-	}
+	integer, fraction, _ := strings.Cut(mantissa, ".")
+	digits := integer + fraction
 
 	scale := new(big.Int).Sub(exponent, big.NewInt(int64(len(fraction))))
 	if strings.Trim(digits, "0") == "" {
@@ -2829,6 +2819,16 @@ func isInteger(number string, dialect Dialect) bool {
 	}
 	trailingZeros := len(digits) - len(strings.TrimRight(digits, "0"))
 	return requiredZeros.Int64() <= int64(trailingZeros)
+}
+
+func jsonValuesContain(candidates []*jsonValue, instance *jsonValue) bool {
+	for _, candidate := range candidates {
+		if equalJSON(candidate, instance) {
+			return true
+		}
+	}
+
+	return false
 }
 
 func effectiveDialect(configured, fallback Dialect) Dialect {

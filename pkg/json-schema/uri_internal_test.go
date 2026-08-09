@@ -18,6 +18,8 @@ func TestNormalizeURLAppliesRFCIdentityRules(t *testing.T) {
 			want:  "http://user@example.test/a/c/~/%2F?q=~%2F#~%2F",
 		},
 		{input: "HTTPS://[2001:DB8::1]:443/schema", want: "https://[2001:db8::1]/schema"},
+		{input: "https://example.test:444/schema", want: "https://example.test:444/schema"},
+		{input: "http://example.test:443/schema", want: "http://example.test:443/schema"},
 		{input: "a/b/../c", want: "a/c"},
 		{input: "URN:EXAMPLE:%7e", want: "urn:EXAMPLE:~"},
 	}
@@ -51,7 +53,7 @@ func TestNormalizeURLRejectsInvalidInternalInputs(t *testing.T) {
 			t.Fatal("malformed URI component was accepted")
 		}
 	}
-	for _, value := range []string{"%", "%0", "%GG"} {
+	for _, value := range []string{"%", "%0", "%GG", "%G0", "%0G"} {
 		if _, err := normalizePercentEncoding(value); err == nil {
 			t.Errorf("%q: expected percent-encoding error", value)
 		}

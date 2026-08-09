@@ -5,6 +5,10 @@ Changelog structure and semantic versioning after v1.
 
 ## Unreleased
 
+- Reject literal brackets in URI and IRI paths, queries, and fragments while
+  retaining bracketed IP literals in authorities.
+- Short-circuit Draft 3 `type` and `disallow` schema alternatives after a
+  decisive match so validation and diagnostic output evaluate the same branch.
 - Expose official-suite conformance as an explicit repository gate distinct
   from ordinary tests and interoperability harnesses.
 - Contain and redact custom keyword compiler, keyword evaluator, and format

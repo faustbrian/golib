@@ -965,6 +965,763 @@ func TestOutputTraversalPropagatesContainsAndUniqueItemLimits(t *testing.T) {
 	}
 }
 
+func TestVerboseTraversalSkipsEveryInapplicableChild(t *testing.T) {
+	t.Parallel()
+
+	sentinel := errors.New("inapplicable child evaluated")
+	failing := &schemaPlan{custom: []compiledKeyword{{
+		name: "failure",
+		evaluator: KeywordEvaluatorFunc(func(
+			context.Context, Value,
+		) (KeywordResult, error) {
+			return KeywordResult{}, sentinel
+		}),
+	}}}
+	truth := true
+	passing := &schemaPlan{boolean: &truth}
+	pattern, err := compilePattern("^other$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	object := &jsonValue{kind: kindObject, object: map[string]*jsonValue{
+		"present": {kind: kindNull},
+	}}
+	objectAB := &jsonValue{kind: kindObject, object: map[string]*jsonValue{
+		"a": {kind: kindNull},
+		"b": {kind: kindNull},
+	}}
+	scalarWithObjectData := &jsonValue{kind: kindNull, object: object.object}
+	array := &jsonValue{kind: kindArray, array: []*jsonValue{{kind: kindNull}}}
+	arrayAB := &jsonValue{kind: kindArray, array: []*jsonValue{
+		{kind: kindNull},
+		{kind: kindNull},
+	}}
+	scalarWithArrayData := &jsonValue{kind: kindNull, array: array.array}
+
+	tests := []struct {
+		name         string
+		keyword      string
+		plan         *schemaPlan
+		instance     *jsonValue
+		wantChildren int
+	}{
+		{
+			name:     "absent property",
+			keyword:  "properties",
+			plan:     &schemaPlan{properties: map[string]*schemaPlan{"missing": failing}},
+			instance: object,
+		},
+		{
+			name:    "property after absent property",
+			keyword: "properties",
+			plan: &schemaPlan{properties: map[string]*schemaPlan{
+				"0-missing": failing,
+				"a":         passing,
+			}},
+			instance:     objectAB,
+			wantChildren: 1,
+		},
+		{
+			name:    "nonmatching pattern property",
+			keyword: "patternProperties",
+			plan: &schemaPlan{patternProperties: []patternPropertyPlan{{
+				name: "^other$", pattern: pattern, schema: failing,
+			}}},
+			instance: object,
+		},
+		{
+			name:    "matching pattern after nonmatching pattern",
+			keyword: "patternProperties",
+			plan: &schemaPlan{patternProperties: []patternPropertyPlan{
+				{name: "^other$", pattern: pattern, schema: failing},
+				{name: "^[ab]$", pattern: mustCompilePattern(t, "^[ab]$"), schema: passing},
+			}},
+			instance:     objectAB,
+			wantChildren: 2,
+		},
+		{
+			name:    "configured additional property",
+			keyword: "additionalProperties",
+			plan: &schemaPlan{
+				properties:           map[string]*schemaPlan{"present": passing},
+				additionalProperties: failing,
+			},
+			instance: object,
+		},
+		{
+			name:    "additional property after configured property",
+			keyword: "additionalProperties",
+			plan: &schemaPlan{
+				properties:           map[string]*schemaPlan{"a": passing},
+				additionalProperties: passing,
+			},
+			instance:     objectAB,
+			wantChildren: 1,
+		},
+		{
+			name:     "nil additional property schema",
+			keyword:  "additionalProperties",
+			plan:     &schemaPlan{},
+			instance: object,
+		},
+		{
+			name:    "present dependent schema after absent trigger",
+			keyword: "dependentSchemas",
+			plan: &schemaPlan{dependentSchemas: map[string]*schemaPlan{
+				"0-missing": failing,
+				"a":         passing,
+			}},
+			instance:     objectAB,
+			wantChildren: 1,
+		},
+		{
+			name:     "additional property on non-object",
+			keyword:  "additionalProperties",
+			plan:     &schemaPlan{additionalProperties: failing},
+			instance: scalarWithObjectData,
+		},
+		{
+			name:     "nil property names schema",
+			keyword:  "propertyNames",
+			plan:     &schemaPlan{},
+			instance: object,
+		},
+		{
+			name:    "unevaluated property after evaluated property",
+			keyword: "unevaluatedProperties",
+			plan: &schemaPlan{
+				properties:            map[string]*schemaPlan{"a": passing},
+				unevaluatedProperties: passing,
+			},
+			instance:     objectAB,
+			wantChildren: 1,
+		},
+		{
+			name:     "property names on non-object",
+			keyword:  "propertyNames",
+			plan:     &schemaPlan{propertyNames: failing},
+			instance: scalarWithObjectData,
+		},
+		{
+			name:     "absent dependent schema trigger",
+			keyword:  "dependentSchemas",
+			plan:     &schemaPlan{dependentSchemas: map[string]*schemaPlan{"missing": failing}},
+			instance: object,
+		},
+		{
+			name:    "evaluated unevaluated property",
+			keyword: "unevaluatedProperties",
+			plan: &schemaPlan{
+				properties:            map[string]*schemaPlan{"present": passing},
+				unevaluatedProperties: failing,
+			},
+			instance: object,
+		},
+		{
+			name:     "nil unevaluated properties schema",
+			keyword:  "unevaluatedProperties",
+			plan:     &schemaPlan{},
+			instance: object,
+		},
+		{
+			name:     "unevaluated properties on non-object",
+			keyword:  "unevaluatedProperties",
+			plan:     &schemaPlan{unevaluatedProperties: failing},
+			instance: scalarWithObjectData,
+		},
+		{
+			name:         "prefix items stop at instance length",
+			keyword:      "prefixItems",
+			plan:         &schemaPlan{prefixItems: []*schemaPlan{passing, failing}},
+			instance:     array,
+			wantChildren: 1,
+		},
+		{
+			name:     "nil items schema",
+			keyword:  "items",
+			plan:     &schemaPlan{},
+			instance: array,
+		},
+		{
+			name:     "items on non-array",
+			keyword:  "items",
+			plan:     &schemaPlan{items: failing},
+			instance: scalarWithArrayData,
+		},
+		{
+			name:     "nil additional items schema",
+			keyword:  "additionalItems",
+			plan:     &schemaPlan{},
+			instance: array,
+		},
+		{
+			name:     "additional items on non-array",
+			keyword:  "additionalItems",
+			plan:     &schemaPlan{items: failing},
+			instance: scalarWithArrayData,
+		},
+		{
+			name:     "nil contains schema",
+			keyword:  "contains",
+			plan:     &schemaPlan{},
+			instance: array,
+		},
+		{
+			name:     "contains on non-array",
+			keyword:  "contains",
+			plan:     &schemaPlan{contains: failing},
+			instance: scalarWithArrayData,
+		},
+		{
+			name:    "evaluated unevaluated item",
+			keyword: "unevaluatedItems",
+			plan: &schemaPlan{
+				prefixItems:      []*schemaPlan{passing},
+				unevaluatedItems: failing,
+			},
+			instance: array,
+		},
+		{
+			name:    "unevaluated item after evaluated item",
+			keyword: "unevaluatedItems",
+			plan: &schemaPlan{
+				prefixItems:      []*schemaPlan{passing},
+				unevaluatedItems: passing,
+			},
+			instance:     arrayAB,
+			wantChildren: 1,
+		},
+		{
+			name:     "nil unevaluated items schema",
+			keyword:  "unevaluatedItems",
+			plan:     &schemaPlan{},
+			instance: array,
+		},
+		{
+			name:     "unevaluated items on non-array",
+			keyword:  "unevaluatedItems",
+			plan:     &schemaPlan{unevaluatedItems: failing},
+			instance: scalarWithArrayData,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+			children, err := test.plan.verboseKeywordChildren(
+				test.keyword, test.instance, Draft202012, "/"+test.keyword,
+				"", false, &state,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(children) != test.wantChildren {
+				t.Fatalf("got %d children, want %d: %#v", len(children), test.wantChildren, children)
+			}
+		})
+	}
+}
+
+func TestAnnotationAndOutputTraversalSkipUnappliedSchemas(t *testing.T) {
+	t.Parallel()
+
+	sentinel := errors.New("unapplied schema evaluated")
+	failing := &schemaPlan{custom: []compiledKeyword{{
+		name: "failure",
+		evaluator: KeywordEvaluatorFunc(func(
+			context.Context, Value,
+		) (KeywordResult, error) {
+			return KeywordResult{}, sentinel
+		}),
+	}}}
+	truth := true
+	passing := &schemaPlan{boolean: &truth}
+	pattern, err := compilePattern("^other$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	object := &jsonValue{kind: kindObject, object: map[string]*jsonValue{
+		"present": {kind: kindNumber, number: "1"},
+	}}
+	emptyArray := &jsonValue{kind: kindArray}
+
+	plans := []*schemaPlan{
+		{
+			properties: map[string]*schemaPlan{"missing": failing},
+			patternProperties: []patternPropertyPlan{{
+				name: "^other$", pattern: pattern, schema: failing,
+			}},
+			dependentRequired: map[string][]string{"missing": {"dependency"}},
+			dependentSchemas:  map[string]*schemaPlan{"missing": failing},
+		},
+		{
+			properties:            map[string]*schemaPlan{"present": passing},
+			unevaluatedProperties: failing,
+		},
+	}
+	for index, plan := range plans {
+		state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+		if _, err := plan.collectObjectAnnotations(object, Draft202012, "", &state); err != nil {
+			t.Fatalf("annotations plan %d: %v", index, err)
+		}
+		state = evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+		if _, _, err := plan.collectOutput(
+			object, Draft202012, "", "", false, true, &state,
+		); err != nil {
+			t.Fatalf("output plan %d: %v", index, err)
+		}
+	}
+
+	arrayPlan := &schemaPlan{prefixItems: []*schemaPlan{failing}}
+	state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+	if _, err := arrayPlan.collectArrayAnnotations(
+		emptyArray, Draft202012, "", &state,
+	); err != nil {
+		t.Fatal(err)
+	}
+	state = evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+	if _, _, err := arrayPlan.collectOutput(
+		emptyArray, Draft202012, "", "", false, true, &state,
+	); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestOutputKeywordFilteringPreservesOnlyEvaluatedContent(t *testing.T) {
+	t.Parallel()
+
+	object := map[string]*jsonValue{
+		"$anchor": {kind: kindString, text: "node"},
+		"$defs":   {kind: kindObject},
+		"type":    {kind: kindString, text: "null"},
+	}
+	keywords := standardOutputKeywords(object, Draft202012)
+	if len(keywords) != 2 || keywords[0] != "$defs" || keywords[1] != "type" {
+		t.Fatalf("unexpected output keywords %#v", keywords)
+	}
+	for _, definitionKeyword := range []string{"$defs", "definitions"} {
+		if outputUnitCoveredByKeywords(
+			OutputUnit{KeywordLocation: "/" + definitionKeyword + "/x"},
+			"", []string{definitionKeyword},
+		) {
+			t.Fatalf("%s incorrectly covered an output unit", definitionKeyword)
+		}
+		if !outputUnitCoveredByKeywords(
+			OutputUnit{KeywordLocation: "/type"},
+			"", []string{definitionKeyword, "type"},
+		) {
+			t.Fatalf("keyword after %s was not considered", definitionKeyword)
+		}
+	}
+
+	plan := &schemaPlan{
+		annotations: map[string]*jsonValue{
+			"format": {kind: kindString, text: "email"},
+		},
+	}
+	state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+	_, annotations, err := plan.collectOutput(
+		&jsonValue{kind: kindNumber, number: "1"},
+		Draft202012, "", "", false, true, &state,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(annotations) != 0 {
+		t.Fatalf("inapplicable annotation emitted: %#v", annotations)
+	}
+}
+
+func TestVerboseReferenceSelectionRequiresKeywordAndTarget(t *testing.T) {
+	t.Parallel()
+
+	instance := &jsonValue{kind: kindNull}
+	for _, plan := range []*schemaPlan{
+		{
+			outputKeywords:   []string{"$ref"},
+			referenceKeyword: "$ref",
+		},
+		{
+			outputKeywords:   []string{"type"},
+			referenceKeyword: "$ref",
+			reference:        &schemaPlan{boolean: boolPointer(true)},
+		},
+	} {
+		state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+		units, err := plan.verboseOutputUnits(
+			instance, nil, nil, "", "", false, Draft202012, &state,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(units) != 1 || units[0].KeywordLocation != "/"+plan.outputKeywords[0] {
+			t.Fatalf("unexpected units %#v", units)
+		}
+	}
+}
+
+func TestDetailedErrorNestingStopsAtSiblingBoundaries(t *testing.T) {
+	t.Parallel()
+
+	flat := []OutputUnit{
+		{KeywordLocation: "/allOf/0", Error: "branch"},
+		{
+			KeywordLocation: "/allOf/0/type",
+			Error:           "type",
+			Annotations: []OutputUnit{{
+				KeywordLocation: "/allOf/0/type/title",
+				Annotation:      "nested",
+			}},
+		},
+		{KeywordLocation: "/required", Error: "required"},
+	}
+	result, consumed := nestOutputErrors(flat, "")
+	if consumed != len(flat) || len(result) != 2 || len(result[0].Errors) != 1 ||
+		result[1].KeywordLocation != "/required" {
+		t.Fatalf("consumed=%d result=%#v", consumed, result)
+	}
+	if countOutputUnits(result) != 4 {
+		t.Fatalf("unexpected recursive output unit count %d", countOutputUnits(result))
+	}
+}
+
+func TestVerboseReferenceTraversalContinuesWithSiblingKeywords(t *testing.T) {
+	t.Parallel()
+
+	truth := true
+	plan := &schemaPlan{
+		outputKeywords:   []string{"$ref", "type"},
+		referenceKeyword: "$ref",
+		reference:        &schemaPlan{boolean: &truth},
+	}
+	state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+	units, err := plan.verboseOutputUnits(
+		&jsonValue{kind: kindNull}, nil, nil, "", "", false, Draft202012, &state,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(units) != 2 || units[0].KeywordLocation != "/$ref" ||
+		units[1].KeywordLocation != "/type" {
+		t.Fatalf("unexpected units %#v", units)
+	}
+}
+
+func TestVerboseAnnotationFilteringUsesEachOwnershipRule(t *testing.T) {
+	t.Parallel()
+
+	value := &jsonValue{kind: kindString, text: "same"}
+	tests := []struct {
+		name       string
+		plan       *schemaPlan
+		annotation OutputUnit
+		referenced bool
+		wantUnits  int
+	}{
+		{
+			name: "covered by keyword",
+			plan: &schemaPlan{outputKeywords: []string{"type"}},
+			annotation: OutputUnit{
+				Valid: true, KeywordLocation: "/type/detail", Annotation: "same",
+			},
+			wantUnits: 2,
+		},
+		{
+			name: "duplicate nested annotation",
+			plan: &schemaPlan{
+				outputKeywords: []string{"title"},
+				annotations:    map[string]*jsonValue{"title": value},
+			},
+			annotation: OutputUnit{
+				Valid: true, KeywordLocation: "/else/title", Annotation: "same",
+			},
+			wantUnits: 2,
+		},
+		{
+			name: "direct referenced annotation",
+			plan: &schemaPlan{
+				annotations: map[string]*jsonValue{"title": value},
+			},
+			annotation: OutputUnit{
+				Valid: true, KeywordLocation: "/title", Annotation: "same",
+			},
+			referenced: true,
+			wantUnits:  1,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+			units, err := test.plan.verboseOutputUnits(
+				&jsonValue{kind: kindNull}, nil, []OutputUnit{
+					test.annotation,
+					{Valid: true, KeywordLocation: "/free", Annotation: "free"},
+				},
+				"", "", test.referenced, Draft202012, &state,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(units) != test.wantUnits {
+				t.Fatalf("got %d units, want %d: %#v", len(units), test.wantUnits, units)
+			}
+		})
+	}
+}
+
+func TestCustomAnnotationTraversalContinuesAfterEmptyResults(t *testing.T) {
+	t.Parallel()
+
+	plan := &schemaPlan{custom: []compiledKeyword{
+		{
+			name: "empty",
+			evaluator: KeywordEvaluatorFunc(func(
+				context.Context, Value,
+			) (KeywordResult, error) {
+				return KeywordResult{Valid: true}, nil
+			}),
+		},
+		{
+			name: "annotated",
+			evaluator: KeywordEvaluatorFunc(func(
+				context.Context, Value,
+			) (KeywordResult, error) {
+				return KeywordResult{Valid: true, Annotation: json.RawMessage(`true`)}, nil
+			}),
+		},
+	}}
+	state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+	annotations, err := plan.collectAnnotations(
+		&jsonValue{kind: kindNull}, Draft202012, "", &state,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(annotations) != 1 || annotations[0].KeywordLocation != "/annotated" {
+		t.Fatalf("unexpected annotations %#v", annotations)
+	}
+}
+
+func TestOutputTraversalContinuesAfterSkippedCollectionEntries(t *testing.T) {
+	t.Parallel()
+
+	sentinel := errors.New("later entry evaluated")
+	delayedFailure := func() *schemaPlan {
+		calls := 0
+		return &schemaPlan{custom: []compiledKeyword{{
+			name: "failure",
+			evaluator: KeywordEvaluatorFunc(func(
+				context.Context, Value,
+			) (KeywordResult, error) {
+				calls++
+				if calls == 1 {
+					return KeywordResult{Valid: true}, nil
+				}
+				return KeywordResult{}, sentinel
+			}),
+		}}}
+	}
+	patternMissing, err := compilePattern("^a$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	patternPresent, err := compilePattern("^b$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	object := &jsonValue{kind: kindObject, object: map[string]*jsonValue{
+		"b": {kind: kindNull},
+	}}
+
+	tests := []struct {
+		name  string
+		build func() *schemaPlan
+	}{
+		{
+			name: "properties",
+			build: func() *schemaPlan {
+				return &schemaPlan{properties: map[string]*schemaPlan{
+					"a": {},
+					"b": delayedFailure(),
+				}}
+			},
+		},
+		{
+			name: "pattern properties",
+			build: func() *schemaPlan {
+				return &schemaPlan{patternProperties: []patternPropertyPlan{
+					{name: "^a$", pattern: patternMissing, schema: &schemaPlan{}},
+					{name: "^b$", pattern: patternPresent, schema: delayedFailure()},
+				}}
+			},
+		},
+		{
+			name: "dependent schemas",
+			build: func() *schemaPlan {
+				return &schemaPlan{dependentSchemas: map[string]*schemaPlan{
+					"a": {},
+					"b": delayedFailure(),
+				}}
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+			_, _, err := test.build().collectOutput(
+				object, Draft202012, "", "", false, true, &state,
+			)
+			if !errors.Is(err, sentinel) {
+				t.Fatalf("got %v, want later-entry failure", err)
+			}
+		})
+	}
+
+	plan := &schemaPlan{dependentRequired: map[string][]string{
+		"a": {"ignored"},
+		"b": {"required"},
+	}}
+	state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+	errorsFound, _, err := plan.collectOutput(
+		object, Draft202012, "", "", false, true, &state,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, outputError := range errorsFound {
+		found = found || outputError.KeywordLocation == "/dependentRequired"
+	}
+	if !found {
+		t.Fatalf("dependent requirement after absent trigger was omitted: %#v", errorsFound)
+	}
+}
+
+func TestAnnotationTraversalContinuesAfterSkippedCollectionEntries(t *testing.T) {
+	t.Parallel()
+
+	annotating := &schemaPlan{annotations: map[string]*jsonValue{
+		"title": {kind: kindString, text: "later"},
+	}}
+	patternMissing, err := compilePattern("^a$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	patternPresent, err := compilePattern("^b$")
+	if err != nil {
+		t.Fatal(err)
+	}
+	instance := &jsonValue{kind: kindObject, object: map[string]*jsonValue{
+		"b": {kind: kindNull},
+	}}
+	for _, plan := range []*schemaPlan{
+		{
+			patternProperties: []patternPropertyPlan{
+				{name: "^a$", pattern: patternMissing, schema: &schemaPlan{}},
+				{name: "^b$", pattern: patternPresent, schema: annotating},
+			},
+		},
+		{
+			dependentSchemas: map[string]*schemaPlan{
+				"a": {},
+				"b": annotating,
+			},
+		},
+	} {
+		state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+		annotations, err := plan.collectObjectAnnotations(
+			instance, Draft202012, "", &state,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(annotations) != 1 || annotations[0].KeywordLocation != "/title" {
+			t.Fatalf("unexpected annotations %#v", annotations)
+		}
+	}
+}
+
+func TestUnevaluatedOutputContinuesAfterEvaluatedEntries(t *testing.T) {
+	t.Parallel()
+
+	sentinel := errors.New("unevaluated property evaluated")
+	calls := 0
+	failing := &schemaPlan{custom: []compiledKeyword{{
+		name: "failure",
+		evaluator: KeywordEvaluatorFunc(func(
+			context.Context, Value,
+		) (KeywordResult, error) {
+			calls++
+			if calls == 1 {
+				return KeywordResult{Valid: true}, nil
+			}
+			return KeywordResult{}, sentinel
+		}),
+	}}}
+	plan := &schemaPlan{
+		properties:            map[string]*schemaPlan{"a": {}},
+		unevaluatedProperties: failing,
+	}
+	instance := &jsonValue{kind: kindObject, object: map[string]*jsonValue{
+		"a": {kind: kindNull},
+		"b": {kind: kindNull},
+	}}
+	state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+	_, _, err := plan.collectOutput(
+		instance, Draft202012, "", "", false, true, &state,
+	)
+	if !errors.Is(err, sentinel) {
+		t.Fatalf("got %v, want unevaluated-property failure", err)
+	}
+}
+
+func TestApplicableAnnotationsContinueAfterInapplicableKeywords(t *testing.T) {
+	t.Parallel()
+
+	plan := &schemaPlan{annotations: map[string]*jsonValue{
+		"format": {kind: kindString, text: "email"},
+		"title":  {kind: kindString, text: "number"},
+	}}
+	state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+	_, annotations, err := plan.collectOutput(
+		&jsonValue{kind: kindNumber, number: "1"},
+		Draft202012, "", "", false, true, &state,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(annotations) != 1 || annotations[0].KeywordLocation != "/title" {
+		t.Fatalf("unexpected annotations %#v", annotations)
+	}
+}
+
+func TestVerboseTupleTraversalStopsAtInstanceLength(t *testing.T) {
+	t.Parallel()
+
+	truth := true
+	state := evaluationState{ctx: context.Background(), limits: DefaultLimits()}
+	children, err := verboseTupleItems(
+		[]*schemaPlan{{boolean: &truth}, {boolean: &truth}},
+		&jsonValue{kind: kindArray, array: []*jsonValue{{kind: kindNull}}},
+		Draft7, "/items", "", false, &state,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(children) != 1 {
+		t.Fatalf("got %d children, want 1", len(children))
+	}
+}
+
 func boolPointer(value bool) *bool { return &value }
 
 func stringPointer(value string) *string { return &value }
+
+func mustCompilePattern(t *testing.T, expression string) *ecmaPattern {
+	t.Helper()
+	pattern, err := compilePattern(expression)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pattern
+}

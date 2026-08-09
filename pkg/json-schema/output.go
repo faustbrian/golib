@@ -188,15 +188,21 @@ func standardOutputKeywords(object map[string]*jsonValue, dialect Dialect) []str
 	}
 	keywords := make([]string, 0, len(object))
 	for _, keyword := range sortedStringKeys(object) {
-		switch keyword {
-		case "$anchor", "$comment", "$dynamicAnchor", "$id", "$recursiveAnchor",
-			"$schema", "$vocabulary", "id":
-			continue
-		default:
+		if outputKeywordIsEvaluated(keyword) {
 			keywords = append(keywords, keyword)
 		}
 	}
 	return keywords
+}
+
+func outputKeywordIsEvaluated(keyword string) bool {
+	switch keyword {
+	case "$anchor", "$comment", "$dynamicAnchor", "$id", "$recursiveAnchor",
+		"$schema", "$vocabulary", "id":
+		return false
+	default:
+		return true
+	}
 }
 
 func (plan *schemaPlan) verboseOutputUnits(
@@ -561,7 +567,10 @@ func (plan *schemaPlan) verboseKeywordChildren(
 		}
 		return children, nil
 	case "unevaluatedProperties":
-		if plan.unevaluatedProperties == nil || instance.kind != kindObject {
+		if plan.unevaluatedProperties == nil {
+			return nil, nil
+		}
+		if instance.kind != kindObject {
 			return nil, nil
 		}
 		evaluated, err := plan.collectEvaluatedProperties(instance, dialect, state)
@@ -570,21 +579,20 @@ func (plan *schemaPlan) verboseKeywordChildren(
 		}
 		children := make([]OutputUnit, 0)
 		for _, name := range sortedStringKeys(instance.object) {
-			if _, exists := evaluated[name]; exists {
-				continue
+			if _, exists := evaluated[name]; !exists {
+				applied, err := plan.unevaluatedProperties.verboseAppliedSchemaUnits(
+					instance.object[name],
+					dialect,
+					keywordLocation,
+					instanceLocation+"/"+escapePointerToken(name),
+					referenced,
+					state,
+				)
+				if err != nil {
+					return nil, err
+				}
+				children = append(children, applied...)
 			}
-			applied, err := plan.unevaluatedProperties.verboseAppliedSchemaUnits(
-				instance.object[name],
-				dialect,
-				keywordLocation,
-				instanceLocation+"/"+escapePointerToken(name),
-				referenced,
-				state,
-			)
-			if err != nil {
-				return nil, err
-			}
-			children = append(children, applied...)
 		}
 		return children, nil
 	case "prefixItems":
@@ -592,10 +600,7 @@ func (plan *schemaPlan) verboseKeywordChildren(
 			return nil, nil
 		}
 		children := make([]OutputUnit, 0)
-		for index, child := range plan.prefixItems {
-			if index >= len(instance.array) {
-				break
-			}
+		for index, child := range plan.prefixItems[:min(len(plan.prefixItems), len(instance.array))] {
 			applied, err := child.verboseAppliedSchemaUnits(
 				instance.array[index],
 				dialect,
@@ -680,7 +685,10 @@ func (plan *schemaPlan) verboseKeywordChildren(
 		}
 		return children, nil
 	case "unevaluatedItems":
-		if plan.unevaluatedItems == nil || instance.kind != kindArray {
+		if plan.unevaluatedItems == nil {
+			return nil, nil
+		}
+		if instance.kind != kindArray {
 			return nil, nil
 		}
 		evaluated, err := plan.collectEvaluatedItems(instance, dialect, state)
@@ -689,21 +697,20 @@ func (plan *schemaPlan) verboseKeywordChildren(
 		}
 		children := make([]OutputUnit, 0)
 		for index, item := range instance.array {
-			if _, exists := evaluated[index]; exists {
-				continue
+			if _, exists := evaluated[index]; !exists {
+				applied, err := plan.unevaluatedItems.verboseAppliedSchemaUnits(
+					item,
+					dialect,
+					keywordLocation,
+					instanceLocation+"/"+strconv.Itoa(index),
+					referenced,
+					state,
+				)
+				if err != nil {
+					return nil, err
+				}
+				children = append(children, applied...)
 			}
-			applied, err := plan.unevaluatedItems.verboseAppliedSchemaUnits(
-				item,
-				dialect,
-				keywordLocation,
-				instanceLocation+"/"+strconv.Itoa(index),
-				referenced,
-				state,
-			)
-			if err != nil {
-				return nil, err
-			}
-			children = append(children, applied...)
 		}
 		return children, nil
 	default:
@@ -737,10 +744,7 @@ func verboseTupleItems(
 	state *evaluationState,
 ) ([]OutputUnit, error) {
 	children := make([]OutputUnit, 0)
-	for index, child := range plans {
-		if index >= len(instance.array) {
-			break
-		}
+	for index, child := range plans[:min(len(plans), len(instance.array))] {
 		applied, err := child.verboseAppliedSchemaUnits(
 			instance.array[index],
 			dialect,
@@ -992,8 +996,8 @@ func (plan *schemaPlan) verboseKeywordError(
 func countOutputUnits(units []OutputUnit) int {
 	count := len(units)
 	for _, unit := range units {
-		count += countOutputUnits(unit.Errors)
-		count += countOutputUnits(unit.Annotations)
+		count = count + countOutputUnits(unit.Errors)
+		count = count + countOutputUnits(unit.Annotations)
 	}
 	return count
 }
@@ -1010,11 +1014,9 @@ func detailedErrors(flat []OutputUnit) []OutputUnit {
 func nestOutputErrors(flat []OutputUnit, parent string) ([]OutputUnit, int) {
 	result := make([]OutputUnit, 0)
 	consumed := 0
-	for consumed < len(flat) {
+	for consumed < len(flat) &&
+		(parent == "" || strings.HasPrefix(flat[consumed].KeywordLocation, parent+"/")) {
 		unit := flat[consumed]
-		if parent != "" && !strings.HasPrefix(unit.KeywordLocation, parent+"/") {
-			break
-		}
 		consumed++
 		if consumed < len(flat) && unit.KeywordLocation != "" &&
 			strings.HasPrefix(flat[consumed].KeywordLocation, unit.KeywordLocation+"/") {
@@ -1266,10 +1268,7 @@ func (plan *schemaPlan) collectArrayAnnotations(
 	state *evaluationState,
 ) ([]OutputUnit, error) {
 	annotations := make([]OutputUnit, 0)
-	for index, childPlan := range plan.prefixItems {
-		if index >= len(instance.array) {
-			break
-		}
+	for index, childPlan := range plan.prefixItems[:min(len(plan.prefixItems), len(instance.array))] {
 		child, err := childPlan.collectAnnotations(
 			instance.array[index],
 			dialect,
@@ -1531,17 +1530,9 @@ func (plan *schemaPlan) collectOutput(
 		}
 	}
 	if len(plan.types) > 0 {
-		matched := false
-		for _, candidate := range plan.types {
-			if candidate.schema != nil {
-				valid, err := candidate.schema.evaluate(instance, dialect, state)
-				if err != nil {
-					return nil, nil, err
-				}
-				matched = matched || valid
-			} else {
-				matched = matched || matchesType(instance, candidate.name, dialect)
-			}
+		matched, err := anyTypePlanMatches(plan.types, instance, dialect, state)
+		if err != nil {
+			return nil, nil, err
 		}
 		if !matched {
 			errors = append(errors, plan.keywordErrorAt(
@@ -1553,34 +1544,21 @@ func (plan *schemaPlan) collectOutput(
 			))
 		}
 	}
-	for _, disallowed := range plan.disallowedTypes {
-		matched := false
-		if disallowed.schema != nil {
-			valid, err := disallowed.schema.evaluate(instance, dialect, state)
-			if err != nil {
-				return nil, nil, err
-			}
-			matched = valid
-		} else {
-			matched = matchesType(instance, disallowed.name, dialect)
-		}
-		if matched {
-			errors = append(errors, plan.keywordErrorAt(
-				"disallow",
-				evaluationPath,
-				instanceLocation,
-				referenced,
-				"instance matches a disallowed type or schema",
-			))
-			break
-		}
+	disallowed, err := anyTypePlanMatches(plan.disallowedTypes, instance, dialect, state)
+	if err != nil {
+		return nil, nil, err
+	}
+	if disallowed {
+		errors = append(errors, plan.keywordErrorAt(
+			"disallow",
+			evaluationPath,
+			instanceLocation,
+			referenced,
+			"instance matches a disallowed type or schema",
+		))
 	}
 	if plan.hasEnum {
-		matched := false
-		for _, candidate := range plan.enum {
-			matched = matched || equalJSON(candidate, instance)
-		}
-		if !matched {
+		if !jsonValuesContain(plan.enum, instance) {
 			errors = append(errors, plan.keywordErrorAt(
 				"enum", evaluationPath, instanceLocation, referenced,
 				"instance is not one of the allowed values",
@@ -1717,45 +1695,13 @@ func (plan *schemaPlan) collectOutput(
 		sort.Strings(names)
 		for _, name := range names {
 			childInstance, exists := instance.object[name]
-			if !exists {
-				continue
-			}
-			childErrors, childAnnotations, err := plan.properties[name].collectOutput(
-				childInstance,
-				dialect,
-				joinEvaluationPath(
-					joinEvaluationPath(evaluationPath, "properties"),
-					name,
-				),
-				instanceLocation+"/"+escapePointerToken(name),
-				referenced,
-				false,
-				state,
-			)
-			if err != nil {
-				return nil, nil, err
-			}
-			errors = append(errors, childErrors...)
-			annotations = append(annotations, childAnnotations...)
-		}
-		for _, name := range sortedStringKeys(instance.object) {
-			_, configured := plan.properties[name]
-			matchedPattern := false
-			for _, pattern := range plan.patternProperties {
-				matched, err := pattern.pattern.matchString(name)
-				if err != nil {
-					return nil, nil, err
-				}
-				if !matched {
-					continue
-				}
-				matchedPattern = true
-				childErrors, childAnnotations, err := pattern.schema.collectOutput(
-					instance.object[name],
+			if exists {
+				childErrors, childAnnotations, err := plan.properties[name].collectOutput(
+					childInstance,
 					dialect,
 					joinEvaluationPath(
-						joinEvaluationPath(evaluationPath, "patternProperties"),
-						pattern.name,
+						joinEvaluationPath(evaluationPath, "properties"),
+						name,
 					),
 					instanceLocation+"/"+escapePointerToken(name),
 					referenced,
@@ -1767,6 +1713,36 @@ func (plan *schemaPlan) collectOutput(
 				}
 				errors = append(errors, childErrors...)
 				annotations = append(annotations, childAnnotations...)
+			}
+		}
+		for _, name := range sortedStringKeys(instance.object) {
+			_, configured := plan.properties[name]
+			matchedPattern := false
+			for _, pattern := range plan.patternProperties {
+				matched, err := pattern.pattern.matchString(name)
+				if err != nil {
+					return nil, nil, err
+				}
+				if matched {
+					matchedPattern = true
+					childErrors, childAnnotations, err := pattern.schema.collectOutput(
+						instance.object[name],
+						dialect,
+						joinEvaluationPath(
+							joinEvaluationPath(evaluationPath, "patternProperties"),
+							pattern.name,
+						),
+						instanceLocation+"/"+escapePointerToken(name),
+						referenced,
+						false,
+						state,
+					)
+					if err != nil {
+						return nil, nil, err
+					}
+					errors = append(errors, childErrors...)
+					annotations = append(annotations, childAnnotations...)
+				}
 			}
 			if !configured && !matchedPattern && plan.additionalProperties != nil {
 				childErrors, childAnnotations, err := plan.additionalProperties.collectOutput(
@@ -1802,38 +1778,36 @@ func (plan *schemaPlan) collectOutput(
 			}
 		}
 		for _, name := range sortedStringKeys(plan.dependentRequired) {
-			if _, exists := instance.object[name]; !exists {
-				continue
-			}
-			for _, required := range plan.dependentRequired[name] {
-				if _, exists := instance.object[required]; !exists {
-					errors = append(errors, plan.keywordErrorAt(
-						"dependentRequired", evaluationPath, instanceLocation, referenced,
-						fmt.Sprintf("property %q requires %q", name, required),
-					))
+			if _, exists := instance.object[name]; exists {
+				for _, required := range plan.dependentRequired[name] {
+					if _, exists := instance.object[required]; !exists {
+						errors = append(errors, plan.keywordErrorAt(
+							"dependentRequired", evaluationPath, instanceLocation, referenced,
+							fmt.Sprintf("property %q requires %q", name, required),
+						))
+					}
 				}
 			}
 		}
 		for _, name := range sortedStringKeys(plan.dependentSchemas) {
-			if _, exists := instance.object[name]; !exists {
-				continue
+			if _, exists := instance.object[name]; exists {
+				childErrors, childAnnotations, err := plan.dependentSchemas[name].collectOutput(
+					instance,
+					dialect,
+					joinEvaluationPath(
+						joinEvaluationPath(evaluationPath, "dependentSchemas"), name,
+					),
+					instanceLocation,
+					referenced,
+					false,
+					state,
+				)
+				if err != nil {
+					return nil, nil, err
+				}
+				errors = append(errors, childErrors...)
+				annotations = append(annotations, childAnnotations...)
 			}
-			childErrors, childAnnotations, err := plan.dependentSchemas[name].collectOutput(
-				instance,
-				dialect,
-				joinEvaluationPath(
-					joinEvaluationPath(evaluationPath, "dependentSchemas"), name,
-				),
-				instanceLocation,
-				referenced,
-				false,
-				state,
-			)
-			if err != nil {
-				return nil, nil, err
-			}
-			errors = append(errors, childErrors...)
-			annotations = append(annotations, childAnnotations...)
 		}
 		if plan.unevaluatedProperties != nil {
 			evaluated, err := plan.collectEvaluatedProperties(instance, dialect, state)
@@ -1841,24 +1815,23 @@ func (plan *schemaPlan) collectOutput(
 				return nil, nil, err
 			}
 			for _, name := range sortedStringKeys(instance.object) {
-				if _, exists := evaluated[name]; exists {
-					continue
+				if _, exists := evaluated[name]; !exists {
+					childErrors, childAnnotations, err :=
+						plan.unevaluatedProperties.collectOutput(
+							instance.object[name],
+							dialect,
+							joinEvaluationPath(evaluationPath, "unevaluatedProperties"),
+							instanceLocation+"/"+escapePointerToken(name),
+							referenced,
+							false,
+							state,
+						)
+					if err != nil {
+						return nil, nil, err
+					}
+					errors = append(errors, childErrors...)
+					annotations = append(annotations, childAnnotations...)
 				}
-				childErrors, childAnnotations, err :=
-					plan.unevaluatedProperties.collectOutput(
-						instance.object[name],
-						dialect,
-						joinEvaluationPath(evaluationPath, "unevaluatedProperties"),
-						instanceLocation+"/"+escapePointerToken(name),
-						referenced,
-						false,
-						state,
-					)
-				if err != nil {
-					return nil, nil, err
-				}
-				errors = append(errors, childErrors...)
-				annotations = append(annotations, childAnnotations...)
 			}
 		}
 	}
@@ -1867,10 +1840,7 @@ func (plan *schemaPlan) collectOutput(
 		if dialect != Draft202012 {
 			prefixKeyword = "items"
 		}
-		for index, childPlan := range plan.prefixItems {
-			if index >= len(instance.array) {
-				break
-			}
+		for index, childPlan := range plan.prefixItems[:min(len(plan.prefixItems), len(instance.array))] {
 			childErrors, childAnnotations, err := childPlan.collectOutput(
 				instance.array[index],
 				dialect,

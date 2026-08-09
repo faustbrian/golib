@@ -192,7 +192,7 @@ func TestLoaderConstructorsAndCancellationEdges(t *testing.T) {
 	}
 
 	for _, base := range []string{
-		"", "relative/", "file:///schemas/", "https://user@example.test/base/",
+		"%", "", "relative/", "file:///schemas/", "https://user@example.test/base/",
 		"https://example.test/base", "https://example.test/base/?query",
 		"https://example.test/base/#fragment",
 	} {
@@ -216,10 +216,15 @@ func TestLoaderConstructorsAndCancellationEdges(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if _, err := loader.Load(
+		context.Background(), "https://example.test/base/",
+	); !errors.Is(err, jsonschema.ErrResourceNotFound) {
+		t.Fatalf("filesystem base: got %v, want ErrResourceNotFound", err)
+	}
 	for _, identifier := range []string{
 		"%", "http://example.test/base/x", "https://user@example.test/base/x",
 		"https://example.test/base/x?query", "https://example.test/base/x#fragment",
-		"https://example.test/base/", "https://example.test/base/missing",
+		"https://example.test/base/missing",
 		"https://example.test/base/denied",
 	} {
 		if _, err := loader.Load(context.Background(), identifier); err == nil {

@@ -108,6 +108,8 @@ func TestIDNAProfilesMustRoundTripLabelsAndPreserveBoundaries(t *testing.T) {
 func TestFormatBoundariesAreExact(t *testing.T) {
 	t.Parallel()
 
+	assertFormatResult(t, validDate, true, "2024-02-29")
+	assertFormatResult(t, validDate, false, "2023-02-29", "2024-13-01", "2024-01-32")
 	assertFormatResult(t, validTime, true,
 		"23:59:59Z", "00:00:00+23:59", "23:59:60Z",
 		"00:59:60+01:00", "22:59:60-01:00")
@@ -116,7 +118,9 @@ func TestFormatBoundariesAreExact(t *testing.T) {
 		"00:00:00+24:00", "00:00:00+00:60")
 	assertFormatResult(t, validLegacyTime, true, "23:59:59")
 	assertFormatResult(t, validLegacyTime, false,
-		"24:00:00", "00:60:00", "00:00:60")
+		"24:00:00", "00:60:00", "00:00:60", "0:00:00", "00-00:00", "00:00-00")
+	assertFormatResult(t, validIPv4, true, "127.0.0.1")
+	assertFormatResult(t, validIPv4, false, "::1", "not-an-address")
 	assertFormatResult(t, validDateTime, true, "2000-01-01T00:00:00Z")
 	assertFormatResult(t, validDateTime, false,
 		"T00:00:00Z", "2000-01-1T00:00:00Z", "2000-01-01X00:00:00Z")
@@ -132,9 +136,18 @@ func TestFormatBoundariesAreExact(t *testing.T) {
 	if lastUnquotedAt("@a@b") != -1 || lastUnquotedAt("a@b@c") != -1 {
 		t.Fatal("duplicate unquoted separator was accepted")
 	}
+	if lastUnquotedAt(`a@example.test"`) != -1 {
+		t.Fatal("unterminated quote after the separator was accepted")
+	}
 	if !validLocalPart(`""`, false) {
 		t.Fatal("empty quoted local part was rejected")
 	}
+	assertFormatResult(t, func(value string) bool { return validLocalPart(value, false) },
+		false, `"`, `"unterminated`, `"escaped\\`)
+	assertFormatResult(t, func(value string) bool { return validLocalPart(value, true) },
+		false, "é(")
+	assertFormatResult(t, validEmail, false,
+		"user@[127.0.0.1", "user@127.0.0.1]")
 
 	host253 := strings.Repeat("a", 63) + "." + strings.Repeat("b", 63) +
 		"." + strings.Repeat("c", 63) + "." + strings.Repeat("d", 61)
@@ -144,6 +157,13 @@ func TestFormatBoundariesAreExact(t *testing.T) {
 	assertFormatResult(t, validASCIILabel, false, "@", "[", "`", "{")
 	assertFormatResult(t, validIDNLabel, true, "٠", "٩", "۰", "۹")
 	assertFormatResult(t, validIDNLabel, false, "٠۰", "٩۹")
+	assertFormatResult(t, validIDNHostname, false,
+		"", ".example", "example.", string([]byte{0xff}))
+	assertFormatResult(t, validURIReference, false,
+		"https://é.example", "https://example.test/%", "https://example.test/<",
+		"https://[::1]<", "[path]", "path]", "path?[query]", "path#[fragment]",
+		string([]byte{0xff}))
+	assertFormatResult(t, validIRIReference, true, "https://é.example")
 
 	assertFormatResult(t, validPercentEncoding, true,
 		"%00", "%09", "%0a", "%0f", "%0A", "%0F", "x%41y")

@@ -76,16 +76,17 @@ func normalizeURL(source *url.URL) (*url.URL, error) {
 func normalizePercentEncoding(value string) (string, error) {
 	var result strings.Builder
 	result.Grow(len(value))
-	for index := 0; index < len(value); index++ {
-		if value[index] != '%' {
-			result.WriteByte(value[index])
+	for value != "" {
+		if value[0] != '%' {
+			result.WriteByte(value[0])
+			value = value[1:]
 			continue
 		}
-		if index+2 >= len(value) {
+		if len(value) < 3 {
 			return "", fmt.Errorf("invalid URI percent encoding")
 		}
-		high, highOK := hexadecimalValue(value[index+1])
-		low, lowOK := hexadecimalValue(value[index+2])
+		high, highOK := hexadecimalValue(value[1])
+		low, lowOK := hexadecimalValue(value[2])
 		if !highOK || !lowOK {
 			return "", fmt.Errorf("invalid URI percent encoding")
 		}
@@ -98,7 +99,7 @@ func normalizePercentEncoding(value string) (string, error) {
 			result.WriteByte(hexadecimal[high])
 			result.WriteByte(hexadecimal[low])
 		}
-		index += 2
+		value = value[3:]
 	}
 
 	return result.String(), nil
@@ -152,9 +153,7 @@ func removeDotSegments(value string) string {
 		default:
 			segment, remainder, found := strings.Cut(value[1:], "/")
 			if !found {
-				result.WriteString(value)
-				value = ""
-				continue
+				return result.String() + value
 			}
 			result.WriteString(value[:len(segment)+1])
 			value = "/" + remainder
