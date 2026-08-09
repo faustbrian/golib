@@ -8224,9 +8224,26 @@
       "build_tags": [],
       "test_tags": [],
       "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
+      "specifications": [
+        "RFC 3986 URI Generic Syntax",
+        "RFC 9110 HTTP Semantics",
+        "RFC 9111 HTTP Caching",
+        "RFC 8288 Web Linking",
+        "RFC 7617 Basic HTTP Authentication",
+        "RFC 6750 OAuth 2.0 Bearer Token Usage",
+        "RFC 6749 OAuth 2.0 Authorization Framework",
+        "RFC 6265 HTTP State Management Mechanism",
+        "RFC 8259 JSON",
+        "RFC 8470 HTTP Early Data",
+        "RFC 6585 Additional HTTP Status Codes",
+        "W3C Trace Context Level 1 Recommendation 2021-11-23"
+      ],
+      "conformance_corpora": [
+        "Pinned normative-source matrix and specification decision evidence"
+      ],
+      "provenance": [
+        "pkg/http-client/specification/manifest.tsv"
+      ],
       "goal_files": [
         "pkg/http-client/.ai/GOAL.md",
         "pkg/http-client/.ai/GOAL_HARDEN.md",
@@ -8383,7 +8400,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,

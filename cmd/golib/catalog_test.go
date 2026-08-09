@@ -433,6 +433,31 @@ func TestAuthenticationSpecificationCatalogMetadata(t *testing.T) {
 	}
 }
 
+func TestHTTPClientSpecificationCatalogMetadata(t *testing.T) {
+	t.Parallel()
+	if got := specifications("pkg/http-client"); !slices.Equal(got, []string{
+		"RFC 3986 URI Generic Syntax",
+		"RFC 9110 HTTP Semantics",
+		"RFC 9111 HTTP Caching",
+		"RFC 8288 Web Linking",
+		"RFC 7617 Basic HTTP Authentication",
+		"RFC 6750 OAuth 2.0 Bearer Token Usage",
+		"RFC 6749 OAuth 2.0 Authorization Framework",
+		"RFC 6265 HTTP State Management Mechanism",
+		"RFC 8259 JSON",
+		"RFC 8470 HTTP Early Data",
+		"RFC 6585 Additional HTTP Status Codes",
+		"W3C Trace Context Level 1 Recommendation 2021-11-23",
+	}) {
+		t.Fatalf("specifications(pkg/http-client) = %v", got)
+	}
+	if got := conformanceCorpora("pkg/http-client"); !slices.Equal(got, []string{
+		"Pinned normative-source matrix and specification decision evidence",
+	}) {
+		t.Fatalf("conformanceCorpora(pkg/http-client) = %v", got)
+	}
+}
+
 func TestXSDSpecificationCatalogMetadata(t *testing.T) {
 	t.Parallel()
 	if got := specifications("pkg/xsd"); !slices.Equal(

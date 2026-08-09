@@ -1143,6 +1143,22 @@ func specifications(directory string) []string {
 			"RFC 9110 HTTP Authentication Framework",
 		}
 	}
+	if directory == "pkg/http-client" {
+		return []string{
+			"RFC 3986 URI Generic Syntax",
+			"RFC 9110 HTTP Semantics",
+			"RFC 9111 HTTP Caching",
+			"RFC 8288 Web Linking",
+			"RFC 7617 Basic HTTP Authentication",
+			"RFC 6750 OAuth 2.0 Bearer Token Usage",
+			"RFC 6749 OAuth 2.0 Authorization Framework",
+			"RFC 6265 HTTP State Management Mechanism",
+			"RFC 8259 JSON",
+			"RFC 8470 HTTP Early Data",
+			"RFC 6585 Additional HTTP Status Codes",
+			"W3C Trace Context Level 1 Recommendation 2021-11-23",
+		}
+	}
 	if directory == "pkg/authentication/oidc" {
 		return []string{
 			"OpenID Connect Core 1.0 incorporating errata set 2",
@@ -1194,6 +1210,11 @@ func conformanceCorpora(directory string) []string {
 		return []string{
 			"RFC 7617 Sections 2 and 2.1 credential vectors",
 			"RFC 6750 Section 2.1 bearer b64token vector",
+		}
+	}
+	if directory == "pkg/http-client" {
+		return []string{
+			"Pinned normative-source matrix and specification decision evidence",
 		}
 	}
 	if directory == "pkg/authentication/oidc" {
