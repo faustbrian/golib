@@ -28,3 +28,4 @@
 - [Supported formats and behavior matrix](docs/formats.md)
 - [Go Safety And Concurrency](docs/go-safety-and-concurrency.md)
 - [Repository Standards](docs/repository-standards.md)
+- [Wire Specification Decisions](docs/specification-decisions.md)

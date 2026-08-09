@@ -32,7 +32,15 @@ make check
 
 ## Package-Specific Review
 
-Document the exact format semantics and interoperability tradeoffs. Parser changes MUST include malformed fixtures, limit tests, and differential evidence where an authoritative implementation exists.
+Document the exact format semantics and interoperability tradeoffs. Parser
+changes MUST include malformed fixtures, limit tests, and differential evidence
+where an authoritative implementation exists. Changes to parsing, encoding,
+normalization, format detection, error classification, or a codec dependency
+MUST review and update the
+[specification decision register](docs/specification-decisions.md), pinned
+[source manifest](specification/manifest.tsv), executable evidence, public
+documentation, and changelog. Superseded decisions remain in the register with
+a replacement link.
 
 ## Local Verification
 
@@ -41,6 +49,9 @@ Run the complete local gate:
 ```sh
 make check
 ```
+
+Run `make conformance` for a focused specification-map and behavioral-evidence
+check.
 
 ## Commits And Pull Requests
 

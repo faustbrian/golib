@@ -21,6 +21,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- A specification decision register, pinned normative-source manifest, and
+  executable conformance gate covering the observable JSON, XML, SOAP, YAML,
+  TOML, MessagePack, CBOR, and BSON policy choices.
 - Opt-in recursive duplicate-name rejection for bounded JSON decoding before
   the destination value can be mutated.
 - A standardized OSS repository skeleton covering policy, documentation,

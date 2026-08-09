@@ -54,14 +54,18 @@ and binary-format examples.
 - no HTTP policy, WSDL, schema engine, persistence, or application mapping
 
 The [format matrix](docs/formats.md) is authoritative for supported and
-intentionally unsupported behavior.
+intentionally unsupported behavior. Observable choices at specification and
+codec seams are recorded in the
+[specification decision register](docs/specification-decisions.md).
 
 ## Documentation
 
 Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
 [adoption guide](docs/adoption.md), and [API reference](docs/api.md). Review
 [dependencies](docs/dependencies.md), [evidence](docs/evidence.md), and
-[hardening](docs/hardening.md) before processing hostile input.
+[hardening](docs/hardening.md) before processing hostile input. Normative
+source pins and the conformance update process live in
+[specification/README.md](specification/README.md).
 
 AI tools can use [llms.txt](llms.txt) and [llms-full.txt](llms-full.txt).
 Release history is maintained in [CHANGELOG.md](CHANGELOG.md).

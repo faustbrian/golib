@@ -41,6 +41,9 @@ required=(
   docs/dependencies.md
   docs/evidence.md
   docs/formats.md
+  docs/specification-decisions.md
+  specification/README.md
+  specification/manifest.tsv
 )
 
 for file in "${required[@]}"; do

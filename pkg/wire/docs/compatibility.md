@@ -24,6 +24,13 @@ includes more than Go signatures:
 Fixing behavior that contradicts a specification can still be breaking for
 users. Release notes must call out the impact and migration path.
 
+The [specification decision register](specification-decisions.md) records the
+exact editions, ambiguities, dependency seams, selected behavior, consequences,
+and executable evidence behind this compatibility surface. A changed parsing,
+encoding, normalization, or error decision requires compatibility review even
+when the previous behavior was undocumented. Normative source provenance is
+pinned in [`../specification/manifest.tsv`](../specification/manifest.tsv).
+
 ## Version policy
 
 - Patch releases contain compatible bug fixes, security fixes, documentation,
@@ -51,6 +58,7 @@ The release commit must have:
 - fuzz smoke targets passing;
 - benchmark compilation and smoke execution passing;
 - documentation links and examples validated;
+- specification decisions, source pins, and conformance evidence validated;
 - dependency and vulnerability scans passing;
 - `CHANGELOG.md` moved from Unreleased to the release version;
 - migration notes for every breaking change.

@@ -1,0 +1,14 @@
+id	version	sections	role	url	sha256	status
+go-encoding	Go-1.26.5	encoding/json,encoding/xml	JSON-XML-and-SOAP-codec-contracts	https://go.dev/dl/go1.26.5.src.tar.gz	495be4bc87176ac567392e5b4116abd98466d33d7b49d41e764ccc6976b2dc42	pinned
+rfc8259	RFC-8259	all	JSON-data-interchange	https://www.rfc-editor.org/rfc/rfc8259.txt	61a5378f4255c720beb2a4b4a63b29540147c140f36988bf086291989b4cd2d7	pinned
+xml10	XML-1.0-Fifth-Edition	all	XML-well-formedness-and-document-syntax	https://www.w3.org/TR/2008/REC-xml-20081126/	f58a4b9e1e5b8bac13fb55c4e5c7c8c5e2c176aa45ee68e2f1ab2498511927ec	pinned
+xml-names	Namespaces-in-XML-1.0-Third-Edition	all	XML-expanded-name-semantics	https://www.w3.org/TR/2009/REC-xml-names-20091208/	b4a649e5fdab9852d68eca21442481599164949bcdee5549f2ec7e38fb3cd3a8	pinned
+soap11	SOAP-1.1	1-4	SOAP-1.1-envelope-and-faults	https://www.w3.org/TR/2000/NOTE-SOAP-20000508/	8e2a57ff110448f48d3b96f8a589524064d3679c87ddc9387cc8f74e0787efbe	pinned
+soap12	SOAP-1.2-Part-1-Second-Edition	1-5	SOAP-1.2-envelope-and-faults	https://www.w3.org/TR/2007/REC-soap12-part1-20070427/	1dd0df06385c7c18fc186feb6d7c434a7f1eb6cfc5afe1cbb41ecc0a6599d95a	pinned
+yaml122	YAML-1.2.2	all	YAML-representation-serialization-and-presentation	https://raw.githubusercontent.com/yaml/yaml-spec/80c6bde43887cf83424defb5c45c2485464659b9/spec/1.2.2/spec.md	df30dd0fc931ff04881c0ffb2788c29cbe03b2e6eda8a8bfb20cfb030248a018	pinned
+toml110	TOML-1.1.0	all	TOML-document-syntax-and-types	https://raw.githubusercontent.com/toml-lang/toml/bcbbd1c1f03473ffe97b8bf26a0fc945efe2b4a1/toml.md	5b9ee389883aed9abbcd1d0414b1a91f8f2be769950e9313c25f7c8c335f79f9	pinned
+msgpack	MessagePack-commit-8aa09e2a6a91	all	MessagePack-format	https://raw.githubusercontent.com/msgpack/msgpack/8aa09e2a6a9180a49fc62ecfefe149f063cc5e4b/spec.md	e185302236e4674cf59e0e47c362751d32ab143d8203fa779c1bf5a72314eb81	pinned
+rfc7049	RFC-7049	3.9	legacy-canonical-CBOR	https://www.rfc-editor.org/rfc/rfc7049.txt	2b65264a9606b2182f536bffad10f12176837747e23a12f89e795d886d6ac33b	pinned
+rfc8949	RFC-8949	3-5	CBOR-and-core-deterministic-encoding	https://www.rfc-editor.org/rfc/rfc8949.txt	f1164a5b31a39350ad46abe29b83575eb933ca6c45366989c118b6b1058a214a	pinned
+ctap22	CTAP-2.2-PS-2025-07-14	8	CTAP2-canonical-CBOR	https://fidoalliance.org/specs/fido-v2.2-ps-20250714/fido-client-to-authenticator-protocol-v2.2-ps-20250714.pdf	2ef853c63fd0835e609e16fbe6a7fcd5965fd6a21d86752f46df54c5cfb81f73	pinned
+bson11	BSON-1.1	all	BSON-document-grammar-and-types	https://bsonspec.org/spec.html	4eeb35dbd4f2d1767343bc984638d98f3fdd0abd8fd1f2995ae64fbbb8eba731	pinned

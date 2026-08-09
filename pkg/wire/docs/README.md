@@ -16,6 +16,7 @@ Use this index to select an explicit wire format and understand its limits.
 - [Formats](formats.md)
 - [Dependencies](dependencies.md)
 - [Evidence](evidence.md)
+- [Specification decisions](specification-decisions.md)
 - [Compatibility](compatibility.md)
 - [Performance](performance.md)
 - [Security](security.md)
