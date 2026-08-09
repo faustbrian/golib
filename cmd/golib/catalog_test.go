@@ -416,6 +416,23 @@ func TestOpenSearchSpecificationCatalogMetadata(t *testing.T) {
 	}
 }
 
+func TestAuthenticationSpecificationCatalogMetadata(t *testing.T) {
+	t.Parallel()
+	if got := specifications("pkg/authentication"); !slices.Equal(got, []string{
+		"RFC 7617 Basic HTTP Authentication",
+		"RFC 6750 OAuth 2.0 Bearer Token Usage",
+		"RFC 9110 HTTP Authentication Framework",
+	}) {
+		t.Fatalf("specifications(pkg/authentication) = %v", got)
+	}
+	if got := conformanceCorpora("pkg/authentication"); !slices.Equal(got, []string{
+		"RFC 7617 Sections 2 and 2.1 credential vectors",
+		"RFC 6750 Section 2.1 bearer b64token vector",
+	}) {
+		t.Fatalf("conformanceCorpora(pkg/authentication) = %v", got)
+	}
+}
+
 func TestXSDSpecificationCatalogMetadata(t *testing.T) {
 	t.Parallel()
 	if got := specifications("pkg/xsd"); !slices.Equal(

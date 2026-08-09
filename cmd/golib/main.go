@@ -1136,6 +1136,13 @@ func specifications(directory string) []string {
 	if directory == "pkg/capability" {
 		return []string{"RFC 4231 HMAC-SHA-256 vectors", "RFC 8032 Ed25519 vectors"}
 	}
+	if directory == "pkg/authentication" {
+		return []string{
+			"RFC 7617 Basic HTTP Authentication",
+			"RFC 6750 OAuth 2.0 Bearer Token Usage",
+			"RFC 9110 HTTP Authentication Framework",
+		}
+	}
 	if directory == "pkg/authentication/oidc" {
 		return []string{
 			"OpenID Connect Core 1.0 incorporating errata set 2",
@@ -1182,6 +1189,12 @@ func conformanceCorpora(directory string) []string {
 	}
 	if directory == "pkg/capability" {
 		return []string{"RFC 4231 test case 6", "RFC 8032 section 7.1 test 1"}
+	}
+	if directory == "pkg/authentication" {
+		return []string{
+			"RFC 7617 Sections 2 and 2.1 credential vectors",
+			"RFC 6750 Section 2.1 bearer b64token vector",
+		}
 	}
 	if directory == "pkg/authentication/oidc" {
 		return []string{"OpenID Connect Core 1.0 Section 2 ID-token claim vector"}

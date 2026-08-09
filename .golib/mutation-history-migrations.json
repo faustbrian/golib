@@ -339,6 +339,46 @@
       "report_sha256": "152289a538c41194fea38ab883241f14aeb8aaad0d70cb3a47d85d5fd0d38840"
     },
     {
+      "module": "pkg/authentication",
+      "package": "apikey",
+      "execution_revision": "8c0f56f9b0feab3df43f326f665284ecf3a8bf8f",
+      "gate_input_digest": "47dbf18ffaa2ecba418680909b1f11dd9776876d7025fddfc4a37c67582faa93",
+      "replacement_gate_input_digest": "176769a2b756dd940095e58117532dc9774c7a1b4b1cd0c2e24571fbfb2a0cc3",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "1ea64bbd07743f0df61b009ab579a4c4e3a856c0a764580ac8e031e7124948e5",
+      "migration_reason": "gate-input-identity-migration"
+    },
+    {
+      "module": "pkg/authentication",
+      "package": "authlog",
+      "execution_revision": "8c0f56f9b0feab3df43f326f665284ecf3a8bf8f",
+      "gate_input_digest": "0c6a64e78d548544f6de3d8b8648fb72693d86d2f7f7f6e0af6395e9bb67cadd",
+      "replacement_gate_input_digest": "d097be515f2570601fc5dfc38c9cc2acdaae8db07a54c9d8e573bc5dee3306d9",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "70dbd6dd6164472034c4ed8e3100dbe0a884c992c3caae87a46db13db62c9c3f",
+      "migration_reason": "gate-input-identity-migration"
+    },
+    {
+      "module": "pkg/authentication",
+      "package": "basic",
+      "execution_revision": "8c0f56f9b0feab3df43f326f665284ecf3a8bf8f",
+      "gate_input_digest": "1be66d7a01453dfc13c7dfe2e08281a34eaf4beffdf1329acae6b0c2bbc05d4f",
+      "replacement_gate_input_digest": "02f13146e343b9da2f089cedeb6577da449a52668cf85bcadb58a9dd28dc1ce7",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "b2e9779fb914e88d377a09e7cb3db279bbfc3dcba5eace40676f778847eb6cd6",
+      "migration_reason": "gate-input-identity-migration"
+    },
+    {
+      "module": "pkg/authentication",
+      "package": "bearer",
+      "execution_revision": "8c0f56f9b0feab3df43f326f665284ecf3a8bf8f",
+      "gate_input_digest": "07361234e7573975f9f951b511c2657471a647ed17e42bec583472ad7fe371fb",
+      "replacement_gate_input_digest": "93f0832aa18925c849b5d1acb923e6817b503a3666eda08387edf3bfa5532826",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "18ace254fa463e015fa5926d28feefd54fd96a3c679546982ef33a969ec76bae",
+      "migration_reason": "gate-input-identity-migration"
+    },
+    {
       "module": "pkg/authentication/oidc",
       "package": ".",
       "execution_revision": "8cb85e2f184a5fd013396bdb6521ecead1a61cc4",

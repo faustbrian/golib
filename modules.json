@@ -1898,9 +1898,18 @@
       "build_tags": [],
       "test_tags": [],
       "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
+      "specifications": [
+        "RFC 7617 Basic HTTP Authentication",
+        "RFC 6750 OAuth 2.0 Bearer Token Usage",
+        "RFC 9110 HTTP Authentication Framework"
+      ],
+      "conformance_corpora": [
+        "RFC 7617 Sections 2 and 2.1 credential vectors",
+        "RFC 6750 Section 2.1 bearer b64token vector"
+      ],
+      "provenance": [
+        "pkg/authentication/specification/manifest.tsv"
+      ],
       "goal_files": [
         "pkg/authentication/.ai/GOAL.md",
         "pkg/authentication/.ai/GOAL_HARDEN.md",
@@ -2023,7 +2032,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,
