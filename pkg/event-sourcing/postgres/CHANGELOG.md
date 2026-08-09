@@ -21,6 +21,9 @@ All notable changes to this module are documented here.
 - PostgreSQL 14 through 18 commit-response fault evidence proving a durably
   committed append reports unknown when its response is dropped, repeated
   reconciliation remains read-only, and no duplicate event is created
+- concurrent PostgreSQL 14 through 18 deployment-job evidence proving eight
+  jobs serialize through one advisory lock, each migration is applied once,
+  and completed ledger state is safe for the remaining jobs to observe
 - PostgreSQL 14 through 18 allocator evidence proving independent writers queue
   only at the singleton ordering row, resume with unique gap-free positions,
   and keep vacuumed single-row storage growth within 64 KiB after 2,048 updates

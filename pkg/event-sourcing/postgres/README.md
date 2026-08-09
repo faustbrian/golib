@@ -29,7 +29,10 @@ concurrent deployment jobs; the embedded SQL is not independently idempotent.
 The real-database upgrade suite reconstructs the only supported prior schema,
 runs an event writer before and after the derived-state migration, preserves
 history, and activates snapshots and projections without optional PostgreSQL
-extensions across PostgreSQL 14 through 18.
+extensions across PostgreSQL 14 through 18. The concurrent deployment suite
+holds the runner lock while eight independent jobs queue, then proves one job
+applies both migrations, the remaining jobs observe the completed ledger, and
+the resulting store accepts the first append on every supported major version.
 
 ## Append and read
 
