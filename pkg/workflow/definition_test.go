@@ -333,6 +333,18 @@ func TestDefinitionRejectsAmbiguousControlFlowBranches(t *testing.T) {
 		{Name: "fan-out", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"child"}},
 		child,
 	}
+	nonSignalRace := []workflow.StepSpec{
+		{Name: "race", Kind: workflow.StepRace, FanOutLimit: 1, Branches: []string{"work"}},
+		activity,
+	}
+	signal := workflow.StepSpec{
+		Name: "signal", Kind: workflow.StepSignal, Target: "race.signal", Timeout: time.Second, InputLimit: 1,
+	}
+	duplicateRaceOwners := []workflow.StepSpec{
+		{Name: "race-one", Kind: workflow.StepRace, FanOutLimit: 1, Branches: []string{"signal"}},
+		{Name: "race-two", Kind: workflow.StepRace, FanOutLimit: 1, Branches: []string{"signal"}},
+		signal,
+	}
 	duplicateJoin := []workflow.StepSpec{
 		{Name: "fan-out", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"work"}},
 		activity,
@@ -353,6 +365,8 @@ func TestDefinitionRejectsAmbiguousControlFlowBranches(t *testing.T) {
 		"mismatched-join":  mismatchedJoin,
 		"mixed-join":       mixedJoin,
 		"non-activity":     nonActivityBranch,
+		"non-signal-race":  nonSignalRace,
+		"duplicate-race":   duplicateRaceOwners,
 	} {
 		if _, err := workflow.NewDefinition(workflow.DefinitionSpec{
 			Name: "control", Version: name, Mode: workflow.Orchestration, Steps: steps,

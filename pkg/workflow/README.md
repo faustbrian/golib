@@ -23,9 +23,9 @@ or terminate. Fenced activity and compensation processors persist attempt
 starts before handlers and preserve unknown outcomes across redelivery.
 Ordered orchestration can schedule activities and timers, wait for signals and
 audited human approvals, atomically admit bounded parallel activity branches,
-join their persisted outcomes, and persist known terminal outcomes. Race and
-child orchestration, broader operator stores, and optional integrations are not
-yet delivered.
+join their persisted outcomes, select and persist bounded signal or approval
+race winners, and persist known terminal outcomes. Child orchestration, broader
+operator stores, and optional integrations are not yet delivered.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that
@@ -62,6 +62,12 @@ must first persist unknown-outcome/reconciliation state; returning an error does
 not make an uncertain side effect safe to redispatch. Worker shutdown stops new
 claims, cancels active processors, preserves any already-known disposition, and
 waits for processors to exit.
+
+`StepRace` currently accepts signal and approval branches, so selecting a
+winner cannot imply cancellation of an already-started external side effect.
+The earliest persisted receive time wins; definition order breaks an equal-time
+tie. `EventRaceWon` must commit before later steps advance, and replay never
+recomputes a different winner from signals accepted afterward.
 
 `NewTimerSchedule` binds a timer-history decision and its `WorkTimer` record in
 one transition. A timer processor persists `NewTimerFire` and only then returns

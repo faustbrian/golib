@@ -121,6 +121,8 @@ const (
 	EventCompensationManuallyResolved EventKind = 26
 	// EventOperatorCommandRecorded audits one caller-authorized intervention.
 	EventOperatorCommandRecorded EventKind = 27
+	// EventRaceWon records the persisted winner of one explicit race.
+	EventRaceWon EventKind = 28
 )
 
 // HistoryEventSpec supplies one immutable durable history record.
@@ -184,7 +186,7 @@ func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 
 func validHistoryEventSpec(spec HistoryEventSpec) bool {
 	if spec.Sequence == 0 || !instanceIDPattern.MatchString(spec.InstanceID) ||
-		spec.Kind < EventInstanceStarted || spec.Kind > EventOperatorCommandRecorded ||
+		spec.Kind < EventInstanceStarted || spec.Kind > EventRaceWon ||
 		spec.OccurredAt.IsZero() || len(spec.Data) > MaxPayloadBytes {
 		return false
 	}
@@ -281,6 +283,7 @@ type Instance struct {
 	activities      map[string]ActivityProgress
 	timers          map[string]TimerProgress
 	signals         map[string]SignalProgress
+	races           map[string]RaceProgress
 	compensations   map[string]CompensationProgress
 	operatorActions []OperatorActionRecord
 	pendingOperator OperatorAction
@@ -362,6 +365,15 @@ func (instance Instance) Signal(stepName string) (SignalProgress, bool) {
 // Signals returns replayed signal progress in stable step-name order.
 func (instance Instance) Signals() []SignalProgress { return sortedSignalProgress(instance.signals) }
 
+// Race returns the durably selected winner for one definition race.
+func (instance Instance) Race(stepName string) (RaceProgress, bool) {
+	progress, exists := instance.races[stepName]
+	return progress, exists
+}
+
+// Races returns persisted race winners in stable control-step order.
+func (instance Instance) Races() []RaceProgress { return sortedRaceProgress(instance.races) }
+
 // Compensation returns immutable replayed progress for one activity's
 // explicit compensating action.
 func (instance Instance) Compensation(stepName string) (CompensationProgress, bool) {
@@ -398,6 +410,7 @@ func (instance Instance) SnapshotDigest() string {
 		Activities            []activityProgressSnapshot
 		Timers                []timerProgressSnapshot        `json:",omitempty"`
 		Signals               []signalProgressSnapshot       `json:",omitempty"`
+		Races                 []raceProgressSnapshot         `json:",omitempty"`
 		Compensations         []compensationProgressSnapshot `json:",omitempty"`
 		OperatorActions       []operatorActionSnapshot       `json:",omitempty"`
 	}{
@@ -408,6 +421,7 @@ func (instance Instance) SnapshotDigest() string {
 		UpdatedAt: instance.updatedAt, Input: instance.input, Result: instance.result,
 		SuccessorID: instance.successorID, Activities: activityProgressSnapshots(instance.activities),
 		Timers: timerProgressSnapshots(instance.timers), Signals: signalProgressSnapshots(instance.signals),
+		Races:           raceProgressSnapshots(instance.races),
 		Compensations:   compensationProgressSnapshots(instance.compensations),
 		OperatorActions: operatorActionSnapshots(instance.operatorActions),
 	})
@@ -507,6 +521,10 @@ func (instance *Instance) apply(registry *Registry, event HistoryEvent) error {
 		if err := instance.applyWait(registry, event); err != nil {
 			return err
 		}
+	case EventRaceWon:
+		if err := instance.applyRace(registry, event); err != nil {
+			return err
+		}
 	case EventCompensationScheduled, EventCompensationAttemptStarted,
 		EventCompensationAttemptSucceeded, EventCompensationAttemptFailed,
 		EventCompensationAttemptUnknown, EventCompensationRetryScheduled,
@@ -549,6 +567,7 @@ func (instance *Instance) applyStart(registry *Registry, event HistoryEvent) err
 	instance.activities = make(map[string]ActivityProgress)
 	instance.timers = make(map[string]TimerProgress)
 	instance.signals = make(map[string]SignalProgress)
+	instance.races = make(map[string]RaceProgress)
 	instance.compensations = make(map[string]CompensationProgress)
 	instance.operatorActions = nil
 	instance.pendingOperator = 0
@@ -567,6 +586,9 @@ func validEventFields(spec HistoryEventSpec) bool {
 	}
 	if spec.Kind == EventOperatorCommandRecorded {
 		return validOperatorEventFields(spec)
+	}
+	if spec.Kind == EventRaceWon {
+		return validRaceEventFields(spec)
 	}
 	return spec.StepName == "" && spec.Attempt == 0 && spec.IdempotencyKey == "" &&
 		spec.DueAt.IsZero() && spec.Code == "" && !spec.Retryable

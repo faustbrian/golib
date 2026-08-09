@@ -7,6 +7,9 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Persisted bounded signal and approval races with deterministic winner
+  selection, immutable replayed race progress, and winner recording before
+  later orchestration can advance.
 - Deterministic bounded parallel activity admission that persists every branch
   schedule atomically, waits for all branch outcomes, and advances through
   explicit joins without treating partial admission as valid progress.

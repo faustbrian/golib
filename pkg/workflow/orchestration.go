@@ -24,6 +24,9 @@ const (
 	OrchestrationCompleted OrchestrationDecisionKind = 3
 	// OrchestrationFailed persists a known failed terminal outcome.
 	OrchestrationFailed OrchestrationDecisionKind = 4
+	// OrchestrationRecorded persists a durable control-flow decision without
+	// creating externally executable work.
+	OrchestrationRecorded OrchestrationDecisionKind = 5
 )
 
 // OrchestrationDecisionSpec supplies caller-owned identities, bounded data,
@@ -108,11 +111,55 @@ func NewOrchestrationDecision(spec OrchestrationDecisionSpec) (OrchestrationDeci
 			if err != nil || !done {
 				return decision, err
 			}
+		case StepRace:
+			decision, done, err := decideRaceStep(spec, step)
+			if err != nil || !done {
+				return decision, err
+			}
 		default:
 			return OrchestrationDecision{}, ErrInvalidOrchestration
 		}
 	}
 	return orchestrationTerminal(spec, OrchestrationCompleted, "")
+}
+
+func decideRaceStep(
+	spec OrchestrationDecisionSpec,
+	step StepSpec,
+) (OrchestrationDecision, bool, error) {
+	if _, decided := spec.Instance.Race(step.Name); decided {
+		return OrchestrationDecision{}, true, nil
+	}
+	winner := ""
+	winnerAt := time.Time{}
+	for _, branchName := range step.Branches {
+		progress, exists := spec.Instance.Signal(branchName)
+		if exists && (winnerAt.IsZero() || progress.ReceivedAt().Before(winnerAt)) {
+			winner = branchName
+			winnerAt = progress.ReceivedAt()
+		}
+	}
+	if winner == "" {
+		return orchestrationWait(step.Name), false, nil
+	}
+	event, err := NewHistoryEvent(HistoryEventSpec{
+		Sequence: spec.Instance.sequence + 1, InstanceID: spec.Instance.id,
+		Kind: EventRaceWon, OccurredAt: spec.DecidedAt, StepName: step.Name, Data: []byte(winner),
+	})
+	if err != nil {
+		return OrchestrationDecision{}, false, ErrInvalidOrchestration
+	}
+	transition, err := NewTransition(TransitionSpec{
+		ID: spec.TransitionID, InstanceID: spec.Instance.id,
+		ExpectedSequence: spec.Instance.sequence, Definition: spec.Instance.definition,
+		Events: []HistoryEvent{event},
+	})
+	if err != nil {
+		return OrchestrationDecision{}, false, ErrInvalidOrchestration
+	}
+	return OrchestrationDecision{
+		kind: OrchestrationRecorded, stepName: step.Name, transition: transition,
+	}, false, nil
 }
 
 func decideParallelStep(

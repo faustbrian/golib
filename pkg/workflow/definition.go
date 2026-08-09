@@ -246,6 +246,16 @@ func validateOrchestrationControlFlow(steps []StepSpec, kinds map[string]StepKin
 				owners[branch] = step.Name
 			}
 			branchCounts[step.Name] = len(step.Branches)
+		case StepRace:
+			for _, branch := range step.Branches {
+				if kinds[branch] != StepSignal && kinds[branch] != StepApproval {
+					return invalidDefinition("step.race_branch")
+				}
+				if _, exists := owners[branch]; exists {
+					return invalidDefinition("step.branch_owner")
+				}
+				owners[branch] = step.Name
+			}
 		case StepJoin:
 			owner, exists := owners[step.Branches[0]]
 			if !exists || branchCounts[owner] != len(step.Branches) {
