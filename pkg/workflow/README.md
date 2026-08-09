@@ -29,6 +29,13 @@ contract without choosing a database driver, and commit failures distinguish
 not-committed, committed, and unknown durable outcomes. Callers must reconcile
 unknown outcomes by transition ID before retrying.
 
+`NewActivitySchedule` atomically persists bounded activity input with the first
+due-work record. A worker commits `NewActivityAttemptStart` before invoking the
+external handler, then commits an explicit success, known failure, or unknown
+outcome. `NewActivityRetry` records the deterministic backoff decision and the
+next semantic attempt together; work redelivery retains the same attempt
+idempotency key while a policy retry receives a new one.
+
 The `postgres` package is the first durable adapter. Its versioned migration
 creates instance, transition, history, and due-work tables in a caller-owned
 schema. A commit uses optimistic sequence checks and one PostgreSQL transaction

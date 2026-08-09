@@ -10,6 +10,9 @@ and releases use Semantic Versioning.
 - Explicit bounded activity requests and registries with persisted deadlines,
   attempt metadata, idempotency keys, tenant/correlation propagation, and
   distinct success, known-failure, and unknown-outcome results.
+- Atomic activity scheduling, persisted attempt starts, explicit outcome
+  transitions, and deterministic retry admission with durable work that keeps
+  redelivery identity separate from semantic retry identity.
 - Deterministic replay of durably scheduled activity attempts, known outcomes,
   unknown outcomes, and bounded exponential retry admission decisions.
 - Immutable bounded transition plans that atomically couple optimistic history
