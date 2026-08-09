@@ -1349,6 +1349,7 @@ func TestMutationDigestTracksIntegrationInputsInsteadOfDocumentation(t *testing.
 		"pkg/dependency/testdata",
 		"pkg/example",
 		"pkg/example/consumer",
+		"pkg/unrelated",
 		"scripts/internal",
 		"scripts/patches",
 	} {
@@ -1357,6 +1358,20 @@ func TestMutationDigestTracksIntegrationInputsInsteadOfDocumentation(t *testing.
 		}
 	}
 	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/root\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "go.work"), `go 1.26.5
+
+use (
+	./pkg/example
+	./pkg/unrelated
+)
+`)
+	writeFile(t, filepath.Join(repository, "pkg", "unrelated", "go.mod"), `module example.test/unrelated
+
+go 1.26.5
+
+require example.invalid/unpublished v0.0.0-20990101000000-deadbeefdead
+`)
+	writeFile(t, filepath.Join(repository, "pkg", "unrelated", "unrelated.go"), "package unrelated\n")
 	writeFile(t, filepath.Join(repository, "modules.json"), `{
   "modules": [{
     "directory": "pkg/example",

@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Resolve mutation fingerprints in a module-scoped dependency graph so an
+  unrelated workspace module with an unpublished dependency cannot block a
+  selected module's mutation gate.
 - Exclude GolangCI-Lint runner-concurrency plumbing from gate input identity so
   successful analysis evidence survives operational parallelism fixes.
 - Allow isolated GolangCI-Lint runners to execute concurrently so parallel

@@ -25,11 +25,15 @@ relevant_package_data="${manifest}.relevant-packages"
 existing_files="${manifest}.existing"
 file_hashes="${manifest}.hashes"
 nested_directories="${manifest}.nested"
+digest_modfile=""
 cleanup() {
     rm -f \
         "${manifest}" "${directories}" "${input_files}" "${package_data}" \
         "${relevant_package_data}" \
         "${existing_files}" "${file_hashes}" "${nested_directories}"
+    if [[ -n "${digest_modfile}" ]]; then
+        rm -f "${digest_modfile}" "${digest_modfile%.mod}.sum"
+    fi
 }
 trap cleanup EXIT HUP INT TERM
 
@@ -374,7 +378,7 @@ legacy_digest() {
 }
 
 package_digest() {
-    local data_name digest_go digest_go_flags digest_workspace flag
+    local data_name digest_go digest_go_flags digest_workspace flag owned_count
     local module_path module_root package_directory resolution tags
     local target_import_path
     module_root="${root}/${module}"
@@ -469,34 +473,64 @@ package_digest() {
             "${resolution}" >&2
         exit 2
     else
-    digest_go="${GOLIB_REAL_GO:-$(command -v go)}"
-    digest_workspace=off
-    if [[ -f "${root}/go.work" ]]; then
-        digest_workspace="${root}/go.work"
-    fi
-    digest_go_flags=""
-    for flag in ${GOLIB_UPSTREAM_GOFLAGS:-${GOFLAGS:-}}; do
-        case "${flag}" in
-            -mod=*|-modfile=*) ;;
-            *)
-                digest_go_flags="$(
-                    printf '%s%s' \
-                        "${digest_go_flags:+${digest_go_flags} }" "${flag}"
-                )"
-                ;;
-        esac
-    done
-    (
-        cd "${module_root}"
-        if [[ -n "${tags}" ]]; then
-            GOWORK="${digest_workspace}" GOFLAGS="${digest_go_flags}" \
-                "${digest_go}" list -deps -test -json \
-                -tags="${tags}" ./...
-        else
-            GOWORK="${digest_workspace}" GOFLAGS="${digest_go_flags}" \
-                "${digest_go}" list -deps -test -json ./...
+        digest_go="${GOLIB_REAL_GO:-$(command -v go)}"
+        digest_workspace=off
+        digest_go_flags=""
+        for flag in ${GOLIB_UPSTREAM_GOFLAGS:-${GOFLAGS:-}}; do
+            case "${flag}" in
+                -mod=*|-modfile=*) ;;
+                *)
+                    digest_go_flags="$(
+                        printf '%s%s' \
+                            "${digest_go_flags:+${digest_go_flags} }" "${flag}"
+                    )"
+                    ;;
+            esac
+        done
+        owned_count="$(jq -r --arg directory "${module}" '
+            .modules[] | select(.directory == $directory) | .owned_dependencies | length
+        ' "${root}/modules.json")"
+        if [[ "${owned_count}" -gt 0 ]]; then
+            digest_modfile="${manifest}.mutation.mod"
+            cp "${module_root}/go.mod" "${digest_modfile}"
+            if [[ -f "${module_root}/go.sum" ]]; then
+                cp "${module_root}/go.sum" "${digest_modfile%.mod}.sum"
+            fi
+            while IFS=$'\t' read -r owned_path owned_directory; do
+                [[ -n "${owned_path}" && -n "${owned_directory}" ]] || continue
+                GOWORK=off "${digest_go}" mod edit -modfile="${digest_modfile}" \
+                    -replace="${owned_path}=${root}/${owned_directory}"
+            done < <(jq -r --arg directory "${module}" '
+                . as $catalog
+                | def closure($seen):
+                    ([ $catalog.modules[]
+                       | select(.module_path as $path | $seen | index($path))
+                       | .owned_dependencies[] ] | unique) as $dependencies
+                    | ($seen + $dependencies | unique) as $next
+                    | if $next == $seen then $next else closure($next) end;
+                (.modules[] | select(.directory == $directory).owned_dependencies) as $owned
+                | closure($owned) as $paths
+                | .modules[]
+                | select(.module_path as $path | $paths | index($path))
+                | [.module_path, .directory]
+                | @tsv
+            ' "${root}/modules.json")
+            digest_go_flags="$(
+                printf '%s%s' "${digest_go_flags:+${digest_go_flags} }" \
+                    "-modfile=${digest_modfile} -mod=mod"
+            )"
         fi
-    ) >"${package_data}"
+        (
+            cd "${module_root}"
+            if [[ -n "${tags}" ]]; then
+                GOWORK="${digest_workspace}" GOFLAGS="${digest_go_flags}" \
+                    "${digest_go}" list -deps -test -json \
+                    -tags="${tags}" ./...
+            else
+                GOWORK="${digest_workspace}" GOFLAGS="${digest_go_flags}" \
+                    "${digest_go}" list -deps -test -json ./...
+            fi
+        ) >"${package_data}"
     fi
 
     if [[ "${resolution}" == "legacy-stable" ]]; then
