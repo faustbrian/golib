@@ -27,3 +27,11 @@ again on resume, so imports and migrations must make the tenant operation
 idempotent. Do not submit asynchronous fan-out work from the callback and treat
 submission as completion. Applications that require fan-out must own durable
 per-tenant completion, retry, and attribution records outside this helper.
+
+The clean-consumer administrative fixture is the executable reference for that
+application-owned fan-out: it bounds concurrency, fsyncs each per-tenant
+attempt and attribution record before atomic rename, resumes a failed import
+from a reconstructed journal without repeating completed tenants, and executes
+a separately identified migration. Production consumers need a shared durable
+store with equivalent atomicity when work can move between hosts or pods; the
+fixture's local file is single-host evidence only.

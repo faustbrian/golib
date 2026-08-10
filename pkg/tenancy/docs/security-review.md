@@ -1,6 +1,6 @@
 # Security review and isolation matrix
 
-Review date: 2026-08-09
+Review date: 2026-08-10
 
 ## Security conclusions
 
@@ -12,7 +12,8 @@ Review date: 2026-08-09
   and value access remain trusted-boundary operations.
 - Namespace inputs are versioned and length-delimited before keyed HMAC
   encoding. Tenant, boundary, domain, and logical-key changes produce distinct
-  collision-resistant namespaces without exposing raw inputs.
+  collision-resistant namespaces without exposing raw inputs. Version 2 emits
+  lowercase hexadecimal names accepted by supported first-party providers.
 - Background tasks preserve submission values, deadlines, and cancellation
   while also remaining cancellable through group ownership.
 - PostgreSQL enforcement uses a restricted application login, paired scoped
@@ -32,20 +33,22 @@ Review date: 2026-08-09
 | Generic propagation spoof, ambiguity, overwrite, and replay | `TestPropagationCodecRejectsAmbiguousSpoofedAndMalformedMetadata`, `TestPropagationCodecRefusesOverwriteSystemScopeAndContextConflict`, `FuzzPropagationExtraction` |
 | HTTP direct access and duplicate headers | `TestMiddlewareAcceptsOnlyExplicitlyTrustedTenantHeader`, `TestHTTPExtractionRejectsDuplicateCaseVariants`, `FuzzHTTPHeaderExtraction`, clean-consumer authenticated-hop fixture |
 | JSON-RPC direct access and duplicate raw keys | `TestJSONRPCExtractAndAcceptRequireExplicitTrust`, `TestJSONRPCRejectsDuplicateConflictingMalformedAndOversizedMetadata`, `FuzzJSONRPCMetadata` |
-| Queue, event, cache, search, workflow, audit, and telemetry contract replay and retry | `TestIntegrationStateModelRejectsCrossTenantReplayAndRetry`, `TestPropertyEveryIntegrationFailsClosedAcrossRandomizedSequences` |
-| Cache and namespace cross-tenant collisions | `TestNamespaceEncoderSeparatesScopesDomainsAndAmbiguousParts`, `TestPropertyTenantNamespacesNeverAlias`, `TestPropertyConcurrentOperationsCannotObserveAnotherTenant` |
+| Queue, event, cache, search, workflow, audit, and telemetry contract replay and retry | `TestIntegrationStateModelRejectsCrossTenantReplayAndRetry`, `TestPropertyEveryIntegrationFailsClosedAcrossRandomizedSequences`, external clean-consumer provider compositions |
+| Cache and namespace cross-tenant collisions | `TestNamespaceEncoderSeparatesScopesDomainsAndAmbiguousParts`, `TestNamespaceOutputIsSafeForFirstPartyProviderNames`, `TestPropertyTenantNamespacesNeverAlias`, `TestPropertyConcurrentOperationsCannotObserveAnotherTenant` |
+| Live search persistence | `scripts/test-opensearch-integration.sh` executes two-tenant negative isolation against OpenSearch 2.19.6 and 3.8.0 under `-race` |
 | Goroutine lifetime and scope reuse | `TestGroupTaskPreservesSubmitContext`, `TestGroupRaceBoundariesAndWaitCancellation`, `TestGroupStressCloseAndShutdownDoNotLeak`, `TestIntegrationConcurrentSoak` |
 | PostgreSQL absent scope, system scope, RLS composition, prepared plans, rollback, cancellation, stale pool state, connection loss, reconnect, and concurrent reuse | `TestPostgreSQLRLSAndPoolReuseIsolation` against live PostgreSQL with `-race` |
-| Administrative partial failure, retry, resume, and attribution | `TestAdministrativeIterationStopsAtAuditOperationAndCancellation`, `TestAdministrativeResumeRepeatsFailedTenantWithCompleteAttribution`, cursor-cycle and page-bound tests |
-| External-module adoption and migration | `scripts/check-clean-consumer.sh` executes authenticated HTTP, conflicting JSON-RPC, explicit SQL predicate, and no-fallback scoped cache fixtures |
+| Administrative partial failure, retry, resume, and attribution | `TestAdministrativeIterationStopsAtAuditOperationAndCancellation`, `TestAdministrativeResumeRepeatsFailedTenantWithCompleteAttribution`, cursor-cycle and page-bound tests, external fsync journal fan-out fixture |
+| External-module adoption and migration | `scripts/check-clean-consumer.sh` executes authenticated HTTP, conflicting JSON-RPC, explicit SQL predicate, provider compositions, no-fallback scoped cache, and durable administrative fixtures |
 | Direct provider, replacement-context, and telemetry-label bypass | `scripts/check-analyzers.sh` executes the blocking `analysis.yml` policy against negative consumer and reviewed-adapter fixtures |
 
 ## Trust and support boundaries
 
 Provider clients and envelopes remain application-owned. The `Integration`
-tests prove the tenancy contract, not a provider implementation that bypasses
-it. Every provider adapter must rerun extraction on delivery, replay, retry,
-dead-letter, or resume and must use its boundary namespace at persistence.
+tests and declared consumer fixtures prove only the adapters they execute; they
+do not protect a provider implementation that bypasses those adapters. Every
+provider adapter must rerun extraction on delivery, replay, retry, dead-letter,
+or resume and must use its boundary namespace at persistence.
 
 The PostgreSQL callback is trusted application SQL. Because it receives an
 unrestricted `*sql.Tx`, it can temporarily change the custom setting, perform

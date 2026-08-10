@@ -11,6 +11,11 @@ versioned length-delimited HMAC over scope, boundary, and logical key, so the
 same logical value is collision-resistant and unambiguously separated between
 tenants and integration domains, while raw tenant data is not disclosed.
 
+Namespace format v2 uses a `tn2_` prefix and lowercase hexadecimal digest. The
+result is valid as an OpenSearch index or alias and within the supported queue,
+workflow, cache, and telemetry name alphabets. Consumers still own any provider
+length prefix or suffix and MUST keep the opaque tenant namespace intact.
+
 `Integration.Key` also requires tenant scope. System-wide and deliberately
 unscoped operations must use a separately designed administrative namespace;
 they cannot silently share a tenant integration namespace.
