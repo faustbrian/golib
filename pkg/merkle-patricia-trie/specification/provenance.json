@@ -2,37 +2,53 @@
   "schema_version": 1,
   "sources": [
     {
+      "name": "Ethereum Yellow Paper",
+      "revision": "efc5f9a1f356cba376c978eedb63cb0363c2aa85",
+      "url": "https://github.com/ethereum/yellowpaper/tree/efc5f9a1f356cba376c978eedb63cb0363c2aa85"
+    },
+    {
       "name": "ethereum/execution-specs",
-      "revision": "44d2b9cbd028b48f13e6ebf2635f977141cc397b"
+      "revision": "44d2b9cbd028b48f13e6ebf2635f977141cc397b",
+      "url": "https://github.com/ethereum/execution-specs/tree/44d2b9cbd028b48f13e6ebf2635f977141cc397b"
     },
     {
       "name": "ethereum/execution-spec-tests stable fixtures",
       "version": "v5.4.0",
       "revision": "88e9fb8f10ed89805aa3110d0a2cd5dcadc19689",
-      "manifest": "testdata/execution-spec-tests/MANIFEST.md"
+      "manifest": "testdata/execution-spec-tests/MANIFEST.md",
+      "manifest_sha256": "2d4b6b82776830c439c683269f1d51ef3533082f7c2ade8c5ae3cbd31bcd3ae4",
+      "url": "https://github.com/ethereum/execution-spec-tests/tree/88e9fb8f10ed89805aa3110d0a2cd5dcadc19689"
     },
     {
       "name": "ethereum/tests TrieTests",
       "revision": "c67e485ff8b5be9abc8ad15345ec21aa22e290d9",
-      "manifest": "testdata/ethereum-tests/MANIFEST.md"
+      "manifest": "testdata/ethereum-tests/MANIFEST.md",
+      "manifest_sha256": "5604f6cba27ffeb4ef99798a790631b26d653016ff8f7ad272a307ea0e1e1503",
+      "url": "https://github.com/ethereum/tests/tree/c67e485ff8b5be9abc8ad15345ec21aa22e290d9"
     },
     {
       "name": "go-ethereum",
       "version": "v1.17.3",
       "revision": "117e067f0f0bae1a17082321f224dedb6765b10f",
-      "manifest": "testdata/go-ethereum/MANIFEST.md"
+      "manifest": "testdata/go-ethereum/MANIFEST.md",
+      "manifest_sha256": "b4e3ed99254947110ac016b29b456ea5fd2646fe3137313c1ec0764ad5f7e890",
+      "url": "https://github.com/ethereum/go-ethereum/tree/117e067f0f0bae1a17082321f224dedb6765b10f"
     },
     {
       "name": "@ethereumjs/mpt",
       "version": "10.1.2",
       "revision": "3adf102baf8991f82feda860e0d3a3ec644d0802",
-      "integrity": "sha512-dBlXpkP1ssp+AcUxsJUrY72LZuE1JQEp1AZn5mgmbBcd2Gwkpyi57q4zATlZbxrZUxp/K9UIidgqxQWcOCbo5g=="
+      "integrity": "sha512-dBlXpkP1ssp+AcUxsJUrY72LZuE1JQEp1AZn5mgmbBcd2Gwkpyi57q4zATlZbxrZUxp/K9UIidgqxQWcOCbo5g==",
+      "package_lock_sha256": "8b2ea70c6423660f8e525c97dd95cd3167782433da5d3a5995a475fd1da6dd81",
+      "url": "https://github.com/ethereumjs/ethereumjs-monorepo/tree/3adf102baf8991f82feda860e0d3a3ec644d0802/packages/mpt"
     },
     {
       "name": "@ethereumjs/rlp",
       "version": "10.1.2",
       "revision": "3adf102baf8991f82feda860e0d3a3ec644d0802",
-      "integrity": "sha512-T5Zt6C2pd02Wd88Q9A5/UX+He1Q2Y1LntHxz/038tfbUMiqby4fYSSTLEDx+TEfJqw1BsJSBY/TSu6goUzlk+w=="
+      "integrity": "sha512-T5Zt6C2pd02Wd88Q9A5/UX+He1Q2Y1LntHxz/038tfbUMiqby4fYSSTLEDx+TEfJqw1BsJSBY/TSu6goUzlk+w==",
+      "package_lock_sha256": "8b2ea70c6423660f8e525c97dd95cd3167782433da5d3a5995a475fd1da6dd81",
+      "url": "https://github.com/ethereumjs/ethereumjs-monorepo/tree/3adf102baf8991f82feda860e0d3a3ec644d0802/packages/rlp"
     }
   ]
 }

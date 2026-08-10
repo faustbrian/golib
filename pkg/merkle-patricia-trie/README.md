@@ -32,6 +32,7 @@ binary Merkle tree, SSZ merkleization, or Verkle tree.
 - [Durable filesystem store](docs/filesystem-store.md)
 - [Architecture and ownership](docs/architecture.md)
 - [Compatibility decisions](docs/compatibility-decisions.md)
+- [Specification decision register](docs/specification-decisions.md)
 - [Security assumptions](docs/security.md)
 - [Hardening report](docs/hardening-report.md)
 - [Source and fixture provenance](docs/source-provenance.md)

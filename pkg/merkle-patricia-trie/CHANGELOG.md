@@ -4,6 +4,11 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ## [Unreleased]
 
+### Changed
+
+- Convert consensus and client-divergence choices into an auditable
+  specification register and bind every pinned source to an immutable URL.
+
 ### Added
 
 - Added the stable-release hardening report with compatibility, fixture,
