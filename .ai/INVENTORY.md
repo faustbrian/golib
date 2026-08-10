@@ -136,7 +136,8 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/settings/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 16. Current scoped evidence verifies immutable bounded snapshots, explicit per-class degradation, monotonic writes and reads, bounded fleet convergence and lifecycle, PostgreSQL and Valkey interoperability, and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/service/.ai/GOAL_RESILIENCE.md` | `verified` | The base resilience goal formerly included in pending order 18 has current lifecycle, adoption, Kubernetes, exact coverage and mutation, documentation, API, security, supply-chain, race, and benchmark evidence; its separate `GOAL_RESILIENCE_HARDEN.md` remains pending. |
 | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 42. Current scoped evidence verifies canonical scoped capabilities and signed URLs, key lifecycle, replay and revocation adapters, hardening requirements, and every mandatory capability-module gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/tenancy/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 43. Current scoped evidence verifies explicit tenant identity, propagation, namespaces, administration, PostgreSQL/RLS, asynchronous lifecycle, hardening, documentation, and every mandatory tenancy-module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/tenancy/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 43 has current scoped evidence for explicit tenant identity, propagation, namespaces, administration, PostgreSQL/RLS, asynchronous lifecycle, documentation, and every mandatory tenancy-module gate. |
+| `pkg/tenancy/.ai/GOAL_HARDEN.md` | `verified` | The hardening goal formerly included in pending order 43 has current scoped evidence for fail-closed identity propagation, cross-tenant isolation at every supported boundary, hostile inputs, failure injection, concurrency, external interoperability, and every mandatory tenancy-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 44. Current scoped evidence verifies immutable bounded audit records, explicit delivery and privacy policy, deterministic integrity, bounded query/export and retention contracts, the memory adapter, the durable PostgreSQL adapter, hardening requirements, and every mandatory audit-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/schema-registry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 45. Current scoped evidence verifies provider-neutral schema identity and capability contracts, bounded caches and offline bundles, explicit wire integration, Confluent Platform interoperability, AWS Glue Java SerDe interoperability, hardening requirements, and every locally executable mandatory affected-module gate. The credentialed live AWS Glue service run remains an explicit pull-request verification gap rather than a completion blocker. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
@@ -210,11 +211,11 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Observed | 2026-08-09T10:05:22Z |
 | Gaps | None within the scoped base resilience contract; `pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md` remains a separate pending campaign. |
 
-### Explicit tenant isolation evidence
+### Explicit tenant isolation base evidence
 
 | Field | Record |
 | --- | --- |
-| Goal | `pkg/tenancy/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Goal | `pkg/tenancy/.ai/GOAL.md` |
 | Scope | Typed opaque tenant identity; explicit tenant, system, and unscoped operations; trusted HTTP, JSON-RPC, message, event, namespace, telemetry, and background propagation; audited administration; PostgreSQL predicates, transaction-local settings, pool reset, and RLS isolation. |
 | Status | `pending` to `verified` |
 | Evidence | `./scripts/run-modules.sh check --modules pkg/tenancy` and package-local `make clean-consumer` against the completed implementation. |
@@ -222,6 +223,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each run and the gate-managed PostgreSQL service. |
 | Observed | 2026-08-09T09:48:31Z |
 | Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped tenancy contract. |
+
+### Tenant isolation hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/tenancy/.ai/GOAL_HARDEN.md` |
+| Scope | Fail-closed and unambiguous identity across contexts, HTTP, JSON-RPC, messages, events, namespaces, caches, searches, workflows, audit, telemetry, background goroutines, administration, PostgreSQL/RLS, pooled connections, rollback, cancellation, retry, resume, and failover. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/tenancy` against the completed goal-scoped snapshot; the package two-minute race soak; and direct Redis Streams and digest-pinned OpenSearch 2.19.6 and 3.8.0 composition matrices. |
+| Result | Passed every mandatory tenancy module gate with exact 415/415 core, 43/43 HTTP, 75/75 JSON-RPC, and 119/119 PostgreSQL statements (652/652 total); killed 253/253 core, 28/28 HTTP, 39/39 JSON-RPC, and 140/140 PostgreSQL viable mutants (460/460 total) with 100% efficacy and mutant coverage. Race, stress, soak, leak, four 10,000-execution fuzz targets, hostile-input, PostgreSQL/RLS and streamed failover, Redis Streams, OpenSearch, clean-consumer composition, analyzers, API, documentation, security, supply-chain, and benchmark gates passed. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run; gate-managed PostgreSQL plus isolated Redis Streams and digest-pinned OpenSearch 2.19.6 and 3.8.0 services. |
+| Observed | 2026-08-10 |
+| Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped tenancy hardening contract. |
 
 ### Queue service lifecycle adapter evidence
 
