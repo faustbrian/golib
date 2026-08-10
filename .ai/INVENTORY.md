@@ -79,7 +79,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 28 |
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
-| 46 | Event interoperability | `pending` | `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-35, 43, 45 |
 | 47 | Durable orchestration | `pending` | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 27-35, 43, 44, 46 |
 | 48 | Search | `pending` | `pkg/search/.ai/GOAL_HARDEN.md` | 3-18, 29-32, 43 |
 | 50 | Ecosystem cohesion | `pending` | `.ai/GOAL_COHESION.md` | 3-49 |
@@ -141,6 +140,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/tenancy/.ai/GOAL_HARDEN.md` | `verified` | The hardening goal formerly included in pending order 43 has current scoped evidence for fail-closed identity propagation, cross-tenant isolation at every supported boundary, hostile inputs, failure injection, concurrency, external interoperability, and every mandatory tenancy-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 44. Current scoped evidence verifies immutable bounded audit records, explicit delivery and privacy policy, deterministic integrity, bounded query/export and retention contracts, the memory adapter, the durable PostgreSQL adapter, hardening requirements, and every mandatory audit-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/schema-registry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 45. Current scoped evidence verifies provider-neutral schema identity and capability contracts, bounded caches and offline bundles, explicit wire integration, Confluent Platform interoperability, AWS Glue Java SerDe interoperability, hardening requirements, and every locally executable mandatory affected-module gate. The credentialed live AWS Glue service run remains an explicit pull-request verification gap rather than a completion blocker. |
+| `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 46. Current scoped evidence verifies the stable CloudEvents core, normative JSON event and batch formats, HTTP and Kafka bindings, supported tracing and partitioning extensions, Golib ecosystem conversions, conformance and independent SDK interoperability, hardening requirements, and every mandatory CloudEvents module gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
@@ -212,6 +212,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with a fresh task-owned disposable `GOCACHE` removed after every bounded Go or mutation run; pinned Confluent Platform 8.2.0 containers and the pinned AWS Glue Java SerDe 1.1.27 reference implementation. |
 | Observed | 2026-08-10 |
 | Gaps | The credentialed live AWS Glue service integration was not run because no non-production region, registry, or schema identifiers were available. This boundary must be stated explicitly in the pull request; it does not block completion per maintainer direction. |
+
+### CloudEvents interoperability evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | CloudEvents 1.0.2 context attributes, deterministic JSON event and batch formats, HTTP and Kafka structured and binary modes, distributed tracing and partitioning extensions, bounded hostile-input handling, explicit schema validation, and loss-documented Golib adapters for event sourcing, outbox, Kafka, queue, workflow, correlation, tenancy, telemetry, and audit metadata. |
+| Status | `pending` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/cloudevents`; `./scripts/run-modules.sh check --jobs 1 --modules pkg/cloudevents/adapters/golib`; direct release dry-runs for both modules; and the focused `cmd/golib` CloudEvents catalog contract. |
+| Result | Passed every mandatory affected-module gate, including exact 885/885 core and 486/486 adapter production statements; killed 563/563 core and 207/207 adapter viable mutants with 100% efficacy and mutant coverage; passed race, stress and leak checks, five 10,000-execution fuzz targets, official conformance fixtures, Go and JavaScript SDK interoperability in both directions, API, documentation, security, supply-chain, clean-consumer, and benchmark checks. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded Go or mutation run; pinned CloudEvents specification, conformance kit, Go SDK, JavaScript SDK, and Node.js revisions. |
+| Observed | 2026-08-10T12:50:47Z |
+| Gaps | Core NilAway advisory diagnostics remain visible under repository policy; no mandatory gap remains within the scoped CloudEvents and Golib adapter contracts. |
 
 ### Feature flag fleet resilience evidence
 
