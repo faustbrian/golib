@@ -18,3 +18,6 @@
 - [Performance evidence and benchmark matrix](performance.md)
 - [Operations](operations.md)
 - [Security](security.md)
+- [Runnable producer, consumer, and transaction examples](../workflow_example_test.go)
+- [Runnable consumer retry example](../consumer_batch_failure_example_test.go)
+- [Runnable replay checkpoint example](../replay_example_test.go)

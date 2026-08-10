@@ -400,6 +400,17 @@ See the [current audit](docs/audit.md), [compatibility matrix](docs/compatibilit
 [observability](docs/observability.md), [performance evidence](docs/performance.md),
 [operations](docs/operations.md), and [security](docs/security.md).
 
+## Runnable workflow examples
+
+The package examples compile complete synchronous, batch, bounded asynchronous,
+consumer-group, producer-transaction, consume-transform-produce, retry, and
+replay workflows. The broker-backed examples use placeholder production
+endpoints and must be supplied with application identities, topic policy,
+durable handlers, and unique instance-scoped transactional IDs before use. See
+[`workflow_example_test.go`](workflow_example_test.go),
+[`consumer_batch_failure_example_test.go`](consumer_batch_failure_example_test.go),
+and [`replay_example_test.go`](replay_example_test.go).
+
 ## Development
 
 Run `make check`. `make conformance` exercises the public `kafkatest` producer,

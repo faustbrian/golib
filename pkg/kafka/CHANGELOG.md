@@ -508,6 +508,9 @@ All notable changes to this module are documented here.
   `MaxPollRecords`, with clipped and explicitly marked observation metadata
 - verified TLS 1.2 minimum, SASL composition, health checks, fuzz targets,
   race coverage, benchmarks, and exact statement coverage
+- compile-checked synchronous, batch, bounded asynchronous, consumer-group,
+  producer-transaction, and consume-transform-produce adoption examples with
+  explicit ambiguity, settlement, shutdown, and identity guidance
 
 ### Changed
 
