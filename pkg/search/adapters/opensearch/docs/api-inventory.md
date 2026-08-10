@@ -10,7 +10,7 @@ verified.
 | --- | --- | --- |
 | `Info` | `GET /` | requires node, cluster, UUID, and version fields |
 | `Discover` | `GET /_nodes/http` | explicit invocation; only allowlisted data-node publish addresses replace seeds |
-| `Write` | `PUT/DELETE /{alias}/_doc/{id}` | `version_type=external`; `require_alias=true`; no automatic retry |
+| `Write` | `PUT/DELETE /{alias}/_doc/{id}` | `version_type=external`; index/upsert use `require_alias=true`; delete omits the unsupported parameter and relies on resolver-authorized write-alias selection; no automatic retry |
 | `Bulk` | `POST /_bulk` | bounded NDJSON; external version metadata; every response action, ID, status, and position is checked |
 | `Search` | `POST /{index}/_search` or `POST /_search` | typed DSL plus explicitly authorized, adapter-bound raw extension objects; PIT requests use the global search endpoint |
 | PIT create/delete | `POST /{index}/_search/point_in_time`, `DELETE /_search/point_in_time` | signed cursor owns PIT ID and cleanup; expiry is classified |

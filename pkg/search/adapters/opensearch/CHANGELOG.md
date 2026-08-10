@@ -7,6 +7,22 @@
 - Cap concurrency channels, queued callers, locale analyzer maps, and discovery
   trust rules before allocation or configuration cloning.
 
+### Changed
+
+- Reject `ActionUpdate` with `search.ErrUnsupported` before index resolution or
+  transport because OpenSearch external-version writes cannot preserve shared
+  update-existing semantics. Callers that intentionally accept create-or-replace
+  semantics should use `ActionIndex` or `ActionUpsert`.
+- Classify bulk HTTP 404 outcomes as `OutcomeNotFound` only for deletes;
+  non-delete items now report `OutcomeFailed` when a safe backend failure is
+  present and `OutcomeUnknown` otherwise.
+
+### Fixed
+
+- Omit OpenSearch's unsupported `require_alias` parameter from single-document
+  deletes while retaining external versions, so version-ordered deletes work
+  through resolved write aliases on OpenSearch 2.19.6.
+
 ### Added
 
 - Initial OpenSearch v4 client adapter for typed search, point-in-time cursor

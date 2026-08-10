@@ -39,9 +39,11 @@ func (c *Client) Write(ctx context.Context, operation search.WriteOperation, ref
 		method, body = http.MethodDelete, nil
 	}
 	query := url.Values{
-		"require_alias": []string{"true"},
-		"version":       []string{strconv.FormatUint(operation.Version, 10)},
-		"version_type":  []string{"external"},
+		"version":      []string{strconv.FormatUint(operation.Version, 10)},
+		"version_type": []string{"external"},
+	}
+	if operation.Action != search.ActionDelete {
+		query.Set("require_alias", "true")
 	}
 	switch refresh {
 	case search.RefreshWaitFor:

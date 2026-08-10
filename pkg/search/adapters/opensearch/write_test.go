@@ -36,7 +36,7 @@ func TestWriteUsesExternalVersioningForSupportedDocumentActions(t *testing.T) {
 	}{
 		{search.IndexDocument(document), http.MethodPut, "/tenant-a-events-v2/_doc/event-1?refresh=wait_for&require_alias=true&version=9&version_type=external", true},
 		{search.UpsertDocument(document), http.MethodPut, "/tenant-a-events-v2/_doc/event-1?refresh=wait_for&require_alias=true&version=9&version_type=external", true},
-		{search.DeleteDocument("tenant-a", "events", "event-1", 9), http.MethodDelete, "/tenant-a-events-v2/_doc/event-1?refresh=wait_for&require_alias=true&version=9&version_type=external", false},
+		{search.DeleteDocument("tenant-a", "events", "event-1", 9), http.MethodDelete, "/tenant-a-events-v2/_doc/event-1?refresh=wait_for&version=9&version_type=external", false},
 	}
 	for _, test := range tests {
 		outcome, err := client.Write(t.Context(), test.operation, search.RefreshWaitFor)
@@ -79,6 +79,35 @@ func TestWriteAndBulkRejectUpdateExistingBeforeIO(t *testing.T) {
 	}
 	if transport.requests != 0 {
 		t.Fatalf("update requests = %d, want 0", transport.requests)
+	}
+}
+
+func TestWriteDeleteOmitsUnsupportedRequireAliasParameter(t *testing.T) {
+	t.Parallel()
+
+	type observed struct{ method, target string }
+	requests := make(chan observed, 1)
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		requests <- observed{method: request.Method, target: request.URL.RequestURI()}
+		writer.Header().Set("Content-Type", "application/json")
+		if request.URL.Query().Has("require_alias") {
+			writer.WriteHeader(http.StatusBadRequest)
+			_, _ = io.WriteString(writer, `{"error":{"type":"illegal_argument_exception"}}`)
+			return
+		}
+		_, _ = io.WriteString(writer, `{"_index":"tenant-a-events-v2","_id":"event-1","_version":9,"result":"deleted"}`)
+	}))
+	t.Cleanup(server.Close)
+	client := newWriteClient(t, server.URL, server.Client().Transport)
+
+	outcome, err := client.Write(t.Context(), search.DeleteDocument("tenant-a", "events", "event-1", 9), search.RefreshWaitFor)
+	if err != nil || outcome.State != search.OutcomeApplied || outcome.Version != 9 {
+		t.Fatalf("Write(delete) outcome/error = %#v/%v", outcome, err)
+	}
+	request := <-requests
+	wantTarget := "/tenant-a-events-v2/_doc/event-1?refresh=wait_for&version=9&version_type=external"
+	if request.method != http.MethodDelete || request.target != wantTarget {
+		t.Fatalf("Write(delete) request = %#v, want DELETE %s", request, wantTarget)
 	}
 }
 
