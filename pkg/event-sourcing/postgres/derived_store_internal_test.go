@@ -545,6 +545,24 @@ func TestScanSnapshotRejectsCorruptStoredValues(t *testing.T) {
 	}
 }
 
+func TestScanSnapshotAcceptsMaximumStoredMetadataJSONSize(t *testing.T) {
+	t.Parallel()
+
+	valid := derivedSnapshot(t, 7, 2, `{"owner":"Ada"}`)
+	values := replaceValue(
+		snapshotValues(valid),
+		5,
+		maximumStoredMetadataJSON(t),
+	)
+	snapshot, err := scanSnapshot(fakeRow{scan: scanValues(values...)})
+	if err != nil {
+		t.Fatalf("scanSnapshot(maximum metadata) error = %v", err)
+	}
+	if len(snapshot.Metadata()) != 15 {
+		t.Fatalf("scanSnapshot(maximum metadata) entries = %d", len(snapshot.Metadata()))
+	}
+}
+
 func TestProjectionStoreStatusAndStateTransitions(t *testing.T) {
 	t.Parallel()
 

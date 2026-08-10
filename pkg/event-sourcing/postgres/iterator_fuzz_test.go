@@ -47,6 +47,19 @@ func FuzzScanMessage(f *testing.F) {
 		oversizedStoredMetadataJSON(f),
 		int64(1),
 	)
+	f.Add(
+		int64(1),
+		"message-maximum-metadata",
+		"account",
+		"account-maximum-metadata",
+		int64(1),
+		"account.changed",
+		int32(1),
+		"application/json",
+		[]byte(`{}`),
+		maximumStoredMetadataJSON(f),
+		int64(1),
+	)
 
 	f.Fuzz(func(
 		t *testing.T,

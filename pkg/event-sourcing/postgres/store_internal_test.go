@@ -71,6 +71,24 @@ func oversizedStoredMetadataJSON(t testing.TB) []byte {
 	return encoded
 }
 
+func maximumStoredMetadataJSON(t testing.TB) []byte {
+	t.Helper()
+
+	metadata := make(map[string]string, 15)
+	for index := range 15 {
+		metadata[fmt.Sprintf("k%02d", index)] = strings.Repeat("\\", 2180)
+	}
+	encoded, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(encoded) != maximumStoredMetadataJSONBytes {
+		t.Fatalf("maximum metadata fixture = %d bytes", len(encoded))
+	}
+
+	return encoded
+}
+
 func TestTransactionStoreAppendsAndClassifiesExpectedVersions(t *testing.T) {
 	t.Parallel()
 

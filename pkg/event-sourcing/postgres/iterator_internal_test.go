@@ -223,6 +223,20 @@ func TestScanMessageRejectsCorruptStoredRows(t *testing.T) {
 	}
 }
 
+func TestScanMessageAcceptsMaximumStoredMetadataJSONSize(t *testing.T) {
+	t.Parallel()
+
+	message, err := scanMessage(fakeRow{scan: storedMessageScan(
+		storedMessageValues{metadata: maximumStoredMetadataJSON(t)},
+	)})
+	if err != nil {
+		t.Fatalf("scanMessage(maximum metadata) error = %v", err)
+	}
+	if len(message.Metadata()) != 15 {
+		t.Fatalf("scanMessage(maximum metadata) entries = %d", len(message.Metadata()))
+	}
+}
+
 type storedMessageValues struct {
 	position      int64
 	messageID     string

@@ -36,6 +36,15 @@ func FuzzScanSnapshot(f *testing.F) {
 		oversizedStoredMetadataJSON(f),
 		int64(1),
 	)
+	f.Add(
+		"account",
+		"account-maximum-metadata",
+		int64(1),
+		int64(1),
+		[]byte(`{"owner":"Ada"}`),
+		maximumStoredMetadataJSON(f),
+		int64(1),
+	)
 
 	f.Fuzz(func(
 		t *testing.T,
