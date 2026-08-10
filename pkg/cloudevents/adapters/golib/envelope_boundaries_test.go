@@ -148,9 +148,11 @@ func TestQueueAdapterRejectsEveryInvalidBoundary(t *testing.T) {
 		t.Fatal("invalid source payload error = nil")
 	}
 	invalidExtension := valid
-	invalidExtension.Metadata = &job.Metadata{OriginalID: "id", JobType: "type", TenantID: "bad?tenant"}
-	if _, _, _, err := golib.QueueToCloudEvent(invalidExtension, golib.QueueOptions{Source: "/source"}); !errors.Is(err, golib.ErrInvalidAdapterInput) || !errors.Is(err, tenancy.ErrInvalidTenantID) {
-		t.Fatalf("invalid source tenant error = %v", err)
+	for _, tenantID := range []string{"bad?tenant", " "} {
+		invalidExtension.Metadata = &job.Metadata{OriginalID: "id", JobType: "type", TenantID: tenantID}
+		if _, _, _, err := golib.QueueToCloudEvent(invalidExtension, golib.QueueOptions{Source: "/source"}); !errors.Is(err, golib.ErrInvalidAdapterInput) || !errors.Is(err, tenancy.ErrInvalidTenantID) {
+			t.Fatalf("invalid source tenant %q error = %v", tenantID, err)
+		}
 	}
 	invalidExtension.Metadata = &job.Metadata{
 		OriginalID: "id", JobType: "type", Correlation: map[string]string{"correlationid": "bad\nvalue"},
