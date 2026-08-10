@@ -386,7 +386,7 @@ All notable changes to this module are documented here.
   capped by signing credentials, and redacted failure handling
 - independently versioned OpenTelemetry adapter for stable producer, consumer,
   group, transaction, and broker observations with explicit identity
-  allowlists and messaging semantic-convention 1.43.0 mapping
+  allowlists and messaging semantic-convention 1.44.0 mapping
 - verified TLS as the zero-value transport policy, explicit development-only
   plaintext, and bounded rotating mTLS, PLAIN, SCRAM, and OAUTHBEARER providers
 - owned Kafka request-version negotiation policy with an optional validated
@@ -511,6 +511,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- the optional OpenTelemetry adapter now selects reviewed messaging semantic
+  conventions 1.44.0 while explicitly omitting cluster identity and
+  create/client-send links from its completion-only observer seam
 - `Inspector.Close` now returns an error and rejects same-inspector observer
   lifecycle reentry with `ErrObserverReentry`; ordinary and deferred calls may
   continue to ignore the idempotent nil result

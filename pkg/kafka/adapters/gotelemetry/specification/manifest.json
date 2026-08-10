@@ -1,12 +1,12 @@
 {
   "schema": 1,
-  "reviewed_at": "2026-07-27",
+  "reviewed_at": "2026-08-10",
   "sources": [
     {
       "name": "OpenTelemetry Semantic Conventions",
       "repository": "https://github.com/open-telemetry/semantic-conventions",
-      "version": "v1.43.0",
-      "revision": "89aae438b3b3b0a8dd33003c9d70592baf7dbd0d",
+      "version": "v1.44.0",
+      "revision": "e10a930844c6951757a43b849d364f7d056ac32b",
       "license": "Apache-2.0",
       "status": "Development",
       "documents": [

@@ -34,7 +34,7 @@ All notable changes to this module are documented here.
   plus fixed replay progress attributes
 - independently versioned OpenTelemetry adapter for every stable root Kafka
   observation
-- OpenTelemetry messaging semantic-convention 1.43.0 spans and metrics for
+- OpenTelemetry messaging semantic-convention 1.44.0 spans and metrics for
   send, poll, process, and commit operations
 - explicit deny-by-default client, topic, and consumer-group attribute
   allowlists with bounded validation and defensive copies
@@ -46,6 +46,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- select and record OpenTelemetry messaging semantic conventions 1.44.0,
+  retaining explicit completion-observer boundaries for cluster identity,
+  create/client-send spans, and creation-context links
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

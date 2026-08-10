@@ -309,8 +309,8 @@ by the root observer's cooperative deadline and must remain bounded.
 
 The independently versioned
 [`kafka/adapters/gotelemetry`](../adapters/gotelemetry) module translates every
-current stable root observation. It emits the reviewed OpenTelemetry messaging
-semantic conventions 1.43.0 for send, poll, process, and commit operations plus
+current stable root observation. It maps send, poll, process, and commit
+operations to reviewed OpenTelemetry messaging semantic conventions 1.44.0 plus
 adapter-owned Kafka lifecycle, broker request, queue, and throttle metrics.
 Client IDs, topics, and consumer groups are denied as attributes unless they
 are exactly present in copied bounded allowlists. Its completion observer does
@@ -324,3 +324,11 @@ proves the injected headers survive root-producer publication and root-consumer
 fetch and extract as the same remote span context before settlement.
 OpenTelemetry remains absent from
 the root module.
+
+Semantic conventions 1.44.0 additionally recommend
+`messaging.kafka.cluster.id` and distinguish producer-send from client-send
+spans linked to a separate creation context. The completion observer omits
+those values rather than performing hidden metadata I/O or inferring whether a
+record already carries a creation context. Applications that need those
+relationships must instrument the pre-publication boundary explicitly; root
+cluster inspection remains the authoritative cluster-identity query.

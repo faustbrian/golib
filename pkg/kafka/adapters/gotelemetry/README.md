@@ -96,12 +96,29 @@ diagnostics.
 
 ## Semantic conventions
 
-The adapter emits OpenTelemetry messaging semantic conventions **1.43.0**,
-whose messaging spans and metrics remain Development status. The selected
-version is also available as `MessagingSemanticConventionVersion`. A future
-semantic-convention change is reviewed and documented as a user-visible
-adapter change; this pre-v1 adapter does not silently follow the latest
-website content.
+The adapter maps its standard spans and metrics to the reviewed OpenTelemetry
+messaging semantic conventions **1.44.0**, whose messaging signals remain
+Development status. The selected version is also available as
+`MessagingSemanticConventionVersion`. A future semantic-convention change is
+reviewed and documented as a user-visible adapter change; this pre-v1 adapter
+does not silently follow the latest website content.
+
+Version 1.44.0 defines separate create, producer-send, client-send, receive,
+process, and settle span models. The completion observer can implement the
+producer-send, receive, process, and settle shapes shown below. It cannot
+authoritatively emit `messaging.kafka.cluster.id`: root operation observations
+do not carry cluster metadata, and the adapter does not perform a hidden
+administrative lookup or trust a caller assertion. Cluster inspection remains
+available through the root inspector. The create/client-send distinction and
+creation-context links require instrumentation before publication and remain
+outside this completion-only observer seam.
+
+This is a policy-controlled mapping, not a claim that every recommended or
+conditionally required attribute is always present. In particular,
+`messaging.destination.name`, `messaging.client.id`, and
+`messaging.consumer.group.name` remain absent unless explicitly allowlisted;
+bounded cardinality and data minimization take precedence over automatic
+identity export.
 
 | Kafka observation | Span | Standard metric |
 | --- | --- | --- |

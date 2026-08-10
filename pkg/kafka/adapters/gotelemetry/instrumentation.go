@@ -21,8 +21,8 @@ import (
 
 const (
 	// MessagingSemanticConventionVersion is the exact development-status
-	// OpenTelemetry messaging convention emitted by this adapter.
-	MessagingSemanticConventionVersion = "1.43.0"
+	// OpenTelemetry messaging convention selected for this adapter's mapping.
+	MessagingSemanticConventionVersion = "1.44.0"
 
 	instrumentationName = "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry"
 	maxAllowedValues    = 128
