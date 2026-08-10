@@ -3240,6 +3240,46 @@
       "report_sha256": "5187abde00290bbd3671e6ec7a84d40ba2ba8636f9c47ee100544eb8e98ed63d"
     },
     {
+      "module": "pkg/service",
+      "package": ".",
+      "execution_revision": "e70b54244225985695cd831e7f3459c10544ad76",
+      "gate_input_digest": "872744c286d8a2e948a32cce25a3441de7866367899e6c859487d719b82ccb5d",
+      "replacement_gate_input_digest": "d3b4aa3b72ad310c79ddeee63edda74d5a34d8c5c3991ac654450b2a4ac05cf3",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "f9dbb1264653b48b42b3f7917ce6bda36625c884d4cfb966e71dcc72678554e9",
+      "migration_reason": "gate-version-input-isolation"
+    },
+    {
+      "module": "pkg/service",
+      "package": "healthhttp",
+      "execution_revision": "e70b54244225985695cd831e7f3459c10544ad76",
+      "gate_input_digest": "101d0c182fe42d10efdcbb6fc0d4318a16810d768b0decd4362e06804ebc8a44",
+      "replacement_gate_input_digest": "e34d8043c42388d4c8f001c1d979562ec1fb119d2733f649c524c4099683b0d4",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "b47a55439fd492e0c7dd00c2403efc9f006f092720abe5c7757681778796bfd9",
+      "migration_reason": "gate-version-input-isolation"
+    },
+    {
+      "module": "pkg/service",
+      "package": "integration",
+      "execution_revision": "e70b54244225985695cd831e7f3459c10544ad76",
+      "gate_input_digest": "779212c77ed1dc77ab92d5dd1a8fb47fa4222171da562cdd6f2cbcd4aaa30b08",
+      "replacement_gate_input_digest": "0deca169cc6319386d3367b63e4bd8772be59aeacbb51906fc0fd59f9dcfb588",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "e21a33666e1dae60b6e057a93f7bb847bde988e59eb5bdd05902f8ae6363c012",
+      "migration_reason": "gate-version-input-isolation"
+    },
+    {
+      "module": "pkg/service",
+      "package": "serverhttp",
+      "execution_revision": "e70b54244225985695cd831e7f3459c10544ad76",
+      "gate_input_digest": "467b3729f6dea0f6d7b8f2920dad66fc62fc86e06c4afeb002fee22f665a3dd7",
+      "replacement_gate_input_digest": "a2fb53c2321629932a4ffebab848ed17e2e303bf6baab3f36dd1647a4536cc93",
+      "gremlins_version": "v0.6.0",
+      "report_sha256": "4eb4086ffbde5614f4edc9b410aeca28ba354bc0444ae8551623796ed58639c1",
+      "migration_reason": "gate-version-input-isolation"
+    },
+    {
       "module": "pkg/settings",
       "package": "audit",
       "execution_revision": "8981d527a6e9d753a38ee33888c50a8a96bdc45f",

@@ -5,6 +5,8 @@ use (
 	./pkg/adaptive-throttle
 	./pkg/analysis
 	./pkg/api-query
+	./pkg/audit
+	./pkg/audit/postgres
 	./pkg/authentication
 	./pkg/authentication/authotel
 	./pkg/authentication/jwt
@@ -51,6 +53,8 @@ use (
 	./pkg/http-client
 	./pkg/http-middleware
 	./pkg/http-middleware/integration/siblings
+	./pkg/http-signature
+	./pkg/http-signature/benchmarks/comparison
 	./pkg/idempotency
 	./pkg/idempotency/compatibility/ecosystem
 	./pkg/identifier
@@ -103,6 +107,9 @@ use (
 	./pkg/rule-engine/adapters/gotemporal
 	./pkg/rule-engine/benchmarks/competitors
 	./pkg/scheduler
+	./pkg/schema-registry
+	./pkg/schema-registry/providers/confluent
+	./pkg/schema-registry/providers/glue
 	./pkg/search
 	./pkg/search/adapters/opensearch
 	./pkg/secret-envelope
@@ -123,6 +130,7 @@ use (
 	./pkg/verkle-tree
 	./pkg/webhook
 	./pkg/wire
+	./pkg/workflow
 	./pkg/wsdl
 	./pkg/xsd
 )
@@ -144,6 +152,10 @@ replace github.com/faustbrian/golib/pkg/authentication/oidc v0.0.0 => ./pkg/auth
 replace github.com/faustbrian/golib/pkg/authorization v0.0.0 => ./pkg/authorization
 
 replace github.com/faustbrian/golib/pkg/authorization/integration/contracts v0.0.0 => ./pkg/authorization/integration/contracts
+
+replace github.com/faustbrian/golib/pkg/audit v0.0.0 => ./pkg/audit
+
+replace github.com/faustbrian/golib/pkg/audit/postgres v0.0.0 => ./pkg/audit/postgres
 
 replace github.com/faustbrian/golib/pkg/barcode v0.0.0 => ./pkg/barcode
 
@@ -305,6 +317,12 @@ replace github.com/faustbrian/golib/pkg/rule-engine v0.0.0 => ./pkg/rule-engine
 
 replace github.com/faustbrian/golib/pkg/scheduler v0.0.0 => ./pkg/scheduler
 
+replace github.com/faustbrian/golib/pkg/schema-registry v0.0.0 => ./pkg/schema-registry
+
+replace github.com/faustbrian/golib/pkg/schema-registry/providers/confluent v0.0.0 => ./pkg/schema-registry/providers/confluent
+
+replace github.com/faustbrian/golib/pkg/schema-registry/providers/glue v0.0.0 => ./pkg/schema-registry/providers/glue
+
 replace github.com/faustbrian/golib/pkg/search v0.0.0 => ./pkg/search
 
 replace github.com/faustbrian/golib/pkg/search/adapters/opensearch v0.0.0 => ./pkg/search/adapters/opensearch
@@ -367,4 +385,12 @@ replace github.com/faustbrian/golib/pkg/resilience v0.0.0 => ./pkg/resilience
 
 replace github.com/faustbrian/golib/pkg/capability v0.0.0 => ./pkg/capability
 
+replace github.com/faustbrian/golib/pkg/cloudevents v0.0.0 => ./pkg/cloudevents
+
+replace github.com/faustbrian/golib/pkg/http-signature v0.0.0 => ./pkg/http-signature
+
 replace github.com/faustbrian/golib/pkg/tenancy v0.0.0 => ./pkg/tenancy
+
+replace github.com/faustbrian/golib/pkg/workflow v0.0.0 => ./pkg/workflow
+
+replace github.com/faustbrian/golib/pkg/cloudevents/adapters/golib v0.0.0 => ./pkg/cloudevents/adapters/golib

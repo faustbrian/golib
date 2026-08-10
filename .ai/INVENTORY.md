@@ -322,9 +322,9 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Scope | Strict compact JWT/JWS parsing, algorithm-specific public verification keys, bounded claims and JSON, local and remote JWK ownership, bounded and validated JWKS responses, synchronized refresh, fleet jitter, cancellation, redaction, interoperability, and documentation. |
 | Status | `verified` |
 | Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/authentication/jwt` and the package `make conformance` lanes. |
-| Result | Passed every mandatory JWT module gate with 617/617 statements, 333/333 viable mutants, race, two 10,000-execution fuzz targets, clean NilAway, API, docs, interoperability, security, supply-chain checks, and benchmarks; all direct conformance lanes passed. |
+| Result | Passed every mandatory JWT module gate with 687/687 statements, 367/367 viable mutants, race, two 10,000-execution fuzz targets, clean NilAway, API, docs, interoperability, security, supply-chain checks, and benchmarks; all direct conformance lanes passed. |
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
-| Observed | 2026-08-09T12:55:01Z |
+| Observed | 2026-08-10T00:47:46Z |
 | Gaps | None within the scoped JWT module contract. |
 
 ### OpenID Connect ID-token validation evidence
@@ -379,19 +379,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Observed | 2026-08-09T18:22:59Z |
 | Gaps | The Kubernetes lifecycle contract is proved by package model and operational tests rather than a disposable cluster; the package catalog declares conformance not applicable. |
 
-### Durable audit records evidence
-
-| Field | Record |
-| --- | --- |
-| Goal | `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` |
-| Scope | Immutable bounded records, actors, subjects, context, changes, explicit failure modes, pre-persistence redaction, deterministic canonical encoding and integrity, bounded query/export and retention, memory test storage, and the separately releasable PostgreSQL adapter. |
-| Status | `pending` to `verified` |
-| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/audit,pkg/audit/postgres`; direct PostgreSQL 14-18 integration runs; and direct release dry-runs for `pkg/audit` and `pkg/audit/postgres`. |
-| Result | Passed every mandatory audit-module gate, including exact 670/670 core, 127/127 memory, and 100% PostgreSQL statement coverage; 395/395 core, 74/74 memory, and 172/172 PostgreSQL viable mutants; race, leak and stress checks; registered fuzz targets; PostgreSQL transaction, privilege, fault, backup/restore, retention, and interoperability scenarios; API, documentation, security, supply-chain, benchmark, and clean-consumer checks. |
-| Environment | Go 1.26.5 on darwin/arm64 with PostgreSQL 14, 15, 16, 17, and 18 containers and task-owned disposable `GOCACHE` directories removed after each bounded run. |
-| Observed | 2026-08-09T13:28:51Z |
-| Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped audit contract. |
-
 ### Exact temporal rule operator evidence
 
 | Field | Record |
@@ -404,6 +391,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; no external services. |
 | Observed | 2026-08-09T10:12:10Z |
 | Gaps | None within the affected Temporal and owned `rule-engine` module scope. |
+
+### Durable audit records evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Immutable bounded records, actors, subjects, context, changes, explicit failure modes, pre-persistence redaction, deterministic canonical encoding and integrity, bounded query/export and retention, memory test storage, and the separately releasable PostgreSQL adapter. |
+| Status | `pending` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/audit,pkg/audit/postgres`; direct PostgreSQL 14-18 integration runs; and direct release dry-runs for `pkg/audit` and `pkg/audit/postgres`. |
+| Result | Passed every mandatory audit-module gate, including exact 670/670 core, 127/127 memory, and 100% PostgreSQL statement coverage; 395/395 core, 74/74 memory, and 172/172 PostgreSQL viable mutants; race, leak and stress checks; registered fuzz targets; PostgreSQL transaction, privilege, fault, backup/restore, retention, and interoperability scenarios; API, documentation, security, supply-chain, benchmark, and clean-consumer checks. |
+| Environment | Go 1.26.5 on darwin/arm64 with PostgreSQL 14, 15, 16, 17, and 18 containers and task-owned disposable `GOCACHE` directories removed after each bounded run. |
+| Observed | 2026-08-09T13:28:51Z |
+| Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped audit contract. |
 
 ### OpenSearch adapter evidence
 

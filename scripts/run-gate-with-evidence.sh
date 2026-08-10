@@ -81,7 +81,7 @@ if [[ -f "${source_evidence}" && -f "${source_log}" ]]; then
             .schema_version == 1 and
             .module == $module and
             .gate == $gate and
-            .result == "passed" and
+            (.result == "passed" or .result == "not_applicable" or .result == "advisory") and
             .exit_code == 0 and
             .input_digest == $input_digest and
             .completed_input_digest == $input_digest and
@@ -89,10 +89,19 @@ if [[ -f "${source_evidence}" && -f "${source_log}" ]]; then
         ' "${source_evidence}" >/dev/null 2>&1 &&
         [[ "${recorded_log_sha256}" == "${current_log_sha256}" ]]; then
         revalidated_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+        reused_result="$(jq -r '.result' "${source_evidence}")"
+        if grep -Fq ': not applicable by catalog policy' "${source_log}"; then
+            reused_result=not_applicable
+        elif [[ "${gate}" == "nilaway" ]] &&
+            grep -Eq 'NilAway advisory exit status: [1-9][0-9]*$' "${source_log}"; then
+            reused_result=advisory
+        fi
         jq \
             --arg revalidated_revision "${execution_revision}" \
             --arg revalidated_at "${revalidated_at}" \
+            --arg result "${reused_result}" \
             '
+                .result = $result |
                 .revalidated_revision = $revalidated_revision |
                 .revalidated_at = $revalidated_at |
                 .reuse_count = ((.reuse_count // 0) + 1)
@@ -125,6 +134,11 @@ if [[ "${command_status}" -ne 0 ]]; then
 elif [[ "${completed_digest}" != "${input_digest}" ]]; then
     result=invalidated
     command_status=1
+elif grep -Fq ': not applicable by catalog policy' "${temporary_log}"; then
+    result=not_applicable
+elif [[ "${gate}" == "nilaway" ]] &&
+    grep -Eq 'NilAway advisory exit status: [1-9][0-9]*$' "${temporary_log}"; then
+    result=advisory
 fi
 
 jq -n \

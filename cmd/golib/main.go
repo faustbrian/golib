@@ -1115,8 +1115,17 @@ func interoperabilityTools(directory string) []string {
 	if directory == "pkg/capability" {
 		return []string{"Python 3 standard-library HMAC implementation"}
 	}
+	if directory == "pkg/authentication/jwt" {
+		return []string{
+			"golang-jwt/jwt v5.3.1",
+			"lestrrat-go/jwx v3.1.1",
+		}
+	}
 	if directory == "pkg/authentication/oidc" {
-		return []string{"Google, Keycloak, and Dex provider metadata profiles"}
+		return []string{
+			"Google, Keycloak, and Dex provider metadata profiles",
+			"Keycloak 26.3.2 provider-issued ID token via immutable OCI image",
+		}
 	}
 	if directory == "pkg/kafka/adapters/gotelemetry" {
 		return []string{"Apache Kafka 4.3.1"}
@@ -1171,7 +1180,15 @@ func specifications(directory string) []string {
 		}
 	}
 	if directory == "pkg/capability" {
-		return []string{"RFC 4231 HMAC-SHA-256 vectors", "RFC 8032 Ed25519 vectors"}
+		return []string{
+			"RFC 2104 HMAC",
+			"RFC 4231 HMAC-SHA-256 vectors",
+			"RFC 3986 URI Generic Syntax",
+			"RFC 4648 Base-N Encodings",
+			"RFC 8032 Ed25519",
+			"RFC 8259 JSON",
+			"RFC 9110 HTTP Semantics",
+		}
 	}
 	if directory == "pkg/authentication" {
 		return []string{
@@ -1229,6 +1246,16 @@ func specifications(directory string) []string {
 			"RFC 7049 and RFC 8949 CBOR",
 			"CTAP 2.2 deterministic CBOR profile",
 			"BSON 1.1",
+		}
+	}
+	if directory == "pkg/authentication/jwt" {
+		return []string{
+			"RFC 7515 JSON Web Signature",
+			"RFC 7517 JSON Web Key",
+			"RFC 7518 JSON Web Algorithms",
+			"RFC 7519 JSON Web Token",
+			"RFC 8259 JSON",
+			"RFC 8725 JSON Web Token Best Current Practices",
 		}
 	}
 	if directory == "pkg/authentication/oidc" {
@@ -1321,7 +1348,11 @@ func conformanceCorpora(directory string) []string {
 		}
 	}
 	if directory == "pkg/capability" {
-		return []string{"RFC 4231 test case 6", "RFC 8032 section 7.1 test 1"}
+		return []string{
+			"RFC 4231 test case 6",
+			"RFC 8032 section 7.1 test 1",
+			"Capability v1 canonical, URL, replay, revocation, and HTTP decision evidence",
+		}
 	}
 	if directory == "pkg/authentication" {
 		return []string{
@@ -1350,8 +1381,18 @@ func conformanceCorpora(directory string) []string {
 			"Codec differential, hostile-input, round-trip, and official format fixtures",
 		}
 	}
+	if directory == "pkg/authentication/jwt" {
+		return []string{
+			"RFC 7515 Appendix A.2 RS256 compact JWS",
+			"RFC 7520 Figure 5 HMAC JWK and Section 4.4 compact JWS",
+			"Specification-derived algorithm, claim, serialization, and remote-boundary matrices",
+		}
+	}
 	if directory == "pkg/authentication/oidc" {
-		return []string{"OpenID Connect Core 1.0 Section 2 ID-token claim vector"}
+		return []string{
+			"OpenID Connect Core 1.0 Section 2 ID-token claim vector",
+			"Specification-derived discovery, JOSE, ID-token, nonce, time, error, and option matrices",
+		}
 	}
 	if directory == "pkg/webhook" {
 		return []string{

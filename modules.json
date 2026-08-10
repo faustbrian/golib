@@ -647,7 +647,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/specification-governance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -1621,7 +1622,8 @@
       "tag_prefix": "pkg/audit/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/audit/postgres"
+        "github.com/faustbrian/golib/pkg/audit/postgres",
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib"
       ],
       "external_runtime_dependencies": [
         "go.uber.org/goleak"
@@ -2208,10 +2210,26 @@
       "required_services": [],
       "build_tags": [],
       "test_tags": [],
-      "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
+      "interoperability_tools": [
+        "golang-jwt/jwt v5.3.1",
+        "lestrrat-go/jwx v3.1.1"
+      ],
+      "specifications": [
+        "RFC 7515 JSON Web Signature",
+        "RFC 7517 JSON Web Key",
+        "RFC 7518 JSON Web Algorithms",
+        "RFC 7519 JSON Web Token",
+        "RFC 8259 JSON",
+        "RFC 8725 JSON Web Token Best Current Practices"
+      ],
+      "conformance_corpora": [
+        "RFC 7515 Appendix A.2 RS256 compact JWS",
+        "RFC 7520 Figure 5 HMAC JWK and Section 4.4 compact JWS",
+        "Specification-derived algorithm, claim, serialization, and remote-boundary matrices"
+      ],
+      "provenance": [
+        "pkg/authentication/jwt/specification/manifest.tsv"
+      ],
       "goal_files": [
         "pkg/authentication/jwt/.ai/GOAL.md",
         "pkg/authentication/jwt/.ai/GOAL_HARDEN.md"
@@ -2223,7 +2241,9 @@
           "requirements_sha256": "f2b8dafe3904e29726eb104b11056e3f79d87d38fbcf9488978f3cdfbc840f3c",
           "implementation_evidence": [
             "pkg/authentication/jwt/CHANGELOG.md",
-            "pkg/authentication/jwt/README.md"
+            "pkg/authentication/jwt/README.md",
+            "pkg/authentication/jwt/docs/api.md",
+            "pkg/authentication/jwt/docs/hardening.md"
           ],
           "verification_gates": [
             "format-check",
@@ -2255,7 +2275,9 @@
           "requirements_sha256": "023f5d82bbe76023d9665cb9b79e5c89da1b3712f051d50df5a8f0afd95b7e26",
           "implementation_evidence": [
             "pkg/authentication/jwt/CHANGELOG.md",
-            "pkg/authentication/jwt/README.md"
+            "pkg/authentication/jwt/README.md",
+            "pkg/authentication/jwt/docs/api.md",
+            "pkg/authentication/jwt/docs/hardening.md"
           ],
           "verification_gates": [
             "format-check",
@@ -2286,7 +2308,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,
@@ -2332,16 +2354,20 @@
       ],
       "required_services": [],
       "build_tags": [],
-      "test_tags": [],
+      "test_tags": [
+        "integration"
+      ],
       "interoperability_tools": [
-        "Google, Keycloak, and Dex provider metadata profiles"
+        "Google, Keycloak, and Dex provider metadata profiles",
+        "Keycloak 26.3.2 provider-issued ID token via immutable OCI image"
       ],
       "specifications": [
         "OpenID Connect Core 1.0 incorporating errata set 2",
         "OpenID Connect Discovery 1.0 incorporating errata set 2"
       ],
       "conformance_corpora": [
-        "OpenID Connect Core 1.0 Section 2 ID-token claim vector"
+        "OpenID Connect Core 1.0 Section 2 ID-token claim vector",
+        "Specification-derived discovery, JOSE, ID-token, nonce, time, error, and option matrices"
       ],
       "provenance": [
         "pkg/authentication/oidc/specification/manifest.tsv"
@@ -2357,7 +2383,8 @@
           "requirements_sha256": "605322fd930835382dab2fd1178eeb20fecc31d145af302a6edd91fe0606c481",
           "implementation_evidence": [
             "pkg/authentication/oidc/CHANGELOG.md",
-            "pkg/authentication/oidc/README.md"
+            "pkg/authentication/oidc/README.md",
+            "pkg/authentication/oidc/docs/hardening.md"
           ],
           "verification_gates": [
             "format-check",
@@ -2389,7 +2416,8 @@
           "requirements_sha256": "8ef6d81bad586eef5726d80042c8c5c399dabadcfe7fef7c75b301a17fc602bd",
           "implementation_evidence": [
             "pkg/authentication/oidc/CHANGELOG.md",
-            "pkg/authentication/oidc/README.md"
+            "pkg/authentication/oidc/README.md",
+            "pkg/authentication/oidc/docs/hardening.md"
           ],
           "verification_gates": [
             "format-check",
@@ -3073,9 +3101,30 @@
       "required_services": [],
       "build_tags": [],
       "test_tags": [],
-      "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
+      "interoperability_tools": [
+        "speedata/barcode v1.1.1 independent writer",
+        "ericlevine/zxinggo v0.1.0 independent reader",
+        "ruudk/golang-pdf417 at a7e3863a1245 independent writer"
+      ],
+      "specifications": [
+        "ISO/IEC 18004:2024 QR Code",
+        "ISO/IEC 15417:2007 with Amendment 1:2026 Code 128",
+        "ISO/IEC 16388:2023 Code 39",
+        "ANSI/AIM BC5-1995 Code 93",
+        "ISO/IEC 15420:2009 EAN/UPC",
+        "ISO/IEC 16390:2007 Interleaved 2 of 5",
+        "AIM Europe 1995 Codabar",
+        "ISO/IEC 16022:2024 Data Matrix",
+        "ISO/IEC 15438:2015 PDF417",
+        "ISO/IEC 24778:2008 Aztec Code",
+        "GS1 General Specifications 26.0.0"
+      ],
+      "conformance_corpora": [
+        "Normative requirement and executable evidence matrix",
+        "Pinned GS1 syntax dictionary 2026-01-27",
+        "Independent writer and reciprocal reader interoperability corpus",
+        "Deterministic logical, PNG, and SVG fixture corpus"
+      ],
       "provenance": [
         "pkg/barcode/specification/manifest.json"
       ],
@@ -3157,7 +3206,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,
@@ -4080,12 +4129,18 @@
         "Python 3 standard-library HMAC implementation"
       ],
       "specifications": [
+        "RFC 2104 HMAC",
         "RFC 4231 HMAC-SHA-256 vectors",
-        "RFC 8032 Ed25519 vectors"
+        "RFC 3986 URI Generic Syntax",
+        "RFC 4648 Base-N Encodings",
+        "RFC 8032 Ed25519",
+        "RFC 8259 JSON",
+        "RFC 9110 HTTP Semantics"
       ],
       "conformance_corpora": [
         "RFC 4231 test case 6",
-        "RFC 8032 section 7.1 test 1"
+        "RFC 8032 section 7.1 test 1",
+        "Capability v1 canonical, URL, replay, revocation, and HTTP decision evidence"
       ],
       "provenance": [
         "pkg/capability/specification/manifest.tsv"
@@ -4811,6 +4866,283 @@
             "pkg/clock/docs/compatibility.md",
             "pkg/clock/docs/hardening.md",
             "pkg/clock/docs/performance.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/cloudevents",
+      "module_path": "github.com/faustbrian/golib/pkg/cloudevents",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/cloudevents",
+          "directory": ".",
+          "name": "cloudevents",
+          "import_path": "github.com/faustbrian/golib/pkg/cloudevents",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`cloudevents` is Golib's transport-independent CloudEvents interoperability envelope. It implements the stable 1.0 information model, deterministic JSON event and batch serialization, and selected HTTP and Kafka mappings. It does not replace richer domain, event-sourcing, outbox, queue, workflow, audit, or application envelopes.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/cloudevents/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib"
+      ],
+      "external_runtime_dependencies": [
+        "github.com/IBM/sarama",
+        "github.com/cloudevents/sdk-go/protocol/kafka_sarama/v2",
+        "github.com/cloudevents/sdk-go/v2",
+        "go.uber.org/goleak"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [
+        "cloudevents/sdk-go v2.16.2",
+        "cloudevents/sdk-javascript v10.0.0 on Node.js 24.13.0"
+      ],
+      "specifications": [
+        "CloudEvents specification 1.0.2",
+        "CloudEvents JSON event format 1.0.2",
+        "CloudEvents HTTP protocol binding 1.0.2",
+        "CloudEvents Kafka protocol binding 1.0.2",
+        "CloudEvents distributed tracing extension 1.0.2",
+        "CloudEvents partitioning extension 1.0.2"
+      ],
+      "conformance_corpora": [
+        "cloudevents/conformance v0.4.1 HTTP and Kafka features"
+      ],
+      "provenance": [
+        "pkg/cloudevents/specification/manifest.json"
+      ],
+      "goal_files": [
+        "pkg/cloudevents/.ai/GOAL.md",
+        "pkg/cloudevents/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/cloudevents/.ai/GOAL.md",
+          "requirements_sha256": "322bfcbaa4a22066c99a8dc5a2a1722472f6308cc156eca38c210f7838a40ea3",
+          "implementation_evidence": [
+            "pkg/cloudevents/CHANGELOG.md",
+            "pkg/cloudevents/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/cloudevents/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "beeda8e30c3873783887973cb1740848bc378741630f1385ab6a04a25e8d31a5",
+          "implementation_evidence": [
+            "pkg/cloudevents/CHANGELOG.md",
+            "pkg/cloudevents/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": true,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/cloudevents/adapters/golib",
+      "module_path": "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/cloudevents/adapters/golib",
+          "directory": ".",
+          "name": "golib",
+          "import_path": "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`golib` is the optional integration module between the transport-independent CloudEvents package and Golib's canonical event, transport, workflow, metadata, audit, and schema contracts. Importing it performs no registration, network access, schema lookup, telemetry emission, or background work.",
+      "lifecycle": "pre-v1",
+      "kind": "adapter",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/cloudevents/adapters/golib/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/audit",
+        "github.com/faustbrian/golib/pkg/cloudevents",
+        "github.com/faustbrian/golib/pkg/correlation",
+        "github.com/faustbrian/golib/pkg/event-sourcing",
+        "github.com/faustbrian/golib/pkg/identifier",
+        "github.com/faustbrian/golib/pkg/json-schema",
+        "github.com/faustbrian/golib/pkg/kafka",
+        "github.com/faustbrian/golib/pkg/outbox",
+        "github.com/faustbrian/golib/pkg/queue",
+        "github.com/faustbrian/golib/pkg/schema-registry",
+        "github.com/faustbrian/golib/pkg/telemetry",
+        "github.com/faustbrian/golib/pkg/tenancy",
+        "github.com/faustbrian/golib/pkg/workflow"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "go.opentelemetry.io/otel",
+        "go.opentelemetry.io/otel/trace",
+        "go.uber.org/goleak"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/cloudevents/adapters/golib/.ai/GOAL.md",
+        "pkg/cloudevents/adapters/golib/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/cloudevents/adapters/golib/.ai/GOAL.md",
+          "requirements_sha256": "aa77e9c0cec2c133c82b84c9d02976789e2759e4981db73ed830aa6ce1558a32",
+          "implementation_evidence": [
+            "pkg/cloudevents/adapters/golib/CHANGELOG.md",
+            "pkg/cloudevents/adapters/golib/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/cloudevents/adapters/golib/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "893d89f09f8f84d80ef8919469a1589fda9c0293a62066ca5c774780021a301f",
+          "implementation_evidence": [
+            "pkg/cloudevents/adapters/golib/CHANGELOG.md",
+            "pkg/cloudevents/adapters/golib/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -5675,6 +6007,7 @@
       ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/cache",
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
         "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
         "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
@@ -5903,7 +6236,12 @@
         "Node.js",
         "Test262"
       ],
-      "specifications": [],
+      "specifications": [
+        "ECMA-262 16th edition (ECMAScript 2025)",
+        "TC39 Test262 at 26058a01fdbc8dad9ded0e97133190098ea8c5d8",
+        "Unicode 16.0.0",
+        "JSON Schema Draft 2020-12 regular expressions"
+      ],
       "conformance_corpora": [
         "TC39 Test262"
       ],
@@ -6087,6 +6425,7 @@
       "tag_prefix": "pkg/event-sourcing/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue",
@@ -6342,7 +6681,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`gooutbox` composes the public event-sourcing PostgreSQL writer and the public outbox PostgreSQL writer. Neither core imports the other. The adapter provides:",
+      "purpose": "`gooutbox` composes the public event-sourcing PostgreSQL writer and the public outbox PostgreSQL writer. Neither core imports the other. `Stager` writes event rows and one outbox envelope per event through a savepoint inside an existing caller-owned `pgx.Tx`. It releases that savepoint only after both batches stage and rolls it back after any error. The adapter never commits or publishes from the outer transaction and never claims exactly-once delivery.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -6356,6 +6695,8 @@
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
+        "github.com/moby/moby/api",
+        "github.com/testcontainers/testcontainers-go",
         "github.com/testcontainers/testcontainers-go/modules/postgres"
       ],
       "required_services": [],
@@ -8838,6 +9179,185 @@
       }
     },
     {
+      "directory": "pkg/http-signature",
+      "module_path": "github.com/faustbrian/golib/pkg/http-signature",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/http-signature",
+          "directory": ".",
+          "name": "httpsignature",
+          "import_path": "github.com/faustbrian/golib/pkg/http-signature",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/http-signature",
+          "directory": "compatibility",
+          "name": "compatibility",
+          "import_path": "github.com/faustbrian/golib/pkg/http-signature/compatibility",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`http-signature` implements HTTP Message Signatures (RFC 9421) and HTTP digest fields (RFC 9530) for Go `net/http` messages. The core separates Structured Fields syntax, signature-base construction, cryptographic algorithms, signing and verification policy, key resolution, replay consumption, and HTTP adapters.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/http-signature/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/http-signature/benchmarks/comparison"
+      ],
+      "external_runtime_dependencies": [
+        "github.com/dunglas/httpsfv",
+        "go.uber.org/goleak"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/http-signature/.ai/GOAL.md",
+        "pkg/http-signature/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/http-signature/.ai/GOAL.md",
+          "requirements_sha256": "5a115e19bbc3b5bcd3d0e54bce1df96e5100f4f8f02f647c95ce29a6f9aef898",
+          "implementation_evidence": [
+            "pkg/http-signature/CHANGELOG.md",
+            "pkg/http-signature/README.md",
+            "pkg/http-signature/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/http-signature/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "ef062dc511da92d42f78b97a530ea24d2f06fa02a0e3b808e5891f715814be7d",
+          "implementation_evidence": [
+            "pkg/http-signature/CHANGELOG.md",
+            "pkg/http-signature/README.md",
+            "pkg/http-signature/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/http-signature/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/golib/pkg/http-signature/benchmarks/comparison",
+      "go_version": "1.26.5",
+      "packages": [],
+      "purpose": "This non-releasable module isolates the comparison dependency from the public HTTP Message Signatures module. It compares an equivalent HMAC-SHA256 request operation with the maintained `github.com/yaronf/httpsign` implementation at commit `de382d35c1add89cc09b9355161d61471fb7f632`.",
+      "lifecycle": "internal",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/http-signature"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/yaronf/httpsign"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/idempotency",
       "module_path": "github.com/faustbrian/golib/pkg/idempotency",
       "go_version": "1.26.5",
@@ -9297,6 +9817,7 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/cache",
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
         "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/correlation",
         "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
@@ -9799,9 +10320,11 @@
       "tag_prefix": "pkg/json-schema/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
         "github.com/faustbrian/golib/pkg/json-schema/benchmarks/comparison",
         "github.com/faustbrian/golib/pkg/openapi",
-        "github.com/faustbrian/golib/pkg/openapi/interoperability"
+        "github.com/faustbrian/golib/pkg/openapi/interoperability",
+        "github.com/faustbrian/golib/pkg/schema-registry"
       ],
       "external_runtime_dependencies": [
         "github.com/dlclark/regexp2/v2",
@@ -9819,7 +10342,9 @@
         "JSON-Schema-Test-Suite",
         "Bowtie"
       ],
-      "provenance": [],
+      "provenance": [
+        "pkg/json-schema/specification/manifest.json"
+      ],
       "goal_files": [
         "pkg/json-schema/.ai/GOAL.md",
         "pkg/json-schema/.ai/GOAL_HARDEN.md",
@@ -10474,6 +10999,7 @@
       "tag_prefix": "pkg/kafka/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
         "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
@@ -11559,7 +12085,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`gomoney` is an optional adapter that lets the Knapsack solvers minimize exact container costs. It depends on the owned Money module so the Knapsack core can remain independent of monetary policy.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -11591,7 +12117,8 @@
           "file": "pkg/knapsack/objective/gomoney/.ai/GOAL.md",
           "requirements_sha256": "b6546bfe34afe254068c79e2ef55a1b3dae416e7918d86072d3acd7b90f0d1c9",
           "implementation_evidence": [
-            "pkg/knapsack/objective/gomoney/CHANGELOG.md"
+            "pkg/knapsack/objective/gomoney/CHANGELOG.md",
+            "pkg/knapsack/objective/gomoney/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -11622,7 +12149,8 @@
           "file": "pkg/knapsack/objective/gomoney/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "83771d1e88b49866a7ab0a6fc8efaab284eb5d0efdcaf709078d42ef01262ebe",
           "implementation_evidence": [
-            "pkg/knapsack/objective/gomoney/CHANGELOG.md"
+            "pkg/knapsack/objective/gomoney/CHANGELOG.md",
+            "pkg/knapsack/objective/gomoney/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -13960,9 +14488,19 @@
       "test_tags": [],
       "interoperability_tools": [],
       "specifications": [
-        "OpenAPI 2.0, 3.0, and 3.1"
+        "Swagger 2.0",
+        "OpenAPI 3.0.0 through 3.0.4",
+        "OpenAPI 3.1.0 through 3.1.2",
+        "OpenAPI 3.2.0",
+        "OpenAPI published schemas and registries",
+        "JSON Schema Draft 4 and 2020-12 dialects"
       ],
-      "conformance_corpora": [],
+      "conformance_corpora": [
+        "Pinned Swagger 2.0 and OpenAPI 3.0 through 3.2 normative publications",
+        "Generated 2,381-row normative and object-field evidence matrices",
+        "Pinned published schemas, dialects, registries, and accepted errata",
+        "Pinned Swagger Petstore and GitHub REST API descriptions"
+      ],
       "provenance": [
         "pkg/openapi/specification/manifest.json"
       ],
@@ -14135,9 +14673,19 @@
       "test_tags": [],
       "interoperability_tools": [],
       "specifications": [
-        "OpenAPI 2.0, 3.0, and 3.1"
+        "Swagger 2.0",
+        "OpenAPI 3.0.0 through 3.0.4",
+        "OpenAPI 3.1.0 through 3.1.2",
+        "OpenAPI 3.2.0",
+        "OpenAPI published schemas and registries",
+        "JSON Schema Draft 4 and 2020-12 dialects"
       ],
-      "conformance_corpora": [],
+      "conformance_corpora": [
+        "Pinned Swagger 2.0 and OpenAPI 3.0 through 3.2 normative publications",
+        "Generated 2,381-row normative and object-field evidence matrices",
+        "Pinned published schemas, dialects, registries, and accepted errata",
+        "Pinned Swagger Petstore and GitHub REST API descriptions"
+      ],
       "provenance": [],
       "goal_files": [],
       "goal_status": "not-applicable",
@@ -14626,9 +15174,15 @@
       "test_tags": [],
       "interoperability_tools": [],
       "specifications": [
-        "OpenRPC 1.3"
+        "OpenRPC 1.3.x and 1.4.x",
+        "JSON Schema Draft 7",
+        "JSON-RPC 2.0"
       ],
-      "conformance_corpora": [],
+      "conformance_corpora": [
+        "Pinned OpenRPC 1.4.1 meta-schema and prose at 3a13c7a8bad248e6edd2d48339cd1c06b57f8f22",
+        "Pinned official OpenRPC examples at dce69463ba9a3ca2232506b734606fa97f25dd45",
+        "Generated normative and object-field evidence matrices"
+      ],
       "provenance": [
         "pkg/openrpc/specification/manifest.json"
       ],
@@ -14821,6 +15375,7 @@
       "tag_prefix": "pkg/outbox/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox",
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
         "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
@@ -15096,7 +15651,10 @@
         "github.com/faustbrian/golib/pkg/queue"
       ],
       "reverse_owned_dependencies": null,
-      "external_runtime_dependencies": [],
+      "external_runtime_dependencies": [
+        "github.com/jackc/pgx/v5",
+        "github.com/testcontainers/testcontainers-go/modules/postgres"
+      ],
       "required_services": [
         "redis",
         "valkey"
@@ -15212,7 +15770,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`gotelemetry` adds optional OpenTelemetry spans and metrics to [`github.com/faustbrian/golib/pkg/outbox`](../..). The core outbox module stays independent of OpenTelemetry, and exporter lifecycle remains caller-owned.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -15248,7 +15806,8 @@
           "file": "pkg/outbox/adapters/gotelemetry/.ai/GOAL.md",
           "requirements_sha256": "8eb9a5c82bff1be4287f8da231019859c016025192dc8c802893501aa53fd190",
           "implementation_evidence": [
-            "pkg/outbox/adapters/gotelemetry/CHANGELOG.md"
+            "pkg/outbox/adapters/gotelemetry/CHANGELOG.md",
+            "pkg/outbox/adapters/gotelemetry/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -15279,7 +15838,8 @@
           "file": "pkg/outbox/adapters/gotelemetry/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "b7bb6f51a4882f9523aacc5d1f618f079ea4b5d250ae6292728fa04c60cc7fff",
           "implementation_evidence": [
-            "pkg/outbox/adapters/gotelemetry/CHANGELOG.md"
+            "pkg/outbox/adapters/gotelemetry/CHANGELOG.md",
+            "pkg/outbox/adapters/gotelemetry/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -16341,6 +16901,7 @@
       "tag_prefix": "pkg/queue/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue",
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
         "github.com/faustbrian/golib/pkg/lease",
@@ -16978,6 +17539,7 @@
         "github.com/faustbrian/golib/pkg/service/integration/adoption"
       ],
       "external_runtime_dependencies": [
+        "github.com/redis/go-redis/v9",
         "go.opentelemetry.io/otel",
         "go.opentelemetry.io/otel/trace"
       ],
@@ -16989,7 +17551,9 @@
         "valkey"
       ],
       "build_tags": [],
-      "test_tags": [],
+      "test_tags": [
+        "integration"
+      ],
       "interoperability_tools": [],
       "specifications": [],
       "conformance_corpora": [],
@@ -17226,7 +17790,9 @@
       "owned_dependencies": [
         "github.com/faustbrian/golib/pkg/migrations"
       ],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+      ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
         "github.com/valkey-io/valkey-go",
@@ -18174,7 +18740,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`gomath` is the optional bridge between [`math/decimal`](../../../math/decimal) and [`rule-engine`](../..). It encodes finite decimals as tagged string values and supplies deterministic equality and ordering operators. The core rule engine does not depend on the math module.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -18203,7 +18769,8 @@
           "file": "pkg/rule-engine/adapters/gomath/.ai/GOAL.md",
           "requirements_sha256": "220bc542fc10ba57bb678e29e066521608e86c0019c7e116456b73df3cc2cb6a",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gomath/CHANGELOG.md"
+            "pkg/rule-engine/adapters/gomath/CHANGELOG.md",
+            "pkg/rule-engine/adapters/gomath/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -18234,7 +18801,8 @@
           "file": "pkg/rule-engine/adapters/gomath/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "16c00312d8f1e926984f2f61396b609371ab51f6beec1f56b7b1ac4771e6f139",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gomath/CHANGELOG.md"
+            "pkg/rule-engine/adapters/gomath/CHANGELOG.md",
+            "pkg/rule-engine/adapters/gomath/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -18423,7 +18991,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "See the module README and goal files.",
+      "purpose": "`gotemporal` is the optional bridge between exact `temporal/instant` periods and the deterministic custom-operator boundary in `rule-engine`. It encodes instants and periods as tagged strings so the core engine does not acquire a temporal dependency.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -18533,7 +19101,7 @@
       "module_path": "github.com/faustbrian/golib/pkg/rule-engine/benchmarks/competitors",
       "go_version": "1.26.5",
       "packages": [],
-      "purpose": "`gotemporal` is the optional bridge between exact `temporal/instant` periods and the deterministic custom-operator boundary in `rule-engine`. It encodes instants and periods as tagged strings so the core engine does not acquire a temporal dependency.",
+      "purpose": "See the module README and goal files.",
       "lifecycle": "internal",
       "kind": "benchmark harness",
       "releasable": false,
@@ -18907,6 +19475,297 @@
           "implementation_status": "implemented-requires-fresh-verification"
         }
       ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/schema-registry",
+      "module_path": "github.com/faustbrian/golib/pkg/schema-registry",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/schema-registry",
+          "directory": ".",
+          "name": "schemaregistry",
+          "import_path": "github.com/faustbrian/golib/pkg/schema-registry",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/schema-registry",
+          "directory": "formats/avro",
+          "name": "avro",
+          "import_path": "github.com/faustbrian/golib/pkg/schema-registry/formats/avro",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/schema-registry",
+          "directory": "formats/jsonschema",
+          "name": "jsonschema",
+          "import_path": "github.com/faustbrian/golib/pkg/schema-registry/formats/jsonschema",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/schema-registry",
+          "directory": "formats/protobuf",
+          "name": "protobuf",
+          "import_path": "github.com/faustbrian/golib/pkg/schema-registry/formats/protobuf",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`schema-registry` provides provider-neutral contracts for explicit schema registration, resolution, compatibility, bounded caching, offline bundles, and wire integration. It preserves provider identity and lifecycle differences: portable SHA-256 fingerprints never stand in for Confluent IDs or AWS Glue schema-version UUIDs.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/schema-registry/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/json-schema"
+      ],
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
+        "github.com/faustbrian/golib/pkg/schema-registry/providers/confluent",
+        "github.com/faustbrian/golib/pkg/schema-registry/providers/glue"
+      ],
+      "external_runtime_dependencies": [
+        "github.com/bufbuild/protocompile",
+        "github.com/deszhou/jcs",
+        "github.com/linkedin/goavro/v2",
+        "go.uber.org/goleak",
+        "google.golang.org/protobuf"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/schema-registry/.ai/GOAL.md",
+        "pkg/schema-registry/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/schema-registry/.ai/GOAL.md",
+          "requirements_sha256": "ab085f55fdccf6f4e4e814b9bc14ef13f03ace3a3b9daf406e3464ab0437b82e",
+          "implementation_evidence": [
+            "pkg/schema-registry/CHANGELOG.md",
+            "pkg/schema-registry/README.md",
+            "pkg/schema-registry/docs/api.md",
+            "pkg/schema-registry/docs/architecture.md",
+            "pkg/schema-registry/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/schema-registry/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "86a1dc0710dafb8fc49bd95165eed445603de93ae43968915468d27a8c394080",
+          "implementation_evidence": [
+            "pkg/schema-registry/CHANGELOG.md",
+            "pkg/schema-registry/README.md",
+            "pkg/schema-registry/docs/api.md",
+            "pkg/schema-registry/docs/architecture.md",
+            "pkg/schema-registry/docs/security.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/schema-registry/providers/confluent",
+      "module_path": "github.com/faustbrian/golib/pkg/schema-registry/providers/confluent",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/schema-registry/providers/confluent",
+          "directory": ".",
+          "name": "confluent",
+          "import_path": "github.com/faustbrian/golib/pkg/schema-registry/providers/confluent",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This independently releasable module preserves Confluent subject, integer ID, version, reference, compatibility, and deletion semantics. It does not claim that every Confluent-compatible service has identical extensions or quotas.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/schema-registry/providers/confluent/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/schema-registry"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/twmb/franz-go/pkg/sr",
+        "go.uber.org/goleak"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/schema-registry/providers/glue",
+      "module_path": "github.com/faustbrian/golib/pkg/schema-registry/providers/glue",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/schema-registry/providers/glue",
+          "directory": ".",
+          "name": "glue",
+          "import_path": "github.com/faustbrian/golib/pkg/schema-registry/providers/glue",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This independently releasable module preserves AWS Glue registry/schema names, numeric versions, UUID schema-version IDs, lifecycle state, service errors, and wire framing. UUIDs remain scoped provider identities, never portable schema fingerprints.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/schema-registry/providers/glue/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/schema-registry"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/aws/aws-sdk-go-v2/config",
+        "github.com/aws/aws-sdk-go-v2/service/glue",
+        "github.com/aws/smithy-go",
+        "go.uber.org/goleak"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
@@ -19510,7 +20369,9 @@
       "version": "unreleased",
       "tag_prefix": "pkg/semaphore/v",
       "owned_dependencies": [],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+      ],
       "external_runtime_dependencies": [
         "github.com/v8fg/kit4go",
         "golang.org/x/sync"
@@ -20716,9 +21577,11 @@
         "github.com/faustbrian/golib/pkg/postgres",
         "github.com/faustbrian/golib/pkg/queue",
         "github.com/faustbrian/golib/pkg/queue/queueservice",
+        "github.com/faustbrian/golib/pkg/rate-limit",
         "github.com/faustbrian/golib/pkg/resilience",
         "github.com/faustbrian/golib/pkg/retry",
         "github.com/faustbrian/golib/pkg/scheduler",
+        "github.com/faustbrian/golib/pkg/semaphore",
         "github.com/faustbrian/golib/pkg/service",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
@@ -20943,7 +21806,8 @@
           "implementation_evidence": [
             "pkg/settings/CHANGELOG.md",
             "pkg/settings/README.md",
-            "pkg/settings/docs/api.md"
+            "pkg/settings/docs/api.md",
+            "pkg/settings/docs/fleet-resilience.md"
           ],
           "verification_gates": [
             "format-check",
@@ -20976,7 +21840,8 @@
           "implementation_evidence": [
             "pkg/settings/CHANGELOG.md",
             "pkg/settings/README.md",
-            "pkg/settings/docs/api.md"
+            "pkg/settings/docs/api.md",
+            "pkg/settings/docs/fleet-resilience.md"
           ],
           "verification_gates": [
             "format-check",
@@ -21558,6 +22423,7 @@
       ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/authorization/integration/contracts",
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
         "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
         "github.com/faustbrian/golib/pkg/queue-control-plane",
@@ -22008,7 +22874,9 @@
       "version": "unreleased",
       "tag_prefix": "pkg/tenancy/v",
       "owned_dependencies": [],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib"
+      ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
         "go.uber.org/goleak"
@@ -23117,6 +23985,144 @@
       }
     },
     {
+      "directory": "pkg/workflow",
+      "module_path": "github.com/faustbrian/golib/pkg/workflow",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/workflow",
+          "directory": ".",
+          "name": "workflow",
+          "import_path": "github.com/faustbrian/golib/pkg/workflow",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/workflow",
+          "directory": "postgres",
+          "name": "postgres",
+          "import_path": "github.com/faustbrian/golib/pkg/workflow/postgres",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`workflow` provides explicit building blocks for durable business workflows and sagas. Definitions have stable names and immutable versions, and instances are expected to persist the exact definition name, version, and fingerprint that created them.",
+      "lifecycle": "pre-v1",
+      "kind": "public library",
+      "releasable": true,
+      "version": "unreleased",
+      "tag_prefix": "pkg/workflow/v",
+      "owned_dependencies": [],
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib"
+      ],
+      "external_runtime_dependencies": [
+        "github.com/jackc/pgx/v5",
+        "github.com/testcontainers/testcontainers-go/modules/postgres"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/workflow/.ai/GOAL.md",
+        "pkg/workflow/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/workflow/.ai/GOAL.md",
+          "requirements_sha256": "0ebe3b70536f945aac4023334357d2874290c53096b468462e3702855d75e9d5",
+          "implementation_evidence": [
+            "pkg/workflow/CHANGELOG.md",
+            "pkg/workflow/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/workflow/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "a1a345415899e59c7f8223db4fb44cc35491a735d2ae72339ee963e85c13db9d",
+          "implementation_evidence": [
+            "pkg/workflow/CHANGELOG.md",
+            "pkg/workflow/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/wsdl",
       "module_path": "github.com/faustbrian/golib/pkg/wsdl",
       "go_version": "1.26.5",
@@ -23228,7 +24234,12 @@
       "specifications": [
         "WSDL 1.1 and 2.0"
       ],
-      "conformance_corpora": [],
+      "conformance_corpora": [
+        "Pinned WSDL 1.1 and WSDL 2.0 normative requirement and assertion matrices",
+        "Pinned W3C WSDL 2.0 accepted fixture corpus",
+        "Pinned SoapUI, dotnet-svcutil, Apache CXF, and carrier WSDL 1.1 corpus",
+        "Apache Woden 1.0M10 differential validation in Eclipse Temurin 25"
+      ],
       "provenance": [
         "pkg/wsdl/specification/manifest.tsv"
       ],
