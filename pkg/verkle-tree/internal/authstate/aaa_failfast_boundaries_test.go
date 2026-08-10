@@ -35,18 +35,26 @@ func TestFailFastAggregateVerifierQueriesEmptyRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("empty-root proof material: %v", err)
 	}
-	queries, err := material.AggregateVerifierQueries(
-		context.Background(),
-		testAggregateVerifierQueryLimits(),
-	)
-	if err != nil {
-		t.Fatalf("empty-root verifier queries: %v", err)
+	assertQueries := func(limits AggregateVerifierQueryLimits) {
+		t.Helper()
+
+		queries, queryErr := material.AggregateVerifierQueries(
+			context.Background(),
+			limits,
+		)
+		if queryErr != nil {
+			t.Fatalf("empty-root verifier queries: %v", queryErr)
+		}
+		if len(queries) != 2 || queries[0].Length != 0 ||
+			queries[0].Opening.Index != key[0] || queries[1].Length != 0 ||
+			queries[1].Opening.Index != otherStem[0] {
+			t.Fatalf("empty-root verifier queries = %#v", queries)
+		}
 	}
-	if len(queries) != 2 || queries[0].Length != 0 ||
-		queries[0].Opening.Index != key[0] || queries[1].Length != 0 ||
-		queries[1].Opening.Index != otherStem[0] {
-		t.Fatalf("empty-root verifier queries = %#v", queries)
-	}
+	limits := testAggregateVerifierQueryLimits()
+	assertQueries(limits)
+	limits.MaxQueries = maxAggregateVerifierQueries
+	assertQueries(limits)
 }
 
 func TestFailFastAggregateVerifierCollectorStemQueries(t *testing.T) {
