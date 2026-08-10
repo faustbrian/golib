@@ -3,6 +3,7 @@ package searchtest_test
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/search"
@@ -139,6 +140,69 @@ func TestFakeRetainsDeleteVersionTombstones(t *testing.T) {
 	outcome, err := fake.Write(t.Context(), search.IndexDocument(newer), search.RefreshNone)
 	if err != nil || outcome.State != search.OutcomeApplied {
 		t.Fatalf("newer Write() = %#v, %v", outcome, err)
+	}
+}
+
+func TestFakeMatchesOpenSearchMinimumShouldMatchDefaults(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	fake, err := searchtest.NewFake(limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, document := range []search.Document{
+		mustDocument(t, "tenant-a", "events", "a", 1, `{"country":"FI","name":"alpha"}`, limits),
+		mustDocument(t, "tenant-a", "events", "b", 1, `{"country":"SE","name":"beta"}`, limits),
+		mustDocument(t, "tenant-a", "events", "c", 1, `{"name":"gamma"}`, limits),
+	} {
+		if outcome, writeErr := fake.Write(t.Context(), search.IndexDocument(document), search.RefreshNone); writeErr != nil || outcome.State != search.OutcomeApplied {
+			t.Fatalf("Write(%q) = %#v, %v", document.ID, outcome, writeErr)
+		}
+	}
+
+	tests := []struct {
+		name  string
+		query search.BoolQuery
+		want  []string
+	}{
+		{
+			name:  "should only defaults to one required clause",
+			query: search.BoolQuery{Should: []search.Query{search.PrefixQuery{Field: "name", Prefix: "a"}}},
+			want:  []string{"a"},
+		},
+		{
+			name:  "must keeps should clauses optional",
+			query: search.BoolQuery{Must: []search.Query{search.ExistsQuery{Field: "name"}}, Should: []search.Query{search.PrefixQuery{Field: "name", Prefix: "z"}}},
+			want:  []string{"a", "b", "c"},
+		},
+		{
+			name:  "filter keeps should clauses optional",
+			query: search.BoolQuery{Filter: []search.Query{search.ExistsQuery{Field: "country"}}, Should: []search.Query{search.PrefixQuery{Field: "name", Prefix: "z"}}},
+			want:  []string{"a", "b"},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			result, searchErr := fake.Search(t.Context(), search.Request{
+				Tenant: "tenant-a",
+				Index:  "events",
+				Query:  test.query,
+				Sort:   []search.Sort{{Field: "_id", Direction: search.Ascending}},
+				Page:   search.OffsetPage{Size: 10},
+			})
+			if searchErr != nil {
+				t.Fatal(searchErr)
+			}
+			hits := result.Hits()
+			got := make([]string, len(hits))
+			for index, hit := range hits {
+				got[index] = hit.ID
+			}
+			if !slices.Equal(got, test.want) {
+				t.Fatalf("Search() IDs = %v, want %v", got, test.want)
+			}
+		})
 	}
 }
 

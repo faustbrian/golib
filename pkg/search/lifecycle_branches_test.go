@@ -262,6 +262,16 @@ func TestInternalLifecycleRollbackCleanupAndLoadBranches(t *testing.T) {
 		}
 	}
 	store.state = MigrationState{PlanFingerprint: fingerprint, Phase: MigrationComplete}
+	backend.resolveErr = errLifecycleBranch
+	if _, err := migrator.Cleanup(t.Context(), plan); !errors.Is(err, errLifecycleBranch) {
+		t.Fatal(err)
+	}
+	backend.resolveErr = nil
+	backend.alias = "unexpected"
+	if _, err := migrator.Cleanup(t.Context(), plan); !errors.Is(err, ErrAliasChanged) {
+		t.Fatal(err)
+	}
+	backend.alias = plan.Target.Name()
 	backend.deleteErr = errLifecycleBranch
 	if _, err := migrator.Cleanup(t.Context(), plan); !errors.Is(err, errLifecycleBranch) {
 		t.Fatal(err)
