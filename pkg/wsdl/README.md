@@ -27,8 +27,10 @@ service, ok := set.Service(wsdl.QName{Namespace: "urn:example", Local: "API"})
 
 The [documentation](docs/README.md) covers the model, security boundaries,
 version-specific conformance, builders, composition, code generation,
-interoperability, and release evidence. `make check` runs the normal local
-gate; `make check-all` also runs coverage, fuzzing, benchmarks, and mutation.
+interoperability, and release evidence. Observable specification choices are
+recorded in the [decision register](docs/specification-decisions.md).
+`make check` runs the normal local gate; `make check-all` also runs coverage,
+fuzzing, benchmarks, and mutation.
 
 ## Stability
 

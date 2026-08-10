@@ -24,6 +24,10 @@ were never published.
 
 `discrepancies-and-extensions.md` records those discrepancies and enumerates
 every modeled foreign-attribute and foreign-element extension boundary.
+The canonical [`docs/specification-decisions.md`](../docs/specification-decisions.md)
+register records the selected observable behavior, alternatives, consequences,
+and executable evidence. Version-specific paths under `decisions/` are stable
+compatibility pointers to that register.
 
 Run `make provenance` for offline structural checks. Set `VERIFY_REMOTE=1` to
 download and hash every pinned resource. Parsing and compilation never use

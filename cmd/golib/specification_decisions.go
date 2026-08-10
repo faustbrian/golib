@@ -365,8 +365,11 @@ func parseSpecificationDecisions(contents string) ([]specificationDecision, erro
 	if len(decisions) == 0 {
 		return nil, errors.New("decision register has no stable decision identifiers")
 	}
-	for index, decision := range decisions {
-		want := fmt.Sprintf("%03d", index+1)
+	seriesCounts := map[string]int{}
+	for _, decision := range decisions {
+		series := strings.TrimSuffix(decision.identifier, "-DEC-"+decision.number)
+		seriesCounts[series]++
+		want := fmt.Sprintf("%03d", seriesCounts[series])
 		if decision.number != want {
 			return nil, fmt.Errorf(
 				"decision %s has sequence %s, want %s",

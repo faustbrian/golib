@@ -4,6 +4,9 @@
 
 ### Changed
 
+- Consolidate WSDL 1.1, WSDL 2.0, and cross-version interpretation policies in
+  a canonical decision register with stable identifiers, normative sources,
+  consequences, and executable evidence.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   instead of a reduced package-local efficacy threshold.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

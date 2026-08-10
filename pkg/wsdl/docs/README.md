@@ -1,6 +1,7 @@
 # Documentation
 
 - [Versions and conformance](conformance.md)
+- [Specification decisions](specification-decisions.md)
 - [Models and source locations](models.md)
 - [Parsing and deterministic generation](parsing-and-generation.md)
 - [Validation](validation.md)

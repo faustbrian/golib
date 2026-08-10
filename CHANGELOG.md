@@ -16,6 +16,8 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Validate stable specification decision numbering independently for each
+  identifier series so versioned standards can preserve their published IDs.
 - Catalog ECMAScript regular expressions against the exact ECMA-262 edition,
   pinned Test262 revision, Unicode data release, and JSON Schema profile.
 - Catalog OpenAPI's exact 2.0 through 3.2 feature lines, adjacent JSON Schema

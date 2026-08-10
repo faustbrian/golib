@@ -1382,6 +1382,13 @@ func conformanceCorpora(directory string) []string {
 			"Pinned official OpenRPC examples at dce69463ba9a3ca2232506b734606fa97f25dd45",
 			"Generated normative and object-field evidence matrices",
 		}
+	case "wsdl":
+		return []string{
+			"Pinned WSDL 1.1 and WSDL 2.0 normative requirement and assertion matrices",
+			"Pinned W3C WSDL 2.0 accepted fixture corpus",
+			"Pinned SoapUI, dotnet-svcutil, Apache CXF, and carrier WSDL 1.1 corpus",
+			"Apache Woden 1.0M10 differential validation in Eclipse Temurin 25",
+		}
 	case "xsd":
 		return []string{"W3C XML Schema Test Suite"}
 	default:

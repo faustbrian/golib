@@ -35,6 +35,36 @@ func TestValidateSpecificationDecisionsAcceptsGroupedTerminalSectionAndEvidenceP
 	}
 }
 
+func TestParseSpecificationDecisionsSequencesEachIdentifierSeriesIndependently(t *testing.T) {
+	t.Parallel()
+
+	contents := "## WSDL11-DEC-001: First WSDL 1.1 decision\n\n" +
+		"## WSDL11-DEC-002: Second WSDL 1.1 decision\n\n" +
+		"## WSDL20-DEC-001: First WSDL 2.0 decision\n\n" +
+		"## WSDL20-DEC-002: Second WSDL 2.0 decision\n"
+
+	decisions, err := parseSpecificationDecisions(contents)
+	if err != nil {
+		t.Fatalf("parseSpecificationDecisions() error = %v", err)
+	}
+	if len(decisions) != 4 {
+		t.Fatalf("parseSpecificationDecisions() count = %d, want 4", len(decisions))
+	}
+}
+
+func TestParseSpecificationDecisionsRejectsGapWithinIdentifierSeries(t *testing.T) {
+	t.Parallel()
+
+	contents := "## WSDL11-DEC-001: First WSDL 1.1 decision\n\n" +
+		"## WSDL20-DEC-001: First WSDL 2.0 decision\n\n" +
+		"## WSDL11-DEC-003: Third WSDL 1.1 decision\n"
+
+	_, err := parseSpecificationDecisions(contents)
+	if err == nil || !strings.Contains(err.Error(), "WSDL11-DEC-003 has sequence 003, want 002") {
+		t.Fatalf("parseSpecificationDecisions() error = %v, want WSDL11 sequence gap", err)
+	}
+}
+
 func TestValidateSpecificationDecisionsFailsClosed(t *testing.T) {
 	t.Parallel()
 

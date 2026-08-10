@@ -1,5 +1,10 @@
 # Semantic compatibility
 
+Observable interpretation and wire-format choices are compatibility contracts
+recorded in the [specification decision register](specification-decisions.md).
+A changed resolved decision requires explicit compatibility and changelog
+review even when the former behavior was not otherwise documented.
+
 Package `diff` compares compiled sets rather than source formatting. Results
 are sorted and classify additions, removals, and modifications as breaking,
 non-breaking, or unknown. Reports always include caveats.
