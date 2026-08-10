@@ -67,7 +67,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | ---: | --- | --- | --- | --- |
 | 1 | Decisions | `pending-reexecution` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
 | 2 | Architecture | `pending` | `.ai/GOAL_RESILIENCE.md` | 1 |
-| 12 | Integration | `pending-reexecution` | `pkg/cache/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 8 |
 | 13 | Integration | `pending-reexecution` | `pkg/http-client/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 6-11 |
 | 14 | Verification | `pending-reexecution` | `pkg/fault-injection/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-13 |
 | 19 | Security | `pending-reexecution` | `pkg/secret-envelope/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
@@ -113,6 +112,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/circuit-breaker/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 9. Current scoped evidence verifies circuit-breaker state, windows, lifecycle, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/adaptive-throttle/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 10. Current scoped evidence verifies adaptive admission behavior, bounded policy state, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/hedge/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 11. Current scoped evidence verifies bounded hedging, winner and loser lifecycle, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/cache/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 12. Current scoped evidence verifies bounded cache resilience, Redis and Valkey behavior, lifecycle and observability hardening, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 22. Current scoped evidence verifies OpenID Connect discovery and ID-token policy, bounded synchronized metadata and JWKS rotation, caller-owned nonce validation, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 23. Current scoped evidence verifies authentication-material redaction, result isolation, bounded completion and retention, provider lifecycle, concurrency, fuzzing, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -158,6 +158,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; rate-limit interoperability used PostgreSQL and Valkey containers with explicit Valkey policy isolation. |
 | Observed | 2026-08-10T11:05:52Z |
 | Gaps | NilAway remains advisory and its diagnostics remain visible where reported; no mandatory gate gap remains in these execution units. |
+
+### Cache resilience evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/cache/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` |
+| Scope | Cache admission, freshness and stale policy, loading and contention, bounded wire formats, service lifecycle, memory, Redis and Valkey backends, telemetry and logging adapters, documentation, API compatibility, interoperability, and performance. |
+| Status | `pending-reexecution` to `verified`. |
+| Evidence | Isolated `./scripts/run-modules.sh check --jobs 1 --modules pkg/cache` with task-owned disposable Go build and module caches. |
+| Result | Every mandatory gate passed, including exact `793/793` statement coverage, `314/314` viable mutants, race and fuzz checks, Redis and Valkey interoperability, API, documentation, security, supply-chain, and benchmark gates. |
+| Environment | Go 1.26.5 on darwin/arm64 with Redis and Valkey containers and task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run. |
+| Observed | 2026-08-10T11:43:04Z |
+| Gaps | One NilAway diagnostic remains visible under the advisory-only repository policy; no mandatory gate gap remains in the scoped cache goals. |
 
 ### PostgreSQL event store hardening evidence
 
