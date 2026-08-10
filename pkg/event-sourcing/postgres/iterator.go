@@ -49,7 +49,7 @@ func (iterator *iterator) Next(ctx context.Context) bool {
 	}
 	if !iterator.rows.Next() {
 		iterator.done = true
-		iterator.err = iterator.rows.Err()
+		iterator.err = databaseFailure(iterator.rows.Err())
 		iterator.rows.Close()
 
 		return false
@@ -109,7 +109,7 @@ func (iterator *iterator) Close() error {
 	iterator.current = eventsourcing.Message{}
 	iterator.rows.Close()
 	if iterator.err == nil {
-		iterator.err = iterator.rows.Err()
+		iterator.err = databaseFailure(iterator.rows.Err())
 	}
 
 	return iterator.err
@@ -154,7 +154,7 @@ func scanMessage(row rowScanner) (eventsourcing.Message, error) {
 		&tenant,
 		&partition,
 	); err != nil {
-		return eventsourcing.Message{}, err
+		return eventsourcing.Message{}, databaseFailure(err)
 	}
 	if position <= 0 ||
 		streamVersion <= 0 ||

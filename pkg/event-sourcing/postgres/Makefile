@@ -46,6 +46,8 @@ fuzz:
 		-fuzztime="$(FUZZ_TIME)" -parallel=2
 	$(GO) test . -run '^$$' -fuzz '^FuzzProjectionStatus$$' \
 		-fuzztime="$(FUZZ_TIME)" -parallel=2
+	$(GO) test . -run '^$$' -fuzz '^FuzzDatabaseFailure$$' \
+		-fuzztime="$(FUZZ_TIME)" -parallel=2
 
 benchmark:
 	$(GO) test ./... -run '^$$' -bench . -benchmem \

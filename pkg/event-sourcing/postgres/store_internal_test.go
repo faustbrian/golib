@@ -453,6 +453,20 @@ func assertOperationPermitAvailable(t testing.TB, permit operationPermit) {
 	}
 }
 
+func assertDriverErrorRedacted(t testing.TB, err, cause error) {
+	t.Helper()
+
+	if !errors.Is(err, cause) {
+		t.Fatalf("driver cause was not preserved: %v", err)
+	}
+	if !errors.Is(err, ErrDatabaseOperationFailed) {
+		t.Fatalf("driver error was not classified: %v", err)
+	}
+	if strings.Contains(err.Error(), cause.Error()) {
+		t.Fatalf("driver diagnostic was disclosed: %q", err)
+	}
+}
+
 func TestAppendRejectsInvalidInputBeforeDatabaseUse(t *testing.T) {
 	t.Parallel()
 
@@ -863,23 +877,38 @@ func TestReconcileAppendClassifiesDurableIdentityAndFailures(t *testing.T) {
 	) {
 		t.Fatalf("corrupt barrier = %#v, %d, %v", messages, outcome, err)
 	}
-	corruptIdentityDatabase := &fakeDatabase{
-		rowScans: []scanFunc{scanValues(int64(0))},
-		rows: &fakeRows{scans: []scanFunc{
-			reconciliationIdentityScan(pending, 0, 1),
-		}},
-	}
-	corruptIdentity, _ := storeWithTransaction(corruptIdentityDatabase)
-	if messages, outcome, err := corruptIdentity.ReconcileAppend(
-		context.Background(),
-		stream,
-		expected,
-		[]eventsourcing.PendingMessage{pending},
-	); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
-		err,
-		eventsourcing.ErrCorruptHistory,
-	) {
-		t.Fatalf("corrupt identity = %#v, %d, %v", messages, outcome, err)
+	for name, identity := range map[string][2]int64{
+		"zero stream version":  {0, 1},
+		"zero global position": {1, 0},
+	} {
+		corruptIdentityDatabase := &fakeDatabase{
+			rowScans: []scanFunc{scanValues(int64(0))},
+			rows: &fakeRows{scans: []scanFunc{
+				reconciliationIdentityScan(
+					pending,
+					identity[0],
+					identity[1],
+				),
+			}},
+		}
+		corruptIdentity, _ := storeWithTransaction(corruptIdentityDatabase)
+		if messages, outcome, err := corruptIdentity.ReconcileAppend(
+			context.Background(),
+			stream,
+			expected,
+			[]eventsourcing.PendingMessage{pending},
+		); messages != nil || outcome != eventsourcing.CommitUnknown || !errors.Is(
+			err,
+			eventsourcing.ErrCorruptHistory,
+		) {
+			t.Fatalf(
+				"%s corrupt identity = %#v, %d, %v",
+				name,
+				messages,
+				outcome,
+				err,
+			)
+		}
 	}
 
 	queryDatabase := &fakeDatabase{
@@ -1467,8 +1496,12 @@ func TestReadBoundariesPreserveStoreSemantics(t *testing.T) {
 		operation := operation
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if err := operation(); err == nil {
+			readErr := operation()
+			if readErr == nil {
 				t.Fatal("read unexpectedly succeeded")
+			}
+			if strings.Contains(name, "failure") {
+				assertDriverErrorRedacted(t, readErr, failure)
 			}
 		})
 	}

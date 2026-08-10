@@ -132,7 +132,7 @@ func (store *ProjectionStore) Save(
 	}
 	tx, err := store.beginner.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		return err
+		return databaseFailure(err)
 	}
 	defer func() {
 		rollbackCtx, cancel := rollbackContext(ctx)
@@ -215,7 +215,7 @@ func (store *ProjectionStore) ResetCheckpoint(
 	}
 	tx, err := store.beginner.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		return projection.Status{}, err
+		return projection.Status{}, databaseFailure(err)
 	}
 	defer func() {
 		rollbackCtx, cancel := rollbackContext(ctx)
@@ -255,7 +255,7 @@ func (store *ProjectionStore) ResetCheckpoint(
 		name,
 	)
 	if err != nil {
-		return projection.Status{}, err
+		return projection.Status{}, databaseFailure(err)
 	}
 	if tag.RowsAffected() != 1 {
 		return projection.Status{}, projection.ErrCheckpointCorrupt
@@ -323,7 +323,7 @@ func stageCheckpoint(
 		name,
 		projectionStateRunning,
 	); err != nil {
-		return err
+		return databaseFailure(err)
 	}
 	status, err := queryProjectionStatus(ctx, db, schema, name, true)
 	if err != nil {
@@ -349,7 +349,7 @@ func stageCheckpoint(
 		int64(next),
 	)
 	if err != nil {
-		return err
+		return databaseFailure(err)
 	}
 	if tag.RowsAffected() != 1 {
 		return projection.ErrCheckpointCorrupt
@@ -378,7 +378,7 @@ func queryProjectionStatus(
 		&state,
 		&checkpoint,
 	); err != nil {
-		return projection.Status{}, err
+		return projection.Status{}, databaseFailure(err)
 	}
 
 	return newProjectionStatus(state, checkpoint)
@@ -407,7 +407,7 @@ func setProjectionState(
 		state,
 	).Scan(&storedState, &checkpoint)
 	if err != nil {
-		return projection.Status{}, err
+		return projection.Status{}, databaseFailure(err)
 	}
 
 	return newProjectionStatus(storedState, checkpoint)

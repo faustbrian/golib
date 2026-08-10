@@ -90,7 +90,7 @@ func (store *SnapshotStore) Save(
 
 	tx, err := store.beginner.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
-		return err
+		return databaseFailure(err)
 	}
 	defer func() {
 		rollbackCtx, cancel := rollbackContext(ctx)
@@ -171,7 +171,7 @@ func (store *SnapshotStore) Delete(
 		stream.AggregateID(),
 	)
 
-	return err
+	return databaseFailure(err)
 }
 
 func insertSnapshot(
@@ -201,7 +201,7 @@ func insertSnapshot(
 		return false, nil
 	}
 
-	return inserted, err
+	return inserted, databaseFailure(err)
 }
 
 func loadSnapshotForUpdate(
@@ -245,7 +245,7 @@ func updateSnapshot(
 		snapshot.CreatedAt(),
 	)
 	if err != nil {
-		return err
+		return databaseFailure(err)
 	}
 	if tag.RowsAffected() != 1 {
 		return eventsourcing.ErrSnapshotCorrupt
@@ -273,7 +273,7 @@ func scanSnapshot(row rowScanner) (eventsourcing.Snapshot, error) {
 		&metadataJSON,
 		&createdAt,
 	); err != nil {
-		return eventsourcing.Snapshot{}, err
+		return eventsourcing.Snapshot{}, databaseFailure(err)
 	}
 	if aggregateVersion <= 0 ||
 		schemaVersion <= 0 ||

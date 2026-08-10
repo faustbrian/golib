@@ -78,6 +78,9 @@ func TestSnapshotStoreLoadsAndDeletes(t *testing.T) {
 			} else if !errors.Is(err, testCase.want) {
 				t.Fatalf("Load() error = %v", err)
 			}
+			if errors.Is(testCase.want, failure) {
+				assertDriverErrorRedacted(t, err, failure)
+			}
 		})
 	}
 
@@ -94,6 +97,9 @@ func TestSnapshotStoreLoadsAndDeletes(t *testing.T) {
 			err := store.Delete(context.Background(), snapshot.Stream())
 			if !errors.Is(err, execErr) || db.execCalls != 1 {
 				t.Fatalf("Delete() calls/error = %d, %v", db.execCalls, err)
+			}
+			if execErr != nil {
+				assertDriverErrorRedacted(t, err, execErr)
 			}
 		})
 	}
@@ -413,6 +419,9 @@ func TestSnapshotStoreOwnsAtomicSaveTransaction(t *testing.T) {
 			if !errors.Is(err, testCase.want) {
 				t.Fatalf("Save() error = %v", err)
 			}
+			if errors.Is(testCase.want, failure) && name != "commit failure" {
+				assertDriverErrorRedacted(t, err, failure)
+			}
 			if name == "commit failure" &&
 				!errors.Is(err, ErrCommitOutcomeUnknown) {
 				t.Fatalf("Save(commit failure) category = %v", err)
@@ -524,6 +533,9 @@ func TestScanSnapshotRejectsCorruptStoredValues(t *testing.T) {
 			if !errors.Is(err, testCase.want) {
 				t.Fatalf("scanSnapshot() error = %v", err)
 			}
+			if name == "scan" {
+				assertDriverErrorRedacted(t, err, failure)
+			}
 			switch name {
 			case "aggregate version", "schema version", "schema overflow":
 				if err != eventsourcing.ErrSnapshotCorrupt {
@@ -600,6 +612,9 @@ func TestProjectionStoreStatusAndStateTransitions(t *testing.T) {
 			if !errors.Is(err, testCase.want) {
 				t.Fatalf("Status() error = %v", err)
 			}
+			if name == "failure" {
+				assertDriverErrorRedacted(t, err, failure)
+			}
 			if testCase.want == nil && status.State() != testCase.state {
 				t.Fatalf("Status() = %#v", status)
 			}
@@ -646,6 +661,9 @@ func TestProjectionStoreStatusAndStateTransitions(t *testing.T) {
 			}
 			if !errors.Is(err, testCase.want) {
 				t.Fatalf("state transition error = %v", err)
+			}
+			if errors.Is(testCase.want, failure) {
+				assertDriverErrorRedacted(t, err, failure)
 			}
 			if testCase.want == nil {
 				want := projection.StateRunning
@@ -728,6 +746,9 @@ func TestProjectionStoreOwnsAtomicCheckpointTransaction(t *testing.T) {
 			err := store.Save(context.Background(), "summary", 0, 1)
 			if !errors.Is(err, testCase.want) {
 				t.Fatalf("Save() error = %v", err)
+			}
+			if errors.Is(testCase.want, failure) && name != "commit" {
+				assertDriverErrorRedacted(t, err, failure)
 			}
 			if name == "commit" &&
 				!errors.Is(err, ErrCommitOutcomeUnknown) {
@@ -849,6 +870,9 @@ func TestStageCheckpointClassifiesStateAndConflicts(t *testing.T) {
 			)
 			if !errors.Is(err, testCase.want) {
 				t.Fatalf("stageCheckpoint() error = %v", err)
+			}
+			if errors.Is(testCase.want, failure) {
+				assertDriverErrorRedacted(t, err, failure)
 			}
 		})
 	}
@@ -989,6 +1013,9 @@ func TestProjectionStoreResetsExpectedPausedCheckpoint(t *testing.T) {
 			if !errors.Is(err, testCase.want) {
 				t.Fatalf("ResetCheckpoint() error = %v", err)
 			}
+			if errors.Is(testCase.want, failure) && name != "commit" {
+				assertDriverErrorRedacted(t, err, failure)
+			}
 			if name == "commit" &&
 				!errors.Is(err, ErrCommitOutcomeUnknown) {
 				t.Fatalf("ResetCheckpoint(commit failure) category = %v", err)
@@ -1127,6 +1154,12 @@ func TestProjectionStatusValidationAndCheckpointInput(t *testing.T) {
 	); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
 		t.Fatalf("ResetCheckpoint(nil context) error = %v", err)
 	}
+	if _, err := (&ProjectionStore{}).Status(
+		context.Background(),
+		"summary",
+	); !errors.Is(err, eventsourcing.ErrInvalidArgument) {
+		t.Fatalf("Status(nil database) error = %v", err)
+	}
 }
 
 func TestTransactionCheckpointWriterStagesAndPropagatesFailures(t *testing.T) {
@@ -1166,6 +1199,8 @@ func TestTransactionCheckpointWriterStagesAndPropagatesFailures(t *testing.T) {
 		1,
 	); !errors.Is(err, failure) {
 		t.Fatalf("Stage(failure) error = %v", err)
+	} else {
+		assertDriverErrorRedacted(t, err, failure)
 	}
 	if err := writer.Stage(
 		context.Background(),

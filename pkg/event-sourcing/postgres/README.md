@@ -315,6 +315,14 @@ or transaction. Keep transactions short; caller-owned transactions retain
 stream and global-position locks until commit or rollback. The adapter starts
 no goroutines and does not own pool shutdown.
 
+Ordinary driver failures expose the stable `ErrDatabaseOperationFailed` text
+without formatting the PostgreSQL diagnostic. Their original cause remains
+available to `errors.Is` and `errors.As`, including `pgconn.PgError` SQLSTATE
+inspection. Append, reconciliation, and commit errors retain their more
+specific durability categories and the same default redaction. Do not log an
+unwrapped driver cause when its detail may contain statement or application
+data.
+
 Set server-side bounds in the pgx pool configuration before creating the pool,
 and give each operation a shorter or equal context deadline:
 

@@ -45,9 +45,18 @@ var (
 	ErrAppendReconciliationFailed = errors.New(
 		"event-sourcing/postgres: append reconciliation failed",
 	)
+	// ErrDatabaseOperationFailed reports a PostgreSQL driver failure whose
+	// diagnostic is available only through errors.Is or errors.As.
+	ErrDatabaseOperationFailed = errors.New(
+		"event-sourcing/postgres: database operation failed",
+	)
 )
 
 type appendReconciliationError struct {
+	cause error
+}
+
+type databaseError struct {
 	cause error
 }
 
@@ -63,6 +72,22 @@ func (*appendReconciliationError) Error() string {
 
 func (err *appendReconciliationError) Unwrap() []error {
 	return []error{ErrAppendReconciliationFailed, err.cause}
+}
+
+func (*databaseError) Error() string {
+	return ErrDatabaseOperationFailed.Error()
+}
+
+func (err *databaseError) Unwrap() []error {
+	return []error{ErrDatabaseOperationFailed, err.cause}
+}
+
+func databaseFailure(cause error) error {
+	if cause == nil {
+		return nil
+	}
+
+	return &databaseError{cause: cause}
 }
 
 // CommitError redacts a PostgreSQL commit failure while preserving its cause
@@ -637,7 +662,7 @@ func (store *Store) ReadStream(
 		return nil, eventsourcing.ErrStreamNotFound
 	}
 	if err != nil {
-		return nil, err
+		return nil, databaseFailure(err)
 	}
 	if current <= 0 {
 		return nil, eventsourcing.ErrCorruptHistory
@@ -662,7 +687,7 @@ func (store *Store) ReadStream(
 		possible,
 	)
 	if err != nil {
-		return nil, err
+		return nil, databaseFailure(err)
 	}
 
 	return &iterator{
@@ -703,7 +728,7 @@ func (store *Store) ReadGlobal(
 		possible,
 	)
 	if err != nil {
-		return nil, err
+		return nil, databaseFailure(err)
 	}
 
 	return &iterator{

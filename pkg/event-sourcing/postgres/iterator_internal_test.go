@@ -159,6 +159,9 @@ func TestIteratorStopsOnCancellationAndRowFailures(t *testing.T) {
 					testCase.rows.closed,
 				)
 			}
+			if errors.Is(testCase.want, failure) {
+				assertDriverErrorRedacted(t, iterator.Err(), failure)
+			}
 			if iterator.Next(context.Background()) {
 				t.Fatal("failed iterator resumed")
 			}

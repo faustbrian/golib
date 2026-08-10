@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Redact ordinary PostgreSQL driver diagnostics behind
+  `ErrDatabaseOperationFailed` while preserving the cause for `errors.Is` and
+  `errors.As` retry and SQLSTATE classification.
 - Reject message and snapshot rows whose encoded JSON metadata exceeds the
   schema's 64 KiB limit before decoding or allocating the metadata map.
 - Serialize concurrent staging calls made through one caller-owned transaction
