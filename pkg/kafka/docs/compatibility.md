@@ -41,6 +41,16 @@ consume-transform-produce transactions. The 4.3.1 fixtures establish the
 broader scenarios below. Separate 4.3.1 nodes establish only the listed TLS,
 mTLS, PLAIN, SCRAM, and signed-JWT OAUTHBEARER paths. These fixtures do not
 establish the complete support matrix.
+
+Broker lifecycle support is a separate production prerequisite. As of
+2026-08-10, Apache Kafka lists 4.3.1, 4.2.1, and 4.1.2 as supported releases and
+lists 3.7.2 as archived. The 3.7.2 result therefore proves the package's tested
+client-compatibility floor; it does not imply ongoing broker security
+maintenance or make 3.7.2 a recommended production deployment. Operators must
+select a broker line still supported by Apache Kafka or their managed-service
+vendor and must apply that provider's security and bug-fix releases. A package
+compatibility result never extends a broker's support lifetime.
+
 The zero `ProtocolPolicy` negotiates request versions with each connection.
 `MinimumVersion` is only a request downgrade floor recognized by franz-go; it
 does not prove or constrain the broker release and does not change this matrix.

@@ -174,6 +174,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- distinguish the directly tested Kafka 3.7.2 client-compatibility floor from
+  Apache's archived broker lifecycle so production guidance cannot imply that
+  package compatibility extends upstream security or maintenance support
 - require fresh topic-leader metadata after each comparison-fixture restart
   before measuring inspection reconnect behavior, preventing stale container
   lifecycle logs from admitting a broker that is not operational yet

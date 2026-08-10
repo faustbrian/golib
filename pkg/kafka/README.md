@@ -19,6 +19,13 @@ once, and does not own topic creation or broker configuration.
 - verified TLS 1.2 or later by default
 - durable, idempotent consumer side effects
 
+The compatibility floor records client behavior, not broker maintenance. The
+minimum tested Apache Kafka 3.7.2 release is archived upstream; production
+deployments must use a broker release that still receives security and bug
+fixes from Apache Kafka or the selected managed-service vendor. See the
+[compatibility matrix](docs/compatibility.md) for the tested and lifecycle
+boundaries.
+
 ## Producer
 
 Configuration can be validated during application bootstrap without allocating
