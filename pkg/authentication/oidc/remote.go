@@ -3,6 +3,7 @@ package oidc
 import (
 	"cmp"
 	"context"
+	"crypto"
 	"crypto/ecdsa"
 	"crypto/ed25519"
 	"crypto/rsa"
@@ -12,6 +13,8 @@ import (
 	"io"
 	"math/bits"
 	"math/rand/v2"
+	"mime"
+	"net"
 	"net/http"
 	"net/url"
 	"slices"
@@ -35,6 +38,10 @@ var errOIDCDiscoveryUnavailable = errors.New("OIDC discovery unavailable")
 var errOIDCMetadataInvalid = errors.New("OIDC discovery metadata is invalid")
 
 var errOIDCKeysUnavailable = errors.New("OIDC keys unavailable")
+
+const maximumHTTPHeaderBytes = 64 << 10
+
+const maximumTrackedJWKs = 4 * maximumJWKCount
 
 // New discovers an OIDC provider and creates a synchronous, bounded key-set
 // validator. It starts no background goroutines.
@@ -95,29 +102,131 @@ func discoverProvider(
 	insecureHTTP bool,
 	allowed map[string]struct{},
 ) (providerMetadata, error) {
-	providerContext := upstreamoidc.ClientContext(ctx, client)
-	provider, err := upstreamoidc.NewProvider(providerContext, issuer)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet,
+		strings.TrimSuffix(issuer, "/")+"/.well-known/openid-configuration", nil)
 	if err != nil {
-		var mismatch *upstreamoidc.IssuerMismatchError
-		if errors.As(err, &mismatch) {
-			return providerMetadata{}, errOIDCMetadataInvalid
-		}
 		return providerMetadata{}, errOIDCDiscoveryUnavailable
 	}
+	response, err := client.Do(request)
+	if err != nil {
+		return providerMetadata{}, errOIDCDiscoveryUnavailable
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusOK {
+		return providerMetadata{}, errOIDCDiscoveryUnavailable
+	}
+	body, err := readBounded(response.Body, maximumHTTPBodyBytes)
+	if err != nil {
+		return providerMetadata{}, errOIDCDiscoveryUnavailable
+	}
+	if err := inspectJSONObjectLimits(body, 128, 6, maximumJWKCount); err != nil {
+		return providerMetadata{}, errOIDCMetadataInvalid
+	}
 	var metadata providerMetadata
-	if err := provider.Claims(&metadata); err != nil || !validProviderMetadata(metadata, insecureHTTP, allowed) {
+	var fields map[string]json.RawMessage
+	if err := json.Unmarshal(body, &metadata); err != nil {
+		return providerMetadata{}, errOIDCMetadataInvalid
+	}
+	// inspectJSONObjectLimits has already proven this second decode infallible.
+	_ = json.Unmarshal(body, &fields)
+	if !validProviderMetadataMemberTypes(fields) {
+		return providerMetadata{}, errOIDCMetadataInvalid
+	}
+	_, metadata.ScopesPresent = fields["scopes_supported"]
+	if metadata.Issuer != issuer ||
+		!validProviderMetadata(metadata, insecureHTTP, allowed) {
 		return providerMetadata{}, errOIDCMetadataInvalid
 	}
 	return metadata, nil
 }
 
+func validProviderMetadataMemberTypes(fields map[string]json.RawMessage) bool {
+	for _, name := range []string{
+		"issuer", "authorization_endpoint", "token_endpoint", "userinfo_endpoint",
+		"jwks_uri", "registration_endpoint", "service_documentation", "op_policy_uri", "op_tos_uri",
+	} {
+		if encoded, present := fields[name]; present {
+			if value, valid := decodeJSONString(encoded); !valid || value == "" {
+				return false
+			}
+		}
+	}
+	for _, name := range []string{
+		"scopes_supported", "response_types_supported", "subject_types_supported",
+		"id_token_signing_alg_values_supported", "response_modes_supported", "grant_types_supported",
+		"acr_values_supported", "id_token_encryption_alg_values_supported",
+		"id_token_encryption_enc_values_supported", "userinfo_signing_alg_values_supported",
+		"userinfo_encryption_alg_values_supported", "userinfo_encryption_enc_values_supported",
+		"request_object_signing_alg_values_supported", "request_object_encryption_alg_values_supported",
+		"request_object_encryption_enc_values_supported", "token_endpoint_auth_methods_supported",
+		"token_endpoint_auth_signing_alg_values_supported", "display_values_supported",
+		"claim_types_supported", "claims_supported", "claims_locales_supported", "ui_locales_supported",
+	} {
+		if _, valid := decodeOptionalJSONStringArray(fields, name); !valid {
+			return false
+		}
+	}
+	for _, name := range []string{
+		"claims_parameter_supported", "request_parameter_supported",
+		"request_uri_parameter_supported", "require_request_uri_registration",
+	} {
+		if encoded, present := fields[name]; present {
+			if _, valid := decodeJSONBoolean(encoded); !valid {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func decodeJSONString(encoded json.RawMessage) (string, bool) {
+	var value any
+	// Every caller has already completed strict JSON preflight.
+	_ = json.Unmarshal(encoded, &value)
+	text, valid := value.(string)
+	return text, valid
+}
+
+func decodeJSONBoolean(encoded json.RawMessage) (bool, bool) {
+	var value any
+	// Every caller has already completed strict JSON preflight.
+	_ = json.Unmarshal(encoded, &value)
+	boolean, valid := value.(bool)
+	return boolean, valid
+}
+
+func decodeOptionalJSONStringArray(fields map[string]json.RawMessage, name string) ([]string, bool) {
+	encoded, present := fields[name]
+	if !present {
+		return nil, true
+	}
+	var value any
+	// Every caller has already completed strict JSON preflight.
+	_ = json.Unmarshal(encoded, &value)
+	items, valid := value.([]any)
+	if !valid {
+		return nil, false
+	}
+	result := make([]string, len(items))
+	for index, item := range items {
+		text, stringValue := item.(string)
+		if !stringValue {
+			return nil, false
+		}
+		result[index] = text
+	}
+	return result, true
+}
+
 type providerMetadata struct {
+	Issuer                string   `json:"issuer"`
 	AuthorizationEndpoint string   `json:"authorization_endpoint"`
 	TokenEndpoint         string   `json:"token_endpoint"`
 	UserInfoEndpoint      string   `json:"userinfo_endpoint"`
 	JWKSetURL             string   `json:"jwks_uri"`
 	RegistrationEndpoint  string   `json:"registration_endpoint"`
 	Scopes                []string `json:"scopes_supported"`
+	ScopesPresent         bool     `json:"-"`
 	ResponseTypes         []string `json:"response_types_supported"`
 	SubjectTypes          []string `json:"subject_types_supported"`
 	SigningAlgorithms     []string `json:"id_token_signing_alg_values_supported"`
@@ -144,7 +253,7 @@ func validProviderMetadata(metadata providerMetadata, insecureHTTP bool, allowed
 	requiresTokenEndpoint := false
 	for responseType := range responseTypes {
 		parts := strings.Fields(responseType)
-		if len(parts) == 0 {
+		if len(parts) == 0 || strings.Join(parts, " ") != responseType {
 			return false
 		}
 		if slices.Contains(parts, "code") {
@@ -175,7 +284,7 @@ func validProviderMetadata(metadata providerMetadata, insecureHTTP bool, allowed
 			return false
 		}
 	}
-	if len(metadata.Scopes) > 0 {
+	if metadata.ScopesPresent || metadata.Scopes != nil {
 		scopes, scopesValid := uniqueStrings(metadata.Scopes)
 		if !scopesValid || !slices.Contains(metadata.Scopes, "openid") || len(scopes) == 0 {
 			return false
@@ -225,13 +334,15 @@ type remoteKeySet struct {
 	refreshErr   error
 	etag         string
 	lastModified string
+	activeKeys   map[string]struct{}
+	retiredKeys  map[string]struct{}
 }
 
 func (set *remoteKeySet) initialize(ctx context.Context) error {
+	started := set.now()
 	set.mutex.Lock()
 	set.refreshing = true
 	set.refreshDone = make(chan struct{})
-	started := set.now()
 	set.mutex.Unlock()
 
 	result, err := set.fetchConditional(ctx, "", "")
@@ -250,8 +361,8 @@ func (set *remoteKeySet) VerifySignature(ctx context.Context, rawToken string) (
 		return nil, errors.New("invalid OIDC signature structure")
 	}
 	keyID := signed.Signatures[0].Header.KeyID
-	set.mutex.Lock()
 	now := set.now()
+	set.mutex.Lock()
 	keys := append([]jose.JSONWebKey(nil), set.keys...)
 	fresh := now.Before(set.nextRefresh) || set.nextRefresh.IsZero() && len(keys) > 0
 	nextAttempt := set.nextAttempt
@@ -279,8 +390,8 @@ func (set *remoteKeySet) VerifySignature(ctx context.Context, rawToken string) (
 	defer set.releaseWaiter()
 
 	for {
-		set.mutex.Lock()
 		now := set.now()
+		set.mutex.Lock()
 		if set.refreshing {
 			done := set.refreshDone
 			set.mutex.Unlock()
@@ -380,8 +491,15 @@ func (set *remoteKeySet) finishRefresh(started time.Time, result fetchResult, er
 	set.mutex.Lock()
 	defer set.mutex.Unlock()
 	minimum, maximum := set.refreshBounds()
+	if err == nil && !result.notModified && !set.acceptKeyTransition(result.keys) {
+		err = errors.New("OIDC JWK rollback rejected")
+	}
 	set.refreshErr = err
 	set.nextAttempt = started.Add(minimum)
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		set.refreshErr = nil
+		set.nextAttempt = time.Time{}
+	}
 	if err == nil {
 		if !result.notModified {
 			set.keys = result.keys
@@ -403,6 +521,36 @@ func (set *remoteKeySet) finishRefresh(started time.Time, result fetchResult, er
 	}
 	set.refreshing = false
 	close(set.refreshDone)
+}
+
+func (set *remoteKeySet) acceptKeyTransition(keys []jose.JSONWebKey) bool {
+	next := make(map[string]struct{}, len(keys))
+	for _, key := range keys {
+		fingerprint, err := key.Thumbprint(crypto.SHA256)
+		if err != nil {
+			return false
+		}
+		encoded := string(fingerprint)
+		if _, retired := set.retiredKeys[encoded]; retired {
+			return false
+		}
+		next[encoded] = struct{}{}
+	}
+	retired := make(map[string]struct{}, len(set.retiredKeys)+len(set.activeKeys))
+	for fingerprint := range set.retiredKeys {
+		retired[fingerprint] = struct{}{}
+	}
+	for fingerprint := range set.activeKeys {
+		if _, remainsActive := next[fingerprint]; !remainsActive {
+			retired[fingerprint] = struct{}{}
+		}
+	}
+	if len(next)+len(retired) > maximumTrackedJWKs {
+		return false
+	}
+	set.activeKeys = next
+	set.retiredKeys = retired
+	return true
 }
 
 func (set *remoteKeySet) refreshLifetime(lifetime, minimum time.Duration) time.Duration {
@@ -434,6 +582,9 @@ func (set *remoteKeySet) refreshBounds() (time.Duration, time.Duration) {
 }
 
 func verifyWithKeys(signed *jose.JSONWebSignature, keyID string, keys []jose.JSONWebKey) ([]byte, bool, error) {
+	if keyID == "" && len(keys) != 1 {
+		return nil, false, errors.New("OIDC key ID is required for an ambiguous JWK set")
+	}
 	found := false
 	algorithm := signed.Signatures[0].Header.Algorithm
 	for _, key := range keys {
@@ -558,17 +709,51 @@ func (set *remoteKeySet) fetchConditionalURL(
 	if err != nil {
 		return fetchResult{}, err
 	}
+	if err := inspectJSONObjectLimits(body, 64, 4, max(set.maxKeys, 64)); err != nil {
+		return fetchResult{}, errors.New("OIDC JWK response is invalid")
+	}
 	var parsed jose.JSONWebKeySet
 	if err := json.Unmarshal(body, &parsed); err != nil {
 		return fetchResult{}, errors.New("OIDC JWK response is invalid")
 	}
+	var raw struct {
+		Keys []map[string]json.RawMessage `json:"keys"`
+	}
+	// inspectJSONObjectLimits has already proven this second decode infallible.
+	_ = json.Unmarshal(body, &raw)
 	if len(parsed.Keys) == 0 || len(parsed.Keys) > set.maxKeys {
 		return fetchResult{}, errors.New("OIDC JWK count is invalid")
 	}
 	seen := make(map[string]struct{}, len(parsed.Keys))
-	keys := make([]jose.JSONWebKey, len(parsed.Keys))
+	keys := make([]jose.JSONWebKey, 0, len(parsed.Keys))
 	for index, key := range parsed.Keys {
-		if !validJWKMetadata(key) || !jwkMatchesAllowedAlgorithms(key, set.allowed) {
+		for _, name := range []string{"d", "dp", "dq", "k", "oth", "p", "q", "qi"} {
+			if _, privateMaterial := raw.Keys[index][name]; privateMaterial {
+				return fetchResult{}, errors.New("OIDC JWK contains private key material")
+			}
+		}
+		for _, name := range []string{
+			"alg", "crv", "e", "kid", "kty", "n", "use", "x", "x5t", "x5t#S256", "x5u", "y",
+		} {
+			if encoded, present := raw.Keys[index][name]; present {
+				value, valid := decodeJSONString(encoded)
+				if !valid || (name == "alg" || name == "use") && value == "" {
+					return fetchResult{}, errors.New("OIDC JWK metadata is invalid")
+				}
+			}
+		}
+		operations, valid := decodeOptionalJSONStringArray(raw.Keys[index], "key_ops")
+		if !valid {
+			return fetchResult{}, errors.New("OIDC JWK metadata is invalid")
+		}
+		_, operationsPresent := raw.Keys[index]["key_ops"]
+		if _, valid = decodeOptionalJSONStringArray(raw.Keys[index], "x5c"); !valid {
+			return fetchResult{}, errors.New("OIDC JWK metadata is invalid")
+		}
+		if key.Use != "" && key.Use != "sig" || !jwkMatchesAllowedAlgorithms(key, set.allowed) {
+			continue
+		}
+		if !validJWKOperations(operations, operationsPresent) {
 			return fetchResult{}, errors.New("OIDC JWK metadata is invalid")
 		}
 		if key.KeyID != "" {
@@ -577,16 +762,17 @@ func (set *remoteKeySet) fetchConditionalURL(
 			}
 			seen[key.KeyID] = struct{}{}
 		}
-		keys[index] = key
+		keys = append(keys, key)
+	}
+	if len(keys) == 0 {
+		return fetchResult{}, errors.New("OIDC JWK set has no permitted signature keys")
 	}
 	result.keys = keys
 	return result, nil
 }
 
-func validJWKMetadata(key jose.JSONWebKey) bool {
-	return !slices.Contains([]bool{
-		key.Valid(), key.IsPublic(), key.Use == "" || key.Use == "sig",
-	}, false)
+func validJWKOperations(operations []string, present bool) bool {
+	return !present || len(operations) == 1 && operations[0] == "verify"
 }
 
 func jwkMatchesAllowedAlgorithms(key jose.JSONWebKey, allowed map[string]struct{}) bool {
@@ -728,10 +914,18 @@ func validRemoteURL(rawURL string, allowHTTP bool) bool {
 	case "https":
 		return true
 	case "http":
-		return allowHTTP
+		return allowHTTP && validLoopbackHost(parsed.Hostname())
 	default:
 		return false
 	}
+}
+
+func validLoopbackHost(host string) bool {
+	if strings.EqualFold(host, "localhost") || strings.HasSuffix(strings.ToLower(host), ".localhost") {
+		return true
+	}
+	address := net.ParseIP(host)
+	return address != nil && address.IsLoopback()
 }
 
 func hardenedClient(source *http.Client, maximum int64) *http.Client {
@@ -750,6 +944,13 @@ func hardenedClient(source *http.Client, maximum int64) *http.Client {
 	case nil:
 		transport = http.DefaultTransport
 	}
+	if standard, ok := transport.(*http.Transport); ok {
+		transport = standard.Clone()
+		cloned := transport.(*http.Transport)
+		if cloned.MaxResponseHeaderBytes <= 0 || cloned.MaxResponseHeaderBytes > maximumHTTPHeaderBytes {
+			cloned.MaxResponseHeaderBytes = maximumHTTPHeaderBytes
+		}
+	}
 	client.Transport = boundedTransport{base: transport, maximum: maximum}
 	return client
 }
@@ -764,8 +965,38 @@ func (transport boundedTransport) RoundTrip(request *http.Request) (*http.Respon
 	if err != nil {
 		return nil, err
 	}
+	if responseHeaderBytes(response.Header) > maximumHTTPHeaderBytes {
+		_ = response.Body.Close()
+		return nil, errors.New("OIDC response headers exceed configured bound")
+	}
+	if response.StatusCode == http.StatusOK {
+		contentTypes := response.Header.Values("Content-Type")
+		mediaType := ""
+		if len(contentTypes) == 1 {
+			mediaType, _, err = mime.ParseMediaType(contentTypes[0])
+		}
+		if err != nil || len(contentTypes) != 1 ||
+			mediaType != "application/json" && mediaType != "application/jwk-set+json" {
+			_ = response.Body.Close()
+			return nil, errors.New("OIDC response content type is invalid")
+		}
+	}
 	response.Body = &boundedBody{body: response.Body, remaining: transport.maximum}
 	return response, nil
+}
+
+func responseHeaderBytes(header http.Header) int {
+	total := 0
+	for name, values := range header {
+		total += len(name) + 2
+		for _, value := range values {
+			total += len(value) + 2
+			if total > maximumHTTPHeaderBytes {
+				return total
+			}
+		}
+	}
+	return total
 }
 
 type boundedBody struct {

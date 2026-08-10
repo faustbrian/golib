@@ -3,18 +3,28 @@ package oidc
 import (
 	"bytes"
 	"context"
+	"crypto"
+	"crypto/rand"
+	"crypto/rsa"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
+	"strings"
 	"testing"
+	"time"
 
+	upstreamoidc "github.com/coreos/go-oidc/v3/oidc"
 	authentication "github.com/faustbrian/golib/pkg/authentication"
+	"github.com/faustbrian/golib/pkg/authentication/authtest"
+	jose "github.com/go-jose/go-jose/v4"
 )
 
 func FuzzInspectCompactToken(f *testing.F) {
 	f.Add("eyJhbGciOiJSUzI1NiIsImtpZCI6ImtleSJ9.e30.signature")
 	f.Add("not-a-token")
 	f.Add("e30.e30.")
+	f.Add("eyJhbGciOiJSUzI1NiIsImtpZCI6ImtleSJ9.eyJzdWIiOiJcdWQ4MDAifQ.signature")
 	allowed := map[string]struct{}{"RS256": {}}
 	f.Fuzz(func(t *testing.T, token string) {
 		if len(token) > 64*1024 {
@@ -45,8 +55,67 @@ func FuzzProviderMetadata(f *testing.F) {
 			t.Skip()
 		}
 		var metadata providerMetadata
-		if json.Unmarshal(encoded, &metadata) == nil {
+		var fields map[string]json.RawMessage
+		if inspectJSONObjectLimits(encoded, 128, 6, maximumJWKCount) == nil &&
+			json.Unmarshal(encoded, &metadata) == nil &&
+			json.Unmarshal(encoded, &fields) == nil && validProviderMetadataMemberTypes(fields) {
 			_ = validProviderMetadata(metadata, false, allowed)
+		}
+	})
+}
+
+func FuzzValidateBearer(f *testing.F) {
+	private, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		f.Fatalf("GenerateKey() error = %v", err)
+	}
+	now := time.Unix(1_800_000_000, 0).UTC()
+	validator, err := NewWithKeySet(Config{
+		Issuer: "https://issuer.example.test", ClientID: "client",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(now),
+	}, &upstreamoidc.StaticKeySet{PublicKeys: []crypto.PublicKey{&private.PublicKey}})
+	if err != nil {
+		f.Fatalf("NewWithKeySet() error = %v", err)
+	}
+	signer, err := jose.NewSigner(
+		jose.SigningKey{Algorithm: jose.RS256, Key: private},
+		(&jose.SignerOptions{}).WithType("JWT").WithHeader("kid", "key"),
+	)
+	if err != nil {
+		f.Fatalf("NewSigner() error = %v", err)
+	}
+	payload, err := json.Marshal(map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client",
+		"iat": now.Unix(), "exp": now.Add(time.Hour).Unix(),
+	})
+	if err != nil {
+		f.Fatalf("Marshal() error = %v", err)
+	}
+	signed, err := signer.Sign(payload)
+	if err != nil {
+		f.Fatalf("Sign() error = %v", err)
+	}
+	valid, err := signed.CompactSerialize()
+	if err != nil {
+		f.Fatalf("CompactSerialize() error = %v", err)
+	}
+	f.Add(valid)
+	f.Add("fuzz-secret-marker")
+	f.Fuzz(func(t *testing.T, token string) {
+		if len(token) > maximumTokenBytes {
+			t.Skip()
+		}
+		_, validateErr := validator.ValidateBearer(context.Background(), token)
+		if validateErr == nil {
+			return
+		}
+		if !errors.Is(validateErr, authentication.ErrCredentialsInvalid) &&
+			!errors.Is(validateErr, authentication.ErrCredentialsRejected) {
+			t.Fatalf("ValidateBearer() error classification = %v", validateErr)
+		}
+		if strings.Contains(token, "fuzz-secret-marker") &&
+			strings.Contains(validateErr.Error(), "fuzz-secret-marker") {
+			t.Fatal("ValidateBearer() exposed token marker")
 		}
 	})
 }

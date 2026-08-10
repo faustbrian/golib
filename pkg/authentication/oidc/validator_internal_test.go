@@ -57,7 +57,7 @@ func TestInspectJSONObjectRejectsHostileJSONShapes(t *testing.T) {
 		t.Fatalf("Marshal() error = %v", err)
 	}
 	tests := [][]byte{
-		{}, []byte(`1`), []byte(`[]`), []byte(`{} {}`),
+		{}, []byte(`1`), []byte(`[]`), []byte(`{} {}`), []byte(`{}x`),
 		[]byte(`{"a":1,"a":2}`), []byte(`{"a":1,"b":2}`),
 		[]byte(`{"a":{"b":1}}`), []byte(`{"a":`),
 		[]byte(`{invalid}`), []byte(`}`),
@@ -108,20 +108,69 @@ func TestInspectJSONObjectAcceptsExactDepthAndMemberBounds(t *testing.T) {
 	}
 }
 
+func TestJSONUnicodeValidationMatrix(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		encoded []byte
+		valid   bool
+	}{
+		{name: "literal invalid UTF-8", encoded: []byte{'{', '"', 'x', '"', ':', '"', 0xff, '"', '}'}, valid: false},
+		{name: "backslash outside string", encoded: []byte(`\{}`), valid: true},
+		{name: "trailing escape", encoded: []byte{'"', '\\'}, valid: true},
+		{name: "ordinary escape", encoded: []byte(`{"x":"\\n"}`), valid: true},
+		{name: "truncated Unicode escape", encoded: []byte{'"', '\\', 'u', '1', '2'}, valid: false},
+		{name: "non-hex Unicode escape", encoded: []byte(`{"x":"\uZZZZ"}`), valid: false},
+		{name: "valid surrogate pair", encoded: []byte(`{"x":"\uD83D\uDE00"}`), valid: true},
+		{name: "invalid low surrogate digits", encoded: []byte(`{"x":"\uD800\uZZZZ"}`), valid: false},
+		{name: "non-low surrogate pair", encoded: []byte(`{"x":"\uD800\u0041"}`), valid: false},
+		{name: "unpaired low surrogate", encoded: []byte(`{"x":"\uDC00"}`), valid: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := make(chan bool, 1)
+			go func() {
+				result <- validJSONUnicode(tt.encoded)
+			}()
+			var got bool
+			select {
+			case got = <-result:
+			case <-time.After(250 * time.Millisecond):
+				t.Fatal("validJSONUnicode() did not terminate")
+			}
+			if got != tt.valid {
+				t.Fatalf("validJSONUnicode() = %v, want %v", got, tt.valid)
+			}
+		})
+	}
+}
+
 func TestInspectCompactTokenRejectsEachBoundary(t *testing.T) {
 	t.Parallel()
 
 	encode := func(value string) string { return base64.RawURLEncoding.EncodeToString([]byte(value)) }
 	allowed := map[string]struct{}{"RS256": {}}
+	signature := encode("signature")
 	tests := []string{
 		"a.b.c.d",
 		"%.e30.signature",
-		encode(`{"alg":"RS256"}`) + ".%.signature",
-		encode(`[]`) + "." + encode(`{}`) + ".signature",
-		encode(`{"alg":"RS256"}`) + "." + encode(`[]`) + ".signature",
-		encode(`{"alg":1}`) + "." + encode(`{}`) + ".signature",
-		encode(`{"alg":"RS384"}`) + "." + encode(`{}`) + ".signature",
-		encode(`{"alg":"RS256","crit":[]}`) + "." + encode(`{}`) + ".signature",
+		encode(`{"alg":"RS256"}`) + ".%." + signature,
+		encode(`[]`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256"}`) + "." + encode(`[]`) + "." + signature,
+		encode(`{"alg":1}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS384"}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","kid":null}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","typ":null}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","cty":null}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","jku":null}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","jwk":null}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","x5u":null}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","x5c":null}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","x5t":null}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","x5t#S256":null}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","b64":true}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","crit":[]}`) + "." + encode(`{}`) + "." + signature,
 	}
 	for _, token := range tests {
 		if err := inspectCompactToken(token, allowed, authentication.MaxClaims, authentication.MaxClaimDepth); err == nil {
@@ -180,7 +229,7 @@ func TestConfigurationAcceptsExactUpperBounds(t *testing.T) {
 	if _, err := NewWithKeySet(configuration, valueKeySet{}); err != nil {
 		t.Fatalf("NewWithKeySet(exact bounds) error = %v", err)
 	}
-	configuration.Issuer = "http://issuer.example.test"
+	configuration.Issuer = "http://127.0.0.1"
 	configuration.InsecureHTTP = true
 	if _, err := NewWithKeySet(configuration, valueKeySet{}); err != nil {
 		t.Fatalf("NewWithKeySet(insecure HTTP opt-in) error = %v", err)
@@ -300,6 +349,7 @@ func TestNumericDateBoundariesAndFraction(t *testing.T) {
 		{encoded: `-62135596800`, want: time.Unix(-62135596800, 0).UTC()},
 		{encoded: `253402300799`, want: time.Unix(253402300799, 0).UTC()},
 		{encoded: `1.5`, want: time.Unix(1, int64(500*time.Millisecond)).UTC()},
+		{encoded: `1800000060.00000001`, want: time.Unix(1800000060, 10).UTC()},
 	}
 	for _, tt := range tests {
 		got, err := numericDate(json.RawMessage(tt.encoded))
@@ -307,7 +357,7 @@ func TestNumericDateBoundariesAndFraction(t *testing.T) {
 			t.Errorf("numericDate(%s) = %v, %v, want %v", tt.encoded, got, err, tt.want)
 		}
 	}
-	for _, encoded := range []string{`-62135596801`, `253402300800`, `"invalid"`} {
+	for _, encoded := range []string{`-62135596801`, `253402300800`, `"invalid"`, `1 2`} {
 		if _, err := numericDate(json.RawMessage(encoded)); err == nil {
 			t.Errorf("numericDate(%s) error = nil", encoded)
 		}
@@ -375,7 +425,7 @@ func TestValidateBearerRejectsCanceledAndEmptyInput(t *testing.T) {
 		t.Fatalf("ValidateBearer(empty) error = %v", err)
 	}
 	validator.maxTokenBytes = 3
-	if _, err := validator.ValidateBearer(context.Background(), "a.b"); !errors.Is(err, authentication.ErrCredentialsRejected) {
+	if _, err := validator.ValidateBearer(context.Background(), "a.b"); !errors.Is(err, authentication.ErrCredentialsInvalid) {
 		t.Fatalf("ValidateBearer(exact token bound) error = %v", err)
 	}
 	if _, err := validator.ValidateBearer(context.Background(), "a.bc"); !errors.Is(err, authentication.ErrCredentialsInvalid) {
@@ -387,7 +437,7 @@ func TestAuthenticateDistinguishesExactAndOversizedTokens(t *testing.T) {
 	t.Parallel()
 
 	validator := &Validator{maxTokenBytes: 3}
-	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential("a.b")); !errors.Is(err, authentication.ErrCredentialsRejected) {
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential("a.b")); !errors.Is(err, authentication.ErrCredentialsInvalid) {
 		t.Fatalf("Authenticate(exact token bound) error = %v", err)
 	}
 	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential("a.bc")); !errors.Is(err, authentication.ErrCredentialsInvalid) {

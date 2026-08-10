@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"math/rand/v2"
 	"net/http"
 	"runtime"
 	"sync"
@@ -67,6 +68,50 @@ func TestRemoteKeySetRefreshWaitHonorsCancellation(t *testing.T) {
 	}
 	releaseOnce.Do(func() { close(release) })
 	<-done
+}
+
+func TestRemoteKeySetCancellationDoesNotPoisonSharedRefresh(t *testing.T) {
+	t.Parallel()
+
+	private := mustRSAKey(t)
+	token := signCompact(t, private, "known", []byte(`{"sub":"user"}`))
+	key := jose.JSONWebKey{Key: &private.PublicKey, KeyID: "known", Algorithm: "RS256", Use: "sig"}
+	body, err := json.Marshal(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{key}})
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	started := make(chan struct{})
+	var requests atomic.Int64
+	set := testRemoteKeySet(t, authtest.NewClock(time.Unix(1, 0)), 2, roundTripperFunc(
+		func(request *http.Request) (*http.Response, error) {
+			if requests.Add(1) == 1 {
+				close(started)
+				<-request.Context().Done()
+				return nil, request.Context().Err()
+			}
+			return jwkResponse(request, http.StatusOK, body, nil), nil
+		},
+	))
+
+	ctx, cancel := context.WithCancel(context.Background())
+	firstDone := make(chan error, 1)
+	go func() {
+		_, verifyErr := set.VerifySignature(ctx, token)
+		firstDone <- verifyErr
+	}()
+	<-started
+	cancel()
+	if verifyErr := <-firstDone; verifyErr == nil {
+		t.Fatal("VerifySignature(canceled owner) error = nil")
+	}
+
+	payload, verifyErr := set.VerifySignature(context.Background(), token)
+	if verifyErr != nil || string(payload) != `{"sub":"user"}` {
+		t.Fatalf("VerifySignature(retry) = %q, %v", payload, verifyErr)
+	}
+	if got := requests.Load(); got != 2 {
+		t.Fatalf("refresh requests = %d, want 2", got)
+	}
 }
 
 func TestRemoteKeySetBoundsRefreshWaiters(t *testing.T) {
@@ -195,6 +240,50 @@ func TestRemoteKeySetRefreshesRotationMissBeforeCacheExpiry(t *testing.T) {
 	}
 }
 
+func TestRemoteKeySetRejectsRetiredKeyRollback(t *testing.T) {
+	t.Parallel()
+
+	clock := authtest.NewClock(time.Unix(1, 0))
+	first := mustRSAKey(t)
+	second := mustRSAKey(t)
+	encode := func(key jose.JSONWebKey) []byte {
+		body, err := json.Marshal(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{key}})
+		if err != nil {
+			t.Fatalf("Marshal() error = %v", err)
+		}
+		return body
+	}
+	sets := [][]byte{
+		encode(jose.JSONWebKey{Key: &first.PublicKey, KeyID: "first", Algorithm: "RS256", Use: "sig"}),
+		encode(jose.JSONWebKey{Key: &second.PublicKey, KeyID: "second", Algorithm: "RS256", Use: "sig"}),
+		encode(jose.JSONWebKey{Key: &first.PublicKey, KeyID: "first", Algorithm: "RS256", Use: "sig"}),
+	}
+	var requests atomic.Int64
+	set := testRemoteKeySet(t, clock, 2, roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+		index := int(requests.Add(1)) - 1
+		if index >= len(sets) {
+			t.Fatalf("unexpected JWK request %d", index+1)
+		}
+		return jwkResponse(request, http.StatusOK, sets[index], http.Header{"Cache-Control": {"max-age=60"}}), nil
+	}))
+	firstToken := signCompact(t, first, "first", []byte(`{}`))
+	secondToken := signCompact(t, second, "second", []byte(`{}`))
+	if _, err := set.VerifySignature(context.Background(), firstToken); err != nil {
+		t.Fatalf("VerifySignature(first) error = %v", err)
+	}
+	clock.Advance(2 * time.Second)
+	if _, err := set.VerifySignature(context.Background(), secondToken); err != nil {
+		t.Fatalf("VerifySignature(second) error = %v", err)
+	}
+	clock.Advance(2 * time.Second)
+	if _, err := set.VerifySignature(context.Background(), firstToken); err == nil {
+		t.Fatal("VerifySignature(retired rollback) error = nil")
+	}
+	if _, err := set.VerifySignature(context.Background(), secondToken); err != nil {
+		t.Fatalf("VerifySignature(active after rollback) error = %v", err)
+	}
+}
+
 func TestRemoteKeySetKeepsFreshKnownKeyAfterRotationProbeOutage(t *testing.T) {
 	t.Parallel()
 
@@ -254,6 +343,130 @@ func TestRemoteKeySetCachesRefreshFailureWithinRateLimit(t *testing.T) {
 	}
 }
 
+func TestRemoteKeySetSynchronizesLargeRefreshBurst(t *testing.T) {
+	t.Parallel()
+
+	private := mustRSAKey(t)
+	token := signCompact(t, private, "known", []byte(`{"sub":"user"}`))
+	key := jose.JSONWebKey{Key: &private.PublicKey, KeyID: "known", Algorithm: "RS256", Use: "sig"}
+	body, err := json.Marshal(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{key}})
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	var requests atomic.Int64
+	const callers = 256
+	set := testRemoteKeySet(t, authtest.NewClock(time.Unix(1, 0)), callers, roundTripperFunc(
+		func(request *http.Request) (*http.Response, error) {
+			requests.Add(1)
+			return jwkResponse(request, http.StatusOK, body, http.Header{"Cache-Control": {"max-age=3600"}}), nil
+		},
+	))
+	start := make(chan struct{})
+	results := make(chan error, callers)
+	for range callers {
+		go func() {
+			<-start
+			_, verifyErr := set.VerifySignature(context.Background(), token)
+			results <- verifyErr
+		}()
+	}
+	close(start)
+	for range callers {
+		if verifyErr := <-results; verifyErr != nil {
+			t.Fatalf("VerifySignature() error = %v", verifyErr)
+		}
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("refresh requests = %d, want 1", got)
+	}
+}
+
+func TestRemoteRefreshJitterSpreadsReplicaFleet(t *testing.T) {
+	t.Parallel()
+
+	const replicas = 1024
+	start := time.Unix(1, 0)
+	clock := authtest.NewClock(start)
+	private := mustRSAKey(t)
+	key := jose.JSONWebKey{Key: &private.PublicKey, KeyID: "known", Algorithm: "RS256", Use: "sig"}
+	body, err := json.Marshal(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{key}})
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	token := signCompact(t, private, "known", []byte(`{"sub":"user"}`))
+	type barrier struct {
+		expected int64
+		arrived  atomic.Int64
+		release  chan struct{}
+	}
+	var barrierMutex sync.RWMutex
+	var activeBarrier *barrier
+	var requests atomic.Int64
+	transport := roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+		requests.Add(1)
+		barrierMutex.RLock()
+		current := activeBarrier
+		barrierMutex.RUnlock()
+		if current != nil {
+			if current.arrived.Add(1) == current.expected {
+				close(current.release)
+			}
+			<-current.release
+		}
+		return jwkResponse(request, http.StatusOK, body, http.Header{"Cache-Control": {"max-age=3600"}}), nil
+	})
+	generator := rand.New(rand.NewPCG(1, 2))
+	buckets := make(map[int64][]*remoteKeySet)
+	for replica := range replicas {
+		set := testRemoteKeySet(t, clock, 1, transport)
+		set.jitter = generator.Uint64()
+		if err := set.initialize(context.Background()); err != nil {
+			t.Fatalf("initialize(replica %d) error = %v", replica, err)
+		}
+		seconds := int64((set.nextRefresh.Sub(start) + time.Second - 1) / time.Second)
+		buckets[seconds] = append(buckets[seconds], set)
+	}
+	if len(buckets) < 300 {
+		t.Fatalf("refresh buckets = %d, want at least 300", len(buckets))
+	}
+	maximumConcentration := 0
+	lastSecond := int64(0)
+	for second := int64(54 * 60); second <= int64(time.Hour/time.Second); second++ {
+		sets := buckets[second]
+		if len(sets) == 0 {
+			continue
+		}
+		clock.Advance(time.Duration(second-lastSecond) * time.Second)
+		lastSecond = second
+		maximumConcentration = max(maximumConcentration, len(sets))
+		current := &barrier{expected: int64(len(sets)), release: make(chan struct{})}
+		barrierMutex.Lock()
+		activeBarrier = current
+		barrierMutex.Unlock()
+		results := make(chan error, len(sets))
+		for _, set := range sets {
+			go func() {
+				_, verifyErr := set.VerifySignature(context.Background(), token)
+				results <- verifyErr
+			}()
+		}
+		for range sets {
+			if verifyErr := <-results; verifyErr != nil {
+				t.Fatalf("VerifySignature(fleet refresh) error = %v", verifyErr)
+			}
+		}
+		barrierMutex.Lock()
+		activeBarrier = nil
+		barrierMutex.Unlock()
+	}
+	if maximumConcentration > 12 {
+		t.Fatalf("maximum one-second refresh concentration = %d, want at most 12", maximumConcentration)
+	}
+	if got := requests.Load(); got != 2*replicas {
+		t.Fatalf("fleet requests = %d, want %d", got, 2*replicas)
+	}
+}
+
 func testRemoteKeySet(t *testing.T, clock Clock, maxWaiters int, transport http.RoundTripper) *remoteKeySet {
 	t.Helper()
 	return &remoteKeySet{
@@ -273,6 +486,9 @@ func testRemoteKeySet(t *testing.T, clock Clock, maxWaiters int, transport http.
 func jwkResponse(request *http.Request, status int, body []byte, headers http.Header) *http.Response {
 	if headers == nil {
 		headers = make(http.Header)
+	}
+	if headers.Get("Content-Type") == "" {
+		headers.Set("Content-Type", "application/jwk-set+json")
 	}
 	return &http.Response{
 		StatusCode: status,

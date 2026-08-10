@@ -1,0 +1,32 @@
+{
+  "realm": "oidc-hardening",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "oidc-client",
+      "enabled": true,
+      "publicClient": true,
+      "directAccessGrantsEnabled": true,
+      "standardFlowEnabled": true,
+      "protocol": "openid-connect",
+      "redirectUris": ["http://127.0.0.1/callback"]
+    }
+  ],
+  "users": [
+    {
+      "username": "alice",
+      "firstName": "Alice",
+      "lastName": "Interoperability",
+      "email": "alice@example.test",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "interoperability-password",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

@@ -85,37 +85,48 @@ Important options and defaults:
 Configuration also enforces hard ceilings of 1 MiB per token, 16 MiB per HTTP
 body, 4,096 keys, 4,096 refresh waiters, five minutes for initialization, and
 24 hours for refresh intervals. A supplied HTTP client may shorten the request
-timeout but cannot extend the module's 30-second per-request ceiling.
+timeout but cannot extend the module's 30-second per-request ceiling when its
+transport honors request-context cancellation. Custom transports own that
+cancellation guarantee.
 
-HTTPS is required for the issuer and provider endpoints. `InsecureHTTP` is an
-explicit whole-provider exception intended only for loopback development or a
-similarly isolated test provider; it is not a production downgrade switch.
+HTTPS is required for the issuer and provider endpoints. `InsecureHTTP` is a
+loopback-only development exception; non-loopback HTTP is rejected and it is
+not a production downgrade switch.
 
 ## Nonce ownership
 
 Nonce generation and replay storage remain caller-owned. Supplying a
-`NonceValidator` means every accepted token is passed to that callback after
-signature and token-hash validation. The callback receives the validation
-context and the raw nonce, and should atomically consume a single-use value.
+`NonceValidator` means every otherwise accepted token is passed to that
+callback after signature, token-hash, and claim validation. The callback
+receives the validation context and the raw nonce, and should atomically consume
+a single-use value.
 An empty, unknown, expired, replayed, or otherwise invalid nonce should return
 an error. The validator does not retain the nonce. Callback errors and panics
-are converted to a credential rejection and their text is not exposed.
+are converted to a credential rejection and their text is not exposed;
+callback cancellation is authentication unavailability and retains the context
+sentinel.
 
 ## Validation policy
 
 Validation requires:
 
 - a permitted signature algorithm and a matching public JWK;
+- one exact JSON response media type, unique and correctly typed metadata/JWK
+  members, a non-empty operation policy when `key_ops` is present, and a `kid`
+  whenever multiple permitted signature keys remain after unrelated encryption
+  keys are ignored;
 - RSA public keys between 2,048 and 8,192 bits, or the exact curve/key shape
   required by the configured ECDSA or EdDSA algorithm;
 - exact issuer equality;
-- a non-empty subject;
+- a non-empty ASCII subject no longer than 255 bytes;
 - the client ID in `aud`, no duplicate audience, and no audience outside
   `ClientID` plus `TrustedAudiences`;
 - `azp` equal to the client ID whenever present, and present for multiple
   audiences;
 - required `iat` and `exp`, with optional `nbf` and `auth_time` checked using
-  the configured clock and skew;
+  the configured clock and skew without discarding fractional seconds;
+- correctly typed standard JOSE headers and optional protocol claims, and no
+  unsupported distributed-claim protocol fields;
 - the caller-owned nonce check when configured; and
 - `at_hash` and `c_hash` when their corresponding binding values are supplied.
 
@@ -139,6 +150,10 @@ load. After the minimum refresh interval, an unknown key ID triggers one
 synchronized rotation probe even while known keys remain fresh. A rotated
 `jwks_uri` clears validators associated with the former URL.
 
+Key material removed by a successful refresh is retired for the lifetime of
+the validator and cannot be reintroduced by a later provider rollback. This
+history is process-local and bounded; reconstructing the validator resets it.
+
 Known keys remain usable only while the cache is fresh. A provider outage after
 expiry fails closed, including for a formerly known key. The failed refresh is
 cached until the minimum refresh interval, preventing a local retry storm; no
@@ -158,6 +173,19 @@ are rejected, and provider/refresh/cancellation failures are unavailable.
 Errors never include tokens, claims, nonce values, keys, credentials, or
 arbitrary provider bodies. Applications must preserve that property in their
 own logs and callbacks.
+
+Successful discovery and JWKS representations must use `application/json` or
+`application/jwk-set+json`; representation-free `304 Not Modified` responses
+need no media type. Standard `*http.Transport` values are cloned with a 64 KiB
+response-header parsing ceiling. Returned headers and decompressed bodies are
+also bounded, and rejected bodies are closed. Custom transports must impose
+their own pre-allocation header ceiling. HTTPS JWKS endpoints may be
+cross-origin as allowed by Discovery; deployments that do not trust
+provider-directed egress must enforce origin, DNS, address, and port policy in
+the supplied `HTTPClient` transport.
+
+The complete requirement and evidence matrices are in
+[`docs/hardening.md`](docs/hardening.md).
 
 ## Adoption and compatibility
 

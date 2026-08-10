@@ -13,13 +13,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"math"
+	"io"
+	"math/big"
 	"net/http"
 	"net/url"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	upstreamoidc "github.com/coreos/go-oidc/v3/oidc"
 	authentication "github.com/faustbrian/golib/pkg/authentication"
@@ -36,6 +39,8 @@ const (
 	maximumRefreshInterval = 24 * time.Hour
 	maximumRefreshWaiters  = 4096
 )
+
+var errOIDCTokenRejected = errors.New("OIDC token policy rejected")
 
 var supportedAlgorithms = map[string]struct{}{
 	"RS256": {}, "RS384": {}, "RS512": {},
@@ -205,13 +210,20 @@ func (v *Validator) validateIDToken(
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureInvalid)
 	}
 	if err := inspectCompactToken(rawToken, v.algorithms, v.maxClaims, v.maxClaimDepth); err != nil {
-		return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
+		if errors.Is(err, errOIDCTokenRejected) {
+			return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
+		}
+		return authentication.Principal{}, authentication.NewFailure(authentication.FailureInvalid)
 	}
 
 	report := &verificationReport{}
 	verifyContext := context.WithValue(ctx, verificationReportKey{}, report)
 	token, err := v.verifier.Verify(verifyContext, rawToken)
 	if err != nil {
+		if contextErr := ctx.Err(); contextErr != nil {
+			return authentication.Principal{}, authentication.NewFailure(authentication.FailureUnavailable,
+				authentication.WithFailureCause(contextErr))
+		}
 		if report.err != nil {
 			return authentication.Principal{}, authentication.NewFailure(authentication.FailureUnavailable,
 				authentication.WithFailureCause(report.err))
@@ -223,6 +235,10 @@ func (v *Validator) validateIDToken(
 	}
 	principal, err := v.principal(ctx, token)
 	if err != nil {
+		if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+			return authentication.Principal{}, authentication.NewFailure(authentication.FailureUnavailable,
+				authentication.WithFailureCause(err))
+		}
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
 	}
 	return principal, nil
@@ -294,27 +310,42 @@ func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) 
 	if token.Issuer != v.issuer {
 		return authentication.Principal{}, authentication.ErrInvalidPrincipal
 	}
-	if token.IssuedAt.IsZero() {
+	if !validSubject(token.Subject) {
 		return authentication.Principal{}, authentication.ErrInvalidPrincipal
 	}
-	if token.Expiry.IsZero() {
-		return authentication.Principal{}, authentication.ErrInvalidPrincipal
-	}
-	if !token.Expiry.After(now.Add(-v.clockSkew)) {
-		return authentication.Principal{}, authentication.ErrInvalidPrincipal
-	}
-	if token.IssuedAt.After(now.Add(v.clockSkew)) {
-		return authentication.Principal{}, authentication.ErrInvalidPrincipal
-	}
+	var encodedClaims json.RawMessage
+	// RawMessage.UnmarshalJSON cannot fail, and the verified token always owns a
+	// payload that inspectCompactToken has already accepted as strict JSON.
+	_ = token.Claims(&encodedClaims)
+	decoder := json.NewDecoder(bytes.NewReader(encodedClaims))
+	decoder.UseNumber()
 	var rawClaims map[string]any
-	// Verify and inspectCompactToken have already proven valid JSON claims.
-	_ = token.Claims(&rawClaims)
+	// The same strict preflight makes this lossless UseNumber decode infallible.
+	_ = decoder.Decode(&rawClaims)
+	if _, present := rawClaims["_claim_names"]; present {
+		return authentication.Principal{}, authentication.ErrInvalidPrincipal
+	}
+	if _, present := rawClaims["_claim_sources"]; present {
+		return authentication.Principal{}, authentication.ErrInvalidPrincipal
+	}
+	if !validOptionalProtocolClaimTypes(rawClaims) {
+		return authentication.Principal{}, authentication.ErrInvalidPrincipal
+	}
 	var protocol struct {
 		AuthorizedParty string          `json:"azp"`
 		AuthTime        json.RawMessage `json:"auth_time"`
+		Expiry          json.RawMessage `json:"exp"`
+		IssuedAt        json.RawMessage `json:"iat"`
 		NotBefore       json.RawMessage `json:"nbf"`
 	}
-	if err := token.Claims(&protocol); err != nil {
+	// Strict preflight and validOptionalProtocolClaimTypes make this decode infallible.
+	_ = token.Claims(&protocol)
+	expiry, err := numericDate(protocol.Expiry)
+	if err != nil || !expiry.After(now.Add(-v.clockSkew)) {
+		return authentication.Principal{}, authentication.ErrInvalidPrincipal
+	}
+	issuedAt, err := numericDate(protocol.IssuedAt)
+	if err != nil || issuedAt.After(now.Add(v.clockSkew)) {
 		return authentication.Principal{}, authentication.ErrInvalidPrincipal
 	}
 	if len(protocol.NotBefore) > 0 {
@@ -337,17 +368,11 @@ func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) 
 		}
 		seenAudiences[audience] = struct{}{}
 	}
-	if v.nonceValidator != nil {
-		if err := validateNonce(ctx, v.nonceValidator, token.Nonce); err != nil {
-			return authentication.Principal{}, authentication.ErrInvalidPrincipal
-		}
-	}
-
-	scopes, err := claimStrings(rawClaims[v.scopeClaim], true)
+	scopes, err := claimStringsMember(rawClaims, v.scopeClaim, true)
 	if err != nil {
 		return authentication.Principal{}, err
 	}
-	tenants, err := claimStrings(rawClaims[v.tenantClaim], false)
+	tenants, err := claimStringsMember(rawClaims, v.tenantClaim, false)
 	if err != nil {
 		return authentication.Principal{}, err
 	}
@@ -357,7 +382,7 @@ func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) 
 			claims[name] = value
 		}
 	}
-	authenticatedAt := token.IssuedAt
+	authenticatedAt := issuedAt
 	if len(protocol.AuthTime) > 0 {
 		parsedAuthTime, err := numericDate(protocol.AuthTime)
 		if err != nil || parsedAuthTime.After(now.Add(v.clockSkew)) {
@@ -366,11 +391,55 @@ func (v *Validator) principal(ctx context.Context, token *upstreamoidc.IDToken) 
 		authenticatedAt = parsedAuthTime
 	}
 
-	return authentication.NewPrincipal(authentication.PrincipalSpec{
+	principal, err := authentication.NewPrincipal(authentication.PrincipalSpec{
 		Subject: token.Subject, Method: "oidc", Issuer: token.Issuer,
 		Audiences: token.Audience, TenantHints: tenants, Scopes: scopes,
 		Claims: claims, AuthenticatedAt: authenticatedAt,
 	})
+	if err != nil {
+		return authentication.Principal{}, err
+	}
+	if v.nonceValidator != nil {
+		if err := validateNonce(ctx, v.nonceValidator, token.Nonce); err != nil {
+			return authentication.Principal{}, err
+		}
+	}
+	return principal, nil
+}
+
+func validOptionalProtocolClaimTypes(claims map[string]any) bool {
+	for _, name := range []string{"acr", "at_hash", "azp", "c_hash", "jti", "nonce", "sid"} {
+		if value, present := claims[name]; present {
+			text, valid := value.(string)
+			if !valid || name == "azp" && text == "" {
+				return false
+			}
+		}
+	}
+	if value, present := claims["amr"]; present {
+		items, valid := value.([]any)
+		if !valid {
+			return false
+		}
+		for _, item := range items {
+			if _, stringValue := item.(string); !stringValue {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func validSubject(subject string) bool {
+	if subject == "" || len(subject) > 255 {
+		return false
+	}
+	for index := range len(subject) {
+		if subject[index] > 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 func validateNonce(ctx context.Context, validator NonceValidator, nonce string) (err error) {
@@ -390,18 +459,28 @@ func (v *Validator) excludedPrincipalClaim(name string) bool {
 }
 
 func numericDate(encoded json.RawMessage) (time.Time, error) {
-	var seconds float64
-	if err := json.Unmarshal(encoded, &seconds); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(encoded))
+	decoder.UseNumber()
+	var number json.Number
+	if err := decoder.Decode(&number); err != nil {
 		return time.Time{}, authentication.ErrInvalidPrincipal
 	}
-	if seconds < -62135596800 {
+	if _, err := decoder.Token(); !errors.Is(err, io.EOF) {
 		return time.Time{}, authentication.ErrInvalidPrincipal
 	}
-	if seconds > 253402300799 {
+	seconds, valid := new(big.Rat).SetString(number.String())
+	if !valid || seconds.Cmp(new(big.Rat).SetInt64(-62135596800)) < 0 ||
+		seconds.Cmp(new(big.Rat).SetInt64(253402300799)) > 0 {
 		return time.Time{}, authentication.ErrInvalidPrincipal
 	}
-	whole, fraction := math.Modf(seconds)
-	return time.Unix(int64(whole), int64(fraction*float64(time.Second))).UTC(), nil
+	whole := new(big.Int).Quo(seconds.Num(), seconds.Denom())
+	wholeProduct := new(big.Int).Mul(new(big.Int).Set(whole), seconds.Denom())
+	remainder := new(big.Int).Sub(seconds.Num(), wholeProduct)
+	nanoseconds := new(big.Int).Quo(
+		new(big.Int).Mul(remainder, big.NewInt(int64(time.Second))),
+		seconds.Denom(),
+	)
+	return time.Unix(whole.Int64(), nanoseconds.Int64()).UTC(), nil
 }
 
 func claimStrings(value any, splitSpaces bool) ([]string, error) {
@@ -411,14 +490,15 @@ func claimStrings(value any, splitSpaces bool) ([]string, error) {
 	switch typed := value.(type) {
 	case string:
 		if splitSpaces {
-			return strings.Fields(typed), nil
+			values := strings.Fields(typed)
+			if strings.Join(values, " ") != typed {
+				return nil, authentication.ErrInvalidPrincipal
+			}
+			return uniqueClaimStrings(values)
 		}
-		if typed == "" {
-			return nil, authentication.ErrInvalidPrincipal
-		}
-		return []string{typed}, nil
+		return uniqueClaimStrings([]string{typed})
 	case []string:
-		return append([]string(nil), typed...), nil
+		return uniqueClaimStrings(typed)
 	case []any:
 		values := make([]string, len(typed))
 		for index, item := range typed {
@@ -428,10 +508,40 @@ func claimStrings(value any, splitSpaces bool) ([]string, error) {
 			}
 			values[index] = text
 		}
-		return values, nil
+		return uniqueClaimStrings(values)
 	default:
 		return nil, authentication.ErrInvalidPrincipal
 	}
+}
+
+func claimStringsMember(claims map[string]any, name string, splitSpaces bool) ([]string, error) {
+	value, present := claims[name]
+	if !present {
+		return nil, nil
+	}
+	if value == nil {
+		return nil, authentication.ErrInvalidPrincipal
+	}
+	return claimStrings(value, splitSpaces)
+}
+
+func uniqueClaimStrings(values []string) ([]string, error) {
+	if len(values) == 0 {
+		return nil, authentication.ErrInvalidPrincipal
+	}
+	result := make([]string, len(values))
+	seen := make(map[string]struct{}, len(values))
+	for index, value := range values {
+		if value == "" {
+			return nil, authentication.ErrInvalidPrincipal
+		}
+		if _, duplicate := seen[value]; duplicate {
+			return nil, authentication.ErrInvalidPrincipal
+		}
+		seen[value] = struct{}{}
+		result[index] = value
+	}
+	return result, nil
 }
 
 func applyDefaults(configuration *Config) {
@@ -533,7 +643,7 @@ func validIssuerURL(issuer *url.URL, allowHTTP bool) bool {
 	case "https":
 		return true
 	case "http":
-		return allowHTTP
+		return allowHTTP && validLoopbackHost(issuer.Hostname())
 	default:
 		return false
 	}
@@ -602,6 +712,9 @@ func inspectCompactToken(raw string, algorithms map[string]struct{}, maxClaims, 
 	if err != nil {
 		return err
 	}
+	if _, err := base64.RawURLEncoding.Strict().DecodeString(parts[2]); err != nil {
+		return err
+	}
 	if err := inspectJSONObject(header, 64, 4); err != nil {
 		return err
 	}
@@ -615,28 +728,112 @@ func inspectCompactToken(raw string, algorithms map[string]struct{}, maxClaims, 
 	if err := json.Unmarshal(fields["alg"], &algorithm); err != nil {
 		return err
 	}
+	for _, name := range []string{"cty", "jku", "kid", "typ", "x5t", "x5t#S256", "x5u"} {
+		if encoded, present := fields[name]; present {
+			if _, valid := decodeJSONString(encoded); !valid {
+				return errors.New("invalid compact ID-token header member")
+			}
+		}
+	}
+	if _, valid := decodeOptionalJSONStringArray(fields, "x5c"); !valid {
+		return errors.New("invalid compact ID-token header member")
+	}
+	if encoded, present := fields["jwk"]; present {
+		var value any
+		// inspectJSONObject has already proven this member valid JSON.
+		_ = json.Unmarshal(encoded, &value)
+		if _, object := value.(map[string]any); !object {
+			return errors.New("invalid compact ID-token header member")
+		}
+	}
+	if _, present := fields["b64"]; present {
+		return errOIDCTokenRejected
+	}
 	if _, allowed := algorithms[algorithm]; !allowed {
-		return errors.New("disallowed ID-token algorithm")
+		return errOIDCTokenRejected
 	}
 	if _, critical := fields["crit"]; critical {
-		return errors.New("unsupported critical ID-token header")
+		return errOIDCTokenRejected
 	}
 	return nil
 }
 
 func inspectJSONObject(encoded []byte, maxMembers, maxDepth int) error {
+	return inspectJSONObjectLimits(encoded, maxMembers, maxDepth, authentication.MaxClaimCollection)
+}
+
+func inspectJSONObjectLimits(encoded []byte, maxMembers, maxDepth, maxCollection int) error {
+	if !validJSONUnicode(encoded) {
+		return errors.New("ID-token JSON Unicode is invalid")
+	}
 	decoder := json.NewDecoder(bytes.NewReader(encoded))
 	decoder.UseNumber()
-	if err := inspectJSONValue(decoder, 0, maxMembers, maxDepth, true); err != nil {
+	if err := inspectJSONValueLimits(decoder, 0, maxMembers, maxDepth, maxCollection, true); err != nil {
 		return err
 	}
 	if _, err := decoder.Token(); err == nil {
 		return errors.New("trailing JSON data")
+	} else if !errors.Is(err, io.EOF) {
+		return err
 	}
 	return nil
 }
 
+func validJSONUnicode(encoded []byte) bool {
+	if !utf8.Valid(encoded) {
+		return false
+	}
+	inString := false
+	for index := 0; index < len(encoded); index++ {
+		switch encoded[index] {
+		case '"':
+			inString = !inString
+		case '\\':
+			if !inString || index+1 >= len(encoded) {
+				continue
+			}
+			index++
+			if encoded[index] != 'u' {
+				continue
+			}
+			if index+5 > len(encoded) {
+				return false
+			}
+			code, err := strconv.ParseUint(string(encoded[index+1:index+5]), 16, 16)
+			if err != nil {
+				return false
+			}
+			index += 4
+			switch {
+			case code >= 0xD800 && code <= 0xDBFF:
+				if index+7 > len(encoded) || encoded[index+1] != '\\' || encoded[index+2] != 'u' {
+					return false
+				}
+				low, err := strconv.ParseUint(string(encoded[index+3:index+7]), 16, 16)
+				if err != nil || low < 0xDC00 || low > 0xDFFF {
+					return false
+				}
+				index += 6
+			case code >= 0xDC00 && code <= 0xDFFF:
+				return false
+			}
+		}
+	}
+	return true
+}
+
 func inspectJSONValue(decoder *json.Decoder, depth, maxMembers, maxDepth int, top bool) error {
+	return inspectJSONValueLimits(decoder, depth, maxMembers, maxDepth, authentication.MaxClaimCollection, top)
+}
+
+func inspectJSONValueLimits(
+	decoder *json.Decoder,
+	depth int,
+	maxMembers int,
+	maxDepth int,
+	maxCollection int,
+	top bool,
+) error {
 	token, err := decoder.Token()
 	if err != nil {
 		return err
@@ -669,7 +866,7 @@ func inspectJSONValue(decoder *json.Decoder, depth, maxMembers, maxDepth int, to
 			if len(seen) > maxMembers {
 				return errors.New("ID-token member bound exceeded")
 			}
-			if err := inspectJSONValue(decoder, depth, maxMembers, maxDepth, false); err != nil {
+			if err := inspectJSONValueLimits(decoder, depth, maxMembers, maxDepth, maxCollection, false); err != nil {
 				return err
 			}
 		}
@@ -677,10 +874,10 @@ func inspectJSONValue(decoder *json.Decoder, depth, maxMembers, maxDepth int, to
 		count := 0
 		for decoder.More() {
 			count = count + 1
-			if count > authentication.MaxClaimCollection {
+			if count > maxCollection {
 				return errors.New("ID-token collection bound exceeded")
 			}
-			if err := inspectJSONValue(decoder, depth, maxMembers, maxDepth, false); err != nil {
+			if err := inspectJSONValueLimits(decoder, depth, maxMembers, maxDepth, maxCollection, false); err != nil {
 				return err
 			}
 		}

@@ -1,2 +1,4 @@
 id	version	role	status	sha256	bytes	url
 oidc-core-section-2	final-errata-2	official-id-token-claims-vector	pinned	497a5ec161e1d595d297519bbfd928d5d6ceb0c80335cbcccbab28b1bab4cba8	223	https://openid.net/specs/openid-connect-core-1_0.html#IDToken
+google-discovery	observed-2026-08-09	real-provider-metadata-snapshot	pinned	f86b185fd428f81d7efaa83ec256693b3abedb57ddfcc6a826f5f396b4827f02	1399	https://accounts.google.com/.well-known/openid-configuration
+keycloak-realm	26.3.2	real-provider-interoperability-fixture	pinned	447ebef5f0a510549ff2854f12193a0328abad8d2d1ddea52c718be085f1a8a1	701	https://www.keycloak.org/2025/08/keycloak-2632-released

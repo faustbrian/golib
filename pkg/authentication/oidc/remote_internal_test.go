@@ -8,6 +8,7 @@ import (
 	"crypto/elliptic"
 	"crypto/rand"
 	"crypto/rsa"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,6 +18,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,7 +35,7 @@ func TestNewRejectsConfigurationAndInvalidDiscoveryMetadata(t *testing.T) {
 	}
 	server := httptest.NewServer(nil)
 	server.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(writer).Encode(map[string]any{
+		writeJSONResponse(writer, map[string]any{
 			"issuer": server.URL, "authorization_endpoint": server.URL + "/authorize",
 			"token_endpoint": server.URL + "/token", "jwks_uri": "ftp://keys.example.test/keys",
 		})
@@ -54,7 +56,7 @@ func TestNewRejectsSigningAlgorithmsNotAdvertisedByProvider(t *testing.T) {
 
 	server := httptest.NewServer(nil)
 	server.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(writer).Encode(map[string]any{
+		writeJSONResponse(writer, map[string]any{
 			"issuer": server.URL, "authorization_endpoint": server.URL + "/authorize",
 			"token_endpoint": server.URL + "/token", "jwks_uri": server.URL + "/keys",
 			"response_types_supported":              []string{"code"},
@@ -71,6 +73,156 @@ func TestNewRejectsSigningAlgorithmsNotAdvertisedByProvider(t *testing.T) {
 	})
 	if !errors.Is(err, authentication.ErrInvalidConfiguration) {
 		t.Fatalf("New(unadvertised algorithm) error = %v", err)
+	}
+}
+
+func TestNewRejectsNullAdvertisedScopes(t *testing.T) {
+	t.Parallel()
+
+	private, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	server := httptest.NewServer(nil)
+	server.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		if request.URL.Path == "/.well-known/openid-configuration" {
+			writeJSONResponse(writer, map[string]any{
+				"issuer": server.URL, "authorization_endpoint": server.URL + "/authorize",
+				"token_endpoint": server.URL + "/token", "jwks_uri": server.URL + "/keys",
+				"response_types_supported":              []string{"code"},
+				"subject_types_supported":               []string{"public"},
+				"id_token_signing_alg_values_supported": []string{"RS256"},
+				"scopes_supported":                      nil,
+			})
+			return
+		}
+		writeJSONResponse(writer, jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{
+			Key: &private.PublicKey, KeyID: "key", Algorithm: "RS256", Use: "sig",
+		}}})
+	})
+	t.Cleanup(server.Close)
+
+	_, err = New(context.Background(), Config{
+		Issuer: server.URL, ClientID: "client", Algorithms: []string{"RS256"},
+		Clock: authtest.NewClock(time.Unix(1, 0)), InsecureHTTP: true,
+		HTTPClient: server.Client(), DiscoveryTimeout: 5 * time.Second,
+	})
+	if !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("New(null scopes_supported) error = %v", err)
+	}
+}
+
+func TestNewRejectsNullOptionalProviderMetadata(t *testing.T) {
+	t.Parallel()
+
+	private, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	assertRejected := func(t *testing.T, member string, value any) {
+		t.Helper()
+		server := httptest.NewServer(nil)
+		server.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+			if request.URL.Path == "/.well-known/openid-configuration" {
+				metadata := map[string]any{
+					"issuer": server.URL, "authorization_endpoint": server.URL + "/authorize",
+					"jwks_uri":                              server.URL + "/keys",
+					"response_types_supported":              []string{"id_token"},
+					"subject_types_supported":               []string{"public"},
+					"id_token_signing_alg_values_supported": []string{"RS256"},
+				}
+				metadata[member] = value
+				writeJSONResponse(writer, metadata)
+				return
+			}
+			writeJSONResponse(writer, jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{
+				Key: &private.PublicKey, KeyID: "key", Algorithm: "RS256", Use: "sig",
+			}}})
+		})
+		t.Cleanup(server.Close)
+
+		_, newErr := New(context.Background(), Config{
+			Issuer: server.URL, ClientID: "client", Algorithms: []string{"RS256"},
+			Clock: authtest.NewClock(time.Unix(1, 0)), InsecureHTTP: true,
+			HTTPClient: server.Client(), DiscoveryTimeout: 5 * time.Second,
+		})
+		if !errors.Is(newErr, authentication.ErrInvalidConfiguration) {
+			t.Fatalf("New(invalid %s) error = %v", member, newErr)
+		}
+	}
+	for _, member := range []string{
+		"token_endpoint", "userinfo_endpoint", "registration_endpoint", "scopes_supported",
+		"response_modes_supported", "grant_types_supported", "acr_values_supported",
+		"id_token_encryption_alg_values_supported", "id_token_encryption_enc_values_supported",
+		"userinfo_signing_alg_values_supported", "userinfo_encryption_alg_values_supported",
+		"userinfo_encryption_enc_values_supported", "request_object_signing_alg_values_supported",
+		"request_object_encryption_alg_values_supported", "request_object_encryption_enc_values_supported",
+		"token_endpoint_auth_methods_supported", "token_endpoint_auth_signing_alg_values_supported",
+		"display_values_supported", "claim_types_supported", "claims_supported",
+		"service_documentation", "claims_locales_supported", "ui_locales_supported",
+		"claims_parameter_supported", "request_parameter_supported", "request_uri_parameter_supported",
+		"require_request_uri_registration", "op_policy_uri", "op_tos_uri",
+	} {
+		t.Run(member, func(t *testing.T) {
+			assertRejected(t, member, nil)
+		})
+	}
+	for _, member := range []string{"token_endpoint", "userinfo_endpoint", "registration_endpoint"} {
+		t.Run("empty "+member, func(t *testing.T) {
+			assertRejected(t, member, "")
+		})
+	}
+	t.Run("numeric token endpoint", func(t *testing.T) {
+		assertRejected(t, "token_endpoint", 42)
+	})
+	t.Run("mixed claims supported", func(t *testing.T) {
+		assertRejected(t, "claims_supported", []any{"sub", 42})
+	})
+}
+
+func TestNewRejectsDuplicateDiscoveryMembersBeforeFetchingKeys(t *testing.T) {
+	t.Parallel()
+
+	var keyRequests atomic.Int64
+	server := httptest.NewServer(nil)
+	server.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		if request.URL.Path == "/.well-known/openid-configuration" {
+			_, _ = fmt.Fprintf(writer, `{"issuer":"https://attacker.example.test","issuer":%q,"authorization_endpoint":%q,"token_endpoint":%q,"jwks_uri":%q,"response_types_supported":["code"],"subject_types_supported":["public"],"id_token_signing_alg_values_supported":["RS256"]}`,
+				server.URL, server.URL+"/authorize", server.URL+"/token", server.URL+"/keys")
+			return
+		}
+		keyRequests.Add(1)
+	})
+	t.Cleanup(server.Close)
+
+	_, err := New(context.Background(), Config{
+		Issuer: server.URL, ClientID: "client", Algorithms: []string{"RS256"},
+		Clock: authtest.NewClock(time.Unix(1, 0)), InsecureHTTP: true,
+		HTTPClient: server.Client(), DiscoveryTimeout: time.Second,
+	})
+	if !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("New(duplicate discovery member) error = %v", err)
+	}
+	if got := keyRequests.Load(); got != 0 {
+		t.Fatalf("JWK requests = %d, want 0", got)
+	}
+}
+
+func TestDiscoverProviderRejectsRequestAndBodyFailures(t *testing.T) {
+	t.Parallel()
+
+	client := &http.Client{Transport: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}},
+			Body: &errorReadCloser{err: errors.New("partial discovery body")}, Request: request,
+		}, nil
+	})}
+	if _, err := discoverProvider(context.Background(), "https://issuer.example.test\n", client, false, nil); !errors.Is(err, errOIDCDiscoveryUnavailable) {
+		t.Fatalf("discoverProvider(invalid request) error = %v", err)
+	}
+	if _, err := discoverProvider(context.Background(), "https://issuer.example.test", client, false, nil); !errors.Is(err, errOIDCDiscoveryUnavailable) {
+		t.Fatalf("discoverProvider(partial body) error = %v", err)
 	}
 }
 
@@ -109,12 +261,16 @@ func TestProviderMetadataValidationMatrix(t *testing.T) {
 		{name: "empty response type", alter: func(metadata *providerMetadata) { metadata.ResponseTypes = []string{""} }},
 		{name: "blank response type", alter: func(metadata *providerMetadata) { metadata.ResponseTypes = []string{" "} }},
 		{name: "duplicate response type", alter: func(metadata *providerMetadata) { metadata.ResponseTypes = []string{"code", "code"} }},
+		{name: "tab-separated response type", alter: func(metadata *providerMetadata) { metadata.ResponseTypes = []string{"code\tid_token"} }},
+		{name: "repeated response type separator", alter: func(metadata *providerMetadata) { metadata.ResponseTypes = []string{"code  id_token"} }},
+		{name: "leading response type separator", alter: func(metadata *providerMetadata) { metadata.ResponseTypes = []string{" code"} }},
 		{name: "missing subject types", alter: func(metadata *providerMetadata) { metadata.SubjectTypes = nil }},
 		{name: "unknown subject type", alter: func(metadata *providerMetadata) { metadata.SubjectTypes = []string{"transient"} }},
 		{name: "missing signing algorithms", alter: func(metadata *providerMetadata) { metadata.SigningAlgorithms = nil }},
 		{name: "missing RS256", alter: func(metadata *providerMetadata) { metadata.SigningAlgorithms = []string{"ES256"} }},
 		{name: "duplicate signing algorithm", alter: func(metadata *providerMetadata) { metadata.SigningAlgorithms = []string{"RS256", "RS256"} }},
 		{name: "missing configured algorithm", alter: func(metadata *providerMetadata) { metadata.SigningAlgorithms = []string{"RS256"} }},
+		{name: "empty advertised scopes", alter: func(metadata *providerMetadata) { metadata.Scopes = []string{} }},
 		{name: "scope omits openid", alter: func(metadata *providerMetadata) { metadata.Scopes = []string{"profile"} }},
 		{name: "duplicate scope", alter: func(metadata *providerMetadata) { metadata.Scopes = []string{"openid", "openid"} }},
 	}
@@ -146,7 +302,7 @@ func TestNewFailsWhenInitialJWKSetIsUnavailable(t *testing.T) {
 	server := httptest.NewServer(nil)
 	server.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.URL.Path == "/.well-known/openid-configuration" {
-			_ = json.NewEncoder(writer).Encode(map[string]any{
+			writeJSONResponse(writer, map[string]any{
 				"issuer": server.URL, "authorization_endpoint": server.URL + "/authorize",
 				"token_endpoint": server.URL + "/token", "jwks_uri": server.URL + "/keys",
 				"response_types_supported":              []string{"code"},
@@ -195,7 +351,7 @@ func TestNewDoesNotExposeProviderResponseText(t *testing.T) {
 	discovery := httptest.NewServer(nil)
 	baseTransport := discovery.Client().Transport
 	discovery.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		_ = json.NewEncoder(writer).Encode(map[string]any{
+		writeJSONResponse(writer, map[string]any{
 			"issuer": discovery.URL, "authorization_endpoint": discovery.URL + "/authorize",
 			"token_endpoint": discovery.URL + "/token", "jwks_uri": discovery.URL + "/keys?credential=provider-secret-transport",
 			"response_types_supported":              []string{"code"},
@@ -247,7 +403,7 @@ func TestNewPreservesDiscoveryDeadlineAndRejectsIssuerMismatch(t *testing.T) {
 		t.Parallel()
 		server := httptest.NewServer(nil)
 		server.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-			_ = json.NewEncoder(writer).Encode(map[string]any{
+			writeJSONResponse(writer, map[string]any{
 				"issuer": "https://different.example.test", "authorization_endpoint": server.URL + "/authorize",
 				"token_endpoint": server.URL + "/token", "jwks_uri": server.URL + "/keys",
 				"response_types_supported":              []string{"code"},
@@ -331,6 +487,8 @@ func TestRemoteFetchRejectsTransportAndJWKFailures(t *testing.T) {
 		{name: "transport", client: &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) { return nil, errors.New("network") })}, maxKeys: 1},
 		{name: "status", status: http.StatusServiceUnavailable, maxKeys: 1},
 		{name: "invalid JSON", body: []byte(`{`), maxKeys: 1},
+		{name: "invalid JWK encoding", body: []byte(`{"keys":[{"kty":"RSA","n":1,"e":"AQAB"}]}`), maxKeys: 1},
+		{name: "invalid key operations shape", body: []byte(`{"keys":[{"kty":"RSA","kid":"key","alg":"RS256","use":"sig","n":"` + base64.RawURLEncoding.EncodeToString(private.N.Bytes()) + `","e":"AQAB","key_ops":"verify"}]}`), maxKeys: 1},
 		{name: "empty", body: encode(), maxKeys: 1},
 		{name: "too many", body: encode(valid, jose.JSONWebKey{Key: &private.PublicKey, KeyID: "other", Algorithm: "RS256", Use: "sig"}), maxKeys: 1},
 		{name: "wrong use", body: encode(jose.JSONWebKey{Key: &private.PublicKey, KeyID: "key", Algorithm: "RS256", Use: "enc"}), maxKeys: 1},
@@ -376,6 +534,58 @@ func TestRemoteFetchRejectsTransportAndJWKFailures(t *testing.T) {
 	}
 	if keys, err := set.fetch(context.Background()); err != nil || len(keys) != 1 {
 		t.Fatalf("fetch(valid) = %d keys, %v", len(keys), err)
+	}
+}
+
+func TestRemoteFetchRejectsAmbiguousJWKMetadata(t *testing.T) {
+	t.Parallel()
+
+	private := mustRSAKey(t)
+	encoded, err := json.Marshal(jose.JSONWebKey{Key: &private.PublicKey, KeyID: "key", Algorithm: "RS256", Use: "sig"})
+	if err != nil {
+		t.Fatalf("Marshal(JWK) error = %v", err)
+	}
+	bareEncoded, err := json.Marshal(jose.JSONWebKey{Key: &private.PublicKey})
+	if err != nil {
+		t.Fatalf("Marshal(bare JWK) error = %v", err)
+	}
+	tests := map[string][]byte{
+		"duplicate set member": []byte(`{"keys":[],"keys":[` + string(encoded) + `]}`),
+		"duplicate key member": []byte(`{"keys":[{"kty":"RSA","kty":"RSA","kid":"key","alg":"RS256","use":"sig","n":"` + base64.RawURLEncoding.EncodeToString(private.N.Bytes()) + `","e":"AQAB"}]}`),
+		"encryption operation": []byte(`{"keys":[` + strings.TrimSuffix(string(encoded), "}") + `,"key_ops":["encrypt"]}]}`),
+		"empty key operations": []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") + `,"key_ops":[]}]}`),
+		"null algorithm":       []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") + `,"alg":null}]}`),
+		"null key ID":          []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") + `,"kid":null}]}`),
+		"null key operations":  []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") + `,"key_ops":null}]}`),
+		"null use":             []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") + `,"use":null}]}`),
+		"empty algorithm":      []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") + `,"alg":""}]}`),
+		"empty use":            []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") + `,"use":""}]}`),
+		"partial private material": []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") +
+			`,"p":"AQ"}]}`),
+		"multi-prime private material": []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") +
+			`,"oth":[{"r":"AQ","d":"AQ","t":"AQ"}]}]}`),
+		"null curve":           []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") + `,"crv":null}]}`),
+		"null certificate URL": []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") + `,"x5u":null}]}`),
+		"null certificates":    []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") + `,"x5c":null}]}`),
+		"null SHA-1 thumbprint": []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") +
+			`,"x5t":null}]}`),
+		"null SHA-256 thumbprint": []byte(`{"keys":[` + strings.TrimSuffix(string(bareEncoded), "}") +
+			`,"x5t#S256":null}]}`),
+	}
+	for name, body := range tests {
+		t.Run(name, func(t *testing.T) {
+			set := &remoteKeySet{
+				url: "https://issuer.example.test/keys",
+				client: &http.Client{Transport: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+					return jwkResponse(request, http.StatusOK, body, nil), nil
+				})},
+				maxBodyBytes: 1 << 20, maxKeys: 8,
+				allowed: map[string]struct{}{"RS256": {}},
+			}
+			if _, fetchErr := set.fetch(context.Background()); fetchErr == nil {
+				t.Fatal("fetch() error = nil")
+			}
+		})
 	}
 }
 
@@ -432,6 +642,47 @@ func TestRemoteFetchAcceptsOptionalJWKMetadata(t *testing.T) {
 			}
 		})
 	}
+	encoded, err := json.Marshal(jose.JSONWebKey{Key: &private.PublicKey})
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	body := []byte(`{"keys":[` + strings.TrimSuffix(string(encoded), "}") + `,"key_ops":["verify"]}]}`)
+	set := &remoteKeySet{
+		url: "https://issuer.example.test/keys",
+		client: &http.Client{Transport: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+			return jwkResponse(request, http.StatusOK, body, nil), nil
+		})},
+		maxBodyBytes: 1 << 20, maxKeys: 1, allowed: map[string]struct{}{"RS256": {}},
+	}
+	if keys, fetchErr := set.fetch(context.Background()); fetchErr != nil || len(keys) != 1 {
+		t.Fatalf("fetch(key_ops verify) = %d keys, %v", len(keys), fetchErr)
+	}
+}
+
+func TestRemoteFetchIgnoresUnrelatedEncryptionKeys(t *testing.T) {
+	t.Parallel()
+
+	signing := mustRSAKey(t)
+	encryption := mustRSAKey(t)
+	body, err := json.Marshal(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{
+		{Key: &signing.PublicKey, KeyID: "signing", Algorithm: "RS256", Use: "sig"},
+		{Key: &encryption.PublicKey, KeyID: "encryption", Algorithm: "RSA-OAEP", Use: "enc"},
+	}})
+	if err != nil {
+		t.Fatalf("Marshal() error = %v", err)
+	}
+	set := &remoteKeySet{
+		url: "https://issuer.example.test/keys",
+		client: &http.Client{Transport: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+			return jwkResponse(request, http.StatusOK, body, nil), nil
+		})},
+		maxBodyBytes: 1 << 20, maxKeys: 8,
+		allowed: map[string]struct{}{"RS256": {}},
+	}
+	keys, err := set.fetch(context.Background())
+	if err != nil || len(keys) != 1 || keys[0].KeyID != "signing" {
+		t.Fatalf("fetch() = %#v, %v", keys, err)
+	}
 }
 
 func TestRemoteFetchReportsReadAndSizeFailures(t *testing.T) {
@@ -471,11 +722,61 @@ func TestHTTPHardeningAndBoundedReaders(t *testing.T) {
 	if err := client.CheckRedirect(&http.Request{}, nil); err == nil {
 		t.Fatal("CheckRedirect() error = nil")
 	}
+	base := &http.Transport{}
+	hardened := hardenedClient(&http.Client{Transport: base}, 1)
+	bounded, ok := hardened.Transport.(boundedTransport)
+	if !ok {
+		t.Fatalf("hardened transport = %T", hardened.Transport)
+	}
+	cloned, ok := bounded.base.(*http.Transport)
+	if !ok || cloned == base || cloned.MaxResponseHeaderBytes != maximumHTTPHeaderBytes {
+		t.Fatalf("hardened base transport = %#v", bounded.base)
+	}
+	if base.MaxResponseHeaderBytes != 0 {
+		t.Fatalf("source MaxResponseHeaderBytes = %d", base.MaxResponseHeaderBytes)
+	}
+	strictBase := &http.Transport{MaxResponseHeaderBytes: 1024}
+	strict := hardenedClient(&http.Client{Transport: strictBase}, 1).Transport.(boundedTransport).base.(*http.Transport)
+	if strict.MaxResponseHeaderBytes != 1024 {
+		t.Fatalf("strict MaxResponseHeaderBytes = %d", strict.MaxResponseHeaderBytes)
+	}
 	transport := boundedTransport{base: roundTripperFunc(func(*http.Request) (*http.Response, error) {
 		return nil, errors.New("transport failed")
 	}), maximum: 1}
 	if _, err := transport.RoundTrip(&http.Request{}); err == nil {
 		t.Fatal("RoundTrip() error = nil")
+	}
+	for _, contentType := range []string{"", "text/plain", "application/json, text/plain"} {
+		closed := false
+		transport := boundedTransport{base: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {contentType}},
+				Body: &trackingReadCloser{Reader: strings.NewReader(`{}`), closed: &closed}, Request: request,
+			}, nil
+		}), maximum: 16}
+		if _, err := transport.RoundTrip(&http.Request{}); err == nil {
+			t.Fatalf("RoundTrip(Content-Type %q) error = nil", contentType)
+		}
+		if !closed {
+			t.Fatalf("RoundTrip(Content-Type %q) did not close rejected body", contentType)
+		}
+	}
+	closed := false
+	transport = boundedTransport{base: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header: http.Header{
+				"Content-Type": {"application/json"},
+				"ETag":         {strings.Repeat("x", 64<<10)},
+			},
+			Body: &trackingReadCloser{Reader: strings.NewReader(`{}`), closed: &closed}, Request: request,
+		}, nil
+	}), maximum: 16}
+	if _, err := transport.RoundTrip(&http.Request{}); err == nil {
+		t.Fatal("RoundTrip(oversized headers) error = nil")
+	}
+	if !closed {
+		t.Fatal("RoundTrip(oversized headers) did not close rejected body")
 	}
 	body := &boundedBody{body: io.NopCloser(strings.NewReader("abc")), remaining: 1}
 	buffer := make([]byte, 8)
@@ -501,6 +802,24 @@ func TestHTTPHardeningAndBoundedReaders(t *testing.T) {
 	exactBuffer := make([]byte, 2)
 	if read, err := exactBody.Read(exactBuffer); err != nil || read != 1 || exactBody.remaining != 0 {
 		t.Fatalf("Read(exact) = %d, %v, remaining %d", read, err, exactBody.remaining)
+	}
+}
+
+func TestBoundedTransportAcceptsBareNotModified(t *testing.T) {
+	t.Parallel()
+
+	transport := boundedTransport{base: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusNotModified, Header: make(http.Header),
+			Body: io.NopCloser(strings.NewReader("")), Request: request,
+		}, nil
+	}), maximum: 1}
+	response, err := transport.RoundTrip(&http.Request{})
+	if err != nil {
+		t.Fatalf("RoundTrip(bare 304) error = %v", err)
+	}
+	if closeErr := response.Body.Close(); closeErr != nil {
+		t.Fatalf("Close(bare 304) error = %v", closeErr)
 	}
 }
 
@@ -598,7 +917,10 @@ func TestRemoteURLValidationRejectsEachUnsafeComponent(t *testing.T) {
 		want      bool
 	}{
 		{raw: "https://issuer.example.test/keys", want: true},
-		{raw: "http://issuer.example.test/keys", allowHTTP: true, want: true},
+		{raw: "http://issuer.example.test/keys", allowHTTP: true},
+		{raw: "http://127.0.0.1/keys", allowHTTP: true, want: true},
+		{raw: "http://[::1]/keys", allowHTTP: true, want: true},
+		{raw: "http://localhost/keys", allowHTTP: true, want: true},
 		{raw: "http://issuer.example.test/keys"},
 		{raw: "ftp://issuer.example.test/keys", allowHTTP: true},
 		{raw: "https:///keys"},
@@ -638,6 +960,33 @@ func TestRemoteRefreshUpdatesConditionalValidators(t *testing.T) {
 	}
 }
 
+func TestRemoteKeyTransitionBoundsRetiredHistory(t *testing.T) {
+	t.Parallel()
+
+	first := mustRSAKey(t)
+	second := mustRSAKey(t)
+	third := mustRSAKey(t)
+	key := func(private *rsa.PrivateKey, keyID string) jose.JSONWebKey {
+		return jose.JSONWebKey{Key: &private.PublicKey, KeyID: keyID, Algorithm: "RS256", Use: "sig"}
+	}
+	set := &remoteKeySet{}
+	if !set.acceptKeyTransition([]jose.JSONWebKey{key(first, "first")}) ||
+		!set.acceptKeyTransition([]jose.JSONWebKey{key(second, "second")}) ||
+		!set.acceptKeyTransition([]jose.JSONWebKey{key(third, "third")}) {
+		t.Fatal("acceptKeyTransition(forward rotations) = false")
+	}
+	if set.acceptKeyTransition([]jose.JSONWebKey{{}}) {
+		t.Fatal("acceptKeyTransition(invalid key) = true")
+	}
+	set.retiredKeys = make(map[string]struct{}, maximumTrackedJWKs)
+	for index := range maximumTrackedJWKs {
+		set.retiredKeys[fmt.Sprintf("retired-%d", index)] = struct{}{}
+	}
+	if set.acceptKeyTransition([]jose.JSONWebKey{key(third, "third")}) {
+		t.Fatal("acceptKeyTransition(exhausted history) = true")
+	}
+}
+
 func TestRemoteVerificationWaitsForRefreshAndFiltersCandidateKeys(t *testing.T) {
 	t.Parallel()
 
@@ -670,6 +1019,47 @@ func TestRemoteVerificationWaitsForRefreshAndFiltersCandidateKeys(t *testing.T) 
 	set.clock = &refreshCompletionClock{set: set, key: &private.PublicKey}
 	if payload, verifyErr := set.VerifySignature(context.Background(), raw); verifyErr != nil || string(payload) != `{"sub":"user"}` {
 		t.Fatalf("VerifySignature(waited refresh) = %q, %v", payload, verifyErr)
+	}
+}
+
+func TestVerifyWithKeysRejectsMissingKeyIDForAmbiguousSet(t *testing.T) {
+	t.Parallel()
+
+	first := mustRSAKey(t)
+	second := mustRSAKey(t)
+	raw := signCompact(t, second, "", []byte(`{"sub":"user"}`))
+	signed, err := jose.ParseSigned(raw, []jose.SignatureAlgorithm{jose.RS256})
+	if err != nil {
+		t.Fatalf("ParseSigned() error = %v", err)
+	}
+	keys := []jose.JSONWebKey{
+		{Key: &first.PublicKey, KeyID: "first", Algorithm: "RS256", Use: "sig"},
+		{Key: &second.PublicKey, KeyID: "second", Algorithm: "RS256", Use: "sig"},
+	}
+	if _, found, verifyErr := verifyWithKeys(signed, "", keys); found || verifyErr == nil {
+		t.Fatalf("verifyWithKeys(missing kid) found = %v, error = %v", found, verifyErr)
+	}
+}
+
+func TestRemoteClockRunsOutsideSynchronization(t *testing.T) {
+	t.Parallel()
+
+	private := mustRSAKey(t)
+	token := signCompact(t, private, "key", []byte(`{"sub":"user"}`))
+	set := &remoteKeySet{
+		keys:        []jose.JSONWebKey{{Key: &private.PublicKey, KeyID: "key", Algorithm: "RS256", Use: "sig"}},
+		algorithms:  []jose.SignatureAlgorithm{jose.RS256},
+		nextRefresh: time.Unix(2, 0),
+	}
+	set.clock = clockFunc(func() time.Time {
+		if !set.mutex.TryLock() {
+			t.Fatal("Clock.Now() called while refresh mutex is held")
+		}
+		set.mutex.Unlock()
+		return time.Unix(1, 0)
+	})
+	if _, err := set.VerifySignature(context.Background(), token); err != nil {
+		t.Fatalf("VerifySignature() error = %v", err)
 	}
 }
 
@@ -870,6 +1260,15 @@ type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripperFunc) RoundTrip(request *http.Request) (*http.Response, error) { return f(request) }
 
+func writeJSONResponse(writer http.ResponseWriter, value any) {
+	writer.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(writer).Encode(value)
+}
+
+type clockFunc func() time.Time
+
+func (f clockFunc) Now() time.Time { return f() }
+
 type errorReader struct{ err error }
 
 func (r errorReader) Read([]byte) (int, error) { return 0, r.err }
@@ -908,3 +1307,13 @@ type errorReadCloser struct{ err error }
 
 func (r *errorReadCloser) Read([]byte) (int, error) { return 0, r.err }
 func (*errorReadCloser) Close() error               { return nil }
+
+type trackingReadCloser struct {
+	io.Reader
+	closed *bool
+}
+
+func (closer *trackingReadCloser) Close() error {
+	*closer.closed = true
+	return nil
+}

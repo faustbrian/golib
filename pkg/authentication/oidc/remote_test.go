@@ -130,7 +130,7 @@ func TestDiscoveryMetadataAndKeysRefreshTogether(t *testing.T) {
 			keyPathMutex.RLock()
 			currentKeyPath := keyPath
 			keyPathMutex.RUnlock()
-			_ = json.NewEncoder(writer).Encode(map[string]any{
+			writeExternalJSONResponse(writer, map[string]any{
 				"issuer": server.URL, "authorization_endpoint": server.URL + "/authorize",
 				"token_endpoint": server.URL + "/token", "jwks_uri": server.URL + currentKeyPath,
 				"response_types_supported":              []string{"code"},
@@ -143,14 +143,14 @@ func TestDiscoveryMetadataAndKeysRefreshTogether(t *testing.T) {
 		if request.URL.Path == "/keys/second" {
 			key = jose.JSONWebKey{Key: &second.PublicKey, KeyID: "second", Algorithm: "RS256", Use: "sig"}
 		}
-		_ = json.NewEncoder(writer).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{key}})
+		writeExternalJSONResponse(writer, jose.JSONWebKeySet{Keys: []jose.JSONWebKey{key}})
 	})
 	t.Cleanup(server.Close)
 	clock := authtest.NewClock(oidcNow)
 	validator, err := authoidc.New(context.Background(), authoidc.Config{
 		Issuer: server.URL, ClientID: "client", Algorithms: []string{"RS256"},
 		Clock: clock, InsecureHTTP: true, HTTPClient: server.Client(),
-		DiscoveryTimeout: time.Second, MinRefreshInterval: time.Second,
+		DiscoveryTimeout: 5 * time.Second, MinRefreshInterval: time.Second,
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -218,7 +218,7 @@ func (state *oidcServerState) handler(writer http.ResponseWriter, request *http.
 	state.mutex.RLock()
 	defer state.mutex.RUnlock()
 	if request.URL.Path == "/.well-known/openid-configuration" {
-		_ = json.NewEncoder(writer).Encode(map[string]any{
+		writeExternalJSONResponse(writer, map[string]any{
 			"issuer": state.issuer, "authorization_endpoint": state.issuer + "/authorize",
 			"token_endpoint": state.issuer + "/token", "jwks_uri": state.issuer + "/keys",
 			"response_types_supported":              []string{"code"},
@@ -232,7 +232,12 @@ func (state *oidcServerState) handler(writer http.ResponseWriter, request *http.
 		return
 	}
 	key := jose.JSONWebKey{Key: state.publicKey, KeyID: state.keyID, Algorithm: "RS256", Use: "sig"}
-	_ = json.NewEncoder(writer).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{key}})
+	writeExternalJSONResponse(writer, jose.JSONWebKeySet{Keys: []jose.JSONWebKey{key}})
+}
+
+func writeExternalJSONResponse(writer http.ResponseWriter, value any) {
+	writer.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(writer).Encode(value)
 }
 
 func signIDTokenWithKeyID(t testing.TB, private any, keyID string, claims map[string]any) string {

@@ -1,8 +1,10 @@
 package oidc_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -14,6 +16,59 @@ import (
 	authoidc "github.com/faustbrian/golib/pkg/authentication/oidc"
 	jose "github.com/go-jose/go-jose/v4"
 )
+
+func TestGoogleProviderMetadataSnapshot(t *testing.T) {
+	t.Parallel()
+
+	metadata, err := os.ReadFile("testdata/google-openid-configuration-2026-08-09.json")
+	if err != nil {
+		t.Fatalf("ReadFile(Google metadata) error = %v", err)
+	}
+	private := rsaKey(t)
+	keys, err := json.Marshal(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{
+		Key: &private.PublicKey, KeyID: "google-snapshot", Algorithm: "RS256", Use: "sig",
+	}}})
+	if err != nil {
+		t.Fatalf("Marshal(JWK set) error = %v", err)
+	}
+	discoveryRequests := 0
+	keyRequests := 0
+	client := &http.Client{Transport: externalRoundTripperFunc(func(request *http.Request) (*http.Response, error) {
+		body := metadata
+		contentType := "application/json"
+		switch request.URL.Host {
+		case "accounts.google.com":
+			discoveryRequests++
+		case "www.googleapis.com":
+			keyRequests++
+			body = keys
+			contentType = "application/jwk-set+json"
+		default:
+			t.Fatalf("unexpected provider host %q", request.URL.Host)
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {contentType}},
+			Body: io.NopCloser(bytes.NewReader(body)), Request: request,
+		}, nil
+	})}
+	validator, err := authoidc.New(context.Background(), authoidc.Config{
+		Issuer: "https://accounts.google.com", ClientID: "client", Algorithms: []string{"RS256"},
+		Clock: authtest.NewClock(oidcNow), HTTPClient: client, DiscoveryTimeout: time.Second,
+	})
+	if err != nil {
+		t.Fatalf("New(Google snapshot) error = %v", err)
+	}
+	token := signIDTokenWithKeyID(t, private, "google-snapshot", map[string]any{
+		"iss": "https://accounts.google.com", "sub": "user", "aud": "client",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+	})
+	if _, err := validator.ValidateBearer(context.Background(), token); err != nil {
+		t.Fatalf("ValidateBearer(Google snapshot) error = %v", err)
+	}
+	if discoveryRequests != 1 || keyRequests != 1 {
+		t.Fatalf("provider requests = discovery %d, keys %d", discoveryRequests, keyRequests)
+	}
+}
 
 func TestOpenIDConnectCoreIDTokenClaimVector(t *testing.T) {
 	t.Parallel()
@@ -66,16 +121,20 @@ func TestRepresentativeProviderMetadataProfiles(t *testing.T) {
 			server := httptest.NewServer(nil)
 			server.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 				if request.URL.Path == "/.well-known/openid-configuration" {
-					_ = json.NewEncoder(writer).Encode(map[string]any{
+					metadata := map[string]any{
 						"issuer": server.URL, "authorization_endpoint": server.URL + "/authorize",
 						"token_endpoint": server.URL + "/token", "jwks_uri": server.URL + "/keys",
-						"scopes_supported": profile.scopes, "response_types_supported": profile.responseTypes,
+						"response_types_supported":              profile.responseTypes,
 						"subject_types_supported":               profile.subjectTypes,
 						"id_token_signing_alg_values_supported": profile.algorithms,
-					})
+					}
+					if profile.scopes != nil {
+						metadata["scopes_supported"] = profile.scopes
+					}
+					writeExternalJSONResponse(writer, metadata)
 					return
 				}
-				_ = json.NewEncoder(writer).Encode(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{
+				writeExternalJSONResponse(writer, jose.JSONWebKeySet{Keys: []jose.JSONWebKey{{
 					Key: &private.PublicKey, KeyID: "current", Algorithm: "RS256", Use: "sig",
 				}}})
 			})
@@ -98,4 +157,10 @@ func TestRepresentativeProviderMetadataProfiles(t *testing.T) {
 			}
 		})
 	}
+}
+
+type externalRoundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (function externalRoundTripperFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return function(request)
 }

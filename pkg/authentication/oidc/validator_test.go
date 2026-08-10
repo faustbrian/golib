@@ -9,7 +9,9 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -173,6 +175,48 @@ func TestValidatorAppliesConfiguredClockSkewToAllNumericDates(t *testing.T) {
 	}
 }
 
+func TestValidatorAppliesExactFractionalClockEdges(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow), ClockSkew: time.Minute,
+	})
+	base := map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": float64(oidcNow.Unix()), "exp": float64(oidcNow.Add(time.Hour).Unix()),
+	}
+	tests := []struct {
+		name    string
+		claim   string
+		value   float64
+		accepts bool
+	}{
+		{name: "expiry at lower edge", claim: "exp", value: float64(oidcNow.Add(-time.Minute).Unix())},
+		{name: "expiry after lower edge", claim: "exp", value: float64(oidcNow.Add(-time.Minute).Unix()) + 0.5, accepts: true},
+		{name: "issued at upper edge", claim: "iat", value: float64(oidcNow.Add(time.Minute).Unix()), accepts: true},
+		{name: "issued after upper edge", claim: "iat", value: float64(oidcNow.Add(time.Minute).Unix()) + 0.5},
+		{name: "not before upper edge", claim: "nbf", value: float64(oidcNow.Add(time.Minute).Unix()), accepts: true},
+		{name: "not before after upper edge", claim: "nbf", value: float64(oidcNow.Add(time.Minute).Unix()) + 0.5},
+		{name: "auth time upper edge", claim: "auth_time", value: float64(oidcNow.Add(time.Minute).Unix()), accepts: true},
+		{name: "auth time after upper edge", claim: "auth_time", value: float64(oidcNow.Add(time.Minute).Unix()) + 0.5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			claims := cloneClaims(base)
+			claims[tt.claim] = tt.value
+			_, err := validator.ValidateBearer(context.Background(), signIDToken(t, private, claims))
+			if tt.accepts && err != nil {
+				t.Fatalf("ValidateBearer() error = %v", err)
+			}
+			if !tt.accepts && !errors.Is(err, authentication.ErrCredentialsRejected) {
+				t.Fatalf("ValidateBearer() error = %v, want rejected", err)
+			}
+		})
+	}
+}
+
 func TestValidatorAcceptsFractionalAuthenticationTime(t *testing.T) {
 	t.Parallel()
 
@@ -252,6 +296,50 @@ func TestValidatorUsesNonceCallback(t *testing.T) {
 	}
 }
 
+func TestValidatorAllowsExactlyOneConcurrentNonceConsumption(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	var consumed atomic.Bool
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+		NonceValidator: authoidc.NonceValidatorFunc(func(_ context.Context, nonce string) error {
+			if nonce != "single-use" || !consumed.CompareAndSwap(false, true) {
+				return errors.New("nonce already consumed")
+			}
+			return nil
+		}),
+	})
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(), "nonce": "single-use",
+	})
+	const callers = 32
+	start := make(chan struct{})
+	results := make(chan error, callers)
+	for range callers {
+		go func() {
+			<-start
+			_, err := validator.ValidateBearer(context.Background(), token)
+			results <- err
+		}()
+	}
+	close(start)
+	accepted := 0
+	for range callers {
+		err := <-results
+		if err == nil {
+			accepted++
+		} else if !errors.Is(err, authentication.ErrCredentialsRejected) {
+			t.Fatalf("ValidateBearer() error = %v", err)
+		}
+	}
+	if accepted != 1 {
+		t.Fatalf("accepted validations = %d, want 1", accepted)
+	}
+}
+
 func TestValidatorContainsNonceCallbackPanic(t *testing.T) {
 	t.Parallel()
 
@@ -270,6 +358,129 @@ func TestValidatorContainsNonceCallbackPanic(t *testing.T) {
 
 	if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) {
 		t.Fatalf("ValidateBearer() error = %v, want rejected", err)
+	}
+}
+
+func TestValidatorRejectsDistributedClaimsWithoutRetainingTokens(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+		"_claim_names": map[string]any{"email": "source-1"},
+		"_claim_sources": map[string]any{"source-1": map[string]any{
+			"endpoint": "https://claims.example.test", "access_token": "distributed-secret",
+		}},
+	})
+	principal, err := validator.ValidateBearer(context.Background(), token)
+	if !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer() = %#v, %v", principal, err)
+	}
+	if strings.Contains(err.Error(), "distributed-secret") {
+		t.Fatal("ValidateBearer() exposed distributed claim token")
+	}
+	onlySources := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+		"_claim_sources": map[string]any{"source-1": map[string]any{"access_token": "distributed-secret"}},
+	})
+	if _, err := validator.ValidateBearer(context.Background(), onlySources); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer(_claim_sources) error = %v", err)
+	}
+}
+
+func TestValidatorRejectsClaimsThatCannotBeDecodedLosslessly(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	payloads := []struct {
+		encoded []byte
+		target  error
+	}{
+		{encoded: []byte(`{"sub":"user","iss":"https://issuer.example.test","aud":"client-1","iat":1800000000,"exp":1800003600,"scope":1e1000}`), target: authentication.ErrCredentialsRejected},
+		{encoded: []byte("{\"sub\":\"user\xff\",\"iss\":\"https://issuer.example.test\",\"aud\":\"client-1\",\"iat\":1800000000,\"exp\":1800003600}"), target: authentication.ErrCredentialsInvalid},
+		{encoded: []byte(`{"sub":"\ud800","iss":"https://issuer.example.test","aud":"client-1","iat":1800000000,"exp":1800003600}`), target: authentication.ErrCredentialsInvalid},
+	}
+	for _, payload := range payloads {
+		token := signRawIDToken(t, private, payload.encoded)
+		if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, payload.target) {
+			t.Fatalf("ValidateBearer(%q) error = %v", payload.encoded, err)
+		}
+	}
+}
+
+func TestValidatorValidatesAllClaimsBeforeConsumingNonce(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	var calls atomic.Int64
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+		NonceValidator: authoidc.NonceValidatorFunc(func(context.Context, string) error {
+			calls.Add(1)
+			return nil
+		}),
+	})
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+		"nonce": "single-use", "scope": 42,
+	})
+	if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer() error = %v", err)
+	}
+	if got := calls.Load(); got != 0 {
+		t.Fatalf("nonce callback calls = %d, want 0", got)
+	}
+}
+
+func TestValidatorPreservesNonceCancellationAsUnavailable(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+		NonceValidator: authoidc.NonceValidatorFunc(func(context.Context, string) error {
+			return context.Canceled
+		}),
+	})
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(), "nonce": "nonce",
+	})
+	if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, context.Canceled) ||
+		!errors.Is(err, authentication.ErrAuthenticationUnavailable) {
+		t.Fatalf("ValidateBearer() error = %v", err)
+	}
+}
+
+func TestValidatorRejectsNonASCIIOrOversizedSubject(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	for _, subject := range []string{"käyttäjä", strings.Repeat("a", 256)} {
+		token := signIDToken(t, private, map[string]any{
+			"sub": subject, "iss": "https://issuer.example.test", "aud": "client-1",
+			"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+		})
+		if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) {
+			t.Fatalf("ValidateBearer(subject length %d) error = %v", len(subject), err)
+		}
 	}
 }
 
@@ -324,18 +535,65 @@ func TestValidatorRejectsMalformedBoundedAndDuplicateTokens(t *testing.T) {
 	})
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","kid":"key-1"}`))
 	duplicate := base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"one","sub":"two"}`))
+	nullKeyID := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","kid":null}`)) + "." +
+		base64.RawURLEncoding.EncodeToString([]byte(`{}`)) + "." +
+		base64.RawURLEncoding.EncodeToString([]byte("signature"))
 	tooMany := signIDToken(t, private, map[string]any{
 		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
 		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(), "a": 1, "b": 2, "c": 3, "d": 4,
 	})
+	validToken := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+	})
+	validParts := strings.Split(validToken, ".")
 	tests := []string{
-		"not-a-token", header + "." + duplicate + ".signature", tooMany,
+		"not-a-token", header + "." + duplicate + ".signature", nullKeyID, tooMany,
+		validParts[0] + "." + validParts[1] + ".%",
 		strings.Repeat("x", 513),
 	}
 	for _, token := range tests {
-		if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(token)); !errors.Is(err, authentication.ErrCredentialsRejected) && !errors.Is(err, authentication.ErrCredentialsInvalid) {
+		if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(token)); !errors.Is(err, authentication.ErrCredentialsInvalid) {
 			t.Errorf("Authenticate() error = %v", err)
 		}
+	}
+	wrongSignature := signIDToken(t, rsaKey(t), map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+	})
+	signatureValidator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	if _, err := signatureValidator.ValidateBearer(context.Background(), wrongSignature); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer(wrong signature) error = %v", err)
+	}
+	disallowedHeader := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS384","kid":"key-1"}`))
+	if _, err := signatureValidator.ValidateBearer(context.Background(),
+		disallowedHeader+"."+validParts[1]+"."+validParts[2]); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer(disallowed algorithm) error = %v", err)
+	}
+}
+
+func TestValidatorClassifiesCallerKeySetCancellationAsUnavailable(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	validator, err := authoidc.NewWithKeySet(authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	}, cancelingKeySet{cancel: cancel})
+	if err != nil {
+		t.Fatalf("NewWithKeySet() error = %v", err)
+	}
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+	})
+	if _, err := validator.ValidateBearer(ctx, token); !errors.Is(err, authentication.ErrAuthenticationUnavailable) ||
+		!errors.Is(err, context.Canceled) {
+		t.Fatalf("ValidateBearer(canceled key set) error = %v", err)
 	}
 }
 
@@ -356,9 +614,25 @@ func TestValidatorRejectsInvalidPrincipalClaimShapes(t *testing.T) {
 		alter func(map[string]any)
 	}{
 		{name: "numeric scope", alter: func(claims map[string]any) { claims["scope"] = 1 }},
+		{name: "duplicate scope", alter: func(claims map[string]any) { claims["scope"] = "read read" }},
+		{name: "non-canonical scope separator", alter: func(claims map[string]any) { claims["scope"] = "read\twrite" }},
+		{name: "empty tenant collection", alter: func(claims map[string]any) { claims["tenant"] = []string{} }},
+		{name: "empty private claim name", alter: func(claims map[string]any) { claims[""] = "value" }},
 		{name: "empty tenant", alter: func(claims map[string]any) { claims["tenant"] = "" }},
 		{name: "string auth time", alter: func(claims map[string]any) { claims["auth_time"] = "yesterday" }},
 		{name: "numeric authorized party", alter: func(claims map[string]any) { claims["azp"] = 42 }},
+		{name: "empty authorized party", alter: func(claims map[string]any) { claims["azp"] = "" }},
+		{name: "null authorized party", alter: func(claims map[string]any) { claims["azp"] = nil }},
+		{name: "null access-token hash", alter: func(claims map[string]any) { claims["at_hash"] = nil }},
+		{name: "null authentication methods", alter: func(claims map[string]any) { claims["amr"] = nil }},
+		{name: "non-string authentication method", alter: func(claims map[string]any) { claims["amr"] = []any{"pwd", 1} }},
+		{name: "null authentication context", alter: func(claims map[string]any) { claims["acr"] = nil }},
+		{name: "null authorization-code hash", alter: func(claims map[string]any) { claims["c_hash"] = nil }},
+		{name: "null JWT ID", alter: func(claims map[string]any) { claims["jti"] = nil }},
+		{name: "null nonce", alter: func(claims map[string]any) { claims["nonce"] = nil }},
+		{name: "null scope", alter: func(claims map[string]any) { claims["scope"] = nil }},
+		{name: "null session ID", alter: func(claims map[string]any) { claims["sid"] = nil }},
+		{name: "null tenant", alter: func(claims map[string]any) { claims["tenant"] = nil }},
 		{name: "string not before", alter: func(claims map[string]any) { claims["nbf"] = "tomorrow" }},
 		{name: "oversized not before", alter: func(claims map[string]any) { claims["nbf"] = 1e300 }},
 	}
@@ -371,6 +645,36 @@ func TestValidatorRejectsInvalidPrincipalClaimShapes(t *testing.T) {
 				t.Fatalf("ValidateBearer() error = %v", err)
 			}
 		})
+	}
+}
+
+func TestValidatorPreservesPrivateNumbersAndRejectsInvalidUnicode(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	payload := []byte(fmt.Sprintf(
+		`{"iss":"https://issuer.example.test","sub":"user","aud":"client-1","iat":%d,"exp":%d,"private_number":9007199254740993}`,
+		oidcNow.Unix(), oidcNow.Add(time.Hour).Unix(),
+	))
+	principal, err := validator.ValidateBearer(context.Background(), signRawIDToken(t, private, payload))
+	if err != nil {
+		t.Fatalf("ValidateBearer(lossless private number) error = %v", err)
+	}
+	number, ok := principal.Claims()["private_number"].(json.Number)
+	if !ok || number.String() != "9007199254740993" {
+		t.Fatalf("private_number = %#v", principal.Claims()["private_number"])
+	}
+
+	invalidUnicode := []byte(fmt.Sprintf(
+		`{"iss":"https://issuer.example.test","sub":"user","aud":"client-1","iat":%d,"exp":%d,"private":"\uD800"}`,
+		oidcNow.Unix(), oidcNow.Add(time.Hour).Unix(),
+	))
+	if _, err := validator.ValidateBearer(context.Background(), signRawIDToken(t, private, invalidUnicode)); !errors.Is(err, authentication.ErrCredentialsInvalid) {
+		t.Fatalf("ValidateBearer(unpaired surrogate) error = %v", err)
 	}
 }
 
@@ -438,6 +742,21 @@ func signIDToken(t *testing.T, private *rsa.PrivateKey, claims map[string]any) s
 	if err != nil {
 		t.Fatalf("json.Marshal() error = %v", err)
 	}
+	return signRawIDTokenWithSigner(t, signer, payload)
+}
+
+func signRawIDToken(t *testing.T, private *rsa.PrivateKey, payload []byte) string {
+	t.Helper()
+	options := (&jose.SignerOptions{}).WithType("JWT").WithHeader("kid", "key-1")
+	signer, err := jose.NewSigner(jose.SigningKey{Algorithm: jose.RS256, Key: private}, options)
+	if err != nil {
+		t.Fatalf("NewSigner() error = %v", err)
+	}
+	return signRawIDTokenWithSigner(t, signer, payload)
+}
+
+func signRawIDTokenWithSigner(t *testing.T, signer jose.Signer, payload []byte) string {
+	t.Helper()
 	signed, err := signer.Sign(payload)
 	if err != nil {
 		t.Fatalf("Signer.Sign() error = %v", err)
@@ -460,4 +779,13 @@ func cloneClaims(source map[string]any) map[string]any {
 func oidcHash(value string) string {
 	digest := sha256.Sum256([]byte(value))
 	return base64.RawURLEncoding.EncodeToString(digest[:len(digest)/2])
+}
+
+type cancelingKeySet struct {
+	cancel context.CancelFunc
+}
+
+func (keySet cancelingKeySet) VerifySignature(ctx context.Context, _ string) ([]byte, error) {
+	keySet.cancel()
+	return nil, ctx.Err()
 }

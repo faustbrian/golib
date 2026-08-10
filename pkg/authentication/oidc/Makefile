@@ -1,7 +1,7 @@
 .PHONY: conformance interoperability
 
 conformance:
-	GOWORK=off go test ./... -run '^TestOpenIDConnectCore' -count=1
+	GOWORK=off go test ./... -count=1
 
 interoperability:
-	GOWORK=off go test ./... -run '^TestRepresentativeProviderMetadataProfiles$$' -count=1
+	../../../scripts/test-oidc-keycloak-interoperability.sh
