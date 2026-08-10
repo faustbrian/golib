@@ -19,7 +19,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Selected behavior | Accept exactly three non-empty canonical unpadded base64url segments representing one compact JWS. Reject JWE, JSON serialization, nested compact payloads, padding, non-zero pad bits, truncation, and trailing data. |
 | Security and resource consequences | One bounded parse path avoids implicit decryption, nesting amplification, and ambiguous token-kind dispatch. `MaxTokenBytes`, claim-count, and depth limits apply before signature verification. |
 | Compatibility and wire consequences | Valid compact JWS input interoperates with peers. Other standards-valid JOSE serializations are intentionally outside this package and fail as invalid credentials rather than being normalized. |
-| Executable evidence | `TestValidatorRejectsMalformedCompactSerialization`, `TestValidatorRejectsNestedAndUnsecuredJWTs`, `TestRFC7515AppendixA2RS256CompactJWS`, and `FuzzInspectCompactJWT` |
+| Executable evidence | `TestValidatorRejectsNonCanonicalBase64TruncationAndNestedPayloads`, `TestInspectCompactJWTRejectsEachBoundary`, `TestRFC7515AppendixA2RS256CompactJWS`, and `FuzzInspectCompactJWT` |
 | Public surface | `Config`, `New`, `Validator.ValidateBearer`, and `Validator.Authenticate` |
 | Upstream record | RFC 7519 delegates cryptographic representation to JOSE; this package narrows that optional surface to signed compact JWT authentication. |
 | Reconsider when | A concrete service contract requires another JOSE serialization and can preserve equivalent algorithm, nesting, resource, and token-kind controls. |
@@ -37,7 +37,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Selected behavior | Protected headers and claims must be UTF-8 JSON objects with unique members, paired UTF-16 escapes, bounded nesting and collection size, and JSON numbers no longer than 128 encoded bytes. NumericDate claims must be JSON numbers, not strings. |
 | Security and resource consequences | Duplicate-key smuggling, Unicode replacement mismatches, excessive nesting, and number-size amplification fail before trust decisions. Inspection adds one bounded pass over each decoded segment. |
 | Compatibility and wire consequences | Canonical peer-produced JSON remains compatible. Inputs accepted by permissive last-member-wins or coercing implementations are deliberately rejected without rewriting their wire form. |
-| Executable evidence | `TestValidatorRejectsDuplicateMembers`, `TestValidatorRejectsInvalidUTF8`, `TestValidatorRejectsUnpairedUnicodeEscapes`, `TestValidatorRejectsOversizedJSONNumbers`, and `TestValidatorRejectsNonNumericDateClaims` |
+| Executable evidence | `TestValidatorRejectsDuplicateAndOversizedClaims`, `TestInspectJSONObjectRejectsNonInteroperableUnicodeAndHugeNumbers`, `TestJSONUnicodeEscapeValidationAcceptsPairsAndRejectsMalformedPairs`, and `TestValidatorRejectsMalformedNumericDates` |
 | Public surface | `Config.MaxClaims`, `Config.MaxClaimDepth`, `Config.MaxTokenBytes`, and `Validator.ValidateBearer` |
 | Upstream record | RFC 8725 identifies multiplicity of JSON encodings as a substitution and validation risk; no upstream erratum mandates first- or last-member precedence. |
 | Reconsider when | JSON or JWT publishes a mandatory duplicate-member and Unicode handling rule that is at least as deterministic and fail closed. |
@@ -55,7 +55,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Selected behavior | Configuration must explicitly allow one or more supported algorithms. The token `alg`, configured allowlist, JWK `alg`, JWK type, and key material must all agree. `none`, deprecated generic `EdDSA`, ES256K, unknown algorithms, and algorithms outside the documented matrix are rejected. |
 | Security and resource consequences | Header-driven downgrade and symmetric/asymmetric confusion fail closed. The supported matrix bounds cryptographic implementations and upgrade review. |
 | Compatibility and wire consequences | HS256/384/512, RS256/384/512, PS256/384/512, ES256/384/512, and Ed25519 compact JWS are accepted when explicitly configured. Other JOSE algorithms remain wire-incompatible by policy. |
-| Executable evidence | `TestSupportedAlgorithmAndKeyMatrix`, `TestGolangJWTAlgorithmInteroperability`, `TestValidatorRejectsUnsupportedAlgorithms`, and `TestValidatorRejectsAlgorithmConfusion` |
+| Executable evidence | `TestSupportedAlgorithmAndKeyMatrix`, `TestGolangJWTAlgorithmInteroperability`, and `TestValidatorRejectsAlgorithmKeyAndHeaderAttacks` |
 | Public surface | `Config.Algorithms`, `New`, and `Validator.ValidateBearer` |
 | Upstream record | The IANA registry is reviewed on dependency and release updates; registry presence does not itself opt an algorithm into this package. |
 | Reconsider when | A new algorithm has stable Go support, an acceptable registry status, concrete adoption demand, and complete key-policy and interoperability evidence. |
@@ -73,7 +73,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Selected behavior | Every JWK needs a unique non-empty `kid` and explicit allowed `alg`. If present, `use` is `sig` and `key_ops` includes `verify`. Asymmetric keys are public only. HMAC keys meet algorithm output size, RSA moduli are 2048 through 8192 bits, and EC curves match the selected algorithm exactly. |
 | Security and resource consequences | Deterministic key selection prevents key confusion and trial amplification. Minimum strength rejects weak keys; the RSA upper bound prevents attacker- or operator-supplied excessive verification work. |
 | Compatibility and wire consequences | Well-formed verification JWKS interoperate unchanged. Sets with duplicate IDs, metadata omissions, signing-only operations, private keys, weak keys, or oversized RSA keys are rejected at configuration or refresh time. |
-| Executable evidence | `TestValidatorRejectsInvalidKeyPolicy`, `TestSupportedAlgorithmAndKeyMatrix`, `TestRemoteJWKValidationRejectsEveryKeyPolicyViolation`, and `TestRFC7520HMACJWKInteroperability` |
+| Executable evidence | `TestValidatorRejectsCryptographicallyUnsafeKeys`, `TestValidateKeyMaterialRejectsEveryInvalidRepresentation`, `TestRemoteJWKValidationRejectsEveryKeyPolicyViolation`, and `TestRFC7520HMACJWKInteroperability` |
 | Public surface | `Config.KeySet`, `Config.MaxKeys`, `KeyProvider`, `Remote.KeySet`, and `New` |
 | Upstream record | RFC 7517 permits application-specific JWK selection policy; this package records its stricter authentication profile here. |
 | Reconsider when | A standards profile requires key selection without `kid` or `alg` and supplies an equally unambiguous bounded selector. |
@@ -91,7 +91,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Selected behavior | Reject `jku`, `jwk`, `x5u`, `x5c`, `x5t`, and `x5t#S256` in token headers. Reject `crit` rather than claiming support for extensions this package does not implement. Keys come only from the configured static set or provider. |
 | Security and resource consequences | Validation performs no token-directed network I/O and cannot replace configured trust with attacker material. Unsupported extension semantics fail before cryptographic work proceeds. |
 | Compatibility and wire consequences | Tokens relying on certificate chains, embedded keys, remote key URLs, or critical extensions are intentionally incompatible. Ordinary `alg` and `kid` headers are unchanged. |
-| Executable evidence | `TestValidatorRejectsTokenProvidedKeyReferences`, `TestValidatorRejectsCriticalHeaders`, and `TestValidatorRejectsMalformedProtectedHeaders` |
+| Executable evidence | `TestValidatorRejectsAlgorithmKeyAndHeaderAttacks` and `TestInspectCompactJWTRejectsEachBoundary` |
 | Public surface | `Validator.ValidateBearer`, `Config.KeySet`, and `Config.Provider` |
 | Upstream record | JOSE makes these headers optional and requires critical parameters to be understood; this package supports none of those trust-bearing extensions. |
 | Reconsider when | A required profile defines one extension with a complete trust, retrieval, resource, and interoperability contract. |
@@ -109,7 +109,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Selected behavior | Require non-empty exact `iss`, configured `aud`, non-empty `sub`, numeric `iat`, and numeric `exp`. Optionally require an exact subject allowlist and unique deployment claims. `nbf`, when present, is numeric and enforced. |
 | Security and resource consequences | Tokens cannot cross issuer or recipient boundaries or become timeless bearer credentials. Required claim counts are validated against configured resource limits before construction. |
 | Compatibility and wire consequences | Tokens missing a mandatory claim or using another issuer, audience, or subject policy are rejected even though generic JWT parsers may accept them. Audience string and array forms remain supported through standards-aware validation. |
-| Executable evidence | `TestValidatorRequiresIdentityAndLifetimeClaims`, `TestValidatorEnforcesIssuerAudienceAndSubjectPolicy`, `TestValidatorRequiresConfiguredClaims`, and `TestValidatorRejectsInvalidPrincipalClaims` |
+| Executable evidence | `TestValidatorRejectsInvalidJWTTrustDecisions`, `TestValidatorEnforcesSubjectAndRequiredClaimPolicy`, `TestConfigurationReservesCapacityForMandatoryAndRequiredClaims`, and `TestValidatorRejectsInvalidPrincipalClaims` |
 | Public surface | `Config.Issuer`, `Config.Audience`, `Config.Subjects`, `Config.RequiredClaims`, and `Validator.ValidateBearer` |
 | Upstream record | RFC 7519 explicitly leaves required claims to applications; this package's authentication profile is the application policy. |
 | Reconsider when | A distinct token profile needs different mandatory claims; it should normally use a separate validator configuration rather than weaken this profile. |
@@ -127,7 +127,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Selected behavior | Read one injected clock per validation. Enforce `nbf <= now + skew`, `iat <= now + skew`, and `now < exp + skew`; equality at `exp` without skew is expired. Skew is explicit, non-negative, and shared across the three boundaries. |
 | Security and resource consequences | Deterministic checks prevent inconsistent multi-read clock edges. Bounded operator-selected skew limits replay extension while tolerating measured clock error. |
 | Compatibility and wire consequences | NumericDate values preserve second-based JWT semantics. Tokens exactly at expiration are rejected; permissive peers or deployments with larger leeway may differ intentionally. |
-| Executable evidence | `TestValidatorEnforcesNumericDateBoundaries`, `TestValidatorRejectsNonNumericDateClaims`, and `TestValidatorHonorsCancellationAndConfigurationBounds` |
+| Executable evidence | `TestValidatorHonorsExactNumericDateBoundaries`, `TestNumericDateValidationChecksEveryPresentClaimAndDigitBoundary`, `TestValidatorRejectsMalformedNumericDates`, and `TestValidatorHonorsCancellationAndConfigurationBounds` |
 | Public surface | `Config.Clock`, `Config.Skew`, `New`, and `Validator.ValidateBearer` |
 | Upstream record | RFC 7519 permits only a small leeway and leaves its magnitude to implementers; this package requires callers to own that deployment decision. |
 | Reconsider when | A profile specifies distinct skew rules per claim or higher-resolution time semantics. |
@@ -145,7 +145,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Selected behavior | Configure exactly one of `KeySet` or `Provider`. Static sets are copied and validated during construction; provider sets are copied and revalidated for each attempt. Typed-nil providers fail configuration. Returned principals and private claims are caller-owned copies. |
 | Security and resource consequences | Callers cannot mutate active trust state through aliases, and provider changes cannot bypass key limits or algorithm policy. Copying is bounded by `MaxKeys`, token, and claim limits. |
 | Compatibility and wire consequences | This changes no JWT bytes. Applications that previously mutated a retained key set must publish a new provider snapshot or remote refresh instead. |
-| Executable evidence | `TestValidatorDoesNotRetainCallerKeySet`, `TestValidatorRevalidatesProviderKeySets`, `TestValidatorRejectsTypedNilProvider`, and `TestRemoteDoesNotTransferCachedKeyOwnership` |
+| Executable evidence | `TestConfigurationAndKeySetValidationBoundaries`, `TestValidateBearerAndProviderFailureBoundaries`, and `TestRemoteDoesNotTransferCachedKeyOwnership` |
 | Public surface | `Config.KeySet`, `Config.Provider`, `KeyProvider`, `KeyProviderFunc`, `Remote.KeySet`, and `authentication.Principal` |
 | Upstream record | JWK standards do not define in-process ownership; this policy is package-owned and documented as stricter than direct library use. |
 | Reconsider when | Go gains an immutable JWK representation with equivalent validation and lifecycle guarantees. |
@@ -217,7 +217,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Selected behavior | Credential shape uses `ErrCredentialsInvalid`; signature, claim, and trust rejection uses `ErrCredentialsRejected`; provider, cancellation, capacity, and lifecycle failure uses `ErrAuthenticationUnavailable`. Safe JWX standards sentinels remain in the chain. Raw provider and transport causes are replaced by `ErrKeyProviderUnavailable`, and public text contains no token, signature, key, claim, query, endpoint, or remote body. |
 | Security and resource consequences | Stable low-cardinality errors avoid credential disclosure and attacker-controlled telemetry. Bounded safe codes remain sufficient for retry and incident policy. |
 | Compatibility and wire consequences | HTTP or RPC adapters receive stable categories rather than JOSE-specific wire diagnostics. Consumers must use `errors.Is` and `errors.As`, not match strings or expect raw provider causes. |
-| Executable evidence | `TestProviderFailureIsUnavailableAndSecretSafe`, `TestRemoteFailureRedactsEndpointQueryAndTransportError`, `TestValidatorErrorsRetainSafeStandardsCategories`, and `TestValidatorRejectsSensitiveHeaderAndClaimDataWithoutRetention` |
+| Executable evidence | `TestProviderFailureIsUnavailableAndSecretSafe`, `TestRemoteFailureRedactsEndpointQueryAndTransportError`, `TestValidatorPreservesSafeStandardsErrorCategories`, and `TestRejectedJWTFailureWithoutStandardsCategory` |
 | Public surface | `Validator.Authenticate`, `Validator.ValidateBearer`, `ErrKeyProviderUnavailable`, and `authentication.Failure` |
 | Upstream record | JWT validation steps are normative, but public diagnostic detail is not; this package deliberately separates safe classification from secret-bearing causes. |
 | Reconsider when | A standard protocol profile requires a specific external error code that can map from these categories without exposing sensitive detail. |
