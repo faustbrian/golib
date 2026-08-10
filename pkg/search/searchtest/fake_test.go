@@ -111,6 +111,37 @@ func TestFakeEnforcesExternalVersionsAndReportsPerItemOutcomes(t *testing.T) {
 	}
 }
 
+func TestFakeRetainsDeleteVersionTombstones(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	fake, err := searchtest.NewFake(limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	original := mustDocument(t, "tenant-a", "events", "event-1", 10, `{"value":"original"}`, limits)
+	if outcome, writeErr := fake.Write(t.Context(), search.IndexDocument(original), search.RefreshNone); writeErr != nil || outcome.State != search.OutcomeApplied {
+		t.Fatalf("initial Write() = %#v, %v", outcome, writeErr)
+	}
+	if outcome, deleteErr := fake.Write(t.Context(), search.DeleteDocument("tenant-a", "events", "event-1", 11), search.RefreshNone); deleteErr != nil || outcome.State != search.OutcomeApplied {
+		t.Fatalf("Delete() = %#v, %v", outcome, deleteErr)
+	}
+
+	for _, version := range []uint64{10, 11} {
+		stale := mustDocument(t, "tenant-a", "events", "event-1", version, `{"value":"stale"}`, limits)
+		outcome, writeErr := fake.Write(t.Context(), search.IndexDocument(stale), search.RefreshNone)
+		if writeErr != nil || outcome.State != search.OutcomeVersionConflict {
+			t.Fatalf("stale Write(version=%d) = %#v, %v", version, outcome, writeErr)
+		}
+	}
+
+	newer := mustDocument(t, "tenant-a", "events", "event-1", 12, `{"value":"newer"}`, limits)
+	outcome, err := fake.Write(t.Context(), search.IndexDocument(newer), search.RefreshNone)
+	if err != nil || outcome.State != search.OutcomeApplied {
+		t.Fatalf("newer Write() = %#v, %v", outcome, err)
+	}
+}
+
 func TestFakeRejectsDocumentsBeyondItsConfiguredCapacity(t *testing.T) {
 	t.Parallel()
 	limits := search.DefaultLimits()

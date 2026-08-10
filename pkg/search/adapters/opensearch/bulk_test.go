@@ -46,6 +46,34 @@ func TestBulkEncodesExternalVersionsAndPreservesPartialOutcomes(t *testing.T) {
 	}
 }
 
+func TestBulkClassifiesNotFoundOnlyForDelete(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(writer, `{"took":4,"errors":true,"items":[{"index":{"_id":"a","status":404,"error":{"type":"index_not_found_exception"}}},{"index":{"_id":"b","status":404}},{"delete":{"_id":"c","status":404,"result":"not_found"}}]}`)
+	}))
+	t.Cleanup(server.Close)
+	client := newWriteClient(t, server.URL, server.Client().Transport)
+	limits := search.DefaultLimits()
+	a, _ := search.NewDocument("tenant-a", "events", "a", 3, json.RawMessage(`{"value":"a"}`), limits)
+	b, _ := search.NewDocument("tenant-a", "events", "b", 4, json.RawMessage(`{"value":"b"}`), limits)
+
+	result, err := client.Bulk(t.Context(), search.BulkRequest{Operations: []search.WriteOperation{
+		search.IndexDocument(a), search.UpsertDocument(b), search.DeleteDocument("tenant-a", "events", "c", 5),
+	}, Refresh: search.RefreshNone})
+	if err != nil {
+		t.Fatalf("Bulk() error = %v", err)
+	}
+	items := result.Items()
+	if len(items) != 3 || items[0].State != search.OutcomeFailed || items[1].State != search.OutcomeUnknown || items[2].State != search.OutcomeNotFound {
+		t.Fatalf("Bulk() states = %#v", items)
+	}
+	if !result.Partial() || !result.HasUnknown() {
+		t.Fatalf("Bulk() partial/unknown = %v/%v, want true/true", result.Partial(), result.HasUnknown())
+	}
+}
+
 func TestBulkReturnsPerItemUnknownOutcomesWhenTransportOutcomeIsAmbiguous(t *testing.T) {
 	t.Parallel()
 
