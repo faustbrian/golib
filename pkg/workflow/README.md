@@ -206,3 +206,39 @@ registry, err := workflow.CompileDefinitions(definition)
 Definitions are copied at construction and registry compilation rejects a
 duplicate name/version pair. A new version never changes a running instance;
 applications must select and durably persist an explicit migration edge.
+
+## Documentation
+
+- [Architecture and guarantees](docs/architecture.md) explains saga theory,
+  orchestration, choreography, idempotency, versioning, and package boundaries.
+- [Operations](docs/operations.md) covers schemas, deployment, recovery,
+  operator commands, reconciliation, capacity, archival, and security.
+- [Verification](docs/verification.md) maps failure boundaries to executable
+  evidence and distinguishes local gates from environment-owned drills.
+- [Security policy](SECURITY.md) records the trust model and reporting path.
+- `Example_durableOrchestration` is a compiling end-to-end planning example.
+
+## FAQ
+
+### Does workflow provide exactly-once activity execution?
+
+No. It persists attempt identity before an activity call and records known or
+unknown outcomes afterward. The activity implementation must be idempotent and
+an unknown outcome must be reconciled before redispatch.
+
+### Does compensation roll back an external transaction?
+
+No. Compensation is another explicit side effect with its own attempts,
+timeouts, retry policy, unknown outcomes, and manual-resolution state. A failed
+compensation never becomes a successful rollback.
+
+### Who runs and restarts workers?
+
+The package owns durable claim, fencing, renewal, retry, and shutdown semantics.
+Kubernetes, ECS, systemd, or another process supervisor owns process lifetime.
+
+### Must applications use the sibling queue, outbox, or scheduler modules?
+
+No. Core contracts use explicit values and small interfaces. Applications may
+compose those modules or equivalent implementations. There is no implicit event
+bus, scheduler, service container, or package-initialization registration.

@@ -7,6 +7,8 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Architecture, operations, recovery, capacity, security, verification, FAQ,
+  and compiling durable-orchestration adoption documentation.
 - Stable unresolved dead-letter inspection and idempotent, audited, fenced
   PostgreSQL retry or discard decisions with explicit replacement deadlines.
 - Caller-owned PostgreSQL transaction staging for atomically composing workflow
