@@ -40,7 +40,7 @@ workflow-lint:
 	go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION) \
 		.github/workflows/ci.yml
 
-repository-check: inventory root-test workflow-lint
+repository-check: inventory specification-decisions root-test workflow-lint
 
 format:
 	./scripts/run-modules.sh format --jobs $(JOBS) $(SELECT)

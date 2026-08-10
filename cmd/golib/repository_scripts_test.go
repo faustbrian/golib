@@ -2773,6 +2773,22 @@ func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
 	}
 }
 
+func TestRepositoryCheckIncludesSpecificationDecisionValidation(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	contents, err := os.ReadFile(filepath.Join(root, "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(
+		string(contents),
+		"repository-check: inventory specification-decisions root-test workflow-lint",
+	) {
+		t.Fatal("repository-check does not enforce specification decision validation")
+	}
+}
+
 func TestAPIGateSupportsExplicitAndCanonicalBaselineScripts(t *testing.T) {
 	t.Parallel()
 
