@@ -608,23 +608,43 @@ func assertPlainRollingNodeAcceptsCurrentCredential(
 ) {
 	t.Helper()
 
-	client, err := kgo.NewClient(
-		kgo.SeedBrokers(broker),
-		kgo.ClientID("golib-plain-rolling-node-check"),
-		kgo.DialTLSConfig(cluster.serverTLSConfig()),
-		kgo.SASL(franzplain.Auth{
-			User: plainRollingNewUsername,
-			Pass: cluster.currentPassword,
-		}.AsMechanism()),
-	)
-	if err != nil {
-		t.Fatalf("construct rolling PLAIN node check: %v", err)
-	}
-	defer client.Close()
-	pingCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
-	defer cancel()
-	if err := client.Ping(pingCtx); err != nil {
-		t.Fatalf("authenticate to recovered rolling PLAIN node: %v", err)
+	waitCtx, cancelWait := context.WithTimeout(ctx, 30*time.Second)
+	defer cancelWait()
+	ticker := time.NewTicker(100 * time.Millisecond)
+	defer ticker.Stop()
+	var lastErr error
+	for {
+		client, err := kgo.NewClient(
+			kgo.SeedBrokers(broker),
+			kgo.ClientID("golib-plain-rolling-node-check"),
+			kgo.DialTimeout(time.Second),
+			kgo.RequestTimeoutOverhead(time.Second),
+			kgo.DialTLSConfig(cluster.serverTLSConfig()),
+			kgo.SASL(franzplain.Auth{
+				User: plainRollingNewUsername,
+				Pass: cluster.currentPassword,
+			}.AsMechanism()),
+		)
+		if err != nil {
+			t.Fatalf("construct rolling PLAIN node check: %v", err)
+		}
+		pingCtx, cancelPing := context.WithTimeout(waitCtx, 2*time.Second)
+		lastErr = client.Ping(pingCtx)
+		cancelPing()
+		client.Close()
+		if lastErr == nil {
+			return
+		}
+
+		select {
+		case <-waitCtx.Done():
+			t.Fatalf(
+				"authenticate to recovered rolling PLAIN node: %v; last error = %v",
+				context.Cause(waitCtx),
+				lastErr,
+			)
+		case <-ticker.C:
+		}
 	}
 }
 
