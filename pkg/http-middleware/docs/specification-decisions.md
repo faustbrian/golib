@@ -24,7 +24,8 @@ replacement.
   order, permit duplicate names, or rely on framework registration. Go routers
   and middleware libraries use both order conventions and commonly leave
   duplicate concern ownership implicit.
-- **Selected behavior and consequences:** Descriptors are immutable and listed
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Descriptors are immutable and listed
   in request execution order; responses unwind in reverse. Chain depth is 256,
   duplicate names fail unless both descriptors opt in, and named before/after
   constraints are validated at construction. There is no registry or global
@@ -46,7 +47,8 @@ replacement.
 - **Interpretations and peer behavior:** Always trust one inbound value, always
   generate a replacement, reject malformed trusted input, or accept arbitrary
   Unicode. Reverse proxies and frameworks disagree on names and precedence.
-- **Selected behavior and consequences:** Inbound identifiers are untrusted by
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Inbound identifiers are untrusted by
   default. Explicitly trusted input must be one printable ASCII value within a
   configured bound; invalid trusted input is replaced or rejected by named
   policy. Generated values are validated, stored by distinct request,
@@ -72,7 +74,8 @@ replacement.
   panic, replace a response regardless of commitment, or emit a safe response
   only before commitment. Frameworks vary and can leak panic values or produce
   mixed responses.
-- **Selected behavior and consequences:** Re-panic `http.ErrAbortHandler`;
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Re-panic `http.ErrAbortHandler`;
   classify other panics without exposing values; clear prepared headers and
   write a minimal safe error only before commitment; never rewrite committed
   output. Optional stacks are bounded and caller-observed. Observer panics are
@@ -98,7 +101,8 @@ replacement.
   transport content bytes, pre-reject only known lengths, drain every excess
   body, or wrap the remaining stream. Framework behavior differs for chunked,
   compressed, multipart, and already-read bodies.
-- **Selected behavior and consequences:** Limit encoded transport content
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Limit encoded transport content
   bytes before application decoding. Reject known oversize requests with 413
   and connection close; streaming overflow remains `*http.MaxBytesError` and
   receives a safe 413 only if uncommitted. The server retains close ownership,
@@ -125,7 +129,8 @@ replacement.
 - **Interpretations and peer behavior:** Only attach a deadline, use
   `http.TimeoutHandler`, buffer without a cap, or expose both contracts.
   Frameworks often imply that timeout means handler termination.
-- **Selected behavior and consequences:** Deadline middleware never extends a
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Deadline middleware never extends a
   shorter parent and does not claim interruption. Buffered timeout has explicit
   response, worker, duration, and output bounds; withholds unsupported
   streaming/upgrade capabilities; preserves informational responses; rejects
@@ -154,7 +159,8 @@ replacement.
   trust any present field, accept `unknown` or obfuscated nodes, or walk inward
   from a trusted direct peer until the first untrusted address. Proxies differ
   in append/replace behavior and `X-Forwarded-*` alignment.
-- **Selected behavior and consequences:** Direct socket information is the
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Direct socket information is the
   default. Only configured peer prefixes enable one selected syntax. Parse
   finite RFC 7239 or strict `X-Forwarded-*` input, walk from the direct peer to
   the first untrusted client, use nearest trusted host/scheme/prefix metadata,
@@ -184,7 +190,8 @@ replacement.
   permit credentialed wildcards, reject denied simple requests, or omit allow
   fields while passing the application response. Frameworks vary on default
   ports, `null`, wildcard methods/headers, and `Vary`.
-- **Selected behavior and consequences:** Canonicalize HTTP(S) origins by URL
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Canonicalize HTTP(S) origins by URL
   origin semantics, including IDNA and default ports; accept opaque `null` only
   when explicitly listed; reject credentialed wildcard configurations; compare
   methods case-sensitively and header names case-insensitively; fail malformed
@@ -217,7 +224,8 @@ replacement.
   preserve downstream fields, always replace them, infer CSP/nonces, or expose
   immutable field-specific policy. Framework security bundles differ and often
   retain obsolete headers.
-- **Selected behavior and consequences:** API defaults are explicit
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  API defaults are explicit
   `nosniff`, `no-referrer`, and frame denial. Each configured field has named
   preserve or replace semantics and rejects invalid names, controls, and field
   grammar. HSTS requires `AcknowledgeHSTS`, emits canonical unquoted `max-age`,
@@ -246,7 +254,8 @@ replacement.
   qvalues, return identity when forbidden, rewrite weak validators, or remove
   representation-specific metadata after transformation. Middleware differs
   on empty fields, wildcards, ranges, trailers, and streaming.
-- **Selected behavior and consequences:** Parse the complete bounded field with
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Parse the complete bounded field with
   RFC qvalues and explicit coding precedence. Return 406 before application
   execution when every available coding is forbidden. Skip no-body statuses,
   HEAD, ranges, upgrades, existing coding, `no-transform`, excluded media, and
@@ -275,7 +284,8 @@ replacement.
   match hide malformed trailing values, ignore missing content type, or validate
   the complete field set before matching. Frameworks differ on parameters and
   empty bodies.
-- **Selected behavior and consequences:** Validate all bounded field lines,
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Validate all bounded field lines,
   media ranges, parameters, wildcards, and qvalues before accepting a match.
   Reject duplicate `Content-Type`; require it only for a non-empty body when a
   request policy is configured; return 415 for unsupported request media and
@@ -303,7 +313,8 @@ replacement.
   none, mirror the underlying writer exactly, or withhold capabilities for
   buffered transforms. Wrapper libraries differ and deprecated
   `CloseNotifier` complicates compatibility.
-- **Selected behavior and consequences:** Transparent tracking/header wrappers
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Transparent tracking/header wrappers
   preserve exactly the underlying standard optional-interface set. Buffered
   timeout and compression expose only capabilities they can honor. Statuses,
   informational responses, implicit commitment, bytes, trailers, flush,
@@ -321,14 +332,17 @@ replacement.
 
 - **Status, owner, and classification:** `resolved`; maintainers; application
   observability and defensive privacy policy.
-- **Source and issue:** HTTP and OpenTelemetry do not require this package to
-  emit an event or define its cardinality. Raw targets, headers, errors, panic
-  values, identifiers, and tenant data can contain secrets or unbounded labels.
+- **Source and issue:** RFC 9110 [message abstraction](https://www.rfc-editor.org/rfc/rfc9110.html#section-6)
+  and OpenTelemetry [HTTP semantic conventions](https://opentelemetry.io/docs/specs/semconv/http/)
+  do not require this package to emit an event or define its cardinality. Raw
+  targets, headers, errors, panic values, identifiers, and tenant data can
+  contain secrets or unbounded labels.
 - **Interpretations and peer behavior:** Log the complete request, emit raw path
   and errors, create spans directly, dispatch observers asynchronously, or emit
   one bounded transport event to an injected observer. Framework request
   loggers commonly mix logging, tracing, and transport policy.
-- **Selected behavior and consequences:** Emit one synchronous completion event
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Emit one synchronous completion event
   with bounded method, protocol, route, client class, status, bytes, duration,
   and outcome. Exclude raw path, query, payload, fields, credentials, IDs,
   arbitrary errors, and panic values. Metadata extractor and observer panics
@@ -354,7 +368,8 @@ replacement.
 - **Interpretations and peer behavior:** Block indefinitely, reject immediately,
   queue without a bound, promise FIFO, or expose immediate and bounded-wait
   policies. Concurrency limiters differ in fairness and cancellation behavior.
-- **Selected behavior and consequences:** Bound active requests, wait duration,
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Bound active requests, wait duration,
   and waiter count. Support immediate rejection or finite cancellation-aware
   waiting; reject new and waiting requests on shutdown; release each permit
   exactly once; and make no FIFO or starvation-free guarantee beyond progress
@@ -380,7 +395,8 @@ replacement.
 - **Interpretations and peer behavior:** Set policy only on successful output,
   let handlers replace it, own readiness routes, cache maintenance failures,
   or apply headers before every downstream/short-circuit commitment.
-- **Selected behavior and consequences:** `NoStore` applies on every downstream
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  `NoStore` applies on every downstream
   status. Maintenance admission reads an injected state and emits a finite 503
   with optional validated `Retry-After`; it does not own state persistence,
   health routes, server lifecycle, or response caching. Middleware order
@@ -397,14 +413,16 @@ replacement.
 
 - **Status, owner, and classification:** `resolved`; maintainers; architectural
   interoperability policy.
-- **Source and issue:** Neither Go nor HTTP defines package ownership among
+- **Source and issue:** Go's [package clause](https://go.dev/ref/spec#Package_clause)
+  and RFC 9110 define language and HTTP boundaries, not package ownership among
   server lifecycle, routing, authentication, authorization, telemetry,
   idempotency, quotas, and generic middleware. Duplicate recovery, identifier,
   or body-limit layers can silently change observable behavior.
 - **Interpretations and peer behavior:** Make this package a complete framework,
   import every sibling package, permit duplicate layers, or expose names and
   validate ownership without implementing sibling state machines.
-- **Selected behavior and consequences:** This package owns only generic HTTP
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  This package owns only generic HTTP
   transport middleware. `service` owns process/server lifecycle;
   `router` owns routing; concern packages own credentials, decisions, quotas,
   idempotency, tracing, and stores. Adapters contain immutable concern names and
@@ -415,7 +433,7 @@ replacement.
 - **Evidence, public surface, upstream, and reconsideration:**
   `TestGoServiceOwnershipRejectsDuplicateCoreMiddleware`,
   `TestOwningPackageConcernsComposeWithoutPolicyDuplication`,
-  `TestGoServiceCoreOwnershipCannotBeInstalledTwice`,
+  `TestOwnershipErrorAndInvalidConcerns`,
   `TestRepresentativeJSONRPCProfile`, and
   `TestRepresentativeWebhookPreservesRawSignedBody` cover `adapter.Concern`,
   `ValidateOwnership`, and representative chains. Reconsider when an owning
