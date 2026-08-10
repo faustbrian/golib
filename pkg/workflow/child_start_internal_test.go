@@ -57,10 +57,18 @@ func TestChildStartValuesRejectInvalidAndOwnInput(t *testing.T) {
 	}
 	invalidRequests := []ChildStartRequestSpec{
 		func() ChildStartRequestSpec { value := valid; value.ParentInstanceID = ""; return value }(),
-		func() ChildStartRequestSpec { value := valid; value.ParentDefinition = DefinitionReference{}; return value }(),
+		func() ChildStartRequestSpec {
+			value := valid
+			value.ParentDefinition = DefinitionReference{}
+			return value
+		}(),
 		func() ChildStartRequestSpec { value := valid; value.StepName = ""; return value }(),
 		func() ChildStartRequestSpec { value := valid; value.ChildID = ""; return value }(),
-		func() ChildStartRequestSpec { value := valid; value.ChildDefinition = DefinitionReference{}; return value }(),
+		func() ChildStartRequestSpec {
+			value := valid
+			value.ChildDefinition = DefinitionReference{}
+			return value
+		}(),
 		func() ChildStartRequestSpec { value := valid; value.Attempt = 0; return value }(),
 		func() ChildStartRequestSpec { value := valid; value.Attempt = 3; return value }(),
 		func() ChildStartRequestSpec { value := valid; value.IdempotencyKey = ""; return value }(),
