@@ -19,7 +19,8 @@ Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Delegate, copy internals, implement a
   separate trie, or support only literal paths. Third-party routers commonly
   differ on precedence and escaped segments.
-- **Selected behavior and consequences:** Delegate supported literal,
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Delegate supported literal,
   `{name}`, `{name...}`, and `{$}` path parsing, specificity, conflict,
   extraction, GET-to-HEAD, and redirects to the pinned `ServeMux`. Package
   extensions operate outside that matcher; no copied internal source, unsafe,
@@ -34,13 +35,16 @@ Superseded decisions remain linked from their replacements.
 
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   startup policy.
-- **Source and issue:** Go 1.26.5 `ServeMux.Handle` panics for malformed or
-  conflicting patterns. A reusable startup API must decide which panics become
-  errors and whether failed compilation mutates publication state.
+- **Source and issue:** Go 1.26.5
+  [`ServeMux.Handle`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+  panics for malformed or conflicting patterns. A reusable startup API must
+  decide which panics become errors and whether failed compilation mutates
+  publication state.
 - **Interpretations and peer behavior:** Preserve every panic, recover every
   panic, preimplement conflict logic, or convert only controlled synchronous
   registration failures. Frameworks vary between panic and error APIs.
-- **Selected behavior and consequences:** Validate and sort the complete table
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Validate and sort the complete table
   before constructing middleware; convert only non-runtime panics produced by
   package-owned `ServeMux.Handle` calls into bounded typed errors; propagate
   unrelated panics. Failed compile publishes nothing and leaves the builder
@@ -64,7 +68,8 @@ Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Mirror `ServeMux`, synthesize OPTIONS,
   treat every miss as 404, or distinguish known path 405 from unsupported 501.
   Routers disagree on implied HEAD and OPTIONS in `Allow`.
-- **Selected behavior and consequences:** Require explicit uppercase method
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Require explicit uppercase method
   tokens. GET implies HEAD unless explicit HEAD wins. Explicit OPTIONS wins;
   otherwise enabled automation emits 204 and a sorted, deduplicated `Allow`
   including implied HEAD and OPTIONS. A known path with another method is 405;
@@ -88,7 +93,8 @@ Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Accept every parsed target, pass all
   forms to ServeMux, reject non-origin forms, or support only the server-wide
   asterisk case. Routers differ on malformed authority and CONNECT.
-- **Selected behavior and consequences:** Accept valid origin and absolute
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Accept valid origin and absolute
   forms supplied by `net/http`; support only `OPTIONS *`, returning automatic
   204 or the explicit not-found policy when automation is disabled; reject
   other asterisk use and CONNECT authority-form dispatch with 400. CONNECT
@@ -112,7 +118,8 @@ Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Always follow ServeMux redirects,
   disable all canonicalization, clean decoded paths, or classify structural
   changes using escaped paths. Routers disagree on `%2F` and trailing slash.
-- **Selected behavior and consequences:** Follow ServeMux canonical and subtree
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Follow ServeMux canonical and subtree
   redirects by default before route/method miss selection. `RejectRedirects`
   converts structural redirects to 404 using escaped-path semantics and
   standard patterns. Encoded separators and dot text inside a wildcard remain
@@ -135,7 +142,8 @@ Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Match raw Host, normalize Unicode,
   include ports, allow arbitrary wildcard suffixes, or require validated ASCII
   DNS labels. Host-routing libraries vary on proxy and IDNA trust.
-- **Selected behavior and consequences:** Route patterns accept bounded ASCII
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Route patterns accept bounded ASCII
   DNS labels and one-label `{name}` wildcards; ports and IP literals are not
   patterns. Request ports are removed for matching; exact hosts precede wildcard
   hosts, then hostless fallback. Malformed, non-ASCII, user-info, and invalid
@@ -152,13 +160,16 @@ Superseded decisions remain linked from their replacements.
 
 - **Status, owner, and classification:** `resolved`; maintainers; application
   composition policy.
-- **Source and issue:** HTTP and Go do not define route groups, prefix joining,
-  metadata merge, naming, or callback failure semantics.
+- **Source and issue:** Go's
+  [`net/http.Handler`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+  and HTTP do not define route groups, prefix joining, metadata merge, naming,
+  or callback failure semantics.
 - **Interpretations and peer behavior:** Mutate a shared group, clean paths,
   silently override metadata, retain partial callback routes, or flatten one
   validated transaction. Framework groups commonly hide mutation and merge
   precedence.
-- **Selected behavior and consequences:** Flatten nested host, path, name,
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Flatten nested host, path, name,
   metadata, and middleware state at registration. Join prefixes without
   `path.Clean`; reject empty/dot/wildcard-invalid segments; require equal
   repeated hosts; reject metadata collisions; and publish no child route when
@@ -175,13 +186,15 @@ Superseded decisions remain linked from their replacements.
 
 - **Status, owner, and classification:** `resolved`; maintainers; explicit
   composition and lifecycle policy.
-- **Source and issue:** `http.Handler` permits decorators but defines no router,
-  group, mount, route order, exclusion, duplicate-name, panic, or recovery
-  behavior.
+- **Source and issue:** Go's
+  [`http.Handler`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+  permits decorators but defines no router, group, mount, route order,
+  exclusion, duplicate-name, panic, or recovery behavior.
 - **Interpretations and peer behavior:** Resolve aliases globally, instantiate
   by reflection, apply route-first, silently deduplicate, or freeze explicit
   values at compile. Frameworks differ and often own recovery implicitly.
-- **Selected behavior and consequences:** Execute router, outer group, inner
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Execute router, outer group, inner
   group, then route middleware; unwind in reverse. Named exclusions remove only
   inherited layers and are explicit on the route. Nil, duplicate resolved names,
   and nil constructed handlers fail before publication. Serving panics,
@@ -198,13 +211,15 @@ Superseded decisions remain linked from their replacements.
 
 - **Status, owner, and classification:** `resolved`; maintainers; Go request
   interoperability and defensive path policy.
-- **Source and issue:** Neither HTTP nor ServeMux defines mounted-handler prefix
-  stripping, `RawPath`, `RequestURI`, inherited path values, or mutation
-  ownership.
+- **Source and issue:** Go's
+  [`StripPrefix`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/server.go)
+  and HTTP do not define this package's mounted-handler prefix stripping,
+  `RawPath`, `RequestURI`, inherited path values, or mutation ownership.
 - **Interpretations and peer behavior:** Mutate the original request, use
   `http.StripPrefix`, discard escaped form, copy routers internally, or clone
   only the URL view supplied to the mounted handler.
-- **Selected behavior and consequences:** Mount one ordinary remainder route.
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Mount one ordinary remainder route.
   Optional stripping clones request and URL, compares encoded literal prefixes
   in decoded path space, preserves the escaped suffix in `RawPath`, and leaves
   caller URL and `RequestURI` untouched. A compiled router mounts as an ordinary
@@ -219,14 +234,17 @@ Superseded decisions remain linked from their replacements.
 
 - **Status, owner, and classification:** `resolved`; maintainers; Go-compatible
   parameter behavior plus bounded application metadata policy.
-- **Source and issue:** Go 1.26.5 `Request.PathValue` owns route parameters but
-  does not expose a public immutable route table or matched-route descriptor.
+- **Source and issue:** Go 1.26.5
+  [`Request.PathValue`](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/request.go)
+  owns route parameters but does not expose a public immutable route table or
+  matched-route descriptor.
   A parallel parameter API risks divergence; raw metadata risks disclosure and
   telemetry cardinality.
 - **Interpretations and peer behavior:** Copy parameters into a custom context,
   expose handler pointers, return internal maps, or retain standard path values
   and add a defensive metadata snapshot.
-- **Selected behavior and consequences:** Handlers use `Request.PathValue`
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Handlers use `Request.PathValue`
   directly. `MatchedRoute` adds a copied bounded `RouteInfo` only inside the
   selected chain; route tables are deterministically sorted and copied, omit
   handlers/function names, and retain bounded caller metadata. Misses install
@@ -248,7 +266,8 @@ Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Raw substitution, escape the entire
   path, stringify arbitrary models, accept one raw remainder, or require typed
   explicit segment inputs. Reverse routers differ on extra parameters.
-- **Selected behavior and consequences:** Require every wildcard exactly once;
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Require every wildcard exactly once;
   reject missing, duplicate, unknown, unused, or wrong-kind parameters. Escape
   each segment once with `url.PathEscape`; a remainder is an explicit non-empty
   segment list and rejects empty/dot segments. Query follows bounded
@@ -271,7 +290,8 @@ Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Infer request scheme/host, trust
   forwarding fields, accept arbitrary schemes, or require one validated
   immutable base. Framework route helpers commonly depend on ambient requests.
-- **Selected behavior and consequences:** `NewBaseURL` accepts only explicit
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  `NewBaseURL` accepts only explicit
   bounded HTTP(S) scheme and validated authority without userinfo, controls, or
   malformed ports. Generation never reads a request or forwarding field. A
   literal or rendered route host replaces the base hostname while preserving
@@ -287,13 +307,16 @@ Superseded decisions remain linked from their replacements.
 
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   resource, disclosure, and handler-ownership policy.
-- **Source and issue:** HTTP and ServeMux do not bound route tables, metadata,
-  patterns, targets, diagnostics, middleware, parameters, or generated output,
-  and do not define custom miss-handler panic/partial-write behavior.
+- **Source and issue:** RFC 9110
+  [`414 URI Too Long`](https://www.rfc-editor.org/rfc/rfc9110.html#section-15.5.15)
+  and Go's `ServeMux` do not bound route tables, metadata, patterns, targets,
+  diagnostics, middleware, parameters, or generated output, and do not define
+  custom miss-handler panic/partial-write behavior.
 - **Interpretations and peer behavior:** Leave all input unbounded, truncate
   semantic values, expose route inventories in errors, recover custom handlers,
   or reject at exact finite boundaries with safe diagnostics.
-- **Selected behavior and consequences:** Validate positive immutable limits
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Validate positive immutable limits
   and reject syntactically valid excess with `ErrLimitExceeded`; reject runtime
   target excess with 414 before matching. Errors are typed, deterministic,
   bounded, single-line valid UTF-8, and omit route inventories and values.
