@@ -40,11 +40,11 @@ func NewIndexDefinition(name string, settings, mappings json.RawMessage, limits 
 		return IndexDefinition{}, ErrSchemaLimit
 	}
 	remainingNodes := limits.MaxJSONNodes
-	canonicalSettings, err := canonicalJSONObject(settings, limits.MaxJSONDepth, &remainingNodes)
+	canonicalSettings, err := canonicalBoundedJSONObject(settings, limits.MaxJSONDepth, &remainingNodes)
 	if err != nil {
 		return IndexDefinition{}, errors.Join(ErrInvalidIndexDefinition, err)
 	}
-	canonicalMappings, err := canonicalJSONObject(mappings, limits.MaxJSONDepth, &remainingNodes)
+	canonicalMappings, err := canonicalBoundedJSONObject(mappings, limits.MaxJSONDepth, &remainingNodes)
 	if err != nil {
 		return IndexDefinition{}, errors.Join(ErrInvalidIndexDefinition, err)
 	}
@@ -96,10 +96,14 @@ func CompareDefinitions(current, target IndexDefinition) Compatibility {
 	return Compatibility{Kind: ReindexRequired, Reasons: reasons}
 }
 
-func canonicalJSONObject(value json.RawMessage, maximumDepth int, remainingNodes *int) (json.RawMessage, error) {
+func canonicalBoundedJSONObject(value json.RawMessage, maximumDepth int, remainingNodes *int) (json.RawMessage, error) {
 	if err := validateBoundedJSONObject(value, maximumDepth, remainingNodes); err != nil {
 		return nil, err
 	}
+	return canonicalJSONObject(value)
+}
+
+func canonicalJSONObject(value json.RawMessage) (json.RawMessage, error) {
 	decoder := json.NewDecoder(bytes.NewReader(value))
 	decoder.UseNumber()
 	var decoded any
