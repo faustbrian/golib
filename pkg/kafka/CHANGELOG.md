@@ -511,6 +511,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- the implementation audit now accounts for all nine manifest-derived Kafka
+  reverse dependencies, including CloudEvents binding, optional adapters,
+  benchmarks, service composition, outbox, and event-sourcing consumers
 - the optional OpenTelemetry adapter now selects reviewed messaging semantic
   conventions 1.44.0 while explicitly omitting cluster identity and
   create/client-send links from its completion-only observer seam

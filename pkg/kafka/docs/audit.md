@@ -48,15 +48,23 @@ ambiguous failures.
 
 ## Reverse dependencies
 
-The repository manifest records three owned reverse dependencies:
+The repository manifest records nine owned reverse dependencies:
 
+- `cloudevents/adapters/golib` for Kafka binding records;
 - `event-sourcing/adapters/gokafka`;
-- event-sourcing Kafka propagation in `adapters/gotelemetry`; and
-- `outbox/adapters/gokafka`.
+- event-sourcing Kafka propagation in `adapters/gotelemetry`;
+- `kafka/adapters/gotelemetry`;
+- `kafka/adapters/mskiam`;
+- `kafka/benchmarks/clients`;
+- `kafka/kafkaservice`;
+- `outbox/adapters/gokafka`; and
+- the non-releasable `service/integration/adoption` composition harness.
 
-Every breaking pre-v1 correction must compile and pass the applicable adapter
-contract and real-broker tests in the same coherent change. Kafka package tests
-alone cannot establish completion.
+Every breaking pre-v1 correction must compile and pass every affected adapter,
+benchmark, service-composition, and real-broker contract in the same coherent
+change. Kafka package tests alone cannot establish completion. Final release
+evidence must account for all nine manifest-derived consumers rather than a
+hand-maintained subset.
 
 ## Baseline evidence
 
