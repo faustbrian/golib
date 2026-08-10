@@ -1,0 +1,522 @@
+{
+  "schema_version": 1,
+  "description": "Every BCP 14 keyword occurrence in the pinned RFC bodies, excluding each RFC's conventions boilerplate. Each occurrence inherits implementation, test, and documentation mappings from its group.",
+  "rfcs": [
+    {
+      "rfc": 9421,
+      "source_name": "RFC 9421 text",
+      "source_sha256": "612655786bf4293bfc486e4177571467fbb3de6e6f0eea90cb74c346a34fdf3c",
+      "groups": {
+        "application-profile": [
+          "493:MUST",
+          "2182:MAY",
+          "2218:MUST",
+          "2220:MUST",
+          "2223:MUST",
+          "2224:MUST NOT"
+        ],
+        "component-model": [
+          "595:MUST",
+          "596:MUST",
+          "612:MUST",
+          "615:MAY",
+          "617:MUST",
+          "626:MUST NOT"
+        ],
+        "http-fields": [
+          "645:MUST",
+          "651:MUST",
+          "656:MUST",
+          "662:MUST",
+          "664:MUST",
+          "671:RECOMMENDED",
+          "677:RECOMMENDED",
+          "723:MUST",
+          "763:MAY",
+          "790:MAY"
+        ],
+        "structured-fields": [
+          "807:MAY",
+          "809:MUST",
+          "816:MUST",
+          "849:MUST",
+          "862:MUST NOT",
+          "863:MAY",
+          "868:MUST"
+        ],
+        "binary-fields": [
+          "896:SHOULD",
+          "901:MUST"
+        ],
+        "trailers": [
+          "966:MUST",
+          "967:MUST",
+          "995:MAY",
+          "995:MUST",
+          "996:MUST",
+          "1001:NOT RECOMMENDED"
+        ],
+        "derived-components": [
+          "1014:MUST",
+          "1017:MUST",
+          "1067:MUST",
+          "1070:MUST",
+          "1071:MUST NOT",
+          "1072:MUST NOT",
+          "1124:MUST",
+          "1142:SHOULD",
+          "1150:MUST",
+          "1177:NOT RECOMMENDED",
+          "1431:MUST NOT"
+        ],
+        "query-parameters": [
+          "1314:MUST",
+          "1316:REQUIRED",
+          "1321:MAY",
+          "1322:MAY",
+          "1348:MUST",
+          "1378:MUST NOT",
+          "1380:RECOMMENDED"
+        ],
+        "signature-parameters": [
+          "1445:REQUIRED",
+          "1446:MUST NOT",
+          "1459:RECOMMENDED",
+          "1491:MUST"
+        ],
+        "request-response-binding": [
+          "1547:MAY",
+          "1552:MAY",
+          "1639:MUST",
+          "1722:SHOULD",
+          "1733:NOT RECOMMENDED",
+          "1748:MUST NOT"
+        ],
+        "signature-base": [
+          "1763:MAY",
+          "1790:MUST",
+          "1871:MUST"
+        ],
+        "signing-process": [
+          "1962:MUST",
+          "1968:MUST",
+          "1990:MUST",
+          "1993:MUST",
+          "1998:SHOULD",
+          "2002:SHOULD",
+          "2005:MUST NOT"
+        ],
+        "verification-process": [
+          "2058:MUST",
+          "2100:MUST",
+          "2125:MUST",
+          "2126:MUST"
+        ],
+        "algorithms": [
+          "2229:MUST",
+          "2233:MAY",
+          "2257:MUST",
+          "2450:MUST NOT",
+          "2450:MUST NOT"
+        ],
+        "signature-fields": [
+          "2469:MAY",
+          "2473:MUST",
+          "2474:MUST",
+          "2479:MUST",
+          "2480:MUST",
+          "2501:MUST",
+          "2506:MAY",
+          "2509:RECOMMENDED",
+          "2513:MAY",
+          "2514:MUST",
+          "2536:MAY",
+          "2539:RECOMMENDED",
+          "2543:MAY",
+          "2544:MUST",
+          "2548:MAY",
+          "2549:MUST",
+          "2682:RECOMMENDED"
+        ],
+        "accept-signature": [
+          "2708:SHOULD",
+          "2720:MUST",
+          "2725:MUST",
+          "2755:MAY",
+          "2820:MUST",
+          "2821:MUST",
+          "2821:MUST",
+          "2822:MAY",
+          "2824:MAY",
+          "2827:MAY"
+        ],
+        "registry-administration": [
+          "2933:MUST",
+          "2935:SHOULD NOT",
+          "2936:MUST",
+          "2944:MUST",
+          "2945:MAY",
+          "3028:MUST",
+          "3029:SHOULD NOT",
+          "3030:MUST",
+          "3117:MUST",
+          "3120:SHOULD NOT",
+          "3121:MUST",
+          "3128:MUST",
+          "3129:MAY",
+          "3134:MUST",
+          "3210:MUST",
+          "3236:MUST",
+          "3238:SHOULD NOT",
+          "3239:MUST"
+        ],
+        "official-test-keys": [
+          "4377:MUST NOT"
+        ]
+      }
+    },
+    {
+      "rfc": 9530,
+      "source_name": "RFC 9530 text",
+      "source_sha256": "544dbb7d9afceafa8c9931d9924ca6cff2b4807274166d7ed2483342ef2cdd6a",
+      "groups": {
+        "content-digest": [
+          "318:MAY",
+          "319:MAY",
+          "325:MAY",
+          "326:MAY",
+          "330:MAY"
+        ],
+        "repr-digest": [
+          "382:MAY",
+          "383:MAY",
+          "389:MAY",
+          "390:MAY",
+          "394:MAY"
+        ],
+        "representation-semantics": [
+          "400:MUST",
+          "408:MUST",
+          "411:MUST"
+        ],
+        "digest-algorithms": [
+          "495:RECOMMENDED",
+          "505:MAY",
+          "506:MUST NOT"
+        ]
+      }
+    }
+  ],
+  "mappings": {
+    "application-profile": {
+      "implementation": [
+        "signer.go",
+        "verifier.go",
+        "http_integration.go"
+      ],
+      "tests": [
+        "signer_test.go",
+        "verifier_test.go",
+        "http_integration_test.go"
+      ],
+      "documentation": [
+        "docs/security.md",
+        "docs/integration.md"
+      ]
+    },
+    "component-model": {
+      "implementation": [
+        "message.go",
+        "signature_fields.go"
+      ],
+      "tests": [
+        "message_test.go",
+        "signature_fields_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/security.md"
+      ]
+    },
+    "http-fields": {
+      "implementation": [
+        "message.go"
+      ],
+      "tests": [
+        "message_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/security.md"
+      ]
+    },
+    "structured-fields": {
+      "implementation": [
+        "message.go",
+        "signature_fields.go"
+      ],
+      "tests": [
+        "message_test.go",
+        "signature_fields_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md"
+      ]
+    },
+    "binary-fields": {
+      "implementation": [
+        "message.go"
+      ],
+      "tests": [
+        "message_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/security.md"
+      ]
+    },
+    "trailers": {
+      "implementation": [
+        "message.go",
+        "body_integration.go"
+      ],
+      "tests": [
+        "message_test.go",
+        "body_integration_test.go"
+      ],
+      "documentation": [
+        "README.md",
+        "docs/integration.md",
+        "docs/security.md"
+      ]
+    },
+    "derived-components": {
+      "implementation": [
+        "message.go"
+      ],
+      "tests": [
+        "message_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/integration.md"
+      ]
+    },
+    "query-parameters": {
+      "implementation": [
+        "message.go"
+      ],
+      "tests": [
+        "message_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/security.md"
+      ]
+    },
+    "signature-parameters": {
+      "implementation": [
+        "message.go",
+        "signature_fields.go",
+        "signer.go",
+        "verifier.go"
+      ],
+      "tests": [
+        "signature_fields_test.go",
+        "signer_test.go",
+        "verifier_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/security.md"
+      ]
+    },
+    "request-response-binding": {
+      "implementation": [
+        "message.go",
+        "http_integration.go"
+      ],
+      "tests": [
+        "message_test.go",
+        "http_integration_test.go"
+      ],
+      "documentation": [
+        "docs/integration.md",
+        "docs/security.md"
+      ]
+    },
+    "signature-base": {
+      "implementation": [
+        "message.go"
+      ],
+      "tests": [
+        "message_test.go",
+        "official_vectors_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md"
+      ]
+    },
+    "signing-process": {
+      "implementation": [
+        "signer.go",
+        "algorithm.go"
+      ],
+      "tests": [
+        "signer_test.go",
+        "algorithm_test.go",
+        "official_vectors_test.go"
+      ],
+      "documentation": [
+        "docs/security.md"
+      ]
+    },
+    "verification-process": {
+      "implementation": [
+        "verifier.go",
+        "algorithm.go"
+      ],
+      "tests": [
+        "verifier_test.go",
+        "algorithm_test.go",
+        "official_vectors_test.go"
+      ],
+      "documentation": [
+        "docs/security.md",
+        "docs/integration.md"
+      ]
+    },
+    "algorithms": {
+      "implementation": [
+        "algorithm.go",
+        "signer.go",
+        "verifier.go"
+      ],
+      "tests": [
+        "algorithm_test.go",
+        "official_vectors_test.go"
+      ],
+      "documentation": [
+        "README.md",
+        "docs/security.md"
+      ]
+    },
+    "signature-fields": {
+      "implementation": [
+        "signature_fields.go",
+        "signer.go",
+        "verifier.go"
+      ],
+      "tests": [
+        "signature_fields_test.go",
+        "signer_test.go",
+        "verifier_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/integration.md"
+      ]
+    },
+    "accept-signature": {
+      "implementation": [
+        "signature_fields.go"
+      ],
+      "tests": [
+        "accept_signature_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/integration.md"
+      ]
+    },
+    "registry-administration": {
+      "implementation": [
+        "spec/sources.lock.json",
+        "scripts/check-spec-sources.sh"
+      ],
+      "tests": [
+        "scripts/check-conformance.sh"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "spec/errata-decisions.md"
+      ]
+    },
+    "official-test-keys": {
+      "implementation": [
+        "official_vectors_test.go"
+      ],
+      "tests": [
+        "official_vectors_test.go"
+      ],
+      "documentation": [
+        "NOTICE",
+        "docs/security.md"
+      ]
+    },
+    "content-digest": {
+      "implementation": [
+        "digest.go",
+        "body_integration.go"
+      ],
+      "tests": [
+        "digest_test.go",
+        "body_integration_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "README.md",
+        "docs/integration.md",
+        "docs/security.md"
+      ]
+    },
+    "repr-digest": {
+      "implementation": [
+        "digest.go",
+        "message.go"
+      ],
+      "tests": [
+        "digest_test.go",
+        "message_test.go"
+      ],
+      "documentation": [
+        "README.md",
+        "docs/faq.md",
+        "docs/conformance.md"
+      ]
+    },
+    "representation-semantics": {
+      "implementation": [
+        "digest.go"
+      ],
+      "tests": [
+        "digest_test.go"
+      ],
+      "documentation": [
+        "docs/faq.md",
+        "docs/integration.md"
+      ]
+    },
+    "digest-algorithms": {
+      "implementation": [
+        "digest.go",
+        "digest_preference.go"
+      ],
+      "tests": [
+        "digest_test.go",
+        "digest_preference_test.go"
+      ],
+      "documentation": [
+        "README.md",
+        "docs/security.md"
+      ]
+    }
+  }
+}

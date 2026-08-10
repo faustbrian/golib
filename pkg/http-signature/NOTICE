@@ -1,0 +1,10 @@
+http-signature includes conformance behavior derived from RFC 9421 and RFC
+9530, published by the IETF Trust. Source identities and checksums are recorded
+in spec/sources.lock.json. RFC code components are subject to the Revised BSD
+License terms described by the IETF Trust Legal Provisions.
+
+The module depends on github.com/dunglas/httpsfv for RFC 8941 Structured Fields
+parsing and serialization. See go.mod and the dependency's license for details.
+
+The ECDSA P-384 test corpus includes a verification vector from the NIST CAVP
+FIPS 186-3 archive pinned in spec/sources.lock.json.

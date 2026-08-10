@@ -1,0 +1,48 @@
+{
+  "retrieved_at": "2026-08-09T04:40:00+03:00",
+  "sources": [
+    {
+      "name": "RFC 9421 text",
+      "url": "https://www.rfc-editor.org/rfc/rfc9421.txt",
+      "sha256": "612655786bf4293bfc486e4177571467fbb3de6e6f0eea90cb74c346a34fdf3c"
+    },
+    {
+      "name": "RFC 9530 text",
+      "url": "https://www.rfc-editor.org/rfc/rfc9530.txt",
+      "sha256": "544dbb7d9afceafa8c9931d9924ca6cff2b4807274166d7ed2483342ef2cdd6a"
+    },
+    {
+      "name": "RFC 9421 errata records",
+      "url": "https://errata.rfc-editor.org/search/?rfc_number=9421&presentation=records",
+      "sha256": "3f516aebd2d2255249c94718fb04cc69bd40e477a807b5acad209d4c5cb3783a"
+    },
+    {
+      "name": "RFC 9530 errata records",
+      "url": "https://errata.rfc-editor.org/search/?rfc_number=9530&presentation=records",
+      "sha256": "9d95d87653e8547edf221423c16c80a92ed297f00698e37638576a99a1050dfe"
+    },
+    {
+      "name": "IANA HTTP Message Signature registries",
+      "url": "https://www.iana.org/assignments/http-message-signature/http-message-signature.xml",
+      "last_modified": "Mon, 20 Jul 2026 09:11:20 GMT",
+      "sha256": "bd4b0304e21e226fef189ed283a31392b5ffc99a37d00e9911dc011dcfb1523f"
+    },
+    {
+      "name": "IANA Hash Algorithms for HTTP Digest Fields registry",
+      "url": "https://www.iana.org/assignments/http-digest-hash-alg/http-digest-hash-alg.xml",
+      "last_modified": "Wed, 22 May 2024 19:55:28 GMT",
+      "sha256": "6336a1abc58420f6fcabab4a0cd999ce3c0a8f12e034e543f05edf342cf927e7"
+    },
+    {
+      "name": "IANA HTTP Field Name registry",
+      "url": "https://www.iana.org/assignments/http-fields/http-fields.xml",
+      "last_modified": "Fri, 07 Aug 2026 17:26:19 GMT",
+      "sha256": "bf556b570acea5cf8686521eafa90f91dbfabe61eb175e25956487dc38df3e9d"
+    },
+    {
+      "name": "NIST CAVP FIPS 186-3 ECDSA test vectors",
+      "url": "https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/dss/186-3ecdsatestvectors.zip",
+      "sha256": "e0d9bee3f760ca3fabb82bd43dd04c13ee64ca9e0b719c6ea64fd52c9f0dd929"
+    }
+  ]
+}
