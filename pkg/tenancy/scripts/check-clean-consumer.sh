@@ -54,5 +54,6 @@ printf '%s\n' 'package consumer' \
     'var _ = tenancypostgres.NewManager' > consumer/consumer.go
 cp "${module_directory}/scripts/clean-consumer/consumer_test.go.tmpl" consumer/consumer_test.go
 cp "${module_directory}/scripts/clean-consumer/providers_test.go.tmpl" consumer/providers_test.go
+cp "${module_directory}/scripts/clean-consumer/administration_test.go.tmpl" consumer/administration_test.go
 GOWORK=off go mod tidy
 GOWORK=off go test ./...

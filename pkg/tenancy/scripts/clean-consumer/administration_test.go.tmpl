@@ -1,0 +1,126 @@
+package consumer_test
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"os"
+	"path/filepath"
+	"sync"
+	"testing"
+
+	"github.com/faustbrian/golib/pkg/tenancy"
+)
+
+type durableAdministrativeEntry struct {
+	Operation string `json:"operation"`
+	Kind string `json:"kind"`
+	Tenant string `json:"tenant"`
+	Actor string `json:"actor"`
+	Purpose string `json:"purpose"`
+	Reference string `json:"reference"`
+	Attempts int `json:"attempts"`
+	Complete bool `json:"complete"`
+}
+
+type durableAdministrativeJournal struct {
+	mu sync.Mutex
+	path string
+	entries map[string]durableAdministrativeEntry
+}
+
+func openAdministrativeJournal(t *testing.T, path string) *durableAdministrativeJournal {
+	t.Helper()
+	journal := &durableAdministrativeJournal{path: path, entries: map[string]durableAdministrativeEntry{}}
+	data, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) { return journal }
+	if err != nil { t.Fatal(err) }
+	if err := json.Unmarshal(data, &journal.entries); err != nil { t.Fatal(err) }
+	return journal
+}
+
+func (journal *durableAdministrativeJournal) entry(operation string, tenant tenancy.TenantID) durableAdministrativeEntry {
+	journal.mu.Lock()
+	defer journal.mu.Unlock()
+	return journal.entries[operation+"/"+tenant.Value()]
+}
+
+func (journal *durableAdministrativeJournal) record(t *testing.T, value durableAdministrativeEntry) {
+	t.Helper()
+	journal.mu.Lock()
+	defer journal.mu.Unlock()
+	journal.entries[value.Operation+"/"+value.Tenant] = value
+	encoded, err := json.Marshal(journal.entries)
+	if err != nil { t.Fatal(err) }
+	temporary := journal.path + ".new"
+	if err := os.WriteFile(temporary, encoded, 0o600); err != nil { t.Fatal(err) }
+	if err := os.Rename(temporary, journal.path); err != nil { t.Fatal(err) }
+}
+
+func fanOutAdministrativeOperation(
+	t *testing.T,
+	ctx context.Context,
+	journal *durableAdministrativeJournal,
+	operationID, kind string,
+	reason tenancy.AdministrativeReason,
+	tenants []tenancy.TenantID,
+	operation func(context.Context, tenancy.TenantID) error,
+) error {
+	t.Helper()
+	var wait sync.WaitGroup
+	errorsByTenant := make(chan error, len(tenants))
+	for _, tenant := range tenants {
+		if journal.entry(operationID, tenant).Complete { continue }
+		tenant := tenant
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			prior := journal.entry(operationID, tenant)
+			entry := durableAdministrativeEntry{Operation: operationID, Kind: kind, Tenant: tenant.Value(), Actor: reason.Actor(), Purpose: reason.Purpose(), Reference: reason.Reference(), Attempts: prior.Attempts + 1}
+			scope, err := tenancy.NewTenantScope(tenant, tenancy.Metadata{})
+			if err == nil { err = tenancy.RunScoped(ctx, scope, func(scoped context.Context) error { return operation(scoped, tenant) }) }
+			entry.Complete = err == nil
+			journal.record(t, entry)
+			if err != nil { errorsByTenant <- err }
+		}()
+	}
+	wait.Wait()
+	close(errorsByTenant)
+	var failures []error
+	for err := range errorsByTenant { failures = append(failures, err) }
+	return errors.Join(failures...)
+}
+
+func TestDurableAdministrativeFanOutResumesIdempotentlyWithAttribution(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "administration.json")
+	reason, err := tenancy.NewAdministrativeReason("support-7", "support impersonation import", "CASE-42")
+	if err != nil { t.Fatal(err) }
+	tenants := []tenancy.TenantID{tenancy.MustTenantID("tenant-a"), tenancy.MustTenantID("tenant-b")}
+	journal := openAdministrativeJournal(t, path)
+	invocations := map[string]int{}
+	var invocationMu sync.Mutex
+	failure := errors.New("tenant-b import failed")
+	err = fanOutAdministrativeOperation(t, context.Background(), journal, "import-42", "import", reason, tenants, func(ctx context.Context, tenant tenancy.TenantID) error {
+		if err := tenancy.AssertTenant(ctx, tenant); err != nil { return err }
+		invocationMu.Lock(); invocations[tenant.Value()]++; attempt := invocations[tenant.Value()]; invocationMu.Unlock()
+		if tenant.Value() == "tenant-b" && attempt == 1 { return failure }
+		return nil
+	})
+	if !errors.Is(err, failure) || !journal.entry("import-42", tenants[0]).Complete || journal.entry("import-42", tenants[1]).Complete { t.Fatalf("partial import state = %#v, %#v, %v", journal.entry("import-42", tenants[0]), journal.entry("import-42", tenants[1]), err) }
+
+	journal = openAdministrativeJournal(t, path)
+	if err := fanOutAdministrativeOperation(t, context.Background(), journal, "import-42", "import", reason, tenants, func(ctx context.Context, tenant tenancy.TenantID) error {
+		if err := tenancy.AssertTenant(ctx, tenant); err != nil { return err }
+		invocationMu.Lock(); invocations[tenant.Value()]++; invocationMu.Unlock()
+		return nil
+	}); err != nil { t.Fatal(err) }
+	if invocations["tenant-a"] != 1 || invocations["tenant-b"] != 2 { t.Fatalf("resume invocations = %#v", invocations) }
+	for _, tenant := range tenants {
+		entry := journal.entry("import-42", tenant)
+		if !entry.Complete || entry.Actor != "support-7" || entry.Purpose != "support impersonation import" || entry.Reference != "CASE-42" { t.Fatalf("durable attribution = %#v", entry) }
+	}
+
+	migrationReason, _ := tenancy.NewAdministrativeReason("migrator", "tenant schema migration", "MIG-9")
+	if err := fanOutAdministrativeOperation(t, context.Background(), journal, "migration-9", "migration", migrationReason, tenants, func(ctx context.Context, tenant tenancy.TenantID) error { return tenancy.AssertTenant(ctx, tenant) }); err != nil { t.Fatal(err) }
+	for _, tenant := range tenants { if entry := journal.entry("migration-9", tenant); !entry.Complete || entry.Attempts != 1 { t.Fatalf("migration entry = %#v", entry) } }
+}
