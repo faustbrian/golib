@@ -3,6 +3,8 @@ package search_test
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/search"
@@ -20,6 +22,35 @@ func TestDocumentValidationDefinesTheOwnedBoundedWriteContract(t *testing.T) {
 	source[2] = 'X'
 	if document.Tenant != "tenant-a" || document.Index != "tracking-events" || document.ID != "event-1" || document.Version != 7 || string(document.Source) != `{"name":"Helsinki"}` {
 		t.Fatalf("NewDocument() = %#v", document)
+	}
+}
+
+func TestDocumentRejectsHostileJSONStructure(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	deep := strings.Repeat(`{"nested":`, 33) + `true` + strings.Repeat(`}`, 33)
+	fields := make([]string, 20_000)
+	for index := range fields {
+		fields[index] = fmt.Sprintf(`"field%d":null`, index)
+	}
+	for _, test := range []struct {
+		name   string
+		source json.RawMessage
+	}{
+		{"excessive depth", json.RawMessage(deep)},
+		{"high field count within byte limit", json.RawMessage(`{` + strings.Join(fields, ",") + `}`)},
+		{"duplicate object keys", json.RawMessage(`{"same":1,"same":2}`)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if len(test.source) > limits.MaxSourceBytes {
+				t.Fatalf("test source length = %d, exceeds byte limit %d", len(test.source), limits.MaxSourceBytes)
+			}
+			if _, err := search.NewDocument("tenant", "index", "id", 1, test.source, limits); !errors.Is(err, search.ErrInvalidSource) {
+				t.Fatalf("NewDocument() error = %v, want ErrInvalidSource", err)
+			}
+		})
 	}
 }
 

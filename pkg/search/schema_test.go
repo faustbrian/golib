@@ -49,7 +49,7 @@ func TestIndexDefinitionRejectsUnsafeNamesAndUnboundedSchema(t *testing.T) {
 	t.Parallel()
 
 	limits := search.DefaultLimits()
-	for _, name := range []string{"", "UPPERCASE", "_hidden", "has space", "wild*card", "../escape"} {
+	for _, name := range []string{"", "UPPERCASE", "_hidden", "has space", "wild*card", "../escape", "index\x00name", "index\nname", "index\x7fname"} {
 		if _, err := search.NewIndexDefinition(name, json.RawMessage(`{}`), json.RawMessage(`{}`), limits); !errors.Is(err, search.ErrInvalidIndexDefinition) {
 			t.Fatalf("NewIndexDefinition(%q) error = %v", name, err)
 		}
