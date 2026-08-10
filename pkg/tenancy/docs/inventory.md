@@ -55,7 +55,7 @@ separated by the embedded boundary value.
 | --- | --- |
 | `postgres.Predicate` | Caller must place the returned clause and argument in every applicable query. |
 | `postgres.NewRLSPlan` | Migration owner must apply forced RLS plus both permissive-grant and restrictive policies as one unit. |
-| `postgres.Manager.WithTenant` | Leases one physical connection, clears stale state, begins a transaction, installs and verifies local scope, re-verifies after the callback, rolls back on failure, resets before pool return, and discards on reset failure. |
+| `postgres.Manager.WithTenant` | Leases one physical connection, clears stale state, begins a transaction, installs and verifies local scope, re-verifies after the callback, rolls back on failure, resets before pool return, and discards on reset or backend failure. The live failover fixture routes the same pool through primary loss and replica promotion. |
 | `postgres.Manager.WithSystem` | Installs an empty tenant setting for explicit system scope; it grants no RLS bypass. |
 | Cache consumer adapter | Requires tenant context and uses the cache integration namespace before the first-party memory backend. |
 | Search consumer adapter | Requires tenant context and rejects request/document mismatch before the first-party contract provider or live OpenSearch client. |
@@ -71,8 +71,9 @@ separated by the embedded boundary value.
 workflow/PostgreSQL, and OTLP providers; replacement contexts; and `TenantID`
 metric labels. The negative consumer fixture must emit the exact expected
 diagnostics. Only the exact reviewed adapter fixture is exempt. The clean
-consumer, live PostgreSQL, and live OpenSearch lanes are executable composition
-evidence; analyzer success is never substituted for runtime proof.
+consumer, live PostgreSQL including proxy-mediated replica promotion, and live
+OpenSearch lanes are executable composition evidence; analyzer success is
+never substituted for runtime proof.
 
 ## Errors and diagnostics
 

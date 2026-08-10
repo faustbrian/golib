@@ -24,7 +24,11 @@ plans, rollback, cancellation, stale state, backend replacement, and concurrent
 pool proof. It is valid only when run against a real PostgreSQL service with
 `POSTGRES_URL`; the same gate reopens a first-party workflow store across a
 tenant-bound retry and persists/query-filters first-party audit records from
-context-derived tenant scope. A skipped run is not interoperability evidence.
+context-derived tenant scope. The failover lane streams a pinned PostgreSQL 18
+primary into a second host, holds a tenant transaction through a switching TCP
+proxy, stops the primary, promotes the replica, and proves the failed
+transaction is not reused while the same `database/sql` pool reconnects with
+fresh tenant and unscoped state. A skipped run is not interoperability evidence.
 
 Coverage and mutation gates operate per production package. Exact statement
 coverage does not by itself prove meaningful assertions, and mutation results

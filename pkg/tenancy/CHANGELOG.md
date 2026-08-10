@@ -66,6 +66,9 @@ versioning once released.
   retry, and dead-letter persistence without cross-tenant queue visibility.
 - Add a live PostgreSQL composition proving tenant-bound workflow retry and
   resume plus durable support audit attribution through first-party stores.
+- Add a streamed PostgreSQL primary/replica promotion fixture proving an open
+  tenant transaction fails during proxy cutover and the same connection pool
+  reconnects without retaining scope or exposing another tenant.
 - Add an exhaustive owned-surface inventory covering identity, context,
   propagation, namespace, persistence, provider, analyzer, error, diagnostic,
   and administrative escape-hatch boundaries.

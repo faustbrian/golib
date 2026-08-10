@@ -39,6 +39,7 @@ Review date: 2026-08-10
 | Live search persistence | `scripts/test-opensearch-integration.sh` executes two-tenant negative isolation against OpenSearch 2.19.6 and 3.8.0 under `-race` |
 | Goroutine lifetime and scope reuse | `TestGroupTaskPreservesSubmitContext`, `TestGroupRaceBoundariesAndWaitCancellation`, `TestGroupStressCloseAndShutdownDoNotLeak`, `TestIntegrationConcurrentSoak` |
 | PostgreSQL absent scope, system scope, RLS composition, prepared plans, rollback, cancellation, stale pool state, connection loss, reconnect, and concurrent reuse | `TestPostgreSQLRLSAndPoolReuseIsolation` against live PostgreSQL with `-race` |
+| PostgreSQL primary failover through a proxy | `scripts/test-postgres-failover.sh` streams a pinned PostgreSQL 18 primary to a second host, interrupts an open tenant transaction, promotes the replica, redirects the same pool, and proves tenant and unscoped isolation under `-race` |
 | Durable workflow retry/resume and audit attribution | `scripts/check-postgres-composition.sh` reopens first-party PostgreSQL workflow state across retry, rejects cross-tenant lease execution, verifies terminal tenant identity, and context-filters first-party audit records under `-race` |
 | Administrative partial failure, retry, resume, and attribution | `TestAdministrativeIterationStopsAtAuditOperationAndCancellation`, `TestAdministrativeResumeRepeatsFailedTenantWithCompleteAttribution`, cursor-cycle and page-bound tests, external fsync journal fan-out fixture |
 | External-module adoption and migration | `scripts/check-clean-consumer.sh` executes authenticated HTTP, conflicting JSON-RPC, explicit SQL predicate, provider compositions, no-fallback scoped cache, and durable administrative fixtures |
@@ -58,8 +59,9 @@ The PostgreSQL callback is trusted application SQL. Because it receives an
 unrestricted `*sql.Tx`, it can temporarily change the custom setting, perform
 work, and restore it before final readback. Application-owned SQL interfaces,
 review, and restricted database privileges must prevent that behavior. The
-live connection-loss test proves backend replacement, not multi-host primary
-failover through a production proxy.
+live failover fixture proves the manager across a switching TCP proxy and
+streamed replica promotion. It does not prove a consumer's production proxy
+health checks, promotion fencing, or retry policy.
 
 Administrative cursors must identify a stable snapshot. The package rejects
 cycles and excessive pages but cannot cryptographically bind a consumer-owned

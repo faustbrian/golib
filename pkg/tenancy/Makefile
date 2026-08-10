@@ -5,7 +5,8 @@ SOAK_TIME ?= 30s
 SOAK_TIMEOUT ?= 2m
 
 .PHONY: analyzers benchmark check clean-consumer coverage docs format format-check fuzz \
-	integration mutation opensearch-integration race redis-integration soak test tidy-check vet
+	integration mutation opensearch-integration postgres-failover-integration race \
+	redis-integration soak test tidy-check vet
 
 analyzers:
 	./scripts/check-analyzers.sh
@@ -45,6 +46,10 @@ integration:
 	test -n "$${POSTGRES_URL:-}"
 	GOWORK=off $(GO) test -tags=integration -race ./postgres -run PostgreSQL -count=1
 	./scripts/check-postgres-composition.sh
+	./scripts/test-postgres-failover.sh
+
+postgres-failover-integration:
+	./scripts/test-postgres-failover.sh
 
 opensearch-integration:
 	./scripts/test-opensearch-integration.sh

@@ -7,8 +7,11 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/url"
 	"os"
+	"os/exec"
 	"sync"
 	"testing"
 	"time"
@@ -391,6 +394,329 @@ func TestPostgreSQLRLSAndPoolReuseIsolation(t *testing.T) {
 		}
 	}
 
+}
+
+func TestPostgreSQLProxyFailoverIsolation(t *testing.T) {
+	primaryDSN := os.Getenv("POSTGRES_FAILOVER_PRIMARY_URL")
+	secondaryDSN := os.Getenv("POSTGRES_FAILOVER_SECONDARY_URL")
+	primaryContainer := os.Getenv("POSTGRES_FAILOVER_PRIMARY_CONTAINER")
+	secondaryContainer := os.Getenv("POSTGRES_FAILOVER_SECONDARY_CONTAINER")
+	secondaryData := os.Getenv("POSTGRES_FAILOVER_SECONDARY_DATA")
+	if primaryDSN == "" || secondaryDSN == "" || primaryContainer == "" ||
+		secondaryContainer == "" || secondaryData == "" {
+		t.Skip("PostgreSQL failover fixture is not configured")
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	primary := openPostgreSQL(t, ctx, primaryDSN)
+	secondary := openPostgreSQL(t, ctx, secondaryDSN)
+
+	suffix := time.Now().UnixNano()
+	table := fmt.Sprintf("tenancy_failover_%d", suffix)
+	role := fmt.Sprintf("tenancy_failover_role_%d", suffix)
+	policy := fmt.Sprintf("tenancy_failover_policy_%d", suffix)
+	quotedRole := `"` + role + `"`
+	const rolePassword = "tenancy-failover-password"
+	if _, err := primary.ExecContext(ctx, `CREATE ROLE `+quotedRole+
+		` LOGIN PASSWORD '`+rolePassword+`' NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT NOBYPASSRLS`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := primary.ExecContext(ctx,
+		`CREATE TABLE "`+table+`" (tenant_id text NOT NULL, item text NOT NULL)`,
+	); err != nil {
+		t.Fatal(err)
+	}
+	plan, err := tenancypostgres.NewRLSPlan(tenancypostgres.RLSOptions{
+		Table: table, Column: "tenant_id", Policy: policy,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, statement := range []string{plan.Enable, plan.Force, plan.CreateGrant, plan.Create} {
+		if _, err := primary.ExecContext(ctx, statement); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := primary.ExecContext(ctx,
+		`GRANT SELECT, INSERT, UPDATE, DELETE ON "`+table+`" TO `+quotedRole,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	primaryAddress := postgreSQLAddress(t, primaryDSN)
+	secondaryAddress := postgreSQLAddress(t, secondaryDSN)
+	proxy := newFailoverProxy(t, primaryAddress)
+	defer proxy.Close()
+	applicationDSN := postgreSQLProxyDSN(t, primaryDSN, proxy.Address(), role, rolePassword)
+	application := openPostgreSQL(t, ctx, applicationDSN)
+	application.SetMaxOpenConns(1)
+
+	manager, err := tenancypostgres.NewManager(tenancypostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	tenantA := tenantScopeFor(t, "tenant-a")
+	tenantB := tenantScopeFor(t, "tenant-b")
+	if err := manager.WithTenant(ctx, application, tenantA, func(ctx context.Context, tx *sql.Tx) error {
+		_, err := tx.ExecContext(ctx,
+			`INSERT INTO "`+table+`" (tenant_id, item) VALUES ($1, $2)`, "tenant-a", "primary",
+		)
+		return err
+	}); err != nil {
+		t.Fatalf("primary tenant write: %v", err)
+	}
+	waitForReplicaReplay(t, ctx, primary, secondary)
+
+	err = manager.WithTenant(ctx, application, tenantA, func(ctx context.Context, tx *sql.Tx) error {
+		var setting string
+		if err := tx.QueryRowContext(ctx,
+			"SELECT current_setting($1, true)", tenancypostgres.DefaultSetting,
+		).Scan(&setting); err != nil {
+			return err
+		}
+		if setting != "tenant-a" {
+			return fmt.Errorf("pre-failover setting = %q", setting)
+		}
+		if _, err := tx.ExecContext(ctx,
+			`INSERT INTO "`+table+`" (tenant_id, item) VALUES ($1, $2)`,
+			"tenant-a", "interrupted",
+		); err != nil {
+			return err
+		}
+		runDocker(t, ctx, "stop", "--time", "1", primaryContainer)
+		runDocker(t, ctx, "exec", "--user", "postgres", secondaryContainer,
+			"pg_ctl", "-D", secondaryData, "-w", "promote")
+		proxy.Switch(secondaryAddress)
+		return tx.QueryRowContext(ctx, "SELECT 1").Scan(new(int))
+	})
+	if err == nil {
+		t.Fatal("transaction through failed primary succeeded")
+	}
+
+	if err := manager.WithTenant(ctx, application, tenantB, func(ctx context.Context, tx *sql.Tx) error {
+		var setting string
+		var count int
+		if err := tx.QueryRowContext(ctx,
+			"SELECT current_setting($1, true)", tenancypostgres.DefaultSetting,
+		).Scan(&setting); err != nil {
+			return err
+		}
+		if err := tx.QueryRowContext(ctx, `SELECT count(*) FROM "`+table+`"`).Scan(&count); err != nil {
+			return err
+		}
+		if setting != "tenant-b" || count != 0 {
+			return fmt.Errorf("promoted tenant B setting=%q preinsert-count=%d", setting, count)
+		}
+		_, err := tx.ExecContext(ctx,
+			`INSERT INTO "`+table+`" (tenant_id, item) VALUES ($1, $2)`, "tenant-b", "promoted",
+		)
+		return err
+	}); err != nil {
+		t.Fatalf("promoted tenant write: %v", err)
+	}
+	for _, check := range []struct {
+		name  string
+		scope tenancy.Scope
+		item  string
+	}{{"tenant A", tenantA, "primary"}, {"tenant B", tenantB, "promoted"}} {
+		if err := manager.WithTenant(ctx, application, check.scope, func(ctx context.Context, tx *sql.Tx) error {
+			var item string
+			var count int
+			if err := tx.QueryRowContext(ctx,
+				`SELECT count(*), max(item) FROM "`+table+`"`,
+			).Scan(&count, &item); err != nil {
+				return err
+			}
+			if count != 1 || item != check.item {
+				return fmt.Errorf("%s observed count=%d item=%q", check.name, count, item)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var setting sql.NullString
+	var count int
+	if err := application.QueryRowContext(ctx,
+		"SELECT current_setting($1, true)", tenancypostgres.DefaultSetting,
+	).Scan(&setting); err != nil {
+		t.Fatal(err)
+	}
+	if err := application.QueryRowContext(ctx, `SELECT count(*) FROM "`+table+`"`).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if (setting.Valid && setting.String != "") || count != 0 {
+		t.Fatalf("promoted pooled session retained scope=%q rows=%d", setting.String, count)
+	}
+	if proxy.Accepted(primaryAddress) == 0 || proxy.Accepted(secondaryAddress) == 0 {
+		t.Fatalf("proxy upstream accepts primary=%d secondary=%d",
+			proxy.Accepted(primaryAddress), proxy.Accepted(secondaryAddress))
+	}
+}
+
+func openPostgreSQL(t *testing.T, ctx context.Context, dsn string) *sql.DB {
+	t.Helper()
+	database, err := sql.Open("pgx", dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = database.Close() })
+	if err := database.PingContext(ctx); err != nil {
+		t.Fatal(err)
+	}
+	return database
+}
+
+func postgreSQLAddress(t *testing.T, dsn string) string {
+	t.Helper()
+	parsed, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	host := parsed.Hostname()
+	port := parsed.Port()
+	if port == "" {
+		port = "5432"
+	}
+	return net.JoinHostPort(host, port)
+}
+
+func postgreSQLProxyDSN(t *testing.T, dsn, address, username, password string) string {
+	t.Helper()
+	parsed, err := url.Parse(dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed.Host = address
+	parsed.User = url.UserPassword(username, password)
+	return parsed.String()
+}
+
+func waitForReplicaReplay(t *testing.T, ctx context.Context, primary, secondary *sql.DB) {
+	t.Helper()
+	var lsn string
+	if err := primary.QueryRowContext(ctx, "SELECT pg_current_wal_lsn()::text").Scan(&lsn); err != nil {
+		t.Fatal(err)
+	}
+	deadline, cancel := context.WithTimeout(ctx, 20*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		var replayed bool
+		err := secondary.QueryRowContext(deadline,
+			"SELECT COALESCE(pg_last_wal_replay_lsn() >= $1::pg_lsn, false)", lsn,
+		).Scan(&replayed)
+		if err == nil && replayed {
+			return
+		}
+		select {
+		case <-deadline.Done():
+			t.Fatalf("wait for replica replay at %s: %v: %v", lsn, deadline.Err(), err)
+		case <-ticker.C:
+		}
+	}
+}
+
+func runDocker(t *testing.T, ctx context.Context, arguments ...string) {
+	t.Helper()
+	output, err := exec.CommandContext(ctx, "docker", arguments...).CombinedOutput()
+	if err != nil {
+		t.Fatalf("docker %s: %v: %s", arguments[0], err, output)
+	}
+}
+
+type failoverProxy struct {
+	listener net.Listener
+
+	mu          sync.Mutex
+	target      string
+	connections map[net.Conn]struct{}
+	accepted    map[string]int
+	wait        sync.WaitGroup
+}
+
+func newFailoverProxy(t *testing.T, target string) *failoverProxy {
+	t.Helper()
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	proxy := &failoverProxy{
+		listener: listener, target: target,
+		connections: make(map[net.Conn]struct{}), accepted: make(map[string]int),
+	}
+	proxy.wait.Add(1)
+	go proxy.accept()
+	return proxy
+}
+
+func (proxy *failoverProxy) Address() string { return proxy.listener.Addr().String() }
+
+func (proxy *failoverProxy) Accepted(target string) int {
+	proxy.mu.Lock()
+	defer proxy.mu.Unlock()
+	return proxy.accepted[target]
+}
+
+func (proxy *failoverProxy) Switch(target string) {
+	proxy.mu.Lock()
+	defer proxy.mu.Unlock()
+	proxy.target = target
+	for connection := range proxy.connections {
+		_ = connection.Close()
+	}
+}
+
+func (proxy *failoverProxy) Close() {
+	_ = proxy.listener.Close()
+	proxy.mu.Lock()
+	for connection := range proxy.connections {
+		_ = connection.Close()
+	}
+	proxy.mu.Unlock()
+	proxy.wait.Wait()
+}
+
+func (proxy *failoverProxy) accept() {
+	defer proxy.wait.Done()
+	for {
+		client, err := proxy.listener.Accept()
+		if err != nil {
+			return
+		}
+		proxy.mu.Lock()
+		target := proxy.target
+		proxy.accepted[target]++
+		proxy.mu.Unlock()
+		server, err := net.DialTimeout("tcp", target, 5*time.Second)
+		if err != nil {
+			_ = client.Close()
+			continue
+		}
+		proxy.mu.Lock()
+		proxy.connections[client] = struct{}{}
+		proxy.connections[server] = struct{}{}
+		proxy.mu.Unlock()
+		proxy.wait.Add(1)
+		go proxy.forward(client, server)
+	}
+}
+
+func (proxy *failoverProxy) forward(client, server net.Conn) {
+	defer proxy.wait.Done()
+	done := make(chan struct{}, 2)
+	go func() { _, _ = io.Copy(server, client); done <- struct{}{} }()
+	go func() { _, _ = io.Copy(client, server); done <- struct{}{} }()
+	<-done
+	_ = client.Close()
+	_ = server.Close()
+	<-done
+	proxy.mu.Lock()
+	delete(proxy.connections, client)
+	delete(proxy.connections, server)
+	proxy.mu.Unlock()
 }
 
 func postgresCode(err error, code string) bool {

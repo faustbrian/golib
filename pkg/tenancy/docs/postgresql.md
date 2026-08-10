@@ -42,3 +42,14 @@ non-`BYPASSRLS` application login and proves absent/system-scope denial,
 restrictive-policy composition, cross-tenant reads and mutations, prepared-plan
 reuse across tenants, rollback, cancellation, stale-session cleanup, backend
 termination and replacement, concurrent pool reuse, and idle-scope reset.
+
+`make postgres-failover-integration` starts a digest-pinned PostgreSQL 18
+primary and streaming replica on separate hosts. The test routes one
+`database/sql` pool through a switching TCP proxy, stops the primary while a
+tenant transaction is open, promotes the replica, and redirects only new
+connections. The interrupted transaction must fail. A tenant-B retry through
+the same pool must establish tenant B independently, must not see the
+replicated tenant-A row, and must leave an unscoped pooled connection with no
+setting and no visible rows. This proves the adapter reset and reconnect path;
+applications remain responsible for their production proxy's health checks,
+promotion policy, fencing, and retry classification.
