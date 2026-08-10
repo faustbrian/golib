@@ -186,6 +186,8 @@ the supplied `HTTPClient` transport.
 
 The complete requirement and evidence matrices are in
 [`docs/hardening.md`](docs/hardening.md).
+The stable interpretation and defensive-policy register is in
+[`docs/specification-decisions.md`](docs/specification-decisions.md).
 
 ## Adoption and compatibility
 

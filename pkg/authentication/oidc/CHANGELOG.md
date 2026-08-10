@@ -30,6 +30,8 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- Add the stable OpenID Connect, JOSE, JSON, HTTP, cache, rotation, lifecycle,
+  and diagnostic specification decision register with executable evidence.
 - Add specification, public-option, failure, lifecycle, fleet-refresh, fuzz,
   interoperability, and benchmark hardening evidence, including a pinned Google
   discovery snapshot and an ephemeral provider-issued token from an immutable

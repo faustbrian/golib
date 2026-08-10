@@ -15,6 +15,12 @@ optional UserInfo processing. Those profiles are not directly runnable or
 certifiable against this discovery/JWKS/ID-token-validation package alone; a
 wrapper RP result would be composite evidence, not package-only conformance.
 
+The canonical
+[`docs/specification-decisions.md`](../docs/specification-decisions.md)
+register links every observable interpretation and defensive policy to that
+evidence. This directory pins source provenance; the register owns rationale,
+consequences, and reconsideration conditions.
+
 Provider interoperability tests use minimal standards-compliant metadata
 shapes representative of Google, Keycloak, and Dex. They are compatibility
 profiles, not copied provider snapshots or claims of certification against a

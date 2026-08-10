@@ -1264,6 +1264,13 @@ func specifications(directory string) []string {
 		return []string{
 			"OpenID Connect Core 1.0 incorporating errata set 2",
 			"OpenID Connect Discovery 1.0 incorporating errata set 2",
+			"RFC 7515 JSON Web Signature",
+			"RFC 7517 JSON Web Key",
+			"RFC 7518 JSON Web Algorithms",
+			"RFC 7519 JSON Web Token",
+			"RFC 8259 JSON",
+			"RFC 9110 HTTP Semantics",
+			"RFC 9111 HTTP Caching",
 		}
 	}
 	if directory == "pkg/webhook" {
