@@ -12,6 +12,12 @@ import (
 	internalprofile "github.com/faustbrian/golib/pkg/verkle-tree/internal/profile"
 )
 
+var (
+	testProofEngineOnce sync.Once
+	testProofEngine     *ProofEngine
+	testProofEngineErr  error
+)
+
 func TestProofEngineGeneratesDeterministicVerifiableTreeProof(t *testing.T) {
 	t.Parallel()
 
@@ -1101,15 +1107,17 @@ func missingContext() context.Context {
 func newTestProofEngine(t testing.TB) *ProofEngine {
 	t.Helper()
 
-	engine, err := NewProofEngine(
-		context.Background(),
-		testAuthstateAggregateOpeningLimits(),
-	)
-	if err != nil {
-		t.Fatalf("new proof engine: %v", err)
+	testProofEngineOnce.Do(func() {
+		testProofEngine, testProofEngineErr = NewProofEngine(
+			context.Background(),
+			testAuthstateAggregateOpeningLimits(),
+		)
+	})
+	if testProofEngineErr != nil {
+		t.Fatalf("new shared proof engine: %v", testProofEngineErr)
 	}
 
-	return engine
+	return testProofEngine
 }
 
 func testProofGenerationLimits() ProofGenerationLimits {

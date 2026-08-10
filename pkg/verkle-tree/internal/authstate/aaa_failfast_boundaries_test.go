@@ -5,6 +5,9 @@ import (
 	"errors"
 	"slices"
 	"testing"
+
+	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
+	"github.com/faustbrian/golib/pkg/verkle-tree/internal/leafvector"
 )
 
 func TestFailFastAggregateVerifierQueryCapacityBoundsTopology(t *testing.T) {
@@ -16,6 +19,91 @@ func TestFailFastAggregateVerifierQueryCapacityBoundsTopology(t *testing.T) {
 	got, err := aggregateVerifierQueryCapacity(context.Background(), 2, paths, 100)
 	if err != nil || got != 17 {
 		t.Fatalf("topology query capacity = %d, want 17: %v", got, err)
+	}
+}
+
+func TestFailFastAggregateVerifierCollectorStemQueries(t *testing.T) {
+	key := testKey(1, 3)
+	key[1] = 2
+	stem := Stem(key[:31])
+	rootPath := aggregateVerifierPath{}
+	prefixPath := aggregateVerifierPath{path: [32]byte{1}, length: 1}
+	stemPath := aggregateVerifierPath{path: [32]byte{1, 2}, length: 2}
+	suffixPath := aggregateVerifierPath{
+		path:   [32]byte{1, 2, leafvector.C1HashIndex},
+		length: 3,
+	}
+	empty := backend.EmptyVectorCommitment()
+	newCollector := func(paths ...aggregateVerifierPath) *aggregateVerifierCollector {
+		commitments := make(map[aggregateVerifierPath]backend.VectorCommitment, len(paths))
+		for _, path := range paths {
+			commitments[path] = empty
+		}
+
+		return &aggregateVerifierCollector{
+			ctx: context.Background(),
+			limits: AggregateVerifierQueryLimits{
+				MaxQueries:        16,
+				MaxTemporaryBytes: 16 * aggregateVerifierQueryWorkingByte,
+			},
+			commitments:   commitments,
+			queryCapacity: 16,
+			queryByID:     make(map[aggregateVerifierIdentity]int),
+		}
+	}
+
+	value := testValue(7)
+	secondKey := key
+	secondKey[31] = 4
+	secondValue := testValue(8)
+	present := newCollector(rootPath, prefixPath, stemPath, suffixPath)
+	if err := present.collectStem(
+		PresentStemPath(stem, 2),
+		[]Claim{Membership(key, value), Membership(secondKey, secondValue)},
+	); err != nil {
+		t.Fatalf("collect present stem: %v", err)
+	}
+	if len(present.queries) != 9 {
+		t.Fatalf("present stem query count = %d, want 9", len(present.queries))
+	}
+	opening := leafvector.EncodePresent(key[31], [32]byte(value))
+	secondOpening := leafvector.EncodePresent(secondKey[31], [32]byte(secondValue))
+	wantPresent := []struct {
+		path  aggregateVerifierPath
+		index uint8
+		value [32]byte
+	}{
+		{path: rootPath, index: 1},
+		{path: prefixPath, index: 2},
+		{path: stemPath, index: leafvector.ExtensionMarkerIndex, value: extensionMarkerScalar()},
+		{path: stemPath, index: leafvector.StemIndex, value: [32]byte(leafvector.EncodeStem(stem))},
+		{path: stemPath, index: leafvector.C1HashIndex},
+		{path: suffixPath, index: opening.LowIndex, value: [32]byte(opening.Low)},
+		{path: suffixPath, index: opening.HighIndex, value: [32]byte(opening.High)},
+		{path: suffixPath, index: secondOpening.LowIndex, value: [32]byte(secondOpening.Low)},
+		{path: suffixPath, index: secondOpening.HighIndex, value: [32]byte(secondOpening.High)},
+	}
+	for index, want := range wantPresent {
+		got := present.queries[index]
+		if got.Path != want.path.path || got.Length != want.path.length ||
+			got.Opening.Index != want.index || got.Opening.Value != want.value {
+			t.Fatalf("present query %d = %#v, want %#v", index, got, want)
+		}
+	}
+
+	existing := stem
+	existing[1] = 9
+	different := newCollector(rootPath, prefixPath, stemPath)
+	if err := different.collectStem(
+		DifferentStemPath(stem, 2, existing),
+		nil,
+	); err != nil {
+		t.Fatalf("collect different stem: %v", err)
+	}
+	if len(different.queries) != 4 ||
+		different.queries[3].Opening.Index != leafvector.StemIndex ||
+		different.queries[3].Opening.Value != [32]byte(leafvector.EncodeStem(existing)) {
+		t.Fatalf("different stem queries = %#v", different.queries)
 	}
 }
 

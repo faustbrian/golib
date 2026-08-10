@@ -37,9 +37,9 @@ func TestStatelessUpdaterDerivesPinnedPostStateRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("generate witness proof: %v", err)
 	}
-	updater, err := NewStatelessUpdater(
+	updater, err := NewStatelessUpdaterFromProofEngine(
 		context.Background(),
-		testAuthstateAggregateOpeningLimits(),
+		proofEngine,
 		testCommitmentLimits(),
 	)
 	if err != nil {
@@ -1951,13 +1951,17 @@ func assertStatelessTopologyCancellationSweep(
 
 	observed := false
 	for successful := 0; successful < 4_000; successful++ {
-		_, err := updater.Apply(
-			&stepContext{successfulChecks: successful},
-			proof,
-			updates,
-			testProofVerificationLimits(),
-			testStatelessUpdateLimits(),
+		ctx := &stepContext{successfulChecks: successful}
+		paths, commitments := statelessTestMaterial(proof)
+		budget := &statelessUpdateBudget{limits: testStatelessUpdateLimits()}
+		changed, err := updater.updateStems(
+			ctx, proof.claims, paths, commitments, updates, budget,
 		)
+		if err == nil {
+			_, err = updater.updateAncestors(
+				ctx, proof.claims, paths, commitments, changed, budget,
+			)
+		}
 		if err == nil {
 			if !observed {
 				t.Fatal("topology cancellation sweep exercised no boundary")
@@ -2008,9 +2012,9 @@ func newStatelessTestProof(
 	if err != nil {
 		t.Fatalf("generate stateless proof: %v", err)
 	}
-	updater, err := NewStatelessUpdater(
+	updater, err := NewStatelessUpdaterFromProofEngine(
 		context.Background(),
-		testAuthstateAggregateOpeningLimits(),
+		proofEngine,
 		testCommitmentLimits(),
 	)
 	if err != nil {
