@@ -27,6 +27,8 @@ documented in each module's changelog.
   missing or multiple statuses instead of inferring state from unrelated prose.
 - Validate local Markdown link fragments in specification decisions so renamed
   or removed target sections fail governance instead of leaving stale anchors.
+- Require specification decision fields to be structurally labeled instead of
+  allowing incidental prose to masquerade as missing governance metadata.
 - Register Kafka's exercised broker, resource-reaper, comparison-client, MSK
   signer, and AWS SDK inputs in the generated repository catalog.
 - Register Kafka's normative decision record and real-broker conformance

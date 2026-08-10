@@ -244,6 +244,21 @@ func TestValidateSpecificationDecisionsFailsClosed(t *testing.T) {
 			wantError: "reconsider",
 		},
 		{
+			name: "required field term only in prose",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "| Public surface |", "| API |")
+				replaceFileText(
+					t,
+					path,
+					"\n## Unresolved decisions",
+					"\nThe public surface remains stable.\n\n## Unresolved decisions",
+				)
+			},
+			wantError: "public surface",
+		},
+		{
 			name: "unresolved decision",
 			mutate: func(t *testing.T, root string, _ *catalog) {
 				t.Helper()

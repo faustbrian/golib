@@ -532,7 +532,8 @@ func validateSpecificationDecision(
 	knownDecisions map[string]bool,
 ) error {
 	normalized := strings.ToLower(decision.body)
-	required := []struct {
+	labels := specificationDecisionFieldLabels(decision.body)
+	requiredLabels := []struct {
 		name  string
 		terms []string
 	}{
@@ -544,26 +545,35 @@ func validateSpecificationDecision(
 		{name: "credible interpretations", terms: []string{"interpretation"}},
 		{name: "known peer behavior", terms: []string{"peer"}},
 		{name: "selected behavior", terms: []string{"selected behavior"}},
-		{name: "security consequences", terms: []string{"security", "consequence"}},
-		{name: "resource consequences", terms: []string{"resource", "consequence"}},
-		{name: "compatibility consequences", terms: []string{"compatibility", "consequence"}},
-		{name: "wire consequences", terms: []string{"wire", "consequence"}},
 		{name: "executable evidence", terms: []string{"evidence"}},
 		{name: "public surface", terms: []string{"public surface"}},
 		{name: "upstream record", terms: []string{"upstream"}},
 		{name: "reconsideration condition", terms: []string{"reconsider"}},
 	}
 	problems := []error{}
-	for _, field := range required {
+	for _, field := range requiredLabels {
 		missing := false
 		for _, term := range field.terms {
-			if !strings.Contains(normalized, term) {
+			if !strings.Contains(labels, term) {
 				missing = true
 				break
 			}
 		}
 		if missing {
 			problems = append(problems, fmt.Errorf("%s is missing %s", decision.identifier, field.name))
+		}
+	}
+	for _, consequence := range []struct {
+		name string
+		term string
+	}{
+		{name: "security consequences", term: "security"},
+		{name: "resource consequences", term: "resource"},
+		{name: "compatibility consequences", term: "compatibility"},
+		{name: "wire consequences", term: "wire"},
+	} {
+		if !strings.Contains(labels, "consequence") || !strings.Contains(normalized, consequence.term) {
+			problems = append(problems, fmt.Errorf("%s is missing %s", decision.identifier, consequence.name))
 		}
 	}
 	if !authoritativeURLPattern.MatchString(decision.body) {
@@ -602,6 +612,29 @@ func validateSpecificationDecision(
 		}
 	}
 	return errors.Join(problems...)
+}
+
+func specificationDecisionFieldLabels(body string) string {
+	labels := []string{}
+	for line := range strings.SplitSeq(body, "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "|") {
+			cells := strings.Split(line, "|")
+			if len(cells) > 2 {
+				labels = append(labels, strings.TrimSpace(cells[1]))
+			}
+			continue
+		}
+		line = strings.TrimPrefix(line, "- ")
+		if !strings.HasPrefix(line, "**") {
+			continue
+		}
+		line = strings.TrimPrefix(line, "**")
+		if end := strings.Index(line, "**"); end >= 0 {
+			labels = append(labels, strings.TrimSpace(line[:end]))
+		}
+	}
+	return strings.ToLower(strings.Join(labels, " "))
 }
 
 func specificationDecisionStatus(body string) (string, error) {

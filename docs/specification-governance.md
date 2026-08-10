@@ -48,6 +48,11 @@ The body must explicitly record:
 - upstream issue, erratum, or discussion;
 - reconsideration condition.
 
+These requirements must appear in the entry's table or bold field labels.
+Mentioning a field name incidentally in narrative text does not satisfy the
+decision format. Consequence fields may be combined, but their body must still
+address security, resources, compatibility, and wire behavior explicitly.
+
 The accepted statuses are `resolved`, `unresolved`, and `superseded`.
 Each entry must declare exactly one of them in its status field; status words
 elsewhere in the entry do not satisfy that contract. Unresolved decisions block
