@@ -67,7 +67,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | ---: | --- | --- | --- | --- |
 | 1 | Decisions | `pending-reexecution` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
 | 2 | Architecture | `pending` | `.ai/GOAL_RESILIENCE.md` | 1 |
-| 11 | Primitive | `pending-reexecution` | `pkg/hedge/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3, 6, 8 |
 | 12 | Integration | `pending-reexecution` | `pkg/cache/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 8 |
 | 13 | Integration | `pending-reexecution` | `pkg/http-client/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 6-11 |
 | 14 | Verification | `pending-reexecution` | `pkg/fault-injection/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-13 |
@@ -113,6 +112,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/retry/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 8. Current scoped evidence verifies retry policy and adapters, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/circuit-breaker/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 9. Current scoped evidence verifies circuit-breaker state, windows, lifecycle, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/adaptive-throttle/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 10. Current scoped evidence verifies adaptive admission behavior, bounded policy state, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/hedge/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 11. Current scoped evidence verifies bounded hedging, winner and loser lifecycle, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 22. Current scoped evidence verifies OpenID Connect discovery and ID-token policy, bounded synchronized metadata and JWKS rotation, caller-owned nonce validation, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 23. Current scoped evidence verifies authentication-material redaction, result isolation, bounded completion and retention, provider lifecycle, concurrency, fuzzing, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -150,13 +150,13 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 
 | Field | Record |
 | --- | --- |
-| Goal | Pending execution units 3 through 10: `resilience`, `semaphore`, `bulkhead`, `concurrency-limit`, `rate-limit`, `retry`, `circuit-breaker`, and `adaptive-throttle`. |
+| Goal | Pending execution units 3 through 11: `resilience`, `semaphore`, `bulkhead`, `concurrency-limit`, `rate-limit`, `retry`, `circuit-breaker`, `adaptive-throttle`, and `hedge`. |
 | Scope | Composition and primitive policy contracts, cancellation and lifecycle behavior, concurrency safety, bounded state and work, process-local and supported durable adapters, documentation, API compatibility, interoperability where applicable, and performance. |
 | Status | `pending` or `pending-reexecution` to `verified`. |
 | Evidence | Isolated package-scoped `./scripts/run-modules.sh check --jobs 1 --modules <module>` campaigns with task-owned disposable Go build and module caches. |
-| Result | Every mandatory gate passed. Exact statement coverage and viable-mutant results were `412/412` and `150/150` for resilience, `224/224` and `87/87` for semaphore, `297/297` and `115/115` for bulkhead, `615/615` and `415/415` for concurrency-limit, `1514/1514` and `651/651` for rate-limit, `404/404` and `213/213` for retry, `772/772` and `416/416` for circuit-breaker, and `353/353` and `228/228` for adaptive-throttle. |
+| Result | Every mandatory gate passed. Exact statement coverage and viable-mutant results were `412/412` and `150/150` for resilience, `224/224` and `87/87` for semaphore, `297/297` and `115/115` for bulkhead, `615/615` and `415/415` for concurrency-limit, `1514/1514` and `651/651` for rate-limit, `404/404` and `213/213` for retry, `772/772` and `416/416` for circuit-breaker, `353/353` and `228/228` for adaptive-throttle, and `447/447` and `182/182` for hedge. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; rate-limit interoperability used PostgreSQL and Valkey containers with explicit Valkey policy isolation. |
-| Observed | 2026-08-10T10:54:42Z |
+| Observed | 2026-08-10T11:05:52Z |
 | Gaps | NilAway remains advisory and its diagnostics remain visible where reported; no mandatory gate gap remains in these execution units. |
 
 ### PostgreSQL event store hardening evidence
