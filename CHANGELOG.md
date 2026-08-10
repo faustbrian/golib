@@ -16,6 +16,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Preserve gate execution, durable logs, and attributable evidence when a
+  terminal or automation client disconnects from live output, preventing a
+  completed long-running gate from being misclassified as `SIGPIPE` failure.
 - Validate stable specification decision numbering independently for each
   identifier series so versioned standards can preserve their published IDs.
 - Catalog ECMAScript regular expressions against the exact ECMA-262 edition,

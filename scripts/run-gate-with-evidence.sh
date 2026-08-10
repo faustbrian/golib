@@ -36,6 +36,24 @@ cleanup() {
         rmdir "${lock}" 2>/dev/null || true
     fi
 }
+
+forward_gate_output() {
+    local line output_open=1
+    trap '' PIPE
+    while IFS= read -r line || [[ -n "${line}" ]]; do
+        if [[ "${output_open}" -eq 1 ]] &&
+            ! printf '%s\n' "${line}" 2>/dev/null; then
+            output_open=0
+        fi
+    done
+    return 0
+}
+
+emit_evidence_status() (
+    trap '' PIPE
+    printf '[%s] %s evidence: %s\n' "$1" "$2" "$3" 2>/dev/null || true
+)
+
 trap cleanup EXIT
 trap 'exit 130' HUP INT TERM
 mkdir -p "${artifact}"
@@ -113,15 +131,21 @@ if [[ -f "${source_evidence}" && -f "${source_log}" ]]; then
         cp "${evidence}" "${temporary_legacy_evidence}"
         mv "${temporary_legacy_log}" "${legacy_log}"
         mv "${temporary_legacy_evidence}" "${legacy_evidence}"
-        printf '[%s] %s evidence: reused\n' "${module}" "${gate}"
+        emit_evidence_status "${module}" "${gate}" reused
         exit 0
     fi
 fi
 
 set +e
 "${root}/scripts/check-module.sh" "${module}" "${gate}" 2>&1 |
-    tee "${temporary_log}"
-command_status=${PIPESTATUS[0]}
+    tee "${temporary_log}" |
+    forward_gate_output
+pipeline_status=("${PIPESTATUS[@]}")
+command_status=${pipeline_status[0]}
+tee_status=${pipeline_status[1]}
+if [[ "${command_status}" -eq 0 && "${tee_status}" -ne 0 ]]; then
+    command_status="${tee_status}"
+fi
 set -e
 
 completed_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
@@ -182,5 +206,5 @@ cp "${log}" "${temporary_legacy_log}"
 cp "${evidence}" "${temporary_legacy_evidence}"
 mv "${temporary_legacy_log}" "${legacy_log}"
 mv "${temporary_legacy_evidence}" "${legacy_evidence}"
-printf '[%s] %s evidence: %s\n' "${module}" "${gate}" "${result}"
+emit_evidence_status "${module}" "${gate}" "${result}"
 exit "${command_status}"
