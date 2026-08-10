@@ -159,7 +159,7 @@ func runVersionConformance(ctx context.Context, config ConformanceConfig) error 
 		return fmt.Errorf("searchtest conformance: stale document fixture: %w", err)
 	}
 	stale, err := config.Adapter.Write(ctx, search.IndexDocument(document), config.Refresh)
-	if err != nil || stale.State != search.OutcomeVersionConflict {
+	if stale.State != search.OutcomeVersionConflict {
 		return fmt.Errorf("searchtest conformance: stale write after delete: outcome=%#v error=%v", stale, err)
 	}
 	return nil

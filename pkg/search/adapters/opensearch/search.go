@@ -162,11 +162,21 @@ func (c *Client) Search(ctx context.Context, request search.Request) (result sea
 	if decoded.PITID != "" {
 		state.PointInTime = decoded.PITID
 	}
+	if _, cursorPage := request.Page.(search.CursorPage); cursorPage && decoded.Diagnostics.Partial {
+		return search.Result{}, ErrPartialResults
+	}
 
 	nextCursor := ""
 	pageSize := searchPageSize(request.Page)
 	if len(decoded.Hits) > pageSize {
 		return search.Result{}, malformedFailure(OperationSearch, ErrMalformedResponse)
+	}
+	validated, validationErr := search.NewResult(
+		decoded.Hits, decoded.Total, decoded.Aggregations, decoded.Suggestions,
+		decoded.Diagnostics, "",
+	)
+	if validationErr != nil {
+		return search.Result{}, malformedFailure(OperationSearch, validationErr)
 	}
 	if ownedPIT && len(decoded.Hits) == pageSize {
 		last := decoded.Hits[len(decoded.Hits)-1]
@@ -188,23 +198,23 @@ func (c *Client) Search(ctx context.Context, request search.Request) (result sea
 		if err != nil {
 			return search.Result{}, err
 		}
+		result, err = search.NewResult(
+			decoded.Hits, decoded.Total, decoded.Aggregations, decoded.Suggestions,
+			decoded.Diagnostics, nextCursor,
+		)
+		if err != nil {
+			return search.Result{}, malformedFailure(OperationSearch, err)
+		}
 		ownedPIT = false
+		return result, nil
 	}
 	if ownedPIT {
-		ownedPIT = false
 		if err := c.deletePIT(context.WithoutCancel(ctx), state.PointInTime); err != nil {
 			return search.Result{}, err
 		}
+		ownedPIT = false
 	}
-
-	result, err = search.NewResult(
-		decoded.Hits, decoded.Total, decoded.Aggregations, decoded.Suggestions,
-		decoded.Diagnostics, nextCursor,
-	)
-	if err != nil {
-		return search.Result{}, malformedFailure(OperationSearch, err)
-	}
-	return result, nil
+	return validated, nil
 }
 
 func validIndexTarget(target IndexTarget) bool {
@@ -243,8 +253,22 @@ func (c *Client) createPIT(ctx context.Context, index string, keepAlive time.Dur
 
 func (c *Client) deletePIT(ctx context.Context, id string) error {
 	body, _ := json.Marshal(map[string]string{"pit_id": id})
-	_, err := c.execute(ctx, OperationDeletePIT, http.MethodDelete, "/_search/point_in_time", body, http.StatusOK)
-	return err
+	responseBody, err := c.execute(ctx, OperationDeletePIT, http.MethodDelete, "/_search/point_in_time", body, http.StatusOK)
+	if err != nil {
+		return err
+	}
+	var response struct {
+		PITs []struct {
+			PITID      string `json:"pit_id"`
+			Successful bool   `json:"successful"`
+		} `json:"pits"`
+	}
+	decoder := json.NewDecoder(bytes.NewReader(responseBody))
+	if decoder.Decode(&response) != nil || trailingJSON(decoder) || len(response.PITs) != 1 ||
+		response.PITs[0].PITID != id || !response.PITs[0].Successful {
+		return malformedFailure(OperationDeletePIT, ErrMalformedResponse)
+	}
+	return nil
 }
 
 func (c *Client) execute(ctx context.Context, operation Operation, method, path string, body []byte, accepted ...int) ([]byte, error) {
@@ -371,7 +395,7 @@ func encodeQuery(query search.Query, localeAnalyzers map[string]string) (any, er
 			}
 			value[name] = encoded
 		}
-		if node.MinimumShouldMatch > 0 {
+		if node.MinimumShouldMatch > 0 || len(node.Should) > 0 && len(node.Must) == 0 && len(node.Filter) == 0 {
 			value["minimum_should_match"] = node.MinimumShouldMatch
 		}
 		return map[string]any{"bool": value}, nil
@@ -530,7 +554,7 @@ func decodeSearchResponse(body []byte) (decodedSearch, error) {
 	}
 	hits := make([]search.Hit, len(payload.Hits.Hits))
 	for index, hit := range payload.Hits.Hits {
-		if hit.Version == 0 {
+		if hit.Index == "" || hit.ID == "" || hit.Version == 0 {
 			return decodedSearch{}, ErrMalformedResponse
 		}
 		hits[index] = search.Hit{Index: hit.Index, ID: hit.ID, Version: hit.Version, Score: hit.Score, Source: hit.Source, SortValues: hit.Sort, Highlights: hit.Highlight}
