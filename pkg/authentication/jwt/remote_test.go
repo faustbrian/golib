@@ -159,6 +159,8 @@ func TestRemoteCoalescesConcurrentRefreshes(t *testing.T) {
 	started := make(chan struct{})
 	release := make(chan struct{})
 	var startedOnce sync.Once
+	var releaseOnce sync.Once
+	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		requests.Add(1)
 		if blocking.Load() {
@@ -198,11 +200,11 @@ func TestRemoteCoalescesConcurrentRefreshes(t *testing.T) {
 		<-ready
 	}
 	close(start)
-	<-started
+	waitForRemoteSignal(t, started, "coalesced refresh request")
 	for range 1_000 {
 		runtime.Gosched()
 	}
-	close(release)
+	releaseOnce.Do(func() { close(release) })
 	for range callers {
 		if err := <-errorsByCaller; err != nil {
 			t.Fatalf("Refresh() error = %v", err)
@@ -210,6 +212,70 @@ func TestRemoteCoalescesConcurrentRefreshes(t *testing.T) {
 	}
 	if got := requests.Load(); got != 1 {
 		t.Fatalf("concurrent refresh requests = %d, want 1", got)
+	}
+}
+
+func TestRemoteSerializesAutomaticAndExplicitRefreshWork(t *testing.T) {
+	keys, _ := rsaKeys(t, "key", jwa.RS256())
+	body := marshalJWKSet(t, keys)
+	var requests atomic.Int64
+	var active atomic.Int64
+	started := make(chan struct{})
+	overlap := make(chan struct{}, 1)
+	release := make(chan struct{})
+	var releaseOnce sync.Once
+	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		request := requests.Add(1)
+		current := active.Add(1)
+		defer active.Add(-1)
+		if current > 1 {
+			select {
+			case overlap <- struct{}{}:
+			default:
+			}
+		}
+		if request >= 3 {
+			if request == 3 {
+				close(started)
+			}
+			<-release
+		}
+		writer.Header().Set("Content-Type", "application/json")
+		writer.Header().Set("Cache-Control", "max-age=0")
+		_, _ = writer.Write(body)
+	}))
+	t.Cleanup(server.Close)
+	remote, err := authjwt.NewRemote(context.Background(), server.URL,
+		authjwt.WithInsecureHTTP(), authjwt.WithHTTPClient(server.Client()),
+		authjwt.WithRefreshBounds(10*time.Millisecond, 10*time.Millisecond),
+		authjwt.WithRefreshJitter(0),
+	)
+	if err != nil {
+		t.Fatalf("NewRemote() error = %v", err)
+	}
+	waitForRemoteSignal(t, started, "automatic refresh request")
+	select {
+	case <-overlap:
+	default:
+	}
+	refreshDone := make(chan error, 1)
+	go func() { refreshDone <- remote.Refresh(context.Background()) }()
+	var overlapped bool
+	select {
+	case <-overlap:
+		overlapped = true
+	case <-time.After(200 * time.Millisecond):
+	}
+	releaseOnce.Do(func() { close(release) })
+	if err := <-refreshDone; err != nil {
+		t.Fatalf("Refresh() error = %v", err)
+	}
+	if overlapped {
+		t.Fatalf("automatic and explicit refresh performed overlapping remote work after %d requests", requests.Load())
+	}
+	if err := closeRemote(t, remote); err != nil {
+		t.Fatalf("Close() error = %v", err)
 	}
 }
 
@@ -577,7 +643,7 @@ func TestRemoteCloseDeadlineIsNotBlockedByRefreshLock(t *testing.T) {
 		defer close(refreshDone)
 		_ = remote.Refresh(context.Background())
 	}()
-	<-started
+	waitForRemoteSignal(t, started, "blocked refresh request")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Millisecond)
 	defer cancel()
@@ -587,7 +653,7 @@ func TestRemoteCloseDeadlineIsNotBlockedByRefreshLock(t *testing.T) {
 		close(closeStarted)
 		closeDone <- remote.Close(ctx)
 	}()
-	<-closeStarted
+	waitForRemoteSignal(t, closeStarted, "close call")
 	select {
 	case err := <-closeDone:
 		if err != nil && !errors.Is(err, context.DeadlineExceeded) {
@@ -595,12 +661,12 @@ func TestRemoteCloseDeadlineIsNotBlockedByRefreshLock(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		releaseOnce.Do(func() { close(release) })
-		<-refreshDone
+		waitForRemoteSignal(t, refreshDone, "refresh cleanup")
 		err := <-closeDone
 		t.Fatalf("Close() ignored deadline while waiting for refresh: %v", err)
 	}
 	releaseOnce.Do(func() { close(release) })
-	<-refreshDone
+	waitForRemoteSignal(t, refreshDone, "refresh completion")
 	if err := closeRemote(t, remote); err != nil {
 		t.Fatalf("Close(cleanup) error = %v", err)
 	}
@@ -623,12 +689,60 @@ func TestProviderFailureIsUnavailableAndSecretSafe(t *testing.T) {
 	}
 	header := base64.RawURLEncoding.EncodeToString([]byte(`{"alg":"RS256","kid":"key"}`))
 	payload := base64.RawURLEncoding.EncodeToString([]byte(`{"sub":"service"}`))
-	_, err = validator.Authenticate(context.Background(), authentication.NewBearerCredential(header+"."+payload+".signature"))
-	if !errors.Is(err, authentication.ErrAuthenticationUnavailable) || !errors.Is(err, providerError) {
+	signature := base64.RawURLEncoding.EncodeToString([]byte("signature"))
+	_, err = validator.Authenticate(context.Background(), authentication.NewBearerCredential(header+"."+payload+"."+signature))
+	if !errors.Is(err, authentication.ErrAuthenticationUnavailable) || !errors.Is(err, authjwt.ErrKeyProviderUnavailable) {
 		t.Fatalf("Authenticate() error = %v", err)
+	}
+	if errors.Is(err, providerError) {
+		t.Fatal("Authenticate() exposed the provider error through unwrapping")
 	}
 	if containsText(err.Error(), "secret-token") {
 		t.Fatalf("Authenticate() disclosed provider error: %q", err)
+	}
+}
+
+func TestRemoteFailureRedactsEndpointQueryAndTransportError(t *testing.T) {
+	t.Parallel()
+
+	remoteError := errors.New("issuer request failed with secret-response")
+	_, err := authjwt.NewRemote(
+		context.Background(),
+		"https://issuer.example.test/keys?access_token=secret-query",
+		authjwt.WithHTTPClient(&http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, remoteError
+		})}),
+	)
+	if !errors.Is(err, authentication.ErrAuthenticationUnavailable) || !errors.Is(err, authjwt.ErrKeyProviderUnavailable) {
+		t.Fatalf("NewRemote() error = %v", err)
+	}
+	if errors.Is(err, remoteError) || strings.Contains(err.Error(), "secret-query") || strings.Contains(err.Error(), "secret-response") {
+		t.Fatalf("NewRemote() exposed remote details: %v", err)
+	}
+}
+
+func TestRemoteLifetimeIsOwnedByClose(t *testing.T) {
+	t.Parallel()
+
+	keys, _ := rsaKeys(t, "key", jwa.RS256())
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.Header().Set("Content-Type", "application/json")
+		_, _ = writer.Write(marshalJWKSet(t, keys))
+	}))
+	t.Cleanup(server.Close)
+	constructorContext, cancel := context.WithCancel(context.Background())
+	remote, err := authjwt.NewRemote(constructorContext, server.URL,
+		authjwt.WithInsecureHTTP(), authjwt.WithHTTPClient(server.Client()),
+	)
+	if err != nil {
+		t.Fatalf("NewRemote() error = %v", err)
+	}
+	cancel()
+	if _, err := remote.KeySet(context.Background()); err != nil {
+		t.Fatalf("KeySet(after constructor cancellation) error = %v", err)
+	}
+	if err := closeRemote(t, remote); err != nil {
+		t.Fatalf("Close() error = %v", err)
 	}
 }
 
@@ -681,6 +795,15 @@ func containsText(value, needle string) bool {
 		}
 	}
 	return false
+}
+
+func waitForRemoteSignal(t *testing.T, signal <-chan struct{}, operation string) {
+	t.Helper()
+	select {
+	case <-signal:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("timed out waiting for %s", operation)
+	}
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

@@ -115,6 +115,12 @@ func TestValidatorRejectsInvalidJWTTrustDecisions(t *testing.T) {
 			}
 		})
 	}
+	var failure *authentication.Failure
+	claims := cloneMap(valid)
+	claims["exp"] = jwtNow.Add(-2 * time.Minute)
+	if _, err := validator.ValidateBearer(context.Background(), signedToken(t, signer, jwa.RS256(), claims)); !errors.As(err, &failure) {
+		t.Fatalf("ValidateBearer() error = %v, want *authentication.Failure", err)
+	}
 }
 
 func TestValidatorRejectsMalformedNumericDates(t *testing.T) {
@@ -126,16 +132,20 @@ func TestValidatorRejectsMalformedNumericDates(t *testing.T) {
 		Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, Clock: authtest.NewClock(jwtNow),
 	})
 	payloads := map[string]string{
-		"expiration": `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"exp":"later"}`,
-		"not before": `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"nbf":[],"exp":4102444800}`,
-		"issued at":  `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":"now","exp":4102444800}`,
+		"expiration":              `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"exp":"later"}`,
+		"quoted expiration epoch": `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"exp":"4102444800"}`,
+		"RFC3339 expiration":      `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"exp":"2100-01-01T00:00:00Z"}`,
+		"not before":              `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"nbf":[],"exp":4102444800}`,
+		"quoted not before epoch": `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"nbf":"1700000000","exp":4102444800}`,
+		"issued at":               `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":"now","exp":4102444800}`,
+		"quoted issued at epoch":  `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":"1700000000","exp":4102444800}`,
 	}
 	for name, payload := range payloads {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			token := signedPayload(t, signer, jwa.RS256(), []byte(payload))
-			if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) {
-				t.Fatalf("ValidateBearer() error = %v, want rejected", err)
+			if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) || !errors.Is(err, upstreamjwt.ParseError()) {
+				t.Fatalf("ValidateBearer() error = %v, want rejected parse error", err)
 			}
 		})
 	}
@@ -172,6 +182,82 @@ func TestValidatorHonorsExactNumericDateBoundaries(t *testing.T) {
 			_, err := validator.ValidateBearer(context.Background(), signedToken(t, signer, jwa.RS256(), claims))
 			if (err != nil) != tt.wantError {
 				t.Fatalf("ValidateBearer() error = %v, wantError = %v", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestValidatorEnforcesSubjectAndRequiredClaimPolicy(t *testing.T) {
+	t.Parallel()
+
+	keys, signer := rsaKeys(t, "key-1", jwa.RS256())
+	validator := newValidator(t, keys, authjwt.Config{
+		Issuer: "https://issuer.example.test", Audience: "orders",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, Clock: authtest.NewClock(jwtNow),
+		Subjects: []string{"service-a", "service-b"}, RequiredClaims: []string{"tenant", "jti"},
+	})
+	base := map[string]any{
+		"sub": "service-a", "iss": "https://issuer.example.test", "aud": "orders",
+		"iat": jwtNow, "exp": jwtNow.Add(time.Hour), "tenant": "north", "jti": "request-1",
+	}
+	if _, err := validator.ValidateBearer(context.Background(), signedToken(t, signer, jwa.RS256(), base)); err != nil {
+		t.Fatalf("ValidateBearer(allowed subject) error = %v", err)
+	}
+
+	tests := []struct {
+		name  string
+		alter func(map[string]any)
+	}{
+		{name: "subject outside allowlist", alter: func(claims map[string]any) { claims["sub"] = "service-c" }},
+		{name: "missing custom required claim", alter: func(claims map[string]any) { delete(claims, "jti") }},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			claims := cloneMap(base)
+			tt.alter(claims)
+			if _, err := validator.ValidateBearer(context.Background(), signedToken(t, signer, jwa.RS256(), claims)); !errors.Is(err, authentication.ErrCredentialsRejected) {
+				t.Fatalf("ValidateBearer() error = %v, want rejected", err)
+			}
+		})
+	}
+}
+
+func TestValidatorPreservesSafeStandardsErrorCategories(t *testing.T) {
+	t.Parallel()
+
+	keys, signer := rsaKeys(t, "key-1", jwa.RS256())
+	validator := newValidator(t, keys, authjwt.Config{
+		Issuer: "https://issuer.example.test", Audience: "orders",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, Clock: authtest.NewClock(jwtNow),
+		RequiredClaims: []string{"tenant"},
+	})
+	base := map[string]any{
+		"sub": "service", "iss": "https://issuer.example.test", "aud": "orders",
+		"iat": jwtNow, "exp": jwtNow.Add(time.Hour), "tenant": "north",
+	}
+	tests := []struct {
+		name  string
+		alter func(map[string]any)
+		want  error
+	}{
+		{name: "expired", alter: func(claims map[string]any) { claims["exp"] = jwtNow }, want: upstreamjwt.TokenExpiredError()},
+		{name: "not yet valid", alter: func(claims map[string]any) { claims["nbf"] = jwtNow.Add(time.Second) }, want: upstreamjwt.TokenNotYetValidError()},
+		{name: "issued in future", alter: func(claims map[string]any) { claims["iat"] = jwtNow.Add(time.Second) }, want: upstreamjwt.InvalidIssuedAtError()},
+		{name: "issuer mismatch", alter: func(claims map[string]any) { claims["iss"] = "https://sensitive.example.test/private" }, want: upstreamjwt.InvalidIssuerError()},
+		{name: "audience mismatch", alter: func(claims map[string]any) { claims["aud"] = "sensitive-audience" }, want: upstreamjwt.InvalidAudienceError()},
+		{name: "required claim missing", alter: func(claims map[string]any) { delete(claims, "tenant") }, want: upstreamjwt.MissingRequiredClaimError()},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			claims := cloneMap(base)
+			tt.alter(claims)
+			token := signedToken(t, signer, jwa.RS256(), claims)
+			_, err := validator.ValidateBearer(context.Background(), token)
+			if !errors.Is(err, authentication.ErrCredentialsRejected) || !errors.Is(err, tt.want) {
+				t.Fatalf("ValidateBearer() error = %v, want rejected and %v", err, tt.want)
+			}
+			if strings.Contains(err.Error(), token) || strings.Contains(err.Error(), "sensitive") {
+				t.Fatalf("ValidateBearer() disclosed sensitive data: %v", err)
 			}
 		})
 	}
@@ -239,10 +325,12 @@ func TestValidatorRejectsNonCanonicalBase64TruncationAndNestedPayloads(t *testin
 	})
 	parts := strings.Split(valid, ".")
 	tests := map[string]string{
-		"noncanonical header base64url": nonCanonicalBase64URL(parts[0]) + "." + parts[1] + "." + parts[2],
-		"truncated signature":           parts[0] + "." + parts[1] + "." + parts[2][:len(parts[2])-1],
-		"nested compact payload":        signedPayload(t, signer, jwa.RS256(), []byte(`"`+valid+`"`)),
-		"JWE compact serialization":     "a.b.c.d.e",
+		"noncanonical header base64url":    nonCanonicalBase64URL(parts[0]) + "." + parts[1] + "." + parts[2],
+		"padded signature base64url":       parts[0] + "." + parts[1] + "." + parts[2] + "=",
+		"noncanonical signature base64url": parts[0] + "." + parts[1] + "." + nonCanonicalBase64URL(parts[2]),
+		"truncated signature":              parts[0] + "." + parts[1] + "." + parts[2][:len(parts[2])-1],
+		"nested compact payload":           signedPayload(t, signer, jwa.RS256(), []byte(`"`+valid+`"`)),
+		"JWE compact serialization":        "a.b.c.d.e",
 	}
 	for name, token := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -337,11 +425,23 @@ func TestValidatorHonorsCancellationAndConfigurationBounds(t *testing.T) {
 		{Issuer: "issuer", Audience: "audience", Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, KeySet: keys},
 		{Issuer: "issuer", Audience: "audience", Algorithms: []jwa.SignatureAlgorithm{jwa.NoSignature()}, KeySet: keys, Clock: authtest.NewClock(jwtNow)},
 		{Issuer: "issuer", Audience: "audience", Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, KeySet: keys, Clock: authtest.NewClock(jwtNow), MaxClaims: authentication.MaxClaims + 1},
+		{Issuer: "issuer", Audience: "audience", Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, KeySet: keys, Clock: authtest.NewClock(jwtNow), Subjects: []string{""}},
+		{Issuer: "issuer", Audience: "audience", Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, KeySet: keys, Clock: authtest.NewClock(jwtNow), Subjects: []string{"service", "service"}},
+		{Issuer: "issuer", Audience: "audience", Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, KeySet: keys, Clock: authtest.NewClock(jwtNow), RequiredClaims: []string{""}},
+		{Issuer: "issuer", Audience: "audience", Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, KeySet: keys, Clock: authtest.NewClock(jwtNow), RequiredClaims: []string{"tenant", "tenant"}},
+		{Issuer: "issuer", Audience: "audience", Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, KeySet: keys, Clock: authtest.NewClock(jwtNow), RequiredClaims: []string{"sub"}},
 	}
 	for index, configuration := range invalid {
 		if _, err := authjwt.New(configuration); !errors.Is(err, authentication.ErrInvalidConfiguration) {
 			t.Errorf("New(invalid %d) error = %v", index, err)
 		}
+	}
+	if _, err := authjwt.New(authjwt.Config{
+		Issuer: "issuer", Audience: "audience", Algorithms: []jwa.SignatureAlgorithm{jwa.ES256K()},
+		Provider: authjwt.KeyProviderFunc(func(context.Context) (jwk.Set, error) { return keys, nil }),
+		Clock:    authtest.NewClock(jwtNow),
+	}); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Errorf("New(ES256K) error = %v", err)
 	}
 }
 

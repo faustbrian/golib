@@ -35,7 +35,14 @@ var registeredClaims = map[string]struct{}{
 	"aud": {}, "exp": {}, "iat": {}, "iss": {}, "jti": {}, "nbf": {}, "sub": {},
 }
 
+var mandatoryClaims = map[string]struct{}{
+	"aud": {}, "exp": {}, "iat": {}, "iss": {}, "sub": {},
+}
+
 var prohibitedKeyReferenceHeaders = []string{"jku", "jwk", "x5c", "x5t", "x5t#S256", "x5u"}
+
+// ErrKeyProviderUnavailable is the redacted cause for key-provider failures.
+var ErrKeyProviderUnavailable = errors.New("jwt: key provider unavailable")
 
 // Clock supplies validation time and permits deterministic tests.
 //
@@ -47,36 +54,40 @@ type Clock interface {
 
 // Config defines a strict JWT trust boundary.
 type Config struct {
-	Issuer        string
-	Audience      string
-	Algorithms    []jwa.SignatureAlgorithm
-	KeySet        jwk.Set
-	Provider      KeyProvider
-	Clock         Clock
-	Skew          time.Duration
-	MaxTokenBytes int
-	MaxClaims     int
-	MaxClaimDepth int
-	MaxKeys       int
-	ScopeClaim    string
-	TenantClaim   string
+	Issuer         string
+	Audience       string
+	Algorithms     []jwa.SignatureAlgorithm
+	KeySet         jwk.Set
+	Provider       KeyProvider
+	Clock          Clock
+	Skew           time.Duration
+	MaxTokenBytes  int
+	MaxClaims      int
+	MaxClaimDepth  int
+	MaxKeys        int
+	Subjects       []string
+	RequiredClaims []string
+	ScopeClaim     string
+	TenantClaim    string
 }
 
 // Validator authenticates signed compact JWT bearer credentials.
 type Validator struct {
-	issuer        string
-	audience      string
-	algorithms    map[string]struct{}
-	keys          jwk.Set
-	provider      KeyProvider
-	clock         Clock
-	skew          time.Duration
-	maxTokenBytes int
-	maxClaims     int
-	maxClaimDepth int
-	maxKeys       int
-	scopeClaim    string
-	tenantClaim   string
+	issuer         string
+	audience       string
+	algorithms     map[string]struct{}
+	keys           jwk.Set
+	provider       KeyProvider
+	clock          Clock
+	skew           time.Duration
+	maxTokenBytes  int
+	maxClaims      int
+	maxClaimDepth  int
+	maxKeys        int
+	subjects       map[string]struct{}
+	requiredClaims []string
+	scopeClaim     string
+	tenantClaim    string
 }
 
 // New validates and defensively copies a static JWK trust configuration.
@@ -100,8 +111,10 @@ func New(configuration Config) (*Validator, error) {
 		clock: configuration.Clock,
 		skew:  configuration.Skew, maxTokenBytes: configuration.MaxTokenBytes,
 		maxClaims: configuration.MaxClaims, maxClaimDepth: configuration.MaxClaimDepth,
-		maxKeys:    configuration.MaxKeys,
-		scopeClaim: configuration.ScopeClaim, tenantClaim: configuration.TenantClaim,
+		maxKeys:        configuration.MaxKeys,
+		subjects:       stringSet(configuration.Subjects),
+		requiredClaims: append([]string(nil), configuration.RequiredClaims...),
+		scopeClaim:     configuration.ScopeClaim, tenantClaim: configuration.TenantClaim,
 	}, nil
 }
 
@@ -142,14 +155,14 @@ func (v *Validator) ValidateBearer(ctx context.Context, token string) (authentic
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureInvalid)
 	}
 	if err := inspectCompactJWT(token, v.algorithms, v.maxClaims, v.maxClaimDepth); err != nil {
-		return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
+		return authentication.Principal{}, rejectedJWTFailure(upstreamjwt.ParseError())
 	}
 
 	keys, err := v.keySet(ctx)
 	if err != nil {
 		return authentication.Principal{}, err
 	}
-	parsed, err := upstreamjwt.Parse([]byte(token),
+	parseOptions := []upstreamjwt.ParseOption{
 		upstreamjwt.WithKeySet(keys),
 		upstreamjwt.WithIssuer(v.issuer),
 		upstreamjwt.WithAudience(v.audience),
@@ -163,8 +176,15 @@ func (v *Validator) ValidateBearer(ctx context.Context, token string) (authentic
 		upstreamjwt.WithRequiredClaim("aud"),
 		upstreamjwt.WithRequiredClaim("iat"),
 		upstreamjwt.WithRequiredClaim("exp"),
-	)
+	}
+	for _, claim := range v.requiredClaims {
+		parseOptions = append(parseOptions, upstreamjwt.WithRequiredClaim(claim))
+	}
+	parsed, err := upstreamjwt.Parse([]byte(token), parseOptions...)
 	if err != nil {
+		return authentication.Principal{}, rejectedJWTFailure(err)
+	}
+	if subject, ok := parsed.Subject(); !ok || (len(v.subjects) != 0 && !containsString(v.subjects, subject)) {
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
 	}
 
@@ -173,6 +193,33 @@ func (v *Validator) ValidateBearer(ctx context.Context, token string) (authentic
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
 	}
 	return principal, nil
+}
+
+func rejectedJWTFailure(err error) error {
+	standardsError := safeStandardsError(err)
+	if standardsError == nil {
+		return authentication.NewFailure(authentication.FailureRejected)
+	}
+	return authentication.NewFailure(authentication.FailureRejected,
+		authentication.WithFailureCause(standardsError))
+}
+
+func safeStandardsError(err error) error {
+	for _, standard := range []error{
+		upstreamjwt.TokenExpiredError(),
+		upstreamjwt.TokenNotYetValidError(),
+		upstreamjwt.InvalidIssuedAtError(),
+		upstreamjwt.InvalidIssuerError(),
+		upstreamjwt.InvalidAudienceError(),
+		upstreamjwt.MissingRequiredClaimError(),
+		upstreamjwt.ValidateError(),
+		upstreamjwt.ParseError(),
+	} {
+		if errors.Is(err, standard) {
+			return standard
+		}
+	}
+	return nil
 }
 
 // KeyProvider returns a current read-only JWK set for one validation attempt.
@@ -192,18 +239,25 @@ func (v *Validator) keySet(ctx context.Context) (jwk.Set, error) {
 	}
 	keys, err := v.provider.KeySet(ctx)
 	if err != nil {
-		if errors.Is(err, authentication.ErrAuthenticationUnavailable) {
-			return nil, err
-		}
-		return nil, authentication.NewFailure(authentication.FailureUnavailable,
-			authentication.WithFailureCause(err))
+		return nil, keyProviderFailure(err)
 	}
 	copied, err := copyAndValidateKeySet(keys, v.algorithms, v.maxKeys)
 	if err != nil {
-		return nil, authentication.NewFailure(authentication.FailureUnavailable,
-			authentication.WithFailureCause(err))
+		return nil, keyProviderFailure(err)
 	}
 	return copied, nil
+}
+
+func keyProviderFailure(err error) error {
+	cause := error(ErrKeyProviderUnavailable)
+	switch {
+	case errors.Is(err, context.Canceled):
+		cause = context.Canceled
+	case errors.Is(err, context.DeadlineExceeded):
+		cause = context.DeadlineExceeded
+	}
+	return authentication.NewFailure(authentication.FailureUnavailable,
+		authentication.WithFailureCause(cause))
 }
 
 func (v *Validator) principal(token upstreamjwt.Token) (authentication.Principal, error) {
@@ -325,6 +379,11 @@ func validateConfig(configuration Config) (map[string]struct{}, error) {
 	if len(configuration.Algorithms) == 0 {
 		return nil, fmt.Errorf("%w: JWT algorithms", authentication.ErrInvalidConfiguration)
 	}
+	if !validStringSet(configuration.Subjects, nil) ||
+		!validStringSet(configuration.RequiredClaims, mandatoryClaims) ||
+		len(configuration.RequiredClaims) > configuration.MaxClaims-len(mandatoryClaims) {
+		return nil, fmt.Errorf("%w: JWT claim policy", authentication.ErrInvalidConfiguration)
+	}
 	allowed := make(map[string]struct{}, len(configuration.Algorithms))
 	for _, algorithm := range configuration.Algorithms {
 		name := algorithm.String()
@@ -333,6 +392,9 @@ func validateConfig(configuration Config) (map[string]struct{}, error) {
 			return nil, fmt.Errorf("%w: JWT algorithm", authentication.ErrInvalidConfiguration)
 		}
 		if name == jwa.NoSignature().String() {
+			return nil, fmt.Errorf("%w: JWT algorithm", authentication.ErrInvalidConfiguration)
+		}
+		if name == jwa.ES256K().String() {
 			return nil, fmt.Errorf("%w: JWT algorithm", authentication.ErrInvalidConfiguration)
 		}
 		if known.IsDeprecated() {
@@ -344,6 +406,36 @@ func validateConfig(configuration Config) (map[string]struct{}, error) {
 		allowed[name] = struct{}{}
 	}
 	return allowed, nil
+}
+
+func validStringSet(values []string, prohibited map[string]struct{}) bool {
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if value == "" {
+			return false
+		}
+		if _, exists := seen[value]; exists {
+			return false
+		}
+		if _, exists := prohibited[value]; exists {
+			return false
+		}
+		seen[value] = struct{}{}
+	}
+	return true
+}
+
+func stringSet(values []string) map[string]struct{} {
+	set := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		set[value] = struct{}{}
+	}
+	return set
+}
+
+func containsString(set map[string]struct{}, value string) bool {
+	_, exists := set[value]
+	return exists
 }
 
 func validConfiguredKeySource(configuration Config, keySetConfigured, providerConfigured bool) bool {
@@ -490,7 +582,7 @@ func validateKeyMaterial(key jwk.Key, algorithm string) error {
 		}
 		curve, ok := public.Crv()
 		expected := map[string]string{
-			"ES256": jwa.P256().String(), "ES256K": "secp256k1",
+			"ES256": jwa.P256().String(),
 			"ES384": jwa.P384().String(), "ES512": jwa.P521().String(),
 		}[algorithm]
 		if !ok || expected == "" || curve.String() != expected {
@@ -542,6 +634,9 @@ func inspectCompactJWT(token string, algorithms map[string]struct{}, maxClaims, 
 	if err != nil {
 		return err
 	}
+	if _, err := base64.RawURLEncoding.Strict().DecodeString(parts[2]); err != nil {
+		return err
+	}
 	if err := inspectJSONObject(header, 64, 4); err != nil {
 		return err
 	}
@@ -551,6 +646,12 @@ func inspectCompactJWT(token string, algorithms map[string]struct{}, maxClaims, 
 	var fields map[string]json.RawMessage
 	// inspectJSONObject has already proven that header is valid JSON.
 	_ = json.Unmarshal(header, &fields)
+	var claims map[string]json.RawMessage
+	// inspectJSONObject has already proven that payload is valid JSON.
+	_ = json.Unmarshal(payload, &claims)
+	if err := validateNumericDateClaims(claims); err != nil {
+		return err
+	}
 	var algorithm, keyID string
 	if err := json.Unmarshal(fields["alg"], &algorithm); err != nil {
 		return errors.New("invalid JWT algorithm")
@@ -573,6 +674,19 @@ func inspectCompactJWT(token string, algorithms map[string]struct{}, maxClaims, 
 	for _, name := range prohibitedKeyReferenceHeaders {
 		if _, exists := fields[name]; exists {
 			return errors.New("unsupported JWT key reference header")
+		}
+	}
+	return nil
+}
+
+func validateNumericDateClaims(claims map[string]json.RawMessage) error {
+	for _, name := range []string{"exp", "iat", "nbf"} {
+		encoded, exists := claims[name]
+		if !exists {
+			continue
+		}
+		if len(encoded) == 0 || (encoded[0] != '-' && (encoded[0] < '0' || encoded[0] > '9')) {
+			return errors.New("invalid JWT NumericDate")
 		}
 	}
 	return nil

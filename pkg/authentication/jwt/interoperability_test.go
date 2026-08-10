@@ -6,6 +6,7 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/rsa"
 	"errors"
 	"testing"
 	"time"
@@ -61,6 +62,40 @@ func TestRFC7520HMACJWKInteroperability(t *testing.T) {
 	principal, ok := result.Principal()
 	if !ok || principal.Subject() != "24400320" {
 		t.Fatalf("Authenticate() principal = (%v, %v)", principal, ok)
+	}
+}
+
+func TestRFC7515AppendixA2RS256CompactJWS(t *testing.T) {
+	t.Parallel()
+
+	const compact = "eyJhbGciOiJSUzI1NiJ9." +
+		"eyJpc3MiOiJqb2UiLA0KICJleHAiOjEzMDA4MTkzODAsDQogImh0dHA6Ly9leGFtcGxlLmNvbS9pc19yb290Ijp0cnVlfQ." +
+		"cC4hiUPoj9Eetdgtv3hF80EGrhuB__dzERat0XF9g2VtQgr9PJbu3XOiZj5RZmh7" +
+		"AAuHIm4Bh-0Qc_lF5YKt_O8W2Fp5jujGbds9uJdbF9CUAr7t1dnZcAcQjbKBYNX4" +
+		"BAynRFdiuB--f_nZLgrnbyTyWzO75vRK5h6xBArLIARNPvkSjtQBMHlb1L07Qe7K" +
+		"0GarZRmB_eSN9383LcOLn6_dO--xi12jzDwusC-eOkHWEsqtFZESc6BfI7noOPqv" +
+		"hJ1phCnvWh6IeYI2w9QOYEUipUTI8np6LbgGY9Fs98rqVt5AXLIhWkWywlVmtVrB" +
+		"p0igcN_IoypGlUPQGe77Rw"
+	key, err := jwk.ParseKey([]byte(`{"kty":"RSA","kid":"rfc7515-a2","alg":"RS256","e":"AQAB","n":"ofgWCuLjybRlzo0tZWJjNiuSfb4p4fAkd_wWJcyQoTbji9k0l8W26mPddxHmfHQp-Vaw-4qPCJrcS2mJPMEzP1Pt0Bm4d4QlL-yRT-SFd2lZS-pCgNMsD1W_YpRPEwOWvG6b32690r2jZ47soMZo9wGzjb_7OMg0LOL-bSf63kpaSHSXndS5z5rexMdbBYUsLA9e-KXBdQOS-UTo7WTBEMa2R2CapHg665xsmtdVMTBQY4uDZlxvb3qCo5ZwKh9kG4LT6_I5IhlJH7aGhyxXFvUK-DWNmoudF8NAco9_h9iaGNj8q2ethFkMLs91kzk2PAcDTW9gb54h4FRWyuXpoQ"}`))
+	if err != nil {
+		t.Fatalf("jwk.ParseKey() error = %v", err)
+	}
+	if _, err := jws.Verify([]byte(compact), jws.WithKey(jwa.RS256(), key)); err != nil {
+		t.Fatalf("jws.Verify(RFC 7515 A.2) error = %v", err)
+	}
+	keys := jwk.NewSet()
+	if err := keys.AddKey(key); err != nil {
+		t.Fatalf("AddKey() error = %v", err)
+	}
+	validator, err := authjwt.New(authjwt.Config{
+		Issuer: "joe", Audience: "orders", Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()},
+		KeySet: keys, Clock: authtest.NewClock(time.Unix(1_300_000_000, 0)),
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	if _, err := validator.ValidateBearer(context.Background(), compact); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer(RFC 7515 A.2 JWS) error = %v, want rejected JWT", err)
 	}
 }
 
@@ -141,6 +176,91 @@ func TestGolangJWTInteroperability(t *testing.T) {
 	}
 	if parsed == nil || !parsed.Valid {
 		t.Fatal("golang-jwt Parse(lestrrat-go) token is invalid")
+	}
+}
+
+func TestGolangJWTAlgorithmInteroperability(t *testing.T) {
+	now := time.Unix(1_800_000_000, 0).UTC()
+	claims := map[string]any{
+		"sub": "service", "iss": "https://issuer.example.test", "aud": "orders",
+		"iat": now, "exp": now.Add(time.Hour),
+	}
+	tests := []struct {
+		name      string
+		algorithm jwa.SignatureAlgorithm
+		method    golangjwt.SigningMethod
+		keys      func(*testing.T, jwa.SignatureAlgorithm) (jwk.Set, jwk.Key)
+	}{
+		{name: "HS256", algorithm: jwa.HS256(), method: golangjwt.SigningMethodHS256, keys: hmacKeys},
+		{name: "HS384", algorithm: jwa.HS384(), method: golangjwt.SigningMethodHS384, keys: hmacKeys},
+		{name: "HS512", algorithm: jwa.HS512(), method: golangjwt.SigningMethodHS512, keys: hmacKeys},
+		{name: "RS256", algorithm: jwa.RS256(), method: golangjwt.SigningMethodRS256, keys: matrixRSAKeys},
+		{name: "RS384", algorithm: jwa.RS384(), method: golangjwt.SigningMethodRS384, keys: matrixRSAKeys},
+		{name: "RS512", algorithm: jwa.RS512(), method: golangjwt.SigningMethodRS512, keys: matrixRSAKeys},
+		{name: "PS256", algorithm: jwa.PS256(), method: golangjwt.SigningMethodPS256, keys: matrixRSAKeys},
+		{name: "PS384", algorithm: jwa.PS384(), method: golangjwt.SigningMethodPS384, keys: matrixRSAKeys},
+		{name: "PS512", algorithm: jwa.PS512(), method: golangjwt.SigningMethodPS512, keys: matrixRSAKeys},
+		{name: "ES256", algorithm: jwa.ES256(), method: golangjwt.SigningMethodES256, keys: ecdsaKeys(elliptic.P256())},
+		{name: "ES384", algorithm: jwa.ES384(), method: golangjwt.SigningMethodES384, keys: ecdsaKeys(elliptic.P384())},
+		{name: "ES512", algorithm: jwa.ES512(), method: golangjwt.SigningMethodES512, keys: ecdsaKeys(elliptic.P521())},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			keys, signer := tt.keys(t, tt.algorithm)
+			var raw any
+			if err := jwk.Export(signer, &raw); err != nil {
+				t.Fatalf("jwk.Export() error = %v", err)
+			}
+			validator, err := authjwt.New(authjwt.Config{
+				Issuer: "https://issuer.example.test", Audience: "orders",
+				Algorithms: []jwa.SignatureAlgorithm{tt.algorithm}, KeySet: keys,
+				Clock: authtest.NewClock(now),
+			})
+			if err != nil {
+				t.Fatalf("New() error = %v", err)
+			}
+
+			peerToken := golangjwt.NewWithClaims(tt.method, golangjwt.MapClaims{
+				"sub": "service", "iss": "https://issuer.example.test", "aud": "orders",
+				"iat": now.Unix(), "exp": now.Add(time.Hour).Unix(),
+			})
+			peerToken.Header["kid"] = "key"
+			compact, err := peerToken.SignedString(raw)
+			if err != nil {
+				t.Fatalf("golang-jwt SignedString() error = %v", err)
+			}
+			if _, err := validator.ValidateBearer(context.Background(), compact); err != nil {
+				t.Fatalf("ValidateBearer(golang-jwt) error = %v", err)
+			}
+
+			compact = signedToken(t, signer, tt.algorithm, claims)
+			parsed, err := golangjwt.Parse(
+				compact,
+				func(*golangjwt.Token) (any, error) { return peerVerificationKey(raw), nil },
+				golangjwt.WithValidMethods([]string{tt.method.Alg()}),
+				golangjwt.WithIssuer("https://issuer.example.test"),
+				golangjwt.WithAudience("orders"),
+				golangjwt.WithSubject("service"),
+				golangjwt.WithIssuedAt(), golangjwt.WithExpirationRequired(),
+				golangjwt.WithTimeFunc(func() time.Time { return now }),
+			)
+			if err != nil || parsed == nil || !parsed.Valid {
+				t.Fatalf("golang-jwt Parse(jwx) = %v, %v", parsed, err)
+			}
+		})
+	}
+}
+
+func peerVerificationKey(signingKey any) any {
+	switch key := signingKey.(type) {
+	case *rsa.PrivateKey:
+		return &key.PublicKey
+	case *ecdsa.PrivateKey:
+		return &key.PublicKey
+	case ed25519.PrivateKey:
+		return key.Public().(ed25519.PublicKey)
+	default:
+		return key
 	}
 }
 

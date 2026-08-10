@@ -31,8 +31,10 @@ The compiling package example shows a complete signed-token setup.
 
 Every validator requires `iss`, `aud`, `sub`, `iat`, and `exp`. The subject,
 issuer, and audience must be non-empty; issuer and audience must match the
-configured values. `exp`, `nbf`, and `iat` are checked against the configured
-clock with the configured non-negative `Skew`. An empty subject is rejected.
+configured values. `Subjects` optionally restricts subjects to an exact
+allowlist. `RequiredClaims` adds deployment-specific required claims to the
+mandatory registered set. `exp`, `nbf`, and `iat` must be JSON numbers and are
+checked against the configured clock with the configured non-negative `Skew`.
 
 Tokens must use compact JWS serialization with exactly three non-empty,
 unpadded base64url segments. The protected header must contain non-empty `alg`
@@ -47,7 +49,8 @@ JSON numbers are rejected before claim decoding.
 `MaxTokenBytes`, `MaxClaims`, `MaxClaimDepth`, and `MaxKeys` bound hostile
 inputs. Zero values select conservative defaults. Negative values and values
 above the authentication package's shared claim limits are invalid
-configuration.
+configuration. `MaxClaims` must reserve capacity for all five mandatory claims
+and every configured `RequiredClaims` entry.
 
 ## Algorithms and keys
 
@@ -57,13 +60,13 @@ the pinned JWX version in these key families:
 - `HS256`, `HS384`, and `HS512` with `oct` keys;
 - `RS256`, `RS384`, and `RS512` with RSA keys;
 - `PS256`, `PS384`, and `PS512` with RSA keys;
-- `ES256`, `ES256K`, `ES384`, and `ES512` with EC keys;
+- `ES256`, `ES384`, and `ES512` with EC keys;
 - `Ed25519` with OKP keys.
 
 HMAC keys must contain at least 32, 48, or 64 bytes for HS256, HS384, or HS512.
 RSA keys must be public and have a modulus from 2048 through 8192 bits. EC keys
-must be public and use the algorithm's exact curve. `ES256K` is available only
-when the pinned JWX build includes its `jwx_es256k` support.
+must be public and use the algorithm's exact curve. `none`, deprecated generic
+`EdDSA`, `ES256K`, and algorithms outside the listed families are rejected.
 
 Only algorithms explicitly supplied in `Config.Algorithms` are accepted. JWKs
 must have unique non-empty `kid` values and an `alg` in that allowlist. If
@@ -85,8 +88,11 @@ a fragment. All redirects and compressed responses are denied. Response
 bodies, aggregate headers, key count, concurrent operations, and initialization
 time are bounded. `Cache-Control: max-age` and `Expires` determine refresh time
 within the configured minimum and maximum intervals; absent or unusable cache
-headers fall back to the minimum. Each provider applies independent bounded
-refresh jitter (10 percent by default) to avoid synchronized fleet load.
+headers fall back to the minimum. `no-cache`, `no-store`, and
+`must-revalidate` force the configured minimum interval, and `Age` reduces a
+`max-age` lifetime before bounds are applied. Each provider applies independent
+bounded refresh jitter (10 percent by default) to avoid synchronized fleet
+load.
 
 A successful refresh atomically replaces the cached set. A failed refresh
 returns `ErrAuthenticationUnavailable` and retains the last successful set.
@@ -95,13 +101,17 @@ issuer outage; it never accepts an unknown key. Applications that require
 fail-closed freshness must stop using or close the provider after their own
 freshness deadline.
 
-`Remote` is safe for concurrent validation and refresh. Overlapping refreshes
-share one in-process fetch, and returned sets are deep copies. Each operation
-observes its caller context. `Close` rejects new work, cancels in-flight
-provider operations, waits for them to leave the provider, and shuts down
-cache-owned goroutines. A canceled close stops that caller waiting and reports
-the context error; if shutdown did not finish, a later `Close` may retry. The
-caller that creates a `Remote` owns it and must close it.
+`Remote` is safe for concurrent validation and refresh. Automatic and explicit
+refreshes use the same hardened client and never overlap remote work;
+overlapping explicit refreshes share one in-process result. Returned sets are
+deep copies. Canceling a refresh waiter stops that caller waiting. The remote
+request admitted by the cache continues under the provider lifecycle until it
+finishes or `Close` cancels the provider. Canceling the context passed to a
+successful `NewRemote` does not close the provider. `Close` rejects new work,
+cancels in-flight provider operations, waits for them to leave the provider,
+and shuts down cache-owned goroutines. A canceled close stops that caller
+waiting and reports the context error; if shutdown did not finish, a later
+`Close` may retry. The caller that creates a `Remote` owns it and must close it.
 
 ## Results and errors
 
@@ -117,10 +127,16 @@ Failures use stable authentication categories:
 - provider, cancellation, or lifecycle failures:
   `ErrAuthenticationUnavailable`.
 
+Standards-backed parse and claim failures retain the safe JWX sentinels such as
+`jwt.ParseError()`, `jwt.TokenExpiredError()`, and
+`jwt.MissingRequiredClaimError()` in the error chain. Key-source failures use
+the redacted `ErrKeyProviderUnavailable` sentinel. Raw provider, transport,
+endpoint-query, key, token, signature, and claim values are not retained.
+
 Use `errors.Is` and `errors.As`; do not match strings. Public error text is the
 stable category and does not include token, signature, key, claim, endpoint, or
-remote error text. Wrapped causes remain available to explicit diagnostic code
-through the standard error chain and must be handled as sensitive data.
+remote error text. Only safe standard categories and redacted provider causes
+remain available through the standard error chain.
 
 ## Adoption and migration
 
@@ -138,6 +154,8 @@ dependency and this algorithm list when upgrading it.
 
 The RFC-derived acceptance, remote-boundary, and error matrix is recorded in
 [`docs/hardening.md`](docs/hardening.md).
+The complete exported surface and defaults are recorded in
+[`docs/api.md`](docs/api.md).
 
 ## Security notes and tradeoffs
 

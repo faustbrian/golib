@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strings"
@@ -215,6 +216,23 @@ func TestRemoteOptionsApplyExactSecurityBounds(t *testing.T) {
 	}
 }
 
+func TestRemoteTransportGateHonorsCancellation(t *testing.T) {
+	t.Parallel()
+
+	gate := make(chan struct{}, 1)
+	gate <- struct{}{}
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, "https://issuer.example.test/keys", nil)
+	if err != nil {
+		t.Fatalf("NewRequestWithContext() error = %v", err)
+	}
+	transport := &jwkResponseTransport{refreshGate: gate}
+	if _, err := transport.RoundTrip(request); !errors.Is(err, context.Canceled) {
+		t.Fatalf("RoundTrip() error = %v, want canceled", err)
+	}
+}
+
 func TestRemoteTransportRetainsTheNarrowestHeaderLimit(t *testing.T) {
 	t.Parallel()
 
@@ -411,6 +429,14 @@ func TestRemoteRefreshTimingHonorsBoundsAndCacheHeaders(t *testing.T) {
 		{name: "expires above maximum", header: http.Header{"Expires": {now.Add(time.Hour).Format(http.TimeFormat)}}, want: maximum},
 		{name: "other directive", header: http.Header{"Cache-Control": {"other=50"}}, want: minimum},
 		{name: "unusable", header: http.Header{"Cache-Control": {"private, max-age=invalid"}}, want: minimum},
+		{name: "no cache overrides max age", header: http.Header{"Cache-Control": {"max-age=90, no-cache"}}, want: minimum},
+		{name: "no store overrides max age", header: http.Header{"Cache-Control": {"no-store, max-age=90"}}, want: minimum},
+		{name: "must revalidate overrides max age", header: http.Header{"Cache-Control": {"max-age=90, must-revalidate"}}, want: minimum},
+		{name: "age reduces max age", header: http.Header{"Cache-Control": {"max-age=90"}, "Age": {"30"}}, want: 60 * time.Second},
+		{name: "age exhausts max age", header: http.Header{"Cache-Control": {"max-age=30"}, "Age": {"60"}}, want: minimum},
+		{name: "zero age is inert", header: http.Header{"Cache-Control": {"max-age=90"}, "Age": {"0"}}, want: 90 * time.Second},
+		{name: "negative age is ignored", header: http.Header{"Cache-Control": {"max-age=90"}, "Age": {"-30"}}, want: 90 * time.Second},
+		{name: "malformed age is ignored", header: http.Header{"Cache-Control": {"max-age=90"}, "Age": {"invalid"}}, want: 90 * time.Second},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -470,6 +496,14 @@ func TestRemoteRefreshTimingHonorsBoundsAndCacheHeaders(t *testing.T) {
 	body, err := readBoundedBody(io.NopCloser(strings.NewReader("exact")), 5)
 	if err != nil || string(body) != "exact" {
 		t.Fatalf("readBoundedBody(exact) = %q, %v", body, err)
+	}
+	body, err = readBoundedBody(io.NopCloser(strings.NewReader("valid")), math.MaxInt64)
+	if err != nil || string(body) != "valid" {
+		t.Fatalf("readBoundedBody(maximum limit) = %q, %v", body, err)
+	}
+	_, err = readBoundedBody(io.NopCloser(io.MultiReader(strings.NewReader("x"), internalFailingReader{})), 1)
+	if err == nil {
+		t.Fatal("readBoundedBody(exact body followed by failure) error = nil")
 	}
 }
 
@@ -570,4 +604,10 @@ type internalRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (function internalRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
 	return function(request)
+}
+
+type internalFailingReader struct{}
+
+func (internalFailingReader) Read([]byte) (int, error) {
+	return 0, errors.New("injected trailing-body failure")
 }

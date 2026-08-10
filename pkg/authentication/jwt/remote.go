@@ -119,8 +119,7 @@ type Remote struct {
 // the returned provider and must call Close.
 func NewRemote(ctx context.Context, rawURL string, options ...RemoteOption) (*Remote, error) {
 	if err := ctx.Err(); err != nil {
-		return nil, authentication.NewFailure(authentication.FailureUnavailable,
-			authentication.WithFailureCause(err))
+		return nil, keyProviderFailure(err)
 	}
 	configuration := remoteConfig{
 		client: &http.Client{}, minRefresh: time.Minute,
@@ -153,8 +152,7 @@ func NewRemote(ctx context.Context, rawURL string, options ...RemoteOption) (*Re
 	switch err {
 	case nil:
 	default:
-		return nil, authentication.NewFailure(authentication.FailureUnavailable,
-			authentication.WithFailureCause(err))
+		return nil, keyProviderFailure(err)
 	}
 	resourceClient := httprc.NewClient(
 		httprc.WithHTTPClient(client),
@@ -162,16 +160,16 @@ func NewRemote(ctx context.Context, rawURL string, options ...RemoteOption) (*Re
 	)
 	// A newly constructed httprc client has not been started, which is the only
 	// condition under which this upstream constructor reports an error.
-	cache, _ := jwk.NewCache(ctx, resourceClient)
+	cache, _ := jwk.NewCache(context.Background(), resourceClient)
 	if err := cache.Register(initCtx, rawURL,
 		jwk.WithWaitReady(true),
+		jwk.WithHTTPClient(client),
 		jwk.WithMinInterval(configuration.minRefresh),
 		jwk.WithMaxInterval(configuration.maxRefresh),
 		jwk.WithMaxFetchBodySize(configuration.maxBodyBytes),
 	); err != nil {
-		_ = cache.Shutdown(context.Background())
-		return nil, authentication.NewFailure(authentication.FailureUnavailable,
-			authentication.WithFailureCause(err))
+		_ = cache.Shutdown(initCtx)
+		return nil, keyProviderFailure(err)
 	}
 	return &Remote{cache: cache, url: rawURL}, nil
 }
@@ -213,7 +211,7 @@ func hardenedRemoteHTTPClient(configuration remoteConfig) *http.Client {
 		base: transport, maxBodyBytes: configuration.maxBodyBytes,
 		maxHeaderBytes: configuration.maxHeaderBytes, maxKeys: configuration.maxKeys,
 		minRefresh: configuration.minRefresh, maxRefresh: configuration.maxRefresh,
-		refreshJitter: configuration.refreshJitter,
+		refreshJitter: configuration.refreshJitter, refreshGate: make(chan struct{}, 1),
 	}
 	policy.jitterState.Store(rand.Uint64())
 	client.Transport = policy
@@ -236,9 +234,18 @@ type jwkResponseTransport struct {
 	maxRefresh     time.Duration
 	refreshJitter  float64
 	jitterState    atomic.Uint64
+	refreshGate    chan struct{}
 }
 
 func (transport *jwkResponseTransport) RoundTrip(request *http.Request) (*http.Response, error) {
+	if transport.refreshGate != nil {
+		select {
+		case transport.refreshGate <- struct{}{}:
+			defer func() { <-transport.refreshGate }()
+		case <-request.Context().Done():
+			return nil, request.Context().Err()
+		}
+	}
 	request = request.Clone(request.Context())
 	request.Header = request.Header.Clone()
 	request.Header.Set("Accept-Encoding", "identity")
@@ -293,21 +300,35 @@ func (transport *jwkResponseTransport) jitterRefreshHeader(response *http.Respon
 }
 
 func cacheLifetime(header http.Header, now time.Time, minimum, maximum time.Duration) time.Duration {
+	var maxAge *int64
 	for _, value := range header.Values("Cache-Control") {
 		for _, directive := range strings.Split(value, ",") {
 			name, encoded, found := strings.Cut(strings.TrimSpace(directive), "=")
+			name = strings.ToLower(name)
+			if !found && slices.Contains([]string{"must-revalidate", "no-cache", "no-store"}, name) {
+				return minimum
+			}
 			if !found {
 				continue
 			}
-			if !strings.EqualFold(name, "max-age") {
+			if name != "max-age" {
 				continue
 			}
 			seconds, err := strconv.ParseInt(strings.Trim(encoded, `"`), 10, 64)
 			if err == nil {
-				bounded := max(int64(0), min(seconds, int64(maximum/time.Second)))
-				return clampDuration(time.Duration(bounded)*time.Second, minimum, maximum)
+				maxAge = &seconds
 			}
 		}
+	}
+	if maxAge != nil {
+		seconds := *maxAge
+		age, err := strconv.ParseInt(strings.TrimSpace(header.Get("Age")), 10, 64)
+		if err != nil {
+			age = 0
+		}
+		seconds = max(0, seconds-max(0, age))
+		bounded := max(int64(0), min(seconds, int64(maximum/time.Second)))
+		return clampDuration(time.Duration(bounded)*time.Second, minimum, maximum)
 	}
 	if expires, err := http.ParseTime(header.Get("Expires")); err == nil {
 		return clampDuration(expires.Sub(now), minimum, maximum)
@@ -349,12 +370,19 @@ func responseHeaderBytes(header http.Header) int64 {
 
 func readBoundedBody(body io.ReadCloser, maximum int64) ([]byte, error) {
 	defer func() { _ = body.Close() }()
-	encoded, err := io.ReadAll(io.LimitReader(body, maximum+1))
+	encoded, err := io.ReadAll(io.LimitReader(body, maximum))
 	if err != nil {
 		return nil, errors.New("remote JWK response body could not be read")
 	}
-	if int64(len(encoded)) > maximum {
-		return nil, errors.New("remote JWK response body exceeds configured bound")
+	if int64(len(encoded)) == maximum {
+		var extra [1]byte
+		count, extraErr := io.ReadFull(body, extra[:])
+		if count != 0 {
+			return nil, errors.New("remote JWK response body exceeds configured bound")
+		}
+		if extraErr != nil && !errors.Is(extraErr, io.EOF) {
+			return nil, errors.New("remote JWK response body could not be read")
+		}
 	}
 	return encoded, nil
 }
@@ -382,8 +410,7 @@ func (r *Remote) KeySet(ctx context.Context) (jwk.Set, error) {
 	defer r.endOperation(operation)
 	set, err := cache.Lookup(operationCtx, r.url)
 	if err != nil {
-		return nil, authentication.NewFailure(authentication.FailureUnavailable,
-			authentication.WithFailureCause(err))
+		return nil, keyProviderFailure(err)
 	}
 	return cloneKeySet(set)
 }
@@ -397,8 +424,7 @@ func (r *Remote) Refresh(ctx context.Context) error {
 	}
 	defer r.endOperation(operation)
 	if err := r.refresh(operationCtx, cache); err != nil {
-		return authentication.NewFailure(authentication.FailureUnavailable,
-			authentication.WithFailureCause(err))
+		return keyProviderFailure(err)
 	}
 	return nil
 }
@@ -435,13 +461,11 @@ func (r *Remote) refresh(ctx context.Context, cache *jwk.Cache) error {
 func cloneKeySet(source jwk.Set) (jwk.Set, error) {
 	encoded, err := json.Marshal(source)
 	if err != nil {
-		return nil, authentication.NewFailure(authentication.FailureUnavailable,
-			authentication.WithFailureCause(err))
+		return nil, keyProviderFailure(err)
 	}
 	copied, err := jwk.Parse(encoded, jwk.WithRejectDuplicateKID(true))
 	if err != nil {
-		return nil, authentication.NewFailure(authentication.FailureUnavailable,
-			authentication.WithFailureCause(err))
+		return nil, keyProviderFailure(err)
 	}
 	return copied, nil
 }

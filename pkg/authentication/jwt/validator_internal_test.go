@@ -171,23 +171,37 @@ func TestInspectCompactJWTRejectsEachBoundary(t *testing.T) {
 		return base64RawURL([]byte(value))
 	}
 	allowed := map[string]struct{}{"HS256": {}}
+	signature := encode("signature")
 	tests := []string{
 		"a.b.c.d",
-		"%.e30.signature",
-		encode(`{"alg":"HS256","kid":"key"}`) + ".%.signature",
-		encode(`[]`) + "." + encode(`{}`) + ".signature",
-		encode(`{"alg":"HS256","kid":"key"}`) + "." + encode(`[]`) + ".signature",
-		encode(`{"alg":1,"kid":"key"}`) + "." + encode(`{}`) + ".signature",
-		encode(`{"alg":"","kid":"key"}`) + "." + encode(`{}`) + ".signature",
-		encode(`{"alg":"RS256","kid":"key"}`) + "." + encode(`{}`) + ".signature",
-		encode(`{"alg":"HS256","kid":1}`) + "." + encode(`{}`) + ".signature",
-		encode(`{"alg":"HS256","kid":""}`) + "." + encode(`{}`) + ".signature",
-		encode(`{"alg":"HS256","kid":"key","crit":[]}`) + "." + encode(`{}`) + ".signature",
+		"%.e30." + signature,
+		encode(`{"alg":"HS256","kid":"key"}`) + ".%." + signature,
+		encode(`[]`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"HS256","kid":"key"}`) + "." + encode(`[]`) + "." + signature,
+		encode(`{"alg":1,"kid":"key"}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"","kid":"key"}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"RS256","kid":"key"}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"HS256","kid":1}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"HS256","kid":""}`) + "." + encode(`{}`) + "." + signature,
+		encode(`{"alg":"HS256","kid":"key","crit":[]}`) + "." + encode(`{}`) + "." + signature,
 	}
 	for _, token := range tests {
 		if err := inspectCompactJWT(token, allowed, authentication.MaxClaims, authentication.MaxClaimDepth); err == nil {
 			t.Fatalf("inspectCompactJWT(%q) error = nil", token)
 		}
+	}
+}
+
+func TestNumericDateValidationChecksEveryPresentClaimAndDigitBoundary(t *testing.T) {
+	t.Parallel()
+
+	for _, encoded := range []json.RawMessage{json.RawMessage("0"), json.RawMessage("9")} {
+		if err := validateNumericDateClaims(map[string]json.RawMessage{"exp": encoded}); err != nil {
+			t.Fatalf("validateNumericDateClaims(%s) error = %v", encoded, err)
+		}
+	}
+	if err := validateNumericDateClaims(map[string]json.RawMessage{"iat": json.RawMessage("true")}); err == nil {
+		t.Fatal("validateNumericDateClaims(missing exp, malformed iat) error = nil")
 	}
 }
 
@@ -289,6 +303,26 @@ func TestConfigurationRejectsEachInvalidBoundary(t *testing.T) {
 	}
 }
 
+func TestConfigurationReservesCapacityForMandatoryAndRequiredClaims(t *testing.T) {
+	t.Parallel()
+
+	keys := symmetricKeySet(t, "key", jwa.HS256(), "sig")
+	configuration := Config{
+		Issuer: "issuer", Audience: "audience",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.HS256()}, KeySet: keys,
+		Clock: authtest.NewClock(time.Unix(1, 0)), RequiredClaims: []string{"tenant"},
+		MaxClaims: len(mandatoryClaims),
+	}
+	if _, err := New(configuration); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("New(insufficient claim capacity) error = %v, want invalid configuration", err)
+	}
+
+	configuration.MaxClaims++
+	if _, err := New(configuration); err != nil {
+		t.Fatalf("New(exact claim capacity) error = %v", err)
+	}
+}
+
 func TestJWKAlgorithmFamiliesAndVerificationOperations(t *testing.T) {
 	t.Parallel()
 
@@ -379,7 +413,7 @@ func TestValidateBearerAndProviderFailureBoundaries(t *testing.T) {
 	validator = &Validator{provider: KeyProviderFunc(func(context.Context) (jwk.Set, error) {
 		return nil, want
 	})}
-	if _, err := validator.keySet(context.Background()); err != want {
+	if _, err := validator.keySet(context.Background()); !errors.Is(err, ErrKeyProviderUnavailable) || err == want {
 		t.Fatalf("keySet(classified failure) error = %v", err)
 	}
 	validator = &Validator{
@@ -388,6 +422,19 @@ func TestValidateBearerAndProviderFailureBoundaries(t *testing.T) {
 	}
 	if _, err := validator.keySet(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
 		t.Fatalf("keySet(invalid set) error = %v", err)
+	}
+}
+
+func TestRejectedJWTFailureWithoutStandardsCategory(t *testing.T) {
+	t.Parallel()
+
+	cause := errors.New("implementation detail")
+	err := rejectedJWTFailure(cause)
+	if !errors.Is(err, authentication.ErrCredentialsRejected) || errors.Is(err, cause) {
+		t.Fatalf("rejectedJWTFailure() error = %v", err)
+	}
+	if standard := safeStandardsError(cause); standard != nil {
+		t.Fatalf("safeStandardsError() = %v", standard)
 	}
 }
 

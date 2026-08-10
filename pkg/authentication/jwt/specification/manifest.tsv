@@ -1,0 +1,3 @@
+id	version	role	status	sha256	bytes	url
+rfc7515-appendix-a2	RFC-7515	RS256-compact-JWS	pinned	865a40e3271b070b64437e4a02422e535f857e5b0e5bb34f2e1dbb6e56459d7b	458	https://www.rfc-editor.org/rfc/rfc7515.html#appendix-A.2
+rfc7520-figure-5	RFC-7520	HS256-symmetric-JWK	pinned	b597a6a3948a545be43f02a25579e35c982b097c8dc67a4274c16f7e84eb7958	145	https://www.rfc-editor.org/rfc/rfc7520.html#section-3.4
