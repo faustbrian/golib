@@ -85,6 +85,9 @@ func (r BulkRequest) Validate(capabilities Capabilities, limits Limits) error {
 	tenant := r.Operations[0].Tenant
 	remainingBytes := limits.MaxBulkBytes
 	for _, operation := range r.Operations {
+		if operation.Action == ActionUpdate && !capabilities.UpdateExisting {
+			return unsupported("update existing")
+		}
 		if operation.Tenant != tenant {
 			return ErrTenantMismatch
 		}

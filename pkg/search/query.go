@@ -23,7 +23,7 @@ type Capabilities struct {
 	Boolean, Term, FullText, Prefix, Range, Exists, Geo bool
 	Cursor, PointInTime, Offset                         bool
 	Projection, Highlight, Aggregation, Suggestion      bool
-	ExternalVersion, BulkPartialOutcomes                bool
+	ExternalVersion, UpdateExisting, BulkPartialOutcomes bool
 	Lifecycle, Templates, RawExtensions                 bool
 }
 
@@ -34,7 +34,7 @@ func AllCapabilities() Capabilities {
 		Boolean: true, Term: true, FullText: true, Prefix: true, Range: true,
 		Exists: true, Geo: true, Cursor: true, PointInTime: true, Offset: true,
 		Projection: true, Highlight: true, Aggregation: true, Suggestion: true,
-		ExternalVersion: true, BulkPartialOutcomes: true, Lifecycle: true,
+		ExternalVersion: true, UpdateExisting: true, BulkPartialOutcomes: true, Lifecycle: true,
 		Templates: true, RawExtensions: true,
 	}
 }
