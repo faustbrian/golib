@@ -24,9 +24,12 @@ func TestFailFastAggregateVerifierQueryCapacityBoundsTopology(t *testing.T) {
 
 func TestFailFastAggregateVerifierQueriesEmptyRoot(t *testing.T) {
 	key := testKey(1, 3)
+	sameStem := key
+	sameStem[31] = 4
+	otherStem := testKey(2, 5)
 	material, err := newTestSnapshot(t, nil).ProofMaterial(
 		context.Background(),
-		[]Key{key},
+		[]Key{otherStem, key, sameStem},
 		testProofMaterialLimits(),
 	)
 	if err != nil {
@@ -39,8 +42,9 @@ func TestFailFastAggregateVerifierQueriesEmptyRoot(t *testing.T) {
 	if err != nil {
 		t.Fatalf("empty-root verifier queries: %v", err)
 	}
-	if len(queries) != 1 || queries[0].Length != 0 ||
-		queries[0].Opening.Index != key[0] {
+	if len(queries) != 2 || queries[0].Length != 0 ||
+		queries[0].Opening.Index != key[0] || queries[1].Length != 0 ||
+		queries[1].Opening.Index != otherStem[0] {
 		t.Fatalf("empty-root verifier queries = %#v", queries)
 	}
 }
