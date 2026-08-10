@@ -87,6 +87,11 @@ func TestDeadLetterPageUsesStableFailureCursor(t *testing.T) {
 	if err != nil || reconstructed != cursor {
 		t.Fatalf("reconstructed cursor = %#v, %v", reconstructed, err)
 	}
+	later := mustDeadLetterRecord(t, now.Add(time.Second), "work-1", 1, 1)
+	laterPage, err := workflow.NewDeadLetterPage(next, []workflow.DeadLetterRecord{later}, false)
+	if err != nil || laterPage.NextCursor().FailedAt() != now.Add(time.Second) {
+		t.Fatalf("later failure-time page = %#v, %v", laterPage, err)
+	}
 }
 
 func TestDeadLetterValuesRejectInvalidAndUnboundedInput(t *testing.T) {
