@@ -2,7 +2,6 @@ package opensearch
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -241,13 +240,4 @@ func TestDeletePITValidatesSuccessfulResponse(t *testing.T) {
 			}
 		})
 	}
-}
-
-func mustJSON(t *testing.T, value any) []byte {
-	t.Helper()
-	encoded, err := json.Marshal(value)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return encoded
 }
