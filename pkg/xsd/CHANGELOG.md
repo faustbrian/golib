@@ -36,6 +36,9 @@ at its first stable release.
 
 ### Added
 
+- Add a canonical, evidence-linked specification decision register covering
+  the supported feature line, source precedence, XSTS, secure XML handling,
+  namespace identity, regex, XPath, value spaces, serialization, and limits.
 - Add module-local MIT license metadata for clean consumer and supply-chain
   tooling.
 - Establish the pinned XML Schema 1.0 specification and evidence matrix.

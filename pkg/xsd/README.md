@@ -31,7 +31,9 @@ result, err := validator.Validate(ctx, instance)
 Parsing and validation reject DTDs. Compilation uses a deny-by-default
 resolver and bounded schema graphs. See [the documentation index](docs/README.md),
 [the live support matrix](specification/requirements/xsd-1.0.tsv), and
-[specification provenance](specification/README.md).
+[specification provenance](specification/README.md). Observable ambiguities
+and package policy are recorded in the
+[specification decision register](docs/specification-decisions.md).
 
 Run `make check` for formatting, static analysis, tests, the race detector,
 and provenance checks.

@@ -11,7 +11,10 @@ for schemas is normative only for the syntactic constraints it expresses.
 
 `requirements/xsd-1.0.tsv` is the live implementation and evidence matrix.
 Rows remain `missing` or `partial` until evidence directly covers the stated
-requirement. `decisions.md` records scope and interpretation decisions.
+requirement. The canonical
+[specification decision register](../docs/specification-decisions.md) records
+scope, interpretation, security, resource, compatibility, and wire decisions;
+`decisions.md` remains a compatibility pointer.
 
 Run `make provenance` to validate the local records. Set `VERIFY_REMOTE=1` to
 download every pinned resource and verify its current bytes. Remote checking

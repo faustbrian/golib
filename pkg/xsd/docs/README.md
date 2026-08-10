@@ -6,6 +6,7 @@
 - [Datatypes](datatypes.md)
 - [Resolution and catalogs](resolution.md)
 - [Security and limits](security.md)
+- [Specification decisions](specification-decisions.md)
 - [Builders and serialization](builders.md)
 - [WSDL integration](wsdl-integration.md)
 - [Performance](performance.md)
