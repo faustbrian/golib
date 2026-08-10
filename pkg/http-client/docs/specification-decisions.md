@@ -23,7 +23,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   all relatives, compare hosts only, or resolve normally then enforce canonical
   origin equality. `net/url.ResolveReference` performs generic RFC resolution
   and deliberately supplies no integration trust boundary.
-- **Selected behavior and consequences:** Resolve by RFC 3986, then require
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Resolve by RFC 3986, then require
   HTTP(S), valid authority, no userinfo, and the same canonical scheme, host,
   and effective port. Fragments are not request-target data. This preserves
   standard path/query resolution while preventing origin escape and SSRF;
@@ -48,7 +49,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   preserve incidental map order, or distinguish replace/append operations and
   reject prohibited trailers. `net/http.Header` preserves value slices but
   does not define package layering.
-- **Selected behavior and consequences:** Validate names and values; use
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Validate names and values; use
   immutable explicit layer precedence; distinguish append from replace; sort
   package-owned canonical output while retaining repeated-value order; require
   a body for trailers and reject routing, framing, and credential fields. This
@@ -73,7 +75,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   `net/http`; preserve every method; or retain Go method mechanics while
   enforcing replay, egress, and credential trust independently. Clients differ
   on POST rewriting and sensitive-header forwarding.
-- **Selected behavior and consequences:** Preserve documented Go 301/302/303
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Preserve documented Go 301/302/303
   and 307/308 mechanics, but enforce finite redirect count, replayability,
   egress, and session policy. Credentials, idempotency, cookies, trace state,
   and sensitive headers are reapplied or stripped per attempt and canonical
@@ -101,7 +104,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   redirects, permit cleartext, infer one API-key shape, or apply one explicit
   editor to each trusted HTTPS attempt. Generic clients commonly expose raw
   setters without origin enforcement; vendor API-key formats conflict.
-- **Selected behavior and consequences:** Use standard Basic and Bearer forms;
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Use standard Basic and Bearer forms;
   make API-key placement caller-named and explicitly nonstandard; require HTTPS
   except narrow local-test policy; reject conflicting state; apply only to
   trusted canonical origins; and redact bounded immutable credentials. This
@@ -126,7 +130,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   default, one refresh per waiter, recursive integration middleware, or
   explicit authentication with one bounded refresh. `x/oauth2` composes token
   sources but does not own this client's lifecycle and resource scopes.
-- **Selected behavior and consequences:** Default to Basic; expose parameter
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Default to Basic; expose parameter
   authentication explicitly and never combine it with Basic; use hardened
   transport while bypassing integration cookies/retries/middleware; coordinate
   one refresh; copy tokens; validate with the injected clock; and honor caller
@@ -155,7 +160,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   only, all idempotent methods, or require method eligibility, replayable
   content, finite policy, and stronger proof for unsafe operations. SDK status
   lists differ and often overgeneralize key presence.
-- **Selected behavior and consequences:** Retry is opt-in. Defaults permit
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Retry is opt-in. Defaults permit
   replayable GET, HEAD, OPTIONS, TRACE, PUT, and DELETE for bounded transient
   transport failures and statuses 408, 425, 429, 500, 502, 503, and 504.
   Unsafe methods also require endpoint opt-in, applied idempotency policy, and
@@ -179,7 +185,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   fail malformed input, or parse standard values first and clamp them while
   keeping vendor fields opt-in. Clients disagree on past dates and precedence;
   no universal vendor header contract exists.
-- **Selected behavior and consequences:** Parse delay seconds or HTTP date;
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Parse delay seconds or HTTP date;
   treat past dates as zero; fall back on malformed/overflowing values; give
   standard `Retry-After` precedence; require explicit vendor field config; and
   clamp every wait to policy and deadline. This prevents overflow and unbounded
@@ -204,7 +211,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   caching, emulate a shared cache only, or expose explicit mode with secure
   variant identity. Client caches often handle Authorization and `Vary`
   inconsistently; browser behavior is unsafe for multi-tenant services.
-- **Selected behavior and consequences:** Caching is opt-in. Store only complete
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Caching is opt-in. Store only complete
   bounded responses admitted by method, status, and directives. Authorization
   reuse is explicit and credential-isolated; sensitive `Vary` values become
   digests; revalidation merges permitted metadata only; stale directives,
@@ -230,7 +238,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   decode every known list, expose compressed bytes only, or disable implicit
   behavior and require bounded middleware. `net/http.Transport` automatically
   negotiates gzip under its defaults; clients report decoded metadata differently.
-- **Selected behavior and consequences:** Owned transports disable implicit
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Owned transports disable implicit
   compression. Explicit middleware negotiates supported coding, updates
   metadata deterministically, and bounds output and compression ratio. Request
   compression preserves replay safety. Unsupported, malformed, nested beyond
@@ -255,7 +264,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
 - **Interpretations and peer behavior:** Append every 206, fail any 200,
   restart on 200, accept weak validators, or validate exact range and strong
   identity before continuation. Download helpers differ on restart UX.
-- **Selected behavior and consequences:** Apply only to eligible safe requests;
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Apply only to eligible safe requests;
   use exact offsets and strong validators when supplied; continue matching 206;
   restart on policy-allowed 200; accept consistent completion 416; reject
   mismatched unit, offset, total, validator, or length before replacement.
@@ -279,7 +289,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
 - **Interpretations and peer behavior:** Split commas, choose first/last next,
   reject duplicates, or parse RFC syntax and reject competing targets. Many
   clients use simplified comma splitting that fails quoted values.
-- **Selected behavior and consequences:** Parse without splitting quoted
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Parse without splitting quoted
   commas, recognize relation tokens, resolve relative targets against the
   response URL, require a syntactically valid absolute HTTP(S) destination,
   reject malformed or competing next targets, and keep continuation opaque.
@@ -304,7 +315,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
 - **Interpretations and peer behavior:** Global jar, RFC matching only, no
   cookies, or per-client opt-in with independent redirect/persistence policy.
   Browser clients enable cookies automatically; Go has no jar unless supplied.
-- **Selected behavior and consequences:** Disable cookies by default. Opt-in
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Disable cookies by default. Opt-in
   sessions own or borrow an isolated public-suffix-aware jar. Same-origin
   redirect scope is default; broader scope is explicit. Persistence is bounded,
   versioned, caller-controlled, and tied to client lifecycle. This prevents
@@ -329,7 +341,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
 - **Interpretations and peer behavior:** Forward unchanged, regenerate every
   attempt, same-origin only, or validate v00 and apply trust/baggage policy.
   OpenTelemetry propagators handle syntax but leave trust boundaries to apps.
-- **Selected behavior and consequences:** Validate v00 IDs, flags, and bounded
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Validate v00 IDs, flags, and bounded
   tracestate; preserve logical-operation trace relationship with explicit
   physical attempts; strip state on untrusted redirects; and forward only
   allowlisted baggage. This prevents metadata leakage, malformed propagation,
@@ -351,7 +364,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
 - **Interpretations and peer behavior:** Sniff JSON, ignore media type, accept
   trailing values, trust length, or validate status/type/actual bounded bytes
   and exactly one document. SDKs differ on missing types and empty success.
-- **Selected behavior and consequences:** Classify status independently;
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Classify status independently;
   handle HEAD, 1xx, 204, 205, and 304 through explicit empty policy; require an
   accepted media type; validate meaningful declared lengths; decode one bounded
   complete document; reject trailing non-whitespace by default; and always
@@ -374,7 +388,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
 - **Interpretations and peer behavior:** Global key, infer retry safety from
   presence, regenerate per attempt, or declare endpoint contract and retain one
   key per logical operation. SDKs differ and vendor behavior is not universal.
-- **Selected behavior and consequences:** Idempotency is explicit per endpoint
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Idempotency is explicit per endpoint
   with configurable header. Generated keys use 128 bits of cryptographic
   entropy. One validated redacted key remains stable across trusted eligible
   attempts but does not enable unsafe retry without endpoint opt-in and
@@ -392,13 +407,15 @@ security, resource, compatibility, executable-evidence, and changelog review.
   policy and resource-safety profile. RFC 8288 applies only to Link pagination;
   pages, offsets, cursors, totals, and custom continuations have no universal
   HTTP standard.
-- **Source and issue:** APIs differ on empty-token termination, opaque cursor
-  handling, totals, repeated continuations, and unstable data. An unbounded
-  generic iterator can loop forever.
+- **Source and issue:** RFC 8288 [Web Linking](https://www.rfc-editor.org/rfc/rfc8288.html#section-3)
+  governs Link pagination only. APIs otherwise differ on empty-token
+  termination, opaque cursor handling, totals, repeated continuations, and
+  unstable data. An unbounded generic iterator can loop forever.
 - **Interpretations and peer behavior:** Normalize cursors, stop on empty page,
   trust totals, follow repeats, or preserve each strategy while applying common
   bounds and cycles. Vendor clients commonly have implicit unbounded loops.
-- **Selected behavior and consequences:** Keep strategies distinct; preserve
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Keep strategies distinct; preserve
   cursor bytes opaquely; remain lazy, sequential by default, cancellable, and
   bounded by page/item/byte/duration/empty-page/continuation limits; reject
   repeated continuation state; and copy explicit resume state. This prevents
@@ -424,7 +441,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   middleware for every exchange, use registration order, or distinguish
   logical-operation and physical-attempt scopes with deterministic ordering.
   Framework clients expose incompatible middleware/interceptor lifecycles.
-- **Selected behavior and consequences:** A logical operation runs operation
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  A logical operation runs operation
   middleware once; every physical transport exchange runs attempt middleware.
   Stage, scope, priority, registration layer, and stable name determine order,
   not map or registration accident. Short circuits skip only downstream work;
@@ -453,7 +471,8 @@ security, resource, compatibility, executable-evidence, and changelog review.
   seekability, treat all streams as one-shot, close every response internally,
   or make replay and ownership explicit at each API boundary. Client wrappers
   differ on whether decoders, classifiers, retries, and callers own closure.
-- **Selected behavior and consequences:** Immutable byte/form/factory bodies
+- **Selected behavior, security and resource consequences, compatibility and wire consequences:**
+  Immutable byte/form/factory bodies
   explicitly support independent replay; streaming bodies are explicitly
   one-shot. The package never upgrades one-shot content through hidden
   buffering. A successful raw `Do` response is caller-owned; package decoders,
