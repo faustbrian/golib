@@ -9,6 +9,40 @@ import (
 	"github.com/faustbrian/golib/pkg/tenancy"
 )
 
+func TestNamespaceOutputIsSafeForFirstPartyProviderNames(t *testing.T) {
+	t.Parallel()
+
+	encoder, err := tenancy.NewNamespaceEncoder([]byte("0123456789abcdef0123456789abcdef"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	scope, err := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, domain := range []tenancy.NamespaceDomain{
+		tenancy.NamespaceCache,
+		tenancy.NamespaceIdempotency,
+		tenancy.NamespaceRateLimit,
+		tenancy.NamespaceSearch,
+		tenancy.NamespaceQueue,
+		tenancy.NamespaceScheduler,
+		tenancy.NamespaceEvent,
+		tenancy.NamespaceWorkflow,
+		tenancy.NamespaceTelemetry,
+	} {
+		value, err := encoder.Encode(scope, domain, "shared")
+		if err != nil {
+			t.Fatalf("Encode(%q) error = %v", domain, err)
+		}
+		for _, character := range value {
+			if character >= 'A' && character <= 'Z' {
+				t.Fatalf("Encode(%q) = %q contains provider-invalid uppercase", domain, value)
+			}
+		}
+	}
+}
+
 func TestNamespaceEncoderSeparatesScopesDomainsAndAmbiguousParts(t *testing.T) {
 	t.Parallel()
 
