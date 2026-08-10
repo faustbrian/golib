@@ -160,6 +160,12 @@ func TestTransactionProcessorPublicConstructor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewTransactionProcessor() error = %v", err)
 	}
+	if records := processor.client.BufferedProduceRecords(); records != 0 {
+		t.Fatalf("fresh buffered produce records = %d, want 0", records)
+	}
+	if bytes := processor.client.BufferedProduceBytes(); bytes != 0 {
+		t.Fatalf("fresh buffered produce bytes = %d, want 0", bytes)
+	}
 	if err := processor.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
 	}

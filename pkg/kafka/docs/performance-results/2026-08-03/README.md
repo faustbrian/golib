@@ -82,7 +82,7 @@ Every command used its own fresh isolated `GOCACHE`, inherited by all child
 processes:
 
 ```sh
-go test -race -tags=integration \
+go test -race -tags=interoperability \
   -run '^TestEquivalent(TLS|Authenticated)ProducerOutcomes$' \
   -count=1 -timeout=8m ./...
 make environment > environment-authenticated.txt

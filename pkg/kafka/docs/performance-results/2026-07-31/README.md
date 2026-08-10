@@ -145,22 +145,22 @@ Every command ran with its own fresh isolated `GOCACHE`, inherited by all
 children:
 
 ```sh
-go test -race -tags=integration -run '^TestEquivalent(Replay|Inspection)Outcomes$' -count=1 -timeout=10m ./...
+go test -race -tags=interoperability -run '^TestEquivalent(Replay|Inspection)Outcomes$' -count=1 -timeout=10m ./...
 make environment > environment-replay.txt
 make capture OUTPUT=raw-replay.txt BENCH_PATTERN='^BenchmarkEquivalentReplay$$' BENCH_COUNT=20 BENCH_TIME=1x
 make analyze INPUT=raw-replay.txt > replay-benchstat.txt
 make environment > environment-inspection.txt
 make capture OUTPUT=raw-inspection.txt BENCH_PATTERN='^BenchmarkEquivalentInspection$$' BENCH_COUNT=20 BENCH_TIME=10x
 make analyze INPUT=raw-inspection.txt > inspection-benchstat.txt
-go test -race -tags=integration -run '^TestEquivalentConsumerRebalanceOutcomes$' -count=1 -timeout=15m ./...
+go test -race -tags=interoperability -run '^TestEquivalentConsumerRebalanceOutcomes$' -count=1 -timeout=15m ./...
 make environment > environment-rebalance.txt
 make rebalance-capture OUTPUT=raw-rebalance.txt REBALANCE_PATTERN='^BenchmarkEquivalentConsumerRebalance$$' REBALANCE_COUNT=10 REBALANCE_TIME=1x
 go tool benchstat raw-rebalance.txt > rebalance-benchstat.txt
-go test -race -tags=integration -run '^TestEquivalentTLSProducerOutcomes$' -count=1 -timeout=5m ./...
+go test -race -tags=interoperability -run '^TestEquivalentTLSProducerOutcomes$' -count=1 -timeout=5m ./...
 make environment > environment-tls.txt
 make tls-capture OUTPUT=raw-tls.txt TLS_COUNT=10 TLS_TIME=100x
 go tool benchstat raw-tls.txt > tls-benchstat.txt
-go test -race -tags=integration -run '^TestEquivalentInspection(Reconnect|IdleResource)Outcomes$' -count=1 -timeout=25m ./...
+go test -race -tags=interoperability -run '^TestEquivalentInspection(Reconnect|IdleResource)Outcomes$' -count=1 -timeout=25m ./...
 make environment > environment-resources.txt
 make resource-capture OUTPUT=raw-resources-reconnect-policy-01.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^golib-policy$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x
 make resource-capture OUTPUT=raw-resources-reconnect-policy-02.txt RESOURCE_PATTERN='^BenchmarkEquivalentInspectionReconnect$$/^golib-policy$$' RESOURCE_COUNT=5 RESOURCE_TIME=1x

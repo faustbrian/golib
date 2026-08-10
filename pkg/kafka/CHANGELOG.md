@@ -161,6 +161,10 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- keep real-broker integration tests in the explicit interoperability gate so
+  ordinary tests, race detection, exact coverage, and mutation remain bounded
+  to their intended local evidence instead of starting Kafka for every run or
+  mutant
 - reject per-record failure-policy inputs whose Kafka coordinates, timestamp
   metadata, or configured record limits are invalid before retaining bytes or
   invoking application callbacks; whole-batch policy now applies the same

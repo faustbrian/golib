@@ -188,6 +188,19 @@ func TestClientSecurityOptionsApplyTLSAndSASL(t *testing.T) {
 	if len(options) != 2 {
 		t.Fatalf("clientSecurityOptions() length = %d, want 2", len(options))
 	}
+
+	security.TrustAnchorProvider = TrustAnchorProviderFunc(func(
+		context.Context,
+	) (TrustAnchors, error) {
+		return TrustAnchors{}, nil
+	})
+	options = clientSecurityOptions(security, time.Second)
+	if len(options) != 2 {
+		t.Fatalf(
+			"clientSecurityOptions() provider length = %d, want 2",
+			len(options),
+		)
+	}
 }
 
 func TestAuthenticationProvidersRotateWithinBoundedRedactedSessions(t *testing.T) {

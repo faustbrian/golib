@@ -1,4 +1,4 @@
-//go:build integration && race
+//go:build interoperability && race
 
 package kafka_test
 

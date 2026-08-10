@@ -11069,9 +11069,7 @@
       ],
       "required_services": [],
       "build_tags": [],
-      "test_tags": [
-        "integration"
-      ],
+      "test_tags": [],
       "interoperability_tools": [],
       "specifications": [
         "Apache Kafka protocol and client semantics",

@@ -1,4 +1,4 @@
-//go:build integration && (darwin || linux)
+//go:build interoperability && (darwin || linux)
 
 package kafka_test
 
