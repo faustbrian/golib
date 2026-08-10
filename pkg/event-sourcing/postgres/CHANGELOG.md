@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Prove an append whose PostgreSQL backend dies during a blocked statement is
+  not committed, reconciles as absent, and retries without duplicate events or
+  a global-position gap.
 - Redact ordinary PostgreSQL driver diagnostics behind
   `ErrDatabaseOperationFailed` while preserving the cause for `errors.Is` and
   `errors.As` retry and SQLSTATE classification.

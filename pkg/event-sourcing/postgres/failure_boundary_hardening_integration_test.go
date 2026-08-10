@@ -3,6 +3,7 @@
 package postgres_test
 
 import (
+	"context"
 	"encoding/binary"
 	"errors"
 	"io"
@@ -18,6 +19,184 @@ import (
 	eventpostgres "github.com/faustbrian/golib/pkg/event-sourcing/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+type appendFailureResult struct {
+	messages []eventsourcing.Message
+	err      error
+}
+
+func TestPostgreSQLAppendBackendDeathDuringStatementIsNotCommitted(
+	t *testing.T,
+) {
+	ctx, directPool := newDerivedIntegrationPool(t)
+	const applicationName = "event-sourcing-kill-during-statement"
+	faultConfig, err := pgxpool.ParseConfig(directPool.Config().ConnString())
+	if err != nil {
+		t.Fatal(err)
+	}
+	faultConfig.ConnConfig.RuntimeParams["application_name"] = applicationName
+	faultConfig.MaxConns = 1
+	faultConfig.MinConns = 0
+	faultConfig.MinIdleConns = 0
+	faultPool, err := pgxpool.NewWithConfig(ctx, faultConfig)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(faultPool.Close)
+	faultStore, err := eventpostgres.New(faultPool, eventpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	blocker, err := directPool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		cleanupCtx, cancel := context.WithTimeout(
+			context.Background(),
+			5*time.Second,
+		)
+		defer cancel()
+		_ = blocker.Rollback(cleanupCtx)
+	}()
+	var lastPosition int64
+	if err := blocker.QueryRow(
+		ctx,
+		`SELECT last_position
+		 FROM event_sourcing.positions
+		 WHERE singleton = true
+		 FOR UPDATE`,
+	).Scan(&lastPosition); err != nil {
+		t.Fatal(err)
+	}
+	if lastPosition != 0 {
+		t.Fatalf("initial global position = %d", lastPosition)
+	}
+
+	stream := mustStream(t, "account", "kill-during-statement")
+	pending := []eventsourcing.PendingMessage{
+		mustPending(t, stream, "kill-during-statement-message", 1),
+	}
+	expected := eventsourcing.ExpectNewStream()
+	result := make(chan appendFailureResult, 1)
+	go func() {
+		messages, appendErr := faultStore.Append(
+			ctx,
+			stream,
+			expected,
+			pending,
+		)
+		result <- appendFailureResult{messages: messages, err: appendErr}
+	}()
+
+	backendPID := waitForPostgreSQLApplicationLock(
+		t,
+		ctx,
+		directPool,
+		applicationName,
+	)
+	var terminated bool
+	if err := directPool.QueryRow(
+		ctx,
+		"SELECT pg_terminate_backend($1)",
+		backendPID,
+	).Scan(&terminated); err != nil {
+		t.Fatal(err)
+	}
+	if !terminated {
+		t.Fatalf("PostgreSQL backend %d was not terminated", backendPID)
+	}
+
+	select {
+	case failed := <-result:
+		if failed.messages != nil || failed.err == nil ||
+			eventsourcing.AppendCommitOutcome(failed.err) !=
+				eventsourcing.CommitNotCommitted {
+			t.Fatalf(
+				"append killed during statement = %#v, %v",
+				failed.messages,
+				failed.err,
+			)
+		}
+	case <-ctx.Done():
+		t.Fatalf("append did not observe backend death: %v", ctx.Err())
+	}
+	if err := blocker.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+
+	messages, outcome, err := faultStore.ReconcileAppend(
+		ctx,
+		stream,
+		expected,
+		pending,
+	)
+	if messages != nil || outcome != eventsourcing.CommitNotCommitted || err != nil {
+		t.Fatalf("reconciliation after backend death = %#v, %d, %v", messages, outcome, err)
+	}
+	retried, err := faultStore.Append(ctx, stream, expected, pending)
+	if err != nil || len(retried) != 1 {
+		t.Fatalf("retry after backend death = %#v, %v", retried, err)
+	}
+	position, exists := retried[0].GlobalPosition()
+	if retried[0].StreamVersion() != 1 || !exists || position != 1 {
+		t.Fatalf("retried message = %#v", retried[0])
+	}
+	var count int
+	if err := directPool.QueryRow(
+		ctx,
+		`SELECT count(*)
+		 FROM event_sourcing.messages
+		 WHERE message_id = $1`,
+		pending[0].ID().String(),
+	).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 1 {
+		t.Fatalf("durable message count after retry = %d", count)
+	}
+}
+
+func waitForPostgreSQLApplicationLock(
+	t testing.TB,
+	ctx context.Context,
+	pool *pgxpool.Pool,
+	applicationName string,
+) int32 {
+	t.Helper()
+
+	deadline, cancel := context.WithTimeout(ctx, 10*time.Second)
+	defer cancel()
+	ticker := time.NewTicker(25 * time.Millisecond)
+	defer ticker.Stop()
+	var lastErr error
+	for {
+		var backendPID int32
+		lastErr = pool.QueryRow(
+			deadline,
+			`SELECT pid
+			 FROM pg_stat_activity
+			 WHERE application_name = $1
+				AND state = 'active'
+				AND wait_event_type = 'Lock'`,
+			applicationName,
+		).Scan(&backendPID)
+		if lastErr == nil {
+			return backendPID
+		}
+		select {
+		case <-deadline.Done():
+			t.Fatalf(
+				"wait for blocked application %q: %v: %v",
+				applicationName,
+				deadline.Err(),
+				lastErr,
+			)
+		case <-ticker.C:
+		}
+	}
+}
 
 func TestPostgreSQLAppendReconcilesDroppedCommitResponseWithoutDuplicates(
 	t *testing.T,

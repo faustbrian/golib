@@ -364,10 +364,13 @@ before commit. After the locking transaction ends, a new operation context can
 retry safely; a canceled context and a PostgreSQL transaction left in an error
 state must never be reused.
 
-The backend-recovery suite durably appends history, terminates the pool's
-PostgreSQL backend, and proves the existing pool can establish a replacement
-connection, read unchanged history, and append the next stream and global
-versions.
+The backend-failure suites hold an append inside an active allocator statement,
+terminate that exact PostgreSQL backend, and prove the attempt is
+`CommitNotCommitted`. Reconciliation proves no message identity exists, and a
+retry commits exactly one message at stream and global position 1. They also
+terminate an idle pool backend after a durable append and prove the existing
+pool can establish a replacement connection, read unchanged history, and
+append the next stream and global versions.
 
 The server-restart suite stops and starts the PostgreSQL container, resolves
 its new test endpoint, reconstructs the caller-owned pool, reads unchanged
