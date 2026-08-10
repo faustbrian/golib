@@ -11,7 +11,7 @@ import (
 func TestChildWorkProcessorPersistsStartBeforeCreatingPinnedChild(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 11, 10, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 11, 10, 0, 0, 0, time.UTC)
 	parent, child, definitions, history, lease := childProcessorFixture(t, now)
 	store := newProcessorStore(t, definitions, history)
 	called := false
@@ -54,7 +54,7 @@ func TestChildWorkProcessorPersistsStartBeforeCreatingPinnedChild(t *testing.T) 
 func TestChildWorkProcessorDoesNotRepeatInFlightUnknownStart(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 11, 11, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 11, 11, 0, 0, 0, time.UTC)
 	_, _, definitions, history, lease := childProcessorFixture(t, now)
 	history = append(history, mustHistoryEvent(t, workflow.HistoryEventSpec{
 		Sequence: 3, InstanceID: "instance-1", Kind: workflow.EventChildStartAttempted,

@@ -11,7 +11,7 @@ import (
 func TestCompensationWorkProcessorPersistsStartBeforeExecutingAndOutcomeAfter(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 10, 6, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 10, 6, 0, 0, 0, time.UTC)
 	definition := mustCompensationDefinition(t)
 	definitions, err := workflow.CompileDefinitions(definition)
 	if err != nil {
@@ -63,7 +63,7 @@ func TestCompensationWorkProcessorPersistsStartBeforeExecutingAndOutcomeAfter(t 
 func TestCompensationWorkProcessorDoesNotRepeatInFlightRollback(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 10, 7, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 10, 7, 0, 0, 0, time.UTC)
 	definition := mustCompensationDefinition(t)
 	definitions, err := workflow.CompileDefinitions(definition)
 	if err != nil {
@@ -109,7 +109,7 @@ func TestCompensationWorkProcessorDoesNotRepeatInFlightRollback(t *testing.T) {
 func TestCompensationWorkProcessorSchedulesIndependentRetryAfterKnownFailure(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 10, 8, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 10, 8, 0, 0, 0, time.UTC)
 	definition := mustCompensationDefinition(t)
 	definitions, err := workflow.CompileDefinitions(definition)
 	if err != nil {
@@ -156,7 +156,7 @@ func TestCompensationWorkProcessorSchedulesIndependentRetryAfterKnownFailure(t *
 func TestCompensationWorkProcessorPersistsUnknownAfterHandlerPanic(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 10, 9, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 10, 9, 0, 0, 0, time.UTC)
 	definition := mustCompensationDefinition(t)
 	definitions, err := workflow.CompileDefinitions(definition)
 	if err != nil {
@@ -195,7 +195,7 @@ func TestCompensationWorkProcessorPersistsUnknownAfterHandlerPanic(t *testing.T)
 func TestCompensationWorkProcessorDeadLettersPoisonDispatch(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 10, 10, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 10, 10, 0, 0, 0, time.UTC)
 	definition := mustCompensationDefinition(t)
 	definitions, err := workflow.CompileDefinitions(definition)
 	if err != nil {

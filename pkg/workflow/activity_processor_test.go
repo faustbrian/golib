@@ -11,7 +11,7 @@ import (
 func TestActivityWorkProcessorPersistsStartBeforeExecutingAndPersistsOutcome(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 9, 21, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 9, 21, 0, 0, 0, time.UTC)
 	definition := mustActivityTransitionDefinition(t)
 	definitions, err := workflow.CompileDefinitions(definition)
 	if err != nil {
@@ -67,7 +67,7 @@ func TestActivityWorkProcessorPersistsStartBeforeExecutingAndPersistsOutcome(t *
 func TestActivityWorkProcessorDoesNotRepeatInFlightUnknownSideEffect(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 9, 22, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 9, 22, 0, 0, 0, time.UTC)
 	definition := mustActivityTransitionDefinition(t)
 	definitions, err := workflow.CompileDefinitions(definition)
 	if err != nil {
@@ -113,7 +113,7 @@ func TestActivityWorkProcessorDoesNotRepeatInFlightUnknownSideEffect(t *testing.
 func TestActivityWorkProcessorSchedulesDurableRetryAfterKnownFailure(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 9, 23, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 9, 23, 0, 0, 0, time.UTC)
 	definition := mustActivityTransitionDefinition(t)
 	definitions, err := workflow.CompileDefinitions(definition)
 	if err != nil {
@@ -160,7 +160,7 @@ func TestActivityWorkProcessorSchedulesDurableRetryAfterKnownFailure(t *testing.
 func TestActivityWorkProcessorPersistsUnknownAfterHandlerPanic(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 10, 0, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 10, 0, 0, 0, 0, time.UTC)
 	definition := mustActivityTransitionDefinition(t)
 	definitions, err := workflow.CompileDefinitions(definition)
 	if err != nil {
@@ -199,7 +199,7 @@ func TestActivityWorkProcessorPersistsUnknownAfterHandlerPanic(t *testing.T) {
 func TestActivityWorkProcessorDeadLettersPoisonDispatchWithoutSideEffects(t *testing.T) {
 	t.Parallel()
 
-	now := time.Date(2026, 8, 10, 1, 0, 0, 0, time.UTC)
+	now := time.Date(2036, 8, 10, 1, 0, 0, 0, time.UTC)
 	definition := mustActivityTransitionDefinition(t)
 	definitions, err := workflow.CompileDefinitions(definition)
 	if err != nil {
