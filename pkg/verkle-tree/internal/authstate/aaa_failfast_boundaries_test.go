@@ -22,6 +22,29 @@ func TestFailFastAggregateVerifierQueryCapacityBoundsTopology(t *testing.T) {
 	}
 }
 
+func TestFailFastAggregateVerifierQueriesEmptyRoot(t *testing.T) {
+	key := testKey(1, 3)
+	material, err := newTestSnapshot(t, nil).ProofMaterial(
+		context.Background(),
+		[]Key{key},
+		testProofMaterialLimits(),
+	)
+	if err != nil {
+		t.Fatalf("empty-root proof material: %v", err)
+	}
+	queries, err := material.AggregateVerifierQueries(
+		context.Background(),
+		testAggregateVerifierQueryLimits(),
+	)
+	if err != nil {
+		t.Fatalf("empty-root verifier queries: %v", err)
+	}
+	if len(queries) != 1 || queries[0].Length != 0 ||
+		queries[0].Opening.Index != key[0] {
+		t.Fatalf("empty-root verifier queries = %#v", queries)
+	}
+}
+
 func TestFailFastAggregateVerifierCollectorStemQueries(t *testing.T) {
 	key := testKey(1, 3)
 	key[1] = 2
