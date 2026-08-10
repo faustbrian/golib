@@ -7,6 +7,10 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Fenced child-start processing with persisted pre-creation attempts, explicit
+  known-started, known-absent, and unknown outcomes, stable idempotency keys,
+  crash-safe redelivery, and durable policy-bound retries only after known
+  absence.
 - Version-pinned child workflow definitions, atomic parent history and
   `WorkChild` admission, bounded dispatch metadata, replayed child progress,
   known terminal outcomes, and deterministic parent orchestration.

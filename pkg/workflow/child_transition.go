@@ -55,7 +55,7 @@ type childDispatchDocument struct {
 // DecodeChildDispatch validates bounded durable work metadata without starting
 // or otherwise observing the child workflow.
 func DecodeChildDispatch(payload []byte) (ChildDispatch, error) {
-	if len(payload) == 0 || len(payload) > MaxChildDispatchBytes {
+	if len(payload) > MaxChildDispatchBytes {
 		return ChildDispatch{}, ErrInvalidChildTransition
 	}
 	decoder := json.NewDecoder(bytes.NewReader(payload))
@@ -151,7 +151,7 @@ type ChildOutcomeSpec struct {
 func NewChildOutcome(spec ChildOutcomeSpec) (Transition, error) {
 	step, ok := definitionStep(spec.Definition, spec.StepName, StepChild)
 	progress, exists := spec.Instance.Child(spec.StepName)
-	if !ok || !exists || (progress.Status() != ChildScheduled && progress.Status() != ChildActive) ||
+	if !ok || !exists || !childTerminalOutcomeAllowed(progress.Status()) ||
 		progress.ChildID() != spec.ChildID ||
 		spec.Instance.status != StatusRunning || spec.Definition.Reference() != spec.Instance.definition ||
 		len(spec.Result) > int(step.ResultLimit) || spec.CompletedAt.Before(spec.Instance.updatedAt) {
@@ -182,6 +182,11 @@ func NewChildOutcome(spec ChildOutcomeSpec) (Transition, error) {
 	return transition, nil
 }
 
+func childTerminalOutcomeAllowed(status ChildProgressStatus) bool {
+	return status == ChildScheduled || status == ChildStartRunning ||
+		status == ChildActive || status == ChildStartUnknownStatus
+}
+
 // ChildStartAttemptSpec supplies the durable pre-creation boundary.
 type ChildStartAttemptSpec struct {
 	TransitionID string
@@ -194,24 +199,30 @@ type ChildStartAttemptSpec struct {
 // NewChildStartAttempt records a fenced child creation attempt before calling
 // a child-start adapter.
 func NewChildStartAttempt(spec ChildStartAttemptSpec) (Transition, error) {
+	if !spec.Lease.Valid() {
+		return Transition{}, ErrInvalidChildTransition
+	}
 	work := spec.Lease.Work()
-	dispatch, err := DecodeChildDispatch(work.Payload())
-	step, ok := definitionStep(spec.Definition, dispatch.StepName(), StepChild)
-	progress, exists := spec.Instance.Child(dispatch.StepName())
-	if err != nil || !ok || !exists || work.Kind() != WorkChild ||
+	dispatch, _ := DecodeChildDispatch(work.Payload())
+	step, _ := definitionStep(spec.Definition, dispatch.StepName(), StepChild)
+	progress, _ := spec.Instance.Child(dispatch.StepName())
+	startedAt := canonicalTime(spec.StartedAt)
+	dueAt := canonicalTime(startedAt.Add(step.Timeout))
+	if work.Kind() != WorkChild ||
 		work.InstanceID() != spec.Instance.id || spec.Instance.status != StatusRunning ||
 		spec.Definition.Reference() != spec.Instance.definition || spec.Instance.sequence < work.Sequence() ||
 		progress.ChildID() != dispatch.ChildID() || progress.Definition() != dispatch.Definition() ||
 		(progress.Status() != ChildScheduled && progress.Status() != ChildStartRetryWaiting) ||
 		dispatch.Attempt() != progress.Attempt()+1 || dispatch.Attempt() > step.Retry.MaxAttempts ||
-		spec.StartedAt.Before(spec.Instance.updatedAt) ||
-		(progress.Status() == ChildStartRetryWaiting && spec.StartedAt.Before(progress.DueAt())) {
+		startedAt.Before(work.AvailableAt()) || dueAt.After(work.Deadline()) ||
+		startedAt.Before(spec.Lease.ClaimedAt()) ||
+		!startedAt.Before(spec.Lease.ExpiresAt()) || startedAt.Before(spec.Instance.updatedAt) ||
+		(progress.Status() == ChildStartRetryWaiting && startedAt.Before(progress.DueAt())) {
 		return Transition{}, ErrInvalidChildTransition
 	}
-	dueAt := canonicalTime(spec.StartedAt.Add(step.Timeout))
 	event, err := NewHistoryEvent(HistoryEventSpec{
 		Sequence: spec.Instance.sequence + 1, InstanceID: spec.Instance.id,
-		Kind: EventChildStartAttempted, OccurredAt: spec.StartedAt,
+		Kind: EventChildStartAttempted, OccurredAt: startedAt,
 		SuccessorID: dispatch.ChildID(), StepName: dispatch.StepName(),
 		Attempt: dispatch.Attempt(), IdempotencyKey: dispatch.IdempotencyKey(), DueAt: dueAt,
 	})
@@ -242,9 +253,8 @@ type ChildStartAttemptOutcomeSpec struct {
 
 // NewChildStartAttemptOutcome persists a known or uncertain creation result.
 func NewChildStartAttemptOutcome(spec ChildStartAttemptOutcomeSpec) (Transition, error) {
-	_, ok := definitionStep(spec.Definition, spec.StepName, StepChild)
-	progress, exists := spec.Instance.Child(spec.StepName)
-	if !ok || !exists || spec.Instance.status != StatusRunning ||
+	progress, _ := spec.Instance.Child(spec.StepName)
+	if spec.Instance.status != StatusRunning ||
 		spec.Definition.Reference() != spec.Instance.definition ||
 		progress.Status() != ChildStartRunning || progress.ChildID() != spec.ChildID ||
 		progress.Attempt() != spec.Attempt || !spec.Outcome.valid() ||
@@ -291,9 +301,9 @@ type ChildStartRetrySpec struct {
 
 // NewChildStartRetry atomically records retry admission and its next work.
 func NewChildStartRetry(spec ChildStartRetrySpec) (Transition, error) {
-	step, ok := definitionStep(spec.Definition, spec.StepName, StepChild)
-	progress, exists := spec.Instance.Child(spec.StepName)
-	if !ok || !exists || spec.Instance.status != StatusRunning ||
+	step, _ := definitionStep(spec.Definition, spec.StepName, StepChild)
+	progress, _ := spec.Instance.Child(spec.StepName)
+	if spec.Instance.status != StatusRunning ||
 		spec.Definition.Reference() != spec.Instance.definition ||
 		progress.Status() != ChildStartFailedStatus || !progress.Retryable() ||
 		progress.Attempt() >= step.Retry.MaxAttempts || spec.ScheduledAt.Before(spec.Instance.updatedAt) {

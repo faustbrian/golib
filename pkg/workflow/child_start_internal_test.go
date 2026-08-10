@@ -75,6 +75,11 @@ func TestChildStartValuesRejectInvalidAndOwnInput(t *testing.T) {
 		func() ChildStartRequestSpec { value := valid; value.StartedAt = time.Time{}; return value }(),
 		func() ChildStartRequestSpec { value := valid; value.Deadline = now; return value }(),
 		func() ChildStartRequestSpec { value := valid; value.InputLimit = 0; return value }(),
+		func() ChildStartRequestSpec {
+			value := valid
+			value.InputLimit = MaxPayloadBytes + 1
+			return value
+		}(),
 		func() ChildStartRequestSpec { value := valid; value.Input = make([]byte, 9); return value }(),
 		func() ChildStartRequestSpec { value := valid; value.TenantID = " spaces "; return value }(),
 		func() ChildStartRequestSpec { value := valid; value.CorrelationID = " spaces "; return value }(),

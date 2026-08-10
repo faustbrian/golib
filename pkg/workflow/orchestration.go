@@ -83,9 +83,10 @@ func NewOrchestrationDecision(spec OrchestrationDecisionSpec) (OrchestrationDeci
 	steps := spec.Definition.Steps()
 	branchMembers := orchestrationBranchMembers(steps)
 	for _, step := range steps {
-		if _, branch := branchMembers[step.Name]; branch && step.Kind != StepParallel &&
-			step.Kind != StepJoin && step.Kind != StepRace {
-			continue
+		if _, branch := branchMembers[step.Name]; branch {
+			if orchestrationBranchLeaf(step.Kind) {
+				continue
+			}
 		}
 		switch step.Kind {
 		case StepActivity:
@@ -154,6 +155,9 @@ func decideChildStep(
 	case ChildStartRunning, ChildActive, ChildStartUnknownStatus, ChildStartRetryWaiting:
 		return orchestrationWait(step.Name), false, nil
 	case ChildStartFailedStatus:
+		if progress.Retryable() && progress.Attempt() < step.Retry.MaxAttempts {
+			return orchestrationWait(step.Name), false, nil
+		}
 		decision, err := orchestrationTerminal(spec, OrchestrationFailed, step.Name)
 		return decision, false, err
 	case ChildSucceeded:
@@ -251,8 +255,8 @@ func decideJoinStep(
 	step StepSpec,
 ) (OrchestrationDecision, bool, error) {
 	for _, branchName := range step.Branches {
-		progress, exists := spec.Instance.Activity(branchName)
-		if !exists || progress.Status() != ActivityProgressSucceeded {
+		progress, _ := spec.Instance.Activity(branchName)
+		if progress.Status() != ActivityProgressSucceeded {
 			return orchestrationWait(step.Name), false, nil
 		}
 	}
@@ -274,8 +278,11 @@ func newParallelActivitySchedule(spec OrchestrationDecisionSpec, control StepSpe
 	workItems := make([]PendingWork, 0, len(control.Branches))
 	for index, branchName := range control.Branches {
 		branchSpec, exists := branches[branchName]
+		if !exists {
+			return Transition{}, ErrInvalidOrchestration
+		}
 		branchStep, validStep := definitionActivityStep(spec.Definition, branchName)
-		if !exists || !validStep || !instanceIDPattern.MatchString(branchSpec.IdempotencyKey) ||
+		if !validStep || !instanceIDPattern.MatchString(branchSpec.IdempotencyKey) ||
 			len(branchSpec.Input) > int(branchStep.InputLimit) {
 			return Transition{}, ErrInvalidOrchestration
 		}
@@ -313,7 +320,9 @@ func newParallelActivitySchedule(spec OrchestrationDecisionSpec, control StepSpe
 func orchestrationBranchMembers(steps []StepSpec) map[string]struct{} {
 	members := make(map[string]struct{})
 	for _, step := range steps {
-		if step.Kind != StepParallel && step.Kind != StepRace {
+		switch step.Kind {
+		case StepParallel, StepRace:
+		default:
 			continue
 		}
 		for _, branch := range step.Branches {
@@ -321,6 +330,15 @@ func orchestrationBranchMembers(steps []StepSpec) map[string]struct{} {
 		}
 	}
 	return members
+}
+
+func orchestrationBranchLeaf(kind StepKind) bool {
+	switch kind {
+	case StepParallel, StepJoin, StepRace:
+		return false
+	default:
+		return true
+	}
 }
 
 func decideActivityStep(

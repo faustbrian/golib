@@ -135,11 +135,17 @@ func (instance *Instance) applyChild(registry *Registry, event HistoryEvent) err
 	}
 	switch event.kind {
 	case EventChildStartAttempted:
-		if instance.status != StatusRunning ||
-			(progress.status != ChildScheduled && progress.status != ChildStartRetryWaiting) ||
-			event.attempt != progress.attempt+1 || event.attempt > step.Retry.MaxAttempts ||
-			event.dueAt != canonicalTime(event.occurredAt.Add(step.Timeout)) ||
-			(progress.status == ChildStartRetryWaiting && event.occurredAt.Before(progress.dueAt)) {
+		switch progress.status {
+		case ChildScheduled:
+		case ChildStartRetryWaiting:
+			if event.occurredAt.Before(progress.dueAt) {
+				return ErrInvalidTransition
+			}
+		default:
+			return ErrInvalidTransition
+		}
+		if event.attempt != progress.attempt+1 || event.attempt > step.Retry.MaxAttempts ||
+			event.dueAt != canonicalTime(event.occurredAt.Add(step.Timeout)) {
 			return ErrInvalidTransition
 		}
 		progress.status = ChildStartRunning
@@ -179,8 +185,7 @@ func (instance *Instance) applyChild(registry *Registry, event HistoryEvent) err
 		progress.status = ChildStartRetryWaiting
 		progress.dueAt = event.dueAt
 	default:
-		if (progress.status != ChildScheduled && progress.status != ChildActive) ||
-			len(event.data) > int(step.ResultLimit) {
+		if !childTerminalOutcomeAllowed(progress.status) || len(event.data) > int(step.ResultLimit) {
 			return ErrInvalidTransition
 		}
 		progress.result = cloneBytes(event.data)

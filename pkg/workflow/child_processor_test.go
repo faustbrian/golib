@@ -15,7 +15,7 @@ func TestChildWorkProcessorPersistsStartBeforeCreatingPinnedChild(t *testing.T) 
 	parent, child, definitions, history, lease := childProcessorFixture(t, now)
 	store := newProcessorStore(t, definitions, history)
 	called := false
-	starter := workflow.ChildStartFunc(func(_ context.Context, request workflow.ChildStartRequest) workflow.ChildStartOutcome {
+	starter := workflow.ChildStartFunc(func(ctx context.Context, request workflow.ChildStartRequest) workflow.ChildStartOutcome {
 		called = true
 		if len(store.transitions) != 1 || store.transitions[0].Events()[0].Kind() != workflow.EventChildStartAttempted {
 			t.Fatal("child creation observed before its start-attempt transition committed")
@@ -28,6 +28,9 @@ func TestChildWorkProcessorPersistsStartBeforeCreatingPinnedChild(t *testing.T) 
 			request.IdempotencyKey() == "" || string(request.Input()) != "order-1" ||
 			request.TenantID() != "tenant-1" || request.CorrelationID() != "correlation-1" {
 			t.Fatalf("child start request = %#v", request)
+		}
+		if deadline, ok := ctx.Deadline(); !ok || deadline != request.Deadline() {
+			t.Fatalf("child start context deadline = %v, %t", deadline, ok)
 		}
 		outcome, err := workflow.NewChildStartOutcome(workflow.ChildStartOutcomeSpec{Kind: workflow.ChildStarted})
 		if err != nil {
@@ -88,7 +91,7 @@ func TestChildWorkProcessorSchedulesRetryOnlyAfterKnownAbsentFailure(t *testing.
 		t.Fatalf("decision = %#v transitions = %#v", decision, store.transitions)
 	}
 	dispatch, err := workflow.DecodeChildDispatch(store.transitions[2].Work()[0].Payload())
-	if err != nil || dispatch.Attempt() != 2 || dispatch.IdempotencyKey() == lease.Work().ID() {
+	if err != nil || dispatch.Attempt() != 2 || dispatch.IdempotencyKey() == "child-1" {
 		t.Fatalf("retry dispatch = %#v, %v", dispatch, err)
 	}
 }

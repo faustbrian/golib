@@ -174,7 +174,7 @@ func (request ChildStartRequest) valid() bool {
 		stableName.MatchString(request.stepName) && instanceIDPattern.MatchString(request.childID) &&
 		request.childDefinition.valid() && request.attempt > 0 && request.attempt <= request.maxAttempts &&
 		instanceIDPattern.MatchString(request.idempotencyKey) && !request.startedAt.IsZero() &&
-		request.deadline.After(request.startedAt) && request.inputLimit > 0 &&
+		request.deadline.After(request.startedAt) && validPayloadLimit(request.inputLimit) &&
 		len(request.input) <= int(request.inputLimit) &&
 		optionalMetadataValid(request.tenantID) && optionalMetadataValid(request.correlationID)
 }

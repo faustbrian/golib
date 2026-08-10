@@ -93,9 +93,14 @@ func (processor *ChildWorkProcessor) processProgress(
 			return activityDeadLetter("invalid-child-state")
 		}
 		return processor.scheduleRetry(ctx, lease.Work(), instance, definition, step, dispatch)
-	case ChildActive, ChildStartUnknownStatus, ChildSucceeded, ChildFailed:
+	case ChildActive, ChildStartUnknownStatus:
 		if progress.Attempt() != dispatch.Attempt() ||
 			progress.IdempotencyKey() != dispatch.IdempotencyKey() {
+			return activityDeadLetter("invalid-child-state")
+		}
+		return activityComplete()
+	case ChildSucceeded, ChildFailed:
+		if progress.ChildID() != dispatch.ChildID() || progress.Definition() != dispatch.Definition() {
 			return activityDeadLetter("invalid-child-state")
 		}
 		return activityComplete()
@@ -113,14 +118,11 @@ func (processor *ChildWorkProcessor) load(
 	if err != nil {
 		return Instance{}, Definition{}, StepSpec{}, err
 	}
-	definition, err := processor.config.Definitions.Resolve(
+	definition, _ := processor.config.Definitions.Resolve(
 		instance.Definition().Name(), instance.Definition().Version(),
 	)
-	if err != nil {
-		return Instance{}, Definition{}, StepSpec{}, ErrInvalidChildProcessor
-	}
-	step, ok := definitionStep(definition, dispatch.StepName(), StepChild)
-	if !ok || step.ChildDefinition != dispatch.Definition() ||
+	step, _ := definitionStep(definition, dispatch.StepName(), StepChild)
+	if step.ChildDefinition != dispatch.Definition() ||
 		dispatch.Attempt() > step.Retry.MaxAttempts || instance.Sequence() < work.Sequence() {
 		return Instance{}, Definition{}, StepSpec{}, ErrInvalidChildProcessor
 	}
@@ -249,7 +251,15 @@ func executeChildStartSafely(
 			})
 		}
 	}()
-	outcome = starter.Start(ctx, request)
+	attemptContext, cancel := context.WithDeadline(ctx, request.Deadline())
+	defer cancel()
+	if attemptContext.Err() != nil {
+		outcome, _ = NewChildStartOutcome(ChildStartOutcomeSpec{
+			Kind: ChildStartFailed, Code: "child-start-context-done", Retryable: true,
+		})
+		return outcome
+	}
+	outcome = starter.Start(attemptContext, request)
 	if !outcome.valid() {
 		outcome, _ = NewChildStartOutcome(ChildStartOutcomeSpec{
 			Kind: ChildStartUnknown, Code: "child-start-invalid-outcome",

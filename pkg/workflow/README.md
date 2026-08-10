@@ -25,8 +25,11 @@ Ordered orchestration can schedule activities and timers, wait for signals and
 audited human approvals, atomically admit bounded parallel activity branches,
 join their persisted outcomes, select and persist bounded signal or approval
 race winners, schedule version-pinned child workflows, and persist known
-terminal outcomes. A child-start processor, broader operator stores, and
-optional integrations are not yet delivered.
+terminal outcomes. A fenced child-start processor persists each creation
+attempt before invoking a caller-owned idempotent adapter, records known
+creation, known absence, or uncertainty, and durably admits policy retries only
+after a known-absent failure. Broader operator stores and optional integrations
+are not yet delivered.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that
@@ -71,12 +74,17 @@ tie. `EventRaceWon` must commit before later steps advance, and replay never
 recomputes a different winner from signals accepted afterward.
 
 `StepChild` pins a complete `DefinitionReference`. `NewChildSchedule` commits
-the parent decision and `WorkChild` admission atomically before a caller-owned
-adapter creates the child instance. `DecodeChildDispatch` preserves the exact
-child identity across redelivery, and `NewChildOutcome` records a known child
-terminal result before parent orchestration advances. Creating a child remains
-an idempotent external operation; an uncertain start must be reconciled rather
-than treated as safely absent.
+the parent decision and `WorkChild` admission atomically.
+`ChildWorkProcessor` then records `EventChildStartAttempted` before a
+caller-owned adapter creates the child instance. `DecodeChildDispatch`
+preserves the exact child identity, semantic attempt, and idempotency key
+across redelivery. A redelivered in-flight attempt becomes
+`EventChildStartUnknown` without calling the adapter again. Only a
+known-absent retryable failure can create later `WorkChild`; `NewChildOutcome`
+records a known child terminal result before parent orchestration advances.
+Creating a child remains an idempotent external operation and an uncertain
+start requires reconciliation; a durably observed terminal child outcome is
+also sufficient evidence that the child existed.
 
 `NewTimerSchedule` binds a timer-history decision and its `WorkTimer` record in
 one transition. A timer processor persists `NewTimerFire` and only then returns
