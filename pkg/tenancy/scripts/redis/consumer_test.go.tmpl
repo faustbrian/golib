@@ -1,0 +1,193 @@
+package tenancyredis_test
+
+import (
+	"context"
+	"errors"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/faustbrian/golib/pkg/queue"
+	"github.com/faustbrian/golib/pkg/queue/job"
+	"github.com/faustbrian/golib/pkg/queue/management"
+	redisstream "github.com/faustbrian/golib/pkg/queue/redisstream"
+	"github.com/faustbrian/golib/pkg/tenancy"
+)
+
+func TestRedisRetryAndDeadLetterRetainOneTenantScope(t *testing.T) {
+	address := os.Getenv("REDIS_ADDR")
+	if address == "" {
+		t.Fatal("REDIS_ADDR is required")
+	}
+	if queueNamespace(t, "tenant-a", "orders") == queueNamespace(t, "tenant-b", "orders") {
+		t.Fatal("tenant queue namespaces collided")
+	}
+	workerA := tenantWorker(t, address, "tenant-a")
+	defer func() {
+		if err := workerA.Shutdown(); err != nil {
+			t.Errorf("shutdown tenant A worker: %v", err)
+		}
+	}()
+	workerB := tenantWorker(t, address, "tenant-b")
+	defer func() {
+		if err := workerB.Shutdown(); err != nil {
+			t.Errorf("shutdown tenant B worker: %v", err)
+		}
+	}()
+
+	message := job.Message{
+		Timeout: time.Minute,
+		Body:    []byte(`{"order":42}`),
+		Metadata: &job.Metadata{
+			OriginalID: "job-42", JobType: "order.process",
+			ContentType: "application/json", TenantID: "tenant-a",
+		},
+	}
+	if err := workerA.Queue(&message); err != nil {
+		t.Fatal(err)
+	}
+
+	delivery := requestMessage(t, workerA)
+	if err := acceptQueueTenant(context.Background(), delivery); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
+		t.Fatalf("unscoped delivery error = %v", err)
+	}
+	if err := acceptQueueTenant(tenantContext(t, "tenant-b"), delivery); !errors.Is(err, tenancy.ErrConflictingScope) {
+		t.Fatalf("cross-tenant delivery error = %v", err)
+	}
+	if err := acceptQueueTenant(tenantContext(t, "tenant-a"), delivery); err != nil {
+		t.Fatal(err)
+	}
+	if err := delivery.NackFailure(errors.New("retry")); err != nil {
+		t.Fatal(err)
+	}
+
+	retried := requestMessage(t, workerA)
+	if err := acceptQueueTenant(tenantContext(t, "tenant-a"), retried); err != nil {
+		t.Fatalf("retry tenant error = %v", err)
+	}
+	if retried.Metadata == nil || retried.Metadata.OriginalID != "job-42" {
+		t.Fatalf("retry metadata = %#v", retried.Metadata)
+	}
+	if err := retried.NackFailure(errors.New("retry again")); err != nil {
+		t.Fatal(err)
+	}
+
+	page, err := workerA.ListDeadLetters(t.Context(), management.PageRequest{
+		Limit: 10, Sort: management.SortOccurredAt, Direction: management.SortAscending,
+	})
+	if err != nil || len(page.Items) != 1 {
+		t.Fatalf("dead letters = %#v, %v", page.Items, err)
+	}
+	record, err := workerA.Inspect(t.Context(), management.InspectRequest{
+		Kind: management.RecordDeadLetter, ID: page.Items[0].ID,
+		Visibility: management.PayloadRevealed,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadLetter, err := job.DecodeE(record.Payload.Data, job.DefaultMaxMessageBytes)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := acceptQueueTenant(tenantContext(t, "tenant-a"), deadLetter); err != nil {
+		t.Fatalf("dead-letter tenant error = %v", err)
+	}
+	if deadLetter.Metadata == nil || deadLetter.Metadata.TenantID != "tenant-a" ||
+		deadLetter.Metadata.OriginalID != "job-42" {
+		t.Fatalf("dead-letter metadata = %#v", deadLetter.Metadata)
+	}
+
+	messageB := message
+	messageB.Metadata = &job.Metadata{
+		OriginalID: "job-42-b", JobType: "order.process",
+		ContentType: "application/json", TenantID: "tenant-b",
+	}
+	if err := workerB.Queue(&messageB); err != nil {
+		t.Fatal(err)
+	}
+	deliveryB := requestMessage(t, workerB)
+	if err := acceptQueueTenant(tenantContext(t, "tenant-b"), deliveryB); err != nil {
+		t.Fatalf("tenant B delivery error = %v", err)
+	}
+	if err := deliveryB.Ack(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := workerA.Request(); !errors.Is(err, queue.ErrNoTaskInQueue) {
+		t.Fatalf("tenant A observed tenant B queue state: %v", err)
+	}
+}
+
+func tenantWorker(t *testing.T, address, tenant string) *redisstream.Worker {
+	t.Helper()
+	stream := queueNamespace(t, tenant, "orders")
+	worker, err := redisstream.NewWorkerE(
+		redisstream.WithAddr(address),
+		redisstream.WithStreamName(stream),
+		redisstream.WithGroup("workers"),
+		redisstream.WithConsumer("consumer-"+tenant),
+		redisstream.WithBlockTime(10*time.Millisecond),
+		redisstream.WithRequestTimeout(500*time.Millisecond),
+		redisstream.WithReclaim(10*time.Millisecond, 10*time.Millisecond, 1),
+		redisstream.WithFailureStream(queueNamespace(t, tenant, "orders-failures")),
+		redisstream.WithDeadLetter(queueNamespace(t, tenant, "orders-dead"), 2),
+		redisstream.WithCommandTimeout(2*time.Second),
+		redisstream.WithLogger(queue.NewEmptyLogger()),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return worker
+}
+
+func queueNamespace(t *testing.T, tenant, logical string) string {
+	t.Helper()
+	encoder, _ := tenancy.NewNamespaceEncoder([]byte("0123456789abcdef0123456789abcdef"))
+	integration, _ := tenancy.NewIntegration(tenancy.BoundaryQueue, tenancy.PropagationOptions{})
+	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID(tenant), tenancy.Metadata{})
+	value, err := integration.Key(encoder, scope, logical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return value
+}
+
+func tenantContext(t *testing.T, tenant string) context.Context {
+	t.Helper()
+	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID(tenant), tenancy.Metadata{})
+	ctx, err := tenancy.WithScope(context.Background(), scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ctx
+}
+
+func acceptQueueTenant(ctx context.Context, message *job.Message) error {
+	expected, err := tenancy.RequireTenant(ctx)
+	if err != nil {
+		return err
+	}
+	if message == nil || message.Metadata == nil || message.Metadata.TenantID == "" {
+		return tenancy.ErrTenantScopeRequired
+	}
+	actual, err := tenancy.ParseTenantID(message.Metadata.TenantID)
+	if err != nil {
+		return err
+	}
+	if !actual.Equal(expected) {
+		return tenancy.ErrConflictingScope
+	}
+	return nil
+}
+
+func requestMessage(t *testing.T, worker *redisstream.Worker) *job.Message {
+	t.Helper()
+	delivery, err := worker.Request()
+	if err != nil {
+		t.Fatal(err)
+	}
+	message, ok := delivery.(*job.Message)
+	if !ok {
+		t.Fatalf("delivery type = %T", delivery)
+	}
+	return message
+}

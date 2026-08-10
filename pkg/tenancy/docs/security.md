@@ -1,9 +1,9 @@
 # Security model
 
 Tenant IDs are opaque routing data, not secrets and not authorization claims.
-Their raw representation is nevertheless redacted from ordinary formatting to
-reduce enumeration and high-cardinality disclosure. Applications decide who
-may create tenant and system scopes.
+Their raw representation is nevertheless redacted from ordinary formatting and
+structured `log/slog` values to reduce enumeration and high-cardinality
+disclosure. Applications decide who may create tenant and system scopes.
 
 The package protects only paths using its explicit seams. It cannot stop raw
 SQL, provider clients, caches, telemetry APIs, or goroutines that bypass them.

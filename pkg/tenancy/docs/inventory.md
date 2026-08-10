@@ -92,7 +92,8 @@ HTTP adds `ErrInvalidOptions` and `ErrInvalidRequest`. JSON-RPC adds
 `ErrInvalidConfig`, `ErrInvalidOperation`, `ErrScopeVerification`, and
 `ErrSessionReset`. Callers classify with `errors.Is`; errors do not include raw
 tenant values. `TenantID`, `Metadata`, `AdministrativeReason`,
-`SystemCapability`, and `Scope` redact `String` and `GoString` output.
+`SystemCapability`, and `Scope` redact `String`, `GoString`, and `LogValue`
+output.
 
 ## Administrative and trust escape hatches
 

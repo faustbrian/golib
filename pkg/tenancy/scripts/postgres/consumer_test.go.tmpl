@@ -1,0 +1,286 @@
+package tenancypostgresconsumer_test
+
+import (
+	"context"
+	"errors"
+	"io/fs"
+	"os"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/faustbrian/golib/pkg/audit"
+	auditpostgres "github.com/faustbrian/golib/pkg/audit/postgres"
+	"github.com/faustbrian/golib/pkg/tenancy"
+	"github.com/faustbrian/golib/pkg/workflow"
+	workflowpostgres "github.com/faustbrian/golib/pkg/workflow/postgres"
+	"github.com/jackc/pgx/v5/pgxpool"
+)
+
+func TestPostgreSQLWorkflowRetryAndAuditAttributionStayTenantBound(t *testing.T) {
+	dsn := os.Getenv("POSTGRES_URL")
+	if dsn == "" {
+		t.Fatal("POSTGRES_URL is required")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+	defer cancel()
+	pool, err := pgxpool.New(ctx, dsn)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	if _, err := pool.Exec(ctx, "CREATE SCHEMA workflow"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, workflowpostgres.SchemaMigration().Up); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, auditMigrations(t)); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanup, cleanupCancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cleanupCancel()
+		_, _ = pool.Exec(cleanup, "DROP SCHEMA IF EXISTS workflow CASCADE")
+		_, _ = pool.Exec(cleanup, "DROP SCHEMA IF EXISTS audit CASCADE")
+	})
+
+	now := time.Date(2026, 8, 10, 3, 0, 0, 0, time.UTC)
+	workflowStore, err := workflowpostgres.New(pool, workflowpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tenant := range []string{"tenant-a", "tenant-b"} {
+		if err := workflowStore.Commit(ctx, tenantTransition(t, tenant, now)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	claim, _ := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-1", Now: now.Add(2 * time.Second),
+		LeaseDuration: 30 * time.Second, Limit: 10,
+	})
+	leases, err := workflowStore.Claim(ctx, claim)
+	if err != nil || len(leases) != 2 {
+		t.Fatalf("initial leases = %#v, %v", leases, err)
+	}
+	byTenant := make(map[string]workflow.WorkLease, len(leases))
+	for _, lease := range leases {
+		tenant := lease.Work().TenantID()
+		byTenant[tenant] = lease
+		if err := acceptWorkflowTenant(tenantContext(t, tenant), lease); err != nil {
+			t.Fatalf("lease %s acceptance = %v", tenant, err)
+		}
+	}
+	if err := acceptWorkflowTenant(context.Background(), byTenant["tenant-a"]); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
+		t.Fatalf("unscoped workflow error = %v", err)
+	}
+	if err := acceptWorkflowTenant(tenantContext(t, "tenant-b"), byTenant["tenant-a"]); !errors.Is(err, tenancy.ErrConflictingScope) {
+		t.Fatalf("cross-tenant workflow error = %v", err)
+	}
+
+	retryAt := claim.Now().Add(time.Minute)
+	retry, _ := workflow.NewWorkFailure(workflow.WorkFailureSpec{
+		WorkID: byTenant["tenant-a"].Work().ID(), Owner: byTenant["tenant-a"].Owner(),
+		Token: byTenant["tenant-a"].Token(), FailedAt: claim.Now(), Code: "temporary",
+		Disposition: workflow.WorkRetry, RetryAt: retryAt,
+	})
+	if err := workflowStore.Fail(ctx, retry); err != nil {
+		t.Fatal(err)
+	}
+	completed, _ := workflow.NewWorkCompletion(workflow.WorkCompletionSpec{
+		WorkID: byTenant["tenant-b"].Work().ID(), Owner: byTenant["tenant-b"].Owner(),
+		Token: byTenant["tenant-b"].Token(), CompletedAt: claim.Now(),
+	})
+	if err := workflowStore.Complete(ctx, completed); err != nil {
+		t.Fatal(err)
+	}
+
+	reopened, err := workflowpostgres.New(pool, workflowpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	resume, _ := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-2", Now: retryAt, LeaseDuration: 30 * time.Second, Limit: 10,
+	})
+	retried, err := reopened.Claim(ctx, resume)
+	if err != nil || len(retried) != 1 || retried[0].Attempt() != 2 ||
+		retried[0].Work().TenantID() != "tenant-a" {
+		t.Fatalf("resumed leases = %#v, %v", retried, err)
+	}
+	if err := acceptWorkflowTenant(tenantContext(t, "tenant-b"), retried[0]); !errors.Is(err, tenancy.ErrConflictingScope) {
+		t.Fatalf("cross-tenant resumed workflow error = %v", err)
+	}
+	deadLetter, _ := workflow.NewWorkFailure(workflow.WorkFailureSpec{
+		WorkID: retried[0].Work().ID(), Owner: retried[0].Owner(), Token: retried[0].Token(),
+		FailedAt: resume.Now(), Code: "poison", Disposition: workflow.WorkDeadLetter,
+	})
+	if err := reopened.Fail(ctx, deadLetter); err != nil {
+		t.Fatal(err)
+	}
+	var persistedTenant string
+	var state int
+	if err := pool.QueryRow(ctx,
+		"SELECT tenant_id, state FROM workflow.workflow_work WHERE work_id = $1",
+		retried[0].Work().ID(),
+	).Scan(&persistedTenant, &state); err != nil || persistedTenant != "tenant-a" || state != 4 {
+		t.Fatalf("dead-letter workflow state = tenant %q state %d, %v", persistedTenant, state, err)
+	}
+
+	auditStore, err := auditpostgres.New(pool, auditpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	redactor, _ := audit.NewRedactor(audit.RedactionRules{})
+	recorder, _ := audit.NewRecorder(audit.RecorderConfig{
+		Sink: auditStore, Redactor: redactor, Mode: audit.DeliveryFailClosed,
+	})
+	sequence := 0
+	builder, _ := audit.NewBuilder(audit.BuilderConfig{
+		Clock: func() time.Time { return now },
+		IDGenerator: func() (string, error) {
+			sequence++
+			return "audit-" + string(rune('0'+sequence)), nil
+		},
+	})
+	for _, tenant := range []string{"tenant-a", "tenant-b"} {
+		record, err := builder.Build(audit.RecordInput{
+			OccurredAt: now, Action: "support.impersonation", Outcome: audit.OutcomeSucceeded,
+			Actor:   audit.ActorInput{Kind: audit.ActorHuman, ID: "support-7"},
+			Subject: audit.SubjectInput{Type: "tenant", ID: tenant},
+			Context: audit.ContextInput{TenantID: tenant, IdempotencyID: "CASE-42/" + tenant},
+			Changes: audit.ChangeSetInput{NoChange: true},
+		})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := recorder.Submit(ctx, record); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := queryTenantAudit(context.Background(), auditStore); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
+		t.Fatalf("unscoped audit error = %v", err)
+	}
+	page, err := queryTenantAudit(tenantContext(t, "tenant-a"), auditStore)
+	if err != nil || len(page.Records) != 1 || page.Records[0].Context().TenantID() != "tenant-a" ||
+		page.Records[0].Actor().ID() != "support-7" {
+		t.Fatalf("tenant audit page = %#v, %v", page.Records, err)
+	}
+}
+
+func tenantTransition(t *testing.T, tenant string, now time.Time) workflow.Transition {
+	t.Helper()
+	definition, err := workflow.NewDefinition(workflow.DefinitionSpec{
+		Name: "orders", Version: "1", Mode: workflow.Orchestration,
+		Steps: []workflow.StepSpec{{
+			Name: "execute", Kind: workflow.StepActivity, Target: "orders.execute",
+			Timeout: time.Minute, InputLimit: 8, ResultLimit: 8,
+			Retry: workflow.RetryPolicy{MaxAttempts: 2, InitialDelay: time.Second, MaxDelay: time.Second},
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	instance := workflowNamespace(t, tenant, "order-42")
+	start, err := workflow.NewHistoryEvent(workflow.HistoryEventSpec{
+		Sequence: 1, InstanceID: instance, Kind: workflow.EventInstanceStarted,
+		OccurredAt: now, Definition: definition.Reference(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	scheduled, err := workflow.NewHistoryEvent(workflow.HistoryEventSpec{
+		Sequence: 2, InstanceID: instance, Kind: workflow.EventActivityScheduled,
+		OccurredAt: now.Add(time.Second), StepName: "execute", Data: []byte("input"),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	work, err := workflow.NewPendingWork(workflow.PendingWorkSpec{
+		ID: workflowNamespace(t, tenant, "work-42"), Kind: workflow.WorkActivity,
+		InstanceID: instance, Sequence: 2, AvailableAt: now.Add(time.Second),
+		Deadline: now.Add(5 * time.Minute), Payload: []byte("input"), TenantID: tenant,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	transition, err := workflow.NewTransition(workflow.TransitionSpec{
+		ID: workflowNamespace(t, tenant, "transition-42"), InstanceID: instance,
+		Definition: definition.Reference(), Events: []workflow.HistoryEvent{start, scheduled},
+		Work: []workflow.PendingWork{work},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return transition
+}
+
+func workflowNamespace(t *testing.T, tenant, logical string) string {
+	t.Helper()
+	encoder, _ := tenancy.NewNamespaceEncoder([]byte("0123456789abcdef0123456789abcdef"))
+	integration, _ := tenancy.NewIntegration(tenancy.BoundaryWorkflow, tenancy.PropagationOptions{})
+	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID(tenant), tenancy.Metadata{})
+	value, err := integration.Key(encoder, scope, logical)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return value
+}
+
+func acceptWorkflowTenant(ctx context.Context, lease workflow.WorkLease) error {
+	expected, err := tenancy.RequireTenant(ctx)
+	if err != nil {
+		return err
+	}
+	actual, err := tenancy.ParseTenantID(lease.Work().TenantID())
+	if err != nil {
+		return err
+	}
+	if !actual.Equal(expected) {
+		return tenancy.ErrConflictingScope
+	}
+	return nil
+}
+
+func queryTenantAudit(ctx context.Context, store *auditpostgres.Store) (audit.Page, error) {
+	tenant, err := tenancy.RequireTenant(ctx)
+	if err != nil {
+		return audit.Page{}, err
+	}
+	scope, err := audit.Tenant(tenant.Value())
+	if err != nil {
+		return audit.Page{}, err
+	}
+	query, err := audit.NewQuery(audit.QueryInput{Tenant: scope, Limit: 10})
+	if err != nil {
+		return audit.Page{}, err
+	}
+	return store.Query(ctx, query)
+}
+
+func tenantContext(t *testing.T, tenant string) context.Context {
+	t.Helper()
+	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID(tenant), tenancy.Metadata{})
+	ctx, err := tenancy.WithScope(context.Background(), scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ctx
+}
+
+func auditMigrations(t *testing.T) string {
+	t.Helper()
+	entries, err := fs.ReadDir(auditpostgres.Migrations(), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var up strings.Builder
+	for _, entry := range entries {
+		contents, err := fs.ReadFile(auditpostgres.Migrations(), entry.Name())
+		if err != nil {
+			t.Fatal(err)
+		}
+		up.WriteString(strings.SplitN(string(contents), "-- +migrations Down", 2)[0])
+		up.WriteByte('\n')
+	}
+	return up.String()
+}

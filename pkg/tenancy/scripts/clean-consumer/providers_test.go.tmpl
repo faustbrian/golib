@@ -1,9 +1,12 @@
 package consumer_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
+	"strings"
 	"testing"
 	"time"
 
@@ -22,6 +25,9 @@ import (
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/sdk/trace/tracetest"
+	"go.opentelemetry.io/otel/trace"
 )
 
 type tenantCache struct {
@@ -207,4 +213,65 @@ func TestTelemetryDropsTenantIdentityAndBoundsCardinality(t *testing.T) {
 	if points[0].Attributes.Len() != 1 || tenantPresent {
 		t.Fatalf("metric points retained tenant identity: %#v", points)
 	}
+}
+
+func TestTelemetryTraceAndStructuredLogsUseOnlyOpaqueTenantScope(t *testing.T) {
+	ctx := tenantContext(t, "tenant-a")
+	namespace, err := telemetryNamespace(ctx, "orders.process")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(namespace, "tenant-a") {
+		t.Fatalf("telemetry namespace disclosed tenant identity: %q", namespace)
+	}
+	if _, err := telemetryNamespace(context.Background(), "orders.process"); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
+		t.Fatalf("unscoped telemetry error = %v", err)
+	}
+
+	recorder := tracetest.NewSpanRecorder()
+	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+	_, span := provider.Tracer("consumer").Start(ctx, "orders.process",
+		trace.WithAttributes(attribute.String("tenant.namespace", namespace)))
+	span.End()
+	ended := recorder.Ended()
+	if len(ended) != 1 {
+		t.Fatalf("ended spans = %d", len(ended))
+	}
+	attributes := ended[0].Attributes()
+	if len(attributes) != 1 || string(attributes[0].Key) != "tenant.namespace" ||
+		attributes[0].Value.AsString() != namespace ||
+		strings.Contains(attributes[0].Value.AsString(), "tenant-a") {
+		t.Fatalf("span attributes = %#v", attributes)
+	}
+
+	scope, _ := tenancy.ScopeFromContext(ctx)
+	var output bytes.Buffer
+	slog.New(slog.NewJSONHandler(&output, nil)).Info("orders.process",
+		"scope", scope, "tenant_namespace", namespace)
+	if strings.Contains(output.String(), "tenant-a") ||
+		!strings.Contains(output.String(), "tenant_scope_[redacted]") ||
+		!strings.Contains(output.String(), namespace) {
+		t.Fatalf("structured log = %s", output.String())
+	}
+}
+
+func telemetryNamespace(ctx context.Context, logical string) (string, error) {
+	tenant, err := tenancy.RequireTenant(ctx)
+	if err != nil {
+		return "", err
+	}
+	scope, err := tenancy.NewTenantScope(tenant, tenancy.Metadata{})
+	if err != nil {
+		return "", err
+	}
+	encoder, err := tenancy.NewNamespaceEncoder([]byte("0123456789abcdef0123456789abcdef"))
+	if err != nil {
+		return "", err
+	}
+	integration, err := tenancy.NewIntegration(tenancy.BoundaryTelemetry, tenancy.PropagationOptions{})
+	if err != nil {
+		return "", err
+	}
+	return integration.Key(encoder, scope, logical)
 }

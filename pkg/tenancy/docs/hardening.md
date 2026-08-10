@@ -13,14 +13,18 @@ adapters with the first-party cache backend, bounded search contract provider,
 queue/CloudEvents conversion, workflow values, audit store, and OpenTelemetry
 SDK. The OpenSearch matrix executes the same scoped search adapter against
 OpenSearch 2.19.6 and 3.8.0 with identical logical index and document IDs for
-two tenants. Provider paths not declared by those fixtures remain outside the
-claim.
+two tenants. The Redis Streams fixture uses opaque tenant queue names and
+proves the same validated identity survives broker reclaim, retry, and terminal
+dead-letter persistence while another tenant's stream remains empty. Provider
+paths not declared by those fixtures remain outside the claim.
 
 The build-tagged PostgreSQL test adds a restricted application login, forced
 and restrictive RLS, cross-tenant reads and mutations, alternating prepared
 plans, rollback, cancellation, stale state, backend replacement, and concurrent
 pool proof. It is valid only when run against a real PostgreSQL service with
-`POSTGRES_URL`; a skipped run is not interoperability evidence.
+`POSTGRES_URL`; the same gate reopens a first-party workflow store across a
+tenant-bound retry and persists/query-filters first-party audit records from
+context-derived tenant scope. A skipped run is not interoperability evidence.
 
 Coverage and mutation gates operate per production package. Exact statement
 coverage does not by itself prove meaningful assertions, and mutation results

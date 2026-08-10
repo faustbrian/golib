@@ -1,14 +1,61 @@
 package tenancy_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"log/slog"
 	"strings"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/tenancy"
 )
+
+func TestOwnedIdentityStructuredLogsAreRedacted(t *testing.T) {
+	t.Parallel()
+
+	metadata, _ := tenancy.NewMetadata(map[string]string{"region": "secret-region"})
+	tenant := tenancy.MustTenantID("tenant-a")
+	scope, _ := tenancy.NewTenantScope(tenant, metadata)
+	reason, _ := tenancy.NewAdministrativeReason("support-7", "support access", "CASE-42")
+	capability := tenancy.NewSystemCapability(reason)
+
+	handlers := map[string]func(*bytes.Buffer) slog.Handler{
+		"json": func(output *bytes.Buffer) slog.Handler { return slog.NewJSONHandler(output, nil) },
+		"text": func(output *bytes.Buffer) slog.Handler { return slog.NewTextHandler(output, nil) },
+	}
+	for name, handler := range handlers {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			var output bytes.Buffer
+			slog.New(handler(&output)).Info("scope",
+				"tenant", tenant,
+				"metadata", metadata,
+				"scope", scope,
+				"reason", reason,
+				"capability", capability,
+			)
+			encoded := output.String()
+			for _, sensitive := range []string{
+				"tenant-a", "secret-region", "support-7", "support access", "CASE-42",
+			} {
+				if strings.Contains(encoded, sensitive) {
+					t.Fatalf("structured log disclosed %q: %s", sensitive, encoded)
+				}
+			}
+			for _, redacted := range []string{
+				"tenant_[redacted]", "metadata_[redacted]", "tenant_scope_[redacted]",
+				"administrative_reason_[redacted]", "system_capability_[redacted]",
+			} {
+				if !strings.Contains(encoded, redacted) {
+					t.Fatalf("structured log omitted %q: %s", redacted, encoded)
+				}
+			}
+		})
+	}
+}
 
 func TestTenantIDSerializationRejectsInvalidReceiversAndValues(t *testing.T) {
 	t.Parallel()

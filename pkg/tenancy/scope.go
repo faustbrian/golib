@@ -3,6 +3,7 @@ package tenancy
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"maps"
 )
 
@@ -66,6 +67,9 @@ func (metadata Metadata) String() string { return "metadata_[redacted]" }
 // GoString returns a redacted representation for Go-syntax diagnostics.
 func (metadata Metadata) GoString() string { return metadata.String() }
 
+// LogValue redacts metadata when passed directly to log/slog.
+func (metadata Metadata) LogValue() slog.Value { return slog.StringValue(metadata.String()) }
+
 func (metadata Metadata) equal(other Metadata) bool {
 	return maps.Equal(metadata.values, other.values)
 }
@@ -116,6 +120,9 @@ func (reason AdministrativeReason) String() string { return "administrative_reas
 // GoString returns a redacted representation for Go-syntax diagnostics.
 func (reason AdministrativeReason) GoString() string { return reason.String() }
 
+// LogValue redacts administrative intent when passed directly to log/slog.
+func (reason AdministrativeReason) LogValue() slog.Value { return slog.StringValue(reason.String()) }
+
 func (reason AdministrativeReason) valid() bool {
 	return validPrintable(reason.actor, maxActorBytes, false) &&
 		validPrintable(reason.purpose, maxPurposeBytes, false) &&
@@ -139,6 +146,11 @@ func (capability SystemCapability) String() string { return "system_capability_[
 
 // GoString returns a redacted representation for Go-syntax diagnostics.
 func (capability SystemCapability) GoString() string { return capability.String() }
+
+// LogValue redacts the capability when passed directly to log/slog.
+func (capability SystemCapability) LogValue() slog.Value {
+	return slog.StringValue(capability.String())
+}
 
 // Scope is an immutable explicit operation scope. Its zero value is invalid.
 type Scope struct {
@@ -220,6 +232,9 @@ func (scope Scope) String() string {
 
 // GoString returns a redacted representation for Go-syntax diagnostics.
 func (scope Scope) GoString() string { return scope.String() }
+
+// LogValue redacts complete scope state when passed directly to log/slog.
+func (scope Scope) LogValue() slog.Value { return slog.StringValue(scope.String()) }
 
 func cloneMetadata(metadata Metadata) Metadata {
 	return Metadata{values: maps.Clone(metadata.values)}

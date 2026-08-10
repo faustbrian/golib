@@ -8,8 +8,8 @@ Review date: 2026-08-10
 - Missing, untrusted, repeated, conflicting, malformed, oversized, and
   pre-scoped transport identity fails closed at the owned propagation seams.
 - Tenant identity, metadata, administrative reasons, capabilities, and scopes
-  redact ordinary and Go-syntax diagnostic formatting. Explicit serialization
-  and value access remain trusted-boundary operations.
+  redact ordinary, Go-syntax, and structured `log/slog` diagnostics. Explicit
+  serialization and value access remain trusted-boundary operations.
 - Namespace inputs are versioned and length-delimited before keyed HMAC
   encoding. Tenant, boundary, domain, and logical-key changes produce distinct
   collision-resistant namespaces without exposing raw inputs. Version 2 emits
@@ -34,13 +34,17 @@ Review date: 2026-08-10
 | HTTP direct access and duplicate headers | `TestMiddlewareAcceptsOnlyExplicitlyTrustedTenantHeader`, `TestHTTPExtractionRejectsDuplicateCaseVariants`, `FuzzHTTPHeaderExtraction`, clean-consumer authenticated-hop fixture |
 | JSON-RPC direct access and duplicate raw keys | `TestJSONRPCExtractAndAcceptRequireExplicitTrust`, `TestJSONRPCRejectsDuplicateConflictingMalformedAndOversizedMetadata`, `FuzzJSONRPCMetadata` |
 | Queue, event, cache, search, workflow, audit, and telemetry contract replay and retry | `TestIntegrationStateModelRejectsCrossTenantReplayAndRetry`, `TestPropertyEveryIntegrationFailsClosedAcrossRandomizedSequences`, external clean-consumer provider compositions |
+| Live queue retry and dead-letter persistence | `scripts/test-redis-integration.sh` executes Redis Streams reclaim, retry, dead-letter inspection, missing scope, conflicting scope, and cross-tenant queue isolation under `-race` |
 | Cache and namespace cross-tenant collisions | `TestNamespaceEncoderSeparatesScopesDomainsAndAmbiguousParts`, `TestNamespaceOutputIsSafeForFirstPartyProviderNames`, `TestPropertyTenantNamespacesNeverAlias`, `TestPropertyConcurrentOperationsCannotObserveAnotherTenant` |
 | Live search persistence | `scripts/test-opensearch-integration.sh` executes two-tenant negative isolation against OpenSearch 2.19.6 and 3.8.0 under `-race` |
 | Goroutine lifetime and scope reuse | `TestGroupTaskPreservesSubmitContext`, `TestGroupRaceBoundariesAndWaitCancellation`, `TestGroupStressCloseAndShutdownDoNotLeak`, `TestIntegrationConcurrentSoak` |
 | PostgreSQL absent scope, system scope, RLS composition, prepared plans, rollback, cancellation, stale pool state, connection loss, reconnect, and concurrent reuse | `TestPostgreSQLRLSAndPoolReuseIsolation` against live PostgreSQL with `-race` |
+| Durable workflow retry/resume and audit attribution | `scripts/check-postgres-composition.sh` reopens first-party PostgreSQL workflow state across retry, rejects cross-tenant lease execution, verifies terminal tenant identity, and context-filters first-party audit records under `-race` |
 | Administrative partial failure, retry, resume, and attribution | `TestAdministrativeIterationStopsAtAuditOperationAndCancellation`, `TestAdministrativeResumeRepeatsFailedTenantWithCompleteAttribution`, cursor-cycle and page-bound tests, external fsync journal fan-out fixture |
 | External-module adoption and migration | `scripts/check-clean-consumer.sh` executes authenticated HTTP, conflicting JSON-RPC, explicit SQL predicate, provider compositions, no-fallback scoped cache, and durable administrative fixtures |
 | Direct provider, replacement-context, and telemetry-label bypass | `scripts/check-analyzers.sh` executes the blocking `analysis.yml` policy against negative consumer and reviewed-adapter fixtures |
+| Structured-log identity disclosure | `TestOwnedIdentityStructuredLogsAreRedacted` executes both standard JSON and text `log/slog` handlers against every owned identity-bearing value |
+| Trace and log tenant disclosure | external `TestTelemetryTraceAndStructuredLogsUseOnlyOpaqueTenantScope` records only an opaque tenant namespace through the OpenTelemetry SDK and standard JSON `log/slog`, and rejects missing scope |
 
 ## Trust and support boundaries
 

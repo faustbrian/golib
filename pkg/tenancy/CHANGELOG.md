@@ -50,6 +50,10 @@ versioning once released.
   configurable soak fixtures across every owned integration boundary.
 - Redacted default and Go-syntax diagnostics for identities, metadata,
   administrative reasons, capabilities, and complete scopes.
+- Redact identities, metadata, administrative reasons, capabilities, and
+  complete scopes when passed directly to `log/slog`.
+- Compose opaque tenant telemetry namespaces through real OpenTelemetry spans
+  and structured logs without raw tenant attributes or values.
 - Complete trust, integration, PostgreSQL, administration, migration, security,
   analyzer-boundary, hardening, FAQ, and clean-consumer guidance and tooling.
 - Add an executable blocking analyzer policy for direct first-party provider
@@ -58,6 +62,10 @@ versioning once released.
 - Add external-consumer compositions for cache, search, queue/event replay,
   workflow retry, audit attribution, telemetry cardinality, and durable
   administrative fan-out with partial failure and idempotent resume.
+- Add a live Redis Streams composition proving tenant identity survives reclaim,
+  retry, and dead-letter persistence without cross-tenant queue visibility.
+- Add a live PostgreSQL composition proving tenant-bound workflow retry and
+  resume plus durable support audit attribution through first-party stores.
 - Add an exhaustive owned-surface inventory covering identity, context,
   propagation, namespace, persistence, provider, analyzer, error, diagnostic,
   and administrative escape-hatch boundaries.
