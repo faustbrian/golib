@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add a release-readiness findings report with explicit severity, impact,
+  disposition, release conditions, and residual risks, including the current
+  mutation, final-fingerprint, reverse-dependency, MSK, and PLAIN-rotation
+  blockers
 - pin the Testcontainers Ryuk resource reaper by immutable digest before every
   integration run, reject upstream tag or registry substitutions before
   container creation, and reject a running reaper with another image ID

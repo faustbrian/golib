@@ -394,7 +394,9 @@ durability, and readiness boundaries.
 Infrastructure remains responsible for topics, replication, ISR, retention,
 quotas, ACLs, and destructive administrative operations.
 
-See the [current audit](docs/audit.md), [compatibility matrix](docs/compatibility.md),
+See the [current audit](docs/audit.md),
+[release-readiness findings](docs/release-readiness.md),
+[compatibility matrix](docs/compatibility.md),
 [documentation index](docs/README.md), [guarantees](docs/guarantees.md),
 [public conformance suites](docs/conformance.md),
 [observability](docs/observability.md), [performance evidence](docs/performance.md),

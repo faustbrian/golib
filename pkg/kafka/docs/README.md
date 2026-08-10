@@ -2,6 +2,7 @@
 
 - [Architecture](architecture.md)
 - [Pre-v1 implementation audit](audit.md)
+- [Release-readiness findings](release-readiness.md)
 - [Production policy decision matrices](design/decision-matrices.md)
 - [Compatibility and execution matrix](compatibility.md)
 - [Public conformance suites](conformance.md)
