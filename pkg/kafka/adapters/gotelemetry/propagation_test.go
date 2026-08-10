@@ -343,6 +343,36 @@ func TestTraceHeaderCarrierFulfillsTextMapContract(t *testing.T) {
 	}
 }
 
+func TestEqualASCIIFoldMatchesHeaderCaseBoundaries(t *testing.T) {
+	tests := []struct {
+		name  string
+		left  string
+		right string
+		want  bool
+	}{
+		{name: "left A", left: "A", right: "a", want: true},
+		{name: "left Z", left: "Z", right: "z", want: true},
+		{name: "right A", left: "a", right: "A", want: true},
+		{name: "right Z", left: "z", right: "Z", want: true},
+		{name: "before ASCII uppercase", left: "@", right: "`", want: false},
+		{name: "after ASCII uppercase", left: "[", right: "{", want: false},
+		{name: "non-ASCII remains exact", left: "ſ", right: "S", want: false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := equalASCIIFold(test.left, test.right); got != test.want {
+				t.Fatalf(
+					"equalASCIIFold(%q, %q) = %t, want %t",
+					test.left,
+					test.right,
+					got,
+					test.want,
+				)
+			}
+		})
+	}
+}
+
 func retainProducerRecord(record kafka.ProducerRecord) kafka.ProducerRecord {
 	retained := record
 	retained.Key = bytes.Clone(record.Key)
