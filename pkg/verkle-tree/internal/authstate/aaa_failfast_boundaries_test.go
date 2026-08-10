@@ -52,8 +52,12 @@ func TestFailFastAggregateVerifierCollectorStemQueries(t *testing.T) {
 	rootPath := aggregateVerifierPath{}
 	prefixPath := aggregateVerifierPath{path: [32]byte{1}, length: 1}
 	stemPath := aggregateVerifierPath{path: [32]byte{1, 2}, length: 2}
-	suffixPath := aggregateVerifierPath{
+	c1Path := aggregateVerifierPath{
 		path:   [32]byte{1, 2, leafvector.C1HashIndex},
+		length: 3,
+	}
+	c2Path := aggregateVerifierPath{
+		path:   [32]byte{1, 2, leafvector.C2HashIndex},
 		length: 3,
 	}
 	empty := backend.EmptyVectorCommitment()
@@ -79,18 +83,26 @@ func TestFailFastAggregateVerifierCollectorStemQueries(t *testing.T) {
 	secondKey := key
 	secondKey[31] = 4
 	secondValue := testValue(8)
-	present := newCollector(rootPath, prefixPath, stemPath, suffixPath)
+	thirdKey := key
+	thirdKey[31] = 128
+	thirdValue := testValue(9)
+	present := newCollector(rootPath, prefixPath, stemPath, c1Path, c2Path)
 	if err := present.collectStem(
 		PresentStemPath(stem, 2),
-		[]Claim{Membership(key, value), Membership(secondKey, secondValue)},
+		[]Claim{
+			Membership(key, value),
+			Membership(secondKey, secondValue),
+			Membership(thirdKey, thirdValue),
+		},
 	); err != nil {
 		t.Fatalf("collect present stem: %v", err)
 	}
-	if len(present.queries) != 9 {
-		t.Fatalf("present stem query count = %d, want 9", len(present.queries))
+	if len(present.queries) != 12 {
+		t.Fatalf("present stem query count = %d, want 12", len(present.queries))
 	}
 	opening := leafvector.EncodePresent(key[31], [32]byte(value))
 	secondOpening := leafvector.EncodePresent(secondKey[31], [32]byte(secondValue))
+	thirdOpening := leafvector.EncodePresent(thirdKey[31], [32]byte(thirdValue))
 	wantPresent := []struct {
 		path  aggregateVerifierPath
 		index uint8
@@ -101,10 +113,13 @@ func TestFailFastAggregateVerifierCollectorStemQueries(t *testing.T) {
 		{path: stemPath, index: leafvector.ExtensionMarkerIndex, value: extensionMarkerScalar()},
 		{path: stemPath, index: leafvector.StemIndex, value: [32]byte(leafvector.EncodeStem(stem))},
 		{path: stemPath, index: leafvector.C1HashIndex},
-		{path: suffixPath, index: opening.LowIndex, value: [32]byte(opening.Low)},
-		{path: suffixPath, index: opening.HighIndex, value: [32]byte(opening.High)},
-		{path: suffixPath, index: secondOpening.LowIndex, value: [32]byte(secondOpening.Low)},
-		{path: suffixPath, index: secondOpening.HighIndex, value: [32]byte(secondOpening.High)},
+		{path: c1Path, index: opening.LowIndex, value: [32]byte(opening.Low)},
+		{path: c1Path, index: opening.HighIndex, value: [32]byte(opening.High)},
+		{path: c1Path, index: secondOpening.LowIndex, value: [32]byte(secondOpening.Low)},
+		{path: c1Path, index: secondOpening.HighIndex, value: [32]byte(secondOpening.High)},
+		{path: stemPath, index: leafvector.C2HashIndex},
+		{path: c2Path, index: thirdOpening.LowIndex, value: [32]byte(thirdOpening.Low)},
+		{path: c2Path, index: thirdOpening.HighIndex, value: [32]byte(thirdOpening.High)},
 	}
 	for index, want := range wantPresent {
 		got := present.queries[index]
