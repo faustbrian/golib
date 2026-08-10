@@ -1,0 +1,128 @@
+package tenancyopensearch_test
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"net/url"
+	"os"
+	"testing"
+	"time"
+
+	"github.com/faustbrian/golib/pkg/search"
+	opensearch "github.com/faustbrian/golib/pkg/search/adapters/opensearch"
+	"github.com/faustbrian/golib/pkg/tenancy"
+)
+
+type tenantSearch struct{ client *opensearch.Client }
+
+func (adapter tenantSearch) write(ctx context.Context, document search.Document) error {
+	tenant, err := tenancy.RequireTenant(ctx)
+	if err != nil {
+		return err
+	}
+	if document.Tenant != tenant.Value() {
+		return tenancy.ErrConflictingScope
+	}
+	_, err = adapter.client.Write(ctx, search.IndexDocument(document), search.RefreshWaitFor)
+	return err
+}
+
+func (adapter tenantSearch) search(ctx context.Context, request search.Request) (search.Result, error) {
+	tenant, err := tenancy.RequireTenant(ctx)
+	if err != nil {
+		return search.Result{}, err
+	}
+	if request.Tenant != tenant.Value() {
+		return search.Result{}, tenancy.ErrConflictingScope
+	}
+	return adapter.client.Search(ctx, request)
+}
+
+func TestOpenSearchUsesOpaqueTenantNamespacesWithoutCrossTenantHits(t *testing.T) {
+	endpoint := os.Getenv("OPENSEARCH_URL")
+	expected := os.Getenv("OPENSEARCH_EXPECTED_VERSION")
+	parsed, err := url.Parse(endpoint)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || expected == "" {
+		t.Fatal("OpenSearch integration environment is incomplete")
+	}
+	limits := search.DefaultLimits()
+	encoder, _ := tenancy.NewNamespaceEncoder([]byte("0123456789abcdef0123456789abcdef"))
+	integration, _ := tenancy.NewIntegration(tenancy.BoundarySearch, tenancy.PropagationOptions{})
+	aliases := make(map[string]string)
+	physical := make(map[string]string)
+	for _, tenant := range []string{"tenant-a", "tenant-b"} {
+		scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID(tenant), tenancy.Metadata{})
+		key, err := integration.Key(encoder, scope, "orders")
+		if err != nil {
+			t.Fatal(err)
+		}
+		aliases[tenant] = key
+		physical[tenant] = key + "-v1"
+	}
+	codec, _ := search.NewCursorCodec([]byte("integration-cursor-key-32-bytes!!"), time.Now, 4096)
+	client, err := opensearch.New(opensearch.Config{
+		Endpoints: []string{endpoint}, AllowInsecureHTTP: parsed.Scheme == "http", RequestTimeout: 10 * time.Second, MaximumResponseBytes: 8 << 20,
+		Search: &opensearch.SearchConfig{Limits: limits, CursorCodec: codec, Clock: time.Now, Resolver: opensearch.IndexResolverFunc(func(_ context.Context, tenant, _ string, _ opensearch.IndexAccess) (opensearch.IndexTarget, error) {
+			name, ok := aliases[tenant]
+			if !ok {
+				return opensearch.IndexTarget{}, tenancy.ErrTenantScopeRequired
+			}
+			return opensearch.IndexTarget{Name: name, Fingerprint: "tenancy-v2"}, nil
+		})},
+		Lifecycle: &opensearch.LifecycleConfig{Authorizer: opensearch.LifecycleAuthorizerFunc(func(context.Context, string, []string) error { return nil })},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	info, err := client.Info(t.Context())
+	if err != nil || info.Version != expected {
+		t.Fatalf("OpenSearch version = %q, %v", info.Version, err)
+	}
+	for _, tenant := range []string{"tenant-a", "tenant-b"} {
+		definition, err := search.NewIndexDefinition(physical[tenant], json.RawMessage(`{"number_of_shards":1,"number_of_replicas":0}`), json.RawMessage(`{"dynamic":"strict","properties":{"owner":{"type":"keyword"}}}`), limits)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := client.CreateIndex(t.Context(), tenant, definition); err != nil {
+			t.Fatal(err)
+		}
+		value := physical[tenant]
+		t.Cleanup(func() { _ = client.DeleteIndex(context.Background(), tenant, value) })
+		if err := client.AddAlias(t.Context(), tenant, aliases[tenant], physical[tenant], true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	adapter := tenantSearch{client: client}
+	for _, tenant := range []string{"tenant-a", "tenant-b"} {
+		ctx := tenantContext(t, tenant)
+		document, _ := search.NewDocument(tenant, "orders", "42", 1, json.RawMessage(`{"owner":"`+tenant+`"}`), limits)
+		if err := adapter.write(ctx, document); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, tenant := range []string{"tenant-a", "tenant-b"} {
+		ctx := tenantContext(t, tenant)
+		result, err := adapter.search(ctx, search.Request{Tenant: tenant, Index: "orders", Query: search.MatchAllQuery{}, Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}}, Page: search.CursorPage{Size: 10, KeepAlive: time.Minute}})
+		if err != nil || len(result.Hits()) != 1 || string(result.Hits()[0].Source) != `{"owner":"`+tenant+`"}` {
+			t.Fatalf("tenant %s hits = %#v, %v", tenant, result.Hits(), err)
+		}
+	}
+	if _, err := adapter.search(context.Background(), search.Request{Tenant: "tenant-a"}); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
+		t.Fatalf("unscoped search error = %v", err)
+	}
+	if _, err := adapter.search(tenantContext(t, "tenant-a"), search.Request{Tenant: "tenant-b"}); !errors.Is(err, tenancy.ErrConflictingScope) {
+		t.Fatalf("conflicting search error = %v", err)
+	}
+}
+
+func tenantContext(t *testing.T, value string) context.Context {
+	t.Helper()
+	scope, _ := tenancy.NewTenantScope(tenancy.MustTenantID(value), tenancy.Metadata{})
+	ctx, err := tenancy.WithScope(context.Background(), scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return ctx
+}
