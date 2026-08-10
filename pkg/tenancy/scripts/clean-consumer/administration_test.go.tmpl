@@ -51,22 +51,39 @@ func (journal *durableAdministrativeJournal) entry(operation string, tenant tena
 	return journal.entries[operation+"/"+tenant.Value()]
 }
 
-func (journal *durableAdministrativeJournal) record(t *testing.T, value durableAdministrativeEntry) {
-	t.Helper()
+func (journal *durableAdministrativeJournal) record(value durableAdministrativeEntry) error {
 	journal.mu.Lock()
 	defer journal.mu.Unlock()
 	journal.entries[value.Operation+"/"+value.Tenant] = value
 	encoded, err := json.Marshal(journal.entries)
 	if err != nil {
-		t.Fatal(err)
+		return err
 	}
 	temporary := journal.path + ".new"
-	if err := os.WriteFile(temporary, encoded, 0o600); err != nil {
-		t.Fatal(err)
+	file, err := os.OpenFile(temporary, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+	if err != nil {
+		return err
+	}
+	if _, err := file.Write(encoded); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Sync(); err != nil {
+		_ = file.Close()
+		return err
+	}
+	if err := file.Close(); err != nil {
+		return err
 	}
 	if err := os.Rename(temporary, journal.path); err != nil {
-		t.Fatal(err)
+		return err
 	}
+	directory, err := os.Open(filepath.Dir(journal.path))
+	if err != nil {
+		return err
+	}
+	err = directory.Sync()
+	return errors.Join(err, directory.Close())
 }
 
 func fanOutAdministrativeOperation(
@@ -76,11 +93,16 @@ func fanOutAdministrativeOperation(
 	operationID, kind string,
 	reason tenancy.AdministrativeReason,
 	tenants []tenancy.TenantID,
+	maximumConcurrency int,
 	operation func(context.Context, tenancy.TenantID) error,
 ) error {
 	t.Helper()
+	if maximumConcurrency <= 0 {
+		return errors.New("administrative fan-out concurrency must be positive")
+	}
 	var wait sync.WaitGroup
 	errorsByTenant := make(chan error, len(tenants))
+	admission := make(chan struct{}, maximumConcurrency)
 	for _, tenant := range tenants {
 		if journal.entry(operationID, tenant).Complete {
 			continue
@@ -89,6 +111,13 @@ func fanOutAdministrativeOperation(
 		wait.Add(1)
 		go func() {
 			defer wait.Done()
+			select {
+			case admission <- struct{}{}:
+				defer func() { <-admission }()
+			case <-ctx.Done():
+				errorsByTenant <- ctx.Err()
+				return
+			}
 			prior := journal.entry(operationID, tenant)
 			entry := durableAdministrativeEntry{Operation: operationID, Kind: kind, Tenant: tenant.Value(), Actor: reason.Actor(), Purpose: reason.Purpose(), Reference: reason.Reference(), Attempts: prior.Attempts + 1}
 			scope, err := tenancy.NewTenantScope(tenant, tenancy.Metadata{})
@@ -96,9 +125,9 @@ func fanOutAdministrativeOperation(
 				err = tenancy.RunScoped(ctx, scope, func(scoped context.Context) error { return operation(scoped, tenant) })
 			}
 			entry.Complete = err == nil
-			journal.record(t, entry)
-			if err != nil {
-				errorsByTenant <- err
+			persistErr := journal.record(entry)
+			if err != nil || persistErr != nil {
+				errorsByTenant <- errors.Join(err, persistErr)
 			}
 		}()
 	}
@@ -122,7 +151,7 @@ func TestDurableAdministrativeFanOutResumesIdempotentlyWithAttribution(t *testin
 	invocations := map[string]int{}
 	var invocationMu sync.Mutex
 	failure := errors.New("tenant-b import failed")
-	err = fanOutAdministrativeOperation(t, context.Background(), journal, "import-42", "import", reason, tenants, func(ctx context.Context, tenant tenancy.TenantID) error {
+	err = fanOutAdministrativeOperation(t, context.Background(), journal, "import-42", "import", reason, tenants, 2, func(ctx context.Context, tenant tenancy.TenantID) error {
 		if err := tenancy.AssertTenant(ctx, tenant); err != nil {
 			return err
 		}
@@ -140,7 +169,7 @@ func TestDurableAdministrativeFanOutResumesIdempotentlyWithAttribution(t *testin
 	}
 
 	journal = openAdministrativeJournal(t, path)
-	if err := fanOutAdministrativeOperation(t, context.Background(), journal, "import-42", "import", reason, tenants, func(ctx context.Context, tenant tenancy.TenantID) error {
+	if err := fanOutAdministrativeOperation(t, context.Background(), journal, "import-42", "import", reason, tenants, 2, func(ctx context.Context, tenant tenancy.TenantID) error {
 		if err := tenancy.AssertTenant(ctx, tenant); err != nil {
 			return err
 		}
@@ -162,7 +191,7 @@ func TestDurableAdministrativeFanOutResumesIdempotentlyWithAttribution(t *testin
 	}
 
 	migrationReason, _ := tenancy.NewAdministrativeReason("migrator", "tenant schema migration", "MIG-9")
-	if err := fanOutAdministrativeOperation(t, context.Background(), journal, "migration-9", "migration", migrationReason, tenants, func(ctx context.Context, tenant tenancy.TenantID) error { return tenancy.AssertTenant(ctx, tenant) }); err != nil {
+	if err := fanOutAdministrativeOperation(t, context.Background(), journal, "migration-9", "migration", migrationReason, tenants, 2, func(ctx context.Context, tenant tenancy.TenantID) error { return tenancy.AssertTenant(ctx, tenant) }); err != nil {
 		t.Fatal(err)
 	}
 	for _, tenant := range tenants {
