@@ -8,7 +8,8 @@ This matrix records the validation policy owned by this module. It is based on
 [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259), and the JWT best current
 practices in [RFC 8725](https://www.rfc-editor.org/rfc/rfc8725). The current
 [IANA JOSE registry](https://www.iana.org/assignments/jose/jose.xhtml) remains
-the algorithm-status authority. RFC 7520 vectors are pinned to
+the algorithm-status authority, with Ed25519 registered by
+[RFC 9864](https://www.rfc-editor.org/rfc/rfc9864). RFC 7520 vectors are pinned to
 `ietf-jose/cookbook` commit `13692b68bfc18b99557a5b1ed311fd5077bfff04`.
 Observable ambiguities and package-owned policy choices are maintained in the
 [specification decision register](specification-decisions.md).
@@ -25,7 +26,7 @@ Observable ambiguities and package-owned policy choices are maintained in the
 
 Every key needs a unique non-empty `kid` and an algorithm in the validator's
 explicit allowlist. `use`, when present, is `sig`; `key_ops`, when present,
-contains `verify`. Asymmetric private keys, `none`, `ES256K`, unknown or
+contains only `verify`. Asymmetric private keys, `none`, `ES256K`, unknown or
 deprecated algorithms, algorithm/key-type confusion, weak HMAC keys, wrong EC
 curves, and RSA moduli outside the work bound are invalid configuration. The
 validator does not infer an algorithm from a key.
@@ -38,29 +39,34 @@ validator does not infer an algorithm from a key.
 | Protected header | Unique `alg` and `kid` strings selecting configured trust. | Duplicate members, `crit`, `jku`, `jwk`, `x5u`, `x5c`, `x5t`, `x5t#S256`, or a disallowed algorithm/key. |
 | JSON | UTF-8 object with unique members, bounded depth, members, collections, numbers, and total token bytes. | Invalid UTF-8, unpaired UTF-16 escapes, duplicate members, excessive depth or collections, numbers over 128 encoded bytes, or a non-object payload. |
 | Identity | Non-empty exact issuer, configured audience, subject allowed by the optional exact allowlist, issued-at time, expiration, and configured custom required claims. | Missing or malformed required claims, subject-policy failure, issuer/audience mismatch, future `iat`, expired token, or premature `nbf`. |
-| Time boundary | `nbf <= now + skew`; `iat <= now + skew`; `now < exp + skew`. | Equality at `exp` without skew and values outside configured non-negative skew. |
-| Private claims | Bounded JSON values copied into an immutable principal; configured scope and tenant shapes are strings or string arrays. | Unsupported values, empty tenant entries, or principal bounds exceeded. |
+| Time boundary | Integral-second NumericDate values, one clock read per validation; `nbf <= now + skew`; `iat <= now + skew`; `now < exp + skew`. | Fractional or exponent forms, equality at `exp` without skew, and values outside configured non-negative skew. |
+| Private claims | Bounded JSON values copied into an immutable principal; numbers remain exact `json.Number` values; configured scope and tenant shapes are strings or string arrays. | Unsupported values, empty tenant entries, or principal bounds exceeded. |
 
 Token-provided key URLs and embedded keys are never dereferenced or used. A
-deployment can additionally separate token kinds with distinct issuers,
-audiences, algorithms, keys, or a higher-level type policy.
+deployment with multiple token kinds must use mutually exclusive validation
+profiles. Non-critical `typ` and `cty` values are metadata only; distinct
+issuers, audiences, algorithms, keys, and required claims own type separation.
 
 ## Remote-key and error matrix
 
 | Condition | Result and ownership |
 | --- | --- |
-| HTTPS fetch | One configured URL; redirects and compressed responses are rejected. Plain HTTP requires the test/development option. |
+| HTTPS fetch | One configured URL and one request for successful initialization; redirects and compressed responses are rejected. Plain HTTP requires the test/development option. |
 | Response limits | 1 MiB body, 32 KiB aggregate headers, 64 keys, strict JWK JSON, and a bounded initialization timeout by default. |
 | DNS, TLS, timeout, cancellation, partial body, invalid JSON, key collision, or oversized response | `ErrAuthenticationUnavailable`; response bodies are closed and public error text is redacted. |
 | Concurrent refresh | Automatic and explicit work uses one hardened serialized transport; overlapping explicit callers share one result. At most 128 provider operations are admitted. |
 | Fleet refresh | Each provider instance applies independent 10 percent bounded jitter to cache refresh timing; zero jitter can be configured explicitly. |
 | Successful rotation | The complete validated set atomically replaces the cached set. Returned sets are deep copies. |
 | Refresh outage | `Refresh` reports unavailable while the last successful cached set remains usable for known keys. |
-| Close | New work is rejected, admitted operations are canceled and joined, and cache goroutines are shut down. A canceled close can be retried. |
+| Close | New work remains rejected after close begins, admitted operations are canceled and joined, and cache goroutines are shut down. A canceled close can be retried. |
 
 The configured URL is trusted application configuration, not token input.
 Private-address or DNS-rebinding policy belongs in a supplied `http.Client`
 transport because some deployments intentionally use private issuers.
+Freshness directives schedule application-level trust revalidation rather than
+authorize HTTP response reuse. Retaining the last validated key set is the
+explicit fail-stale trust policy even when HTTP cache directives require prompt
+revalidation or prohibit response storage.
 
 Credential-shape failures use `ErrCredentialsInvalid`; signature, claim, or
 trust-policy failures use `ErrCredentialsRejected`; provider, cancellation,
@@ -78,8 +84,9 @@ Configuration and key-policy failures use `ErrInvalidConfiguration`.
 - DNS, TLS, redirect, timeout, cancellation, partial/oversized/compressed body,
   collision, rotation, stale cache, outage, refresh herd, fleet jitter, close,
   and caller ownership: `remote_test.go` and `remote_internal_test.go`.
-- Parser and remote-response fuzz boundaries: `fuzz_test.go`.
+- Compact-token, fully signed payload, cache-header, and remote-response fuzz
+  boundaries: `fuzz_test.go`.
 - Differential acceptance and deliberately stricter rejection against
   golang-jwt v5: `interoperability_test.go`.
-- Local, cached-remote, rotation-miss, hostile-input, allocation, and
-  contention benchmarks: `validator_benchmark_test.go`.
+- Local, cached-remote, rotation-miss, hostile-input, retained-memory,
+  allocation, and contention benchmarks: `validator_benchmark_test.go`.

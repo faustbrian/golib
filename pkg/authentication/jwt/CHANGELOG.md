@@ -6,6 +6,19 @@ All notable changes to this module are documented here.
 
 ### Security
 
+- Use one clock instant for every claim check in a validation attempt, reject
+  fractional and exponent NumericDate encodings that invite parser-dependent
+  rounding, and preserve private JSON numbers losslessly instead of exposing
+  rounded `float64` values.
+- Require verification-only JWK operations, treat conflicting `max-age`
+  directives as immediately stale, and keep remote work permanently rejected
+  after close begins even when a close attempt is canceled.
+- Make the default remote HTTP transport safe, reject typed-nil transports,
+  and complete successful remote-cache initialization with exactly one bounded
+  request.
+- Preserve the last validated remote key set across hostile refresh responses,
+  prove old-key eviction and outage recovery, and ensure unknown key IDs never
+  trigger attacker-driven fetches.
 - Require canonical unpadded base64url signatures and JSON-number NumericDate
   claims; add exact subject allowlists and custom required-claim policy, and
   reject configurations whose claim bound cannot hold every required claim.
@@ -37,6 +50,8 @@ All notable changes to this module are documented here.
 
 ### Interoperability
 
+- Add full signed-payload and cache-header fuzz boundaries alongside the
+  compact-token and remote-response fuzz targets.
 - Add the RFC 7515 Appendix A.2 RS256 compact JWS and bidirectional
   golang-jwt interoperability for every shared HMAC, RSA, PSS, and ECDSA
   algorithm.

@@ -6,12 +6,19 @@ the IANA registry remain authoritative; peer behavior is interoperability
 evidence, not a vote. The pinned vectors and their provenance are documented in
 [`../specification/`](../specification/README.md).
 
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
+[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
+appear in all capitals.
+
 ## JWT-DEC-001: Compact signed JWTs are the only accepted serialization
 
 | Field | Decision |
 | --- | --- |
 | Status and owner | `resolved`; `authentication/jwt` maintainers |
-| Source | RFC 7519 [Section 7.2](https://www.rfc-editor.org/rfc/rfc7519.html#section-7.2), RFC 7515 [Sections 3.1 and 5.2](https://www.rfc-editor.org/rfc/rfc7515.html#section-3.1), and RFC 8725 [Section 3.12](https://www.rfc-editor.org/rfc/rfc8725.html#section-3.12) |
+| Source | RFC 7519 [Section 7.2](https://www.rfc-editor.org/rfc/rfc7519.html#section-7.2) and RFC 7515 [Sections 3.1 and 5.2](https://www.rfc-editor.org/rfc/rfc7515.html#section-3.1) |
 | Classification | Optional serialization support and defensive application policy |
 | Issue | JWT permits JWS or JWE representations and JOSE defines compact and JSON serializations. Accepting all forms would make token kind, nesting, and parser behavior dependent on upstream defaults. |
 | Credible interpretations | Accept every JOSE serialization; accept compact JWS and JWE; unwrap nested tokens; or require one signed compact JWS with exactly three segments. |
@@ -47,7 +54,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Field | Decision |
 | --- | --- |
 | Status and owner | `resolved`; `authentication/jwt` maintainers |
-| Source | RFC 8725 [Sections 2.1, 3.1, and 3.2](https://www.rfc-editor.org/rfc/rfc8725.html#section-3.1), RFC 7518 [Section 3](https://www.rfc-editor.org/rfc/rfc7518.html#section-3), and the [IANA JOSE registry](https://www.iana.org/assignments/jose/jose.xhtml) |
+| Source | RFC 8725 [Sections 2.1, 3.1, and 3.2](https://www.rfc-editor.org/rfc/rfc8725.html#section-3.1), RFC 7518 [Section 3](https://www.rfc-editor.org/rfc/rfc7518.html#section-3), RFC 9864, and the [IANA JOSE registry](https://www.iana.org/assignments/jose/jose.xhtml) |
 | Classification | Normative verification requirement plus defensive algorithm policy |
 | Issue | A token declares `alg`, libraries expose changing registries, and algorithm confusion occurs if verification derives policy from attacker-controlled headers or key shape. Registry status also changes independently of package releases. |
 | Credible interpretations | Trust the token algorithm; accept every library-supported algorithm; infer an algorithm from the JWK; use a deployment allowlist; or pin a smaller package-supported matrix. |
@@ -70,7 +77,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Issue | JWK fields are partly optional, multiple keys may otherwise match, and standards specify minimums without defining this package's complete operational work bounds. |
 | Credible interpretations | Try every key; accept absent `kid` or `alg`; ignore `use` and `key_ops`; accept private asymmetric keys; enforce only library minimums; or require one unambiguous bounded verification key. |
 | Known peer behavior | General JOSE libraries support flexible selectors and may try multiple keys. Their flexibility is useful outside this narrower authentication boundary but increases configuration ambiguity here. |
-| Selected behavior | Every JWK needs a unique non-empty `kid` and explicit allowed `alg`. If present, `use` is `sig` and `key_ops` includes `verify`. Asymmetric keys are public only. HMAC keys meet algorithm output size, RSA moduli are 2048 through 8192 bits, and EC curves match the selected algorithm exactly. |
+| Selected behavior | Every JWK needs a unique non-empty `kid` and explicit allowed `alg`. If present, `use` is `sig` and `key_ops` contains only `verify`. Asymmetric keys are public only. HMAC keys meet algorithm output size, RSA moduli are 2048 through 8192 bits, and EC curves match the selected algorithm exactly. |
 | Security and resource consequences | Deterministic key selection prevents key confusion and trial amplification. Minimum strength rejects weak keys; the RSA upper bound prevents attacker- or operator-supplied excessive verification work. |
 | Compatibility and wire consequences | Well-formed verification JWKS interoperate unchanged. Sets with duplicate IDs, metadata omissions, signing-only operations, private keys, weak keys, or oversized RSA keys are rejected at configuration or refresh time. |
 | Executable evidence | `TestValidatorRejectsCryptographicallyUnsafeKeys`, `TestValidateKeyMaterialRejectsEveryInvalidRepresentation`, `TestRemoteJWKValidationRejectsEveryKeyPolicyViolation`, and `TestRFC7520HMACJWKInteroperability` |
@@ -83,7 +90,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Field | Decision |
 | --- | --- |
 | Status and owner | `resolved`; `authentication/jwt` maintainers |
-| Source | RFC 7515 [Sections 4.1.2 through 4.1.11](https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.2) and RFC 8725 [Sections 2.9 and 3.11](https://www.rfc-editor.org/rfc/rfc8725.html#section-2.9) |
+| Source | RFC 7515 [Sections 4.1.2 through 4.1.11](https://www.rfc-editor.org/rfc/rfc7515.html#section-4.1.2) and RFC 8725 [Section 2.9](https://www.rfc-editor.org/rfc/rfc8725.html#section-2.9) |
 | Classification | Optional JOSE-header support and defensive trust-boundary policy |
 | Issue | JOSE permits embedded or URL-referenced keys and critical extensions, but blindly honoring them lets an untrusted token influence trust material, network access, or parsing semantics. |
 | Credible interpretations | Resolve `jku` or `x5u`; trust embedded `jwk` or `x5c`; ignore unknown `crit`; delegate every extension to the JOSE library; or reject token-controlled trust and unsupported critical behavior. |
@@ -124,9 +131,9 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Issue | RFC 7519 permits small leeway but does not define its value, and edge comparisons can differ at exact expiration, not-before, or issued-at instants. |
 | Credible interpretations | Use wall clock directly; accept arbitrary leeway; treat expiration equality as valid; ignore future `iat`; or use one injected instant and explicit skew equations. |
 | Known peer behavior | JWT libraries expose time functions and leeway options, but defaults and optional `iat` validation differ. |
-| Selected behavior | Read one injected clock per validation. Enforce `nbf <= now + skew`, `iat <= now + skew`, and `now < exp + skew`; equality at `exp` without skew is expired. Skew is explicit, non-negative, and shared across the three boundaries. |
+| Selected behavior | Accept integral-second NumericDate JSON numbers only; reject fractional and exponent forms rather than inherit parser-specific rounding. Read one injected clock per validation. Enforce `nbf <= now + skew`, `iat <= now + skew`, and `now < exp + skew`; equality at `exp` without skew is expired. Skew is explicit, non-negative, and shared across the three boundaries. |
 | Security and resource consequences | Deterministic checks prevent inconsistent multi-read clock edges. Bounded operator-selected skew limits replay extension while tolerating measured clock error. |
-| Compatibility and wire consequences | NumericDate values preserve second-based JWT semantics. Tokens exactly at expiration are rejected; permissive peers or deployments with larger leeway may differ intentionally. |
+| Compatibility and wire consequences | Integral NumericDate values preserve second-based JWT semantics. RFC 7519 permits non-integer values, but this profile deliberately rejects fractional and exponent encodings to avoid precision and rounding differences. Tokens exactly at expiration are rejected; permissive peers or deployments with larger leeway may differ intentionally. |
 | Executable evidence | `TestValidatorHonorsExactNumericDateBoundaries`, `TestNumericDateValidationChecksEveryPresentClaimAndDigitBoundary`, `TestValidatorRejectsMalformedNumericDates`, and `TestValidatorHonorsCancellationAndConfigurationBounds` |
 | Public surface | `Config.Clock`, `Config.Skew`, `New`, and `Validator.ValidateBearer` |
 | Upstream record | RFC 7519 permits only a small leeway and leaves its magnitude to implementers; this package requires callers to own that deployment decision. |
@@ -160,7 +167,7 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Issue | JWK Set retrieval standards do not define redirects, compression, private-network policy, response limits, endpoint mutation, or Go transport ownership. |
 | Credible interpretations | Follow ordinary HTTP defaults; honor redirects and compression; permit any URL; ban private issuers globally; or require one configured exact URL with caller-owned network policy. |
 | Known peer behavior | JWX provides a remote cache and HTTP customization. Default HTTP clients can follow redirects and transparently decompress unless hardened by the caller. |
-| Selected behavior | `NewRemote` uses one configured URL, requires HTTPS except for an explicit development option, rejects user info and fragments, denies every redirect and compressed response, and bounds initialization, headers, body, keys, and concurrent operations. Private-address and DNS policy belongs to the supplied transport because legitimate deployments use private issuers. |
+| Selected behavior | `NewRemote` uses one configured URL and exactly one request for successful initialization, requires HTTPS except for an explicit development option, rejects user info and fragments, denies every redirect and compressed response, and bounds initialization, headers, body, keys, and concurrent operations. Private-address and DNS policy belongs to the supplied transport because legitimate deployments use private issuers. |
 | Security and resource consequences | Token input never selects a URL. Exact-authority checks and disabled redirects prevent credential forwarding to a changed authority; byte, time, and operation bounds limit remote amplification. |
 | Compatibility and wire consequences | Standards-compliant direct HTTPS JWKS responses work. Redirecting, compressed, oversized, or plain-HTTP production endpoints are intentionally incompatible unless the caller explicitly chooses the development exception. |
 | Executable evidence | `TestRemoteRejectsRedirects`, `TestRemoteRejectsHostileJWKResponsesAtInitialization`, `TestRemoteConfigurationRejectsEachUnsafeBoundary`, `TestJWKResponseTransportRejectsBrokenAndOversizedResponses`, and `FuzzRemoteJWKResponseBoundary` |
@@ -174,16 +181,16 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | --- | --- |
 | Status and owner | `resolved`; `authentication/jwt` maintainers |
 | Source | RFC 9111 [Sections 4.2, 5.2.2.1, 5.2.2.3, 5.2.2.4, 5.2.2.9, and 5.2.3](https://www.rfc-editor.org/rfc/rfc9111.html#section-4.2) |
-| Classification | HTTP cache interpretation and application availability policy |
+| Classification | Application trust-cache scheduling and availability policy informed by HTTP freshness metadata |
 | Issue | JWKS rotation needs refresh, while HTTP freshness metadata may be absent, malformed, stale, or demand revalidation. JWT standards do not decide whether an issuer outage invalidates previously trusted keys. |
 | Credible interpretations | Ignore cache headers; refresh every validation; trust arbitrary server lifetimes; drop keys on refresh failure; serve stale indefinitely; or combine HTTP freshness with bounded local policy. |
 | Known peer behavior | Remote JWKS caches generally retain the last successful set and use cache metadata, but refresh timing, outage behavior, jitter, and unknown-key misses vary. |
-| Selected behavior | `max-age` and `Expires` determine refresh time inside configured minimum and maximum bounds; `Age` reduces remaining `max-age`. Missing or unusable metadata uses the minimum. `no-cache`, `no-store`, and `must-revalidate` force the minimum. Successful refresh atomically replaces the set. Failed refresh reports unavailable but retains the last validated set for known keys; it never admits an unknown key. |
+| Selected behavior | `max-age` and `Expires` determine the next trust revalidation time inside configured minimum and maximum bounds; `Age` reduces remaining `max-age`. Missing, malformed, conflicting, or unusable metadata uses the minimum. `no-cache`, `no-store`, and `must-revalidate` force the minimum. These directives do not authorize HTTP response reuse: the separately validated key trust state remains available under fail-stale policy. Successful refresh atomically replaces the set. Failed refresh reports unavailable but retains the last validated set for known keys; it never admits an unknown key. |
 | Security and resource consequences | Bounds prevent an issuer from suppressing refresh indefinitely or causing a tight fetch loop. Fail-stale improves outage tolerance but extends trust in the last successful keys; applications needing a freshness deadline must enforce it by closing or withdrawing the provider. |
 | Compatibility and wire consequences | No token wire form changes. Rotation becomes visible after bounded refresh, while immediate unknown-key refetch is deliberately absent to prevent attacker-driven fetch amplification. |
 | Executable evidence | `TestRemoteJWKRotationAndIssuerOutage`, `TestRemoteRefreshTimingHonorsBoundsAndCacheHeaders`, `TestRemoteRefreshAndAuthenticationAreRaceSafe`, and `TestRemoteRefreshSchedulingHasFleetJitter` |
 | Public surface | `WithRefreshBounds`, `WithRefreshJitter`, `Remote.Refresh`, and `Remote.KeySet` |
-| Upstream record | HTTP defines freshness directives but not JWT outage policy; fail-stale is an explicit package decision rather than a standards claim. |
+| Upstream record | HTTP defines response-cache freshness and storage directives but not JWT trust-state retention during issuer outage. This package does not claim that retaining validated keys satisfies HTTP cache reuse semantics; fail-stale is a separate application trust decision. |
 | Reconsider when | A deployment profile mandates maximum key age or an issuer supplies a reliable push/invalidation mechanism that preserves bounded work. |
 
 ## JWT-DEC-011: Remote lifecycle serializes fetches and makes shutdown explicit
@@ -196,10 +203,10 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Issue | Neither JOSE nor HTTP defines cache goroutine ownership, overlapping refreshes, constructor-context lifetime, waiter cancellation, or close behavior for a Go provider. |
 | Credible interpretations | Let every miss fetch; overlap automatic and explicit refreshes; tie lifetime to constructor context; make close fire-and-forget; or serialize remote work under an owned lifecycle. |
 | Known peer behavior | Caches and singleflight implementations coalesce work differently. Cancellation often stops only a waiter, not shared admitted work. |
-| Selected behavior | Initial registration is bounded. Automatic and explicit refreshes share one hardened serialized transport; overlapping explicit refreshes share one result. The successful constructor context does not own provider lifetime. `Close` rejects new work, cancels admitted operations, joins them, and shuts down cache goroutines; a canceled close reports its context and may be retried. |
+| Selected behavior | Initial registration is bounded. Automatic and explicit refreshes share one hardened serialized transport; overlapping explicit refreshes share one result. The successful constructor context does not own provider lifetime. Once `Close` begins, it permanently rejects new work, cancels admitted operations, joins them, and shuts down cache goroutines; a canceled close reports its context and may be retried. |
 | Security and resource consequences | At most one remote fetch proceeds per provider and admitted operation count is bounded, preventing refresh herds and shutdown leaks. Cancellation cannot silently abandon owned goroutines. |
 | Compatibility and wire consequences | No JWT or HTTP wire bytes change. Callers must explicitly close providers and must not assume canceling the constructor context destroys a successfully returned provider. |
-| Executable evidence | `TestRemoteCoalescesConcurrentRefreshes`, `TestRemoteSerializesAutomaticAndExplicitRefreshWork`, `TestRemoteLifetimeIsOwnedByClose`, `TestRemoteCloseReportsCanceledJoin`, and `TestRemoteCloseDeadlineIsNotBlockedByRefreshLock` |
+| Executable evidence | `TestRemoteRefreshWaitersShareResultAndHonorCancellation`, `TestRemoteSerializesAutomaticAndExplicitRefreshWork`, `TestRemoteLifetimeIsOwnedByClose`, `TestRemoteCloseReportsCanceledJoin`, and `TestRemoteCloseDeadlineIsNotBlockedByRefreshLock` |
 | Public surface | `NewRemote`, `Remote.Refresh`, `Remote.KeySet`, and `Remote.Close` |
 | Upstream record | This is a Go lifecycle contract layered over standards-defined messages; no upstream protocol erratum controls it. |
 | Reconsider when | The underlying cache exposes a stronger lifecycle contract that can replace this wrapper without observable cancellation or ownership regression. |
@@ -221,6 +228,24 @@ evidence, not a vote. The pinned vectors and their provenance are documented in
 | Public surface | `Validator.Authenticate`, `Validator.ValidateBearer`, `ErrKeyProviderUnavailable`, and `authentication.Failure` |
 | Upstream record | JWT validation steps are normative, but public diagnostic detail is not; this package deliberately separates safe classification from secret-bearing causes. |
 | Reconsider when | A standard protocol profile requires a specific external error code that can map from these categories without exposing sensitive detail. |
+
+## JWT-DEC-013: Token kinds use mutually exclusive validator profiles
+
+| Field | Decision |
+| --- | --- |
+| Status and owner | `resolved`; `authentication/jwt` maintainers |
+| Source | RFC 8725 [Sections 3.11 and 3.12](https://www.rfc-editor.org/rfc/rfc8725.html#section-3.11) |
+| Classification | Cross-JWT confusion and deployment profile policy |
+| Issue | `typ` and `cty` are optional JOSE metadata, while one process may receive multiple JWT kinds whose claims or keys overlap. Dispatching validation rules from attacker-controlled metadata can create cross-token substitution. |
+| Credible interpretations | Require one package-wide `typ`; dispatch validators from token headers; ignore token kinds; or make each application route select a mutually exclusive validator profile before parsing credentials. |
+| Known peer behavior | General JWT libraries expose header values but do not know an application's token kinds or routing boundary. Profiles such as OIDC define their own validation rules outside generic JWT parsing. |
+| Selected behavior | Non-critical `typ` and `cty` values are metadata only and never select a validator. A deployment accepting multiple JWT kinds must route each kind to a distinct validator configuration with mutually exclusive issuer, audience, key, algorithm, and required-claim policy. OIDC ID tokens remain owned by `authentication/oidc`. |
+| Security and resource consequences | Attacker-controlled headers cannot broaden or switch validation policy. Cross-token substitution is prevented by application-selected profiles whose trust and claim constraints do not overlap. |
+| Compatibility and wire consequences | Existing compact JWTs do not need a `typ` header. Deployments that relied on one shared permissive profile for multiple token kinds must split it before adoption. |
+| Executable evidence | `TestValidatorRejectsInvalidJWTTrustDecisions`, `TestValidatorEnforcesSubjectAndRequiredClaimPolicy`, and `TestValidatorRejectsAlgorithmKeyAndHeaderAttacks` |
+| Public surface | `Config.Issuer`, `Config.Audience`, `Config.Algorithms`, `Config.KeySet`, `Config.Provider`, and `Config.RequiredClaims` |
+| Upstream record | RFC 8725 recommends explicit typing and mutually exclusive rules but leaves application dispatch and profile identity to deployments. This package prevents token headers from selecting trust policy. |
+| Reconsider when | A concrete JWT profile requires a protected `typ` value and supplies a complete compatibility and routing contract. |
 
 ## Unresolved decisions
 

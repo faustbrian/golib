@@ -21,8 +21,6 @@ import (
 )
 
 func TestConcurrentCloseStateHonorsCompletionAndCancellation(t *testing.T) {
-	t.Parallel()
-
 	completed := &Remote{closing: true, closeDone: make(chan struct{})}
 	completed.closeErr = errors.New("shutdown failed")
 	close(completed.closeDone)
@@ -56,8 +54,6 @@ func TestConcurrentCloseStateHonorsCompletionAndCancellation(t *testing.T) {
 }
 
 func TestKeySetClassifiesUnregisteredCacheLookup(t *testing.T) {
-	t.Parallel()
-
 	cache, err := jwk.NewCache(context.Background(), httprc.NewClient())
 	if err != nil {
 		t.Fatalf("NewCache() error = %v", err)
@@ -70,7 +66,6 @@ func TestKeySetClassifiesUnregisteredCacheLookup(t *testing.T) {
 }
 
 func TestRemoteConfigurationRejectsEachUnsafeBoundary(t *testing.T) {
-	t.Parallel()
 	if _, err := NewRemote(context.Background(), "://"); !errors.Is(err, authentication.ErrInvalidConfiguration) {
 		t.Fatalf("NewRemote(invalid URL) error = %v", err)
 	}
@@ -88,11 +83,15 @@ func TestRemoteConfigurationRejectsEachUnsafeBoundary(t *testing.T) {
 		t.Fatal("validRemoteConfiguration(exact bounds) = false")
 	}
 	tests := map[string]func(*url.URL, *remoteConfig){
-		"host":          func(u *url.URL, _ *remoteConfig) { u.Host = "" },
-		"user":          func(u *url.URL, _ *remoteConfig) { u.User = url.User("user") },
-		"fragment":      func(u *url.URL, _ *remoteConfig) { u.Fragment = "fragment" },
-		"scheme":        func(u *url.URL, _ *remoteConfig) { u.Scheme = "ftp" },
-		"client":        func(_ *url.URL, c *remoteConfig) { c.client = nil },
+		"host":     func(u *url.URL, _ *remoteConfig) { u.Host = "" },
+		"user":     func(u *url.URL, _ *remoteConfig) { u.User = url.User("user") },
+		"fragment": func(u *url.URL, _ *remoteConfig) { u.Fragment = "fragment" },
+		"scheme":   func(u *url.URL, _ *remoteConfig) { u.Scheme = "ftp" },
+		"client":   func(_ *url.URL, c *remoteConfig) { c.client = nil },
+		"nil transport": func(_ *url.URL, c *remoteConfig) {
+			var transport *http.Transport
+			c.client = &http.Client{Transport: transport}
+		},
 		"minimum":       func(_ *url.URL, c *remoteConfig) { c.minRefresh = -1 },
 		"refresh order": func(_ *url.URL, c *remoteConfig) { c.minRefresh = 2; c.maxRefresh = 1 },
 		"body":          func(_ *url.URL, c *remoteConfig) { c.maxBodyBytes = -1 },
@@ -112,6 +111,11 @@ func TestRemoteConfigurationRejectsEachUnsafeBoundary(t *testing.T) {
 			}
 		})
 	}
+	valueTransport := base
+	valueTransport.client = &http.Client{Transport: internalValueRoundTripper{}}
+	if !validRemoteConfiguration(parsed, valueTransport) {
+		t.Fatal("validRemoteConfiguration(value transport) = false")
+	}
 	httpURL := *parsed
 	httpURL.Scheme = "http"
 	base.allowHTTP = true
@@ -121,9 +125,16 @@ func TestRemoteConfigurationRejectsEachUnsafeBoundary(t *testing.T) {
 }
 
 func TestRemoteOperationStateRejectsClosingAndIgnoresUnknownCompletion(t *testing.T) {
-	t.Parallel()
+	remote := &Remote{stopping: true}
+	if _, _, _, err := remote.beginOperation(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
+		t.Fatalf("beginOperation(stopping) error = %v", err)
+	}
+	remote = &Remote{closed: true}
+	if _, _, _, err := remote.beginOperation(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
+		t.Fatalf("beginOperation(closed) error = %v", err)
+	}
 
-	remote := &Remote{closing: true}
+	remote = &Remote{closing: true}
 	if _, _, _, err := remote.beginOperation(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
 		t.Fatalf("beginOperation(closing) error = %v", err)
 	}
@@ -145,8 +156,6 @@ func TestRemoteOperationStateRejectsClosingAndIgnoresUnknownCompletion(t *testin
 }
 
 func TestRemoteBoundsConcurrentOperations(t *testing.T) {
-	t.Parallel()
-
 	remote := &Remote{}
 	operations := make([]uint64, 128)
 	for index := range operations {
@@ -165,8 +174,6 @@ func TestRemoteBoundsConcurrentOperations(t *testing.T) {
 }
 
 func TestRemoteRefreshSchedulingHasFleetJitter(t *testing.T) {
-	t.Parallel()
-
 	encoded, err := json.Marshal(symmetricKeySet(t, "key", jwa.HS256(), "sig"))
 	if err != nil {
 		t.Fatalf("json.Marshal(JWK set) error = %v", err)
@@ -205,8 +212,6 @@ func TestRemoteRefreshSchedulingHasFleetJitter(t *testing.T) {
 }
 
 func TestRemoteOptionsApplyExactSecurityBounds(t *testing.T) {
-	t.Parallel()
-
 	configuration := remoteConfig{}
 	WithRefreshJitter(0.25)(&configuration)
 	WithMaxJWKHeaderBytes(123)(&configuration)
@@ -217,8 +222,6 @@ func TestRemoteOptionsApplyExactSecurityBounds(t *testing.T) {
 }
 
 func TestRemoteTransportGateHonorsCancellation(t *testing.T) {
-	t.Parallel()
-
 	gate := make(chan struct{}, 1)
 	gate <- struct{}{}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -234,8 +237,6 @@ func TestRemoteTransportGateHonorsCancellation(t *testing.T) {
 }
 
 func TestRemoteTransportRetainsTheNarrowestHeaderLimit(t *testing.T) {
-	t.Parallel()
-
 	tests := []struct {
 		current int64
 		want    int64
@@ -269,11 +270,16 @@ func TestRemoteTransportRetainsTheNarrowestHeaderLimit(t *testing.T) {
 }
 
 func TestJWKResponseTransportRejectsBrokenAndOversizedResponses(t *testing.T) {
-	t.Parallel()
-
 	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://issuer.example.test/keys", nil)
 	if err != nil {
 		t.Fatalf("NewRequestWithContext() error = %v", err)
+	}
+	baseErr := errors.New("injected transport failure")
+	errorTransport := &jwkResponseTransport{base: internalRoundTripFunc(func(*http.Request) (*http.Response, error) {
+		return nil, baseErr
+	})}
+	if _, err := errorTransport.RoundTrip(request); !errors.Is(err, baseErr) {
+		t.Fatalf("RoundTrip(base error) error = %v", err)
 	}
 	tests := map[string]internalRoundTripFunc{
 		"nil response": func(*http.Request) (*http.Response, error) { return nil, nil },
@@ -304,8 +310,6 @@ func TestJWKResponseTransportRejectsBrokenAndOversizedResponses(t *testing.T) {
 }
 
 func TestJWKResponseTransportAcceptsExactResponseBounds(t *testing.T) {
-	t.Parallel()
-
 	encoded, err := json.Marshal(symmetricKeySet(t, "key", jwa.HS256(), "sig"))
 	if err != nil {
 		t.Fatalf("json.Marshal(JWK set) error = %v", err)
@@ -333,11 +337,19 @@ func TestJWKResponseTransportAcceptsExactResponseBounds(t *testing.T) {
 		t.Fatalf("RoundTrip(exact bounds) error = %v", err)
 	}
 	_ = response.Body.Close()
+	transport.maxHeaderBytes--
+	if _, err := transport.RoundTrip(request); err == nil {
+		t.Fatal("RoundTrip(oversized headers) error = nil")
+	}
+	transport.maxHeaderBytes = responseHeaderBytes(header)
+	header.Set("Content-Encoding", "gzip")
+	transport.maxHeaderBytes = responseHeaderBytes(header)
+	if _, err := transport.RoundTrip(request); err == nil {
+		t.Fatal("RoundTrip(compressed response) error = nil")
+	}
 }
 
 func TestJWKResponseTransportAcceptsNilHeadersFromCustomTransport(t *testing.T) {
-	t.Parallel()
-
 	encoded, err := json.Marshal(symmetricKeySet(t, "key", jwa.HS256(), "sig"))
 	if err != nil {
 		t.Fatalf("json.Marshal(JWK set) error = %v", err)
@@ -367,8 +379,6 @@ func TestJWKResponseTransportAcceptsNilHeadersFromCustomTransport(t *testing.T) 
 }
 
 func TestJWKResponseTransportPreservesNonSuccessfulResponses(t *testing.T) {
-	t.Parallel()
-
 	encoded := []byte(`{}`)
 	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "https://issuer.example.test/keys", nil)
 	if err != nil {
@@ -411,8 +421,6 @@ func TestJWKResponseTransportPreservesNonSuccessfulResponses(t *testing.T) {
 }
 
 func TestRemoteRefreshTimingHonorsBoundsAndCacheHeaders(t *testing.T) {
-	t.Parallel()
-
 	now := time.Unix(10_000, 0).UTC()
 	minimum := 10 * time.Second
 	maximum := 100 * time.Second
@@ -429,6 +437,16 @@ func TestRemoteRefreshTimingHonorsBoundsAndCacheHeaders(t *testing.T) {
 		{name: "expires above maximum", header: http.Header{"Expires": {now.Add(time.Hour).Format(http.TimeFormat)}}, want: maximum},
 		{name: "other directive", header: http.Header{"Cache-Control": {"other=50"}}, want: minimum},
 		{name: "unusable", header: http.Header{"Cache-Control": {"private, max-age=invalid"}}, want: minimum},
+		{name: "empty", header: http.Header{"Cache-Control": {"max-age="}}, want: minimum},
+		{name: "quoted", header: http.Header{"Cache-Control": {`max-age="90"`}}, want: 90 * time.Second},
+		{name: "quoted empty", header: http.Header{"Cache-Control": {`max-age=""`}}, want: minimum},
+		{name: "unterminated quote", header: http.Header{"Cache-Control": {`max-age="90`}}, want: minimum},
+		{name: "trailing quote", header: http.Header{"Cache-Control": {`max-age=90"`}}, want: minimum},
+		{name: "extra quotes", header: http.Header{"Cache-Control": {`max-age=""90""`}}, want: minimum},
+		{name: "signed positive", header: http.Header{"Cache-Control": {"max-age=+90"}}, want: minimum},
+		{name: "overflow", header: http.Header{"Cache-Control": {"max-age=9223372036854775808"}}, want: minimum},
+		{name: "negative", header: http.Header{"Cache-Control": {"max-age=-1"}}, want: minimum},
+		{name: "zero", header: http.Header{"Cache-Control": {"max-age=0"}}, want: minimum},
 		{name: "no cache overrides max age", header: http.Header{"Cache-Control": {"max-age=90, no-cache"}}, want: minimum},
 		{name: "no store overrides max age", header: http.Header{"Cache-Control": {"no-store, max-age=90"}}, want: minimum},
 		{name: "must revalidate overrides max age", header: http.Header{"Cache-Control": {"max-age=90, must-revalidate"}}, want: minimum},
@@ -437,6 +455,8 @@ func TestRemoteRefreshTimingHonorsBoundsAndCacheHeaders(t *testing.T) {
 		{name: "zero age is inert", header: http.Header{"Cache-Control": {"max-age=90"}, "Age": {"0"}}, want: 90 * time.Second},
 		{name: "negative age is ignored", header: http.Header{"Cache-Control": {"max-age=90"}, "Age": {"-30"}}, want: 90 * time.Second},
 		{name: "malformed age is ignored", header: http.Header{"Cache-Control": {"max-age=90"}, "Age": {"invalid"}}, want: 90 * time.Second},
+		{name: "conflicting max age ascending", header: http.Header{"Cache-Control": {"max-age=0, max-age=3600"}}, want: minimum},
+		{name: "conflicting max age descending", header: http.Header{"Cache-Control": {"max-age=3600, max-age=0"}}, want: minimum},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -444,6 +464,9 @@ func TestRemoteRefreshTimingHonorsBoundsAndCacheHeaders(t *testing.T) {
 				t.Fatalf("cacheLifetime() = %s, want %s", got, tt.want)
 			}
 		})
+	}
+	if got := cacheLifetime(http.Header{"Cache-Control": {"max-age=1"}}, now, time.Nanosecond, maximum); got != time.Second {
+		t.Fatalf("cacheLifetime(one second) = %s, want 1s", got)
 	}
 
 	if got := jitterDuration(50*time.Second, minimum, maximum, 0.2, 0); got != 40*time.Second {
@@ -508,8 +531,6 @@ func TestRemoteRefreshTimingHonorsBoundsAndCacheHeaders(t *testing.T) {
 }
 
 func TestRemoteJWKValidationRejectsEveryKeyPolicyViolation(t *testing.T) {
-	t.Parallel()
-
 	key := func() jwk.Key {
 		set := symmetricKeySet(t, "key", jwa.HS256(), "sig")
 		result, ok := set.Key(0)
@@ -533,6 +554,7 @@ func TestRemoteJWKValidationRejectsEveryKeyPolicyViolation(t *testing.T) {
 	}
 	tests := map[string][]byte{
 		"empty set":            []byte(`{"keys":[]}`),
+		"duplicate members":    []byte(`{"keys":[],"keys":[{"kty":"oct","k":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY","kid":"key","alg":"HS256","use":"sig"}]}`),
 		"too many":             []byte(`{"keys":[{"kty":"oct","k":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY","kid":"a","alg":"HS256"},{"kty":"oct","k":"MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY","kid":"b","alg":"HS256"}]}`),
 		"missing kid":          encode(func(key jwk.Key) { _ = key.Remove(jwk.KeyIDKey) }),
 		"empty kid":            encode(func(key jwk.Key) { _ = key.Set(jwk.KeyIDKey, "") }),
@@ -569,8 +591,6 @@ func TestRemoteJWKValidationRejectsEveryKeyPolicyViolation(t *testing.T) {
 }
 
 func TestCloneKeySetReportsEncodingFailure(t *testing.T) {
-	t.Parallel()
-
 	if _, err := cloneKeySet(failingJSONSet{embeddedJWKSet: jwk.NewSet()}); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
 		t.Fatalf("cloneKeySet() error = %v", err)
 	}
@@ -579,8 +599,13 @@ func TestCloneKeySetReportsEncodingFailure(t *testing.T) {
 	}
 }
 
-func TestRemoteRefreshWaiterHonorsCancellation(t *testing.T) {
-	t.Parallel()
+func TestRemoteRefreshWaitersShareResultAndHonorCancellation(t *testing.T) {
+	sharedErr := errors.New("shared refresh failure")
+	completed := &Remote{refreshing: true, refreshDone: make(chan struct{}), refreshErr: sharedErr}
+	close(completed.refreshDone)
+	if err := completed.refresh(context.Background(), nil); !errors.Is(err, sharedErr) {
+		t.Fatalf("refresh(completed waiter) error = %v", err)
+	}
 
 	remote := &Remote{refreshing: true, refreshDone: make(chan struct{})}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -604,6 +629,12 @@ type internalRoundTripFunc func(*http.Request) (*http.Response, error)
 
 func (function internalRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
 	return function(request)
+}
+
+type internalValueRoundTripper struct{}
+
+func (internalValueRoundTripper) RoundTrip(*http.Request) (*http.Response, error) {
+	return nil, errors.New("injected value transport failure")
 }
 
 type internalFailingReader struct{}

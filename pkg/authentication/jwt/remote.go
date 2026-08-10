@@ -12,6 +12,7 @@ import (
 	"math/rand/v2"
 	"net/http"
 	"net/url"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -24,7 +25,7 @@ import (
 	"github.com/lestrrat-go/jwx/v3/jwk"
 )
 
-const defaultMaxJWKBodyBytes = 1024 * 1024
+const defaultMaxJWKBodyBytes = 1_048_576
 
 const defaultInitializationTimeout = 10 * time.Second
 
@@ -105,6 +106,7 @@ type Remote struct {
 	mutex         sync.Mutex
 	closed        bool
 	closing       bool
+	stopping      bool
 	closeDone     chan struct{}
 	closeErr      error
 	nextOperation uint64
@@ -144,16 +146,6 @@ func NewRemote(ctx context.Context, rawURL string, options ...RemoteOption) (*Re
 	client := hardenedRemoteHTTPClient(configuration)
 	initCtx, cancel := context.WithTimeout(ctx, configuration.initTimeout)
 	defer cancel()
-	_, err = jwk.Fetch(initCtx, rawURL,
-		jwk.WithHTTPClient(client),
-		jwk.WithFetchWhitelist(exactWhitelist(rawURL)),
-		jwk.WithMaxFetchBodySize(configuration.maxBodyBytes),
-	)
-	switch err {
-	case nil:
-	default:
-		return nil, keyProviderFailure(err)
-	}
 	resourceClient := httprc.NewClient(
 		httprc.WithHTTPClient(client),
 		httprc.WithWhitelist(exactWhitelist(rawURL)),
@@ -169,7 +161,10 @@ func NewRemote(ctx context.Context, rawURL string, options ...RemoteOption) (*Re
 		jwk.WithMaxFetchBodySize(configuration.maxBodyBytes),
 	); err != nil {
 		_ = cache.Shutdown(initCtx)
-		return nil, keyProviderFailure(err)
+		if parentErr := ctx.Err(); parentErr != nil {
+			return nil, keyProviderFailure(parentErr)
+		}
+		return nil, keyProviderFailure(ErrKeyProviderUnavailable)
 	}
 	return &Remote{cache: cache, url: rawURL}, nil
 }
@@ -181,7 +176,7 @@ func validRemoteConfiguration(parsed *url.URL, configuration remoteConfig) bool 
 	}
 	return !slices.Contains([]bool{
 		parsed.Host != "", parsed.User == nil, parsed.Fragment == "", validScheme,
-		configuration.client != nil,
+		validRemoteHTTPClient(configuration.client),
 		cmp.Compare(configuration.minRefresh, time.Duration(0)) == 1,
 		cmp.Compare(configuration.maxRefresh, configuration.minRefresh) != -1,
 		cmp.Compare(configuration.maxBodyBytes, int64(0)) == 1,
@@ -192,12 +187,28 @@ func validRemoteConfiguration(parsed *url.URL, configuration remoteConfig) bool 
 	}, false)
 }
 
+func validRemoteHTTPClient(client *http.Client) bool {
+	if client == nil || client.Transport == nil {
+		return client != nil
+	}
+	value := reflect.ValueOf(client.Transport)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.Pointer, reflect.Slice:
+		return !value.IsNil()
+	default:
+		return true
+	}
+}
+
 func hardenedRemoteHTTPClient(configuration remoteConfig) *http.Client {
 	client := jwk.WrapHTTPClientDefaults(configuration.client)
 	client.CheckRedirect = func(*http.Request, []*http.Request) error {
 		return errors.New("remote JWK redirects are disabled")
 	}
 	transport := client.Transport
+	if transport == nil {
+		transport = http.DefaultTransport
+	}
 	if standard, ok := transport.(*http.Transport); ok {
 		cloned := standard.Clone()
 		cloned.DisableCompression = true
@@ -301,6 +312,7 @@ func (transport *jwkResponseTransport) jitterRefreshHeader(response *http.Respon
 
 func cacheLifetime(header http.Header, now time.Time, minimum, maximum time.Duration) time.Duration {
 	var maxAge *int64
+	seenMaxAge := false
 	for _, value := range header.Values("Cache-Control") {
 		for _, directive := range strings.Split(value, ",") {
 			name, encoded, found := strings.Cut(strings.TrimSpace(directive), "=")
@@ -314,10 +326,15 @@ func cacheLifetime(header http.Header, now time.Time, minimum, maximum time.Dura
 			if name != "max-age" {
 				continue
 			}
-			seconds, err := strconv.ParseInt(strings.Trim(encoded, `"`), 10, 64)
-			if err == nil {
-				maxAge = &seconds
+			if seenMaxAge {
+				return minimum
 			}
+			seenMaxAge = true
+			seconds, valid := parseMaxAge(encoded)
+			if !valid {
+				return minimum
+			}
+			maxAge = &seconds
 		}
 	}
 	if maxAge != nil {
@@ -334,6 +351,23 @@ func cacheLifetime(header http.Header, now time.Time, minimum, maximum time.Dura
 		return clampDuration(expires.Sub(now), minimum, maximum)
 	}
 	return minimum
+}
+
+func parseMaxAge(encoded string) (int64, bool) {
+	if unquoted, quoted := strings.CutPrefix(encoded, `"`); quoted {
+		var closed bool
+		encoded, closed = strings.CutSuffix(unquoted, `"`)
+		if !closed {
+			return 0, false
+		}
+	}
+	for _, digit := range encoded {
+		if digit < '0' || digit > '9' {
+			return 0, false
+		}
+	}
+	seconds, err := strconv.ParseInt(encoded, 10, 64)
+	return seconds, err == nil
 }
 
 func clampDuration(value, minimum, maximum time.Duration) time.Duration {
@@ -488,6 +522,7 @@ func (r *Remote) Close(ctx context.Context) error {
 		}
 	}
 	r.closing = true
+	r.stopping = true
 	r.closeDone = make(chan struct{})
 	done := r.closeDone
 	r.closeErr = nil
@@ -527,7 +562,7 @@ func (r *Remote) beginOperation(ctx context.Context) (context.Context, *jwk.Cach
 	}
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
-	if r.closed {
+	if r.closed || r.stopping {
 		return nil, nil, 0, authentication.NewFailure(authentication.FailureUnavailable,
 			authentication.WithFailureCause(authentication.ErrInvalidConfiguration))
 	}

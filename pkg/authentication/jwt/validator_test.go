@@ -6,9 +6,11 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -135,6 +137,8 @@ func TestValidatorRejectsMalformedNumericDates(t *testing.T) {
 		"expiration":              `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"exp":"later"}`,
 		"quoted expiration epoch": `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"exp":"4102444800"}`,
 		"RFC3339 expiration":      `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"exp":"2100-01-01T00:00:00Z"}`,
+		"fractional issued at":    `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1784116800.5,"exp":4102444800}`,
+		"exponent expiration":     `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1784116800,"exp":4.1024448e9}`,
 		"not before":              `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"nbf":[],"exp":4102444800}`,
 		"quoted not before epoch": `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1700000000,"nbf":"1700000000","exp":4102444800}`,
 		"issued at":               `{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":"now","exp":4102444800}`,
@@ -184,6 +188,46 @@ func TestValidatorHonorsExactNumericDateBoundaries(t *testing.T) {
 				t.Fatalf("ValidateBearer() error = %v, wantError = %v", err, tt.wantError)
 			}
 		})
+	}
+}
+
+func TestValidatorReadsValidationClockOnce(t *testing.T) {
+	t.Parallel()
+
+	keys, signer := rsaKeys(t, "key-1", jwa.RS256())
+	clock := &countingClock{now: jwtNow}
+	validator := newValidator(t, keys, authjwt.Config{
+		Issuer: "https://issuer.example.test", Audience: "orders",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, Clock: clock,
+	})
+	token := signedToken(t, signer, jwa.RS256(), map[string]any{
+		"sub": "service", "iss": "https://issuer.example.test", "aud": "orders",
+		"iat": jwtNow, "nbf": jwtNow, "exp": jwtNow.Add(time.Hour),
+	})
+	if _, err := validator.ValidateBearer(context.Background(), token); err != nil {
+		t.Fatalf("ValidateBearer() error = %v", err)
+	}
+	if got := clock.calls.Load(); got != 1 {
+		t.Fatalf("Clock.Now() calls = %d, want 1", got)
+	}
+}
+
+func TestValidatorPreservesPrivateJSONNumbersLosslessly(t *testing.T) {
+	t.Parallel()
+
+	keys, signer := rsaKeys(t, "key-1", jwa.RS256())
+	validator := newValidator(t, keys, authjwt.Config{
+		Issuer: "https://issuer.example.test", Audience: "orders",
+		Algorithms: []jwa.SignatureAlgorithm{jwa.RS256()}, Clock: authtest.NewClock(jwtNow),
+	})
+	payload := []byte(`{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1784116800,"exp":4102444800,"private_number":9007199254740993}`)
+	principal, err := validator.ValidateBearer(context.Background(), signedPayload(t, signer, jwa.RS256(), payload))
+	if err != nil {
+		t.Fatalf("ValidateBearer() error = %v", err)
+	}
+	number, ok := principal.Claims()["private_number"].(json.Number)
+	if !ok || number.String() != "9007199254740993" {
+		t.Fatalf("private_number = %T(%v), want exact json.Number", principal.Claims()["private_number"], principal.Claims()["private_number"])
 	}
 }
 
@@ -362,10 +406,14 @@ func TestValidatorRejectsDuplicateAndOversizedClaims(t *testing.T) {
 		"iat": jwtNow, "exp": jwtNow.Add(time.Hour), "nested": map[string]any{"a": map[string]any{"b": map[string]any{"c": true}}},
 	})
 	tests := map[string]string{
-		"duplicate": header + "." + duplicatePayload + ".signature",
-		"too many":  tooMany,
-		"too deep":  tooDeep,
-		"oversized": strings.Repeat("x", 513),
+		"duplicate":     header + "." + duplicatePayload + ".signature",
+		"too many":      tooMany,
+		"too deep":      tooDeep,
+		"oversized":     strings.Repeat("x", 513),
+		"invalid UTF-8": signedPayload(t, signer, jwa.RS256(), []byte{'{', '"', 'x', '"', ':', '"', 0xff, '"', '}'}),
+		"huge number": signedPayload(t, signer, jwa.RS256(), []byte(
+			`{"sub":"service","iss":"https://issuer.example.test","aud":"orders","iat":1784116800,"exp":4102444800,"private_number":`+strings.Repeat("9", 129)+`}`,
+		)),
 	}
 	for name, token := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -572,6 +620,16 @@ func cloneMap(source map[string]any) map[string]any {
 		clone[name] = value
 	}
 	return clone
+}
+
+type countingClock struct {
+	now   time.Time
+	calls atomic.Int64
+}
+
+func (clock *countingClock) Now() time.Time {
+	clock.calls.Add(1)
+	return clock.now
 }
 
 func nonCanonicalBase64URL(encoded string) string {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -66,7 +67,9 @@ func BenchmarkValidateBearerHostileInput(b *testing.B) {
 }
 
 func BenchmarkValidateBearerContention(b *testing.B) {
-	validator, signed := benchmarkStaticValidator(b, "key")
+	validator, _, cleanup := benchmarkRemoteValidator(b)
+	b.Cleanup(cleanup)
+	_, signed := benchmarkSigningMaterial(b, "key")
 	b.ReportAllocs()
 	b.RunParallel(func(parallel *testing.PB) {
 		for parallel.Next() {
@@ -76,6 +79,28 @@ func BenchmarkValidateBearerContention(b *testing.B) {
 			}
 		}
 	})
+}
+
+func BenchmarkValidateBearerMemoryRetention(b *testing.B) {
+	validator, signed := benchmarkStaticValidator(b, "key")
+	runtime.GC()
+	var before runtime.MemStats
+	runtime.ReadMemStats(&before)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for b.Loop() {
+		if _, err := validator.ValidateBearer(context.Background(), signed); err != nil {
+			b.Fatal(err)
+		}
+	}
+	b.StopTimer()
+	runtime.GC()
+	var after runtime.MemStats
+	runtime.ReadMemStats(&after)
+	runtime.KeepAlive(validator)
+	runtime.KeepAlive(signed)
+	retained := max(int64(0), int64(after.HeapAlloc)-int64(before.HeapAlloc))
+	b.ReportMetric(float64(retained)/float64(max(b.N, 1)), "retained-B/op")
 }
 
 func BenchmarkRemoteKeySetCopy(b *testing.B) {

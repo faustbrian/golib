@@ -81,7 +81,7 @@ func TestPrincipalRejectsInvalidTokenShapes(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			token := base()
 			tt.alter(token)
-			if _, err := validator.principal(token); !errors.Is(err, authentication.ErrInvalidPrincipal) {
+			if _, err := validator.principal(token, nil); !errors.Is(err, authentication.ErrInvalidPrincipal) {
 				t.Fatalf("principal() error = %v", err)
 			}
 		})
@@ -195,10 +195,16 @@ func TestInspectCompactJWTRejectsEachBoundary(t *testing.T) {
 func TestNumericDateValidationChecksEveryPresentClaimAndDigitBoundary(t *testing.T) {
 	t.Parallel()
 
-	for _, encoded := range []json.RawMessage{json.RawMessage("0"), json.RawMessage("9")} {
+	for _, encoded := range []json.RawMessage{json.RawMessage("-1"), json.RawMessage("0"), json.RawMessage("9")} {
 		if err := validateNumericDateClaims(map[string]json.RawMessage{"exp": encoded}); err != nil {
 			t.Fatalf("validateNumericDateClaims(%s) error = %v", encoded, err)
 		}
+	}
+	if err := validateNumericDateClaims(map[string]json.RawMessage{"exp": json.RawMessage("-")}); err == nil {
+		t.Fatal("validateNumericDateClaims(lone minus) error = nil")
+	}
+	if err := validateNumericDateClaims(map[string]json.RawMessage{"exp": json.RawMessage{}}); err == nil {
+		t.Fatal("validateNumericDateClaims(empty) error = nil")
 	}
 	if err := validateNumericDateClaims(map[string]json.RawMessage{"iat": json.RawMessage("true")}); err == nil {
 		t.Fatal("validateNumericDateClaims(missing exp, malformed iat) error = nil")
@@ -346,11 +352,11 @@ func TestJWKAlgorithmFamiliesAndVerificationOperations(t *testing.T) {
 			t.Errorf("%s keyTypeMatchesAlgorithm() = %v", tt.name, got)
 		}
 	}
-	if !containsVerifyOperation(jwk.KeyOperationList{jwk.KeyOpSign, jwk.KeyOpVerify}) {
-		t.Fatal("containsVerifyOperation(verify) = false")
+	if verificationOnlyOperation(jwk.KeyOperationList{jwk.KeyOpSign, jwk.KeyOpVerify}) {
+		t.Fatal("verificationOnlyOperation(sign, verify) = true")
 	}
-	if containsVerifyOperation(jwk.KeyOperationList{jwk.KeyOpEncrypt}) {
-		t.Fatal("containsVerifyOperation(encrypt) = true")
+	if verificationOnlyOperation(jwk.KeyOperationList{jwk.KeyOpEncrypt}) {
+		t.Fatal("verificationOnlyOperation(encrypt) = true")
 	}
 
 	base := Config{
@@ -366,6 +372,17 @@ func TestJWKAlgorithmFamiliesAndVerificationOperations(t *testing.T) {
 	base.KeySet = valid
 	if _, err := New(base); err != nil {
 		t.Fatalf("New(verify operation) error = %v", err)
+	}
+
+	mixed := symmetricKeySet(t, "key", jwa.HS256(), "sig")
+	mixedKey, err := requiredJWKAt(mixed, 0)
+	if err != nil {
+		t.Fatalf("requiredJWKAt(mixed) error = %v", err)
+	}
+	_ = mixedKey.Set(jwk.KeyOpsKey, jwk.KeyOperationList{jwk.KeyOpVerify, jwk.KeyOpEncrypt})
+	base.KeySet = mixed
+	if _, err := New(base); !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("New(mixed operation) error = %v", err)
 	}
 
 	invalid := symmetricKeySet(t, "key", jwa.HS256(), "sig")
@@ -422,6 +439,9 @@ func TestValidateBearerAndProviderFailureBoundaries(t *testing.T) {
 	}
 	if _, err := validator.keySet(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
 		t.Fatalf("keySet(invalid set) error = %v", err)
+	}
+	if err := keyProviderFailure(context.DeadlineExceeded); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("keyProviderFailure(deadline) error = %v", err)
 	}
 }
 

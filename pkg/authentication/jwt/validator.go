@@ -157,16 +157,18 @@ func (v *Validator) ValidateBearer(ctx context.Context, token string) (authentic
 	if err := inspectCompactJWT(token, v.algorithms, v.maxClaims, v.maxClaimDepth); err != nil {
 		return authentication.Principal{}, rejectedJWTFailure(upstreamjwt.ParseError())
 	}
+	rawClaims := decodeCompactJWTClaims(token)
 
 	keys, err := v.keySet(ctx)
 	if err != nil {
 		return authentication.Principal{}, err
 	}
+	now := v.clock.Now()
 	parseOptions := []upstreamjwt.ParseOption{
 		upstreamjwt.WithKeySet(keys),
 		upstreamjwt.WithIssuer(v.issuer),
 		upstreamjwt.WithAudience(v.audience),
-		upstreamjwt.WithClock(v.clock),
+		upstreamjwt.WithClock(upstreamjwt.ClockFunc(func() time.Time { return now })),
 		upstreamjwt.WithAcceptableSkew(v.skew),
 		upstreamjwt.WithContext(ctx),
 		upstreamjwt.WithPedantic(true),
@@ -188,7 +190,7 @@ func (v *Validator) ValidateBearer(ctx context.Context, token string) (authentic
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
 	}
 
-	principal, err := v.principal(parsed)
+	principal, err := v.principal(parsed, rawClaims)
 	if err != nil {
 		return authentication.Principal{}, authentication.NewFailure(authentication.FailureRejected)
 	}
@@ -260,7 +262,7 @@ func keyProviderFailure(err error) error {
 		authentication.WithFailureCause(cause))
 }
 
-func (v *Validator) principal(token upstreamjwt.Token) (authentication.Principal, error) {
+func (v *Validator) principal(token upstreamjwt.Token, rawClaims map[string]any) (authentication.Principal, error) {
 	subject, subjectOK := token.Subject()
 	issuer, issuerOK := token.Issuer()
 	audiences, audiencesOK := token.Audience()
@@ -273,12 +275,20 @@ func (v *Validator) principal(token upstreamjwt.Token) (authentication.Principal
 	}
 
 	claims := make(map[string]any)
-	for _, name := range token.Keys() {
-		if !v.excludedPrincipalClaim(name) {
-			var value any
-			// Keys reports only values that Get can decode into the empty interface.
-			_ = token.Get(name, &value)
-			claims[name] = value
+	if rawClaims == nil {
+		for _, name := range token.Keys() {
+			if !v.excludedPrincipalClaim(name) {
+				var value any
+				// Keys reports only values that Get can decode into the empty interface.
+				_ = token.Get(name, &value)
+				claims[name] = value
+			}
+		}
+	} else {
+		for name, value := range rawClaims {
+			if !v.excludedPrincipalClaim(name) {
+				claims[name] = value
+			}
 		}
 	}
 	scopes, err := stringClaim(token, v.scopeClaim, true)
@@ -507,7 +517,7 @@ func validateJWKEntries(set jwk.Set, algorithms map[string]struct{}) error {
 		if usage, exists := key.KeyUsage(); exists && usage != "sig" {
 			return errors.New("JWK usage is invalid")
 		}
-		if operations, exists := key.KeyOps(); exists && !containsVerifyOperation(operations) {
+		if operations, exists := key.KeyOps(); exists && !verificationOnlyOperation(operations) {
 			return errors.New("JWK operation is invalid")
 		}
 	}
@@ -612,13 +622,8 @@ func significantBits(encoded []byte) int {
 	return 0
 }
 
-func containsVerifyOperation(operations jwk.KeyOperationList) bool {
-	for _, operation := range operations {
-		if operation == jwk.KeyOpVerify {
-			return true
-		}
-	}
-	return false
+func verificationOnlyOperation(operations jwk.KeyOperationList) bool {
+	return len(operations) == 1 && operations[0] == jwk.KeyOpVerify
 }
 
 func inspectCompactJWT(token string, algorithms map[string]struct{}, maxClaims, maxDepth int) error {
@@ -679,14 +684,36 @@ func inspectCompactJWT(token string, algorithms map[string]struct{}, maxClaims, 
 	return nil
 }
 
+func decodeCompactJWTClaims(token string) map[string]any {
+	parts := strings.Split(token, ".")
+	payload, _ := base64.RawURLEncoding.Strict().DecodeString(parts[1])
+	decoder := json.NewDecoder(bytes.NewReader(payload))
+	decoder.UseNumber()
+	var claims map[string]any
+	_ = decoder.Decode(&claims)
+	return claims
+}
+
 func validateNumericDateClaims(claims map[string]json.RawMessage) error {
 	for _, name := range []string{"exp", "iat", "nbf"} {
 		encoded, exists := claims[name]
 		if !exists {
 			continue
 		}
-		if len(encoded) == 0 || (encoded[0] != '-' && (encoded[0] < '0' || encoded[0] > '9')) {
+		if len(encoded) == 0 {
 			return errors.New("invalid JWT NumericDate")
+		}
+		start := 0
+		if encoded[0] == '-' {
+			start = 1
+		}
+		if start == len(encoded) {
+			return errors.New("invalid JWT NumericDate")
+		}
+		for _, digit := range encoded[start:] {
+			if digit < '0' || digit > '9' {
+				return errors.New("invalid JWT NumericDate")
+			}
 		}
 	}
 	return nil

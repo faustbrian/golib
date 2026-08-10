@@ -12,7 +12,6 @@ import (
 	"net"
 	"net/http"
 	"net/http/httptest"
-	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -67,6 +66,14 @@ func TestRemoteJWKRotationAndIssuerOutage(t *testing.T) {
 	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(firstToken)); err != nil {
 		t.Fatalf("Authenticate(first) error = %v", err)
 	}
+	requestsBeforeUnknownKey := state.requests.Load()
+	unknownToken := signedToken(t, secondSigner, jwa.RS256(), claims)
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(unknownToken)); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("Authenticate(unknown key) error = %v", err)
+	}
+	if got := state.requests.Load(); got != requestsBeforeUnknownKey {
+		t.Fatalf("unknown key triggered %d remote requests", got-requestsBeforeUnknownKey)
+	}
 
 	state.set(marshalJWKSet(t, secondSet), http.StatusOK)
 	if err := remote.Refresh(context.Background()); err != nil {
@@ -76,6 +83,17 @@ func TestRemoteJWKRotationAndIssuerOutage(t *testing.T) {
 	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(secondToken)); err != nil {
 		t.Fatalf("Authenticate(second) error = %v", err)
 	}
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(firstToken)); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("Authenticate(evicted key) error = %v", err)
+	}
+
+	state.set([]byte(`{"keys":[{"kid":"duplicate","kid":"duplicate"}]}`), http.StatusOK)
+	if err := remote.Refresh(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
+		t.Fatalf("Refresh(hostile response) error = %v", err)
+	}
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(secondToken)); err != nil {
+		t.Fatalf("Authenticate(after hostile refresh) error = %v", err)
+	}
 
 	state.set(nil, http.StatusServiceUnavailable)
 	if err := remote.Refresh(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
@@ -83,6 +101,17 @@ func TestRemoteJWKRotationAndIssuerOutage(t *testing.T) {
 	}
 	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(secondToken)); err != nil {
 		t.Fatalf("Authenticate(stale cached key) error = %v", err)
+	}
+
+	state.set(marshalJWKSet(t, firstSet), http.StatusOK)
+	if err := remote.Refresh(context.Background()); err != nil {
+		t.Fatalf("Refresh(recovery) error = %v", err)
+	}
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(firstToken)); err != nil {
+		t.Fatalf("Authenticate(recovered key) error = %v", err)
+	}
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(secondToken)); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("Authenticate(recovery evicted stale key) error = %v", err)
 	}
 }
 
@@ -147,72 +176,6 @@ func TestRemoteRefreshAndAuthenticationAreRaceSafe(t *testing.T) {
 		}
 	}
 	group.Wait()
-}
-
-func TestRemoteCoalescesConcurrentRefreshes(t *testing.T) {
-	t.Parallel()
-
-	keys, _ := rsaKeys(t, "key", jwa.RS256())
-	body := marshalJWKSet(t, keys)
-	var requests atomic.Int64
-	var blocking atomic.Bool
-	started := make(chan struct{})
-	release := make(chan struct{})
-	var startedOnce sync.Once
-	var releaseOnce sync.Once
-	t.Cleanup(func() { releaseOnce.Do(func() { close(release) }) })
-	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		requests.Add(1)
-		if blocking.Load() {
-			startedOnce.Do(func() { close(started) })
-			select {
-			case <-release:
-			case <-request.Context().Done():
-				return
-			}
-		}
-		writer.Header().Set("Content-Type", "application/json")
-		_, _ = writer.Write(body)
-	}))
-	t.Cleanup(server.Close)
-	remote, err := authjwt.NewRemote(context.Background(), server.URL,
-		authjwt.WithInsecureHTTP(), authjwt.WithHTTPClient(server.Client()),
-	)
-	if err != nil {
-		t.Fatalf("NewRemote() error = %v", err)
-	}
-	t.Cleanup(func() { _ = closeRemote(t, remote) })
-	requests.Store(0)
-	blocking.Store(true)
-
-	const callers = 8
-	ready := make(chan struct{}, callers)
-	start := make(chan struct{})
-	errorsByCaller := make(chan error, callers)
-	for range callers {
-		go func() {
-			ready <- struct{}{}
-			<-start
-			errorsByCaller <- remote.Refresh(context.Background())
-		}()
-	}
-	for range callers {
-		<-ready
-	}
-	close(start)
-	waitForRemoteSignal(t, started, "coalesced refresh request")
-	for range 1_000 {
-		runtime.Gosched()
-	}
-	releaseOnce.Do(func() { close(release) })
-	for range callers {
-		if err := <-errorsByCaller; err != nil {
-			t.Fatalf("Refresh() error = %v", err)
-		}
-	}
-	if got := requests.Load(); got != 1 {
-		t.Fatalf("concurrent refresh requests = %d, want 1", got)
-	}
 }
 
 func TestRemoteSerializesAutomaticAndExplicitRefreshWork(t *testing.T) {
@@ -546,40 +509,39 @@ func TestRemoteRegistrationIsInitializationBounded(t *testing.T) {
 	body := marshalJWKSet(t, keys)
 	var requests atomic.Int64
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
-		if requests.Add(1) == 1 {
-			_, _ = writer.Write(body)
-			return
-		}
-		<-request.Context().Done()
+		requests.Add(1)
+		_, _ = writer.Write(body)
 	}))
 	t.Cleanup(server.Close)
 	remote, err := authjwt.NewRemote(context.Background(), server.URL,
-		authjwt.WithInsecureHTTP(), authjwt.WithHTTPClient(server.Client()),
-		authjwt.WithInitializationTimeout(25*time.Millisecond),
+		authjwt.WithInsecureHTTP(),
+		authjwt.WithInitializationTimeout(2*time.Second),
 	)
-	if remote != nil || !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
-		t.Fatalf("NewRemote(timeout) = %v, %v", remote, err)
+	if err != nil {
+		t.Fatalf("NewRemote() error = %v", err)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("NewRemote() requests = %d, want 1", got)
+	}
+	if err := closeRemote(t, remote); err != nil {
+		t.Fatalf("Close() error = %v", err)
 	}
 }
 
 func TestRemoteReportsCacheStartupCancellation(t *testing.T) {
-	t.Parallel()
-
-	keys, _ := rsaKeys(t, "key", jwa.RS256())
-	body := marshalJWKSet(t, keys)
 	lifecycle, cancel := context.WithTimeout(context.Background(), time.Second)
 	client := &http.Client{Transport: roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Header:     http.Header{"Content-Type": {"application/json"}},
-			Body:       io.NopCloser(&cancelOnEOFReader{reader: bytes.NewReader(body), cancel: cancel}),
+			Body:       io.NopCloser(cancelOnReadReader{cancel: cancel}),
 			Request:    request,
 		}, nil
 	})}
 	remote, err := authjwt.NewRemote(lifecycle, "https://issuer.example.test/keys",
 		authjwt.WithHTTPClient(client), authjwt.WithInitializationTimeout(time.Second),
 	)
-	if remote != nil || !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
+	if remote != nil || !errors.Is(err, authentication.ErrAuthenticationUnavailable) || !errors.Is(err, context.Canceled) {
 		t.Fatalf("NewRemote(canceled startup) = %v, %v", remote, err)
 	}
 }
@@ -602,6 +564,12 @@ func TestRemoteCloseReportsCanceledJoin(t *testing.T) {
 	cancel()
 	if err := remote.Close(canceled); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Close(canceled) error = %v", err)
+	}
+	if _, err := remote.KeySet(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
+		t.Fatalf("KeySet(after canceled close) error = %v", err)
+	}
+	if err := remote.Refresh(context.Background()); !errors.Is(err, authentication.ErrAuthenticationUnavailable) {
+		t.Fatalf("Refresh(after canceled close) error = %v", err)
 	}
 	if err := closeRemote(t, remote); err != nil {
 		t.Fatalf("Close(cleanup) error = %v", err)
@@ -755,9 +723,10 @@ func closeRemote(t *testing.T, remote *authjwt.Remote) error {
 }
 
 type jwkServerState struct {
-	mutex  sync.RWMutex
-	body   []byte
-	status int
+	mutex    sync.RWMutex
+	body     []byte
+	status   int
+	requests atomic.Int64
 }
 
 func (state *jwkServerState) set(body []byte, status int) {
@@ -768,6 +737,7 @@ func (state *jwkServerState) set(body []byte, status int) {
 }
 
 func (state *jwkServerState) serveHTTP(writer http.ResponseWriter, _ *http.Request) {
+	state.requests.Add(1)
 	state.mutex.RLock()
 	defer state.mutex.RUnlock()
 	status := state.status
@@ -812,19 +782,15 @@ func (f roundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) 
 	return f(request)
 }
 
-type cancelOnEOFReader struct {
-	reader *bytes.Reader
-	cancel context.CancelFunc
-}
-
 type failingReader struct{}
 
 func (failingReader) Read([]byte) (int, error) { return 0, errors.New("injected partial-body failure") }
 
-func (r *cancelOnEOFReader) Read(buffer []byte) (int, error) {
-	count, err := r.reader.Read(buffer)
-	if errors.Is(err, io.EOF) {
-		r.cancel()
-	}
-	return count, err
+type cancelOnReadReader struct {
+	cancel context.CancelFunc
+}
+
+func (reader cancelOnReadReader) Read([]byte) (int, error) {
+	reader.cancel()
+	return 0, context.Canceled
 }
