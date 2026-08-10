@@ -13624,8 +13624,13 @@
       "specifications": [
         "RFC 9162"
       ],
-      "conformance_corpora": [],
-      "provenance": [],
+      "conformance_corpora": [
+        "Pinned RFC 9162 SHA-256 reference vectors generated with transparency-dev/merkle",
+        "RFC 9162 root, inclusion, consistency, differential, hostile-input, and fuzz evidence"
+      ],
+      "provenance": [
+        "pkg/merkle-tree/specification/manifest.tsv"
+      ],
       "goal_files": [
         "pkg/merkle-tree/.ai/GOAL.md",
         "pkg/merkle-tree/.ai/GOAL_HARDEN.md"

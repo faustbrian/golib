@@ -1,0 +1,2 @@
+id	version	role	status	sha256	bytes	url
+rfc9162-sha256-v1	RFC-9162	reference-vector-corpus	pinned	1ee115281c3a1861ef9e92e126e1f2bf7e043bc0ce4ada8b83a9d54d4ab885c7	4577	https://www.rfc-editor.org/rfc/rfc9162

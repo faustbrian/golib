@@ -278,6 +278,7 @@ unspecified or caller-invented algorithm as RFC-compatible.
 
 See [profile and ownership semantics](docs/architecture.md),
 [compatibility boundaries](docs/compatibility.md),
+[specification decisions](docs/specification-decisions.md),
 [canonical binary encoding](docs/encoding.md),
 [adoption and migration](docs/adoption.md),
 [errors and recovery](docs/errors-and-recovery.md),

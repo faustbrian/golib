@@ -1439,6 +1439,11 @@ func conformanceCorpora(directory string) []string {
 			"Pinned JSON-RPC 2.0 official example corpus",
 			"Specification decision, protocol, HTTP binding, hostile-input, and fuzz evidence",
 		}
+	case "merkle-tree":
+		return []string{
+			"Pinned RFC 9162 SHA-256 reference vectors generated with transparency-dev/merkle",
+			"RFC 9162 root, inclusion, consistency, differential, hostile-input, and fuzz evidence",
+		}
 	case "merkle-patricia-trie":
 		return []string{
 			"ethereum/execution-spec-tests stable fixtures v5.4.0 at 88e9fb8f10ed89805aa3110d0a2cd5dcadc19689",

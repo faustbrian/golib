@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+
+- Pin the RFC 9162 reference corpus and record the security, resource,
+  compatibility, and wire consequences of every profile and format decision.
+
 ### Added
 
 - Explicit versioned identities for the canonical binary and RFC 9162
