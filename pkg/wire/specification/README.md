@@ -12,6 +12,11 @@ dependency behavior, finite service limits, and package error classification
 remain separate decisions. Passing a dependency's tests is not evidence that
 the wrapper implements every optional feature of a format.
 
+The canonical
+[`docs/specification-decisions.md`](../docs/specification-decisions.md)
+records every material interpretation, consequence, and condition for
+reconsideration behind this conformance matrix.
+
 Run the focused map and evidence check with `make conformance`. For an update,
 verify provenance and digest, review errata and codec changes, update decisions
 and behavioral tests, then change the manifest. A digest change alone MUST NOT

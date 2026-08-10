@@ -7,6 +7,11 @@ because their published specifications are living documents. The Go runtime
 contract uses the official Go 1.26.5 source archive. SHA-256 digests make
 source drift explicit.
 
+The canonical
+[`docs/specification-decisions.md`](../docs/specification-decisions.md)
+register records every material interpretation, consequence, and condition for
+reconsideration behind this conformance matrix.
+
 The module claims conformance only for behavior exposed by its public policy
 surface and linked executable evidence. It delegates HTTP framing and protocol
 transport to Go's `net/http`, does not implement browser enforcement, and does

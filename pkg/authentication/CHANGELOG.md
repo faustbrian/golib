@@ -23,6 +23,8 @@ this project follows Semantic Versioning.
 
 ### Changed
 
+- Link specification provenance directly to the canonical decision register so
+  conformance rationale and executable evidence remain discoverable.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

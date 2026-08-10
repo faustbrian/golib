@@ -5,6 +5,11 @@ register. RFC sources use immutable RFC Editor text. W3C Trace Context uses a
 dated Recommendation snapshot instead of the mutable latest-version URL.
 SHA-256 digests make source drift explicit.
 
+The canonical
+[`docs/specification-decisions.md`](../docs/specification-decisions.md)
+register records every material interpretation, consequence, and condition for
+reconsideration behind this conformance matrix.
+
 The module claims conformance only for behavior exposed by its public policy
 surface and linked executable evidence. It does not implement an HTTP wire
 stack; framing and protocol-version transport are delegated to Go's `net/http`.

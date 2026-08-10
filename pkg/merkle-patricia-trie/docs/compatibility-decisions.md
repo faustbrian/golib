@@ -1,5 +1,9 @@
 # Compatibility decisions
 
+The canonical [specification decision register](specification-decisions.md)
+records the normative sources, alternatives, consequences, executable
+evidence, and reconsideration conditions behind these compatibility outcomes.
+
 ## Root commitment
 
 Public trie roots are always legacy Keccak-256 commitments. The canonical

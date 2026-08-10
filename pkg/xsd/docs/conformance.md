@@ -4,6 +4,10 @@ The stable target is XML Schema 1.0 Second Edition plus its published errata.
 XML Schema 1.1 is outside the stable scope. Exact source versions and digests
 are recorded in `specification/manifest.tsv`.
 
+The [specification decision register](specification-decisions.md) records the
+scope choices, alternatives, consequences, and executable evidence behind this
+support matrix.
+
 `specification/requirements/xsd-1.0.tsv` is the support contract. `implemented`
 means the row has executable evidence for its stated scope. `partial` means a
 useful subset exists but the broad feature is not complete. `missing` means no

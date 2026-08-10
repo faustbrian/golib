@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Link the conformance source matrix directly to the canonical specification
+  decision register.
 - Added the `GO-SAFETY-1` ownership, concurrency, race, fuzz, resource, and
   benchmark standard with an executable `make safety` gate.
 - Moved AI planning and hardening briefs into `.ai/` and clarified the

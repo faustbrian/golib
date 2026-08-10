@@ -5,6 +5,10 @@ Public model additions should remain source compatible, but behavior may
 tighten as invalid schemas are detected and missing XML Schema rules become
 enforced.
 
+Review the [specification decision register](specification-decisions.md) before
+upgrading whenever parsing, validation, resolution, or diagnostic behavior can
+affect compatibility.
+
 When migrating from generic XML decoding, separate schema parsing from
 instance validation, assign an absolute system URI, inject a resolver for every
 dependency, compile once, and handle structured diagnostics rather than string

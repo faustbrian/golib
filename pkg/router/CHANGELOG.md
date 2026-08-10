@@ -9,6 +9,8 @@ Versioning.
 
 ### Changed
 
+- Link conformance and contribution guidance directly to the canonical
+  specification decision register.
 - Delegate local mutation checks to the canonical exact-100 repository runner
   instead of accepting package-local survivors.
 

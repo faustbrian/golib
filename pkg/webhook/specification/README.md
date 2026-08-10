@@ -16,3 +16,8 @@ local interoperability fixture, and executable decision evidence. Source
 digest integrity is checked by repository conformance automation. Updating a
 source requires reviewing every affected decision, fixture, public contract,
 compatibility statement, and changelog entry.
+
+The canonical
+[`docs/specification-decisions.md`](../docs/specification-decisions.md)
+records the selected behavior, alternatives, consequences, and reconsideration
+conditions behind this source matrix.

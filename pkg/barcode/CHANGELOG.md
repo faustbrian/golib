@@ -27,6 +27,8 @@ listed in `README.md` and exposed through `barcode.CapabilityFor`.
 
 ### Added
 
+- Link contribution guidance directly to the specification decision register
+  and its provenance and evidence requirements.
 - Add an auditable specification-decision register, exact standards
   provenance, and a conformance gate that binds format policy to executable
   evidence.

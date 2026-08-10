@@ -18,6 +18,8 @@ This project follows Semantic Versioning and Keep a Changelog.
 
 ### Changed
 
+- Link the conformance source matrix directly to the canonical specification
+  decision register.
 - Regenerated the exported API baseline with the pinned Go documentation
   formatter without changing the public contract.
 - Bound trusted-prefix and configured media-policy collections, handler

@@ -9,6 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
+- Link the conformance source matrix directly to the canonical specification
+  decision register.
 - Record HTTP, authentication, retry, caching, range, pagination, cookie,
   response, and trace-context decisions against pinned normative sources and
   executable conformance evidence.

@@ -1,5 +1,9 @@
 # Source provenance
 
+The [specification decision register](specification-decisions.md) maps these
+normative and interoperability inputs to selected behavior and executable
+evidence.
+
 The following upstream revisions were resolved on 2026-07-29. They are
 compatibility inputs, not dependencies. Imported fixtures will retain their
 upstream bytes and carry a checksum, license, update procedure, applicability,

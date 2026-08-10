@@ -6,6 +6,8 @@ All notable changes follow Keep a Changelog and Semantic Versioning.
 
 ### Changed
 
+- Link compatibility and source-provenance guidance directly to the canonical
+  specification decision register.
 - Convert consensus and client-divergence choices into an auditable
   specification register and bind every pinned source to an immutable URL.
 

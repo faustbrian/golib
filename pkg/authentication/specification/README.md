@@ -4,9 +4,11 @@
 executed by `authhttp/interoperability_test.go`. Digests and byte counts apply
 to the encoded credential or token string exactly as embedded in the test.
 
-The decision register maps normative and package-owned behavior to focused
-tests, hostile-input fuzzing, and security matrices. The manifest does not
-claim that three positive vectors replace the complete RFC requirements.
+The canonical
+[`docs/specification-decisions.md`](../docs/specification-decisions.md)
+register maps normative and package-owned behavior to focused tests,
+hostile-input fuzzing, and security matrices. The manifest does not claim that
+three positive vectors replace the complete RFC requirements.
 
 When an RFC erratum or replacement changes a vector, retain the previous
 evidence, add a versioned row, copy the exact value from the authoritative

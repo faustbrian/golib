@@ -22,3 +22,6 @@ gate used by CI.
 
 Public API changes need an adoption note and compatibility assessment. Avoid
 including standards text whose redistribution is restricted.
+Specification behavior changes must also update the
+[specification decision register](docs/specification-decisions.md), its
+executable evidence, and the affected provenance records.

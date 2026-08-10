@@ -32,3 +32,7 @@ still validates those forms. No validation path fetches the live URL.
 
 The normative and object-field matrices are generated from these pinned inputs
 and then reviewed against prose requirements that JSON Schema cannot express.
+The canonical
+[`docs/specification-decisions.md`](../docs/specification-decisions.md)
+records every material interpretation, consequence, and reconsideration
+condition behind those matrices.

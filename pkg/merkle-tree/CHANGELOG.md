@@ -4,6 +4,8 @@
 
 ### Changed
 
+- Link compatibility guidance directly to the canonical specification decision
+  register.
 - Pin the RFC 9162 reference corpus and record the security, resource,
   compatibility, and wire consequences of every profile and format decision.
 

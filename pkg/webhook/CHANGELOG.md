@@ -12,6 +12,8 @@ and Semantic Versioning.
 
 ### Changed
 
+- Link the specification source matrix directly to the canonical decision
+  register.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

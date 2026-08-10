@@ -1,5 +1,9 @@
 # Compatibility
 
+The [specification decision register](specification-decisions.md) records the
+normative rationale, alternatives, consequences, and executable evidence for
+this compatibility boundary.
+
 ## Profile matrix
 
 | Profile | Version | Hash | Leaf domain | Branch domain | Empty | Shape |
