@@ -96,6 +96,8 @@ The check discovers applicable modules from current source and catalog policy,
 then fails for missing registers, corpora, provenance, conformance gates,
 stable identifiers, required fields, local links, statuses, replacement links,
 executable evidence, or an explicit closed unresolved-decision inventory.
+Local Markdown links with fragments must resolve to an existing generated
+heading anchor; checking only that the target file exists is insufficient.
 Package conformance gates verify pinned remote bytes, official fixtures, errata
 review ceilings, and interoperability behavior.
 

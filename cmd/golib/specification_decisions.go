@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 var (
@@ -32,7 +33,8 @@ var (
 	decisionReferencePattern = regexp.MustCompile(
 		`\b[A-Z][A-Z0-9]*(?:-[A-Z0-9]+)*-DEC-[0-9]{3}\b`,
 	)
-	sha256ValuePattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	sha256ValuePattern     = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	markdownHeadingPattern = regexp.MustCompile(`^#{1,6}[ \t]+(.+?)[ \t]*#*[ \t]*$`)
 )
 
 type specificationDecision struct {
@@ -655,10 +657,13 @@ func validateDecisionLink(registerPath, target string) error {
 		}
 		return nil
 	}
-	if parsed.Path == "" {
+	if parsed.Path == "" && parsed.Fragment == "" {
 		return nil
 	}
-	path := filepath.Clean(filepath.Join(filepath.Dir(registerPath), filepath.FromSlash(parsed.Path)))
+	path := registerPath
+	if parsed.Path != "" {
+		path = filepath.Clean(filepath.Join(filepath.Dir(registerPath), filepath.FromSlash(parsed.Path)))
+	}
 	info, err := os.Stat(path)
 	if err != nil {
 		return fmt.Errorf("local link %q is broken: %w", target, err)
@@ -666,7 +671,54 @@ func validateDecisionLink(registerPath, target string) error {
 	if !info.Mode().IsRegular() && !info.IsDir() {
 		return fmt.Errorf("local link %q is not a file or directory", target)
 	}
+	if parsed.Fragment != "" && info.Mode().IsRegular() &&
+		(strings.EqualFold(filepath.Ext(path), ".md") || strings.EqualFold(filepath.Ext(path), ".markdown")) {
+		if err := validateMarkdownAnchor(path, parsed.Fragment); err != nil {
+			return fmt.Errorf("local link %q: %w", target, err)
+		}
+	}
 	return nil
+}
+
+func validateMarkdownAnchor(path, fragment string) error {
+	contents, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("read Markdown anchors: %w", err)
+	}
+	seen := map[string]int{}
+	for line := range strings.SplitSeq(strings.ReplaceAll(string(contents), "\r\n", "\n"), "\n") {
+		match := markdownHeadingPattern.FindStringSubmatch(line)
+		if match == nil {
+			continue
+		}
+		base := markdownAnchor(match[1])
+		if base == "" {
+			continue
+		}
+		anchor := base
+		if count := seen[base]; count != 0 {
+			anchor = fmt.Sprintf("%s-%d", base, count)
+		}
+		seen[base]++
+		if anchor == fragment {
+			return nil
+		}
+	}
+	return fmt.Errorf("Markdown anchor %q does not exist", fragment)
+}
+
+func markdownAnchor(heading string) string {
+	var anchor strings.Builder
+	for _, character := range strings.ToLower(heading) {
+		switch {
+		case unicode.IsLetter(character), unicode.IsNumber(character),
+			character == '-', character == '_':
+			anchor.WriteRune(character)
+		case character == ' ' || character == '\t':
+			anchor.WriteByte('-')
+		}
+	}
+	return strings.Trim(anchor.String(), "-")
 }
 
 func specificationEvidenceExists(knownEvidence map[string]bool, reference string) bool {

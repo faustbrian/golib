@@ -507,6 +507,27 @@ func TestValidateSpecificationJSONAcceptsReleaseAsVersionPin(t *testing.T) {
 	}
 }
 
+func TestValidateDecisionLinkChecksMarkdownAnchors(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	register := filepath.Join(root, "docs/specification-decisions.md")
+	target := filepath.Join(root, "docs/encoding.md")
+	mustWriteFile(t, register, "# Decisions\n")
+	mustWriteFile(t, target, "# Encoding\n\n## Persisted snapshot\n\n## Persisted snapshot\n")
+
+	if err := validateDecisionLink(register, "encoding.md#persisted-snapshot"); err != nil {
+		t.Fatalf("validateDecisionLink() valid anchor error = %v", err)
+	}
+	if err := validateDecisionLink(register, "encoding.md#persisted-snapshot-1"); err != nil {
+		t.Fatalf("validateDecisionLink() duplicate anchor error = %v", err)
+	}
+	if err := validateDecisionLink(register, "encoding.md#missing-section"); err == nil ||
+		!strings.Contains(err.Error(), "missing-section") {
+		t.Fatalf("validateDecisionLink() missing anchor error = %v", err)
+	}
+}
+
 func TestSelectSpecificationDecisionModules(t *testing.T) {
 	t.Parallel()
 

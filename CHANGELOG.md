@@ -25,6 +25,8 @@ documented in each module's changelog.
   replacement in the same register instead of accepting a dangling identifier.
 - Read decision lifecycle only from its status field and reject entries with
   missing or multiple statuses instead of inferring state from unrelated prose.
+- Validate local Markdown link fragments in specification decisions so renamed
+  or removed target sections fail governance instead of leaving stale anchors.
 - Register Kafka's exercised broker, resource-reaper, comparison-client, MSK
   signer, and AWS SDK inputs in the generated repository catalog.
 - Register Kafka's normative decision record and real-broker conformance
