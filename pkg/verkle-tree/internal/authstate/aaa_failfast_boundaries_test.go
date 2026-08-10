@@ -234,6 +234,17 @@ func TestFailFastSnapshotLimitDisjunction(t *testing.T) {
 	}
 }
 
+func TestFailFastCopyEntriesAcceptsExactMaximumCount(t *testing.T) {
+	entries, err := newTestSnapshot(t, nil).CopyEntries(
+		context.Background(),
+		maxSupportedCount,
+		1,
+	)
+	if err != nil || len(entries) != 0 {
+		t.Fatalf("CopyEntries() = %v, %v, want empty entries", entries, err)
+	}
+}
+
 func TestFailFastClaimMergeObservesCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
