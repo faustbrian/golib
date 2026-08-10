@@ -72,7 +72,14 @@ func (failure *AppendError) Error() string {
 
 // Is preserves programmatic classification without exposing the underlying
 // diagnostic through formatting or unwrapping.
-func (failure *AppendError) Is(target error) bool { return errors.Is(failure.cause, target) }
+func (failure *AppendError) Is(target error) (matches bool) {
+	defer func() {
+		if recover() != nil {
+			matches = false
+		}
+	}()
+	return errors.Is(failure.cause, target)
+}
 
 // AppendOutcome returns the classified durability state.
 func (failure *AppendError) AppendOutcome() AppendOutcome { return failure.outcome }
@@ -81,7 +88,12 @@ type appendOutcomeError interface{ AppendOutcome() AppendOutcome }
 
 // AppendOutcomeOf extracts a failure's durability classification.
 // Unclassified failures are conservatively unknown.
-func AppendOutcomeOf(err error) AppendOutcome {
+func AppendOutcomeOf(err error) (outcome AppendOutcome) {
+	defer func() {
+		if recover() != nil {
+			outcome = AppendUnknown
+		}
+	}()
 	var classified appendOutcomeError
 	if errors.As(err, &classified) {
 		return classified.AppendOutcome()

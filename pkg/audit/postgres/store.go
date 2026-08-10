@@ -458,7 +458,12 @@ type databaseError struct {
 func (failure *databaseError) Error() string {
 	return "audit/postgres: " + failure.operation + " failed"
 }
-func (failure *databaseError) Is(target error) bool {
+func (failure *databaseError) Is(target error) (matches bool) {
+	defer func() {
+		if recover() != nil {
+			matches = false
+		}
+	}()
 	if target == ErrRetryableTransaction {
 		var postgresError *pgconn.PgError
 		return errors.As(failure.cause, &postgresError) &&

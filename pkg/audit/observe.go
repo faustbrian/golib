@@ -121,7 +121,12 @@ func consumeObservedSafely(consume func(Record) error, record Record) (err error
 	}
 }
 
-func safeExportFailure(err error) error {
+func safeExportFailure(err error) (result error) {
+	defer func() {
+		if recover() != nil {
+			result = ErrExportFailed
+		}
+	}()
 	switch {
 	case err == nil:
 		return nil

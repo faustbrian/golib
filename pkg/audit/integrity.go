@@ -235,7 +235,12 @@ func (chain *Chain) verifyRange(ctx context.Context, partition string, start uin
 	return nil
 }
 
-func safeKeyFailure(err error) error {
+func safeKeyFailure(err error) (result error) {
+	defer func() {
+		if recover() != nil {
+			result = ErrKeyUnavailable
+		}
+	}()
 	switch {
 	case errors.Is(err, context.Canceled):
 		return context.Canceled

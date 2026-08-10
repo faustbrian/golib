@@ -114,7 +114,12 @@ type redactionFailure struct{}
 
 func (failure *redactionFailure) Error() string { return "audit: redaction failed" }
 
-func safeRedactionFailure(err error) error {
+func safeRedactionFailure(err error) (result error) {
+	defer func() {
+		if recover() != nil {
+			result = &redactionFailure{}
+		}
+	}()
 	switch {
 	case errors.Is(err, context.Canceled):
 		return context.Canceled

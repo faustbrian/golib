@@ -16,6 +16,12 @@ import (
 
 type fakeRow struct{ scan func(...any) error }
 
+type panicClassificationCause struct{}
+
+func (panicClassificationCause) Error() string { return "private database diagnostic" }
+func (panicClassificationCause) Is(error) bool { panic("database cause Is panic") }
+func (panicClassificationCause) As(any) bool   { panic("database cause As panic") }
+
 func (row fakeRow) Scan(destinations ...any) error { return row.scan(destinations...) }
 
 type fakeRows struct {
@@ -515,6 +521,10 @@ func TestDatabaseErrorsNeverExposeDriverDiagnostics(t *testing.T) {
 				t.Fatalf("errors.Is(retryable) = %t, want %t", got, test.want)
 			}
 		})
+	}
+	panicking := &databaseError{operation: "append", cause: panicClassificationCause{}}
+	if errors.Is(panicking, ErrRetryableTransaction) || errors.Is(panicking, audit.ErrInvalidArgument) {
+		t.Fatal("panicking database error cause matched a public classification")
 	}
 	if retentionKind(audit.RetentionHold) != "hold" || retentionKind(audit.RetentionRelease) != "release" {
 		t.Fatal("retention kind mapping changed")

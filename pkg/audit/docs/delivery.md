@@ -18,7 +18,8 @@ result. They run with an explicit nonzero `RecoveryTimeout` bounded by
 `MaxRecoveryTimeout`, even if the primary-operation context has ended. If a
 secondary action fails, the operation returns a public classification without
 retaining arbitrary dependency diagnostics. Cancellation and deadline
-classifications remain inspectable.
+classifications remain inspectable. Panicking custom `Is`, `As`, or outcome
+classifiers are contained and conservatively mapped to an opaque failure.
 
 Every sink acknowledgement is checked against submitted record IDs, statuses,
 batch length, and input order. A malformed acknowledgement is an unknown
