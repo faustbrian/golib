@@ -49,9 +49,11 @@ The body must explicitly record:
 - reconsideration condition.
 
 The accepted statuses are `resolved`, `unresolved`, and `superseded`.
-Unresolved decisions block the specification gate. A superseded decision must
-remain in the register and identify a different existing decision in the same
-register as its replacement; history must not be erased.
+Each entry must declare exactly one of them in its status field; status words
+elsewhere in the entry do not satisfy that contract. Unresolved decisions block
+the specification gate. A superseded decision must remain in the register and
+identify a different existing decision in the same register as its replacement;
+history must not be erased.
 
 Every register must end with one `## Unresolved decisions` or
 `## Unresolved and excluded behavior` inventory. The inventory must explicitly

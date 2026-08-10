@@ -567,14 +567,12 @@ func validateSpecificationDecision(
 	if !authoritativeURLPattern.MatchString(decision.body) {
 		problems = append(problems, fmt.Errorf("%s has no authoritative HTTPS source", decision.identifier))
 	}
-	if strings.Contains(normalized, "`unresolved`") ||
-		strings.Contains(normalized, "status | unresolved") {
+	status, statusErr := specificationDecisionStatus(decision.body)
+	if statusErr != nil {
+		problems = append(problems, fmt.Errorf("%s: %w", decision.identifier, statusErr))
+	} else if status == "unresolved" {
 		problems = append(problems, fmt.Errorf("%s remains unresolved", decision.identifier))
-	}
-	status := decisionStatusPattern.FindStringSubmatch(decision.body)
-	if status == nil {
-		problems = append(problems, fmt.Errorf("%s has no recognized decision status", decision.identifier))
-	} else if strings.EqualFold(status[1], "superseded") {
+	} else if status == "superseded" {
 		if !hasKnownReplacementDecision(decision, knownDecisions) {
 			problems = append(problems, fmt.Errorf(
 				"%s is superseded without a known replacement decision",
@@ -602,6 +600,29 @@ func validateSpecificationDecision(
 		}
 	}
 	return errors.Join(problems...)
+}
+
+func specificationDecisionStatus(body string) (string, error) {
+	statuses := []string{}
+	for line := range strings.SplitSeq(body, "\n") {
+		field := strings.ToLower(strings.TrimSpace(line))
+		if !strings.HasPrefix(field, "| status") &&
+			!strings.HasPrefix(field, "- **status") &&
+			!strings.HasPrefix(field, "**status") &&
+			!strings.HasPrefix(field, "status:") {
+			continue
+		}
+		for _, match := range decisionStatusPattern.FindAllStringSubmatch(line, -1) {
+			statuses = append(statuses, strings.ToLower(match[1]))
+		}
+	}
+	if len(statuses) == 0 {
+		return "", errors.New("no recognized decision status")
+	}
+	if len(statuses) > 1 {
+		return "", errors.New("more than one decision status")
+	}
+	return statuses[0], nil
 }
 
 func hasKnownReplacementDecision(

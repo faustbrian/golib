@@ -330,6 +330,30 @@ func TestValidateSpecificationDecisionsFailsClosed(t *testing.T) {
 			wantError: "status",
 		},
 		{
+			name: "status outside status field",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "`resolved`", "`reviewed`")
+				replaceFileText(
+					t,
+					path,
+					"\n## Unresolved decisions",
+					"\nThe peer HTTP status is `resolved`.\n\n## Unresolved decisions",
+				)
+			},
+			wantError: "recognized decision status",
+		},
+		{
+			name: "multiple decision statuses",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "`resolved`", "`resolved` or `superseded`")
+			},
+			wantError: "more than one decision status",
+		},
+		{
 			name: "superseded decision without replacement",
 			mutate: func(t *testing.T, root string, _ *catalog) {
 				t.Helper()
