@@ -2898,6 +2898,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-001: Specification editions and codec delegation
 
+**Authoritative reference:** [Go 1.26.5 encoding source](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/encoding/).
+
 - **Status, owner, and classification:** `resolved`; wire maintainers;
   normative-source and interoperability policy.
 - **Source and issue:** The pinned
@@ -2910,7 +2912,10 @@ review. Superseded decisions remain linked from their replacements.
   tree, or wrap reviewed codecs with explicit package policy. Codec behavior
   differs on duplicate names, numeric conversion, tags, aliases, and output
   ordering.
-- **Selected behavior and consequences:** JSON and XML delegate syntax and Go
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  JSON and XML delegate syntax and Go
   value mapping to Go 1.26.5; SOAP builds on that XML boundary. YAML, TOML,
   MessagePack, CBOR, and BSON use the exact modules in `go.mod`, with package
   preflight, limits, options, and error classification defining the public
@@ -2924,6 +2929,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-002: Complete input units and destination mutation
 
+**Authoritative reference:** [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   application-boundary policy.
 - **Source and issue:** Format specifications define streams, documents, or
@@ -2932,7 +2939,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Decode the first value, decode a
   stream implicitly, require exactly one unit, or expose per-format behavior.
   Codec destinations commonly become partially assigned on errors.
-- **Selected behavior and consequences:** JSON, XML, SOAP, YAML, MessagePack,
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  JSON, XML, SOAP, YAML, MessagePack,
   CBOR, and BSON require exactly one non-empty complete value, document,
   envelope, or item. TOML permits its specified empty document. YAML multi-
   document input is opt-in and requires a slice destination. All decoders
@@ -2948,6 +2958,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-003: Input, structural, graph, and output limits
 
+**Authoritative reference:** [RFC 8949](https://www.rfc-editor.org/rfc/rfc8949.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   resource policy.
 - **Source and issue:** The format specifications permit documents and values
@@ -2956,7 +2968,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Leave limits to callers or codecs,
   impose one byte limit only, stream unbounded output, or enforce finite
   format-aware limits. Codec defaults and allocation behavior vary.
-- **Selected behavior and consequences:** Zero selects a 1 MiB input and
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Zero selects a 1 MiB input and
   output default. Negative limits fail validation. Readers consume at most one
   detection byte beyond the limit, with `MaxInt64` handled without overflow.
   XML/SOAP depth, YAML alias/depth, MessagePack depth/collection, and CBOR
@@ -2971,6 +2986,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-004: Conservative format detection
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   application policy.
 - **Source and issue:** No supported specification defines reliable automatic
@@ -2979,7 +2996,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Guess from extensions, MIME types,
   complete parsing, or leading bytes; try codecs in order; or require callers
   to select a format. Generic serializers commonly overstate detection.
-- **Selected behavior and consequences:** `DetectFormat` recognizes only a
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `DetectFormat` recognizes only a
   leading JSON object or array and a leading XML `<` after whitespace. It does
   not validate the payload, reports SOAP as XML, and never guesses scalar JSON,
   YAML, TOML, MessagePack, CBOR, or BSON. Unknown and empty input remain
@@ -2991,6 +3011,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-005: JSON names, numbers, Unicode, and normalization
 
+**Authoritative reference:** [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; RFC 8259
   interoperability policy with explicit compatibility mode.
 - **Source and issue:** RFC 8259 [objects](https://www.rfc-editor.org/rfc/rfc8259.html#section-4)
@@ -3000,7 +3022,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Reject duplicates unconditionally,
   preserve first or last values, expose every pair, replace malformed Unicode,
   or follow Go defaults. Implementations differ on number precision and BOMs.
-- **Selected behavior and consequences:** Decode requires valid UTF-8 and one
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Decode requires valid UTF-8 and one
   value. Duplicate-name rejection is explicit and recursive through
   `DisallowDuplicateNames`; compatibility default retains Go's last-value
   behavior. Typed decoding follows Go numeric conversion. `Normalize` alone
@@ -3015,6 +3040,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-006: XML strictness, namespaces, entities, and charsets
 
+**Authoritative reference:** [XML 1.0 Fifth Edition](https://www.w3.org/TR/2008/REC-xml-20081126/).
+
 - **Status, owner, and classification:** `resolved`; maintainers; XML 1.0
   interoperability and defensive profile.
 - **Source and issue:** XML 1.0 Fifth Edition
@@ -3027,7 +3054,10 @@ review. Superseded decisions remain linked from their replacements.
   compare lexical prefixes, expand declarations, guess encodings, or require
   strict resolved names and declared conversion. XML stacks vary materially on
   DTD and entity behavior.
-- **Selected behavior and consequences:** Strict parsing, one root, resolved
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Strict parsing, one root, resolved
   namespace URL plus local-name comparison, finite token depth, and no declared
   entity expansion are defaults. Non-strict recovery is opt-in. Built-in
   charset conversion is limited to UTF-8, ASCII, ISO-8859-1, and Windows-1252;
@@ -3043,6 +3073,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-007: SOAP versions, envelope profile, and faults
 
+**Authoritative reference:** [SOAP 1.2 Part 1 Second Edition](https://www.w3.org/TR/2007/REC-soap12-part1-20070427/).
+
 - **Status, owner, and classification:** `resolved`; maintainers; SOAP 1.1/1.2
   transport-neutral profile.
 - **Source and issue:** SOAP 1.1
@@ -3055,7 +3087,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Coerce both versions into one loose
   XML shape, preserve arbitrary envelope children, bind HTTP behavior, or
   expose a strict request/response profile with raw escape hatches.
-- **Selected behavior and consequences:** The namespace selects exactly SOAP
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  The namespace selects exactly SOAP
   1.1 or 1.2. Header is optional and precedes one required Body; unexpected
   envelope children or text fail. Typed body decoding requires exactly one
   child; raw sections remain copied bytes with inherited namespaces preserved
@@ -3073,6 +3108,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-008: YAML schema, aliases, merges, duplicates, and streams
 
+**Authoritative reference:** [YAML 1.2.2](https://yaml.org/spec/1.2.2/).
+
 - **Status, owner, and classification:** `resolved`; maintainers; YAML 1.2.2
   interoperability and defensive policy.
 - **Source and issue:** YAML 1.2.2
@@ -3085,7 +3122,10 @@ review. Superseded decisions remain linked from their replacements.
   every advanced feature, expose dependency defaults, or select explicit safe
   v4 behavior and options. YAML codecs differ on duplicate keys and alias
   limits.
-- **Selected behavior and consequences:** Use `go.yaml.in/yaml/v4` v4 defaults,
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Use `go.yaml.in/yaml/v4` v4 defaults,
   one document and unique keys by default, sorted mapping output, and codec
   depth/alias protections. Multiple documents require a slice and opt-in;
   aliases and merge keys may be independently rejected, and caller limits may
@@ -3102,6 +3142,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-009: TOML document model and conversion
 
+**Authoritative reference:** [TOML 1.1.0](https://toml.io/en/v1.1.0).
+
 - **Status, owner, and classification:** `resolved`; maintainers; TOML 1.1.0
   interoperability policy.
 - **Source and issue:** TOML 1.1.0
@@ -3111,7 +3153,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Treat TOML as generic maps, coerce
   out-of-range values, ignore unknown keys, or preserve native TOML types and
   expose strict target validation.
-- **Selected behavior and consequences:** `BurntSushi/toml` v1.6.0 parses one
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `BurntSushi/toml` v1.6.0 parses one
   complete document, including the valid empty document, and rejects duplicate
   or conflicting keys. Native date/time and numeric types are preserved;
   narrowing or incompatible target conversion is validation failure. Unknown
@@ -3127,6 +3172,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-010: MessagePack maps, extensions, numeric fit, and structure
 
+**Authoritative reference:** [MessagePack format specification](https://github.com/msgpack/msgpack/blob/8aa09e2a6a9180a49fc62ecfefe149f063cc5e4b/spec.md).
+
 - **Status, owner, and classification:** `resolved`; maintainers; MessagePack
   interoperability and defensive policy.
 - **Source and issue:** The pinned MessagePack
@@ -3137,7 +3184,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Accept last-key-wins maps, coerce
   numbers, decode all keys into interfaces, trust declared lengths, or validate
   structure and target fit before assignment.
-- **Selected behavior and consequences:** Exactly one object is required.
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Exactly one object is required.
   Recursive duplicates fail by default with opt-in compatibility; untyped maps
   require string keys while typed comparable keys remain available. Unknown
   extensions are unsupported, registered timestamp behavior is retained, and
@@ -3155,6 +3205,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-011: CBOR deterministic profiles and accepted data items
 
+**Authoritative reference:** [RFC 8949](https://www.rfc-editor.org/rfc/rfc8949.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; RFC 7049,
   RFC 8949, and CTAP2 profile policy.
 - **Source and issue:** RFC 7049
@@ -3167,7 +3219,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Call every stable encoding canonical,
   accept all valid CBOR by default, silently normalize profiles, or expose the
   exact three profiles and independent decode policy.
-- **Selected behavior and consequences:** `Canonical` means RFC 7049 section
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `Canonical` means RFC 7049 section
   3.9, `CoreDeterministic` means RFC 8949 core deterministic encoding, and
   `CTAP2Deterministic` means the pinned CTAP2 profile. Decode always rejects
   duplicate keys; tags and indefinite lengths are independently opt-in, while
@@ -3184,6 +3239,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-012: BSON document identity, order, duplicates, and conversion
 
+**Authoritative reference:** [BSON Specification Version 1.1](https://bsonspec.org/spec.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; BSON 1.1 and
   official-driver interoperability policy.
 - **Source and issue:** BSON
@@ -3194,7 +3251,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Accept scalars, ignore trailing bytes,
   accept duplicate names, claim map determinism, create local BSON types, or
   retain the official driver model with explicit options.
-- **Selected behavior and consequences:** APIs require exactly one complete
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  APIs require exactly one complete
   top-level document whose declared length and terminator validate. Recursive
   duplicate names fail by default with explicit compatibility opt-in.
   Official driver types are re-exported rather than copied. Struct, `D`, and
@@ -3211,6 +3271,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-013: Deterministic output is not universal canonicalization
 
+**Authoritative reference:** [RFC 8949](https://www.rfc-editor.org/rfc/rfc8949.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; wire-format
   compatibility policy.
 - **Source and issue:** Some formats define deterministic or canonical
@@ -3219,7 +3281,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Claim every encoder is canonical,
   promise only semantic round-trip, or describe determinism per format and
   value shape.
-- **Selected behavior and consequences:** JSON, YAML, TOML, and MessagePack
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  JSON, YAML, TOML, and MessagePack
   sort supported map keys; XML follows stable struct traversal but is not C14N;
   SOAP uses fixed package-owned envelope emission; CBOR names its exact
   profile; BSON guarantees order only for ordered shapes. Formatting options,
@@ -3235,6 +3300,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-014: Error classification, causes, and disclosure
 
+**Authoritative reference:** [Go errors package](https://pkg.go.dev/errors).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   API and privacy policy.
 - **Source and issue:** Codec errors mix syntax, type conversion, unsupported
@@ -3243,7 +3310,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Return codec errors directly, expose
   only sentinels, redact every diagnostic, or wrap bounded causes in a stable
   cross-format taxonomy.
-- **Selected behavior and consequences:** `wire.Error` classifies parse,
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `wire.Error` classifies parse,
   validation, target, unsupported, envelope, SOAP fault, size, encode, and
   write outcomes with format and operation. `errors.Is` and `errors.As` retain
   stable classification and useful causes. The package does not echo complete
@@ -3259,6 +3329,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-015: Encode graph validation and dependency differentials
 
+**Authoritative reference:** [Go language specification](https://go.dev/ref/spec).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   Go-value and dependency-boundary policy.
 - **Source and issue:** Recursive Go values can cycle or exceed stack-safe
@@ -3267,7 +3339,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Trust codecs, recover panics, reject
   every shared reference, or preflight only active recursion paths and retain
   differential tests for known policy gaps.
-- **Selected behavior and consequences:** Every typed encoder rejects cycles
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Every typed encoder rejects cycles
   on the active path and traversal beyond 1,000 levels before recursive codec
   work. Reused acyclic references remain valid. Package policy deliberately
   differs from dependencies for invalid JSON UTF-8, MessagePack, CBOR and BSON
@@ -3282,6 +3357,8 @@ review. Superseded decisions remain linked from their replacements.
 
 ## WIRE-DEC-016: Transport, schema, and application boundaries
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; scope and
   ownership policy.
 - **Source and issue:** Wire formats are commonly coupled to media types, HTTP,
@@ -3290,7 +3367,10 @@ review. Superseded decisions remain linked from their replacements.
 - **Interpretations and peer behavior:** Grow one serialization framework that
   owns all surrounding policy, infer transport behavior, or remain a narrow
   format boundary composed by higher layers.
-- **Selected behavior and consequences:** `wire` owns bounded byte and
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `wire` owns bounded byte and
   reader/writer format handling only. It does not select HTTP content types or
   status codes, SOAPAction, JSON-RPC/JSON:API behavior, WSDL/XSD validation,
   schema registries, compression, signatures, persistence, or business
