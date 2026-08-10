@@ -230,6 +230,25 @@ esac
 
 func TestVerificationSnapshotDisablesInheritedFileSystemMonitor(t *testing.T) {
 	root := testRepositoryRoot(t)
+	repository := filepath.Join(t.TempDir(), "source")
+	if err := os.MkdirAll(repository, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeTestFile(t, filepath.Join(repository, "go.mod"), "module example.test/snapshot\n\ngo 1.26.5\n")
+	for _, arguments := range [][]string{
+		{"init", "--initial-branch=main"},
+		{"config", "user.email", "golib@example.test"},
+		{"config", "user.name", "golib"},
+		{"config", "commit.gpgSign", "false"},
+		{"add", "go.mod"},
+		{"commit", "-m", "initial"},
+	} {
+		command := exec.Command("git", arguments...)
+		command.Dir = repository
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("prepare snapshot fixture: %v\n%s", err, output)
+		}
+	}
 	globalConfig := filepath.Join(t.TempDir(), "gitconfig")
 	writeTestFile(t, globalConfig, "[core]\n\tfsmonitor = true\n")
 	snapshot := filepath.Join(t.TempDir(), "repository")
@@ -239,7 +258,7 @@ func TestVerificationSnapshotDisablesInheritedFileSystemMonitor(t *testing.T) {
 	command := exec.CommandContext(
 		ctx,
 		filepath.Join(root, "scripts", "create-verification-snapshot.sh"),
-		root,
+		repository,
 		snapshot,
 	)
 	command.Env = environmentWithValues(
