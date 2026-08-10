@@ -21,14 +21,19 @@ var ErrInvalidFake = errors.New("searchtest: valid bounded limits are required")
 type Fake struct {
 	mu        sync.RWMutex
 	limits    search.Limits
-	documents map[string]search.Document
+	documents map[documentIdentity]search.Document
+	versions  map[documentIdentity]uint64
 }
 
 func NewFake(limits search.Limits) (*Fake, error) {
 	if limits.Validate() != nil {
 		return nil, ErrInvalidFake
 	}
-	return &Fake{limits: limits, documents: make(map[string]search.Document)}, nil
+	return &Fake{
+		limits:    limits,
+		documents: make(map[documentIdentity]search.Document),
+		versions:  make(map[documentIdentity]uint64),
+	}, nil
 }
 
 func (f *Fake) Capabilities(ctx context.Context) (search.Capabilities, error) {
@@ -60,14 +65,21 @@ func (f *Fake) Bulk(ctx context.Context, request search.BulkRequest) (search.Bul
 	for position, operation := range request.Operations {
 		item := search.ItemOutcome{Position: position, ID: operation.ID, Action: operation.Action, Version: operation.Version}
 		key := documentKey(operation.Tenant, operation.Index, operation.ID)
-		current, exists := f.documents[key]
-		if exists && operation.Version <= current.Version {
+		_, exists := f.documents[key]
+		currentVersion, versionExists := f.versions[key]
+		if versionExists && operation.Version <= currentVersion {
 			item.State, item.Code = search.OutcomeVersionConflict, "external_version_conflict"
 			items[position] = item
 			continue
 		}
 		switch operation.Action {
 		case search.ActionDelete:
+			if !versionExists && len(f.versions) >= f.limits.MaxPages*f.limits.MaxPageItems {
+				item.State, item.Code = search.OutcomeRejected, "fake_capacity"
+				items[position] = item
+				continue
+			}
+			f.versions[key] = operation.Version
 			if !exists {
 				item.State = search.OutcomeNotFound
 			} else {
@@ -79,15 +91,17 @@ func (f *Fake) Bulk(ctx context.Context, request search.BulkRequest) (search.Bul
 				item.State = search.OutcomeNotFound
 			} else {
 				f.documents[key] = operationDocument(operation)
+				f.versions[key] = operation.Version
 				item.State = search.OutcomeApplied
 			}
 		case search.ActionIndex, search.ActionUpsert:
-			if !exists && len(f.documents) >= f.limits.MaxPages*f.limits.MaxPageItems {
+			if !versionExists && len(f.versions) >= f.limits.MaxPages*f.limits.MaxPageItems {
 				item.State, item.Code = search.OutcomeRejected, "fake_capacity"
 				items[position] = item
 				continue
 			}
 			f.documents[key] = operationDocument(operation)
+			f.versions[key] = operation.Version
 			item.State = search.OutcomeApplied
 		}
 		items[position] = item
@@ -140,7 +154,7 @@ func (f *Fake) Search(ctx context.Context, request search.Request) (search.Resul
 }
 
 func fakeCapabilities() search.Capabilities {
-	return search.Capabilities{Boolean: true, Term: true, Prefix: true, Exists: true, Offset: true, ExternalVersion: true, BulkPartialOutcomes: true}
+	return search.Capabilities{Boolean: true, Term: true, Prefix: true, Exists: true, Offset: true, ExternalVersion: true, UpdateExisting: true, BulkPartialOutcomes: true}
 }
 
 func matches(query search.Query, source json.RawMessage) (bool, error) {
@@ -170,8 +184,8 @@ func matchesFields(query search.Query, fields map[string]any) (bool, error) {
 		text, ok := actual.(string)
 		return exists && ok && strings.HasPrefix(text, node.Prefix), nil
 	case search.ExistsQuery:
-		_, exists := lookup(fields, node.Field)
-		return exists, nil
+		actual, exists := lookup(fields, node.Field)
+		return exists && hasIndexedValue(actual), nil
 	case search.BoolQuery:
 		for _, child := range append(append([]search.Query{}, node.Must...), node.Filter...) {
 			matched, err := matchesFields(child, fields)
@@ -201,10 +215,30 @@ func matchesFields(query search.Query, fields map[string]any) (bool, error) {
 				matchedShould++
 			}
 		}
-		return matchedShould >= node.MinimumShouldMatch, nil
+		minimumShouldMatch := node.MinimumShouldMatch
+		if minimumShouldMatch == 0 && len(node.Should) > 0 && len(node.Must) == 0 && len(node.Filter) == 0 {
+			minimumShouldMatch = 1
+		}
+		return matchedShould >= minimumShouldMatch, nil
 	default:
 		return false, search.ErrUnsupported
 	}
+}
+
+func hasIndexedValue(value any) bool {
+	if value == nil {
+		return false
+	}
+	values, array := value.([]any)
+	if !array {
+		return true
+	}
+	for _, item := range values {
+		if hasIndexedValue(item) {
+			return true
+		}
+	}
+	return false
 }
 
 func lookup(fields map[string]any, path string) (any, bool) {
@@ -225,5 +259,10 @@ func lookup(fields map[string]any, path string) (any, bool) {
 func operationDocument(operation search.WriteOperation) search.Document {
 	return search.Document{Tenant: operation.Tenant, Index: operation.Index, ID: operation.ID, Version: operation.Version, Source: append(json.RawMessage(nil), operation.Source...)}
 }
-func documentKey(tenant, index, id string) string { return tenant + "\x00" + index + "\x00" + id }
-func mustJSON(value string) json.RawMessage       { encoded, _ := json.Marshal(value); return encoded }
+
+type documentIdentity struct{ tenant, index, id string }
+
+func documentKey(tenant, index, id string) documentIdentity {
+	return documentIdentity{tenant: tenant, index: index, id: id}
+}
+func mustJSON(value string) json.RawMessage { encoded, _ := json.Marshal(value); return encoded }
