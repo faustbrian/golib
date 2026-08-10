@@ -2220,7 +2220,9 @@
         "RFC 7518 JSON Web Algorithms",
         "RFC 7519 JSON Web Token",
         "RFC 8259 JSON",
-        "RFC 8725 JSON Web Token Best Current Practices"
+        "RFC 8725 JSON Web Token Best Current Practices",
+        "RFC 9110 HTTP Semantics",
+        "RFC 9111 HTTP Caching"
       ],
       "conformance_corpora": [
         "RFC 7515 Appendix A.2 RS256 compact JWS",
