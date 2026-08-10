@@ -107,14 +107,24 @@ func NewOperatorCompensationResolution(spec OperatorCompensationResolutionSpec) 
 		spec.CommandID, spec.Instance, OperatorResolveCompensation,
 		spec.Actor, spec.Reason, spec.OccurredAt,
 	)
-	if err != nil || spec.Definition.Reference() != spec.Instance.definition {
+	if err != nil {
+		return Transition{}, ErrInvalidOperatorCommand
+	}
+	if spec.Definition.Reference() != spec.Instance.definition {
 		return Transition{}, ErrInvalidOperatorCommand
 	}
 	step, ok := definitionActivityStep(spec.Definition, spec.StepName)
+	if !ok || step.Compensation == nil {
+		return Transition{}, ErrInvalidOperatorCommand
+	}
 	progress, exists := spec.Instance.Compensation(spec.StepName)
-	if !ok || step.Compensation == nil || !exists ||
-		(progress.Status() != CompensationFailed && progress.Status() != CompensationUnknown) ||
-		!stableName.MatchString(spec.Code) || len(spec.Evidence) > int(step.Compensation.ResultLimit) {
+	if !exists {
+		return Transition{}, ErrInvalidOperatorCommand
+	}
+	if progress.Status() != CompensationFailed && progress.Status() != CompensationUnknown {
+		return Transition{}, ErrInvalidOperatorCommand
+	}
+	if !stableName.MatchString(spec.Code) || len(spec.Evidence) > int(step.Compensation.ResultLimit) {
 		return Transition{}, ErrInvalidOperatorCommand
 	}
 	resolved, _ := NewHistoryEvent(HistoryEventSpec{
@@ -149,7 +159,10 @@ func NewOperatorApproval(spec OperatorApprovalSpec) (Transition, error) {
 	audit, commandInstance, err := newOperatorWorkAudit(
 		spec.CommandID, spec.Instance, OperatorApprove, spec.Actor, spec.Reason, spec.OccurredAt,
 	)
-	if err != nil || spec.Definition.Reference() != spec.Instance.definition {
+	if err != nil {
+		return Transition{}, ErrInvalidOperatorCommand
+	}
+	if spec.Definition.Reference() != spec.Instance.definition {
 		return Transition{}, ErrInvalidOperatorCommand
 	}
 	step, ok := definitionStep(spec.Definition, spec.StepName, StepApproval)
@@ -177,9 +190,16 @@ func newOperatorWorkAudit(
 	reason string,
 	occurredAt time.Time,
 ) (HistoryEvent, Instance, error) {
-	if !instanceIDPattern.MatchString(commandID) || occurredAt.IsZero() ||
-		occurredAt.Before(instance.updatedAt) || instance.sequence > ^uint64(0)-2 ||
-		!instanceIDPattern.MatchString(instance.id) || !instance.definition.valid() {
+	if !instanceIDPattern.MatchString(commandID) {
+		return HistoryEvent{}, Instance{}, ErrInvalidOperatorCommand
+	}
+	if occurredAt.IsZero() || occurredAt.Before(instance.updatedAt) {
+		return HistoryEvent{}, Instance{}, ErrInvalidOperatorCommand
+	}
+	if instance.sequence > ^uint64(0)-2 {
+		return HistoryEvent{}, Instance{}, ErrInvalidOperatorCommand
+	}
+	if !instanceIDPattern.MatchString(instance.id) || !instance.definition.valid() {
 		return HistoryEvent{}, Instance{}, ErrInvalidOperatorCommand
 	}
 	document := operatorAuditDocument{Action: action, Actor: actor, Reason: reason}

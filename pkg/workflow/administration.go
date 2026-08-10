@@ -53,8 +53,10 @@ func (cursor InstanceListCursor) CreatedAt() time.Time { return cursor.createdAt
 func (cursor InstanceListCursor) InstanceID() string { return cursor.instanceID }
 
 func (cursor InstanceListCursor) valid() bool {
-	return (cursor.createdAt.IsZero() && cursor.instanceID == "") ||
-		(!cursor.createdAt.IsZero() && instanceIDPattern.MatchString(cursor.instanceID))
+	if cursor.createdAt.IsZero() {
+		return cursor.instanceID == ""
+	}
+	return instanceIDPattern.MatchString(cursor.instanceID)
 }
 
 // InstanceListQuerySpec supplies one bounded stable list request.
@@ -204,8 +206,13 @@ func instanceSelectionMatches(selection InstanceListSelection, item InstanceReco
 }
 
 func cursorBefore(cursor InstanceListCursor, createdAt time.Time, instanceID string) bool {
-	return cursor.createdAt.IsZero() || createdAt.After(cursor.createdAt) ||
-		(createdAt.Equal(cursor.createdAt) && instanceID > cursor.instanceID)
+	if cursor.createdAt.IsZero() || createdAt.After(cursor.createdAt) {
+		return true
+	}
+	if !createdAt.Equal(cursor.createdAt) {
+		return false
+	}
+	return instanceID > cursor.instanceID
 }
 
 // TransitionReconciliationSpec supplies one uncertain transition identity.

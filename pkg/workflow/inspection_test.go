@@ -50,7 +50,7 @@ func TestInspectInstanceReplaysBoundedStableHistoryPages(t *testing.T) {
 		t.Fatalf("inspect instance: %v", err)
 	}
 	if instance.ID() != "instance-1" || instance.Sequence() != 3 || instance.Status() != workflow.StatusRunning ||
-		len(reader.queries) != 2 || reader.queries[1].AfterSequence() != 2 {
+		len(reader.queries) != 2 || reader.queries[1].AfterSequence() != 2 || reader.queries[1].Limit() != 1 {
 		t.Fatalf("inspection = %#v queries %#v", instance, reader.queries)
 	}
 }
@@ -152,17 +152,29 @@ func TestInspectionAndExportRejectInvalidOrUnboundedRequests(t *testing.T) {
 			t.Fatalf("invalid inspection error = %v for %#v", err, spec)
 		}
 	}
-	if _, err := workflow.InspectInstance(nil, reader, registry, workflow.InstanceInspectionSpec{}); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+	validInspection := workflow.InstanceInspectionSpec{InstanceID: "instance-1", PageSize: 1, MaxEvents: 2}
+	if _, err := workflow.InspectInstance(nil, reader, registry, validInspection); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
 		t.Fatalf("nil context error = %v", err)
 	}
-	if _, err := workflow.InspectInstance(context.Background(), nil, registry, workflow.InstanceInspectionSpec{}); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+	if _, err := workflow.InspectInstance(context.Background(), nil, registry, validInspection); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
 		t.Fatalf("nil reader error = %v", err)
 	}
-	if _, err := workflow.InspectInstance(context.Background(), reader, nil, workflow.InstanceInspectionSpec{}); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+	if _, err := workflow.InspectInstance(context.Background(), reader, nil, validInspection); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
 		t.Fatalf("nil registry error = %v", err)
 	}
-	if err := workflow.ExportHistory(context.Background(), nil, workflow.HistoryExportSpec{}, nil); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
-		t.Fatalf("invalid export error = %v", err)
+	validExport := workflow.HistoryExportSpec{InstanceID: "instance-1", PageSize: 1, MaxEvents: 2}
+	validSink := func(context.Context, []workflow.HistoryEvent) error { return nil }
+	for name, err := range map[string]error{
+		"nil context": workflow.ExportHistory(nil, reader, validExport, validSink),
+		"nil reader":  workflow.ExportHistory(context.Background(), nil, validExport, validSink),
+		"nil sink":    workflow.ExportHistory(context.Background(), reader, validExport, nil),
+		"invalid spec": workflow.ExportHistory(
+			context.Background(), reader, workflow.HistoryExportSpec{}, validSink,
+		),
+	} {
+		if !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+			t.Fatalf("%s export error = %v", name, err)
+		}
 	}
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -170,5 +182,21 @@ func TestInspectionAndExportRejectInvalidOrUnboundedRequests(t *testing.T) {
 		InstanceID: "instance-1", PageSize: 1, MaxEvents: 2,
 	}); !errors.Is(err, context.Canceled) {
 		t.Fatalf("cancelled inspection error = %v", err)
+	}
+}
+
+func TestExportHistoryDoesNotInvokeSinkForEmptyHistory(t *testing.T) {
+	t.Parallel()
+
+	reader := &inspectionHistoryReader{}
+	calls := 0
+	err := workflow.ExportHistory(context.Background(), reader, workflow.HistoryExportSpec{
+		InstanceID: "instance-1", PageSize: 1, MaxEvents: 1,
+	}, func(context.Context, []workflow.HistoryEvent) error {
+		calls++
+		return nil
+	})
+	if err != nil || calls != 0 || len(reader.queries) != 1 {
+		t.Fatalf("empty export error = %v, calls = %d, queries = %#v", err, calls, reader.queries)
 	}
 }

@@ -49,8 +49,16 @@ func InspectInstance(
 	registry *Registry,
 	spec InstanceInspectionSpec,
 ) (Instance, error) {
-	if ctx == nil || reader == nil || registry == nil ||
-		!validHistoryTraversal(spec.InstanceID, spec.PageSize, spec.MaxEvents) {
+	if ctx == nil {
+		return Instance{}, ErrInvalidStoreRequest
+	}
+	if reader == nil {
+		return Instance{}, ErrInvalidStoreRequest
+	}
+	if registry == nil {
+		return Instance{}, ErrInvalidStoreRequest
+	}
+	if !validHistoryTraversal(spec.InstanceID, spec.PageSize, spec.MaxEvents) {
 		return Instance{}, ErrInvalidStoreRequest
 	}
 	events := make([]HistoryEvent, 0, min(spec.MaxEvents, spec.PageSize))
@@ -73,17 +81,29 @@ func ExportHistory(
 	spec HistoryExportSpec,
 	sink HistoryExportSink,
 ) error {
-	if ctx == nil || reader == nil || sink == nil ||
-		!validHistoryTraversal(spec.InstanceID, spec.PageSize, spec.MaxEvents) {
+	if ctx == nil {
+		return ErrInvalidStoreRequest
+	}
+	if reader == nil {
+		return ErrInvalidStoreRequest
+	}
+	if sink == nil {
+		return ErrInvalidStoreRequest
+	}
+	if !validHistoryTraversal(spec.InstanceID, spec.PageSize, spec.MaxEvents) {
 		return ErrInvalidStoreRequest
 	}
 	return traverseHistory(ctx, reader, spec.InstanceID, spec.PageSize, spec.MaxEvents, sink)
 }
 
 func validHistoryTraversal(instanceID string, pageSize, maxEvents uint32) bool {
-	return instanceIDPattern.MatchString(instanceID) && pageSize > 0 &&
-		pageSize <= MaxHistoryPageEvents && maxEvents > 0 &&
-		maxEvents <= MaxInspectionHistoryEvents
+	if !instanceIDPattern.MatchString(instanceID) {
+		return false
+	}
+	if pageSize == 0 || pageSize > MaxHistoryPageEvents {
+		return false
+	}
+	return maxEvents > 0 && maxEvents <= MaxInspectionHistoryEvents
 }
 
 func traverseHistory(
@@ -110,16 +130,20 @@ func traverseHistory(
 		}
 		events := page.Events()
 		validated, err := NewHistoryPage(query, events, page.HasMore())
-		if err != nil || validated.NextAfterSequence() != page.NextAfterSequence() {
+		if err != nil {
 			return ErrInvalidStoreRequest
 		}
-		if len(events) > 0 {
-			if err := sink(ctx, events); err != nil {
-				return err
-			}
-			count += uint64(len(events))
-			after = page.NextAfterSequence()
+		if validated.NextAfterSequence() != page.NextAfterSequence() {
+			return ErrInvalidStoreRequest
 		}
+		if len(events) == 0 {
+			return nil
+		}
+		if err := sink(ctx, events); err != nil {
+			return err
+		}
+		count = count + uint64(len(events))
+		after = page.NextAfterSequence()
 		if !page.HasMore() {
 			return nil
 		}

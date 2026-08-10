@@ -292,6 +292,7 @@ func TestDefinitionRejectsAmbiguousControlFlowBranches(t *testing.T) {
 		{Name: "missing", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"absent"}},
 		{Name: "malformed", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{" spaces "}},
 		{Name: "duplicate", Kind: workflow.StepParallel, FanOutLimit: 2, Branches: []string{"work", "work"}},
+		{Name: "self", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"self"}},
 	}
 	for _, control := range controls {
 		if _, err := workflow.NewDefinition(workflow.DefinitionSpec{
