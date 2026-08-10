@@ -7,6 +7,18 @@ import (
 	"testing"
 )
 
+func TestFailFastAggregateVerifierQueryCapacityBoundsTopology(t *testing.T) {
+	paths := []StemPath{
+		PresentStemPath(Stem{1}, 3),
+		MissingStemPath(Stem{2}, 2),
+		DifferentStemPath(Stem{3}, 2, Stem{4}),
+	}
+	got, err := aggregateVerifierQueryCapacity(context.Background(), 2, paths, 100)
+	if err != nil || got != 17 {
+		t.Fatalf("topology query capacity = %d, want 17: %v", got, err)
+	}
+}
+
 func TestFailFastProofMaterialRemainingBoundary(t *testing.T) {
 	t.Parallel()
 
