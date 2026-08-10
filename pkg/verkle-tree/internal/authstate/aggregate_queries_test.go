@@ -388,8 +388,6 @@ func TestAggregateVerifierQueriesPreserveCancellation(t *testing.T) {
 }
 
 func TestAggregateVerifierQueriesRejectInvalidInputsAndResources(t *testing.T) {
-	t.Parallel()
-
 	if _, err := (ProofMaterial{}).AggregateVerifierQueries(
 		context.Background(),
 		testAggregateVerifierQueryLimits(),
