@@ -307,6 +307,21 @@ func TestFailFastStatelessProofKeyAccountsForNextSlot(t *testing.T) {
 	}
 }
 
+func TestFailFastStatelessDeleteScratchAccountsForWholeVector(t *testing.T) {
+	proof := TreeProof{stemPaths: []StemPath{{kind: StemPathPresent}}}
+	presentBytes := statelessTemporaryBytes(proof, 1, false)
+	deletionBytes := statelessTemporaryBytes(proof, 1, true)
+	vectorBytes := uint64(len(backend.Vector{}) * len(backend.Vector{}[0]))
+	if deletionBytes != presentBytes+vectorBytes {
+		t.Fatalf(
+			"deletion scratch = %d, want present %d plus vector %d",
+			deletionBytes,
+			presentBytes,
+			vectorBytes,
+		)
+	}
+}
+
 func TestFailFastUpdateProofClassifiesWholeStemTransitions(t *testing.T) {
 	first := testKey(5, 1)
 	second := testKey(5, 2)
