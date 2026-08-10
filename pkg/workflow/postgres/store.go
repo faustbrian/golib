@@ -155,7 +155,8 @@ VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
 		updateInstance: "UPDATE " + instances + `
 SET definition_name = $1, definition_version = $2,
-    definition_fingerprint = $3, sequence = $4, updated_at = $5
+    definition_fingerprint = $3, sequence = $4, updated_at = $5,
+    archived_at = COALESCE(archived_at, $8)
 WHERE instance_id = $6 AND sequence = $7`,
 		history:        "SELECT sequence, kind, occurred_at, definition_name, definition_version, definition_fingerprint, successor_id, step_name, attempt, idempotency_key, due_at, code, retryable, data FROM " + history + " WHERE instance_id = $1 AND sequence > $2 ORDER BY sequence ASC LIMIT $3",
 		instanceExists: "SELECT EXISTS (SELECT 1 FROM " + instances + " WHERE instance_id = $1)",
@@ -388,6 +389,7 @@ func (store *Store) Commit(ctx context.Context, transition workflow.Transition) 
 	result, err := tx.Exec(ctx, store.queries.updateInstance,
 		nextDefinition.Name(), nextDefinition.Version(), nextDefinition.Fingerprint(),
 		last.Sequence(), last.OccurredAt(), transition.InstanceID(), transition.ExpectedSequence(),
+		terminalArchiveTime(last),
 	)
 	if err != nil {
 		return notCommitted(err)
@@ -399,6 +401,18 @@ func (store *Store) Commit(ctx context.Context, transition workflow.Transition) 
 		return workflow.NewStoreCommitError(workflow.StoreCommitUnknown, err)
 	}
 	return nil
+}
+
+func terminalArchiveTime(event workflow.HistoryEvent) *time.Time {
+	switch event.Kind() {
+	case workflow.EventInstanceCompleted, workflow.EventInstanceFailed,
+		workflow.EventInstanceCancelled, workflow.EventInstanceTerminated,
+		workflow.EventContinuedAsNew:
+		occurredAt := event.OccurredAt()
+		return &occurredAt
+	default:
+		return nil
+	}
 }
 
 // History reads one stable bounded forward instance page. It validates every

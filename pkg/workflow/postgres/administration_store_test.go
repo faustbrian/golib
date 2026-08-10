@@ -22,6 +22,7 @@ func TestListInstancesSupportsArchiveSelectionsAndStableCursor(t *testing.T) {
 	}}}
 	archivedPage, err := newStore(archivedDatabase, "workflow").ListInstances(context.Background(), archivedQuery)
 	if err != nil || len(archivedPage.Items()) != 1 || archivedPage.Items()[0].ArchivedAt() != archivedAt ||
+		archivedPage.HasMore() ||
 		!strings.Contains(archivedDatabase.lastQuery, "archived_at IS NOT NULL") {
 		t.Fatalf("archived instances = %#v, %v query %q", archivedPage, err, archivedDatabase.lastQuery)
 	}

@@ -205,6 +205,40 @@ func TestPostgreSQLAtomicTransitionsAndStableHistory(t *testing.T) {
 		t.Fatalf("failed transaction visibility = history %d transition %d", historyCount, transitionCount)
 	}
 
+	completedAt := retryAt.Add(time.Minute)
+	completedEvent, err := workflow.NewHistoryEvent(workflow.HistoryEventSpec{
+		Sequence: 4, InstanceID: created.InstanceID(), Kind: workflow.EventInstanceCompleted,
+		OccurredAt: completedAt, Data: []byte("complete"),
+	})
+	if err != nil {
+		t.Fatalf("construct completion event: %v", err)
+	}
+	completedTransition, err := workflow.NewTransition(workflow.TransitionSpec{
+		ID: "transition-completed", InstanceID: created.InstanceID(), ExpectedSequence: 3,
+		Definition: created.Definition(), Events: []workflow.HistoryEvent{completedEvent},
+	})
+	if err != nil {
+		t.Fatalf("construct completion transition: %v", err)
+	}
+	if err := store.Commit(ctx, completedTransition); err != nil {
+		t.Fatalf("commit completion: %v", err)
+	}
+	if active, err := store.ListInstances(ctx, listQuery); err != nil || len(active.Items()) != 0 {
+		t.Fatalf("list active after completion = %#v, %v", active, err)
+	}
+	archivedQuery, err := workflow.NewInstanceListQuery(workflow.InstanceListQuerySpec{
+		Selection: workflow.ListArchivedInstances, Limit: 10,
+	})
+	if err != nil {
+		t.Fatalf("construct archived list query: %v", err)
+	}
+	archived, err := store.ListInstances(ctx, archivedQuery)
+	if err != nil || len(archived.Items()) != 1 ||
+		archived.Items()[0].InstanceID() != created.InstanceID() ||
+		!archived.Items()[0].ArchivedAt().Equal(completedAt) {
+		t.Fatalf("list archived after completion = %#v, %v", archived, err)
+	}
+
 	missing, err := workflow.NewHistoryQuery(workflow.HistoryQuerySpec{InstanceID: "missing", Limit: 1})
 	if err != nil {
 		t.Fatalf("construct missing query: %v", err)

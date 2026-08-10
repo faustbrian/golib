@@ -57,7 +57,8 @@ reconciled as missing, exact committed, or conflicting identities. Due-work
 claims use atomic locked admission with stable ordering. Lease expiry never
 exceeds the persisted work deadline, and every retry or crash recovery
 increments the attempt and fencing token so a stale owner cannot complete or
-release work.
+release work. A terminal transition archives its instance in the same database
+transaction, so active and archived list views cannot lag the durable outcome.
 
 A `WorkProcessor` must honor cancellation and stop all of its goroutines before
 returning. It must persist the workflow transition represented by a work item

@@ -189,6 +189,48 @@ func TestCommitPersistsMigrationIdentityAndDueTimes(t *testing.T) {
 	if update[0] != next.Name() || update[1] != next.Version() || update[2] != next.Fingerprint() {
 		t.Fatalf("migration update identity = %#v", update[:3])
 	}
+	if update[7] != (*time.Time)(nil) {
+		t.Fatalf("nonterminal migration archive time = %#v", update[7])
+	}
+}
+
+func TestTerminalArchiveTimeMatchesEveryTerminalOutcome(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 10, 20, 0, 0, 0, time.UTC)
+	reference := mustCreateTransition(t).Definition()
+	tests := []struct {
+		name string
+		spec workflow.HistoryEventSpec
+		want bool
+	}{
+		{name: "completed", spec: workflow.HistoryEventSpec{Kind: workflow.EventInstanceCompleted}, want: true},
+		{name: "failed", spec: workflow.HistoryEventSpec{Kind: workflow.EventInstanceFailed}, want: true},
+		{name: "cancelled", spec: workflow.HistoryEventSpec{Kind: workflow.EventInstanceCancelled}, want: true},
+		{name: "terminated", spec: workflow.HistoryEventSpec{Kind: workflow.EventInstanceTerminated}, want: true},
+		{name: "continued as new", spec: workflow.HistoryEventSpec{Kind: workflow.EventContinuedAsNew, Definition: reference, SuccessorID: "successor-1"}, want: true},
+		{name: "paused", spec: workflow.HistoryEventSpec{Kind: workflow.EventInstancePaused}},
+	}
+	for index := range tests {
+		test := tests[index]
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			test.spec.Sequence = 2
+			test.spec.InstanceID = "instance-1"
+			test.spec.OccurredAt = now
+			event, err := workflow.NewHistoryEvent(test.spec)
+			if err != nil {
+				t.Fatalf("construct event: %v", err)
+			}
+			archivedAt := terminalArchiveTime(event)
+			if test.want && (archivedAt == nil || !archivedAt.Equal(now)) {
+				t.Fatalf("terminal archive time = %v", archivedAt)
+			}
+			if !test.want && archivedAt != nil {
+				t.Fatalf("nonterminal archive time = %v", archivedAt)
+			}
+		})
+	}
 }
 
 func TestHistoryRejectsInvalidRequestsAndDatabaseFailures(t *testing.T) {

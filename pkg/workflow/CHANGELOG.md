@@ -75,5 +75,7 @@ and releases use Semantic Versioning.
 
 ### Changed
 
+- PostgreSQL commits now archive completed, failed, cancelled, terminated, and
+  continued-as-new instances atomically with their terminal history.
 - `StepChild` definitions now require `ChildDefinition`; existing child steps
   must pin the exact registered child name, version, and fingerprint.
