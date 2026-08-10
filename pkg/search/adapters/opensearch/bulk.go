@@ -19,7 +19,7 @@ func (c *Client) Bulk(ctx context.Context, request search.BulkRequest) (search.B
 	if c.search == nil {
 		return search.BulkResult{}, ErrSearchDisabled
 	}
-	capabilities := search.Capabilities{ExternalVersion: true, BulkPartialOutcomes: true}
+	capabilities := search.Capabilities{ExternalVersion: true, UpdateExisting: false, BulkPartialOutcomes: true}
 	if err := request.Validate(capabilities, c.search.Limits); err != nil {
 		return search.BulkResult{}, err
 	}
@@ -123,7 +123,7 @@ func decodeBulkResponse(operations []search.WriteOperation, body []byte) (search
 		} else if decoded.Version != operation.Version || decoded.Error != nil {
 			return search.BulkResult{}, ErrMalformedResponse
 		}
-		state, retryable := classifyBulkItem(decoded.Status, decoded.Error)
+		state, retryable := classifyBulkItem(operation.Action, decoded.Status, decoded.Error)
 		code := ""
 		if decoded.Error != nil {
 			code = decoded.Error.Type
@@ -139,13 +139,13 @@ func decodeBulkResponse(operations []search.WriteOperation, body []byte) (search
 	return search.NewBulkResult(outcomes)
 }
 
-func classifyBulkItem(status int, failure *struct {
+func classifyBulkItem(action search.WriteAction, status int, failure *struct {
 	Type string `json:"type"`
 }) (search.OutcomeState, bool) {
 	switch {
 	case status >= 200 && status < 300:
 		return search.OutcomeApplied, false
-	case status == http.StatusNotFound:
+	case status == http.StatusNotFound && action == search.ActionDelete:
 		return search.OutcomeNotFound, false
 	case status == http.StatusConflict:
 		return search.OutcomeVersionConflict, false

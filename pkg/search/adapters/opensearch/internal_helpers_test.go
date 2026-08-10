@@ -225,15 +225,16 @@ func TestInternalFailureWriteAndBulkClassifications(t *testing.T) {
 		Type string `json:"type"`
 	}{Type: "x"}
 	for _, test := range []struct {
+		action search.WriteAction
 		status int
 		state  search.OutcomeState
 		retry  bool
-	}{{200, search.OutcomeApplied, false}, {404, search.OutcomeNotFound, false}, {409, search.OutcomeVersionConflict, false}, {429, search.OutcomeRejected, true}, {503, search.OutcomeRejected, true}, {400, search.OutcomeFailed, false}, {418, search.OutcomeUnknown, false}} {
+	}{{search.ActionIndex, 200, search.OutcomeApplied, false}, {search.ActionDelete, 404, search.OutcomeNotFound, false}, {search.ActionIndex, 404, search.OutcomeFailed, false}, {search.ActionIndex, 409, search.OutcomeVersionConflict, false}, {search.ActionIndex, 429, search.OutcomeRejected, true}, {search.ActionIndex, 503, search.OutcomeRejected, true}, {search.ActionIndex, 400, search.OutcomeFailed, false}, {search.ActionIndex, 418, search.OutcomeUnknown, false}} {
 		failure := failureType
 		if test.status == 418 {
 			failure = nil
 		}
-		state, retry := classifyBulkItem(test.status, failure)
+		state, retry := classifyBulkItem(test.action, test.status, failure)
 		if state != test.state || retry != test.retry {
 			t.Fatal(test)
 		}

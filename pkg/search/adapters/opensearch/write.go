@@ -11,9 +11,9 @@ import (
 	"github.com/faustbrian/golib/pkg/search"
 )
 
-// Write applies one externally versioned full-document mutation. Update and
-// upsert are full-source replacements because OpenSearch's partial Update API
-// does not provide the required external-version contract.
+// Write applies one externally versioned full-document mutation. Update is
+// rejected because OpenSearch cannot preserve the shared update-existing
+// contract together with external versioning.
 func (c *Client) Write(ctx context.Context, operation search.WriteOperation, refresh search.RefreshPolicy) (search.ItemOutcome, error) {
 	if ctx == nil {
 		return search.ItemOutcome{}, ErrContextRequired
@@ -22,7 +22,7 @@ func (c *Client) Write(ctx context.Context, operation search.WriteOperation, ref
 		return search.ItemOutcome{}, ErrSearchDisabled
 	}
 	validation := search.BulkRequest{Operations: []search.WriteOperation{operation}, Refresh: refresh}
-	if err := validation.Validate(search.Capabilities{ExternalVersion: true, BulkPartialOutcomes: true}, c.search.Limits); err != nil {
+	if err := validation.Validate(search.Capabilities{ExternalVersion: true, UpdateExisting: false, BulkPartialOutcomes: true}, c.search.Limits); err != nil {
 		return search.ItemOutcome{}, err
 	}
 	target, err := c.search.Resolver.Resolve(ctx, operation.Tenant, operation.Index, IndexWrite)

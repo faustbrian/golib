@@ -90,7 +90,7 @@ func TestBulkWireContractAndResponseBoundaries(t *testing.T) {
 		status int
 		state  search.OutcomeState
 	}{{199, search.OutcomeUnknown}, {200, search.OutcomeApplied}, {299, search.OutcomeApplied}, {300, search.OutcomeUnknown}} {
-		state, _ := classifyBulkItem(test.status, nil)
+		state, _ := classifyBulkItem(search.ActionIndex, test.status, nil)
 		if state != test.state {
 			t.Fatalf("status %d classified as %s", test.status, state)
 		}

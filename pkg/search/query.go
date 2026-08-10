@@ -20,11 +20,11 @@ var (
 // Capabilities declares adapter behavior. False means the adapter must reject
 // the feature before network execution rather than silently degrading it.
 type Capabilities struct {
-	Boolean, Term, FullText, Prefix, Range, Exists, Geo bool
-	Cursor, PointInTime, Offset                         bool
-	Projection, Highlight, Aggregation, Suggestion      bool
+	Boolean, Term, FullText, Prefix, Range, Exists, Geo  bool
+	Cursor, PointInTime, Offset                          bool
+	Projection, Highlight, Aggregation, Suggestion       bool
 	ExternalVersion, UpdateExisting, BulkPartialOutcomes bool
-	Lifecycle, Templates, RawExtensions                 bool
+	Lifecycle, Templates, RawExtensions                  bool
 }
 
 // AllCapabilities returns the complete shared capability set, primarily for
