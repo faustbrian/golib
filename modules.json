@@ -9235,9 +9235,28 @@
       "build_tags": [],
       "test_tags": [],
       "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
+      "specifications": [
+        "RFC 9421 HTTP Message Signatures",
+        "RFC 9530 Digest Fields",
+        "RFC 8941 Structured Field Values for HTTP",
+        "IANA HTTP Message Signature registries",
+        "IANA Hash Algorithms for HTTP Digest Fields registry",
+        "IANA HTTP Field Name registry",
+        "NIST CAVP FIPS 186-3 ECDSA test vectors"
+      ],
+      "conformance_corpora": [
+        "RFC 9421 Appendix B examples",
+        "RFC 9530 examples",
+        "NIST CAVP FIPS 186-3 ECDSA P-384 vectors",
+        "yaronf/httpsign RFC 9421 fixtures at de382d35c1add89cc09b9355161d61471fb7f632",
+        "dadrus/httpsig RFC 9421 fixtures at 0f24bf7dd9b76727af985d9a6f7ce87207a18387"
+      ],
+      "provenance": [
+        "pkg/http-signature/spec/sources.lock.json",
+        "pkg/http-signature/spec/normative-requirements.json",
+        "pkg/http-signature/spec/errata-decisions.md",
+        "pkg/http-signature/spec/interoperability.md"
+      ],
       "goal_files": [
         "pkg/http-signature/.ai/GOAL.md",
         "pkg/http-signature/.ai/GOAL_HARDEN.md"
@@ -9314,7 +9333,7 @@
       "gates": {
         "api_compatibility": true,
         "benchmarks": true,
-        "conformance": false,
+        "conformance": true,
         "coverage": true,
         "documentation": true,
         "fuzz": true,
