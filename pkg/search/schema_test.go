@@ -102,3 +102,13 @@ func TestIndexDefinitionAcceptsExactJSONLimitsAndUnicode(t *testing.T) {
 		t.Fatalf("Name() = %q", definition.Name())
 	}
 }
+
+func TestIndexDefinitionRejectsMissingJSONResourceLimits(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	limits.MaxJSONDepth = 0
+	if _, err := search.NewIndexDefinition("index-v1", json.RawMessage(`{}`), json.RawMessage(`{}`), limits); !errors.Is(err, search.ErrInvalidLimits) {
+		t.Fatalf("NewIndexDefinition() error = %v, want ErrInvalidLimits", err)
+	}
+}

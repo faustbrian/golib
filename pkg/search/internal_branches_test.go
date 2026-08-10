@@ -398,6 +398,12 @@ func TestInternalValueSchemaDocumentAndLimitBranches(t *testing.T) {
 	if _, err := NewIndexDefinition("index-v1", json.RawMessage(`{}`), json.RawMessage(`[]`), limits); err == nil {
 		t.Fatal("invalid mappings accepted")
 	}
+	if _, err := NewDocument("t", "i", "id", 1, json.RawMessage(`{"a":1,}`), limits); !errors.Is(err, ErrInvalidSource) {
+		t.Fatal("malformed object key accepted")
+	}
+	if _, err := canonicalJSONObject(json.RawMessage(`{`)); err == nil {
+		t.Fatal("malformed canonical object accepted")
+	}
 	other, _ := NewIndexDefinition("index-v2", json.RawMessage(`{"x":1}`), json.RawMessage(`{"y":1}`), limits)
 	compatibility := CompareDefinitions(valid, other)
 	if len(compatibility.Reasons) != 2 {

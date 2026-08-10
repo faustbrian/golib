@@ -11,6 +11,12 @@ empty. Constructors validate applicable byte limits, JSON shape, coordinates,
 and decimal grammar before any backend call. Documents and returned values own
 their copied bytes; request slices and raw-extension payloads remain caller
 owned and must not be mutated while validation or execution is in progress.
+`Limits.MaxJSONDepth` bounds container nesting with the root object at depth
+one. `Limits.MaxJSONNodes` bounds the total object fields and array elements;
+for an index definition, settings and mappings share one combined node budget.
+Document sources, settings, and mappings reject duplicate object keys after
+JSON escape decoding, so ambiguous input such as `"name"` and `"n\u0061me"`
+cannot be silently overwritten. Both bounds must be positive.
 
 ## Queries
 

@@ -128,7 +128,8 @@ func TestCursorSearchRejectsPartialPagesAndClosesOwnedPIT(t *testing.T) {
 					QueryFingerprint: fingerprint, IndexFingerprint: "fingerprint",
 				}
 				cursor, err := client.search.CursorCodec.Encode(binding, search.CursorState{
-					PointInTime: "pit", ExpiresAt: time.Now().Add(time.Minute),
+					PointInTime: "pit", SortValues: []json.RawMessage{json.RawMessage(`"previous"`)},
+					ExpiresAt: time.Now().Add(time.Minute),
 				})
 				if err != nil {
 					t.Fatal(err)

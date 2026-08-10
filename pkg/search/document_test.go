@@ -64,6 +64,16 @@ func TestDocumentAcceptsExactJSONLimitsAndPreservesUnicode(t *testing.T) {
 	}
 }
 
+func TestDocumentRejectsMissingJSONResourceLimits(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	limits.MaxJSONNodes = 0
+	if _, err := search.NewDocument("tenant", "index", "id", 1, json.RawMessage(`{}`), limits); !errors.Is(err, search.ErrInvalidLimits) {
+		t.Fatalf("NewDocument() error = %v, want ErrInvalidLimits", err)
+	}
+}
+
 func TestDocumentValidationRejectsEveryUnsafeBoundary(t *testing.T) {
 	t.Parallel()
 

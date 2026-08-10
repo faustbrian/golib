@@ -4,6 +4,9 @@ All notable changes to this module are documented here.
 
 ## Unreleased
 
+- Bound document and index-definition JSON nesting and aggregate object-field
+  and array-element nodes, reject duplicate keys, and reject control-bearing
+  physical index names without excluding valid lowercase Unicode.
 - Bound highlight, aggregation, and suggestion result fanout during request
   validation in addition to the complete encoded-query byte limit.
 - Reject non-scalar term and range values and preflight aggregate request input

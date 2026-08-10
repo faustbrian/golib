@@ -118,10 +118,7 @@ func validateJSONContainer(decoder *json.Decoder, opening json.Delim, depth, max
 			if err != nil {
 				return errMalformedJSONObject
 			}
-			key, ok := token.(string)
-			if !ok {
-				return errMalformedJSONObject
-			}
+			key := token.(string)
 			if _, duplicate := keys[key]; duplicate {
 				return ErrDuplicateJSONKey
 			}
@@ -136,23 +133,13 @@ func validateJSONContainer(decoder *json.Decoder, opening json.Delim, depth, max
 			return errMalformedJSONObject
 		}
 		if delimiter, nested := value.(json.Delim); nested {
-			if delimiter != '{' && delimiter != '[' {
-				return errMalformedJSONObject
-			}
 			if err := validateJSONContainer(decoder, delimiter, depth+1, maximumDepth, remainingNodes); err != nil {
 				return err
 			}
 		}
 	}
-	closing, err := decoder.Token()
+	_, err := decoder.Token()
 	if err != nil {
-		return errMalformedJSONObject
-	}
-	expected := json.Delim('}')
-	if opening == '[' {
-		expected = ']'
-	}
-	if closing != expected {
 		return errMalformedJSONObject
 	}
 	return nil
