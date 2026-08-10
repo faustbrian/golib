@@ -99,13 +99,29 @@ ordering settings remain backend policy.
 | Blocking read | 60 seconds | 1 second | Backend-owned. |
 | Reclaim minimum idle | 30 seconds | 30 seconds | Backend-owned. |
 
-The durable proof publishes, closes the producer, reconstructs it, republishes
-the same outbox identity, appends a later task, and then observes the stable
-duplicate followed by the later task through both backends. It also verifies
-that a closed producer reports a known retryable rejection. Response loss,
+The integration proof uses Redis 8.6.4, Valkey 9.1.0, and PostgreSQL 18.4. It
+publishes, closes the producer, reconstructs it, republishes the same outbox
+identity, appends a later task, and then observes the stable duplicate followed
+by the later task through both stream backends. It abandons an
+acknowledgement-required delivery and verifies reclaim by another consumer
+with unchanged bytes. Two relay instances also compete for one PostgreSQL
+outbox while the backend receives each claimed task once.
+
+A subprocess relay exits immediately before enqueue, after accepted enqueue
+and before `MarkDelivered`, and immediately after the durable mark. Recovery
+from the persisted PostgreSQL state leaves one, two, and one total backend
+tasks for those respective windows, with stable bytes in the duplicate window.
+A closed producer reports a known retryable rejection. Response loss,
 disconnects, cancellation, and panics are injected at the adapter's queue seam
 because the generic queue contract exposes only a synchronous error, not a
 backend fault-injection control.
+
+The proof does not restart Redis or Valkey servers and does not claim a
+particular fsync, replication, or failover policy. Operators must configure
+RDB/AOF persistence, replication, eviction, retention, and recovery objectives
+for their deployment. The configured backend command timeout bounds the
+synchronous append, but a caller cancellation cannot interrupt the generic
+queue interface after that call begins.
 
 Ordering keys are data for a compatible backend or consumer; the generic queue
 interface has no universal partition or ordering operation. Within the single
@@ -149,10 +165,11 @@ against `api/baseline.txt`.
 
 Validation occurs before allocation into backend-owned job state. Returned
 publication errors retain causes for `errors.Is` and `errors.As`, while their
-own text omits envelope data, backend diagnostics, and panic values. Queue
-errors may still contain backend-specific diagnostics when explicitly
-unwrapped by trusted code. Do not place credentials or authorization secrets
-in envelope payloads or metadata.
+own text omits payload, metadata, backend diagnostics, endpoints, credentials,
+and panic values. Queue errors may still contain backend-specific diagnostics
+when explicitly unwrapped by trusted code; do not unwrap them into untrusted
+logs or responses. Do not place credentials or authorization secrets in
+envelope payloads or metadata.
 
 ## FAQ
 

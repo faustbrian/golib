@@ -12,6 +12,9 @@ All notable changes to this module are documented here.
   acceptance into a known rejection.
 - Verify task round trips through durable Redis Streams and Valkey Streams
   producer paths.
+- Prove unacknowledged redelivery, competing PostgreSQL relays, and actual
+  subprocess-death windows before and after enqueue and delivery marking for
+  both Redis Streams and Valkey Streams.
 
 ### Changed
 

@@ -52,6 +52,37 @@ func TestPublisherQueuesCanonicalEnvelope(t *testing.T) {
 	}
 }
 
+func TestPublisherFreezesCanonicalTaskWithEveryField(t *testing.T) {
+	t.Parallel()
+
+	queue := &recordingQueue{}
+	publisher, err := goqueue.New(queue)
+	if err != nil {
+		t.Fatalf("create publisher: %v", err)
+	}
+	envelope := outbox.Envelope{
+		ID: "evt-1", Topic: "fallback-event", Payload: []byte{0x00, 0xff},
+		PayloadVersion: 7, OrderingKey: "aggregate-9", IdempotencyKey: "command-4",
+		Metadata: map[string]string{
+			"z": "last", "a": "first", "es.event_name": "orders.shipped",
+			"es.content_type": "application/octet-stream",
+		},
+	}
+
+	if err := publisher.Publish(context.Background(), envelope); err != nil {
+		t.Fatalf("publish: %v", err)
+	}
+	want := `{"task_id":"evt-1","idempotency_key":"command-4",` +
+		`"ordering_key":"aggregate-9","content":"AP8=",` +
+		`"content_type":"application/octet-stream","event_name":"orders.shipped",` +
+		`"schema_version":7,"metadata":{"a":"first",` +
+		`"es.content_type":"application/octet-stream",` +
+		`"es.event_name":"orders.shipped","z":"last"}}`
+	if got := string(queue.message.Bytes()); got != want {
+		t.Fatalf("canonical task = %s, want %s", got, want)
+	}
+}
+
 func TestPublisherMapsEnvelopeToStableOwnedTask(t *testing.T) {
 	t.Parallel()
 
@@ -418,6 +449,56 @@ func TestPublisherAcceptsExactConfiguredBoundaries(t *testing.T) {
 	}
 }
 
+func TestPublisherFreezesEveryIdentityAndContentBoundary(t *testing.T) {
+	t.Parallel()
+
+	limits := goqueue.Limits{
+		MaxTaskBytes: 4096, MaxIdentityBytes: 16, MaxContentBytes: 4,
+		MaxMetadataEntries: 4, MaxMetadataBytes: 128,
+	}
+	tests := []struct {
+		name     string
+		envelope outbox.Envelope
+		accepted bool
+	}{
+		{"task ID exact", boundaryEnvelope(), true},
+		{"task ID above", mutateBoundary(func(envelope *outbox.Envelope) { envelope.ID = strings.Repeat("i", 17) }), false},
+		{"idempotency exact", mutateBoundary(func(envelope *outbox.Envelope) { envelope.IdempotencyKey = strings.Repeat("i", 16) }), true},
+		{"idempotency above", mutateBoundary(func(envelope *outbox.Envelope) { envelope.IdempotencyKey = strings.Repeat("i", 17) }), false},
+		{"ordering exact", mutateBoundary(func(envelope *outbox.Envelope) { envelope.OrderingKey = strings.Repeat("o", 16) }), true},
+		{"ordering above", mutateBoundary(func(envelope *outbox.Envelope) { envelope.OrderingKey = strings.Repeat("o", 17) }), false},
+		{"content type exact", mutateBoundary(func(envelope *outbox.Envelope) {
+			envelope.Metadata = map[string]string{"es.content_type": strings.Repeat("c", 16)}
+		}), true},
+		{"content type above", mutateBoundary(func(envelope *outbox.Envelope) {
+			envelope.Metadata = map[string]string{"es.content_type": strings.Repeat("c", 17)}
+		}), false},
+		{"event name exact", mutateBoundary(func(envelope *outbox.Envelope) { envelope.Topic = strings.Repeat("e", 16) }), true},
+		{"event name above", mutateBoundary(func(envelope *outbox.Envelope) { envelope.Topic = strings.Repeat("e", 17) }), false},
+		{"metadata key exact", mutateBoundary(func(envelope *outbox.Envelope) { envelope.Metadata = map[string]string{strings.Repeat("k", 16): "v"} }), true},
+		{"metadata key above", mutateBoundary(func(envelope *outbox.Envelope) { envelope.Metadata = map[string]string{strings.Repeat("k", 17): "v"} }), false},
+		{"content exact", mutateBoundary(func(envelope *outbox.Envelope) { envelope.Payload = []byte("1234") }), true},
+		{"content above", mutateBoundary(func(envelope *outbox.Envelope) { envelope.Payload = []byte("12345") }), false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			queue := &recordingQueue{}
+			publisher, err := goqueue.New(queue, goqueue.WithLimits(limits))
+			if err != nil {
+				t.Fatal(err)
+			}
+			publishErr := publisher.Publish(context.Background(), test.envelope)
+			if test.accepted && (publishErr != nil || queue.calls != 1) {
+				t.Fatalf("exact boundary error/calls = %v/%d", publishErr, queue.calls)
+			}
+			if !test.accepted && (!errors.Is(publishErr, goqueue.ErrInvalidEnvelope) || queue.calls != 0) {
+				t.Fatalf("above boundary error/calls = %v/%d", publishErr, queue.calls)
+			}
+		})
+	}
+}
+
 func TestPublisherRejectsMetadataTotalAboveLimitIndependently(t *testing.T) {
 	t.Parallel()
 
@@ -552,6 +633,17 @@ func validEnvelope() outbox.Envelope {
 	return outbox.Envelope{ID: "event-1", Topic: "events", PayloadVersion: 1}
 }
 
+func boundaryEnvelope() outbox.Envelope {
+	return outbox.Envelope{ID: strings.Repeat("i", 16), Topic: "evt", PayloadVersion: 1}
+}
+
+func mutateBoundary(mutate func(*outbox.Envelope)) outbox.Envelope {
+	envelope := boundaryEnvelope()
+	mutate(&envelope)
+
+	return envelope
+}
+
 func largestPayloadWithinQueueEnvelope(target int) int {
 	low, high := 0, target
 	largest := 0
@@ -599,6 +691,61 @@ func TestPublisherPreservesQueueFailure(t *testing.T) {
 		t.Fatalf("publish error = %v, want %v", err, queueErr)
 	} else if bytes.Contains([]byte(err.Error()), []byte("sensitive-detail")) {
 		t.Fatalf("publish error leaked backend diagnostics: %v", err)
+	}
+}
+
+func TestPublisherErrorsDoNotLeakEnvelopeOrBackendSecrets(t *testing.T) {
+	t.Parallel()
+
+	const (
+		payloadSecret  = "payload-secret"
+		metadataSecret = "metadata-secret"
+		backendSecret  = "backend-diagnostic"
+		endpointSecret = "redis://private.internal:6379"
+		credential     = "credential-secret"
+	)
+	queueErr := errors.New(backendSecret + " " + endpointSecret + " " + credential)
+	queue := &recordingQueue{err: queueErr}
+	publisher, err := goqueue.New(queue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := validEnvelope()
+	envelope.Payload = []byte(payloadSecret)
+	envelope.Metadata = map[string]string{"private": metadataSecret}
+	publishErr := publisher.Publish(context.Background(), envelope)
+	if !errors.Is(publishErr, queueErr) {
+		t.Fatalf("publication error no longer preserves backend identity: %v", publishErr)
+	}
+	for _, secret := range []string{
+		payloadSecret, metadataSecret, backendSecret, endpointSecret, credential,
+	} {
+		if strings.Contains(publishErr.Error(), secret) {
+			t.Fatalf("publication error leaked %q", secret)
+		}
+	}
+}
+
+func TestPublisherOwnsEnvelopeBytesAndMetadataAfterReturn(t *testing.T) {
+	t.Parallel()
+
+	queue := &recordingQueue{}
+	publisher, err := goqueue.New(queue)
+	if err != nil {
+		t.Fatal(err)
+	}
+	envelope := validEnvelope()
+	envelope.Payload = []byte("owned-payload")
+	envelope.Metadata = map[string]string{"tenant": "owned-metadata"}
+	if err := publisher.Publish(context.Background(), envelope); err != nil {
+		t.Fatal(err)
+	}
+	want := append([]byte(nil), queue.message.Bytes()...)
+	envelope.Payload[0] = '!'
+	envelope.Metadata["tenant"] = "changed"
+
+	if got := queue.message.Bytes(); !bytes.Equal(got, want) {
+		t.Fatalf("caller mutation changed retained queue bytes: %q != %q", got, want)
 	}
 }
 

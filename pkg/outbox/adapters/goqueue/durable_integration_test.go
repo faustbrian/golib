@@ -8,7 +8,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
+	"os/exec"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -23,6 +26,8 @@ import (
 	"github.com/faustbrian/golib/pkg/queue/job"
 	redisstream "github.com/faustbrian/golib/pkg/queue/redisstream"
 	"github.com/faustbrian/golib/pkg/queue/valkeystream"
+	"github.com/jackc/pgx/v5/pgxpool"
+	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
 )
 
 const durableStreamCapacity int64 = 16
@@ -33,8 +38,11 @@ type durableProducer struct {
 }
 
 type durableBackend struct {
+	kind     string
+	address  string
+	stream   string
 	producer func(*testing.T) durableProducer
-	consumer func(*testing.T) core.Worker
+	consumer func(*testing.T, string, time.Duration) core.Worker
 }
 
 func TestPublisherPreservesDuplicateAndOrderingIdentityThroughDurableBackends(t *testing.T) {
@@ -46,6 +54,7 @@ func TestPublisherPreservesDuplicateAndOrderingIdentityThroughDurableBackends(t 
 		address := requiredEnvironment(t, "REDIS_ADDR")
 		name := stream("redis")
 		backend := durableBackend{
+			kind: "redis", address: address, stream: name,
 			producer: func(t *testing.T) durableProducer {
 				t.Helper()
 				worker := newRedisWorker(t, address, name)
@@ -56,13 +65,18 @@ func TestPublisherPreservesDuplicateAndOrderingIdentityThroughDurableBackends(t 
 
 				return durableProducer{queue: queue, close: queue.Shutdown}
 			},
-			consumer: func(t *testing.T) core.Worker {
+			consumer: func(t *testing.T, consumer string, reclaim time.Duration) core.Worker {
 				t.Helper()
-				return newRedisWorker(t, address, name)
+				return newRedisWorker(t, address, name,
+					redisstream.WithConsumer(consumer),
+					redisstream.WithReclaim(reclaim, reclaim, durableStreamCapacity),
+				)
 			},
 		}
 		assertDurableRestartAndOrdering(t, backend)
+		assertUnackedRedelivery(t, backend)
 		assertRelayProcessWindows(t, backend)
+		assertConcurrentRelays(t, backend)
 		assertRelayShutdownRace(t, backend)
 	})
 
@@ -70,6 +84,7 @@ func TestPublisherPreservesDuplicateAndOrderingIdentityThroughDurableBackends(t 
 		address := requiredEnvironment(t, "VALKEY_ADDR")
 		name := stream("valkey")
 		backend := durableBackend{
+			kind: "valkey", address: address, stream: name,
 			producer: func(t *testing.T) durableProducer {
 				t.Helper()
 				producer, err := valkeystream.NewPublisherE(
@@ -85,13 +100,15 @@ func TestPublisherPreservesDuplicateAndOrderingIdentityThroughDurableBackends(t 
 					close: func() { _ = producer.Shutdown() },
 				}
 			},
-			consumer: func(t *testing.T) core.Worker {
+			consumer: func(t *testing.T, consumer string, reclaim time.Duration) core.Worker {
 				t.Helper()
 				worker, err := valkeystream.NewWorkerE(
 					valkeystream.WithAddress(address), valkeystream.WithStreamName(name),
 					valkeystream.WithGroup("outbox-goqueue"),
+					valkeystream.WithConsumer(consumer),
 					valkeystream.WithMaxLength(durableStreamCapacity),
 					valkeystream.WithRequestTimeout(5*time.Second),
+					valkeystream.WithReclaim(reclaim, reclaim, int(durableStreamCapacity)),
 				)
 				if err != nil {
 					t.Fatalf("create Valkey worker: %v", err)
@@ -101,19 +118,23 @@ func TestPublisherPreservesDuplicateAndOrderingIdentityThroughDurableBackends(t 
 			},
 		}
 		assertDurableRestartAndOrdering(t, backend)
+		assertUnackedRedelivery(t, backend)
 		assertRelayProcessWindows(t, backend)
+		assertConcurrentRelays(t, backend)
 		assertRelayShutdownRace(t, backend)
 	})
 }
 
-func newRedisWorker(t *testing.T, address, stream string) *redisstream.Worker {
+func newRedisWorker(t *testing.T, address, stream string, extra ...redisstream.Option) *redisstream.Worker {
 	t.Helper()
-	worker, err := redisstream.NewWorkerE(
+	options := []redisstream.Option{
 		redisstream.WithAddr(address), redisstream.WithStreamName(stream),
 		redisstream.WithGroup("outbox-goqueue"),
 		redisstream.WithMaxLength(durableStreamCapacity),
-		redisstream.WithRequestTimeout(5*time.Second),
-	)
+		redisstream.WithRequestTimeout(5 * time.Second),
+	}
+	options = append(options, extra...)
+	worker, err := redisstream.NewWorkerE(options...)
 	if err != nil {
 		t.Fatalf("create Redis worker: %v", err)
 	}
@@ -155,7 +176,7 @@ func assertDurableRestartAndOrdering(t *testing.T, backend durableBackend) {
 		t.Fatalf("closed producer error/outcome = %v/%#v", closedErr, closedOutcome)
 	}
 
-	consumer := backend.consumer(t)
+	consumer := backend.consumer(t, "restart-order", 30*time.Second)
 	defer shutdownConsumer(t, consumer)
 	tasks := make([]goqueue.Task, 0, 3)
 	payloads := make([][]byte, 0, 3)
@@ -189,79 +210,373 @@ func assertDurableRestartAndOrdering(t *testing.T, backend durableBackend) {
 	}
 }
 
+func assertUnackedRedelivery(t *testing.T, backend durableBackend) {
+	t.Helper()
+	t.Run("unacked delivery is reclaimed", func(t *testing.T) {
+		producer := backend.producer(t)
+		publishDurably(t, producer.queue, outbox.Envelope{
+			ID: "unacked-redelivery", Topic: "events", PayloadVersion: 1,
+		})
+		producer.close()
+
+		const reclaim = 50 * time.Millisecond
+		first := backend.consumer(t, "abandoned-consumer", reclaim)
+		delivery, err := first.Request()
+		if err != nil {
+			t.Fatalf("request first delivery: %v", err)
+		}
+		firstPayload := append([]byte(nil), delivery.Payload()...)
+		if err := first.Shutdown(); err != nil {
+			t.Fatalf("abandon first consumer: %v", err)
+		}
+
+		reclaimer := backend.consumer(t, "reclaiming-consumer", reclaim)
+		defer shutdownConsumer(t, reclaimer)
+		redelivery, err := reclaimer.Request()
+		if err != nil {
+			t.Fatalf("request reclaimed delivery: %v", err)
+		}
+		if !bytes.Equal(firstPayload, redelivery.Payload()) {
+			t.Fatalf("reclaimed payload changed: %s != %s", firstPayload, redelivery.Payload())
+		}
+		acknowledger, ok := redelivery.(core.Acknowledger)
+		if !ok || !acknowledger.AcknowledgementRequired() {
+			t.Fatal("reclaimed delivery does not require acknowledgement")
+		}
+		if err := acknowledger.Ack(); err != nil {
+			t.Fatalf("acknowledge reclaimed delivery: %v", err)
+		}
+	})
+}
+
 func assertRelayProcessWindows(t *testing.T, backend durableBackend) {
 	t.Helper()
-
 	t.Run("relay process windows", func(t *testing.T) {
-		t.Run("before enqueue", func(t *testing.T) {
-			store := newRelayWindowStore("before-enqueue")
-			producer := backend.producer(t)
-			t.Cleanup(producer.close)
-			consumer := backend.consumer(t)
-			publisher, err := goqueue.New(producer.queue)
-			if err != nil {
-				t.Fatal(err)
-			}
-			worker := newWindowRelay(t, store, publisher)
-			ctx, cancel := context.WithCancel(context.Background())
-			cancel()
-			result, runErr := worker.RunOnce(ctx)
-			if runErr != nil || result.Published != 0 || result.Released != 1 {
-				t.Fatalf("killed-before-enqueue result/error = %#v/%v", result, runErr)
-			}
-			result, runErr = newWindowRelay(t, store, publisher).RunOnce(context.Background())
-			if runErr != nil || result.Delivered != 1 {
-				t.Fatalf("restarted relay result/error = %#v/%v", result, runErr)
-			}
-			payloads := consumeDurablePayloads(t, consumer, 1)
-			assertTaskIDs(t, payloads, "before-enqueue")
-		})
+		connectionString, pool := startProcessWindowPostgres(t)
+		for _, test := range []struct {
+			name         string
+			stage        string
+			wantMessages int
+		}{
+			{"before enqueue", "before-enqueue", 1},
+			{"after enqueue before mark", "after-enqueue-before-mark", 2},
+			{"after mark", "after-mark", 1},
+		} {
+			t.Run(test.name, func(t *testing.T) {
+				id := backend.kind + "-" + test.stage
+				insertOutboxEnvelope(t, pool, id)
+				runRelayDeathProcess(t, connectionString, backend, test.stage)
 
-		t.Run("after enqueue before mark", func(t *testing.T) {
-			store := newRelayWindowStore("after-enqueue")
-			store.markFailures = 1
-			producer := backend.producer(t)
-			t.Cleanup(producer.close)
-			consumer := backend.consumer(t)
-			publisher, err := goqueue.New(producer.queue)
-			if err != nil {
-				t.Fatal(err)
-			}
-			result, runErr := newWindowRelay(t, store, publisher).RunOnce(context.Background())
-			if !errors.Is(runErr, errSimulatedProcessDeath) || result.Published != 1 || result.Delivered != 0 {
-				t.Fatalf("killed-before-mark result/error = %#v/%v", result, runErr)
-			}
-			result, runErr = newWindowRelay(t, store, publisher).RunOnce(context.Background())
-			if runErr != nil || result.Delivered != 1 {
-				t.Fatalf("restarted relay result/error = %#v/%v", result, runErr)
-			}
-			payloads := consumeDurablePayloads(t, consumer, 2)
-			assertTaskIDs(t, payloads, "after-enqueue", "after-enqueue")
-			if !bytes.Equal(payloads[0], payloads[1]) {
-				t.Fatal("after-enqueue/before-mark duplicate changed canonical task bytes")
-			}
-		})
+				var state string
+				if err := pool.QueryRow(t.Context(), "SELECT state FROM outbox_messages WHERE id = $1", id).Scan(&state); err != nil {
+					t.Fatalf("read crashed relay state: %v", err)
+				}
+				if test.stage == "after-mark" {
+					if state != "delivered" {
+						t.Fatalf("state after delivered process death = %q", state)
+					}
+				} else {
+					if state != "leased" {
+						t.Fatalf("state after pre-delivery process death = %q", state)
+					}
+					if _, err := pool.Exec(t.Context(), "UPDATE outbox_messages SET leased_until = clock_timestamp() - interval '1 second' WHERE id = $1", id); err != nil {
+						t.Fatalf("expire crashed relay lease: %v", err)
+					}
+				}
 
-		t.Run("after mark", func(t *testing.T) {
-			store := newRelayWindowStore("after-mark")
-			producer := backend.producer(t)
-			t.Cleanup(producer.close)
-			consumer := backend.consumer(t)
-			publisher, err := goqueue.New(producer.queue)
-			if err != nil {
-				t.Fatal(err)
+				producer := backend.producer(t)
+				publisher, err := goqueue.New(producer.queue)
+				if err != nil {
+					t.Fatal(err)
+				}
+				store, err := postgres.NewStore(pool, postgres.StoreConfig{})
+				if err != nil {
+					t.Fatal(err)
+				}
+				result, runErr := newWindowRelay(t, store, publisher).RunOnce(t.Context())
+				producer.close()
+				if runErr != nil {
+					t.Fatalf("recover crashed relay: %v", runErr)
+				}
+				wantRecovered := 1
+				if test.stage == "after-mark" {
+					wantRecovered = 0
+				}
+				if result.Delivered != wantRecovered {
+					t.Fatalf("recovery result = %#v, want delivered %d", result, wantRecovered)
+				}
+
+				consumer := backend.consumer(t, "process-window-"+test.stage, 30*time.Second)
+				payloads := consumeDurablePayloads(t, consumer, test.wantMessages)
+				ids := make([]string, test.wantMessages)
+				for index := range ids {
+					ids[index] = id
+				}
+				assertTaskIDs(t, payloads, ids...)
+				if len(payloads) == 2 && !bytes.Equal(payloads[0], payloads[1]) {
+					t.Fatal("process-death duplicate changed canonical task bytes")
+				}
+			})
+		}
+	})
+}
+
+const relayDeathExitCode = 42
+
+func TestGoqueueRelayDeathHelper(t *testing.T) {
+	if os.Getenv("GOQUEUE_RELAY_DEATH_HELPER") != "1" {
+		return
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	pool, err := pgxpool.New(ctx, os.Getenv("GOQUEUE_POSTGRES_URL"))
+	if err != nil {
+		t.Fatalf("connect process helper store: %v", err)
+	}
+	defer pool.Close()
+	store, err := postgres.NewStore(pool, postgres.StoreConfig{})
+	if err != nil {
+		t.Fatalf("create process helper store: %v", err)
+	}
+	queue, err := processHelperQueue(
+		os.Getenv("GOQUEUE_BACKEND"), os.Getenv("GOQUEUE_BACKEND_ADDRESS"),
+		os.Getenv("GOQUEUE_STREAM"),
+	)
+	if err != nil {
+		t.Fatalf("create process helper queue: %v", err)
+	}
+	publisher, err := goqueue.New(queue)
+	if err != nil {
+		t.Fatalf("create process helper publisher: %v", err)
+	}
+	stage := os.Getenv("GOQUEUE_RELAY_DEATH_STAGE")
+	workerStore := relay.Store(store)
+	if stage == "after-mark" {
+		workerStore = &processDeathStore{Store: store}
+	}
+	workerPublisher := relay.Publisher(publisher)
+	if stage == "before-enqueue" || stage == "after-enqueue-before-mark" {
+		workerPublisher = &processDeathPublisher{Publisher: publisher, stage: stage}
+	}
+	worker, err := relay.New(workerStore, workerPublisher, relay.Config{
+		Owner: "doomed-relay", BatchSize: 1, Workers: 1,
+		LeaseDuration: time.Second, LeaseRenewalInterval: 250 * time.Millisecond,
+		ClassifyError: goqueue.ClassifyError,
+	})
+	if err != nil {
+		t.Fatalf("create process helper relay: %v", err)
+	}
+	if _, err := worker.RunOnce(ctx); err != nil {
+		t.Fatalf("run process helper relay: %v", err)
+	}
+	t.Fatalf("relay process did not exit at stage %q", stage)
+}
+
+type processDeathPublisher struct {
+	relay.Publisher
+	stage string
+}
+
+func (publisher *processDeathPublisher) Publish(ctx context.Context, envelope outbox.Envelope) error {
+	if publisher.stage == "before-enqueue" {
+		os.Exit(relayDeathExitCode)
+	}
+	if err := publisher.Publisher.Publish(ctx, envelope); err != nil {
+		return err
+	}
+	os.Exit(relayDeathExitCode)
+	return nil
+}
+
+type processDeathStore struct{ *postgres.Store }
+
+func (store *processDeathStore) MarkDelivered(ctx context.Context, lease postgres.LeaseRef) error {
+	if err := store.Store.MarkDelivered(ctx, lease); err != nil {
+		return err
+	}
+	os.Exit(relayDeathExitCode)
+	return nil
+}
+
+func processHelperQueue(kind, address, stream string) (goqueue.Queue, error) {
+	switch kind {
+	case "redis":
+		worker, err := redisstream.NewWorkerE(
+			redisstream.WithAddr(address), redisstream.WithStreamName(stream),
+			redisstream.WithGroup("outbox-goqueue"),
+			redisstream.WithMaxLength(durableStreamCapacity),
+		)
+		if err != nil {
+			return nil, err
+		}
+		return firstpartyqueue.NewQueue(firstpartyqueue.WithWorker(worker))
+	case "valkey":
+		return valkeystream.NewPublisherE(
+			valkeystream.WithAddress(address), valkeystream.WithStreamName(stream),
+			valkeystream.WithMaxLength(durableStreamCapacity),
+		)
+	default:
+		return nil, fmt.Errorf("unsupported process helper backend %q", kind)
+	}
+}
+
+func startProcessWindowPostgres(t *testing.T) (string, *pgxpool.Pool) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	t.Cleanup(cancel)
+	image := os.Getenv("POSTGRES_IMAGE")
+	if image == "" {
+		image = "postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15"
+	}
+	container, err := tcpostgres.Run(ctx, image,
+		tcpostgres.WithDatabase("outbox"), tcpostgres.WithUsername("outbox"),
+		tcpostgres.WithPassword("outbox"), tcpostgres.BasicWaitStrategies(),
+	)
+	if err != nil {
+		t.Fatalf("start process-window PostgreSQL: %v", err)
+	}
+	t.Cleanup(func() {
+		cleanupContext, cancelCleanup := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancelCleanup()
+		if err := container.Terminate(cleanupContext); err != nil {
+			t.Errorf("terminate process-window PostgreSQL: %v", err)
+		}
+	})
+	connectionString, err := container.ConnectionString(ctx, "sslmode=disable")
+	if err != nil {
+		t.Fatalf("get process-window PostgreSQL connection: %v", err)
+	}
+	pool, err := pgxpool.New(ctx, connectionString)
+	if err != nil {
+		t.Fatalf("connect process-window PostgreSQL: %v", err)
+	}
+	t.Cleanup(pool.Close)
+	contents, err := fs.ReadFile(postgres.Migrations(), "000001_create_outbox.sql")
+	if err != nil {
+		t.Fatalf("read outbox migration: %v", err)
+	}
+	const upMarker = "-- +migrations Up\n"
+	const downMarker = "-- +migrations Down\n"
+	down := strings.Index(string(contents), downMarker)
+	if !strings.HasPrefix(string(contents), upMarker) || down < len(upMarker) {
+		t.Fatal("canonical outbox migration has invalid directives")
+	}
+	if _, err := pool.Exec(ctx, string(contents[len(upMarker):down])); err != nil {
+		t.Fatalf("apply outbox migration: %v", err)
+	}
+	return connectionString, pool
+}
+
+func insertOutboxEnvelope(t *testing.T, pool *pgxpool.Pool, id string) {
+	t.Helper()
+	if _, err := pool.Exec(t.Context(), `
+INSERT INTO outbox_messages
+    (id, topic, payload, payload_version, available_at, created_at)
+VALUES ($1, 'events', '{}', 1, clock_timestamp(), clock_timestamp())`, id); err != nil {
+		t.Fatalf("insert process-window envelope: %v", err)
+	}
+}
+
+func runRelayDeathProcess(t *testing.T, connectionString string, backend durableBackend, stage string) {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	command := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestGoqueueRelayDeathHelper$", "-test.v")
+	command.Env = append(os.Environ(),
+		"GOQUEUE_RELAY_DEATH_HELPER=1",
+		"GOQUEUE_POSTGRES_URL="+connectionString,
+		"GOQUEUE_BACKEND="+backend.kind,
+		"GOQUEUE_BACKEND_ADDRESS="+backend.address,
+		"GOQUEUE_STREAM="+backend.stream,
+		"GOQUEUE_RELAY_DEATH_STAGE="+stage,
+	)
+	output, err := command.CombinedOutput()
+	var exitError *exec.ExitError
+	if !errors.As(err, &exitError) || exitError.ExitCode() != relayDeathExitCode {
+		t.Fatalf("relay death stage %q error = %v, output:\n%s", stage, err, output)
+	}
+}
+
+func assertConcurrentRelays(t *testing.T, backend durableBackend) {
+	t.Helper()
+	t.Run("concurrent relay instances claim disjoint durable work", func(t *testing.T) {
+		_, pool := startProcessWindowPostgres(t)
+		const messages = 16
+		for index := range messages {
+			insertOutboxEnvelope(t, pool, fmt.Sprintf("%s-concurrent-%02d", backend.kind, index))
+		}
+		store, err := postgres.NewStore(pool, postgres.StoreConfig{})
+		if err != nil {
+			t.Fatal(err)
+		}
+		producers := []durableProducer{backend.producer(t), backend.producer(t)}
+		defer producers[0].close()
+		defer producers[1].close()
+		var wait sync.WaitGroup
+		results := make(chan relay.Result, 2)
+		errorsFound := make(chan error, 2)
+		start := make(chan struct{})
+		runContext := t.Context()
+		for index := range 2 {
+			publisher, publisherErr := goqueue.New(producers[index].queue)
+			if publisherErr != nil {
+				t.Fatal(publisherErr)
 			}
-			result, runErr := newWindowRelay(t, store, publisher).RunOnce(context.Background())
-			if runErr != nil || result.Delivered != 1 {
-				t.Fatalf("first relay result/error = %#v/%v", result, runErr)
+			worker, relayErr := relay.New(store, publisher, relay.Config{
+				Owner: fmt.Sprintf("concurrent-relay-%d", index), BatchSize: messages / 2, Workers: 8,
+				ClassifyError: goqueue.ClassifyError,
+			})
+			if relayErr != nil {
+				t.Fatal(relayErr)
 			}
-			result, runErr = newWindowRelay(t, store, publisher).RunOnce(context.Background())
-			if runErr != nil || result.Claimed != 0 || result.Published != 0 {
-				t.Fatalf("restarted-after-mark result/error = %#v/%v", result, runErr)
+			wait.Add(1)
+			go func() {
+				defer wait.Done()
+				<-start
+				result, runErr := worker.RunOnce(runContext)
+				results <- result
+				errorsFound <- runErr
+			}()
+		}
+		close(start)
+		wait.Wait()
+		close(results)
+		close(errorsFound)
+		for runErr := range errorsFound {
+			if runErr != nil {
+				t.Fatalf("concurrent relay: %v", runErr)
 			}
-			payloads := consumeDurablePayloads(t, consumer, 1)
-			assertTaskIDs(t, payloads, "after-mark")
-		})
+		}
+		delivered := 0
+		for result := range results {
+			if result.Claimed == 0 {
+				t.Fatal("a concurrent relay claimed no work")
+			}
+			delivered += result.Delivered
+		}
+		if delivered != messages {
+			t.Fatalf("concurrent relays delivered %d, want %d", delivered, messages)
+		}
+		var persisted int
+		if err := pool.QueryRow(t.Context(), "SELECT count(*) FROM outbox_messages WHERE state = 'delivered'").Scan(&persisted); err != nil {
+			t.Fatalf("count concurrent deliveries: %v", err)
+		}
+		if persisted != messages {
+			t.Fatalf("persisted concurrent deliveries = %d, want %d", persisted, messages)
+		}
+		consumer := backend.consumer(t, "concurrent-relays", 30*time.Second)
+		payloads := consumeDurablePayloads(t, consumer, messages)
+		seen := make(map[string]struct{}, messages)
+		for _, payload := range payloads {
+			var task goqueue.Task
+			if err := json.Unmarshal(payload, &task); err != nil {
+				t.Fatalf("decode concurrent task: %v", err)
+			}
+			if _, duplicate := seen[task.TaskID]; duplicate {
+				t.Fatalf("concurrent relays duplicated task %q", task.TaskID)
+			}
+			seen[task.TaskID] = struct{}{}
+		}
 	})
 }
 
@@ -370,60 +685,6 @@ func assertTaskIDs(t *testing.T, payloads [][]byte, ids ...string) {
 		}
 	}
 }
-
-var errSimulatedProcessDeath = errors.New("simulated relay process death")
-
-type relayWindowStore struct {
-	mu           sync.Mutex
-	envelope     outbox.Envelope
-	delivered    bool
-	markFailures int
-	claims       int
-}
-
-func newRelayWindowStore(id string) *relayWindowStore {
-	return &relayWindowStore{envelope: outbox.Envelope{ID: id, Topic: "events", PayloadVersion: 1}}
-}
-
-func (*relayWindowStore) Ping(context.Context) error { return nil }
-
-func (store *relayWindowStore) Claim(context.Context, postgres.ClaimRequest) ([]postgres.Claim, error) {
-	store.mu.Lock()
-	defer store.mu.Unlock()
-	if store.delivered {
-		return nil, nil
-	}
-	store.claims++
-	envelope := store.envelope
-	envelope.Attempts = store.claims
-
-	return []postgres.Claim{{Envelope: envelope, Owner: "process-window", LeaseToken: "lease"}}, nil
-}
-
-func (*relayWindowStore) ExtendLease(context.Context, postgres.LeaseRef, time.Duration) (time.Time, error) {
-	return time.Now().Add(time.Minute), nil
-}
-
-func (store *relayWindowStore) MarkDelivered(context.Context, postgres.LeaseRef) error {
-	store.mu.Lock()
-	defer store.mu.Unlock()
-	if store.markFailures > 0 {
-		store.markFailures--
-
-		return errSimulatedProcessDeath
-	}
-	store.delivered = true
-
-	return nil
-}
-
-func (*relayWindowStore) Retry(context.Context, postgres.LeaseRef, time.Duration, error) error {
-	return nil
-}
-
-func (*relayWindowStore) DeadLetter(context.Context, postgres.LeaseRef, error) error { return nil }
-
-func (*relayWindowStore) ReleaseLease(context.Context, postgres.LeaseRef) error { return nil }
 
 type relayBatchStore struct {
 	claims []postgres.Claim
