@@ -123,6 +123,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/queue/queueservice/.ai/GOAL.md` | `verified` | Former pending order 27. Current scoped evidence verifies the lifecycle adapter contract, exact coverage and mutation, API, documentation, safety, Redis and Valkey backend integration, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 29 has current scoped implementation and mandatory gate evidence. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 29. Current scoped evidence verifies transactional atomicity, commit-ambiguity recovery, stable retry and publication identity, concurrent and replica writers, process and database failure handling, hostile envelope boundaries, and equivalent-durability performance; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/event-sourcing/postgres/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 28. Current scoped evidence verifies durable ordering, commit reconciliation, transaction and iterator ownership, snapshots and projections, failure and process-death recovery, rolling deployment, PostgreSQL 14 through 18, exact coverage and mutation, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomath/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 37. Current scoped evidence verifies exact decimal persistence and comparison behavior, hostile-input and concurrency hardening, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -144,6 +145,20 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
+
+### PostgreSQL event store hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/event-sourcing/postgres/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Stream and global ordering; expected-version and duplicate-identity races; caller- and pool-owned transactions; iterators, snapshots, projections, and migrations; not-committed, unknown, and committed transitions; connection, backend, server, commit-response, failover, timeout, cancellation, pool, and partial-reader failures; plans, indexes, allocator contention and bloat; supported upgrades, concurrent deployment, backup and restore, extension absence, hostile boundaries, redaction, bounded allocation, `SIGTERM`, drain, readiness, and overlapping replacement. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | Current PostgreSQL package test, race, exact coverage, mutation, fuzz, analyzer, API, documentation, security, supply-chain, benchmark, and PostgreSQL 14 through 18 artifacts; the exact PostgreSQL 18 rerun after an isolated Testcontainers reaper startup failure; and the complete reverse-dependant `pkg/event-sourcing/adapters/gooutbox` module contract. |
+| Result | PostgreSQL passed exact 602/602 production statements and killed 436/436 viable mutants; `gooutbox` passed exact 181/181 production statements and killed 85/85 viable mutants. Both have 100% mutation efficacy and mutator coverage with zero live, uncovered, timed-out, nonviable, or skipped mutants. Focused graceful-termination evidence passed three repetitions and race detection; the final matrix passed PostgreSQL 14, 15, 16, 17, and the isolated PostgreSQL 18 rerun. All mandatory scoped gates passed or retained a content-identical result. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each run; Docker 29.6.2 and digest-pinned PostgreSQL 14.23, 15.18, 16.14, 17.10, and 18.4 Alpine images. |
+| Observed | 2026-08-10 |
+| Gaps | None within the scoped PostgreSQL event-store hardening contract. NilAway remains advisory with its test-only diagnostics visible, and the SBOM gate retains its non-failing isolated-snapshot main-module-version warning. |
+| Navigation | Forward-only base `64bd8dcd`; reconciliation `effaab2e`; transaction serialization `8db9248b` and `3e63573d`; resource, plan, migration, allocator, commit, deployment, corruption, redaction, and backend-death hardening through `1f5e5a05`; graceful replacement `3b544826`. |
 
 ### HTTP message signatures evidence
 
