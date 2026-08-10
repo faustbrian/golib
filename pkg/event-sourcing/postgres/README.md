@@ -108,6 +108,11 @@ honors its caller deadline without allocating a global position, then succeeds
 at the next gap-free position after the iterator releases capacity. Stream and
 global ordering are ascending and stable.
 
+Message and snapshot scans enforce the schema's 64 KiB encoded JSON metadata
+limit before decoding. A row supplied by a corrupt database or driver that
+exceeds the bound is classified as `ErrCorruptHistory` or
+`ErrSnapshotCorrupt`, respectively, without allocating decoded metadata.
+
 ## Caller-owned transactions
 
 Use `NewTx` when event persistence must share an application transaction:

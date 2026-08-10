@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
@@ -26,6 +27,15 @@ func FuzzScanSnapshot(f *testing.F) {
 		[]byte(`[]`),
 		int64(0),
 	)
+	f.Add(
+		"account",
+		"account-oversized-metadata",
+		int64(1),
+		int64(1),
+		[]byte(`{"owner":"Ada"}`),
+		oversizedStoredMetadataJSON(f),
+		int64(1),
+	)
 
 	f.Fuzz(func(
 		t *testing.T,
@@ -38,8 +48,12 @@ func FuzzScanSnapshot(f *testing.F) {
 		createdAtSeconds int64,
 	) {
 		t.Helper()
+		if len(aggregateType)+len(aggregateID)+len(state)+len(metadata) >
+			10<<20 {
+			return
+		}
 
-		_, _ = scanSnapshot(fakeRow{scan: scanValues(
+		_, err := scanSnapshot(fakeRow{scan: scanValues(
 			aggregateType,
 			aggregateID,
 			aggregateVersion,
@@ -48,6 +62,10 @@ func FuzzScanSnapshot(f *testing.F) {
 			metadata,
 			time.Unix(createdAtSeconds, 0).UTC(),
 		)})
+		if len(metadata) > maximumStoredMetadataJSONBytes &&
+			err != eventsourcing.ErrSnapshotCorrupt {
+			t.Fatalf("oversized metadata error = %v", err)
+		}
 	})
 }
 

@@ -498,6 +498,14 @@ func TestScanSnapshotRejectsCorruptStoredValues(t *testing.T) {
 			scan: scanValues(replaceValue(validValues, 5, []byte(`[]`))...),
 			want: eventsourcing.ErrSnapshotCorrupt,
 		},
+		"metadata encoded size": {
+			scan: scanValues(replaceValue(
+				validValues,
+				5,
+				oversizedStoredMetadataJSON(t),
+			)...),
+			want: eventsourcing.ErrSnapshotCorrupt,
+		},
 		"stream": {
 			scan: scanValues(replaceValue(validValues, 0, "")...),
 			want: eventsourcing.ErrSnapshotCorrupt,

@@ -280,6 +280,9 @@ func scanSnapshot(row rowScanner) (eventsourcing.Snapshot, error) {
 		schemaVersion > math.MaxUint32 {
 		return eventsourcing.Snapshot{}, eventsourcing.ErrSnapshotCorrupt
 	}
+	if len(metadataJSON) > maximumStoredMetadataJSONBytes {
+		return eventsourcing.Snapshot{}, eventsourcing.ErrSnapshotCorrupt
+	}
 	metadata := make(map[string]string)
 	if err := json.Unmarshal(metadataJSON, &metadata); err != nil {
 		return eventsourcing.Snapshot{}, errors.Join(

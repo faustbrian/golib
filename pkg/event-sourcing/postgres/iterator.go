@@ -162,6 +162,9 @@ func scanMessage(row rowScanner) (eventsourcing.Message, error) {
 		schemaVersion > math.MaxUint32 {
 		return eventsourcing.Message{}, eventsourcing.ErrCorruptHistory
 	}
+	if len(metadataJSON) > maximumStoredMetadataJSONBytes {
+		return eventsourcing.Message{}, eventsourcing.ErrCorruptHistory
+	}
 
 	metadata := make(map[string]string)
 	if err := json.Unmarshal(metadataJSON, &metadata); err != nil {

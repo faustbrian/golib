@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Reject message and snapshot rows whose encoded JSON metadata exceeds the
+  schema's 64 KiB limit before decoding or allocating the metadata map.
 - Serialize concurrent staging calls made through one caller-owned transaction
   event or checkpoint writer with context-bounded waiting. Direct transaction
   access and separate wrappers remain caller-serialized because `pgx.Tx` is not

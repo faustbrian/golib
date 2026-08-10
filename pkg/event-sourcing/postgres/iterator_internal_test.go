@@ -191,10 +191,11 @@ func TestScanMessageRejectsCorruptStoredRows(t *testing.T) {
 			6,
 			int64(^uint32(0))+1,
 		),
-		"metadata": corruptStoredScan(9, []byte("{")),
-		"stream":   corruptStoredScan(2, "not valid"),
-		"event":    corruptStoredScan(5, "not valid"),
-		"pending":  corruptStoredScan(1, "not valid"),
+		"metadata":              corruptStoredScan(9, []byte("{")),
+		"metadata encoded size": corruptStoredScan(9, oversizedStoredMetadataJSON(t)),
+		"stream":                corruptStoredScan(2, "not valid"),
+		"event":                 corruptStoredScan(5, "not valid"),
+		"pending":               corruptStoredScan(1, "not valid"),
 	}
 	for name, scan := range tests {
 		scan := scan

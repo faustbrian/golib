@@ -18,8 +18,9 @@ import (
 )
 
 const (
-	defaultSchema             = "event_sourcing"
-	transactionCleanupTimeout = 5 * time.Second
+	defaultSchema                  = "event_sourcing"
+	transactionCleanupTimeout      = 5 * time.Second
+	maximumStoredMetadataJSONBytes = 64 << 10
 )
 
 var (

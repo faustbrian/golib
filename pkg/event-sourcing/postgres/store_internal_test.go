@@ -2,6 +2,7 @@ package postgres
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math"
@@ -50,6 +51,24 @@ func TestEncodeMetadataIsDeterministicJSON(t *testing.T) {
 	if string(encodeMetadata(nil)) != "{}" {
 		t.Fatalf("encodeMetadata(nil) = %s", encodeMetadata(nil))
 	}
+}
+
+func oversizedStoredMetadataJSON(t testing.TB) []byte {
+	t.Helper()
+
+	metadata := make(map[string]string, 31)
+	for index := range 31 {
+		metadata[fmt.Sprintf("k%02d", index)] = strings.Repeat("\\", 2048)
+	}
+	encoded, err := json.Marshal(metadata)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(encoded) <= eventsourcing.MaxMetadataBytes {
+		t.Fatalf("oversized metadata fixture = %d bytes", len(encoded))
+	}
+
+	return encoded
 }
 
 func TestTransactionStoreAppendsAndClassifiesExpectedVersions(t *testing.T) {
