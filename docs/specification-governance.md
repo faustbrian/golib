@@ -50,8 +50,8 @@ The body must explicitly record:
 
 The accepted statuses are `resolved`, `unresolved`, and `superseded`.
 Unresolved decisions block the specification gate. A superseded decision must
-remain in the register and identify its replacement; history must not be
-erased.
+remain in the register and identify a different existing decision in the same
+register as its replacement; history must not be erased.
 
 Every register must end with one `## Unresolved decisions` or
 `## Unresolved and excluded behavior` inventory. The inventory must explicitly

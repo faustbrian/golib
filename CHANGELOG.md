@@ -21,6 +21,8 @@ documented in each module's changelog.
 
 - Reject specification decision registers that omit their unresolved-decision
   inventory or leave it open outside a stable release-blocking decision entry.
+- Require superseded specification decisions to reference a different existing
+  replacement in the same register instead of accepting a dangling identifier.
 - Register Kafka's exercised broker, resource-reaper, comparison-client, MSK
   signer, and AWS SDK inputs in the generated repository catalog.
 - Register Kafka's normative decision record and real-broker conformance

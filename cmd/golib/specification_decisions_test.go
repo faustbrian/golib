@@ -40,6 +40,26 @@ func TestValidateSpecificationDecisionsAcceptsGroupedTerminalSectionAndEvidenceP
 	}
 }
 
+func TestValidateSpecificationDecisionsAcceptsSupersededDecisionWithKnownReplacement(t *testing.T) {
+	t.Parallel()
+
+	root, current := validSpecificationDecisionFixture(t)
+	path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+	replaceFileText(t, path, "`resolved`", "`superseded`")
+	replaceFileText(
+		t,
+		path,
+		"\n## Unresolved decisions",
+		"\nReplaced by EXAMPLE-DEC-002.\n\n"+
+			validDecisionEntry("EXAMPLE-DEC-002", "TestSpecificationVector")+
+			"\n## Unresolved decisions",
+	)
+
+	if err := validateSpecificationDecisions(root, current); err != nil {
+		t.Fatalf("validateSpecificationDecisions() error = %v", err)
+	}
+}
+
 func TestParseSpecificationDecisionsSequencesEachIdentifierSeriesIndependently(t *testing.T) {
 	t.Parallel()
 
@@ -317,6 +337,38 @@ func TestValidateSpecificationDecisionsFailsClosed(t *testing.T) {
 				replaceFileText(t, path, "`resolved`", "`superseded`")
 			},
 			wantError: "replacement",
+		},
+		{
+			name: "superseded decision with unknown replacement",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "`resolved`", "`superseded`")
+				replaceFileText(
+					t,
+					path,
+					"\n## Unresolved decisions",
+					"\nReplacement decision: EXAMPLE-DEC-002.\n\n## Unresolved decisions",
+				)
+			},
+			wantError: "known replacement decision",
+		},
+		{
+			name: "superseded decision with unrelated known reference",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "`resolved`", "`superseded`")
+				replaceFileText(
+					t,
+					path,
+					"\n## Unresolved decisions",
+					"\nSee EXAMPLE-DEC-002 for peer behavior.\n\n"+
+						validDecisionEntry("EXAMPLE-DEC-002", "TestSpecificationVector")+
+						"\n## Unresolved decisions",
+				)
+			},
+			wantError: "known replacement decision",
 		},
 		{
 			name: "missing executable evidence",

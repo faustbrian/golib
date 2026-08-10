@@ -169,11 +169,16 @@ func validateSpecificationDecisionModule(root string, item module) error {
 		problems = append(problems, fmt.Errorf("inventory executable evidence: %w", evidenceErr))
 		return errors.Join(problems...)
 	}
+	knownDecisions := make(map[string]bool, len(decisions))
+	for _, decision := range decisions {
+		knownDecisions[decision.identifier] = true
+	}
 	for _, decision := range decisions {
 		if decisionErr := validateSpecificationDecision(
 			registerPath,
 			decision,
 			evidence,
+			knownDecisions,
 		); decisionErr != nil {
 			problems = append(problems, decisionErr)
 		}
@@ -522,6 +527,7 @@ func validateSpecificationDecision(
 	registerPath string,
 	decision specificationDecision,
 	knownEvidence map[string]bool,
+	knownDecisions map[string]bool,
 ) error {
 	normalized := strings.ToLower(decision.body)
 	required := []struct {
@@ -568,9 +574,13 @@ func validateSpecificationDecision(
 	status := decisionStatusPattern.FindStringSubmatch(decision.body)
 	if status == nil {
 		problems = append(problems, fmt.Errorf("%s has no recognized decision status", decision.identifier))
-	} else if strings.EqualFold(status[1], "superseded") &&
-		len(decisionReferencePattern.FindAllString(decision.body, -1)) == 0 {
-		problems = append(problems, fmt.Errorf("%s is superseded without a replacement decision", decision.identifier))
+	} else if strings.EqualFold(status[1], "superseded") {
+		if !hasKnownReplacementDecision(decision, knownDecisions) {
+			problems = append(problems, fmt.Errorf(
+				"%s is superseded without a known replacement decision",
+				decision.identifier,
+			))
+		}
 	}
 
 	references := evidenceIdentifierPattern.FindAllString(decision.body, -1)
@@ -592,6 +602,25 @@ func validateSpecificationDecision(
 		}
 	}
 	return errors.Join(problems...)
+}
+
+func hasKnownReplacementDecision(
+	decision specificationDecision,
+	knownDecisions map[string]bool,
+) bool {
+	for line := range strings.SplitSeq(decision.body, "\n") {
+		normalized := strings.ToLower(line)
+		if !strings.Contains(normalized, "replacement") &&
+			!strings.Contains(normalized, "replaced by") {
+			continue
+		}
+		for _, reference := range decisionReferencePattern.FindAllString(line, -1) {
+			if reference != decision.identifier && knownDecisions[reference] {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func validateDecisionLink(registerPath, target string) error {
