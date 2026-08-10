@@ -511,6 +511,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- architecture decisions now distinguish implemented OpenTelemetry, MSK IAM,
+  conformance, observation, and downstream-adapter boundaries from their
+  remaining broker-support and final-evidence gaps
 - the implementation audit now accounts for all nine manifest-derived Kafka
   reverse dependencies, including CloudEvents binding, optional adapters,
   benchmarks, service composition, outbox, and event-sourcing consumers
