@@ -129,6 +129,16 @@ const (
 	EventChildCompleted EventKind = 30
 	// EventChildFailed records a known failed child outcome.
 	EventChildFailed EventKind = 31
+	// EventChildStartAttempted records persistence before external creation.
+	EventChildStartAttempted EventKind = 32
+	// EventChildStarted records that the pinned child is known to exist.
+	EventChildStarted EventKind = 33
+	// EventChildStartFailed records a known-absent child creation failure.
+	EventChildStartFailed EventKind = 34
+	// EventChildStartUnknown records creation that may have succeeded.
+	EventChildStartUnknown EventKind = 35
+	// EventChildStartRetryScheduled records deterministic retry admission.
+	EventChildStartRetryScheduled EventKind = 36
 )
 
 // HistoryEventSpec supplies one immutable durable history record.
@@ -192,7 +202,7 @@ func NewHistoryEvent(spec HistoryEventSpec) (HistoryEvent, error) {
 
 func validHistoryEventSpec(spec HistoryEventSpec) bool {
 	if spec.Sequence == 0 || !instanceIDPattern.MatchString(spec.InstanceID) ||
-		spec.Kind < EventInstanceStarted || spec.Kind > EventChildFailed ||
+		spec.Kind < EventInstanceStarted || spec.Kind > EventChildStartRetryScheduled ||
 		spec.OccurredAt.IsZero() || len(spec.Data) > MaxPayloadBytes {
 		return false
 	}
@@ -205,7 +215,7 @@ func validHistoryEventSpec(spec HistoryEventSpec) bool {
 	if !requiresDefinition && spec.Definition != (DefinitionReference{}) {
 		return false
 	}
-	childEvent := spec.Kind >= EventChildScheduled && spec.Kind <= EventChildFailed
+	childEvent := spec.Kind >= EventChildScheduled && spec.Kind <= EventChildStartRetryScheduled
 	if (spec.Kind == EventContinuedAsNew || childEvent) && !instanceIDPattern.MatchString(spec.SuccessorID) {
 		return false
 	}
@@ -545,7 +555,9 @@ func (instance *Instance) apply(registry *Registry, event HistoryEvent) error {
 		if err := instance.applyRace(registry, event); err != nil {
 			return err
 		}
-	case EventChildScheduled, EventChildCompleted, EventChildFailed:
+	case EventChildScheduled, EventChildCompleted, EventChildFailed,
+		EventChildStartAttempted, EventChildStarted, EventChildStartFailed,
+		EventChildStartUnknown, EventChildStartRetryScheduled:
 		if err := instance.applyChild(registry, event); err != nil {
 			return err
 		}
@@ -615,7 +627,7 @@ func validEventFields(spec HistoryEventSpec) bool {
 	if spec.Kind == EventRaceWon {
 		return validRaceEventFields(spec)
 	}
-	if spec.Kind >= EventChildScheduled && spec.Kind <= EventChildFailed {
+	if spec.Kind >= EventChildScheduled && spec.Kind <= EventChildStartRetryScheduled {
 		return validChildEventFields(spec)
 	}
 	return spec.StepName == "" && spec.Attempt == 0 && spec.IdempotencyKey == "" &&

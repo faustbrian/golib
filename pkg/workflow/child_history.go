@@ -1,6 +1,9 @@
 package workflow
 
-import "sort"
+import (
+	"sort"
+	"time"
+)
 
 // ChildProgressStatus identifies replayed durable child-workflow progress.
 type ChildProgressStatus uint8
@@ -12,17 +15,31 @@ const (
 	ChildSucceeded ChildProgressStatus = 2
 	// ChildFailed is a known failed child terminal outcome.
 	ChildFailed ChildProgressStatus = 3
+	// ChildStartRunning has one externally observable creation attempt.
+	ChildStartRunning ChildProgressStatus = 4
+	// ChildActive means the pinned child is known to exist and is nonterminal.
+	ChildActive ChildProgressStatus = 5
+	// ChildStartFailedStatus is a known-absent creation failure.
+	ChildStartFailedStatus ChildProgressStatus = 6
+	// ChildStartUnknownStatus requires reconciliation before redispatch.
+	ChildStartUnknownStatus ChildProgressStatus = 7
+	// ChildStartRetryWaiting has a persisted next-attempt admission time.
+	ChildStartRetryWaiting ChildProgressStatus = 8
 )
 
 // ChildProgress is immutable state reconstructed only from persisted events.
 type ChildProgress struct {
-	stepName   string
-	childID    string
-	definition DefinitionReference
-	status     ChildProgressStatus
-	input      []byte
-	result     []byte
-	code       string
+	stepName       string
+	childID        string
+	definition     DefinitionReference
+	status         ChildProgressStatus
+	input          []byte
+	result         []byte
+	code           string
+	attempt        uint32
+	idempotencyKey string
+	dueAt          time.Time
+	retryable      bool
 }
 
 // StepName returns the stable parent definition step.
@@ -46,15 +63,47 @@ func (progress ChildProgress) Result() []byte { return cloneBytes(progress.resul
 // Code returns the stable known-failure code, or empty for other states.
 func (progress ChildProgress) Code() string { return progress.code }
 
+// Attempt returns the latest one-based child-start attempt.
+func (progress ChildProgress) Attempt() uint32 { return progress.attempt }
+
+// IdempotencyKey returns the latest persisted child-start key.
+func (progress ChildProgress) IdempotencyKey() string { return progress.idempotencyKey }
+
+// DueAt returns the attempt deadline or retry admission time.
+func (progress ChildProgress) DueAt() time.Time { return progress.dueAt }
+
+// Retryable reports whether a known-absent creation failure permits retry.
+func (progress ChildProgress) Retryable() bool { return progress.retryable }
+
 func validChildEventFields(spec HistoryEventSpec) bool {
-	if !stableName.MatchString(spec.StepName) || spec.Attempt != 0 ||
-		spec.IdempotencyKey != "" || !spec.DueAt.IsZero() || spec.Retryable {
+	if !stableName.MatchString(spec.StepName) {
 		return false
 	}
 	if spec.Kind == EventChildScheduled {
-		return spec.Definition.valid() && spec.Code == ""
+		return spec.Definition.valid() && spec.Attempt == 0 && spec.IdempotencyKey == "" &&
+			spec.DueAt.IsZero() && spec.Code == "" && !spec.Retryable
 	}
 	if spec.Definition != (DefinitionReference{}) {
+		return false
+	}
+	switch spec.Kind {
+	case EventChildStartAttempted:
+		return spec.Attempt > 0 && instanceIDPattern.MatchString(spec.IdempotencyKey) &&
+			spec.DueAt.After(spec.OccurredAt) && spec.Code == "" && !spec.Retryable && len(spec.Data) == 0
+	case EventChildStarted:
+		return spec.Attempt > 0 && spec.IdempotencyKey == "" && spec.DueAt.IsZero() &&
+			spec.Code == "" && !spec.Retryable && len(spec.Data) == 0
+	case EventChildStartFailed:
+		return spec.Attempt > 0 && spec.IdempotencyKey == "" && spec.DueAt.IsZero() &&
+			stableName.MatchString(spec.Code) && len(spec.Data) == 0
+	case EventChildStartUnknown:
+		return spec.Attempt > 0 && spec.IdempotencyKey == "" && spec.DueAt.IsZero() &&
+			stableName.MatchString(spec.Code) && !spec.Retryable && len(spec.Data) == 0
+	case EventChildStartRetryScheduled:
+		return spec.Attempt > 0 && spec.IdempotencyKey == "" && spec.DueAt.After(spec.OccurredAt) &&
+			spec.Code == "" && !spec.Retryable && len(spec.Data) == 0
+	}
+	if spec.Attempt != 0 || spec.IdempotencyKey != "" || !spec.DueAt.IsZero() || spec.Retryable {
 		return false
 	}
 	if spec.Kind == EventChildCompleted {
@@ -81,16 +130,66 @@ func (instance *Instance) applyChild(registry *Registry, event HistoryEvent) err
 		}
 		return nil
 	}
-	if !exists || progress.status != ChildScheduled || progress.childID != event.successorID ||
-		len(event.data) > int(step.ResultLimit) {
+	if !exists || progress.childID != event.successorID {
 		return ErrInvalidTransition
 	}
-	progress.result = cloneBytes(event.data)
-	progress.code = event.code
-	if event.kind == EventChildCompleted {
-		progress.status = ChildSucceeded
-	} else {
-		progress.status = ChildFailed
+	switch event.kind {
+	case EventChildStartAttempted:
+		if instance.status != StatusRunning ||
+			(progress.status != ChildScheduled && progress.status != ChildStartRetryWaiting) ||
+			event.attempt != progress.attempt+1 || event.attempt > step.Retry.MaxAttempts ||
+			event.dueAt != canonicalTime(event.occurredAt.Add(step.Timeout)) ||
+			(progress.status == ChildStartRetryWaiting && event.occurredAt.Before(progress.dueAt)) {
+			return ErrInvalidTransition
+		}
+		progress.status = ChildStartRunning
+		progress.attempt = event.attempt
+		progress.idempotencyKey = event.idempotencyKey
+		progress.dueAt = event.dueAt
+		progress.code = ""
+		progress.retryable = false
+	case EventChildStarted:
+		if progress.status != ChildStartRunning || event.attempt != progress.attempt {
+			return ErrInvalidTransition
+		}
+		progress.status = ChildActive
+		progress.dueAt = time.Time{}
+	case EventChildStartFailed:
+		if progress.status != ChildStartRunning || event.attempt != progress.attempt {
+			return ErrInvalidTransition
+		}
+		progress.status = ChildStartFailedStatus
+		progress.dueAt = time.Time{}
+		progress.code = event.code
+		progress.retryable = event.retryable
+	case EventChildStartUnknown:
+		if progress.status != ChildStartRunning || event.attempt != progress.attempt {
+			return ErrInvalidTransition
+		}
+		progress.status = ChildStartUnknownStatus
+		progress.dueAt = time.Time{}
+		progress.code = event.code
+		progress.retryable = false
+	case EventChildStartRetryScheduled:
+		if progress.status != ChildStartFailedStatus || !progress.retryable ||
+			progress.attempt >= step.Retry.MaxAttempts || event.attempt != progress.attempt ||
+			event.dueAt != canonicalTime(event.occurredAt.Add(retryDelay(step.Retry, event.attempt))) {
+			return ErrInvalidTransition
+		}
+		progress.status = ChildStartRetryWaiting
+		progress.dueAt = event.dueAt
+	default:
+		if (progress.status != ChildScheduled && progress.status != ChildActive) ||
+			len(event.data) > int(step.ResultLimit) {
+			return ErrInvalidTransition
+		}
+		progress.result = cloneBytes(event.data)
+		progress.code = event.code
+		if event.kind == EventChildCompleted {
+			progress.status = ChildSucceeded
+		} else {
+			progress.status = ChildFailed
+		}
 	}
 	instance.children[event.stepName] = progress
 	return nil
@@ -128,6 +227,10 @@ type childProgressSnapshot struct {
 	Input                 []byte
 	Result                []byte
 	Code                  string
+	Attempt               uint32
+	IdempotencyKey        string
+	DueAt                 time.Time
+	Retryable             bool
 }
 
 func childProgressSnapshots(progress map[string]ChildProgress) []childProgressSnapshot {
@@ -142,6 +245,8 @@ func childProgressSnapshots(progress map[string]ChildProgress) []childProgressSn
 			DefinitionName: child.definition.Name(), DefinitionVersion: child.definition.Version(),
 			DefinitionFingerprint: child.definition.Fingerprint(), Status: child.status,
 			Input: child.input, Result: child.result, Code: child.code,
+			Attempt: child.attempt, IdempotencyKey: child.idempotencyKey,
+			DueAt: child.dueAt, Retryable: child.retryable,
 		})
 	}
 	return result

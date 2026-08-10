@@ -20,9 +20,11 @@ var (
 
 // ChildDispatch is immutable durable metadata for starting one pinned child.
 type ChildDispatch struct {
-	stepName   string
-	childID    string
-	definition DefinitionReference
+	stepName       string
+	childID        string
+	definition     DefinitionReference
+	attempt        uint32
+	idempotencyKey string
 }
 
 // StepName returns the parent definition step.
@@ -34,12 +36,20 @@ func (dispatch ChildDispatch) ChildID() string { return dispatch.childID }
 // Definition returns the exact child behavior identity.
 func (dispatch ChildDispatch) Definition() DefinitionReference { return dispatch.definition }
 
+// Attempt returns the one-based semantic child-start attempt.
+func (dispatch ChildDispatch) Attempt() uint32 { return dispatch.attempt }
+
+// IdempotencyKey returns the stable key for this semantic attempt.
+func (dispatch ChildDispatch) IdempotencyKey() string { return dispatch.idempotencyKey }
+
 type childDispatchDocument struct {
 	StepName              string `json:"step_name"`
 	ChildID               string `json:"child_id"`
 	DefinitionName        string `json:"definition_name"`
 	DefinitionVersion     string `json:"definition_version"`
 	DefinitionFingerprint string `json:"definition_fingerprint"`
+	Attempt               uint32 `json:"attempt"`
+	IdempotencyKey        string `json:"idempotency_key"`
 }
 
 // DecodeChildDispatch validates bounded durable work metadata without starting
@@ -58,8 +68,12 @@ func DecodeChildDispatch(payload []byte) (ChildDispatch, error) {
 		return ChildDispatch{}, ErrInvalidChildTransition
 	}
 	reference, err := NewDefinitionReference(document.DefinitionName, document.DefinitionVersion, document.DefinitionFingerprint)
-	dispatch := ChildDispatch{stepName: document.StepName, childID: document.ChildID, definition: reference}
-	if err != nil || !stableName.MatchString(dispatch.stepName) || !instanceIDPattern.MatchString(dispatch.childID) {
+	dispatch := ChildDispatch{
+		stepName: document.StepName, childID: document.ChildID, definition: reference,
+		attempt: document.Attempt, idempotencyKey: document.IdempotencyKey,
+	}
+	if err != nil || !stableName.MatchString(dispatch.stepName) || !instanceIDPattern.MatchString(dispatch.childID) ||
+		dispatch.attempt == 0 || !instanceIDPattern.MatchString(dispatch.idempotencyKey) {
 		return ChildDispatch{}, ErrInvalidChildTransition
 	}
 	return dispatch, nil
@@ -100,7 +114,7 @@ func NewChildSchedule(spec ChildScheduleSpec) (Transition, error) {
 	if err != nil {
 		return Transition{}, ErrInvalidChildTransition
 	}
-	payload := encodeChildDispatch(spec.StepName, spec.ChildID, step.ChildDefinition)
+	payload := encodeChildDispatch(spec.StepName, spec.ChildID, step.ChildDefinition, 1, spec.ChildID)
 	work, err := NewPendingWork(PendingWorkSpec{
 		ID: spec.WorkID, Kind: WorkChild, InstanceID: spec.Instance.id, Sequence: event.Sequence(),
 		AvailableAt: spec.ScheduledAt, Deadline: spec.Deadline, Payload: payload,
@@ -137,7 +151,8 @@ type ChildOutcomeSpec struct {
 func NewChildOutcome(spec ChildOutcomeSpec) (Transition, error) {
 	step, ok := definitionStep(spec.Definition, spec.StepName, StepChild)
 	progress, exists := spec.Instance.Child(spec.StepName)
-	if !ok || !exists || progress.Status() != ChildScheduled || progress.ChildID() != spec.ChildID ||
+	if !ok || !exists || (progress.Status() != ChildScheduled && progress.Status() != ChildActive) ||
+		progress.ChildID() != spec.ChildID ||
 		spec.Instance.status != StatusRunning || spec.Definition.Reference() != spec.Instance.definition ||
 		len(spec.Result) > int(step.ResultLimit) || spec.CompletedAt.Before(spec.Instance.updatedAt) {
 		return Transition{}, ErrInvalidChildTransition
@@ -167,10 +182,165 @@ func NewChildOutcome(spec ChildOutcomeSpec) (Transition, error) {
 	return transition, nil
 }
 
-func encodeChildDispatch(stepName, childID string, definition DefinitionReference) []byte {
+// ChildStartAttemptSpec supplies the durable pre-creation boundary.
+type ChildStartAttemptSpec struct {
+	TransitionID string
+	Lease        WorkLease
+	Instance     Instance
+	Definition   Definition
+	StartedAt    time.Time
+}
+
+// NewChildStartAttempt records a fenced child creation attempt before calling
+// a child-start adapter.
+func NewChildStartAttempt(spec ChildStartAttemptSpec) (Transition, error) {
+	work := spec.Lease.Work()
+	dispatch, err := DecodeChildDispatch(work.Payload())
+	step, ok := definitionStep(spec.Definition, dispatch.StepName(), StepChild)
+	progress, exists := spec.Instance.Child(dispatch.StepName())
+	if err != nil || !ok || !exists || work.Kind() != WorkChild ||
+		work.InstanceID() != spec.Instance.id || spec.Instance.status != StatusRunning ||
+		spec.Definition.Reference() != spec.Instance.definition || spec.Instance.sequence < work.Sequence() ||
+		progress.ChildID() != dispatch.ChildID() || progress.Definition() != dispatch.Definition() ||
+		(progress.Status() != ChildScheduled && progress.Status() != ChildStartRetryWaiting) ||
+		dispatch.Attempt() != progress.Attempt()+1 || dispatch.Attempt() > step.Retry.MaxAttempts ||
+		spec.StartedAt.Before(spec.Instance.updatedAt) ||
+		(progress.Status() == ChildStartRetryWaiting && spec.StartedAt.Before(progress.DueAt())) {
+		return Transition{}, ErrInvalidChildTransition
+	}
+	dueAt := canonicalTime(spec.StartedAt.Add(step.Timeout))
+	event, err := NewHistoryEvent(HistoryEventSpec{
+		Sequence: spec.Instance.sequence + 1, InstanceID: spec.Instance.id,
+		Kind: EventChildStartAttempted, OccurredAt: spec.StartedAt,
+		SuccessorID: dispatch.ChildID(), StepName: dispatch.StepName(),
+		Attempt: dispatch.Attempt(), IdempotencyKey: dispatch.IdempotencyKey(), DueAt: dueAt,
+	})
+	if err != nil {
+		return Transition{}, ErrInvalidChildTransition
+	}
+	transition, err := NewTransition(TransitionSpec{
+		ID: spec.TransitionID, InstanceID: spec.Instance.id, ExpectedSequence: spec.Instance.sequence,
+		Definition: spec.Instance.definition, Events: []HistoryEvent{event},
+	})
+	if err != nil {
+		return Transition{}, ErrInvalidChildTransition
+	}
+	return transition, nil
+}
+
+// ChildStartAttemptOutcomeSpec supplies one explicit creation result.
+type ChildStartAttemptOutcomeSpec struct {
+	TransitionID string
+	Instance     Instance
+	Definition   Definition
+	StepName     string
+	ChildID      string
+	Attempt      uint32
+	OccurredAt   time.Time
+	Outcome      ChildStartOutcome
+}
+
+// NewChildStartAttemptOutcome persists a known or uncertain creation result.
+func NewChildStartAttemptOutcome(spec ChildStartAttemptOutcomeSpec) (Transition, error) {
+	_, ok := definitionStep(spec.Definition, spec.StepName, StepChild)
+	progress, exists := spec.Instance.Child(spec.StepName)
+	if !ok || !exists || spec.Instance.status != StatusRunning ||
+		spec.Definition.Reference() != spec.Instance.definition ||
+		progress.Status() != ChildStartRunning || progress.ChildID() != spec.ChildID ||
+		progress.Attempt() != spec.Attempt || !spec.Outcome.valid() ||
+		spec.OccurredAt.Before(spec.Instance.updatedAt) {
+		return Transition{}, ErrInvalidChildTransition
+	}
+	kind := EventChildStarted
+	switch spec.Outcome.Kind() {
+	case ChildStartFailed:
+		kind = EventChildStartFailed
+	case ChildStartUnknown:
+		kind = EventChildStartUnknown
+	}
+	event, err := NewHistoryEvent(HistoryEventSpec{
+		Sequence: spec.Instance.sequence + 1, InstanceID: spec.Instance.id, Kind: kind,
+		OccurredAt: spec.OccurredAt, SuccessorID: spec.ChildID, StepName: spec.StepName,
+		Attempt: spec.Attempt, Code: spec.Outcome.Code(), Retryable: spec.Outcome.Retryable(),
+	})
+	if err != nil {
+		return Transition{}, ErrInvalidChildTransition
+	}
+	transition, err := NewTransition(TransitionSpec{
+		ID: spec.TransitionID, InstanceID: spec.Instance.id, ExpectedSequence: spec.Instance.sequence,
+		Definition: spec.Instance.definition, Events: []HistoryEvent{event},
+	})
+	if err != nil {
+		return Transition{}, ErrInvalidChildTransition
+	}
+	return transition, nil
+}
+
+// ChildStartRetrySpec supplies one deterministic retry decision and due work.
+type ChildStartRetrySpec struct {
+	TransitionID  string
+	WorkID        string
+	Instance      Instance
+	Definition    Definition
+	StepName      string
+	ScheduledAt   time.Time
+	Deadline      time.Time
+	TenantID      string
+	CorrelationID string
+}
+
+// NewChildStartRetry atomically records retry admission and its next work.
+func NewChildStartRetry(spec ChildStartRetrySpec) (Transition, error) {
+	step, ok := definitionStep(spec.Definition, spec.StepName, StepChild)
+	progress, exists := spec.Instance.Child(spec.StepName)
+	if !ok || !exists || spec.Instance.status != StatusRunning ||
+		spec.Definition.Reference() != spec.Instance.definition ||
+		progress.Status() != ChildStartFailedStatus || !progress.Retryable() ||
+		progress.Attempt() >= step.Retry.MaxAttempts || spec.ScheduledAt.Before(spec.Instance.updatedAt) {
+		return Transition{}, ErrInvalidChildTransition
+	}
+	dueAt := canonicalTime(spec.ScheduledAt.Add(retryDelay(step.Retry, progress.Attempt())))
+	event, err := NewHistoryEvent(HistoryEventSpec{
+		Sequence: spec.Instance.sequence + 1, InstanceID: spec.Instance.id,
+		Kind: EventChildStartRetryScheduled, OccurredAt: spec.ScheduledAt,
+		SuccessorID: progress.ChildID(), StepName: spec.StepName,
+		Attempt: progress.Attempt(), DueAt: dueAt,
+	})
+	if err != nil {
+		return Transition{}, ErrInvalidChildTransition
+	}
+	idempotencyKey := processorTransitionID(spec.WorkID, "child-start-key")
+	payload := encodeChildDispatch(
+		spec.StepName, progress.ChildID(), progress.Definition(), progress.Attempt()+1, idempotencyKey,
+	)
+	work, err := NewPendingWork(PendingWorkSpec{
+		ID: spec.WorkID, Kind: WorkChild, InstanceID: spec.Instance.id, Sequence: event.Sequence(),
+		AvailableAt: dueAt, Deadline: spec.Deadline, Payload: payload,
+		TenantID: spec.TenantID, CorrelationID: spec.CorrelationID,
+	})
+	if err != nil {
+		return Transition{}, ErrInvalidChildTransition
+	}
+	transition, err := NewTransition(TransitionSpec{
+		ID: spec.TransitionID, InstanceID: spec.Instance.id, ExpectedSequence: spec.Instance.sequence,
+		Definition: spec.Instance.definition, Events: []HistoryEvent{event}, Work: []PendingWork{work},
+	})
+	if err != nil {
+		return Transition{}, ErrInvalidChildTransition
+	}
+	return transition, nil
+}
+
+func encodeChildDispatch(
+	stepName, childID string,
+	definition DefinitionReference,
+	attempt uint32,
+	idempotencyKey string,
+) []byte {
 	payload, _ := json.Marshal(childDispatchDocument{
 		StepName: stepName, ChildID: childID, DefinitionName: definition.Name(),
 		DefinitionVersion: definition.Version(), DefinitionFingerprint: definition.Fingerprint(),
+		Attempt: attempt, IdempotencyKey: idempotencyKey,
 	})
 	return payload
 }

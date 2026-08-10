@@ -151,6 +151,11 @@ func decideChildStep(
 	switch progress.Status() {
 	case ChildScheduled:
 		return orchestrationWait(step.Name), false, nil
+	case ChildStartRunning, ChildActive, ChildStartUnknownStatus, ChildStartRetryWaiting:
+		return orchestrationWait(step.Name), false, nil
+	case ChildStartFailedStatus:
+		decision, err := orchestrationTerminal(spec, OrchestrationFailed, step.Name)
+		return decision, false, err
 	case ChildSucceeded:
 		return OrchestrationDecision{}, true, nil
 	case ChildFailed:
