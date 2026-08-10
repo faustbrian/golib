@@ -23,6 +23,8 @@ func TestChildWorkProcessorPersistsStartBeforeCreatingPinnedChild(t *testing.T) 
 		if request.ParentInstanceID() != "instance-1" || request.ParentDefinition() != parent.Reference() ||
 			request.StepName() != "shipment" || request.ChildID() != "child-1" ||
 			request.ChildDefinition() != child.Reference() || request.Attempt() != 1 ||
+			request.MaxAttempts() != 2 || request.StartedAt() != now.Add(2*time.Second) ||
+			request.Deadline() != now.Add(62*time.Second) ||
 			request.IdempotencyKey() == "" || string(request.Input()) != "order-1" ||
 			request.TenantID() != "tenant-1" || request.CorrelationID() != "correlation-1" {
 			t.Fatalf("child start request = %#v", request)
@@ -48,6 +50,128 @@ func TestChildWorkProcessorPersistsStartBeforeCreatingPinnedChild(t *testing.T) 
 	if !called || decision.Kind() != workflow.WorkComplete || len(store.transitions) != 2 ||
 		store.transitions[1].Events()[0].Kind() != workflow.EventChildStarted {
 		t.Fatalf("decision = %#v transitions = %#v called = %t", decision, store.transitions, called)
+	}
+}
+
+func TestChildWorkProcessorSchedulesRetryOnlyAfterKnownAbsentFailure(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2036, 8, 11, 12, 0, 0, 0, time.UTC)
+	_, _, definitions, history, lease := childProcessorFixture(t, now)
+	store := newProcessorStore(t, definitions, history)
+	failure, err := workflow.NewChildStartOutcome(workflow.ChildStartOutcomeSpec{
+		Kind: workflow.ChildStartFailed, Code: "registry-unavailable", Retryable: true,
+	})
+	if err != nil || failure.Code() != "registry-unavailable" || !failure.Retryable() {
+		t.Fatalf("construct child failure: %#v, %v", failure, err)
+	}
+	processor, err := workflow.NewChildWorkProcessor(workflow.ChildWorkProcessorConfig{
+		Store: store, Definitions: definitions,
+		Starter: workflow.ChildStartFunc(func(context.Context, workflow.ChildStartRequest) workflow.ChildStartOutcome {
+			return failure
+		}),
+		Clock: fixedProcessorClock{now: now.Add(2 * time.Second)}, PageSize: 10, MaxHistoryEvents: 100,
+	})
+	if err != nil {
+		t.Fatalf("construct child processor: %v", err)
+	}
+
+	decision, err := processor.Process(context.Background(), lease)
+	if err != nil {
+		t.Fatalf("process known child failure: %v", err)
+	}
+	if decision.Kind() != workflow.WorkComplete || len(store.transitions) != 3 ||
+		store.transitions[1].Events()[0].Kind() != workflow.EventChildStartFailed ||
+		store.transitions[2].Events()[0].Kind() != workflow.EventChildStartRetryScheduled ||
+		len(store.transitions[2].Work()) != 1 ||
+		store.transitions[2].Work()[0].AvailableAt() != now.Add(3*time.Second) {
+		t.Fatalf("decision = %#v transitions = %#v", decision, store.transitions)
+	}
+	dispatch, err := workflow.DecodeChildDispatch(store.transitions[2].Work()[0].Payload())
+	if err != nil || dispatch.Attempt() != 2 || dispatch.IdempotencyKey() == lease.Work().ID() {
+		t.Fatalf("retry dispatch = %#v, %v", dispatch, err)
+	}
+}
+
+func TestChildWorkProcessorPersistsUnknownForPanicAndInvalidOutcome(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name  string
+		code  string
+		start workflow.ChildStartFunc
+	}{
+		{
+			name: "panic", code: "child-start-panic",
+			start: func(context.Context, workflow.ChildStartRequest) workflow.ChildStartOutcome {
+				panic("unknown child creation outcome")
+			},
+		},
+		{
+			name: "invalid", code: "child-start-invalid-outcome",
+			start: func(context.Context, workflow.ChildStartRequest) workflow.ChildStartOutcome {
+				return workflow.ChildStartOutcome{}
+			},
+		},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			now := time.Date(2036, 8, 11, 13, 0, 0, 0, time.UTC)
+			_, _, definitions, history, lease := childProcessorFixture(t, now)
+			store := newProcessorStore(t, definitions, history)
+			processor, err := workflow.NewChildWorkProcessor(workflow.ChildWorkProcessorConfig{
+				Store: store, Definitions: definitions, Starter: test.start,
+				Clock: fixedProcessorClock{now: now.Add(2 * time.Second)}, PageSize: 10, MaxHistoryEvents: 100,
+			})
+			if err != nil {
+				t.Fatalf("construct child processor: %v", err)
+			}
+			decision, err := processor.Process(context.Background(), lease)
+			if err != nil || decision.Kind() != workflow.WorkComplete || len(store.transitions) != 2 ||
+				store.transitions[1].Events()[0].Kind() != workflow.EventChildStartUnknown ||
+				store.transitions[1].Events()[0].Code() != test.code {
+				t.Fatalf("decision = %#v error = %v transitions = %#v", decision, err, store.transitions)
+			}
+		})
+	}
+}
+
+func TestChildWorkProcessorDeadLettersPoisonDispatch(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2036, 8, 11, 14, 0, 0, 0, time.UTC)
+	_, _, definitions, history, _ := childProcessorFixture(t, now)
+	store := newProcessorStore(t, definitions, history)
+	processor, err := workflow.NewChildWorkProcessor(workflow.ChildWorkProcessorConfig{
+		Store: store, Definitions: definitions,
+		Starter: workflow.ChildStartFunc(func(context.Context, workflow.ChildStartRequest) workflow.ChildStartOutcome {
+			t.Fatal("poison dispatch reached child starter")
+			return workflow.ChildStartOutcome{}
+		}),
+		Clock: fixedProcessorClock{now: now.Add(2 * time.Second)}, PageSize: 10, MaxHistoryEvents: 100,
+	})
+	if err != nil {
+		t.Fatalf("construct child processor: %v", err)
+	}
+	work, err := workflow.NewPendingWork(workflow.PendingWorkSpec{
+		ID: "poison-child", Kind: workflow.WorkChild, InstanceID: "instance-1", Sequence: 2,
+		AvailableAt: now.Add(time.Second), Deadline: now.Add(time.Hour), Payload: []byte("not-json"),
+	})
+	if err != nil {
+		t.Fatalf("construct poison work: %v", err)
+	}
+	lease, err := workflow.NewWorkLease(workflow.WorkLeaseSpec{
+		Work: work, Owner: "worker-1", Token: 1, Attempt: 1,
+		ClaimedAt: now.Add(2 * time.Second), ExpiresAt: now.Add(30 * time.Second),
+	})
+	if err != nil {
+		t.Fatalf("construct poison lease: %v", err)
+	}
+	decision, err := processor.Process(context.Background(), lease)
+	if err != nil || decision.Kind() != workflow.WorkDeadLetterDecision ||
+		decision.Code() != "invalid-child-dispatch" || len(store.transitions) != 0 {
+		t.Fatalf("decision = %#v error = %v transitions = %#v", decision, err, store.transitions)
 	}
 }
 
