@@ -10555,7 +10555,7 @@
         },
         {
           "file": "pkg/kafka/.ai/GOAL_HARDEN.md",
-          "requirements_sha256": "785a00348bcffb44fb639a059261eb1bbec5082be337c00507ad39d08a7aeea6",
+          "requirements_sha256": "0bb88473fc4fca7820caf921a8ae52a70a2ceb0379d74f47f9837676f55db49c",
           "implementation_evidence": [
             "pkg/kafka/CHANGELOG.md",
             "pkg/kafka/README.md",
@@ -10644,7 +10644,9 @@
       "required_services": [],
       "build_tags": [],
       "test_tags": [],
-      "interoperability_tools": [],
+      "interoperability_tools": [
+        "Apache Kafka 4.3.1"
+      ],
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [
@@ -10658,7 +10660,7 @@
       "goal_evidence": [
         {
           "file": "pkg/kafka/adapters/gotelemetry/.ai/GOAL.md",
-          "requirements_sha256": "84cfff1193c185c5f71e158002afb8a02caec1a7b2c30b795710c3ffcb3bd7e9",
+          "requirements_sha256": "b3c36ca149e6f658b160bc567afc09aa9bc31e95abee47f374968df127fdf46e",
           "implementation_evidence": [
             "pkg/kafka/adapters/gotelemetry/CHANGELOG.md",
             "pkg/kafka/adapters/gotelemetry/README.md"
@@ -10690,7 +10692,7 @@
         },
         {
           "file": "pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md",
-          "requirements_sha256": "88b278a9c11e200cee3dfde24ff80618c96aaa922d305bea41a05b6ce4c4e597",
+          "requirements_sha256": "484ebab0c8c886d7167bab54a6e404766ea53b6ad36b9cbe882753d1022db271",
           "implementation_evidence": [
             "pkg/kafka/adapters/gotelemetry/CHANGELOG.md",
             "pkg/kafka/adapters/gotelemetry/README.md"

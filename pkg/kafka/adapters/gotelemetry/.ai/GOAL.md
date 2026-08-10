@@ -11,7 +11,9 @@ than merely execute lines or preserve implementation structure.
 Build `kafka/adapters/gotelemetry` as the optional OpenTelemetry translation
 for completed, payload-free Kafka observations. It MUST remain separate from
 the Kafka client, MUST NOT reimplement client instrumentation, and MUST NOT
-claim propagation that its completion-only seam cannot provide.
+claim propagation that its completion-only seam cannot provide. A separate
+explicit record-header policy MAY propagate bounded W3C Trace Context without
+changing the observer contract.
 
 The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
@@ -29,6 +31,9 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
   headers, credentials, endpoints, error text, and panic values.
 - Reconstruct completed span timing from stable start/duration values without
   implying active child work or cross-message propagation.
+- Inject and extract only bounded W3C Trace Context record headers through an
+  explicit immutable policy, excluding baggage, global propagators, and
+  caller-record mutation.
 - Validate all observations and construct instruments synchronously.
 - Define provider error, canceled context, no-op, sampling, concurrent observer,
   and SDK shutdown behavior without changing Kafka outcomes.
@@ -36,7 +41,8 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 ## Documentation And Completion
 
 Document every span, metric, attribute, cardinality rule, semantic-convention
-version, timing limitation, propagation exclusion, privacy policy, API,
-examples, FAQ, and migration. CI MUST enforce race, fuzz, security, API, docs,
-benchmarks, exactly 100% statement coverage, and exactly 100% of viable mutants
-killed by meaningful tests.
+version, timing limitation, observer propagation exclusion, explicit
+record-header propagation policy, privacy policy, API, examples, FAQ, and
+migration. CI MUST enforce race, fuzz, security, API, docs, benchmarks, real
+broker propagation, exactly 100% statement coverage, and exactly 100% of viable
+mutants killed by meaningful tests.

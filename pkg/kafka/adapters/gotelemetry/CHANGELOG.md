@@ -15,6 +15,9 @@ All notable changes to this module are documented here.
   bounded Kafka records, with defensive producer copies, borrowed-consumer
   ownership, fail-closed duplicate fields, no baggage, and no global
   OpenTelemetry state
+- pinned Apache Kafka 4.3.1 producer-to-consumer integration evidence that
+  preserves and extracts the same remote W3C span context before source-offset
+  settlement
 - internal spans and adapter-owned duration metrics for the bounded local wait
   from blocked-callback entry through poll-gate release or failure
 - internal spans and adapter-owned operation metrics for bounded consumer retry

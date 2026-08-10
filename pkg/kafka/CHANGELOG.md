@@ -9,7 +9,8 @@ All notable changes to this module are documented here.
 - add an independently versioned, bounded W3C Trace Context record-header
   policy in the OpenTelemetry adapter, with owned producer records,
   borrowed-consumer safety, duplicate-field rejection, and no baggage or
-  global propagator state
+  global propagator state, plus pinned Apache Kafka 4.3.1 producer-to-consumer
+  propagation evidence
 - add reproducible no-I/O consumer-group record and batch performance matrices
   for sequential and cross-partition parallel handling plus a Kafka
   consume-transform-produce matrix, separating the common transport floor from

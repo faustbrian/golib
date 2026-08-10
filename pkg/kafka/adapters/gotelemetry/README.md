@@ -186,6 +186,13 @@ never made a telemetry attribute by this adapter; applications must still
 ensure vendor trace-state values are appropriate for every broker and
 downstream trust boundary.
 
+The interoperability gate publishes an injected record through the root
+producer, consumes and settles it through the root consumer, and extracts the
+same remote span context after a pinned Apache Kafka 4.3.1 broker preserves the
+headers. This proves the Kafka-to-Kafka propagation boundary only; it does not
+prove tracing for external side effects or make the completion observer
+propagate.
+
 ## Failure and lifecycle behavior
 
 `Config.Validate` and `AttributePolicy.Validate` perform validation without

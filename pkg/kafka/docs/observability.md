@@ -319,5 +319,8 @@ not inject or extract record headers. A separate immutable
 between explicitly supplied records and contexts, with Kafka message-limit
 validation, producer-record ownership, fail-closed duplicate fields, and no
 baggage or global propagator. It does not publish, consume, settle, create
-spans, or prove an end-to-end broker path. OpenTelemetry remains absent from
+spans, or alter Kafka settlement. A pinned Apache Kafka 4.3.1 integration test
+proves the injected headers survive root-producer publication and root-consumer
+fetch and extract as the same remote span context before settlement.
+OpenTelemetry remains absent from
 the root module.

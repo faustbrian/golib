@@ -26,6 +26,8 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
   deliberately instead of silently changing telemetry.
 - Validate metric units, monotonicity, histogram values, span kind/status,
   parentage, and absence of false propagation claims.
+- Prove injected W3C fields survive a pinned real Kafka broker and extract as
+  the same remote span context after ordinary producer and consumer policy.
 - Benchmark no-op, sampled-out, allowlist-hit, and recording paths.
 
 Release requires exactly 100% statement coverage and exactly 100% of viable
