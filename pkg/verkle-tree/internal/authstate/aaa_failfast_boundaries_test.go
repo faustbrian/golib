@@ -22,6 +22,51 @@ func TestFailFastAggregateVerifierQueryCapacityBoundsTopology(t *testing.T) {
 	}
 }
 
+func TestFailFastClaimAccessorsPreservePresenceAndAbsence(t *testing.T) {
+	key := testKey(1, 2)
+	value := testValue(3)
+	membership := Membership(key, value)
+
+	kind, err := membership.Kind()
+	if err != nil || kind != ClaimMembership {
+		t.Fatalf("membership kind = %d, error = %v", kind, err)
+	}
+	gotKey, err := membership.Key()
+	if err != nil || gotKey != key {
+		t.Fatalf("membership key = %x, error = %v", gotKey, err)
+	}
+	gotValue, present, err := membership.Value()
+	if err != nil || !present || gotValue != value {
+		t.Fatalf("membership value = %x/%t, error = %v", gotValue, present, err)
+	}
+
+	absence := Absence(key)
+	gotValue, present, err = absence.Value()
+	if err != nil || present || gotValue != (Value{}) {
+		t.Fatalf("absence value = %x/%t, error = %v", gotValue, present, err)
+	}
+	if _, err = (Claim{}).Kind(); !errors.Is(err, errInvalidClaim) {
+		t.Fatalf("zero claim kind error = %v, want errInvalidClaim", err)
+	}
+}
+
+func TestFailFastClaimLimitsRejectEachInvalidField(t *testing.T) {
+	valid := testClaimLimits()
+	if err := valid.validate(); err != nil {
+		t.Fatalf("valid claim limits: %v", err)
+	}
+
+	for _, limits := range []ClaimLimits{
+		{MaxTemporaryBytes: valid.MaxTemporaryBytes},
+		{MaxClaims: maxClaimCount + 1, MaxTemporaryBytes: valid.MaxTemporaryBytes},
+		{MaxClaims: valid.MaxClaims},
+	} {
+		if err := limits.validate(); !errors.Is(err, errInvalidClaimLimits) {
+			t.Fatalf("invalid claim limits %#v error = %v", limits, err)
+		}
+	}
+}
+
 func TestFailFastAggregateVerifierQueriesEmptyRoot(t *testing.T) {
 	key := testKey(1, 3)
 	sameStem := key
@@ -158,8 +203,6 @@ func TestFailFastAggregateVerifierCollectorStemQueries(t *testing.T) {
 }
 
 func TestFailFastProofMaterialRemainingBoundary(t *testing.T) {
-	t.Parallel()
-
 	remaining, err := remainingProofMaterialResource(
 		ProofMaterialResourceNodeReads,
 		2,
@@ -183,8 +226,6 @@ func TestFailFastProofMaterialRemainingBoundary(t *testing.T) {
 }
 
 func TestFailFastSnapshotLimitDisjunction(t *testing.T) {
-	t.Parallel()
-
 	limits := testLimits()
 	limits.MaxEntries = maxSupportedCount + 1
 	limits.MaxBatchUpdates = 1
@@ -194,8 +235,6 @@ func TestFailFastSnapshotLimitDisjunction(t *testing.T) {
 }
 
 func TestFailFastClaimMergeObservesCancellation(t *testing.T) {
-	t.Parallel()
-
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	claims := []Claim{
@@ -209,8 +248,6 @@ func TestFailFastClaimMergeObservesCancellation(t *testing.T) {
 }
 
 func TestFailFastClaimMergeSortsTwoValues(t *testing.T) {
-	t.Parallel()
-
 	claims := []Claim{
 		Absence(testKey(2, 2)),
 		Absence(testKey(1, 1)),
@@ -224,8 +261,6 @@ func TestFailFastClaimMergeSortsTwoValues(t *testing.T) {
 }
 
 func TestFailFastUpdateProofAccountsForEveryWorkingKey(t *testing.T) {
-	t.Parallel()
-
 	first := testKey(3, 1)
 	second := testKey(4, 1)
 	limits := testProofGenerationLimits()
@@ -246,8 +281,6 @@ func TestFailFastUpdateProofAccountsForEveryWorkingKey(t *testing.T) {
 }
 
 func TestFailFastStatelessProofKeyAccountsForNextSlot(t *testing.T) {
-	t.Parallel()
-
 	first := testKey(4, 1)
 	second := testKey(4, 2)
 	limit := 4*proofMaterialKeyWorkingBytes - 1
@@ -264,8 +297,6 @@ func TestFailFastStatelessProofKeyAccountsForNextSlot(t *testing.T) {
 }
 
 func TestFailFastUpdateProofClassifiesWholeStemTransitions(t *testing.T) {
-	t.Parallel()
-
 	first := testKey(5, 1)
 	second := testKey(5, 2)
 	for _, test := range []struct {
@@ -291,8 +322,6 @@ func TestFailFastUpdateProofClassifiesWholeStemTransitions(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			limits := topologyProofGenerationLimits()
 			limits.Material.MaxKeys = 2
 			limits.ProverQueries.MaxKeys = 2
@@ -325,8 +354,6 @@ func TestFailFastUpdateProofClassifiesWholeStemTransitions(t *testing.T) {
 }
 
 func TestFailFastUpdateProofContinuesAcrossStemGroups(t *testing.T) {
-	t.Parallel()
-
 	firstDeleted := testKey(6, 1)
 	firstRetained := testKey(6, 2)
 	secondDeleted := testKey(7, 1)
@@ -351,8 +378,6 @@ func TestFailFastUpdateProofContinuesAcrossStemGroups(t *testing.T) {
 		},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-
 			limits := topologyProofGenerationLimits()
 			limits.Material.MaxKeys = test.limit
 			limits.ProverQueries.MaxKeys = test.limit
@@ -374,8 +399,6 @@ func TestFailFastUpdateProofContinuesAcrossStemGroups(t *testing.T) {
 }
 
 func TestFailFastStemDepthUsesNeighborAfterMultiSuffixStem(t *testing.T) {
-	t.Parallel()
-
 	previous := testKey(8, 1)
 	previous[1] = 0x10
 	target := testKey(8, 1)
@@ -401,8 +424,6 @@ func TestFailFastStemDepthUsesNeighborAfterMultiSuffixStem(t *testing.T) {
 }
 
 func TestFailFastTreeProofMergeCopiesSortedValues(t *testing.T) {
-	t.Parallel()
-
 	values := []int{2, 1}
 	if err := sortTreeProofValues(
 		context.Background(),
