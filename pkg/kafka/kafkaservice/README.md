@@ -100,3 +100,12 @@ statement coverage, fuzz smoke, allocation-reporting benchmarks, and
 documentation. Repository gates additionally enforce mutation, API
 compatibility, security, vulnerability, licenses, SBOM, and clean-consumer
 checks.
+
+The separate interoperability lane starts the immutable-digest Apache Kafka
+4.3.1 fixture and exercises the concrete root producer and consumer through
+this adapter. It proves producer startup/readiness/publication/shutdown,
+consumer cancellation while a handler is admitted, handler completion before
+resource shutdown, settlement completed before cancellation, redelivery of the
+record whose handler finishes after cancellation, and rejection of publication
+after stop. This fixture does not replace the root module's multi-broker,
+rebalance, authentication, transaction, or fault-injection evidence.

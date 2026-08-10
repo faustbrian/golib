@@ -15,6 +15,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- pinned Apache Kafka 4.3.1 interoperability evidence for concrete producer
+  startup, readiness, publication, consumer drain-before-shutdown ordering,
+  pre-cancellation settlement, in-flight cancellation redelivery, and post-stop
+  admission fencing
 - independently versioned service lifecycle adapter for explicit Kafka
   producers and consumers
 - bounded startup, readiness, drain, retryable shutdown, task supervision,

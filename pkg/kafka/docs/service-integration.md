@@ -135,6 +135,16 @@ and readiness callbacks, so a direct concurrent stop cannot close the consumer
 resource while either callback is still using it. The stop context bounds that
 join and incomplete cleanup remains retryable.
 
+Task cancellation is also a settlement boundary. A handler that completes
+before cancellation remains committable. If cancellation is observable when an
+admitted handler returns, the root consumer deliberately leaves that record
+unsettled even when the handler returned nil; component stop still waits for
+the handler and run callback before closing the client, and a replacement group
+member can redeliver the record. The pinned Apache Kafka 4.3.1 adapter fixture
+proves both outcomes. Applications that need admitted work to settle during a
+planned drain must invoke the root consumer's explicit drain boundary before
+canceling the task rather than treating task cancellation as graceful drain.
+
 Every delivery creates a distinct request ID. Set `TrustedMetadata` only after
 authenticating the immediate Kafka boundary through deployment ACLs and the
 application's trust policy. Trusted valid metadata preserves the correlation

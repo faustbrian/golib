@@ -36,5 +36,6 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 
 Document lifecycle sequence, dependency ownership, readiness, drain, Kubernetes
 SIGTERM, duplicate windows, API, examples, adoption, FAQ, compatibility, and
-migration. CI MUST enforce race, fuzz, lifecycle tests, API, docs, benchmarks,
-exactly 100% statement coverage, and exactly 100% viable mutation kills.
+migration. CI MUST enforce race, fuzz, lifecycle tests, real-broker
+interoperability, API, docs, benchmarks, exactly 100% statement coverage, and
+exactly 100% viable mutation kills.

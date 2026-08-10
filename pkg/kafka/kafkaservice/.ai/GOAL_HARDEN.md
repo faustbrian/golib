@@ -27,6 +27,10 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
 - Use real Kafka to test rebalance during shutdown, slow handlers, commit
   timeout, producer flush ambiguity, broker loss, credential expiry, and
   recovery after partial startup.
+- Exercise concrete root producer and consumer resources through a pinned real
+  Kafka broker, including producer readiness, admitted-handler drain ordering,
+  pre-cancellation offset settlement, in-flight cancellation redelivery,
+  resource shutdown, and post-stop admission fencing.
 - Test Kubernetes readiness removal and termination grace so no new work enters
   after drain begins and unacknowledged work remains redeliverable.
 - Verify one total shutdown budget is propagated rather than reset per step.

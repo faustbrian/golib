@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- add pinned Apache Kafka 4.3.1 `kafkaservice` interoperability evidence for
+  concrete producer startup, readiness, publication, and shutdown plus
+  consumer pre-cancellation settlement, admitted-handler join, explicit
+  cancellation redelivery, resource shutdown, and post-stop fencing
 - add an independently versioned, bounded W3C Trace Context record-header
   policy in the OpenTelemetry adapter, with owned producer records,
   borrowed-consumer safety, duplicate-field rejection, and no baggage or
