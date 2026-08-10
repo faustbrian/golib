@@ -81,7 +81,14 @@ fi
 
 local_proxy="$(mktemp -d "${TMPDIR:-/tmp}/golib-proxy.XXXXXX")"
 local_modcache="$(mktemp -d "${TMPDIR:-/tmp}/golib-modcache.XXXXXX")"
+active_environment_file=""
+active_state_file=""
 cleanup() {
+    if [[ -n "${active_state_file}" ]]; then
+        "${root}/scripts/stop-services.sh" "${active_state_file}"
+    fi
+    [[ -z "${active_environment_file}" ]] || rm -f "${active_environment_file}"
+    [[ -z "${active_state_file}" ]] || rm -f "${active_state_file}"
     rm -rf "${local_proxy}"
     chmod -R u+w "${local_modcache}"
     rm -rf "${local_modcache}"
@@ -123,29 +130,41 @@ fi
 
 while IFS= read -r module; do
     [[ -n "${module}" ]] || continue
-    environment_file="$(mktemp)"
-    state_file="$(mktemp)"
-    "${root}/scripts/start-services.sh" \
-        "${module}" "${environment_file}" "${state_file}"
-    set -a
-    # shellcheck disable=SC1090 # Generated from pinned local service values.
-    source "${environment_file}"
-    set +a
     status=0
     for selected_gate in "${gates[@]}"; do
-        set +e
+        environment_file="$(mktemp)"
+        state_file="$(mktemp)"
+        active_environment_file="${environment_file}"
+        active_state_file="${state_file}"
         case "${selected_gate}" in
-            format|tidy|api-update)
-                "${root}/scripts/check-module.sh" \
-                    "${module}" "${selected_gate}"
-                ;;
-            *)
-                "${root}/scripts/run-gate-with-evidence.sh" \
-                    "${module}" "${selected_gate}"
+            test|workspace-test|race|coverage|fuzz|mutation|conformance|interoperability|benchmark|release-dry-run|release-public)
+                "${root}/scripts/start-services.sh" \
+                    "${module}" "${environment_file}" "${state_file}"
                 ;;
         esac
+        set +e
+        (
+            set -a
+            # shellcheck disable=SC1090 # Generated from pinned local service values.
+            source "${environment_file}"
+            set +a
+            case "${selected_gate}" in
+                format|tidy|api-update)
+                    "${root}/scripts/check-module.sh" \
+                        "${module}" "${selected_gate}"
+                    ;;
+                *)
+                    "${root}/scripts/run-gate-with-evidence.sh" \
+                        "${module}" "${selected_gate}"
+                    ;;
+            esac
+        )
         status=$?
         set -e
+        "${root}/scripts/stop-services.sh" "${state_file}"
+        rm -f "${environment_file}" "${state_file}"
+        active_environment_file=""
+        active_state_file=""
         [[ "${status}" -eq 0 ]] || break
     done
     if [[ "${status}" -eq 0 && "${gate}" == "check" ]]; then
@@ -154,7 +173,5 @@ while IFS= read -r module; do
         status=$?
         set -e
     fi
-    "${root}/scripts/stop-services.sh" "${state_file}"
-    rm -f "${environment_file}" "${state_file}"
     [[ "${status}" -eq 0 ]] || exit "${status}"
 done <<<"${selection}"
