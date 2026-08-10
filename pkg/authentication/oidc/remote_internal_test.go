@@ -27,6 +27,25 @@ import (
 	jose "github.com/go-jose/go-jose/v4"
 )
 
+var internalRSAFixture = struct {
+	mutex sync.Mutex
+	keys  [3]*rsa.PrivateKey
+	calls map[*testing.T]int
+}{keys: generateInternalRSAFixtureKeys(), calls: make(map[*testing.T]int)}
+
+func generateInternalRSAFixtureKeys() [3]*rsa.PrivateKey {
+	var keys [3]*rsa.PrivateKey
+	for index := range keys {
+		private, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			panic(err)
+		}
+		private.Precompute()
+		keys[index] = private
+	}
+	return keys
+}
+
 func TestNewRejectsConfigurationAndInvalidDiscoveryMetadata(t *testing.T) {
 	t.Parallel()
 
@@ -79,10 +98,7 @@ func TestNewRejectsSigningAlgorithmsNotAdvertisedByProvider(t *testing.T) {
 func TestNewRejectsNullAdvertisedScopes(t *testing.T) {
 	t.Parallel()
 
-	private, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("GenerateKey() error = %v", err)
-	}
+	private := mustRSAKey(t)
 	server := httptest.NewServer(nil)
 	server.Config.Handler = http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		if request.URL.Path == "/.well-known/openid-configuration" {
@@ -102,7 +118,7 @@ func TestNewRejectsNullAdvertisedScopes(t *testing.T) {
 	})
 	t.Cleanup(server.Close)
 
-	_, err = New(context.Background(), Config{
+	_, err := New(context.Background(), Config{
 		Issuer: server.URL, ClientID: "client", Algorithms: []string{"RS256"},
 		Clock: authtest.NewClock(time.Unix(1, 0)), InsecureHTTP: true,
 		HTTPClient: server.Client(), DiscoveryTimeout: 5 * time.Second,
@@ -115,10 +131,7 @@ func TestNewRejectsNullAdvertisedScopes(t *testing.T) {
 func TestNewRejectsNullOptionalProviderMetadata(t *testing.T) {
 	t.Parallel()
 
-	private, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("GenerateKey() error = %v", err)
-	}
+	private := mustRSAKey(t)
 	assertRejected := func(t *testing.T, member string, value any) {
 		t.Helper()
 		server := httptest.NewServer(nil)
@@ -665,8 +678,8 @@ func TestRemoteFetchIgnoresUnrelatedEncryptionKeys(t *testing.T) {
 	signing := mustRSAKey(t)
 	encryption := mustRSAKey(t)
 	body, err := json.Marshal(jose.JSONWebKeySet{Keys: []jose.JSONWebKey{
-		{Key: &signing.PublicKey, KeyID: "signing", Algorithm: "RS256", Use: "sig"},
 		{Key: &encryption.PublicKey, KeyID: "encryption", Algorithm: "RSA-OAEP", Use: "enc"},
+		{Key: &signing.PublicKey, KeyID: "signing", Algorithm: "RS256", Use: "sig"},
 	}})
 	if err != nil {
 		t.Fatalf("Marshal() error = %v", err)
@@ -719,6 +732,9 @@ func TestHTTPHardeningAndBoundedReaders(t *testing.T) {
 	if bounded := hardenedClient(&http.Client{Timeout: 10 * time.Second}, 1); bounded.Timeout != 10*time.Second {
 		t.Fatalf("hardenedClient(short timeout) = %v", bounded.Timeout)
 	}
+	if bounded := hardenedClient(&http.Client{Timeout: 30 * time.Second}, 1); bounded.Timeout != 30*time.Second {
+		t.Fatalf("hardenedClient(exact timeout) = %v", bounded.Timeout)
+	}
 	if err := client.CheckRedirect(&http.Request{}, nil); err == nil {
 		t.Fatal("CheckRedirect() error = nil")
 	}
@@ -746,7 +762,7 @@ func TestHTTPHardeningAndBoundedReaders(t *testing.T) {
 	if _, err := transport.RoundTrip(&http.Request{}); err == nil {
 		t.Fatal("RoundTrip() error = nil")
 	}
-	for _, contentType := range []string{"", "text/plain", "application/json, text/plain"} {
+	for _, contentType := range []string{"", "text/plain", "application/json, text/plain", "application/json; charset"} {
 		closed := false
 		transport := boundedTransport{base: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
 			return &http.Response{
@@ -906,6 +922,13 @@ func TestRemoteRefreshLifetimeUsesBoundedPerInstanceJitter(t *testing.T) {
 	if first < minimum || first > time.Hour || second < minimum || second > time.Hour {
 		t.Fatalf("refreshLifetime() = %v and %v, want [%v, %v]", first, second, minimum, time.Hour)
 	}
+	window := uint64(10 * time.Second)
+	if got := (&remoteKeySet{jitter: window}).refreshLifetime(110*time.Second, 10*time.Second); got != 100*time.Second {
+		t.Fatalf("refreshLifetime(exact window) = %v", got)
+	}
+	if got := (&remoteKeySet{jitter: window + 1}).refreshLifetime(110*time.Second, 10*time.Second); got != 110*time.Second {
+		t.Fatalf("refreshLifetime(window rollover) = %v", got)
+	}
 }
 
 func TestRemoteURLValidationRejectsEachUnsafeComponent(t *testing.T) {
@@ -919,6 +942,7 @@ func TestRemoteURLValidationRejectsEachUnsafeComponent(t *testing.T) {
 		{raw: "https://issuer.example.test/keys", want: true},
 		{raw: "http://issuer.example.test/keys", allowHTTP: true},
 		{raw: "http://127.0.0.1/keys", allowHTTP: true, want: true},
+		{raw: "http://192.0.2.1/keys", allowHTTP: true},
 		{raw: "http://[::1]/keys", allowHTTP: true, want: true},
 		{raw: "http://localhost/keys", allowHTTP: true, want: true},
 		{raw: "http://issuer.example.test/keys"},
@@ -985,6 +1009,14 @@ func TestRemoteKeyTransitionBoundsRetiredHistory(t *testing.T) {
 	if set.acceptKeyTransition([]jose.JSONWebKey{key(third, "third")}) {
 		t.Fatal("acceptKeyTransition(exhausted history) = true")
 	}
+	set.retiredKeys = make(map[string]struct{}, maximumTrackedJWKs-1)
+	for index := range maximumTrackedJWKs - 1 {
+		set.retiredKeys[fmt.Sprintf("retired-%d", index)] = struct{}{}
+	}
+	set.activeKeys = nil
+	if !set.acceptKeyTransition([]jose.JSONWebKey{key(third, "third")}) {
+		t.Fatal("acceptKeyTransition(exact history bound) = false")
+	}
 }
 
 func TestRemoteVerificationWaitsForRefreshAndFiltersCandidateKeys(t *testing.T) {
@@ -1007,6 +1039,11 @@ func TestRemoteVerificationWaitsForRefreshAndFiltersCandidateKeys(t *testing.T) 
 	}
 	if payload, found, verifyErr := verifyWithKeys(signed, "key", keys); verifyErr != nil || !found || string(payload) != `{"sub":"user"}` {
 		t.Fatalf("verifyWithKeys() = %q, %v, %v", payload, found, verifyErr)
+	}
+	if payload, found, verifyErr := verifyWithKeys(signed, "key", []jose.JSONWebKey{{
+		Key: &private.PublicKey, KeyID: "key", Algorithm: "PS256",
+	}}); payload != nil || found || verifyErr == nil {
+		t.Fatalf("verifyWithKeys(algorithm mismatch) = %q, %v, %v", payload, found, verifyErr)
 	}
 
 	done := make(chan struct{})
@@ -1228,11 +1265,21 @@ func TestJOSEKeyAlgorithmFamilies(t *testing.T) {
 
 func mustRSAKey(t *testing.T) *rsa.PrivateKey {
 	t.Helper()
-	private, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("GenerateKey() error = %v", err)
+	internalRSAFixture.mutex.Lock()
+	defer internalRSAFixture.mutex.Unlock()
+	index := internalRSAFixture.calls[t]
+	if index == 0 {
+		t.Cleanup(func() {
+			internalRSAFixture.mutex.Lock()
+			delete(internalRSAFixture.calls, t)
+			internalRSAFixture.mutex.Unlock()
+		})
 	}
-	return private
+	if index >= len(internalRSAFixture.keys) {
+		t.Fatalf("mustRSAKey() requested %d distinct test keys", index+1)
+	}
+	internalRSAFixture.calls[t] = index + 1
+	return internalRSAFixture.keys[index]
 }
 
 func signCompact(t *testing.T, private *rsa.PrivateKey, keyID string, payload []byte) string {

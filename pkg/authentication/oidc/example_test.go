@@ -3,8 +3,6 @@ package oidc_test
 import (
 	"context"
 	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"time"
@@ -16,7 +14,7 @@ import (
 )
 
 func ExampleNewWithKeySet() {
-	private, _ := rsa.GenerateKey(rand.Reader, 2048)
+	private := externalRSAFixture.keys[0]
 	keys := &upstreamoidc.StaticKeySet{PublicKeys: []crypto.PublicKey{&private.PublicKey}}
 	now := time.Unix(1_800_000_000, 0).UTC()
 	validator, _ := authoidc.NewWithKeySet(authoidc.Config{

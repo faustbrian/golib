@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -23,6 +24,25 @@ import (
 )
 
 var oidcNow = time.Date(2026, time.July, 15, 12, 0, 0, 0, time.UTC)
+
+var externalRSAFixture = struct {
+	mutex sync.Mutex
+	keys  [3]*rsa.PrivateKey
+	calls map[*testing.T]int
+}{keys: generateExternalRSAFixtureKeys(), calls: make(map[*testing.T]int)}
+
+func generateExternalRSAFixtureKeys() [3]*rsa.PrivateKey {
+	var keys [3]*rsa.PrivateKey
+	for index := range keys {
+		private, err := rsa.GenerateKey(rand.Reader, 2048)
+		if err != nil {
+			panic(err)
+		}
+		private.Precompute()
+		keys[index] = private
+	}
+	return keys
+}
 
 func TestValidatorAuthenticatesStrictOIDCIDToken(t *testing.T) {
 	t.Parallel()
@@ -484,6 +504,52 @@ func TestValidatorRejectsNonASCIIOrOversizedSubject(t *testing.T) {
 	}
 }
 
+func TestValidatorAcceptsExactTokenAndSubjectBounds(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	claims := map[string]any{
+		"sub": "user\x7f", "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+	}
+	token := signIDToken(t, private, claims)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow), MaxTokenBytes: len(token),
+	})
+	if _, err := validator.Authenticate(context.Background(), authentication.NewBearerCredential(token)); err != nil {
+		t.Fatalf("Authenticate(exact token and subject bounds) error = %v", err)
+	}
+	exactSubjectToken := signIDToken(t, private, map[string]any{
+		"sub": strings.Repeat("s", 255), "iss": "https://issuer.example.test", "aud": "client-1",
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+	})
+	exactSubjectValidator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1",
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	if _, err := exactSubjectValidator.ValidateBearer(context.Background(), exactSubjectToken); err != nil {
+		t.Fatalf("ValidateBearer(exact subject bound) error = %v", err)
+	}
+}
+
+func TestValidatorRequiresAuthorizedPartyForTrustedMultipleAudiences(t *testing.T) {
+	t.Parallel()
+
+	private := rsaKey(t)
+	validator := staticValidator(t, private, authoidc.Config{
+		Issuer: "https://issuer.example.test", ClientID: "client-1", TrustedAudiences: []string{"other"},
+		Algorithms: []string{"RS256"}, Clock: authtest.NewClock(oidcNow),
+	})
+	token := signIDToken(t, private, map[string]any{
+		"sub": "user", "iss": "https://issuer.example.test", "aud": []string{"client-1", "other"},
+		"iat": oidcNow.Unix(), "exp": oidcNow.Add(time.Hour).Unix(),
+	})
+	if _, err := validator.ValidateBearer(context.Background(), token); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateBearer(missing azp) error = %v", err)
+	}
+}
+
 func TestValidateIDTokenBindsAccessTokenAndAuthorizationCode(t *testing.T) {
 	t.Parallel()
 
@@ -521,6 +587,16 @@ func TestValidateIDTokenBindsAccessTokenAndAuthorizationCode(t *testing.T) {
 		AccessToken: accessToken, AuthorizationCode: "different",
 	}); !errors.Is(err, authentication.ErrCredentialsRejected) {
 		t.Fatalf("ValidateIDToken(mismatched code) error = %v", err)
+	}
+	if _, err := validator.ValidateIDToken(context.Background(), token, authoidc.TokenBinding{
+		AccessToken: "different",
+	}); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateIDToken(access-token-only mismatch) error = %v", err)
+	}
+	if _, err := validator.ValidateIDToken(context.Background(), token, authoidc.TokenBinding{
+		AuthorizationCode: "different",
+	}); !errors.Is(err, authentication.ErrCredentialsRejected) {
+		t.Fatalf("ValidateIDToken(code-only mismatch) error = %v", err)
 	}
 }
 
@@ -724,11 +800,21 @@ func staticValidator(t *testing.T, private *rsa.PrivateKey, configuration authoi
 
 func rsaKey(t *testing.T) *rsa.PrivateKey {
 	t.Helper()
-	private, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatalf("GenerateKey() error = %v", err)
+	externalRSAFixture.mutex.Lock()
+	defer externalRSAFixture.mutex.Unlock()
+	index := externalRSAFixture.calls[t]
+	if index == 0 {
+		t.Cleanup(func() {
+			externalRSAFixture.mutex.Lock()
+			delete(externalRSAFixture.calls, t)
+			externalRSAFixture.mutex.Unlock()
+		})
 	}
-	return private
+	if index >= len(externalRSAFixture.keys) {
+		t.Fatalf("rsaKey() requested %d distinct test keys", index+1)
+	}
+	externalRSAFixture.calls[t] = index + 1
+	return externalRSAFixture.keys[index]
 }
 
 func signIDToken(t *testing.T, private *rsa.PrivateKey, claims map[string]any) string {

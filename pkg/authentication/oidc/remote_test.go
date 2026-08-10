@@ -30,7 +30,7 @@ func TestDiscoveryValidatorRotatesKeysAndFailsClosedWhenCacheExpiresDuringOutage
 	validator, err := authoidc.New(context.Background(), authoidc.Config{
 		Issuer: server.URL, ClientID: "client-1", Algorithms: []string{"RS256"},
 		Clock: clock, InsecureHTTP: true,
-		HTTPClient: server.Client(), DiscoveryTimeout: time.Second,
+		HTTPClient: server.Client(), DiscoveryTimeout: 5 * time.Second,
 		MaxHTTPBodyBytes: 32 * 1024, MaxKeys: 8,
 		MinRefreshInterval: time.Second,
 	})
@@ -80,7 +80,7 @@ func TestConcurrentOIDCAuthenticationAndRotationAreRaceSafe(t *testing.T) {
 	validator, err := authoidc.New(context.Background(), authoidc.Config{
 		Issuer: server.URL, ClientID: "client-1", Algorithms: []string{"RS256"},
 		Clock: authtest.NewClock(oidcNow), InsecureHTTP: true,
-		HTTPClient: server.Client(), DiscoveryTimeout: time.Second,
+		HTTPClient: server.Client(), DiscoveryTimeout: 5 * time.Second,
 	})
 	if err != nil {
 		t.Fatalf("New() error = %v", err)

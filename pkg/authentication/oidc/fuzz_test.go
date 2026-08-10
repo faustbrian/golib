@@ -4,8 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto"
-	"crypto/rand"
-	"crypto/rsa"
 	"encoding/json"
 	"errors"
 	"io"
@@ -65,10 +63,7 @@ func FuzzProviderMetadata(f *testing.F) {
 }
 
 func FuzzValidateBearer(f *testing.F) {
-	private, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		f.Fatalf("GenerateKey() error = %v", err)
-	}
+	private := internalRSAFixture.keys[0]
 	now := time.Unix(1_800_000_000, 0).UTC()
 	validator, err := NewWithKeySet(Config{
 		Issuer: "https://issuer.example.test", ClientID: "client",

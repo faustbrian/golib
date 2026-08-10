@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"math/bits"
 	"math/rand/v2"
 	"mime"
@@ -536,9 +537,9 @@ func (set *remoteKeySet) acceptKeyTransition(keys []jose.JSONWebKey) bool {
 		}
 		next[encoded] = struct{}{}
 	}
-	retired := make(map[string]struct{}, len(set.retiredKeys)+len(set.activeKeys))
-	for fingerprint := range set.retiredKeys {
-		retired[fingerprint] = struct{}{}
+	retired := maps.Clone(set.retiredKeys)
+	if retired == nil {
+		retired = make(map[string]struct{})
 	}
 	for fingerprint := range set.activeKeys {
 		if _, remainsActive := next[fingerprint]; !remainsActive {
@@ -554,10 +555,7 @@ func (set *remoteKeySet) acceptKeyTransition(keys []jose.JSONWebKey) bool {
 }
 
 func (set *remoteKeySet) refreshLifetime(lifetime, minimum time.Duration) time.Duration {
-	window := (lifetime - minimum) / 10
-	if window <= 0 {
-		return lifetime
-	}
+	window := max((lifetime-minimum)/10, time.Duration(0))
 	offset := time.Duration(set.jitter % uint64(window+1))
 	return lifetime - offset
 }
@@ -933,9 +931,10 @@ func hardenedClient(source *http.Client, maximum int64) *http.Client {
 	if source != nil {
 		*client = *source
 	}
-	if client.Timeout <= 0 || client.Timeout > 30*time.Second {
+	if client.Timeout <= 0 {
 		client.Timeout = 30 * time.Second
 	}
+	client.Timeout = min(client.Timeout, 30*time.Second)
 	client.CheckRedirect = func(*http.Request, []*http.Request) error {
 		return errors.New("OIDC redirects are disabled")
 	}
@@ -947,9 +946,10 @@ func hardenedClient(source *http.Client, maximum int64) *http.Client {
 	if standard, ok := transport.(*http.Transport); ok {
 		transport = standard.Clone()
 		cloned := transport.(*http.Transport)
-		if cloned.MaxResponseHeaderBytes <= 0 || cloned.MaxResponseHeaderBytes > maximumHTTPHeaderBytes {
+		if cloned.MaxResponseHeaderBytes <= 0 {
 			cloned.MaxResponseHeaderBytes = maximumHTTPHeaderBytes
 		}
+		cloned.MaxResponseHeaderBytes = min(cloned.MaxResponseHeaderBytes, int64(maximumHTTPHeaderBytes))
 	}
 	client.Transport = boundedTransport{base: transport, maximum: maximum}
 	return client

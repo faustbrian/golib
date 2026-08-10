@@ -376,9 +376,9 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Scope | Exact issuer, discovery metadata, signature algorithms and public keys, audiences and `azp`, temporal claims, subject, caller-owned nonce validation, optional token hashes, bounded synchronized metadata and JWKS rotation, outage policy, cancellation, redaction, interoperability, and documentation. |
 | Status | `pending-reexecution` to `verified` |
 | Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/authentication/oidc` against an immutable repository snapshot, followed by successful live-input fingerprint revalidation. |
-| Result | Passed every mandatory module gate, including 697/697 statements, 320/320 viable mutants, race, five 10,000-execution fuzz targets, lint, Staticcheck, vulnerability, secrets, licenses, SBOM, API, docs, conformance, representative-provider interoperability, and benchmarks. |
-| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run; no external services. |
-| Observed | 2026-08-09T06:22:55Z |
+| Result | Passed every mandatory module gate, including 941/941 statements, 448/448 viable mutants with 100% efficacy and mutant coverage, race, six 10,000-execution fuzz targets, lint, Staticcheck, vulnerability, secrets, licenses, SBOM, API, docs, conformance, Google, Dex, and Keycloak metadata profiles, a provider-issued Keycloak 26.3.2 ID token, and benchmarks. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run and gate-managed Keycloak 26.3.2 at `quay.io/keycloak/keycloak@sha256:98fab020a3a490aba0978f237e2a06cd0ea42bf149c6cf10f11c0aaf27728ff2`. |
+| Observed | 2026-08-10T08:38:54Z |
 | Gaps | None within the scoped OIDC goal contract; NilAway advisory example-flow diagnostics remain visible under repository policy. |
 
 ### Authentication OpenTelemetry hardening evidence

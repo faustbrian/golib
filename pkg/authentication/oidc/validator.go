@@ -503,7 +503,7 @@ func claimStrings(value any, splitSpaces bool) ([]string, error) {
 		values := make([]string, len(typed))
 		for index, item := range typed {
 			text, ok := item.(string)
-			if !ok || text == "" {
+			if !ok {
 				return nil, authentication.ErrInvalidPrincipal
 			}
 			values[index] = text
@@ -618,8 +618,7 @@ func validateConfig(configuration Config) (map[string]struct{}, error) {
 }
 
 func trustedAudienceSet(configuration Config) map[string]struct{} {
-	trusted := make(map[string]struct{}, len(configuration.TrustedAudiences)+1)
-	trusted[configuration.ClientID] = struct{}{}
+	trusted := map[string]struct{}{configuration.ClientID: {}}
 	for _, audience := range configuration.TrustedAudiences {
 		trusted[audience] = struct{}{}
 	}
@@ -784,39 +783,51 @@ func validJSONUnicode(encoded []byte) bool {
 		return false
 	}
 	inString := false
-	for index := 0; index < len(encoded); index++ {
-		switch encoded[index] {
-		case '"':
-			inString = !inString
-		case '\\':
-			if !inString || index+1 >= len(encoded) {
-				continue
+	escaped := false
+	skipUntil := 0
+	for index, current := range encoded {
+		if index < skipUntil {
+			continue
+		}
+		if !inString {
+			if current == '"' {
+				inString = true
 			}
-			index++
-			if encoded[index] != 'u' {
-				continue
+			continue
+		}
+		if !escaped {
+			switch current {
+			case '"':
+				inString = false
+			case '\\':
+				escaped = true
 			}
-			if index+5 > len(encoded) {
+			continue
+		}
+		escaped = false
+		if current != 'u' {
+			continue
+		}
+		if len(encoded)-index < 5 {
+			return false
+		}
+		code, err := strconv.ParseUint(string(encoded[index+1:index+5]), 16, 16)
+		if err != nil {
+			return false
+		}
+		skipUntil = index + 5
+		switch {
+		case code >= 0xD800 && code <= 0xDBFF:
+			if len(encoded)-skipUntil < 6 || encoded[skipUntil] != '\\' || encoded[skipUntil+1] != 'u' {
 				return false
 			}
-			code, err := strconv.ParseUint(string(encoded[index+1:index+5]), 16, 16)
-			if err != nil {
+			low, lowErr := strconv.ParseUint(string(encoded[skipUntil+2:skipUntil+6]), 16, 16)
+			if lowErr != nil || low < 0xDC00 || low > 0xDFFF {
 				return false
 			}
-			index += 4
-			switch {
-			case code >= 0xD800 && code <= 0xDBFF:
-				if index+7 > len(encoded) || encoded[index+1] != '\\' || encoded[index+2] != 'u' {
-					return false
-				}
-				low, err := strconv.ParseUint(string(encoded[index+3:index+7]), 16, 16)
-				if err != nil || low < 0xDC00 || low > 0xDFFF {
-					return false
-				}
-				index += 6
-			case code >= 0xDC00 && code <= 0xDFFF:
-				return false
-			}
+			skipUntil += 6
+		case code >= 0xDC00 && code <= 0xDFFF:
+			return false
 		}
 	}
 	return true
