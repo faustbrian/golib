@@ -35,10 +35,12 @@ application remains responsible for authorizing capability construction.
 ## Opaque namespaces
 
 `NamespaceEncoder` uses HMAC-SHA-256 over versioned, length-delimited scope,
-domain, and logical-key input. It prevents ambiguous concatenation and keeps raw
-tenant IDs and logical keys out of cache, search, queue, scheduler,
-idempotency, event, workflow, rate-limit, and telemetry namespaces. Callers own
-and rotate the encoder key.
+domain, and logical-key input. Its `tn2_` lowercase hexadecimal output is safe
+for first-party provider resource names, including OpenSearch indexes. It
+prevents ambiguous concatenation and keeps raw tenant IDs and logical keys out
+of cache, search, queue, scheduler, idempotency, event, workflow, rate-limit,
+and telemetry namespaces. Callers own and rotate the encoder key. Version 1
+names require the bounded migration described in `docs/migration.md`.
 
 ## Security boundary
 

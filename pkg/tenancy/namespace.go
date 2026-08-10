@@ -3,8 +3,8 @@ package tenancy
 import (
 	"crypto/hmac"
 	"crypto/sha256"
-	"encoding/base64"
 	"encoding/binary"
+	"encoding/hex"
 	"errors"
 )
 
@@ -12,7 +12,7 @@ const (
 	minimumNamespaceKeyBytes = 32
 	maximumNamespaceKeyBytes = 1024
 	maximumNamespacePart     = 4096
-	namespaceVersion         = "tenancy-namespace-v1"
+	namespaceVersion         = "tenancy-namespace-v2"
 )
 
 var (
@@ -73,7 +73,7 @@ func (encoder *NamespaceEncoder) Encode(scope Scope, domain NamespaceDomain, key
 	writeNamespacePart(digest, scope.TenantID().Value())
 	writeNamespacePart(digest, string(domain))
 	writeNamespacePart(digest, key)
-	return "tn1_" + base64.RawURLEncoding.EncodeToString(digest.Sum(nil)), nil
+	return "tn2_" + hex.EncodeToString(digest.Sum(nil)), nil
 }
 
 func (domain NamespaceDomain) valid() bool {

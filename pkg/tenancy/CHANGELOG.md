@@ -7,6 +7,8 @@ versioning once released.
 
 ### Changed
 
+- Emit provider-safe `tn2_` lowercase hexadecimal namespaces. Existing `tn1_`
+  keys require the documented bounded dual-read and backfill migration.
 - Reject system and unscoped values at first-party integration namespace
   boundaries.
 - Reject cyclic administrative pagination and bound the total pages inspected
@@ -53,4 +55,7 @@ versioning once released.
 - Add an executable blocking analyzer policy for direct first-party provider
   construction, replacement contexts, and tenant metric labels, with a narrow
   reviewed-adapter exception fixture.
+- Add external-consumer compositions for cache, search, queue/event replay,
+  workflow retry, audit attribution, telemetry cardinality, and durable
+  administrative fan-out with partial failure and idempotent resume.
 - MIT licensing and a private vulnerability-reporting and support boundary.

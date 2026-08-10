@@ -39,5 +39,5 @@ func ExampleNamespaceEncoder() {
 		panic(err)
 	}
 	fmt.Println(len(key), key[:4])
-	// Output: 47 tn1_
+	// Output: 68 tn2_
 }
