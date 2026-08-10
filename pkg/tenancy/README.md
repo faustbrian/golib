@@ -76,6 +76,9 @@ explicitly; extraction never promotes system or unscoped work into a tenant.
 `Close` drains work and `Shutdown` cancels it. Each task receives only its
 submitted immutable scope while preserving the submission context's values,
 deadline, and cancellation. Group-parent cancellation also cancels every task.
+`Submit` rejects a conflicting scope synchronously before acquiring capacity or
+starting a goroutine. `GroupOptions.HandleError` may be called concurrently by
+independently completing tasks.
 
 `IterateTenants` requires a system scope with an administrative actor, purpose,
 and optional reference, plus a mandatory audit callback. It reads bounded pages

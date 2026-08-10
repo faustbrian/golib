@@ -32,7 +32,7 @@ seams or one of the declared executable consumer fixtures.
 | Generic propagation | `PropagationCodec.Extract`, `Inject`, `Accept`, and `InjectFromContext`; `Integration.Send` and `Receive` bind the same policy to a semantic boundary. |
 | HTTP | `Adapter.Extract`, `Accept`, `Inject`, and `Wrap`; the trust function authenticates the immediate hop and `ErrorHandler` owns rejection responses. |
 | JSON-RPC | `Codec.Extract`, `Accept`, and `Inject`; the trust function authenticates the immediate hop. |
-| Background work | `Group.Submit`, `Close`, and `Shutdown`; the group owns concurrency, cancellation, task lifetime, and error delivery. |
+| Background work | `Group.Submit`, `Close`, and `Shutdown`; conflicting submit scope is rejected synchronously, while the group owns concurrency, cancellation, task lifetime, and asynchronous operation-error delivery. |
 | Administration | `IterateTenants`, `TenantPager`, `AdministrativeAudit`, `ResumeToken`, and bounded iteration options. |
 
 Every context-producing path derives from its caller or group parent. No owned

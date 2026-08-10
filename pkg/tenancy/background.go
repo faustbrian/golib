@@ -15,7 +15,8 @@ var (
 	ErrGroupClosed = errors.New("tenancy: background group closed")
 )
 
-// GroupOptions define bounded concurrency and task error ownership.
+// GroupOptions define bounded concurrency and task error ownership. HandleError
+// may be invoked concurrently by independently completing tasks.
 type GroupOptions struct {
 	MaxConcurrent int
 	HandleError   func(Scope, error)
@@ -53,9 +54,9 @@ func NewGroup(parent context.Context, options GroupOptions) (*Group, error) {
 	}, nil
 }
 
-// Submit starts one explicitly scoped task after acquiring bounded capacity.
-// The task preserves submitCtx values, deadline, and cancellation while also
-// remaining owned and cancellable by the group lifetime.
+// Submit validates and installs scope synchronously before acquiring bounded
+// capacity. The task preserves submitCtx values, deadline, and cancellation
+// while also remaining owned and cancellable by the group lifetime.
 func (group *Group) Submit(
 	submitCtx context.Context,
 	scope Scope,
@@ -69,6 +70,10 @@ func (group *Group) Submit(
 	}
 	if !scope.Valid() || operation == nil {
 		return ErrInvalidOperation
+	}
+	scopedSubmitCtx, err := WithScope(submitCtx, scope)
+	if err != nil {
+		return err
 	}
 	if err := submitCtx.Err(); err != nil {
 		return err
@@ -101,7 +106,7 @@ func (group *Group) Submit(
 	group.active++
 	group.mutex.Unlock()
 
-	go group.run(submitCtx, scope, operation)
+	go group.run(scopedSubmitCtx, scope, operation)
 	return nil
 }
 
@@ -142,10 +147,7 @@ func (group *Group) run(
 		stopGroupCancellation()
 		cancel()
 	}()
-	scoped, err := WithScope(taskContext, scope)
-	if err == nil {
-		err = operation(scoped)
-	}
+	err := operation(taskContext)
 	if err != nil && group.handleError != nil {
 		group.handleError(scope, err)
 	}

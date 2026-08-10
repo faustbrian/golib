@@ -254,6 +254,48 @@ func TestGroupTaskPreservesSubmitContext(t *testing.T) {
 	}
 }
 
+func TestGroupRejectsConflictingSubmitScopeSynchronously(t *testing.T) {
+	t.Parallel()
+
+	tenantA, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-a"), tenancy.Metadata{})
+	tenantB, _ := tenancy.NewTenantScope(tenancy.MustTenantID("tenant-b"), tenancy.Metadata{})
+	submitContext, _ := tenancy.WithScope(context.Background(), tenantA)
+	group, err := tenancy.NewGroup(context.Background(), tenancy.GroupOptions{MaxConcurrent: 1})
+	if err != nil {
+		t.Fatalf("NewGroup() error = %v", err)
+	}
+	started := make(chan struct{}, 1)
+	if err := group.Submit(submitContext, tenantB, func(context.Context) error {
+		started <- struct{}{}
+		return nil
+	}); !errors.Is(err, tenancy.ErrConflictingScope) {
+		t.Fatalf("Submit(conflicting scope) error = %v", err)
+	}
+	accepted := make(chan struct{}, 1)
+	if err := group.Submit(submitContext, tenantA, func(ctx context.Context) error {
+		if err := tenancy.AssertScope(ctx, tenantA); err != nil {
+			return err
+		}
+		accepted <- struct{}{}
+		return nil
+	}); err != nil {
+		t.Fatalf("Submit(equal scope) error = %v", err)
+	}
+	if err := closeWithin(t, group); err != nil {
+		t.Fatalf("Close() error = %v", err)
+	}
+	select {
+	case <-started:
+		t.Fatal("conflicting submission started work")
+	default:
+	}
+	select {
+	case <-accepted:
+	default:
+		t.Fatal("equal scoped submission did not start work")
+	}
+}
+
 func TestGroupReportsTaskErrorsOutsideSynchronization(t *testing.T) {
 	t.Parallel()
 

@@ -29,7 +29,7 @@ Review date: 2026-08-10
 | Threat or boundary | Negative proof |
 | --- | --- |
 | Invalid and enumerable identifiers | `TestTenantIDRejectsNonCanonicalAndHostileValues`, `FuzzTenantIDRoundTrip`, `TestScopeDiagnosticsDoNotDiscloseOwnedIdentity` |
-| Conflicting context identity | `TestContextPropagationRejectsConflictsAndKeepsParentLifetime`, `TestTenantEnforcementRejectsAbsentSystemAndCrossTenantScope` |
+| Conflicting context identity | `TestContextPropagationRejectsConflictsAndKeepsParentLifetime`, `TestTenantEnforcementRejectsAbsentSystemAndCrossTenantScope`, `TestGroupRejectsConflictingSubmitScopeSynchronously` |
 | Generic propagation spoof, ambiguity, overwrite, and replay | `TestPropagationCodecRejectsAmbiguousSpoofedAndMalformedMetadata`, `TestPropagationCodecRefusesOverwriteSystemScopeAndContextConflict`, `FuzzPropagationExtraction` |
 | HTTP direct access and duplicate headers | `TestMiddlewareAcceptsOnlyExplicitlyTrustedTenantHeader`, `TestHTTPExtractionRejectsDuplicateCaseVariants`, `FuzzHTTPHeaderExtraction`, clean-consumer authenticated-hop fixture |
 | JSON-RPC direct access and duplicate raw keys | `TestJSONRPCExtractAndAcceptRequireExplicitTrust`, `TestJSONRPCRejectsDuplicateConflictingMalformedAndOversizedMetadata`, `FuzzJSONRPCMetadata` |
@@ -37,7 +37,7 @@ Review date: 2026-08-10
 | Live queue retry and dead-letter persistence | `scripts/test-redis-integration.sh` executes Redis Streams reclaim, retry, dead-letter inspection, missing scope, conflicting scope, and cross-tenant queue isolation under `-race` |
 | Cache and namespace cross-tenant collisions | `TestNamespaceEncoderSeparatesScopesDomainsAndAmbiguousParts`, `TestNamespaceOutputIsSafeForFirstPartyProviderNames`, `TestPropertyTenantNamespacesNeverAlias`, `TestPropertyConcurrentOperationsCannotObserveAnotherTenant` |
 | Live search persistence | `scripts/test-opensearch-integration.sh` executes two-tenant negative isolation against OpenSearch 2.19.6 and 3.8.0 under `-race` |
-| Goroutine lifetime and scope reuse | `TestGroupTaskPreservesSubmitContext`, `TestGroupRaceBoundariesAndWaitCancellation`, `TestGroupStressCloseAndShutdownDoNotLeak`, `TestIntegrationConcurrentSoak` |
+| Goroutine lifetime and scope reuse | `TestGroupTaskPreservesSubmitContext`, `TestGroupRejectsConflictingSubmitScopeSynchronously`, `TestGroupRaceBoundariesAndWaitCancellation`, `TestGroupStressCloseAndShutdownDoNotLeak`, `TestIntegrationConcurrentSoak` |
 | PostgreSQL absent scope, system scope, RLS composition, prepared plans, rollback, cancellation, stale pool state, connection loss, reconnect, and concurrent reuse | `TestPostgreSQLRLSAndPoolReuseIsolation` against live PostgreSQL with `-race` |
 | PostgreSQL primary failover through a proxy | `scripts/test-postgres-failover.sh` streams a pinned PostgreSQL 18 primary to a second host, interrupts an open tenant transaction, promotes the replica, redirects the same pool, and proves tenant and unscoped isolation under `-race` |
 | Durable workflow retry/resume and audit attribution | `scripts/check-postgres-composition.sh` reopens first-party PostgreSQL workflow state across retry, rejects cross-tenant lease execution, verifies terminal tenant identity, and context-filters first-party audit records under `-race` |

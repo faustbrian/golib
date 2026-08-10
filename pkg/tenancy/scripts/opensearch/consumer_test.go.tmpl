@@ -21,7 +21,7 @@ func (adapter tenantSearch) write(ctx context.Context, document search.Document)
 	if err != nil {
 		return err
 	}
-	if document.Tenant != tenant.Value() {
+	if document.Tenant != tenant.Value() || document.Index != "orders" {
 		return tenancy.ErrConflictingScope
 	}
 	_, err = adapter.client.Write(ctx, search.IndexDocument(document), search.RefreshWaitFor)
@@ -33,7 +33,7 @@ func (adapter tenantSearch) search(ctx context.Context, request search.Request) 
 	if err != nil {
 		return search.Result{}, err
 	}
-	if request.Tenant != tenant.Value() {
+	if request.Tenant != tenant.Value() || request.Index != "orders" {
 		return search.Result{}, tenancy.ErrConflictingScope
 	}
 	return adapter.client.Search(ctx, request)
@@ -64,16 +64,6 @@ func TestOpenSearchUsesOpaqueTenantNamespacesWithoutCrossTenantHits(t *testing.T
 	client, err := opensearch.New(opensearch.Config{
 		Endpoints: []string{endpoint}, AllowInsecureHTTP: parsed.Scheme == "http", RequestTimeout: 10 * time.Second, MaximumResponseBytes: 8 << 20,
 		Search: &opensearch.SearchConfig{Limits: limits, CursorCodec: codec, Clock: time.Now,
-			Authorizer: opensearch.SearchAuthorizerFunc(func(ctx context.Context, request opensearch.SearchAuthorization) error {
-				tenant, err := tenancy.RequireTenant(ctx)
-				if err != nil {
-					return err
-				}
-				if request.Tenant != tenant.Value() || request.Index != "orders" {
-					return tenancy.ErrConflictingScope
-				}
-				return nil
-			}),
 			Resolver: opensearch.IndexResolverFunc(func(_ context.Context, tenant, _ string, _ opensearch.IndexAccess) (opensearch.IndexTarget, error) {
 				name, ok := aliases[tenant]
 				if !ok {
@@ -123,8 +113,23 @@ func TestOpenSearchUsesOpaqueTenantNamespacesWithoutCrossTenantHits(t *testing.T
 	if _, err := adapter.search(context.Background(), search.Request{Tenant: "tenant-a"}); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
 		t.Fatalf("unscoped search error = %v", err)
 	}
+	validDocument, _ := search.NewDocument("tenant-a", "orders", "43", 1, json.RawMessage(`{"owner":"tenant-a"}`), limits)
+	if err := adapter.write(context.Background(), validDocument); !errors.Is(err, tenancy.ErrTenantScopeRequired) {
+		t.Fatalf("unscoped write error = %v", err)
+	}
+	conflictingDocument, _ := search.NewDocument("tenant-b", "orders", "43", 1, json.RawMessage(`{"owner":"tenant-b"}`), limits)
+	if err := adapter.write(tenantContext(t, "tenant-a"), conflictingDocument); !errors.Is(err, tenancy.ErrConflictingScope) {
+		t.Fatalf("conflicting write error = %v", err)
+	}
+	wrongIndexDocument, _ := search.NewDocument("tenant-a", "invoices", "43", 1, json.RawMessage(`{"owner":"tenant-a"}`), limits)
+	if err := adapter.write(tenantContext(t, "tenant-a"), wrongIndexDocument); !errors.Is(err, tenancy.ErrConflictingScope) {
+		t.Fatalf("unauthorized logical write index error = %v", err)
+	}
 	if _, err := adapter.search(tenantContext(t, "tenant-a"), search.Request{Tenant: "tenant-b"}); !errors.Is(err, tenancy.ErrConflictingScope) {
 		t.Fatalf("conflicting search error = %v", err)
+	}
+	if _, err := adapter.search(tenantContext(t, "tenant-a"), search.Request{Tenant: "tenant-a", Index: "invoices"}); !errors.Is(err, tenancy.ErrConflictingScope) {
+		t.Fatalf("unauthorized logical index error = %v", err)
 	}
 }
 

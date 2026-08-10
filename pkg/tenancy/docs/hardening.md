@@ -12,11 +12,12 @@ state model. The clean-consumer gate additionally composes application-owned
 adapters with the first-party cache backend, bounded search contract provider,
 queue/CloudEvents conversion, workflow values, audit store, and OpenTelemetry
 SDK. The OpenSearch matrix executes the same scoped search adapter against
-OpenSearch 2.19.6 and 3.8.0 with identical logical index and document IDs for
-two tenants. The Redis Streams fixture uses opaque tenant queue names and
-proves the same validated identity survives broker reclaim, retry, and terminal
-dead-letter persistence while another tenant's stream remains empty. Provider
-paths not declared by those fixtures remain outside the claim.
+digest-pinned OpenSearch 2.19.6 and 3.8.0 images with identical logical index
+and document IDs for two tenants. The Redis Streams fixture uses opaque tenant
+queue names and proves the same validated identity survives broker reclaim,
+retry, and terminal dead-letter persistence while another tenant's stream
+remains empty. Provider paths not declared by those fixtures remain outside the
+claim.
 
 The build-tagged PostgreSQL test adds a restricted application login, forced
 and restrictive RLS, cross-tenant reads and mutations, alternating prepared

@@ -20,9 +20,9 @@ var (
 
 type contextKey struct{}
 
-// WithScope returns a child context carrying scope. An existing equal scope is
+// WithScope returns a context carrying scope. An existing equal scope is
 // retained; any attempt to replace scope fails deterministically. Parent
-// cancellation, values, and deadlines remain owned by the returned child.
+// cancellation, values, and deadlines are preserved by the returned context.
 func WithScope(ctx context.Context, scope Scope) (context.Context, error) {
 	if ctx == nil || !scope.Valid() {
 		return nil, ErrInvalidContext

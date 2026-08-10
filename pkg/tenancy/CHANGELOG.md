@@ -15,6 +15,8 @@ versioning once released.
   by one iteration.
 - Propagate tenant scope to PostgreSQL connection acquisition and verify it
   again after callbacks so scope left changed rolls back before commit.
+- Reject conflicting background-task scopes synchronously instead of silently
+  dropping work when no asynchronous error handler is configured.
 - Preserve submission values, deadlines, and cancellation in background tasks
   while retaining group-owned shutdown cancellation.
 - Generate paired permissive-grant and restrictive PostgreSQL RLS policies so
@@ -23,6 +25,8 @@ versioning once released.
   and `Drop` execution to the documented paired statement order.
 - Graceful background group closure releases its owned derived context after
   all submitted work has drained.
+- Pin both supported OpenSearch integration images by digest so isolation
+  evidence cannot drift behind a mutable version tag.
 
 ### Added
 
