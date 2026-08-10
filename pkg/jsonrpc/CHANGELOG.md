@@ -13,6 +13,8 @@ All notable changes to this project are documented here. The format is based on
 
 ### Changed
 
+- Pin the official JSON-RPC 2.0 example corpus and make security, resource,
+  compatibility, and wire consequences explicit for every protocol decision.
 - Reject duplicate members at every nested object depth during strict
   parameter decoding instead of accepting last-member-wins ambiguity.
 - Expose JSON-RPC specification verification as an explicit conformance gate.

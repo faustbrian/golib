@@ -67,7 +67,9 @@ notification, and batch examples.
 Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
 [adoption guide](docs/adoption.md), and [API reference](docs/api.md). Use the
 [conformance matrix](docs/conformance.md), [middleware guide](docs/middleware.md),
-and [hardening report](docs/hardening.md) for production review.
+[hardening report](docs/hardening.md), and
+[specification decision register](docs/specification-decisions.md) for
+production review.
 
 AI tools can use [llms.txt](llms.txt) and [llms-full.txt](llms-full.txt).
 Release history is maintained in [CHANGELOG.md](CHANGELOG.md).

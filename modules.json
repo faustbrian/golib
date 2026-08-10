@@ -10834,10 +10834,18 @@
       "test_tags": [],
       "interoperability_tools": [],
       "specifications": [
-        "JSON-RPC 2.0"
+        "JSON-RPC 2.0",
+        "RFC 8259 JSON",
+        "RFC 9110 HTTP Semantics",
+        "RFC 6839 Structured Syntax Suffixes"
       ],
-      "conformance_corpora": [],
-      "provenance": [],
+      "conformance_corpora": [
+        "Pinned JSON-RPC 2.0 official example corpus",
+        "Specification decision, protocol, HTTP binding, hostile-input, and fuzz evidence"
+      ],
+      "provenance": [
+        "pkg/jsonrpc/specification/manifest.tsv"
+      ],
       "goal_files": [
         "pkg/jsonrpc/.ai/GOAL.md",
         "pkg/jsonrpc/.ai/GOAL_HARDEN.md",

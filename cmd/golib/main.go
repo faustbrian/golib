@@ -1312,7 +1312,12 @@ func specifications(directory string) []string {
 	case "jsonapi":
 		return []string{"JSON:API 1.0 and 1.1", "JSON:API extensions and recommendations"}
 	case "jsonrpc":
-		return []string{"JSON-RPC 2.0"}
+		return []string{
+			"JSON-RPC 2.0",
+			"RFC 8259 JSON",
+			"RFC 9110 HTTP Semantics",
+			"RFC 6839 Structured Syntax Suffixes",
+		}
 	case "merkle-tree":
 		return []string{"RFC 9162"}
 	case "merkle-patricia-trie":
@@ -1416,6 +1421,11 @@ func conformanceCorpora(directory string) []string {
 		return []string{"TC39 Test262"}
 	case "json-schema":
 		return []string{"JSON-Schema-Test-Suite", "Bowtie"}
+	case "jsonrpc":
+		return []string{
+			"Pinned JSON-RPC 2.0 official example corpus",
+			"Specification decision, protocol, HTTP binding, hostile-input, and fuzz evidence",
+		}
 	case "merkle-patricia-trie":
 		return []string{
 			"ethereum/execution-spec-tests stable fixtures v5.4.0 at 88e9fb8f10ed89805aa3110d0a2cd5dcadc19689",

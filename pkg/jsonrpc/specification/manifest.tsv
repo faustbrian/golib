@@ -1,0 +1,2 @@
+id	version	role	status	sha256	bytes	url
+jsonrpc-2.0-examples	2.0	official-example-corpus	pinned	3fa49a5ec274ac7c53dab8d70431fd728bdbad22e167e2fdca4aa673e8496a03	3605	https://www.jsonrpc.org/specification#examples
