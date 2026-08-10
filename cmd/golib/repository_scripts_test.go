@@ -378,8 +378,14 @@ func TestGateInputDigestExcludesIndependentlyVersionedNestedModules(t *testing.T
 }
 
 func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T) {
-	root := testRepositoryRoot(t)
-	script := filepath.Join(root, "scripts", "build-local-proxy.sh")
+	sourceRoot := testRepositoryRoot(t)
+	root := cleanRepositorySnapshot(t, sourceRoot)
+	script := filepath.Join(sourceRoot, "scripts", "build-local-proxy.sh")
+	writeTestFile(
+		t,
+		filepath.Join(root, "pkg", "authentication", "authotel", "proxy_untracked_test.go"),
+		"package authotel\n",
+	)
 	first := t.TempDir()
 	second := t.TempDir()
 
@@ -442,6 +448,30 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 	if _, err := os.Stat(unselected); !os.IsNotExist(err) {
 		t.Fatalf("local proxy unexpectedly included unselected module: %v", err)
 	}
+	authotelArchive, err := zip.OpenReader(filepath.Join(
+		first,
+		filepath.FromSlash(
+			"github.com/faustbrian/golib/pkg/authentication/authotel/@v/v0.0.0.zip",
+		),
+	))
+	if err != nil {
+		t.Fatalf("open authotel local archive: %v", err)
+	}
+	defer func() {
+		if err := authotelArchive.Close(); err != nil {
+			t.Errorf("close authotel local archive: %v", err)
+		}
+	}()
+	untrackedIncluded := false
+	for _, file := range authotelArchive.File {
+		if strings.HasSuffix(file.Name, "/proxy_untracked_test.go") {
+			untrackedIncluded = true
+			break
+		}
+	}
+	if !untrackedIncluded {
+		t.Fatal("local proxy omitted untracked module source")
+	}
 
 	parentSelection := t.TempDir()
 	command := exec.Command(
@@ -467,6 +497,24 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 			t.Fatalf("parent proxy omitted nested module %s: %v", modulePath, err)
 		}
 	}
+
+	manifestPath := filepath.Join(root, "modules.json")
+	var rootSelectionCatalog catalog
+	if err := json.Unmarshal([]byte(mustReadFile(t, manifestPath)), &rootSelectionCatalog); err != nil {
+		t.Fatalf("decode root selection catalog: %v", err)
+	}
+	rootSelectionCatalog.Modules = slices.DeleteFunc(
+		rootSelectionCatalog.Modules,
+		func(item module) bool {
+			return item.Directory != "pkg/authentication" &&
+				item.Directory != "pkg/knapsack/objective/gomoney"
+		},
+	)
+	rootSelectionManifest, err := json.MarshalIndent(rootSelectionCatalog, "", "  ")
+	if err != nil {
+		t.Fatalf("encode root selection catalog: %v", err)
+	}
+	writeTestFile(t, manifestPath, string(rootSelectionManifest)+"\n")
 
 	rootSelection := t.TempDir()
 	command = exec.Command(script, rootSelection, "v0.0.0", ".")
@@ -3862,6 +3910,40 @@ func testRepositoryRoot(t *testing.T) string {
 		t.Fatalf("locate repository: %v", err)
 	}
 	return strings.TrimSpace(string(output))
+}
+
+func cleanRepositorySnapshot(t *testing.T, source string) string {
+	t.Helper()
+	destination := filepath.Join(t.TempDir(), "repository")
+	headCommand := exec.Command("git", "-C", source, "rev-parse", "HEAD")
+	headOutput, err := headCommand.Output()
+	if err != nil {
+		t.Fatalf("resolve repository head: %v", err)
+	}
+	head := strings.TrimSpace(string(headOutput))
+
+	clone := exec.Command(
+		"git",
+		"clone",
+		"--shared",
+		"--no-checkout",
+		"--quiet",
+		source,
+		destination,
+	)
+	if output, err := clone.CombinedOutput(); err != nil {
+		t.Fatalf("clone clean repository snapshot: %v\n%s", err, output)
+	}
+	for _, arguments := range [][]string{
+		{"config", "--local", "core.fsmonitor", "false"},
+		{"checkout", "--detach", "--quiet", head},
+	} {
+		command := exec.Command("git", append([]string{"-C", destination}, arguments...)...)
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("prepare clean repository snapshot: %v\n%s", err, output)
+		}
+	}
+	return destination
 }
 
 func restrictedToolPath(t *testing.T) string {

@@ -103,6 +103,8 @@ while IFS=$'\t' read -r module_path module_directory; do
     archive_root="${archive_directory}/${module_path}@${version}"
     zip_file="${proxy_directory}/${version}.zip"
     nested_modules="${temporary}/nested-modules"
+    archive_files="${temporary}/archive-files"
+    archive_tar="${temporary}/archive.tar"
     mkdir -p "${proxy_directory}" "${archive_root}"
     jq -r --arg current "${module_directory}" '
         .modules[]
@@ -117,6 +119,7 @@ while IFS=$'\t' read -r module_path module_directory; do
         "${version}" >"${proxy_directory}/${version}.info"
     printf '%s\n' "${version}" >"${proxy_directory}/list"
 
+    : >"${archive_files}"
     while IFS= read -r -d '' source; do
         if [[ ! -e "${root}/${source}" ]]; then
             continue
@@ -135,14 +138,17 @@ while IFS=$'\t' read -r module_path module_directory; do
         if [[ -L "${root}/${source}" ]]; then
             continue
         fi
-
-        destination="${archive_root}/${relative}"
-        mkdir -p "$(dirname "${destination}")"
-        cp -p "${root}/${source}" "${destination}"
+        printf '%s\0' "${relative}" >>"${archive_files}"
     done < <(
         git -C "${root}" ls-files -z --cached --others --exclude-standard \
             -- "${module_directory}"
     )
+    (
+        cd "${root}/${module_directory}"
+        tar --null -cf "${archive_tar}" -T "${archive_files}"
+    )
+    tar -xf "${archive_tar}" -C "${archive_root}"
+    rm -f "${archive_tar}"
     rewrite_owned_dependencies "${archive_root}/go.mod"
 
     find "${archive_directory}" -exec touch -t 200001010000 {} +
