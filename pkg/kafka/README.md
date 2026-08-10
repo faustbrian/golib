@@ -396,6 +396,7 @@ quotas, ACLs, and destructive administrative operations.
 
 See the [current audit](docs/audit.md),
 [release-readiness findings](docs/release-readiness.md),
+[specification decision register](docs/specification-decisions.md),
 [compatibility matrix](docs/compatibility.md),
 [documentation index](docs/README.md), [guarantees](docs/guarantees.md),
 [public conformance suites](docs/conformance.md),

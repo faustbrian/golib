@@ -2,6 +2,8 @@
 
 This matrix separates pinned implementation inputs from support claims. It was
 recorded through 2026-08-10. Upstream protocol support is not package evidence.
+The [specification decision register](specification-decisions.md) records the
+package interpretations that govern this matrix.
 
 The independently versioned `kafkaservice` module is additive and pre-v1.
 Existing direct producer and consumer construction remains supported. The
@@ -15,7 +17,7 @@ contracts and does not change their wire or settlement semantics.
 | Go toolchain and module language | Go 1.26.5, `go 1.26.5` | `go version`, `go env`, and `go.mod` |
 | Host used for baseline | Darwin arm64, Apple M4 Max | Go environment and benchmark output |
 | Container runtime | Docker Desktop engine 29.6.2, API 1.55 | Benchmark environment capture on 2026-07-30 |
-| franz-go | v1.21.5, tag target `1ba5fd24f949a335dbc7caaef1d6037e132ef23e` | Go module proxy plus upstream tag; latest stable rechecked on 2026-08-09 |
+| franz-go | v1.21.5, tag target `1ba5fd24f949a335dbc7caaef1d6037e132ef23e` | Go module proxy plus upstream tag; latest stable rechecked on 2026-08-10 |
 | kadm | v1.18.0, tag target `a7255a3f2bc7247e70a15b18080cc4e5cd1e42d6` | Go module proxy plus upstream tag; latest stable rechecked on 2026-08-09 |
 | Comparison clients | kafka-go v0.4.51; IBM/Sarama v1.60.1 | Go module proxy on 2026-07-30; isolated non-releasable benchmark module |
 | testcontainers-go core and Kafka module | v0.43.0 | Go module proxy |

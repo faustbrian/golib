@@ -9,9 +9,9 @@ this report does not turn a historical or partial result into a pass.
 
 **Not ready for release.** The production API and documented Apache Kafka
 policy are substantially implemented, but the release decision remains blocked
-by the open findings below. In particular, the current tree does not yet have a
-successful content-matched mutation result, a complete frozen-tree release
-gate set, or direct Amazon MSK evidence.
+by the release-blocking findings below. In particular, the current tree does
+not yet have a successful content-matched mutation result, a complete
+frozen-tree release gate set, or direct Amazon MSK evidence.
 
 Severity means:
 
@@ -24,13 +24,22 @@ Severity means:
 - **Low**: a deliberately bounded limitation or post-release evidence item that
   must remain visible.
 
-## Open findings
+## Release-blocking findings
 
 | ID | Severity | Finding and impact | Disposition | Release condition |
 | --- | --- | --- | --- | --- |
 | KAF-F001 | Critical | The latest long-running mutation gate is not valid release evidence for the current tree. Its package campaign killed all 3,016 generated mutants, but the aggregate gate ended with status 141 after its output consumer disconnected; production and test inputs also changed afterward. Exact 100% mutation efficacy and mutant coverage are therefore unproved for the release candidate. | Open. The output-durability defect is fixed, but the campaign itself is deliberately deferred while inputs are changing. | Freeze every mutation input, calculate the final content fingerprint, run one Kafka mutation campaign, and retain successful package and aggregate checkpoints with exact 100% efficacy and mutant coverage. |
 | KAF-F002 | Critical | The current release evidence set was collected across changing inputs. A pass whose complete gate fingerprint no longer matches the release candidate cannot establish release readiness, and not all nine manifest-derived reverse dependencies have final content-matched results. | Open. Reuse matching checkpoints and execute only stale Kafka gates and affected reverse dependencies. Do not restart unrelated modules or rerun a gate merely because `HEAD` changed. | Every mandatory Kafka gate and affected reverse dependency has a successful checkpoint for its complete final input fingerprint; no required result is failed, skipped, stale, missing, or warning-substituted. |
 | KAF-F003 | High | Neither Amazon MSK Provisioned nor Serverless has been exercised. The optional IAM signer adapter has local contract, race, fuzz, cancellation, expiry, refresh, redaction, and allocation evidence, but that does not prove broker authentication, rolling operation, transactions, consumer groups, replay, or inspection on MSK. The supplied goal's tested-compatible-service requirement is not met. | Open. Documentation labels both modes unverified and unsupported, so no accidental support claim is permitted meanwhile. | Run the reviewed capability and authentication matrix against each MSK mode claimed as supported, record exact service/client/adapter/tool versions, and retain failure, rotation, lifecycle, and cleanup evidence. |
+
+## Accepted conditional limitations
+
+These findings are resolved for the current support matrix because the affected
+optional profiles remain explicit non-claims. They become release blockers if
+the corresponding support or performance claim is added.
+
+| ID | Conditional severity | Finding and impact | Current disposition | Reopen condition |
+| --- | --- | --- | --- | --- |
 | KAF-F005 | Medium | The tiered-storage fixture uses Kafka's checksum-pinned test-only `LocalTieredStorage` plugin. It proves the package's inspection and replay behavior for that fixture, not a production remote-storage plugin or a managed tiered-storage service. | Accepted scope limitation; production remote storage remains unsupported. | Required only before adding a production plugin or managed-service support claim. |
 | KAF-F006 | Medium | OAUTHBEARER is proven with local verified HTTPS JWKS and OAuth `client_credentials` fixtures, not a named external identity provider. External provider interoperability and performance are unknown. | Accepted scope limitation; the root contract remains provider-neutral and no external provider is claimed. | Required before naming an identity provider as supported or publishing provider-specific performance guidance. |
 | KAF-F007 | Low | The observer reports the bounded package-local wait from franz-go's blocked-rebalance signal through poll-gate release, not complete broker-wide or multi-phase cooperative rebalance duration. Treating it as end-to-end rebalance time would mislead operators. | Accepted API limitation and documented telemetry boundary. | Keep metric names and documentation scoped unless an authoritative end-to-end signal becomes available. |
@@ -46,7 +55,7 @@ Severity means:
 | KAF-R003 | High | A shallow wrapper could have leaked franz-go clients, records, options, or administrator response types and allowed arbitrary options to bypass policy. | Resolved in the current public boundary: stable Kafka concepts are owned by this module and franz-go translation remains internal. Final API compatibility evidence must confirm that boundary. |
 | KAF-F004 | High | PLAIN provider refresh alone did not prove zero-downtime broker credential rotation because Kafka 4.3.1's exercised default JAAS verifier does not reload in place. | Resolved with an overlap-first three-broker fixture. One producer adopts the new principal, preserves exact acks-all delivery across all three partitions while each broker restarts separately at RF=3 and `min.insync.replicas=2`, waits for ISR=3 between restarts, and proves every recovered broker accepts the new credential before all three reject the retired one. |
 
-## Residual risks after the open blockers close
+## Residual risks after the release blockers close
 
 The following risks remain even for a release candidate that passes every
 required gate:
@@ -70,10 +79,10 @@ required gate:
 - Kafka transactions do not make databases, HTTP calls, object storage,
   notifications, or any other external system atomic with Kafka.
 
-These are Kafka or application-system boundaries, not waivers for the open
-findings. Any new guarantee, broker, authentication mode, adapter, or deployment
-profile requires its own directly attributable evidence before this report can
-mark it supported.
+These are Kafka or application-system boundaries, not waivers for the
+release-blocking findings. Any new guarantee, broker, authentication mode,
+adapter, or deployment profile requires its own directly attributable evidence
+before this report can mark it supported.
 
 ## Final review procedure
 

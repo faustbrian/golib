@@ -3,6 +3,8 @@
 The `kafkatest` package exposes consumer-facing conformance suites without
 exporting franz-go types. They verify the stable Kafka policy contracts against
 an explicitly selected broker fixture or provider implementation.
+Normative ambiguities and package-selected interpretations are recorded in the
+[specification decision register](specification-decisions.md).
 
 ## Broker harness
 

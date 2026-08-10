@@ -4,6 +4,7 @@
 - [Pre-v1 implementation audit](audit.md)
 - [Release-readiness findings](release-readiness.md)
 - [Production policy decision matrices](design/decision-matrices.md)
+- [Specification decision register](specification-decisions.md)
 - [Compatibility and execution matrix](compatibility.md)
 - [Public conformance suites](conformance.md)
 - [API](api.md)

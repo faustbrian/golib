@@ -6,6 +6,11 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- register the exact Apache Kafka, Confluent Local, Testcontainers Ryuk,
+  comparison-client, MSK signer, and AWS SDK inputs used by Kafka evidence in
+  the repository catalog and provenance manifest
+- add a canonical specification decision register and catalog the pinned
+  broker, authentication, failure, and comparison-client conformance matrices
 - prove zero-downtime overlap-first PLAIN principal rotation across three
   verified-TLS Kafka brokers, preserving exact acks-all delivery through each
   rolling restart and rejecting the retired credential on every recovered
@@ -169,6 +174,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- separate active release blockers from accepted conditional non-claims so
+  optional unsupported profiles are not misreported as unresolved Medium
+  release findings
 - correct the pre-v1 audit dispositions to reflect the implemented bounded
   target model, separate diagnostic-copy limits, and existing reconnect and
   resource evidence without broadening any managed-service support claim

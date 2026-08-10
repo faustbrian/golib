@@ -1127,6 +1127,28 @@ func interoperabilityTools(directory string) []string {
 			"Keycloak 26.3.2 provider-issued ID token via immutable OCI image",
 		}
 	}
+	if directory == "pkg/kafka" {
+		return []string{
+			"Apache Kafka 3.7.2 and 4.3.1 KRaft fixtures",
+			"Apache Kafka 4.3.1 test-only LocalTieredStorage fixture",
+			"Confluent Local 7.5.0 fixture",
+			"Testcontainers Ryuk 0.14.0 resource reaper",
+		}
+	}
+	if directory == "pkg/kafka/adapters/mskiam" {
+		return []string{
+			"AWS MSK IAM SASL Signer for Go v1.0.4",
+			"AWS SDK for Go v2 v1.43.0",
+		}
+	}
+	if directory == "pkg/kafka/benchmarks/clients" {
+		return []string{
+			"franz-go v1.21.5",
+			"kafka-go v0.4.51",
+			"IBM/Sarama v1.60.1",
+			"Confluent Local 7.5.0 and Apache Kafka 4.3.1 fixtures",
+		}
+	}
 	if directory == "pkg/kafka/adapters/gotelemetry" {
 		return []string{"Apache Kafka 4.3.1"}
 	}
@@ -1358,6 +1380,14 @@ func specifications(directory string) []string {
 }
 
 func conformanceCorpora(directory string) []string {
+	if directory == "pkg/kafka" {
+		return []string{
+			"Apache Kafka 3.7.2 and 4.3.1 multi-broker KRaft matrix",
+			"Pinned TLS, mTLS, PLAIN, SCRAM, and OAUTHBEARER broker fixtures",
+			"Producer, consumer-group, transaction, replay, and inspection failure matrix",
+			"franz-go, kafka-go, and Sarama equivalent-behavior comparison matrix",
+		}
+	}
 	if directory == "pkg/cloudevents" {
 		return []string{"cloudevents/conformance v0.4.1 HTTP and Kafka features"}
 	}

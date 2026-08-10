@@ -1,7 +1,89 @@
 {
   "schema": 1,
-  "reviewed_at": "2026-08-08",
+  "reviewed_at": "2026-08-10",
   "sources": [
+    {
+      "name": "Apache Kafka minimum broker source",
+      "repository": "https://github.com/apache/kafka",
+      "version": "3.7.2",
+      "revision": "79a8f2b5f44f9d5a6867190d1dfc463d08d60b82",
+      "license": "Apache-2.0",
+      "use": "minimum supported multi-broker KRaft interoperability fixture"
+    },
+    {
+      "name": "Apache Kafka current broker source",
+      "repository": "https://github.com/apache/kafka",
+      "version": "4.3.1",
+      "tag_revision": "a07059eb9b5bac1bfdbb1e74313f2fae4ca20fd9",
+      "revision": "26b251a451ce941d3d7a55e6487bcb7f16b5ad48",
+      "license": "Apache-2.0",
+      "use": "current multi-broker KRaft, security, failure, and replay fixtures"
+    },
+    {
+      "name": "franz-go",
+      "repository": "https://github.com/twmb/franz-go",
+      "version": "v1.21.5",
+      "tag_revision": "768afe8a7c8f72a793643ed10e1f379449d634ad",
+      "revision": "1ba5fd24f949a335dbc7caaef1d6037e132ef23e",
+      "license": "MIT",
+      "use": "Kafka protocol implementation beneath the root policy"
+    },
+    {
+      "name": "Apache Kafka 3.7.2 OCI image",
+      "repository": "https://hub.docker.com/r/apache/kafka",
+      "version": "3.7.2",
+      "sha256": "8bd63e1bd445e5e19427a4bdbcc3d23bf6efd774b058a41b36ba87fda7623e34",
+      "license": "Apache-2.0",
+      "use": "minimum supported broker fixture"
+    },
+    {
+      "name": "Apache Kafka 4.3.1 OCI image",
+      "repository": "https://hub.docker.com/r/apache/kafka",
+      "version": "4.3.1",
+      "sha256": "77e3df9054047a88b520d0cc46e16696d3b22022e1d580aeccd2632df6532837",
+      "license": "Apache-2.0",
+      "use": "current broker, security, compatibility, and performance fixtures"
+    },
+    {
+      "name": "Confluent Local OCI image",
+      "repository": "https://hub.docker.com/r/confluentinc/confluent-local",
+      "version": "7.5.0",
+      "sha256": "8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd",
+      "use": "single-broker integration and comparison-client fixtures"
+    },
+    {
+      "name": "Testcontainers Ryuk OCI image",
+      "repository": "https://hub.docker.com/r/testcontainers/ryuk",
+      "version": "0.14.0",
+      "revision": "b3726afd6cc2c36628abcc08e9cabac43f587384",
+      "sha256": "7c1a8a9a47c780ed0f983770a662f80deb115d95cce3e2daa3d12115b8cd28f0",
+      "license": "Apache-2.0",
+      "use": "pinned test resource reaper"
+    },
+    {
+      "name": "testcontainers-go",
+      "repository": "https://github.com/testcontainers/testcontainers-go",
+      "version": "v0.43.0",
+      "revision": "0835739aaf45d6cb7eb295f0c820e6f9e92102df",
+      "license": "MIT",
+      "use": "isolated broker lifecycle and cleanup harness"
+    },
+    {
+      "name": "segmentio kafka-go",
+      "repository": "https://github.com/segmentio/kafka-go",
+      "version": "v0.4.51",
+      "revision": "2e0b3968aa51b16beb4e221876499a6ff816cd91",
+      "license": "MIT",
+      "use": "comparison-client correctness control and consumer benchmarks"
+    },
+    {
+      "name": "IBM Sarama",
+      "repository": "https://github.com/IBM/sarama",
+      "version": "v1.60.1",
+      "revision": "3e29cc9573c6da854915f8c0952017eca622eec1",
+      "license": "MIT",
+      "use": "equivalent producer, consumer, transaction, and rebalance benchmarks"
+    },
     {
       "name": "Apache Kafka storage test artifact",
       "repository": "https://repo.maven.apache.org/maven2/org/apache/kafka/kafka-storage/4.3.1/kafka-storage-4.3.1-test.jar",
@@ -10,6 +92,18 @@
       "size_bytes": 638839,
       "license": "Apache-2.0",
       "use": "test-only LocalTieredStorage replay compatibility fixture"
+    },
+    {
+      "name": "Amazon MSK Developer Guide",
+      "repository": "https://docs.aws.amazon.com/msk/latest/developerguide/",
+      "status": "current",
+      "documents": [
+        "iam-access-control.html",
+        "configure-clients-for-iam-access-control.html",
+        "msk-serverless.html",
+        "get-bootstrap-cli.html"
+      ],
+      "use": "reviewed guidance only; no direct MSK support evidence"
     }
   ]
 }

@@ -19,6 +19,12 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Reject specification decision registers that omit their unresolved-decision
+  inventory or leave it open outside a stable release-blocking decision entry.
+- Register Kafka's exercised broker, resource-reaper, comparison-client, MSK
+  signer, and AWS SDK inputs in the generated repository catalog.
+- Register Kafka's normative decision record and real-broker conformance
+  matrices in repository specification governance.
 - Preserve gate execution, durable logs, and attributable evidence when a
   terminal or automation client disconnects from live output, preventing a
   completed long-running gate from being misclassified as `SIGPIPE` failure.

@@ -11070,12 +11070,22 @@
       "required_services": [],
       "build_tags": [],
       "test_tags": [],
-      "interoperability_tools": [],
+      "interoperability_tools": [
+        "Apache Kafka 3.7.2 and 4.3.1 KRaft fixtures",
+        "Apache Kafka 4.3.1 test-only LocalTieredStorage fixture",
+        "Confluent Local 7.5.0 fixture",
+        "Testcontainers Ryuk 0.14.0 resource reaper"
+      ],
       "specifications": [
         "Apache Kafka protocol and client semantics",
         "implemented Kafka Improvement Proposals"
       ],
-      "conformance_corpora": [],
+      "conformance_corpora": [
+        "Apache Kafka 3.7.2 and 4.3.1 multi-broker KRaft matrix",
+        "Pinned TLS, mTLS, PLAIN, SCRAM, and OAUTHBEARER broker fixtures",
+        "Producer, consumer-group, transaction, replay, and inspection failure matrix",
+        "franz-go, kafka-go, and Sarama equivalent-behavior comparison matrix"
+      ],
       "provenance": [
         "pkg/kafka/specification/manifest.json"
       ],
@@ -11343,7 +11353,10 @@
       "required_services": [],
       "build_tags": [],
       "test_tags": [],
-      "interoperability_tools": [],
+      "interoperability_tools": [
+        "AWS MSK IAM SASL Signer for Go v1.0.4",
+        "AWS SDK for Go v2 v1.43.0"
+      ],
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [
@@ -11476,7 +11489,12 @@
       "test_tags": [
         "integration"
       ],
-      "interoperability_tools": [],
+      "interoperability_tools": [
+        "franz-go v1.21.5",
+        "kafka-go v0.4.51",
+        "IBM/Sarama v1.60.1",
+        "Confluent Local 7.5.0 and Apache Kafka 4.3.1 fixtures"
+      ],
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
