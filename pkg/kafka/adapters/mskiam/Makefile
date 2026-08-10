@@ -2,7 +2,7 @@ GO ?= go
 FUZZ_TIME ?= 10000x
 BENCH_TIME ?= 100ms
 
-.PHONY: benchmark check coverage docs format format-check fuzz race test vet
+.PHONY: benchmark check coverage docs format format-check fuzz interoperability race test vet
 
 format:
 	gofmt -w .
@@ -12,6 +12,9 @@ format-check:
 
 test:
 	$(GO) test ./...
+
+interoperability:
+	$(GO) test -count=1 -run '^TestProviderGeneratesOwnedExpiringMSKIAMToken$$' ./...
 
 race:
 	$(GO) test -race ./...
