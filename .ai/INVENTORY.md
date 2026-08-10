@@ -67,14 +67,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | ---: | --- | --- | --- | --- |
 | 1 | Decisions | `pending-reexecution` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
 | 2 | Architecture | `pending` | `.ai/GOAL_RESILIENCE.md` | 1 |
-| 3 | Composition | `pending` | `pkg/resilience/.ai/{GOAL.md,GOAL_HARDEN.md}` | 2 |
-| 4 | Primitive | `pending-reexecution` | `pkg/semaphore/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3 |
-| 5 | Primitive | `pending-reexecution` | `pkg/bulkhead/.ai/{GOAL.md,GOAL_HARDEN.md}` | 4 |
-| 6 | Primitive | `pending-reexecution` | `pkg/concurrency-limit/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-5 |
-| 7 | Primitive | `pending-reexecution` | `pkg/rate-limit/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3 |
-| 8 | Primitive | `pending-reexecution` | `pkg/retry/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 7 |
-| 9 | Primitive | `pending-reexecution` | `pkg/circuit-breaker/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3 |
-| 10 | Primitive | `pending-reexecution` | `pkg/adaptive-throttle/.ai/{GOAL.md,GOAL_HARDEN.md}` | 6, 7, 9 |
 | 11 | Primitive | `pending-reexecution` | `pkg/hedge/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3, 6, 8 |
 | 12 | Integration | `pending-reexecution` | `pkg/cache/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 8 |
 | 13 | Integration | `pending-reexecution` | `pkg/http-client/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 6-11 |
@@ -113,6 +105,14 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Goal | Status | Treatment |
 | --- | --- | --- |
 | `.ai/GOAL_MAINTENANCE.md` | `recurring` | Execute its cadence continuously and before each supported-Go, dependency, security, specification, or release transition. |
+| `pkg/resilience/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 3. Current scoped evidence verifies the composition contracts, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/semaphore/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 4. Current scoped evidence verifies semaphore behavior, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/bulkhead/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 5. Current scoped evidence verifies bulkhead behavior, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/concurrency-limit/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 6. Current scoped evidence verifies adaptive concurrency limiting, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/rate-limit/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 7. Current scoped evidence verifies process-local, PostgreSQL, Redis, and Valkey rate limiting, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/retry/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 8. Current scoped evidence verifies retry policy and adapters, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/circuit-breaker/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 9. Current scoped evidence verifies circuit-breaker state, windows, lifecycle, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/adaptive-throttle/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 10. Current scoped evidence verifies adaptive admission behavior, bounded policy state, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 22. Current scoped evidence verifies OpenID Connect discovery and ID-token policy, bounded synchronized metadata and JWKS rotation, caller-owned nonce validation, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 23. Current scoped evidence verifies authentication-material redaction, result isolation, bounded completion and retention, provider lifecycle, concurrency, fuzzing, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -145,6 +145,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
+
+### Resilience primitives evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | Pending execution units 3 through 10: `resilience`, `semaphore`, `bulkhead`, `concurrency-limit`, `rate-limit`, `retry`, `circuit-breaker`, and `adaptive-throttle`. |
+| Scope | Composition and primitive policy contracts, cancellation and lifecycle behavior, concurrency safety, bounded state and work, process-local and supported durable adapters, documentation, API compatibility, interoperability where applicable, and performance. |
+| Status | `pending` or `pending-reexecution` to `verified`. |
+| Evidence | Isolated package-scoped `./scripts/run-modules.sh check --jobs 1 --modules <module>` campaigns with task-owned disposable Go build and module caches. |
+| Result | Every mandatory gate passed. Exact statement coverage and viable-mutant results were `412/412` and `150/150` for resilience, `224/224` and `87/87` for semaphore, `297/297` and `115/115` for bulkhead, `615/615` and `415/415` for concurrency-limit, `1514/1514` and `651/651` for rate-limit, `404/404` and `213/213` for retry, `772/772` and `416/416` for circuit-breaker, and `353/353` and `228/228` for adaptive-throttle. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; rate-limit interoperability used PostgreSQL and Valkey containers with explicit Valkey policy isolation. |
+| Observed | 2026-08-10T10:54:42Z |
+| Gaps | NilAway remains advisory and its diagnostics remain visible where reported; no mandatory gate gap remains in these execution units. |
 
 ### PostgreSQL event store hardening evidence
 
