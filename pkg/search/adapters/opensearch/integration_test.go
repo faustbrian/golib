@@ -18,8 +18,105 @@ import (
 
 	"github.com/faustbrian/golib/pkg/search"
 	adapter "github.com/faustbrian/golib/pkg/search/adapters/opensearch"
+	"github.com/faustbrian/golib/pkg/search/searchtest"
 	official "github.com/opensearch-project/opensearch-go/v4"
 )
+
+func TestRealOpenSearchConformanceSharedSemantics(t *testing.T) {
+	endpoint := os.Getenv("OPENSEARCH_URL")
+	expectedVersion := os.Getenv("OPENSEARCH_EXPECTED_VERSION")
+	if endpoint == "" || expectedVersion == "" {
+		t.Skip("OPENSEARCH_URL and OPENSEARCH_EXPECTED_VERSION are not configured")
+	}
+	parsed, err := url.Parse(endpoint)
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" {
+		t.Fatal("OPENSEARCH_URL and OPENSEARCH_EXPECTED_VERSION are required for a disposable test cluster")
+	}
+
+	limits := search.DefaultLimits()
+	suffix := fmt.Sprintf("%d", time.Now().UnixNano())
+	tenantA, tenantB, logicalIndex := "conformance-a", "conformance-b", "documents"
+	physicalA, physicalB := "golib-search-conformance-a-"+suffix, "golib-search-conformance-b-"+suffix
+	aliasA, aliasB := physicalA+"-alias", physicalB+"-alias"
+	mapping := json.RawMessage(`{"dynamic":"strict","properties":{"scenario":{"type":"keyword"},"keyword":{"type":"keyword"},"exists_value":{"type":"keyword"}}}`)
+	definitionA, err := search.NewIndexDefinition(physicalA,
+		json.RawMessage(`{"number_of_shards":1,"number_of_replicas":0}`), mapping, limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	definitionB, err := search.NewIndexDefinition(physicalB, definitionA.Settings(), definitionA.Mappings(), limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	targets := map[string]adapter.IndexTarget{
+		tenantA: {Name: aliasA, Fingerprint: definitionA.Fingerprint()},
+		tenantB: {Name: aliasB, Fingerprint: definitionB.Fingerprint()},
+	}
+	client, err := adapter.New(adapter.Config{
+		Endpoints: []string{endpoint}, AllowInsecureHTTP: parsed.Scheme == "http",
+		RequestTimeout: 10 * time.Second, MaximumResponseBytes: 16 << 20,
+		Search: &adapter.SearchConfig{
+			Limits: limits, CursorCodec: mustIntegrationCursorCodec(t), Clock: time.Now,
+			Resolver: adapter.IndexResolverFunc(func(_ context.Context, tenant, index string, _ adapter.IndexAccess) (adapter.IndexTarget, error) {
+				target, exists := targets[tenant]
+				if !exists || index != logicalIndex {
+					return adapter.IndexTarget{}, errors.New("conformance target denied")
+				}
+				return target, nil
+			}),
+		},
+		Lifecycle: &adapter.LifecycleConfig{Authorizer: adapter.LifecycleAuthorizerFunc(func(_ context.Context, tenant string, _ []string) error {
+			if tenant != tenantA && tenant != tenantB {
+				return errors.New("conformance lifecycle denied")
+			}
+			return nil
+		})},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	for _, fixture := range []struct {
+		tenant     string
+		definition search.IndexDefinition
+		alias      string
+		physical   string
+	}{
+		{tenant: tenantA, definition: definitionA, alias: aliasA, physical: physicalA},
+		{tenant: tenantB, definition: definitionB, alias: aliasB, physical: physicalB},
+	} {
+		if err := client.CreateIndex(t.Context(), fixture.tenant, fixture.definition); err != nil {
+			t.Fatal(err)
+		}
+		tenant, physical := fixture.tenant, fixture.physical
+		t.Cleanup(func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cancel()
+			_ = client.DeleteIndex(ctx, tenant, physical)
+		})
+		if err := client.AddAlias(t.Context(), fixture.tenant, fixture.alias, fixture.physical, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if err := searchtest.RunConformance(t.Context(), searchtest.ConformanceConfig{
+		Adapter: client, Limits: limits,
+		TenantA: tenantA, TenantB: tenantB, LogicalIndex: logicalIndex,
+		Refresh: search.RefreshWaitFor,
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func mustIntegrationCursorCodec(t *testing.T) *search.CursorCodec {
+	t.Helper()
+	codec, err := search.NewCursorCodec([]byte("integration-cursor-key-32-bytes!!"), time.Now, 4096)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return codec
+}
 
 func TestRealOpenSearchBoundedLoad(t *testing.T) {
 	endpoint := os.Getenv("OPENSEARCH_URL")

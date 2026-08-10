@@ -151,7 +151,7 @@ func runVersionConformance(ctx context.Context, config ConformanceConfig) error 
 	deleted, err := config.Adapter.Write(ctx,
 		search.DeleteDocument(config.TenantA, config.LogicalIndex, fixture.id, 3), config.Refresh)
 	if err != nil || deleted.State != search.OutcomeApplied {
-		return fmt.Errorf("searchtest conformance: delete before stale write: outcome=%#v error=%w", deleted, err)
+		return fmt.Errorf("searchtest conformance: delete before stale write: outcome=%#v error=%v", deleted, err)
 	}
 	document, err := search.NewDocument(config.TenantA, config.LogicalIndex, fixture.id, 2,
 		json.RawMessage(fixture.source), config.Limits)
@@ -160,7 +160,7 @@ func runVersionConformance(ctx context.Context, config ConformanceConfig) error 
 	}
 	stale, err := config.Adapter.Write(ctx, search.IndexDocument(document), config.Refresh)
 	if err != nil || stale.State != search.OutcomeVersionConflict {
-		return fmt.Errorf("searchtest conformance: stale write after delete: outcome=%#v error=%w", stale, err)
+		return fmt.Errorf("searchtest conformance: stale write after delete: outcome=%#v error=%v", stale, err)
 	}
 	return nil
 }
@@ -219,7 +219,7 @@ func writeFixture(ctx context.Context, config ConformanceConfig, tenant string, 
 	}
 	outcome, err := config.Adapter.Write(ctx, search.IndexDocument(document), config.Refresh)
 	if err != nil || outcome.State != search.OutcomeApplied {
-		return fmt.Errorf("searchtest conformance: write %s: outcome=%#v error=%w", fixture.id, outcome, err)
+		return fmt.Errorf("searchtest conformance: write %s: outcome=%#v error=%v", fixture.id, outcome, err)
 	}
 	return nil
 }
