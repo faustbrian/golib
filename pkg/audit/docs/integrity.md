@@ -6,8 +6,10 @@ Partition chains by a stable scope whose ordering can be serialized, commonly
 tenant plus service. Every link records partition, sequence, previous digest,
 algorithm, key ID when keyed, and digest.
 
-Key rotation is selected by the provider using partition and recording time;
-old keys must remain available for verification. Partitions and key IDs are
+Key rotation is selected by the provider using partition and recording time.
+Verification supplies the exact persisted key ID in `KeyRequest`, so providers
+must return that historical key rather than whichever key is current. Old keys
+must remain available for verification. Partitions and key IDs are
 valid UTF-8 bounded fields. HMAC keys contain 32 to 1024 bytes and are copied
 only for the operation; providers retain lifecycle ownership. Store a
 `Checkpoint` outside

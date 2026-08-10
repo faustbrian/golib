@@ -80,6 +80,8 @@ func ExampleExporter() {
 		Changes: audit.ChangeSetInput{NoChange: true},
 	})
 	store, _ := memory.New(memory.Config{MaxRecords: 1, MaxBytes: 1 << 20, MaxBatchRecords: 1})
+	redactor, _ := audit.NewRedactor(audit.RedactionRules{})
+	record, _ = redactor.Redact(context.Background(), record)
 	_, _ = store.Append(context.Background(), record)
 	tenant, _ := audit.Tenant("tenant-1")
 	query, _ := audit.NewQuery(audit.QueryInput{Tenant: tenant, Limit: 1})

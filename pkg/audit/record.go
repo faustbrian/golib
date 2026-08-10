@@ -23,6 +23,10 @@ var (
 	// ErrInvalidArgument classifies a caller-supplied value that violates the
 	// bounded audit record contract.
 	ErrInvalidArgument = errors.New("audit: invalid argument")
+	// ErrRecordIDUnavailable reports an opaque ID-generator failure or panic.
+	ErrRecordIDUnavailable = errors.New("audit: record ID is unavailable")
+	// ErrClockUnavailable reports an opaque builder-clock panic.
+	ErrClockUnavailable = errors.New("audit: clock is unavailable")
 	// ErrSensitiveData classifies data rejected before persistence because it
 	// belongs to a prohibited secret-bearing namespace.
 	ErrSensitiveData = errors.New("audit: sensitive data is prohibited")
@@ -90,11 +94,13 @@ func DefaultLimits() Limits {
 
 // Validate reports whether every configured limit is positive and coherent.
 func (limits Limits) Validate() error {
+	ceiling := DefaultLimits()
 	if limits.MaxRecordBytes <= 0 || limits.MaxFieldBytes <= 0 ||
 		limits.MaxDescriptionBytes <= 0 || limits.MaxAttributeEntries <= 0 ||
 		limits.MaxAttributeBytes <= 0 || limits.MaxChangeEntries <= 0 ||
-		limits.MaxChangeBytes <= 0 || limits.MaxIntegrityBytes != integrityDigestBytes {
-		return invalid("limits", "all limits must be positive")
+		limits.MaxChangeBytes <= 0 || limits.MaxIntegrityBytes != integrityDigestBytes ||
+		limits.MaxRecordBytes > ceiling.MaxRecordBytes || limits.MaxFieldBytes > ceiling.MaxFieldBytes {
+		return invalid("limits", "must be positive and within durable adapter ceilings")
 	}
 	return nil
 }
@@ -209,18 +215,23 @@ func (value RecordContext) UserAgent() string { return value.userAgent }
 // response bodies.
 type ChangeSetInput struct {
 	NoChange bool
+	Redacted bool
 	Before   map[string]string
 	After    map[string]string
 }
 
 // ChangeSet is an immutable structured change description.
 type ChangeSet struct {
-	noChange      bool
-	before, after map[string]string
+	noChange, redacted bool
+	before, after      map[string]string
 }
 
 // NoChange reports an explicit assertion that no structured state changed.
 func (changes ChangeSet) NoChange() bool { return changes.noChange }
+
+// Redacted reports that structured changes existed but policy removed every
+// field. It never means that no state changed.
+func (changes ChangeSet) Redacted() bool { return changes.redacted }
 
 // Before returns a defensive copy of the safe pre-action fields.
 func (changes ChangeSet) Before() map[string]string { return cloneMap(changes.before) }
@@ -300,6 +311,7 @@ type Record struct {
 	policy                          PolicyMetadata
 	attributes                      map[string]string
 	integrity                       Integrity
+	redactionApplied                bool
 }
 
 // ID returns the globally unique stable record identifier.
@@ -334,7 +346,7 @@ func (record Record) Context() RecordContext { return record.context }
 
 // Changes returns a defensive copy of structured before/after state.
 func (record Record) Changes() ChangeSet {
-	return ChangeSet{record.changes.noChange, cloneMap(record.changes.before), cloneMap(record.changes.after)}
+	return ChangeSet{noChange: record.changes.noChange, redacted: record.changes.redacted, before: cloneMap(record.changes.before), after: cloneMap(record.changes.after)}
 }
 
 // Policy returns the policy identifier and version applied by the caller.
@@ -342,6 +354,10 @@ func (record Record) Policy() PolicyMetadata { return record.policy }
 
 // Attributes returns a defensive copy of namespaced extensible attributes.
 func (record Record) Attributes() map[string]string { return cloneMap(record.attributes) }
+
+// RedactionApplied reports whether an explicit caller-owned privacy policy was
+// applied in this process before persistence.
+func (record Record) RedactionApplied() bool { return record.redactionApplied }
 
 // Integrity returns defensive copies of the optional chain metadata.
 func (record Record) Integrity() Integrity {
@@ -388,11 +404,15 @@ func (builder *Builder) Build(input RecordInput) (Record, error) {
 	if builder == nil {
 		return Record{}, invalid("builder", "must be assigned")
 	}
-	id, err := builder.idGenerator()
+	id, err := callIDGenerator(builder.idGenerator)
 	if err != nil {
-		return Record{}, fmt.Errorf("audit: generate record ID: %w", err)
+		return Record{}, err
 	}
-	recordedAt := canonicalTime(builder.clock())
+	now, err := callClock(builder.clock)
+	if err != nil {
+		return Record{}, err
+	}
+	recordedAt := canonicalTime(now)
 	if err := validateInput(id, recordedAt, input, builder.limits); err != nil {
 		return Record{}, err
 	}
@@ -402,6 +422,30 @@ func (builder *Builder) Build(input RecordInput) (Record, error) {
 		return Record{}, invalid("record", "exceeds total byte limit")
 	}
 	return record, nil
+}
+
+func callIDGenerator(generator func() (string, error)) (id string, err error) {
+	defer func() {
+		if recover() != nil {
+			id = ""
+			err = ErrRecordIDUnavailable
+		}
+	}()
+	id, err = generator()
+	if err != nil {
+		return "", ErrRecordIDUnavailable
+	}
+	return id, nil
+}
+
+func callClock(clock func() time.Time) (value time.Time, err error) {
+	defer func() {
+		if recover() != nil {
+			value = time.Time{}
+			err = ErrClockUnavailable
+		}
+	}()
+	return clock(), nil
 }
 
 func recordFromInput(id string, recordedAt time.Time, input RecordInput) Record {
@@ -417,7 +461,7 @@ func recordFromInput(id string, recordedAt time.Time, input RecordInput) Record 
 			input.Context.SourceService, input.Context.SourceVersion, input.Context.Environment,
 			input.Context.NetworkOrigin, input.Context.UserAgent,
 		},
-		changes: ChangeSet{input.Changes.NoChange, cloneMap(input.Changes.Before), cloneMap(input.Changes.After)},
+		changes: ChangeSet{noChange: input.Changes.NoChange, redacted: input.Changes.Redacted, before: cloneMap(input.Changes.Before), after: cloneMap(input.Changes.After)},
 		policy:  input.Policy, attributes: cloneMap(input.Attributes),
 		integrity: Integrity{input.Integrity.Algorithm, input.Integrity.Partition, input.Integrity.KeyID, input.Integrity.Sequence, append([]byte(nil), input.Integrity.PreviousDigest...), append([]byte(nil), input.Integrity.Digest...)},
 	}
@@ -451,7 +495,18 @@ func validateInput(id string, recordedAt time.Time, input RecordInput, limits Li
 	if err := boundedRequired("subject_id", input.Subject.ID, limits.MaxFieldBytes); err != nil {
 		return err
 	}
-	if input.Changes.NoChange == (len(input.Changes.Before) != 0 || len(input.Changes.After) != 0) {
+	hasChanges := len(input.Changes.Before) != 0 || len(input.Changes.After) != 0
+	states := 0
+	if input.Changes.NoChange {
+		states++
+	}
+	if input.Changes.Redacted {
+		states++
+	}
+	if hasChanges {
+		states++
+	}
+	if states != 1 {
 		return invalid("changes", "must be explicit no-change or structured before/after values")
 	}
 	if err := validateMap("changes", input.Changes.Before, input.Changes.After, limits.MaxChangeEntries, limits.MaxChangeBytes, false); err != nil {

@@ -2,6 +2,7 @@ package audit
 
 import (
 	"context"
+	"errors"
 	"time"
 )
 
@@ -77,8 +78,8 @@ func (exporter *observedExporter) Export(ctx context.Context, query Query, consu
 		return invalid("observed_exporter", "must be assigned")
 	}
 	count := 0
-	err := exporter.exporter.Export(ctx, query, func(record Record) error {
-		if err := consume(record); err != nil {
+	err := callObservedExport(exporter.exporter, ctx, query, func(record Record) error {
+		if err := consumeObservedSafely(consume, record); err != nil {
 			return err
 		}
 		count++
@@ -86,8 +87,55 @@ func (exporter *observedExporter) Export(ctx context.Context, query Query, consu
 	})
 	if err != nil {
 		safeObserve(ctx, exporter.observer, Observation{Kind: ObservationFailed, Count: count})
-		return err
+		return safeExportFailure(err)
 	}
 	safeObserve(ctx, exporter.observer, Observation{Kind: ObservationExported, Count: count})
 	return nil
+}
+
+func callObservedExport(exporter Exporter, ctx context.Context, query Query, consume func(Record) error) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = ErrExportFailed
+		}
+	}()
+	return exporter.Export(ctx, query, consume)
+}
+
+func consumeObservedSafely(consume func(Record) error, record Record) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = ErrExportConsumerFailed
+		}
+	}()
+	err = consume(record)
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, context.Canceled):
+		return context.Canceled
+	case errors.Is(err, context.DeadlineExceeded):
+		return context.DeadlineExceeded
+	default:
+		return ErrExportConsumerFailed
+	}
+}
+
+func safeExportFailure(err error) error {
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, context.Canceled):
+		return context.Canceled
+	case errors.Is(err, context.DeadlineExceeded):
+		return context.DeadlineExceeded
+	case errors.Is(err, ErrExportConsumerFailed):
+		return ErrExportConsumerFailed
+	case errors.Is(err, ErrInvalidArgument):
+		return ErrInvalidArgument
+	case errors.Is(err, ErrIntegrityInvalid):
+		return ErrIntegrityInvalid
+	default:
+		return ErrExportFailed
+	}
 }

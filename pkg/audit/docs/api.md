@@ -20,16 +20,26 @@ builder clock and occurrence time from the caller; both are canonical UTC at
 microsecond precision so ordering is stable across the PostgreSQL adapter.
 
 `CanonicalJSON` is versioned deterministic encoding. `ParseCanonicalJSON`
-strictly rejects unknown fields, trailing values, malformed times and digests,
-unsupported schema versions, and values outside the configured limits.
+strictly rejects alternate byte representations, unknown fields, trailing
+values, malformed times and digests, unsupported schema versions, and values
+outside the configured limits. Parsing does not assert that redaction ran in
+the current process; adapters restore that trusted state only after verifying
+their persisted canonical digest.
 `MaxIntegrityBytes` must be exactly 32 because every supported digest is
-SHA-256; all other configurable collection and byte ceilings must be positive.
+SHA-256. `MaxRecordBytes` and `MaxFieldBytes` may be tightened but may not
+exceed their defaults, which are the durable PostgreSQL and cursor ceilings;
+all other configurable collection and byte ceilings must be positive.
 
 `Record`, `Query`, `Cursor`, `Checkpoint`, and retention values are safe to
 share after construction because mutable inputs and byte/map accessors are
 copied. `Builder`, `Recorder`, and `Chain` own no mutable counters and start no
 goroutines; concurrent use additionally requires injected clocks, generators,
 sinks, redactors, observers, alerters, buffers, and key providers to support the
-same use. The memory adapter serializes mutation with its own mutex. PostgreSQL
+same use. The memory adapter serializes mutation with its own context-aware
+gate. PostgreSQL
 adapters rely on the supplied caller-owned pool or transaction and never close
 them.
+
+Builder clock and ID-generator panics are contained. ID-generator failures are
+reported only as `ErrRecordIDUnavailable`; clock panics are reported only as
+`ErrClockUnavailable`. Arbitrary dependency diagnostics are not retained.

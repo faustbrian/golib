@@ -1,8 +1,11 @@
 package audit
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
+	"slices"
+	"strings"
 	"time"
 )
 
@@ -43,7 +46,7 @@ func NewRetentionEvent(input RetentionEventInput) (RetentionEvent, error) {
 	if input.Kind != RetentionHold && input.Kind != RetentionRelease {
 		return RetentionEvent{}, invalid("retention_event_kind", "must be explicit")
 	}
-	if input.OccurredAt.IsZero() {
+	if !validCanonicalTime(input.OccurredAt) {
 		return RetentionEvent{}, invalid("occurred_at", "must be assigned")
 	}
 	return RetentionEvent{id: input.ID, recordID: input.RecordID, reasonCode: input.ReasonCode, kind: input.Kind, occurredAt: canonicalTime(input.OccurredAt)}, nil
@@ -84,7 +87,7 @@ func NewRetentionRequest(input RetentionRequestInput) (RetentionRequest, error) 
 	if !input.Tenant.Valid() {
 		return RetentionRequest{}, invalid("tenant_scope", "must be explicit")
 	}
-	if input.Before.IsZero() {
+	if !validCanonicalTime(input.Before) {
 		return RetentionRequest{}, invalid("retention_before", "must be assigned")
 	}
 	if input.Limit == 0 || input.Limit > MaxQueryRecords {
@@ -121,6 +124,11 @@ func NewRetentionCandidate(record Record, digest []byte) (RetentionCandidate, er
 	if record.ID() == "" || len(digest) != sha256.Size {
 		return RetentionCandidate{}, invalid("retention_candidate", "requires record and SHA-256 digest")
 	}
+	canonical, _ := CanonicalJSON(record)
+	expected := sha256.Sum256(canonical)
+	if !bytes.Equal(expected[:], digest) {
+		return RetentionCandidate{}, ErrIntegrityInvalid
+	}
 	return RetentionCandidate{record: record, digest: append([]byte(nil), digest...)}, nil
 }
 
@@ -148,6 +156,9 @@ func NewRetentionPlan(candidates []RetentionCandidate) (RetentionPlan, error) {
 		}
 		copyCandidates[index] = validated
 	}
+	slices.SortFunc(copyCandidates, func(left, right RetentionCandidate) int {
+		return strings.Compare(left.record.ID(), right.record.ID())
+	})
 	return RetentionPlan{candidates: copyCandidates}, nil
 }
 

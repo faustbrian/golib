@@ -83,6 +83,11 @@ func TestStoreLargeTenantHighCardinalitySoakRemainsBounded(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		redactor := audit.RedactorFunc(func(_ context.Context, record audit.Record) (audit.Record, error) { return record, nil })
+		records[index], err = redactor.Redact(context.Background(), records[index])
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
 	if result, err := store.AppendBatch(context.Background(), records); err != nil || len(result.Results) != count {
 		t.Fatalf("large AppendBatch() results/error = %d, %v", len(result.Results), err)

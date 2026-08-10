@@ -9,6 +9,7 @@ required=(
     docs/query-export.md docs/postgresql.md docs/retention.md
     docs/incident-use.md docs/faq.md
     postgres/README.md postgres/CHANGELOG.md postgres/LICENSE
+    scripts/check-clean-consumer.sh
 )
 
 cd "${root}"
@@ -19,9 +20,10 @@ for path in "${required[@]}"; do
     }
 done
 
+packages="$(./scripts/with-gocache.sh go list ./...)"
 while IFS= read -r package; do
     ./scripts/with-gocache.sh go doc "${package}" >/dev/null
-done < <(go list ./...)
+done <<< "${packages}"
 
 if grep -RniE 'automatically compliant|provides non.repudiation|event store is (a |an )?compliant audit' \
     --include='*.md' --include='*.go' .; then

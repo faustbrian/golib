@@ -1,9 +1,9 @@
 package audit
 
 import (
+	"bytes"
 	"context"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -18,6 +18,10 @@ const (
 	// DeliveryDurableBuffer permits progress only after a successful buffer write.
 	DeliveryDurableBuffer
 )
+
+// MaxRecoveryTimeout is the absolute bound for alerting or durable buffering
+// after the caller's primary-operation context has ended.
+const MaxRecoveryTimeout = time.Minute
 
 // DeliveryDisposition states what happened after redaction.
 type DeliveryDisposition uint8
@@ -75,14 +79,15 @@ type DurableBuffer interface {
 // RecorderConfig wires an explicit delivery policy. Sink, Redactor, and Mode
 // are always required; fail-open requires Alerter and buffering requires Buffer.
 type RecorderConfig struct {
-	Sink           Sink
-	Redactor       Redactor
-	Mode           DeliveryMode
-	Alerter        Alerter
-	Buffer         DurableBuffer
-	Observer       Observer
-	Clock          func() time.Time
-	DelayThreshold time.Duration
+	Sink            Sink
+	Redactor        Redactor
+	Mode            DeliveryMode
+	Alerter         Alerter
+	Buffer          DurableBuffer
+	Observer        Observer
+	Clock           func() time.Time
+	DelayThreshold  time.Duration
+	RecoveryTimeout time.Duration
 }
 
 // DeliveryResult reports whether the redacted record persisted, was buffered,
@@ -120,6 +125,16 @@ func safeRedactionFailure(err error) error {
 	}
 }
 
+var (
+	ErrDeliveryAlertFailed = errors.New("audit: delivery alert failed")
+	ErrDurableBufferFailed = errors.New("audit: durable buffer failed")
+	errDependencyPanic     = errors.New("audit: dependency panicked")
+)
+
+func safeAppendFailure(err error) error {
+	return NewAppendError(AppendOutcomeOf(err), err)
+}
+
 // NewRecorder validates and constructs an explicit redaction and delivery
 // policy. It starts no goroutines and performs no implicit retries.
 func NewRecorder(config RecorderConfig) (*Recorder, error) {
@@ -129,6 +144,9 @@ func NewRecorder(config RecorderConfig) (*Recorder, error) {
 	if config.DelayThreshold < 0 {
 		return nil, invalid("delay_threshold", "must not be negative")
 	}
+	if config.RecoveryTimeout < 0 || config.RecoveryTimeout > MaxRecoveryTimeout {
+		return nil, invalid("recovery_timeout", "must be positive and bounded")
+	}
 	clock := config.Clock
 	if clock == nil {
 		clock = time.Now
@@ -136,11 +154,15 @@ func NewRecorder(config RecorderConfig) (*Recorder, error) {
 	switch config.Mode {
 	case DeliveryFailClosed:
 	case DeliveryFailOpenWithAlert:
-		if config.Alerter == nil {
+		if config.Alerter == nil || config.RecoveryTimeout == 0 {
 			return nil, invalid("alerter", "is required for fail-open delivery")
 		}
 	case DeliveryDurableBuffer:
-		if config.Buffer == nil || !config.Buffer.BufferLimits().valid() {
+		if config.Buffer == nil || config.RecoveryTimeout == 0 {
+			return nil, invalid("buffer", "is required for buffered delivery")
+		}
+		limits, ok := callBufferLimits(config.Buffer)
+		if !ok || !limits.valid() {
 			return nil, invalid("buffer", "is required for buffered delivery")
 		}
 	default:
@@ -149,40 +171,69 @@ func NewRecorder(config RecorderConfig) (*Recorder, error) {
 	return &Recorder{config: config, clock: clock}, nil
 }
 
+func callBufferLimits(buffer DurableBuffer) (limits BufferLimits, ok bool) {
+	defer func() {
+		if recover() != nil {
+			limits = BufferLimits{}
+			ok = false
+		}
+	}()
+	return buffer.BufferLimits(), true
+}
+
 // Submit redacts one record, invokes the configured sink once, and applies the
 // selected failure policy. Its result never implies an unreported discard.
 func (recorder *Recorder) Submit(ctx context.Context, record Record) (DeliveryResult, error) {
-	if recorder == nil || ctx == nil {
+	if recorder == nil || ctx == nil || record.ID() == "" {
 		return DeliveryResult{}, invalid("recorder", "must be assigned")
 	}
-	redacted, err := recorder.config.Redactor.Redact(ctx, record)
+	redacted, err := callRedactor(recorder.config.Redactor, ctx, record)
 	if err != nil {
 		return DeliveryResult{}, safeRedactionFailure(err)
 	}
-	if redacted.ID() != record.ID() {
-		return DeliveryResult{}, invalid("redaction", "must preserve record identity")
+	if err := validateRedaction(record, redacted); err != nil {
+		return DeliveryResult{}, err
+	}
+	redacted.redactionApplied = true
+	if redactionInvalidatesIntegrity(record, redacted) {
+		return DeliveryResult{}, ErrIntegrityInvalid
 	}
 	recorder.observeDelay(ctx, redacted)
-	appendResult, appendErr := recorder.config.Sink.Append(ctx, redacted)
-	if appendErr == nil {
-		recorder.observeAppend(ctx, appendResult)
-		return DeliveryResult{Disposition: DeliveryPersisted, Append: appendResult}, nil
+	appendResult, appendErr := callAppend(recorder.config.Sink, ctx, redacted)
+	if AppendOutcomeOf(appendErr) == AppendCommitted {
+		recorder.observeFailure(ctx, appendErr)
+		return DeliveryResult{Disposition: DeliveryPersisted, Append: appendResult}, safeAppendFailure(appendErr)
 	}
+	if appendErr == nil {
+		appendErr = validateAppendResult(redacted, appendResult)
+		if appendErr == nil {
+			recorder.observeAppend(ctx, appendResult)
+			return DeliveryResult{Disposition: DeliveryPersisted, Append: appendResult}, nil
+		}
+	}
+	appendErr = safeAppendFailure(appendErr)
 	switch recorder.config.Mode {
 	case DeliveryFailClosed:
 		recorder.observeFailure(ctx, appendErr)
 		return DeliveryResult{}, appendErr
 	case DeliveryFailOpenWithAlert:
 		recorder.observeFailure(ctx, appendErr)
-		if err := recorder.config.Alerter.Alert(ctx, DeliveryAlert{Outcome: AppendOutcomeOf(appendErr)}); err != nil {
-			return DeliveryResult{}, errors.Join(appendErr, fmt.Errorf("audit: delivery alert failed: %w", err))
+		recoveryCtx, cancel := recorder.recoveryContext(ctx)
+		defer cancel()
+		if err := callAlert(recorder.config.Alerter, recoveryCtx, DeliveryAlert{Outcome: AppendOutcomeOf(appendErr)}); err != nil {
+			return DeliveryResult{}, NewAppendError(AppendOutcomeOf(appendErr), errors.Join(appendErr, ErrDeliveryAlertFailed))
 		}
 		return DeliveryResult{Disposition: DeliveryProceededAfterAlert}, nil
 	case DeliveryDurableBuffer:
 		recorder.observeFailure(ctx, appendErr)
-		buffered, err := recorder.config.Buffer.Append(ctx, redacted)
+		recoveryCtx, cancel := recorder.recoveryContext(ctx)
+		defer cancel()
+		buffered, err := callAppend(recorder.config.Buffer, recoveryCtx, redacted)
 		if err != nil {
-			return DeliveryResult{}, errors.Join(appendErr, fmt.Errorf("audit: durable buffer failed: %w", err))
+			return DeliveryResult{}, NewAppendError(AppendOutcomeOf(err), errors.Join(appendErr, ErrDurableBufferFailed))
+		}
+		if err := validateAppendResult(redacted, buffered); err != nil {
+			return DeliveryResult{}, NewAppendError(AppendUnknown, errors.Join(appendErr, err))
 		}
 		safeObserve(ctx, recorder.config.Observer, Observation{Kind: ObservationBuffered, Count: 1, Outcome: AppendOutcomeOf(appendErr)})
 		return DeliveryResult{Disposition: DeliveryBuffered, Append: buffered}, nil
@@ -203,44 +254,183 @@ func (recorder *Recorder) SubmitBatch(ctx context.Context, records []Record) (De
 	}
 	redacted := make([]Record, len(records))
 	for index, record := range records {
-		value, err := recorder.config.Redactor.Redact(ctx, record)
+		if record.ID() == "" {
+			return DeliveryBatchResult{}, invalid("record", "must be valid")
+		}
+		value, err := callRedactor(recorder.config.Redactor, ctx, record)
 		if err != nil {
 			return DeliveryBatchResult{}, safeRedactionFailure(err)
 		}
-		if value.ID() != record.ID() {
-			return DeliveryBatchResult{}, invalid("redaction", "must preserve record identity")
+		if err := validateRedaction(record, value); err != nil {
+			return DeliveryBatchResult{}, err
+		}
+		value.redactionApplied = true
+		if redactionInvalidatesIntegrity(record, value) {
+			return DeliveryBatchResult{}, ErrIntegrityInvalid
 		}
 		redacted[index] = value
 		recorder.observeDelay(ctx, value)
 	}
-	appendResult, appendErr := recorder.config.Sink.AppendBatch(ctx, redacted)
-	if appendErr == nil {
-		for _, result := range appendResult.Results {
-			recorder.observeAppend(ctx, result)
-		}
-		return DeliveryBatchResult{Disposition: DeliveryPersisted, Append: appendResult}, nil
+	appendResult, appendErr := callAppendBatch(recorder.config.Sink, ctx, redacted)
+	if AppendOutcomeOf(appendErr) == AppendCommitted {
+		recorder.observeFailure(ctx, appendErr)
+		return DeliveryBatchResult{Disposition: DeliveryPersisted, Append: appendResult}, safeAppendFailure(appendErr)
 	}
+	if appendErr == nil {
+		appendErr = validateBatchResult(redacted, appendResult)
+		if appendErr == nil {
+			for _, result := range appendResult.Results {
+				recorder.observeAppend(ctx, result)
+			}
+			return DeliveryBatchResult{Disposition: DeliveryPersisted, Append: appendResult}, nil
+		}
+	}
+	appendErr = safeAppendFailure(appendErr)
 	switch recorder.config.Mode {
 	case DeliveryFailClosed:
 		recorder.observeFailure(ctx, appendErr)
 		return DeliveryBatchResult{}, appendErr
 	case DeliveryFailOpenWithAlert:
 		recorder.observeFailure(ctx, appendErr)
-		if err := recorder.config.Alerter.Alert(ctx, DeliveryAlert{Outcome: AppendOutcomeOf(appendErr)}); err != nil {
-			return DeliveryBatchResult{}, errors.Join(appendErr, fmt.Errorf("audit: delivery alert failed: %w", err))
+		recoveryCtx, cancel := recorder.recoveryContext(ctx)
+		defer cancel()
+		if err := callAlert(recorder.config.Alerter, recoveryCtx, DeliveryAlert{Outcome: AppendOutcomeOf(appendErr)}); err != nil {
+			return DeliveryBatchResult{}, NewAppendError(AppendOutcomeOf(appendErr), errors.Join(appendErr, ErrDeliveryAlertFailed))
 		}
 		return DeliveryBatchResult{Disposition: DeliveryProceededAfterAlert}, nil
 	case DeliveryDurableBuffer:
 		recorder.observeFailure(ctx, appendErr)
-		buffered, err := recorder.config.Buffer.AppendBatch(ctx, redacted)
+		recoveryCtx, cancel := recorder.recoveryContext(ctx)
+		defer cancel()
+		buffered, err := callAppendBatch(recorder.config.Buffer, recoveryCtx, redacted)
 		if err != nil {
-			return DeliveryBatchResult{}, errors.Join(appendErr, fmt.Errorf("audit: durable buffer failed: %w", err))
+			return DeliveryBatchResult{}, NewAppendError(AppendOutcomeOf(err), errors.Join(appendErr, ErrDurableBufferFailed))
+		}
+		if err := validateBatchResult(redacted, buffered); err != nil {
+			return DeliveryBatchResult{}, NewAppendError(AppendUnknown, errors.Join(appendErr, err))
 		}
 		safeObserve(ctx, recorder.config.Observer, Observation{Kind: ObservationBuffered, Count: len(redacted), Outcome: AppendOutcomeOf(appendErr)})
 		return DeliveryBatchResult{Disposition: DeliveryBuffered, Append: buffered}, nil
 	default:
 		return DeliveryBatchResult{}, appendErr
 	}
+}
+
+func (recorder *Recorder) recoveryContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	return context.WithTimeout(context.WithoutCancel(ctx), recorder.config.RecoveryTimeout)
+}
+
+func callRedactor(redactor Redactor, ctx context.Context, record Record) (result Record, err error) {
+	defer func() {
+		if recover() != nil {
+			result = Record{}
+			err = &redactionFailure{}
+		}
+	}()
+	return redactor.Redact(ctx, record)
+}
+
+func callAppend(sink Sink, ctx context.Context, record Record) (result AppendResult, err error) {
+	defer func() {
+		if recover() != nil {
+			result = AppendResult{}
+			err = NewAppendError(AppendUnknown, errDependencyPanic)
+		}
+	}()
+	return sink.Append(ctx, record)
+}
+
+func callAppendBatch(sink Sink, ctx context.Context, records []Record) (result BatchResult, err error) {
+	defer func() {
+		if recover() != nil {
+			result = BatchResult{}
+			err = NewAppendError(AppendUnknown, errDependencyPanic)
+		}
+	}()
+	return sink.AppendBatch(ctx, records)
+}
+
+func callAlert(alerter Alerter, ctx context.Context, alert DeliveryAlert) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = errDependencyPanic
+		}
+	}()
+	return alerter.Alert(ctx, alert)
+}
+
+func validateAppendResult(record Record, result AppendResult) error {
+	if result.RecordID != record.ID() || (result.Status != AppendAccepted && result.Status != AppendDuplicate) {
+		return NewAppendError(AppendUnknown, ErrSinkProtocol)
+	}
+	return nil
+}
+
+func validateBatchResult(records []Record, result BatchResult) error {
+	if len(result.Results) != len(records) {
+		return NewAppendError(AppendUnknown, ErrSinkProtocol)
+	}
+	for index := range records {
+		if err := validateAppendResult(records[index], result.Results[index]); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func redactionInvalidatesIntegrity(original, redacted Record) bool {
+	if !original.integrity.Enabled() {
+		return false
+	}
+	originalCanonical, _ := CanonicalJSON(original)
+	redactedCanonical, _ := CanonicalJSON(redacted)
+	return !bytes.Equal(originalCanonical, redactedCanonical)
+}
+
+func validateRedaction(original, redacted Record) error {
+	expected := original
+	expected.description = redacted.description
+	expected.context.networkOrigin = redacted.context.networkOrigin
+	expected.context.userAgent = redacted.context.userAgent
+	expected.attributes = redacted.attributes
+	expected.changes = redacted.changes
+	expectedCanonical, _ := CanonicalJSON(expected)
+	redactedCanonical, _ := CanonicalJSON(redacted)
+	if !bytes.Equal(expectedCanonical, redactedCanonical) ||
+		!mapKeysSubset(redacted.attributes, original.attributes) ||
+		!mapKeysSubset(redacted.changes.before, original.changes.before) ||
+		!mapKeysSubset(redacted.changes.after, original.changes.after) {
+		return invalid("redaction", "may only remove or transform privacy fields")
+	}
+	hasChanges := len(redacted.changes.before) != 0 || len(redacted.changes.after) != 0
+	switch {
+	case original.changes.noChange:
+		if !redacted.changes.noChange || redacted.changes.redacted || hasChanges {
+			return invalid("redaction", "must preserve change semantics")
+		}
+	case original.changes.redacted:
+		if !redacted.changes.redacted || redacted.changes.noChange || hasChanges {
+			return invalid("redaction", "must preserve change semantics")
+		}
+	case hasChanges:
+		if redacted.changes.noChange || redacted.changes.redacted {
+			return invalid("redaction", "must preserve change semantics")
+		}
+	default:
+		if redacted.changes.noChange || !redacted.changes.redacted {
+			return invalid("redaction", "must preserve change semantics")
+		}
+	}
+	return nil
+}
+
+func mapKeysSubset(subset, superset map[string]string) bool {
+	for key := range subset {
+		if _, exists := superset[key]; !exists {
+			return false
+		}
+	}
+	return true
 }
 
 func (recorder *Recorder) observeAppend(ctx context.Context, result AppendResult) {
@@ -263,7 +453,11 @@ func (recorder *Recorder) observeDelay(ctx context.Context, record Record) {
 	if recorder.config.DelayThreshold == 0 {
 		return
 	}
-	delay := recorder.clock().Sub(record.RecordedAt())
+	now, err := callClock(recorder.clock)
+	if err != nil {
+		return
+	}
+	delay := now.Sub(record.RecordedAt())
 	if delay >= recorder.config.DelayThreshold {
 		safeObserve(ctx, recorder.config.Observer, Observation{Kind: ObservationDelayed, Count: 1, Duration: delay})
 	}

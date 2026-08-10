@@ -22,11 +22,11 @@ func TestChainSealsAndVerifiesPartitionedRecordsAcrossKeyRotation(t *testing.T) 
 				invalidObservations++
 			}
 		}),
-		Keys: audit.KeyProviderFunc(func(_ context.Context, partition string, recordedAt time.Time) (audit.IntegrityKey, error) {
-			if partition != "tenant-1" {
+		Keys: audit.KeyProviderFunc(func(_ context.Context, request audit.KeyRequest) (audit.IntegrityKey, error) {
+			if request.Partition != "tenant-1" {
 				return audit.IntegrityKey{}, errors.New("unexpected partition")
 			}
-			if recordedAt.Before(time.Date(2026, time.August, 10, 0, 0, 0, 0, time.UTC)) {
+			if request.KeyID == "key-1" || (request.KeyID == "" && request.RecordedAt.Before(time.Date(2026, time.August, 10, 0, 0, 0, 0, time.UTC))) {
 				return audit.IntegrityKey{ID: "key-1", Bytes: []byte("0123456789abcdef0123456789abcdef")}, nil
 			}
 			return audit.IntegrityKey{ID: "key-2", Bytes: []byte("abcdef0123456789abcdef0123456789")}, nil
@@ -62,6 +62,39 @@ func TestChainSealsAndVerifiesPartitionedRecordsAcrossKeyRotation(t *testing.T) 
 	}
 	if invalidObservations != 1 {
 		t.Fatalf("integrity-invalid observations = %d", invalidObservations)
+	}
+}
+
+func TestChainVerificationRequestsPersistedHistoricalKeyID(t *testing.T) {
+	t.Parallel()
+
+	keys := map[string]audit.IntegrityKey{
+		"key-1": {ID: "key-1", Bytes: []byte("0123456789abcdef0123456789abcdef")},
+		"key-2": {ID: "key-2", Bytes: []byte("abcdef0123456789abcdef0123456789")},
+	}
+	current := "key-1"
+	requested := ""
+	provider := audit.KeyProviderFunc(func(_ context.Context, request audit.KeyRequest) (audit.IntegrityKey, error) {
+		requested = request.KeyID
+		if request.KeyID == "" {
+			return keys[current], nil
+		}
+		return keys[request.KeyID], nil
+	})
+	chain, err := audit.NewChain(audit.ChainConfig{Algorithm: audit.IntegrityHMACSHA256, Keys: provider})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := chain.Seal(context.Background(), integrityRecord(t, "historical-key", time.Now()), audit.ChainLink{Partition: "tenant-1", Sequence: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	current = "key-2"
+	if err := chain.Verify(context.Background(), []audit.Record{record}); err != nil {
+		t.Fatalf("Verify() after current-key rotation error = %v", err)
+	}
+	if requested != "key-1" {
+		t.Fatalf("verification key ID = %q, want key-1", requested)
 	}
 }
 
@@ -116,6 +149,58 @@ func TestCheckpointAndMerkleVerificationDetectTruncationAndOrder(t *testing.T) {
 	}
 	if string(root) == string(reversed) {
 		t.Fatal("Merkle root ignored stable export order")
+	}
+}
+
+func TestIntegrityVerificationRejectsMissingDuplicateReorderedAlteredAndPartialArchives(t *testing.T) {
+	t.Parallel()
+
+	chain, err := audit.NewChain(audit.ChainConfig{Algorithm: audit.IntegritySHA256})
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC)
+	records := make([]audit.Record, 4)
+	for index := range records {
+		link := audit.ChainLink{Partition: "tenant-1", Sequence: uint64(index + 1)}
+		if index > 0 {
+			link.PreviousDigest = records[index-1].Integrity().Digest()
+		}
+		records[index], err = chain.Seal(
+			context.Background(),
+			integrityRecord(t, "adversary-"+string(rune('a'+index)), base.Add(time.Duration(index)*time.Second)),
+			link,
+		)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	altered := tamperedIntegrityRecord(t, records[2], "account.deleted")
+	for name, candidate := range map[string][]audit.Record{
+		"missing middle": {records[0], records[2], records[3]},
+		"duplicate":      {records[0], records[1], records[1], records[2], records[3]},
+		"reordered":      {records[0], records[2], records[1], records[3]},
+		"altered":        {records[0], records[1], altered, records[3]},
+	} {
+		if err := chain.Verify(context.Background(), candidate); !errors.Is(err, audit.ErrIntegrityInvalid) {
+			t.Fatalf("%s Verify() error = %v", name, err)
+		}
+	}
+	checkpoint, _ := audit.NewCheckpoint("tenant-1", 1, records[0].Integrity().Digest())
+	final, _ := audit.NewCheckpoint("tenant-1", 4, records[3].Integrity().Digest())
+	if err := chain.VerifyFromCheckpoint(context.Background(), checkpoint, records[1:3], final); !errors.Is(err, audit.ErrIntegrityInvalid) {
+		t.Fatalf("partial archive VerifyFromCheckpoint() error = %v", err)
+	}
+	restored := make([]audit.Record, len(records)-1)
+	for index, record := range records[1:] {
+		canonical, _ := audit.CanonicalJSON(record)
+		restored[index], err = audit.ParseCanonicalJSON(canonical, audit.DefaultLimits())
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := chain.VerifyFromCheckpoint(context.Background(), checkpoint, restored, final); err != nil {
+		t.Fatalf("restored archive VerifyFromCheckpoint() error = %v", err)
 	}
 }
 
@@ -190,23 +275,23 @@ func TestIntegrityContractsRejectIncompleteKeysLinksAndCheckpoints(t *testing.T)
 	}
 }
 
-func TestIntegrityKeyFailuresAreBoundedAndInspectable(t *testing.T) {
+func TestIntegrityKeyFailuresAreBoundedAndOpaque(t *testing.T) {
 	t.Parallel()
 	var nilProvider audit.KeyProviderFunc
-	if _, err := nilProvider.Key(context.Background(), "tenant-1", time.Now()); !errors.Is(err, audit.ErrInvalidArgument) {
+	if _, err := nilProvider.Key(context.Background(), audit.KeyRequest{Partition: "tenant-1", RecordedAt: time.Now()}); !errors.Is(err, audit.ErrInvalidArgument) {
 		t.Fatalf("nil KeyProviderFunc error = %v", err)
 	}
 
 	record := integrityRecord(t, "record-1", time.Now())
-	providerFailure := errors.New("KMS unavailable")
+	providerFailure := errors.New("KMS password=secret unavailable")
 	chain, _ := audit.NewChain(audit.ChainConfig{
 		Algorithm: audit.IntegrityHMACSHA256,
-		Keys: audit.KeyProviderFunc(func(context.Context, string, time.Time) (audit.IntegrityKey, error) {
+		Keys: audit.KeyProviderFunc(func(context.Context, audit.KeyRequest) (audit.IntegrityKey, error) {
 			return audit.IntegrityKey{}, providerFailure
 		}),
 	})
-	if _, err := chain.Seal(context.Background(), record, audit.ChainLink{Partition: "tenant-1", Sequence: 1}); !errors.Is(err, providerFailure) {
-		t.Fatalf("provider-failed Seal() error = %v", err)
+	if _, err := chain.Seal(context.Background(), record, audit.ChainLink{Partition: "tenant-1", Sequence: 1}); !errors.Is(err, audit.ErrKeyUnavailable) || strings.Contains(err.Error(), "secret") || errors.Unwrap(err) != nil {
+		t.Fatalf("provider-failed Seal() exposed diagnostic = %v", err)
 	}
 	for _, key := range []audit.IntegrityKey{
 		{Bytes: make([]byte, sha256.Size)},
@@ -217,7 +302,7 @@ func TestIntegrityKeyFailuresAreBoundedAndInspectable(t *testing.T) {
 		key := key
 		chain, _ := audit.NewChain(audit.ChainConfig{
 			Algorithm: audit.IntegrityHMACSHA256,
-			Keys:      audit.KeyProviderFunc(func(context.Context, string, time.Time) (audit.IntegrityKey, error) { return key, nil }),
+			Keys:      audit.KeyProviderFunc(func(context.Context, audit.KeyRequest) (audit.IntegrityKey, error) { return key, nil }),
 		})
 		if _, err := chain.Seal(context.Background(), record, audit.ChainLink{Partition: "tenant-1", Sequence: 1}); !errors.Is(err, audit.ErrInvalidArgument) {
 			t.Fatalf("invalid-key Seal() error = %v", err)
@@ -225,7 +310,7 @@ func TestIntegrityKeyFailuresAreBoundedAndInspectable(t *testing.T) {
 	}
 	boundaryChain, _ := audit.NewChain(audit.ChainConfig{
 		Algorithm: audit.IntegrityHMACSHA256,
-		Keys: audit.KeyProviderFunc(func(context.Context, string, time.Time) (audit.IntegrityKey, error) {
+		Keys: audit.KeyProviderFunc(func(context.Context, audit.KeyRequest) (audit.IntegrityKey, error) {
 			return audit.IntegrityKey{ID: "key-boundary", Bytes: make([]byte, audit.DefaultLimits().MaxFieldBytes)}, nil
 		}),
 	})
@@ -290,6 +375,35 @@ func integrityRecord(t *testing.T, id string, recordedAt time.Time) audit.Record
 		Actor:      audit.ActorInput{Kind: audit.ActorSystem, ID: "billing"},
 		Subject:    audit.SubjectInput{Type: "account", ID: "account-1"},
 		Changes:    audit.ChangeSetInput{NoChange: true},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return record
+}
+
+func tamperedIntegrityRecord(t *testing.T, original audit.Record, action string) audit.Record {
+	t.Helper()
+	builder, err := audit.NewBuilder(audit.BuilderConfig{
+		Clock:       func() time.Time { return original.RecordedAt() },
+		IDGenerator: func() (string, error) { return original.ID(), nil },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	integrity := original.Integrity()
+	record, err := builder.Build(audit.RecordInput{
+		OccurredAt: original.OccurredAt(),
+		Action:     action,
+		Outcome:    original.Outcome(),
+		Actor:      audit.ActorInput{Kind: original.Actor().Kind(), ID: original.Actor().ID()},
+		Subject:    audit.SubjectInput{Type: original.Subject().Type(), ID: original.Subject().ID()},
+		Changes:    audit.ChangeSetInput{NoChange: true},
+		Integrity: audit.IntegrityInput{
+			Algorithm: integrity.Algorithm(), Partition: integrity.Partition(),
+			KeyID: integrity.KeyID(), Sequence: integrity.Sequence(),
+			PreviousDigest: integrity.PreviousDigest(), Digest: integrity.Digest(),
+		},
 	})
 	if err != nil {
 		t.Fatal(err)

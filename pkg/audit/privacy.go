@@ -19,7 +19,11 @@ func (redactor RedactorFunc) Redact(ctx context.Context, record Record) (Record,
 	if redactor == nil || ctx == nil {
 		return Record{}, invalid("redactor", "must be assigned")
 	}
-	return redactor(ctx, record)
+	redacted, err := redactor(ctx, record)
+	if err == nil {
+		redacted.redactionApplied = true
+	}
+	return redacted, err
 }
 
 // RedactionRules are deny-by-default allowlists for extensible data and
@@ -73,8 +77,9 @@ func (redactor *ruleRedactor) Redact(ctx context.Context, record Record) (Record
 	result.changes.before = retain(record.changes.before, redactor.changes)
 	result.changes.after = retain(record.changes.after, redactor.changes)
 	if !record.changes.noChange && len(result.changes.before) == 0 && len(result.changes.after) == 0 {
-		result.changes.noChange = true
+		result.changes.redacted = true
 	}
+	result.redactionApplied = true
 	return result, nil
 }
 

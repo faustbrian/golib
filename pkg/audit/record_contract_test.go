@@ -119,7 +119,7 @@ func TestBuilderValidationRejectsAmbiguousOrOversizedRecords(t *testing.T) {
 	generationFailure := errors.New("entropy unavailable")
 	if builder, err := audit.NewBuilder(audit.BuilderConfig{Clock: func() time.Time { return now }, IDGenerator: func() (string, error) { return "", generationFailure }}); err != nil {
 		t.Fatal(err)
-	} else if _, err := builder.Build(base); !errors.Is(err, generationFailure) {
+	} else if _, err := builder.Build(base); !errors.Is(err, audit.ErrRecordIDUnavailable) {
 		t.Fatalf("ID generation error = %v", err)
 	}
 	var nilBuilder *audit.Builder
@@ -175,6 +175,11 @@ func TestBuilderBoundsRecordIdentityConsistentlyWithDurableAdapters(t *testing.T
 
 	now := time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC)
 	oversizedID := strings.Repeat("r", audit.DefaultLimits().MaxFieldBytes+1)
+	expanded := audit.DefaultLimits()
+	expanded.MaxFieldBytes++
+	if _, err := audit.NewBuilder(audit.BuilderConfig{Limits: expanded}); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("NewBuilder(expanded durable field limit) error = %v", err)
+	}
 	builder, err := audit.NewBuilder(audit.BuilderConfig{
 		Clock:       func() time.Time { return now },
 		IDGenerator: func() (string, error) { return oversizedID, nil },
@@ -299,6 +304,35 @@ func TestCanonicalDecoderRejectsHostileOrNonCanonicalRecords(t *testing.T) {
 		}
 		if _, err := audit.ParseCanonicalJSON(candidate, audit.DefaultLimits()); !errors.Is(err, audit.ErrInvalidArgument) {
 			t.Fatalf("mutation %d error = %v", index, err)
+		}
+	}
+}
+
+func TestCanonicalDecoderRejectsAlternateJSONRepresentations(t *testing.T) {
+	t.Parallel()
+
+	encoded, err := audit.CanonicalJSON(mustSecurityRecord(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var object map[string]any
+	if err := json.Unmarshal(encoded, &object); err != nil {
+		t.Fatal(err)
+	}
+	reordered, err := json.Marshal(object)
+	if err != nil {
+		t.Fatal(err)
+	}
+	duplicateSchema := append([]byte(`{"schema_version":1,`), encoded[1:]...)
+	nonUTC := []byte(strings.Replace(string(encoded), "Z\"", "+00:00\"", 1))
+	for name, candidate := range map[string][]byte{
+		"leading whitespace": append([]byte{' '}, encoded...),
+		"reordered fields":   reordered,
+		"duplicate field":    duplicateSchema,
+		"alternate timezone": nonUTC,
+	} {
+		if _, err := audit.ParseCanonicalJSON(candidate, audit.DefaultLimits()); !errors.Is(err, audit.ErrInvalidArgument) {
+			t.Fatalf("%s ParseCanonicalJSON() error = %v", name, err)
 		}
 	}
 }

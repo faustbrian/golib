@@ -2,7 +2,9 @@ package postgres
 
 import (
 	"context"
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -36,6 +38,9 @@ func (rows *fakeRows) Scan(destinations ...any) error {
 		return rows.scanErr
 	}
 	*(destinations[0].(*[]byte)) = append([]byte(nil), rows.values[rows.index]...)
+	digest := sha256.Sum256(rows.values[rows.index])
+	*(destinations[1].(*[]byte)) = append([]byte(nil), digest[:]...)
+	*(destinations[2].(*int64)) = 1
 	rows.index++
 	return nil
 }
@@ -89,6 +94,14 @@ func TestConfigAndTransactionWriterValidation(t *testing.T) {
 	if _, err := New(nil, Config{MaxBatchRecords: audit.MaxAppendBatchRecords + 1}); !errors.Is(err, audit.ErrInvalidArgument) {
 		t.Fatalf("New(invalid batch) error = %v", err)
 	}
+	if _, err := New(nil, Config{MaxBatchBytes: -1}); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("New(invalid batch bytes) error = %v", err)
+	}
+	for _, maximumBytes := range []int{1, MaxBatchBytes} {
+		if _, err := New(nil, Config{MaxBatchBytes: maximumBytes}); !errors.Is(err, ErrPoolRequired) {
+			t.Fatalf("New(exact batch byte boundary %d) error = %v", maximumBytes, err)
+		}
+	}
 	if writer, err := NewTx(&fakeTx{}, Config{MaxBatchRecords: audit.MaxAppendBatchRecords}); err != nil || writer.maxBatchRecords != audit.MaxAppendBatchRecords {
 		t.Fatalf("NewTx(exact batch limit) = %#v, %v", writer, err)
 	}
@@ -100,6 +113,22 @@ func TestConfigAndTransactionWriterValidation(t *testing.T) {
 	}
 
 	record := faultRecord(t, "record-1")
+	bounded := &Store{limits: audit.DefaultLimits(), maxBatchRecords: 1, maxBatchBytes: 1}
+	if _, err := bounded.prepare([]audit.Record{record}); !errors.Is(err, audit.ErrBatchTooLarge) {
+		t.Fatalf("byte-bounded prepare() error = %v", err)
+	}
+	second := faultRecord(t, "record-2")
+	firstCanonical, _ := audit.CanonicalJSON(record)
+	secondCanonical, _ := audit.CanonicalJSON(second)
+	totalBytes := len(firstCanonical) + len(secondCanonical)
+	bounded.maxBatchBytes = totalBytes - 1
+	if _, err := bounded.prepare([]audit.Record{record, second}); !errors.Is(err, audit.ErrBatchTooLarge) {
+		t.Fatalf("cumulative byte-bounded prepare() error = %v", err)
+	}
+	bounded.maxBatchBytes = totalBytes
+	if prepared, err := bounded.prepare([]audit.Record{record, second}); err != nil || len(prepared) != 2 {
+		t.Fatalf("exact byte-bounded prepare() = %#v, %v", prepared, err)
+	}
 	var nilWriter *TxWriter
 	if _, err := nilWriter.Stage(context.Background(), []audit.Record{record}); audit.AppendOutcomeOf(err) != audit.AppendRejected {
 		t.Fatalf("nil Stage() error = %v", err)
@@ -130,6 +159,24 @@ func TestConfigAndTransactionWriterValidation(t *testing.T) {
 	result, err := writer.Stage(context.Background(), []audit.Record{record})
 	if err != nil || len(result.Results) != 1 || result.Results[0].Status != audit.AppendAccepted {
 		t.Fatalf("Stage() = %#v, %v", result, err)
+	}
+}
+
+func TestPostgreSQLPreparationRequiresExplicitRedaction(t *testing.T) {
+	t.Parallel()
+
+	record := faultRecord(t, "redaction-required")
+	canonical, err := audit.CanonicalJSON(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	unredacted, err := audit.ParseCanonicalJSON(canonical, audit.DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	store := &Store{limits: audit.DefaultLimits()}
+	if _, err := store.prepare([]audit.Record{unredacted}); !errors.Is(err, audit.ErrRedactionRequired) {
+		t.Fatalf("prepare(unredacted) error = %v", err)
 	}
 }
 
@@ -284,8 +331,12 @@ func TestQueryAndExportFaultsAreSafeAndBounded(t *testing.T) {
 	canonical, _ := audit.CanonicalJSON(record)
 	database.rows = &fakeRows{values: [][]byte{canonical}}
 	callbackFailure := errors.New("consumer failed")
-	if err := store.Export(context.Background(), query, func(audit.Record) error { return callbackFailure }); !errors.Is(err, callbackFailure) {
+	if err := store.Export(context.Background(), query, func(audit.Record) error { return callbackFailure }); !errors.Is(err, audit.ErrExportConsumerFailed) || errors.Is(err, callbackFailure) {
 		t.Fatalf("callback-failed Export() error = %v", err)
+	}
+	database.rows = &fakeRows{values: [][]byte{canonical}}
+	if err := store.Export(context.Background(), query, func(audit.Record) error { panic("token=export-secret") }); !errors.Is(err, audit.ErrExportConsumerFailed) {
+		t.Fatalf("callback-panic Export() error = %v", err)
 	}
 	database.rows = &fakeRows{values: [][]byte{canonical}}
 	if err := store.Export(context.Background(), query, func(audit.Record) error { return nil }); err != nil {
@@ -294,6 +345,9 @@ func TestQueryAndExportFaultsAreSafeAndBounded(t *testing.T) {
 	duringExport, cancelDuringExport := context.WithCancel(context.Background())
 	database.rows = &fakeRows{values: [][]byte{canonical, canonical}, scan: func(destinations ...any) error {
 		*(destinations[0].(*[]byte)) = append([]byte(nil), canonical...)
+		digest := sha256.Sum256(canonical)
+		*(destinations[1].(*[]byte)) = append([]byte(nil), digest[:]...)
+		*(destinations[2].(*int64)) = 1
 		cancelDuringExport()
 		return nil
 	}}
@@ -320,6 +374,93 @@ func TestQueryAndExportFaultsAreSafeAndBounded(t *testing.T) {
 	}
 }
 
+func TestQueryAndExportRejectPersistedDigestMismatch(t *testing.T) {
+	t.Parallel()
+
+	record := faultRecord(t, "digest-mismatch")
+	canonical, err := audit.CanonicalJSON(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := func() *fakeRows {
+		return &fakeRows{values: [][]byte{{1}}, scan: func(destinations ...any) error {
+			if len(destinations) != 3 {
+				return errors.New("canonical digest was not requested")
+			}
+			*(destinations[0].(*[]byte)) = append([]byte(nil), canonical...)
+			*(destinations[1].(*[]byte)) = make([]byte, sha256.Size)
+			*(destinations[2].(*int64)) = 1
+			return nil
+		}}
+	}
+	query, _ := audit.NewQuery(audit.QueryInput{Tenant: audit.AllTenants(), Limit: 1})
+	database := &fakeDatabase{rows: rows()}
+	store := &Store{pool: database, limits: audit.DefaultLimits(), maxBatchRecords: 1}
+	if _, err := store.Query(context.Background(), query); !errors.Is(err, audit.ErrIntegrityInvalid) {
+		t.Fatalf("Query(digest mismatch) error = %v", err)
+	}
+	database.rows = rows()
+	if err := store.Export(context.Background(), query, func(audit.Record) error { return nil }); !errors.Is(err, audit.ErrIntegrityInvalid) {
+		t.Fatalf("Export(digest mismatch) error = %v", err)
+	}
+}
+
+func TestPrepareRevalidatesAgainstConfiguredDecodeLimits(t *testing.T) {
+	t.Parallel()
+
+	record := faultRecord(t, "record-outside-configured-limits")
+	limits := audit.DefaultLimits()
+	limits.MaxFieldBytes = 1
+	store := &Store{limits: limits, maxBatchRecords: 1}
+	if _, err := store.prepare([]audit.Record{record}); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("prepare(record outside configured limits) error = %v", err)
+	}
+}
+
+func TestQueryAndExportRejectNonpositiveSnapshotWatermarks(t *testing.T) {
+	t.Parallel()
+
+	record := faultRecord(t, "nonpositive-watermark")
+	canonical, err := audit.CanonicalJSON(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows := func() *fakeRows {
+		return &fakeRows{values: [][]byte{{1}}, scan: func(destinations ...any) error {
+			*(destinations[0].(*[]byte)) = append([]byte(nil), canonical...)
+			digest := sha256.Sum256(canonical)
+			*(destinations[1].(*[]byte)) = append([]byte(nil), digest[:]...)
+			*(destinations[2].(*int64)) = 0
+			return nil
+		}}
+	}
+	query, _ := audit.NewQuery(audit.QueryInput{Tenant: audit.AllTenants(), Limit: 1})
+	database := &fakeDatabase{rows: rows()}
+	store := &Store{pool: database, limits: audit.DefaultLimits(), maxBatchRecords: 1}
+	if _, err := store.Query(context.Background(), query); !errors.Is(err, audit.ErrIntegrityInvalid) {
+		t.Fatalf("Query(nonpositive watermark) error = %v", err)
+	}
+	database.rows = rows()
+	if err := store.Export(context.Background(), query, func(audit.Record) error { return nil }); !errors.Is(err, audit.ErrIntegrityInvalid) {
+		t.Fatalf("Export(nonpositive watermark) error = %v", err)
+	}
+}
+
+func TestConsumerCancellationClassificationsRemainPublic(t *testing.T) {
+	t.Parallel()
+
+	record := faultRecord(t, "consumer-cancellation")
+	for _, expected := range []error{context.Canceled, context.DeadlineExceeded} {
+		expected := expected
+		t.Run(expected.Error(), func(t *testing.T) {
+			t.Parallel()
+			if err := consumeSafely(func(audit.Record) error { return fmt.Errorf("consumer: %w", expected) }, record); !errors.Is(err, expected) {
+				t.Fatalf("consumeSafely() error = %v", err)
+			}
+		})
+	}
+}
+
 func TestQueryBuilderIncludesEveryStableFilter(t *testing.T) {
 	t.Parallel()
 
@@ -327,7 +468,7 @@ func TestQueryBuilderIncludesEveryStableFilter(t *testing.T) {
 	tenant, _ := audit.Tenant("tenant-1")
 	cursor, _ := audit.NewCursor(base, "record-0")
 	query, _ := audit.NewQuery(audit.QueryInput{
-		Tenant: tenant, From: base, Through: base.Add(time.Hour), ActorID: "actor-1",
+		Tenant: tenant, From: base, Through: base.Add(time.Hour), RecordID: "record-1", ActorID: "actor-1",
 		SubjectType: "invoice", SubjectID: "invoice-1", Action: "invoice.viewed",
 		CorrelationID: "correlation-1", Outcome: audit.OutcomeSucceeded, Limit: 1, After: cursor,
 	})
@@ -339,7 +480,7 @@ func TestQueryBuilderIncludesEveryStableFilter(t *testing.T) {
 	if _, err := store.Query(context.Background(), query); err != nil {
 		t.Fatal(err)
 	}
-	for _, fragment := range []string{"tenant_id", "actor_id", "subject_type", "subject_id", "action", "correlation_id", "outcome", "recorded_at >=", "recorded_at <=", "(recorded_at, record_id) >"} {
+	for _, fragment := range []string{"record_id", "tenant_id", "actor_id", "subject_type", "subject_id", "action", "correlation_id", "outcome", "recorded_at >=", "recorded_at <=", "(recorded_at, record_id) >"} {
 		if !strings.Contains(database.querySQL, fragment) {
 			t.Fatalf("query missing %q: %s", fragment, database.querySQL)
 		}
@@ -355,8 +496,25 @@ func TestDatabaseErrorsNeverExposeDriverDiagnostics(t *testing.T) {
 
 	cause := errors.New("password=secret host=private")
 	failure := &databaseError{operation: "query", cause: cause}
-	if !errors.Is(failure, cause) || strings.Contains(failure.Error(), "secret") {
+	if !errors.Is(failure, cause) || strings.Contains(failure.Error(), "secret") || errors.Unwrap(failure) != nil {
 		t.Fatalf("databaseError = %v", failure)
+	}
+	for _, test := range []struct {
+		name  string
+		cause error
+		want  bool
+	}{
+		{name: "deadlock", cause: &pgconn.PgError{Code: "40P01"}, want: true},
+		{name: "serialization", cause: &pgconn.PgError{Code: "40001"}, want: true},
+		{name: "other PostgreSQL error", cause: &pgconn.PgError{Code: "23505"}},
+		{name: "non-PostgreSQL error", cause: errors.New("connection closed")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			failure := &databaseError{operation: "append", cause: test.cause}
+			if got := errors.Is(failure, ErrRetryableTransaction); got != test.want {
+				t.Fatalf("errors.Is(retryable) = %t, want %t", got, test.want)
+			}
+		})
 	}
 	if retentionKind(audit.RetentionHold) != "hold" || retentionKind(audit.RetentionRelease) != "release" {
 		t.Fatal("retention kind mapping changed")
@@ -396,5 +554,10 @@ func faultRecord(t *testing.T, id string) audit.Record {
 	if err != nil {
 		t.Fatal(err)
 	}
-	return record
+	redactor := audit.RedactorFunc(func(_ context.Context, record audit.Record) (audit.Record, error) { return record, nil })
+	redacted, err := redactor.Redact(context.Background(), record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return redacted
 }

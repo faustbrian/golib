@@ -16,7 +16,9 @@ check() {
     local directory="$1"
     local tags="$2"
     local profile="$3"
-    local coverage
+    local covered
+    local statements
+    local uncovered
 
     cd "${directory}"
     if [[ -n "${tags}" ]]; then
@@ -24,12 +26,15 @@ check() {
     else
         "${root}/scripts/with-gocache.sh" go test -coverprofile="${profile}" ./...
     fi
-    coverage="$("${root}/scripts/with-gocache.sh" go tool cover -func="${profile}" | awk '/^total:/ {print $3}')"
-    if [[ "${coverage}" != "100.0%" ]]; then
-        printf 'production coverage is %s in %s, want 100.0%%\n' "${coverage}" "${directory}" >&2
+    statements="$(awk 'NR > 1 { total += $2 } END { print total + 0 }' "${profile}")"
+    covered="$(awk 'NR > 1 && $3 > 0 { total += $2 } END { print total + 0 }' "${profile}")"
+    uncovered="$(awk 'NR > 1 && $2 > 0 && $3 == 0 { print; exit }' "${profile}")"
+    if [[ "${covered}" != "${statements}" || -n "${uncovered}" ]]; then
+        printf 'production coverage is %s/%s statements in %s; first uncovered block: %s\n' \
+            "${covered}" "${statements}" "${directory}" "${uncovered}" >&2
         exit 1
     fi
-    printf 'production coverage: %s=%s\n' "${directory}" "${coverage}"
+    printf 'production coverage: %s=%s/%s statements\n' "${directory}" "${covered}" "${statements}"
 }
 
 check "${root}" "" "${temporary}/core.out"

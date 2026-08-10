@@ -246,10 +246,16 @@ func faultRetentionRequest(t *testing.T, scope audit.TenantScope) audit.Retentio
 
 func faultRetentionPlan(t *testing.T, count int) (audit.RetentionPlan, []byte) {
 	t.Helper()
-	digest := sha256.Sum256([]byte("canonical"))
 	candidates := make([]audit.RetentionCandidate, count)
+	var digest [sha256.Size]byte
 	for index := range candidates {
-		candidate, err := audit.NewRetentionCandidate(faultRecord(t, "record-"+string(rune('a'+index))), digest[:])
+		record := faultRecord(t, "record-"+string(rune('a'+index)))
+		canonical, err := audit.CanonicalJSON(record)
+		if err != nil {
+			t.Fatal(err)
+		}
+		digest = sha256.Sum256(canonical)
+		candidate, err := audit.NewRetentionCandidate(record, digest[:])
 		if err != nil {
 			t.Fatal(err)
 		}

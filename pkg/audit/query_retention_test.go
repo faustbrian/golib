@@ -56,6 +56,27 @@ func TestCursorRoundTripAndBounds(t *testing.T) {
 	if parsed.RecordID() != "record-1" || !parsed.RecordedAt().Equal(now.UTC().Truncate(time.Microsecond)) || parsed.String() != cursor.String() {
 		t.Fatalf("cursor round trip = %#v", parsed)
 	}
+	snapshotCursor, err := audit.NewSnapshotCursor(now, "record-1", 42)
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err = audit.ParseCursor(snapshotCursor.String())
+	if err != nil || parsed.Snapshot() != 42 || parsed.RecordID() != "record-1" || parsed.String() != snapshotCursor.String() {
+		t.Fatalf("snapshot cursor round trip = %#v, %v", parsed, err)
+	}
+	maximumCursor, err := audit.NewSnapshotCursor(
+		time.Date(9999, time.December, 31, 23, 59, 59, 999999000, time.UTC),
+		strings.Repeat("r", audit.DefaultLimits().MaxFieldBytes), uint64(1<<63-1),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if parsed, err := audit.ParseCursor(maximumCursor.String()); err != nil || parsed.String() != maximumCursor.String() {
+		t.Fatalf("maximum cursor round trip = %#v, %v", parsed, err)
+	}
+	if _, err := audit.NewSnapshotCursor(now, "record-1", uint64(1<<63)); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("NewSnapshotCursor(over PostgreSQL bigint ceiling) error = %v", err)
+	}
 	for _, input := range []string{"", "%", "not-base64", "e30", strings.Repeat("YQ", 2*audit.DefaultLimits().MaxFieldBytes+1)} {
 		if _, err := audit.ParseCursor(input); !errors.Is(err, audit.ErrInvalidArgument) {
 			t.Fatalf("ParseCursor(%q) error = %v", input, err)
@@ -81,6 +102,22 @@ func TestCursorRoundTripAndBounds(t *testing.T) {
 	if _, err := audit.NewCursor(now, string([]byte{0xff})); !errors.Is(err, audit.ErrInvalidArgument) {
 		t.Fatalf("NewCursor(invalid UTF-8) error = %v", err)
 	}
+	if _, err := audit.NewSnapshotCursor(now, "record-1", 0); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("NewSnapshotCursor(zero snapshot) error = %v", err)
+	}
+	malformedSnapshot := base64.RawURLEncoding.EncodeToString([]byte("v2\n2026-08-09T12:00:00Z\ninvalid\nrecord-1"))
+	if _, err := audit.ParseCursor(malformedSnapshot); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("ParseCursor(malformed snapshot) error = %v", err)
+	}
+	for _, malformed := range []string{
+		"v2\n2026-08-09T12:00:00Z\nrecord-1",
+		"v3\n2026-08-09T12:00:00Z\n42\nrecord-1",
+	} {
+		encoded := base64.RawURLEncoding.EncodeToString([]byte(malformed))
+		if _, err := audit.ParseCursor(encoded); !errors.Is(err, audit.ErrInvalidArgument) {
+			t.Fatalf("ParseCursor(%q) error = %v", malformed, err)
+		}
+	}
 }
 
 func TestQueryRequiresBoundedCoherentFilters(t *testing.T) {
@@ -103,6 +140,8 @@ func TestQueryRequiresBoundedCoherentFilters(t *testing.T) {
 		{Tenant: audit.AllTenants(), From: base.Add(time.Hour), Through: base, Limit: 1},
 		{Tenant: audit.AllTenants(), Outcome: audit.Outcome(255), Limit: 1},
 		{Tenant: audit.AllTenants(), ActorID: strings.Repeat("a", audit.DefaultLimits().MaxFieldBytes+1), Limit: 1},
+		{Tenant: audit.AllTenants(), From: time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC), Limit: 1},
+		{Tenant: audit.AllTenants(), Through: time.Date(-1, 1, 1, 0, 0, 0, 0, time.UTC), Limit: 1},
 	}
 	for _, input := range cases {
 		if _, err := audit.NewQuery(input); !errors.Is(err, audit.ErrInvalidArgument) {
@@ -130,6 +169,7 @@ func TestRetentionContractsAreImmutableAndBounded(t *testing.T) {
 		{},
 		{ID: "id", RecordID: "record", ReasonCode: "reason", Kind: audit.RetentionEventKind(99), OccurredAt: now},
 		{ID: "id", RecordID: "record", ReasonCode: "reason", Kind: audit.RetentionHold},
+		{ID: "id", RecordID: "record", ReasonCode: "reason", Kind: audit.RetentionHold, OccurredAt: time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)},
 	} {
 		if _, err := audit.NewRetentionEvent(input); !errors.Is(err, audit.ErrInvalidArgument) {
 			t.Fatalf("NewRetentionEvent(%#v) error = %v", input, err)
@@ -146,6 +186,7 @@ func TestRetentionContractsAreImmutableAndBounded(t *testing.T) {
 		{Tenant: audit.AllTenants(), Limit: 1},
 		{Tenant: audit.AllTenants(), Before: now},
 		{Tenant: audit.AllTenants(), Before: now, Limit: audit.MaxQueryRecords + 1},
+		{Tenant: audit.AllTenants(), Before: time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC), Limit: 1},
 	} {
 		if _, err := audit.NewRetentionRequest(input); !errors.Is(err, audit.ErrInvalidArgument) {
 			t.Fatalf("NewRetentionRequest(%#v) error = %v", input, err)
@@ -153,7 +194,11 @@ func TestRetentionContractsAreImmutableAndBounded(t *testing.T) {
 	}
 
 	record := mustSecurityRecord(t)
-	digest := sha256.Sum256([]byte("persisted canonical record"))
+	canonical, err := audit.CanonicalJSON(record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	digest := sha256.Sum256(canonical)
 	candidate, err := audit.NewRetentionCandidate(record, digest[:])
 	if err != nil {
 		t.Fatal(err)
@@ -167,14 +212,31 @@ func TestRetentionContractsAreImmutableAndBounded(t *testing.T) {
 		t.Fatal(err)
 	}
 	copy := plan.Candidates()
-	copy[0], _ = audit.NewRetentionCandidate(record, make([]byte, sha256.Size))
+	copy[0], _ = audit.NewRetentionCandidate(record, digest[:])
 	if plan.Candidates()[0].Digest()[0] != candidate.Digest()[0] {
 		t.Fatal("retention plan exposed mutable candidates")
+	}
+	secondRecord := deliveryRecord(t, "a-retention-record")
+	secondCanonical, _ := audit.CanonicalJSON(secondRecord)
+	secondDigest := sha256.Sum256(secondCanonical)
+	secondCandidate, err := audit.NewRetentionCandidate(secondRecord, secondDigest[:])
+	if err != nil {
+		t.Fatal(err)
+	}
+	ordered, err := audit.NewRetentionPlan([]audit.RetentionCandidate{candidate, secondCandidate})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := ordered.Candidates(); got[0].Record().ID() != "a-retention-record" || got[1].Record().ID() != record.ID() {
+		t.Fatalf("retention plan lock order = %q, %q", got[0].Record().ID(), got[1].Record().ID())
 	}
 	if _, err := audit.NewRetentionCandidate(audit.Record{}, make([]byte, sha256.Size)); !errors.Is(err, audit.ErrInvalidArgument) {
 		t.Fatalf("NewRetentionCandidate(zero record) error = %v", err)
 	}
 	if _, err := audit.NewRetentionCandidate(record, []byte{1}); !errors.Is(err, audit.ErrInvalidArgument) {
 		t.Fatalf("NewRetentionCandidate(short digest) error = %v", err)
+	}
+	if _, err := audit.NewRetentionCandidate(record, make([]byte, sha256.Size)); !errors.Is(err, audit.ErrIntegrityInvalid) {
+		t.Fatalf("NewRetentionCandidate(mismatched digest) error = %v", err)
 	}
 }

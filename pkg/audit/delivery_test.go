@@ -11,6 +11,13 @@ import (
 	"github.com/faustbrian/golib/pkg/audit/memory"
 )
 
+type durableMemoryBuffer struct {
+	*memory.Store
+	limits audit.BufferLimits
+}
+
+func (buffer durableMemoryBuffer) BufferLimits() audit.BufferLimits { return buffer.limits }
+
 func TestRecorderRedactsBeforePersistence(t *testing.T) {
 	t.Parallel()
 
@@ -62,6 +69,45 @@ func TestRecorderRedactsBeforePersistence(t *testing.T) {
 	}
 }
 
+func TestRecorderRejectsRedactionAfterIntegritySealing(t *testing.T) {
+	t.Parallel()
+
+	chain, err := audit.NewChain(audit.ChainConfig{Algorithm: audit.IntegritySHA256})
+	if err != nil {
+		t.Fatal(err)
+	}
+	sealed, err := chain.Seal(context.Background(), deliveryRecord(t, "sealed-redaction"), audit.ChainLink{
+		Partition: "tenant-1",
+		Sequence:  1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	redactor, err := audit.NewRedactor(audit.RedactionRules{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	appendCalls := 0
+	sink := acceptingSink(audit.AppendAccepted)
+	sink.append = func(_ context.Context, record audit.Record) (audit.AppendResult, error) {
+		appendCalls++
+		return audit.AppendResult{RecordID: record.ID(), Status: audit.AppendAccepted}, nil
+	}
+	recorder, err := audit.NewRecorder(audit.RecorderConfig{Sink: sink, Redactor: redactor, Mode: audit.DeliveryFailClosed})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := recorder.Submit(context.Background(), sealed); !errors.Is(err, audit.ErrIntegrityInvalid) {
+		t.Fatalf("Submit(sealed record requiring redaction) error = %v", err)
+	}
+	if appendCalls != 0 {
+		t.Fatalf("sink append calls = %d, want 0", appendCalls)
+	}
+	if _, err := recorder.SubmitBatch(context.Background(), []audit.Record{sealed}); !errors.Is(err, audit.ErrIntegrityInvalid) {
+		t.Fatalf("SubmitBatch(sealed record requiring redaction) error = %v", err)
+	}
+}
+
 func TestRecorderBuffersFailedBatchAtomically(t *testing.T) {
 	t.Parallel()
 
@@ -69,7 +115,7 @@ func TestRecorderBuffersFailedBatchAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	buffer, err := memory.New(memory.Config{MaxRecords: 4, MaxBytes: 1 << 20, MaxBatchRecords: 2})
+	bufferStore, err := memory.New(memory.Config{MaxRecords: 4, MaxBytes: 1 << 20, MaxBatchRecords: 2})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +124,9 @@ func TestRecorderBuffersFailedBatchAtomically(t *testing.T) {
 		t.Fatal(err)
 	}
 	recorder, err := audit.NewRecorder(audit.RecorderConfig{
-		Sink: primary, Redactor: redactor, Mode: audit.DeliveryDurableBuffer, Buffer: buffer,
+		Sink: primary, Redactor: redactor, Mode: audit.DeliveryDurableBuffer,
+		Buffer:          durableMemoryBuffer{Store: bufferStore, limits: audit.BufferLimits{MaxRecords: 4, MaxBytes: 1 << 20, MaxBatchRecords: 2}},
+		RecoveryTimeout: time.Second,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -95,7 +143,7 @@ func TestRecorderBuffersFailedBatchAtomically(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	page, err := buffer.Query(context.Background(), query)
+	page, err := bufferStore.Query(context.Background(), query)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -154,7 +202,7 @@ func TestRedactorValidatesRulesCancellationAndExplicitNoChange(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !redacted.Changes().NoChange() || len(redacted.Attributes()) != 0 {
+	if redacted.Changes().NoChange() || !redacted.Changes().Redacted() || len(redacted.Attributes()) != 0 {
 		t.Fatalf("default-deny redaction = %#v", redacted)
 	}
 }

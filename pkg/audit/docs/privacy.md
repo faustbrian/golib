@@ -6,6 +6,13 @@ does not retain arbitrary redactor errors that may contain rejected data.
 Standard rules default-deny attributes and changes unless allowlisted and can
 remove safe description, network origin, and user agent.
 
+A custom redactor may transform only those privacy fields, may not inject new
+attribute or change keys, and must preserve record identity, actor, tenant,
+subject, action, outcome, time, correlation, policy, and explicit change-state
+semantics. Redaction that would alter an already sealed canonical record is
+rejected; redact before integrity sealing. Persistence adapters reject records
+that have not crossed an explicit redaction boundary.
+
 Authorization headers, cookies, passwords, credentials, secrets, tokens, and
 unrestricted request or response bodies are rejected by field-name policy.
 Callers must still minimize values, pseudonymize identifiers where lawful,

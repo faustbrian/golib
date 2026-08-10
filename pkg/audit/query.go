@@ -3,15 +3,25 @@ package audit
 import (
 	"context"
 	"encoding/base64"
+	"errors"
+	"strconv"
 	"strings"
 	"time"
 )
+
+// ErrExportConsumerFailed reports that an export consumer returned an error or
+// panicked. Dependency diagnostics are intentionally not retained.
+var ErrExportConsumerFailed = errors.New("audit: export consumer failed")
+
+// ErrExportFailed reports an opaque exporter dependency failure.
+var ErrExportFailed = errors.New("audit: export failed")
 
 const (
 	// MaxQueryRecords is the absolute number of records one query or export may
 	// request.
 	MaxQueryRecords        uint32 = 1_000
-	maxCursorEnvelopeBytes int    = 39 // version/newlines plus the longest RFC3339Nano timestamp
+	maxCursorSnapshot      uint64 = 1<<63 - 1 // PostgreSQL bigint acceptance-order ceiling
+	maxCursorEnvelopeBytes int    = 51        // v2, delimiters, canonical timestamp, and maximum snapshot
 )
 
 type tenantScopeKind uint8
@@ -90,6 +100,19 @@ func (scope TenantScope) Includes(value string) bool {
 type Cursor struct {
 	recordedAt time.Time
 	recordID   string
+	snapshot   uint64
+}
+
+// NewSnapshotCursor validates a stable pagination position and the adapter's
+// inclusive acceptance watermark. Snapshot must come from the adapter that
+// produced the page.
+func NewSnapshotCursor(recordedAt time.Time, recordID string, snapshot uint64) (Cursor, error) {
+	cursor, err := NewCursor(recordedAt, recordID)
+	if err != nil || snapshot == 0 || snapshot > maxCursorSnapshot {
+		return Cursor{}, invalid("cursor", "requires a stable snapshot watermark")
+	}
+	cursor.snapshot = snapshot
+	return cursor, nil
 }
 
 // NewCursor validates and constructs an export-safe cursor.
@@ -105,22 +128,32 @@ func NewCursor(recordedAt time.Time, recordID string) (Cursor, error) {
 
 // ParseCursor decodes the versioned URL-safe cursor representation.
 func ParseCursor(value string) (Cursor, error) {
+	if len(value) > base64.RawURLEncoding.EncodedLen(DefaultLimits().MaxFieldBytes+maxCursorEnvelopeBytes) {
+		return Cursor{}, invalid("cursor", "is malformed")
+	}
 	decoded, err := base64.RawURLEncoding.DecodeString(value)
 	if err != nil {
 		return Cursor{}, invalid("cursor", "is malformed")
 	}
-	if len(decoded) > DefaultLimits().MaxFieldBytes+maxCursorEnvelopeBytes {
-		return Cursor{}, invalid("cursor", "is malformed")
-	}
-	parts := strings.SplitN(string(decoded), "\n", 3)
-	if len(parts) != 3 || parts[0] != "v1" {
+	parts := strings.Split(string(decoded), "\n")
+	if len(parts) != 3 && len(parts) != 4 {
 		return Cursor{}, invalid("cursor", "has an unsupported format")
 	}
 	recordedAt, err := time.Parse(canonicalTimeLayout, parts[1])
 	if err != nil {
 		return Cursor{}, invalid("cursor", "has a malformed time")
 	}
-	return NewCursor(recordedAt, parts[2])
+	if len(parts) == 3 && parts[0] == "v1" {
+		return NewCursor(recordedAt, parts[2])
+	}
+	if len(parts) != 4 || parts[0] != "v2" {
+		return Cursor{}, invalid("cursor", "has an unsupported format")
+	}
+	snapshot, err := strconv.ParseUint(parts[2], 10, 64)
+	if err != nil {
+		return Cursor{}, invalid("cursor", "has a malformed snapshot")
+	}
+	return NewSnapshotCursor(recordedAt, parts[3], snapshot)
 }
 
 // IsZero reports whether the cursor denotes no pagination position.
@@ -132,24 +165,32 @@ func (cursor Cursor) RecordedAt() time.Time { return cursor.recordedAt }
 // RecordID returns the stable record-ID tie breaker.
 func (cursor Cursor) RecordID() string { return cursor.recordID }
 
+// Snapshot returns the inclusive adapter-owned acceptance watermark. Zero
+// identifies a legacy live cursor without snapshot isolation.
+func (cursor Cursor) Snapshot() uint64 { return cursor.snapshot }
+
 // String returns the versioned URL-safe cursor, or an empty string for zero.
 func (cursor Cursor) String() string {
 	if cursor.IsZero() {
 		return ""
 	}
 	plain := "v1\n" + cursor.recordedAt.Format(canonicalTimeLayout) + "\n" + cursor.recordID
+	if cursor.snapshot != 0 {
+		plain = "v2\n" + cursor.recordedAt.Format(canonicalTimeLayout) + "\n" +
+			strconv.FormatUint(cursor.snapshot, 10) + "\n" + cursor.recordID
+	}
 	return base64.RawURLEncoding.EncodeToString([]byte(plain))
 }
 
 // QueryInput supplies bounded filters. Time bounds are inclusive. After is an
 // exclusive stable cursor. Tenant scope is always required.
 type QueryInput struct {
-	Tenant                                                 TenantScope
-	From, Through                                          time.Time
-	ActorID, SubjectType, SubjectID, Action, CorrelationID string
-	Outcome                                                Outcome
-	Limit                                                  uint32
-	After                                                  Cursor
+	Tenant                                                           TenantScope
+	From, Through                                                    time.Time
+	RecordID, ActorID, SubjectType, SubjectID, Action, CorrelationID string
+	Outcome                                                          Outcome
+	Limit                                                            uint32
+	After                                                            Cursor
 }
 
 // Query is a validated immutable authorization-neutral query.
@@ -166,13 +207,17 @@ func NewQuery(input QueryInput) (Query, error) {
 	if !input.From.IsZero() && !input.Through.IsZero() && input.Through.Before(input.From) {
 		return Query{}, invalid("time_range", "ends before it starts")
 	}
+	if (!input.From.IsZero() && !validCanonicalTime(input.From)) ||
+		(!input.Through.IsZero() && !validCanonicalTime(input.Through)) {
+		return Query{}, invalid("time_range", "must use canonical years")
+	}
 	if !input.After.IsZero() && (input.After.recordedAt.IsZero() || input.After.recordID == "") {
 		return Query{}, invalid("cursor", "is incoherent")
 	}
 	if input.Outcome > OutcomeUnknown {
 		return Query{}, invalid("outcome", "is unknown")
 	}
-	for name, value := range map[string]string{"actor_id": input.ActorID, "subject_type": input.SubjectType, "subject_id": input.SubjectID, "action": input.Action, "correlation_id": input.CorrelationID} {
+	for name, value := range map[string]string{"record_id": input.RecordID, "actor_id": input.ActorID, "subject_type": input.SubjectType, "subject_id": input.SubjectID, "action": input.Action, "correlation_id": input.CorrelationID} {
 		if err := boundedOptional(name, value, DefaultLimits().MaxFieldBytes); err != nil {
 			return Query{}, err
 		}
@@ -196,6 +241,9 @@ func (query Query) Through() time.Time { return query.input.Through }
 
 // ActorID returns the optional exact actor filter.
 func (query Query) ActorID() string { return query.input.ActorID }
+
+// RecordID returns the optional exact record-ID reconciliation filter.
+func (query Query) RecordID() string { return query.input.RecordID }
 
 // SubjectType returns the optional exact subject-type filter.
 func (query Query) SubjectType() string { return query.input.SubjectType }

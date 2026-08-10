@@ -27,3 +27,9 @@ Keep a Changelog, and releases follow Semantic Versioning.
 - Redact before persistence and expose identifier-free observation events.
 - Keep arbitrary redactor failures opaque and give PostgreSQL writers only the
   append-function privilege rather than direct table read access.
+- Reject redactor field injection and post-validation aliasing, sanitize every
+  dependency boundary including builder clocks and ID generators, and require
+  explicit bounded recovery for fail-open and durable-buffer policies.
+- Verify canonical bytes, persisted digests, historical HMAC key IDs, stable
+  acceptance snapshots, deterministic retention plans, and cross-adapter field
+  ceilings before use.

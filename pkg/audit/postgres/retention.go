@@ -15,8 +15,9 @@ import (
 )
 
 // RetentionAdmin is a separately constructed privileged boundary. Applications
-// can give Store only audit_writer credentials and reserve this value for an
-// archive-and-retention process using audit_retention credentials.
+// can give Store only deployment-specific writer credentials and reserve this
+// value for an archive-and-retention process with separately generated
+// retention privileges.
 type RetentionAdmin struct {
 	pool   database
 	limits audit.Limits
@@ -111,7 +112,7 @@ func (admin *RetentionAdmin) PlanRetention(ctx context.Context, request audit.Re
 	statement.WriteString(` AND COALESCE((
 		SELECT event_kind FROM audit.retention_events
 		WHERE record_id = candidate.record_id
-		ORDER BY occurred_at DESC, event_id DESC LIMIT 1
+		ORDER BY accepted_order DESC LIMIT 1
 	), 'release') <> 'hold'
 	ORDER BY candidate.recorded_at, candidate.record_id LIMIT $`)
 	args = append(args, request.Limit())
@@ -127,7 +128,7 @@ func (admin *RetentionAdmin) PlanRetention(ctx context.Context, request audit.Re
 		if err := rows.Scan(&canonical, &digest); err != nil {
 			return audit.RetentionPlan{}, &databaseError{operation: "scan retention plan", cause: err}
 		}
-		record, err := audit.ParseCanonicalJSON(canonical, admin.limits)
+		record, err := parsePersistedRecord(ctx, canonical, admin.limits)
 		if err != nil {
 			return audit.RetentionPlan{}, err
 		}
@@ -176,7 +177,7 @@ func (admin *RetentionAdmin) ApplyRetention(ctx context.Context, plan audit.Rete
 		err := tx.QueryRow(ctx, `SELECT candidate.canonical_sha256, COALESCE((
 			SELECT event_kind FROM audit.retention_events
 			WHERE record_id = candidate.record_id
-			ORDER BY occurred_at DESC, event_id DESC LIMIT 1
+			ORDER BY accepted_order DESC LIMIT 1
 		), 'release') FROM audit.records AS candidate WHERE candidate.record_id = $1`, candidate.Record().ID()).Scan(&digest, &state)
 		switch {
 		case errors.Is(err, pgx.ErrNoRows):

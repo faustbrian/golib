@@ -17,6 +17,12 @@ var (
 	ErrBackpressure = errors.New("audit: sink capacity exceeded")
 	// ErrBatchTooLarge reports a batch above the configured or absolute limit.
 	ErrBatchTooLarge = errors.New("audit: append batch exceeds limit")
+	// ErrSinkProtocol reports an acknowledgement that cannot prove which
+	// submitted records were accepted or deduplicated.
+	ErrSinkProtocol = errors.New("audit: sink returned an invalid acknowledgement")
+	// ErrRedactionRequired reports persistence attempted without an explicit
+	// caller-owned privacy policy having processed the record.
+	ErrRedactionRequired = errors.New("audit: redaction is required before persistence")
 )
 
 // AppendOutcome classifies whether a failed append reached durable storage.
@@ -64,8 +70,9 @@ func (failure *AppendError) Error() string {
 	}
 }
 
-// Unwrap returns the inspectable underlying cause.
-func (failure *AppendError) Unwrap() error { return failure.cause }
+// Is preserves programmatic classification without exposing the underlying
+// diagnostic through formatting or unwrapping.
+func (failure *AppendError) Is(target error) bool { return errors.Is(failure.cause, target) }
 
 // AppendOutcome returns the classified durability state.
 func (failure *AppendError) AppendOutcome() AppendOutcome { return failure.outcome }

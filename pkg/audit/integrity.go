@@ -5,7 +5,6 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"errors"
-	"fmt"
 	"time"
 )
 
@@ -19,6 +18,8 @@ const (
 	IntegrityHMACSHA256
 )
 
+var ErrKeyUnavailable = errors.New("audit: integrity key is unavailable")
+
 // IntegrityKey is external key-rotation metadata. Bytes are copied and never
 // included in records, errors, or diagnostics.
 type IntegrityKey struct {
@@ -26,21 +27,29 @@ type IntegrityKey struct {
 	Bytes []byte
 }
 
-// KeyProvider selects an HMAC key for a partition and record time.
+// KeyRequest selects the current key for sealing when KeyID is empty, or the
+// exact persisted historical key for verification when KeyID is present.
+type KeyRequest struct {
+	Partition  string
+	KeyID      string
+	RecordedAt time.Time
+}
+
+// KeyProvider selects an HMAC key for a bounded request.
 type KeyProvider interface {
-	Key(context.Context, string, time.Time) (IntegrityKey, error)
+	Key(context.Context, KeyRequest) (IntegrityKey, error)
 }
 
 // KeyProviderFunc adapts a function to KeyProvider.
-type KeyProviderFunc func(context.Context, string, time.Time) (IntegrityKey, error)
+type KeyProviderFunc func(context.Context, KeyRequest) (IntegrityKey, error)
 
 // Key invokes the adapted key lookup. Implementations must not expose key
 // bytes through errors or diagnostics.
-func (provider KeyProviderFunc) Key(ctx context.Context, partition string, recordedAt time.Time) (IntegrityKey, error) {
+func (provider KeyProviderFunc) Key(ctx context.Context, request KeyRequest) (IntegrityKey, error) {
 	if provider == nil || ctx == nil {
 		return IntegrityKey{}, invalid("key_provider", "must be assigned")
 	}
-	return provider(ctx, partition, recordedAt)
+	return provider(ctx, request)
 }
 
 // ChainConfig selects the digest algorithm, external HMAC key source, and
@@ -127,9 +136,9 @@ func (chain *Chain) Seal(ctx context.Context, record Record, link ChainLink) (Re
 	}
 	sealed := record
 	sealed.integrity = Integrity{algorithm: chain.algorithm, partition: link.Partition, sequence: link.Sequence, previousDigest: append([]byte(nil), link.PreviousDigest...)}
-	key, err := chain.key(ctx, link.Partition, record.RecordedAt())
+	key, err := chain.key(ctx, link.Partition, "", record.RecordedAt())
 	if err != nil {
-		return Record{}, fmt.Errorf("audit: obtain integrity key: %w", err)
+		return Record{}, safeKeyFailure(err)
 	}
 	sealed.integrity.keyID = key.ID
 	sealed.integrity.digest = chain.digest(sealed, key.Bytes)
@@ -205,9 +214,9 @@ func (chain *Chain) verifyRange(ctx context.Context, partition string, start uin
 		if !hmac.Equal(integrity.previousDigest, previous) {
 			return ErrIntegrityInvalid
 		}
-		key, err := chain.key(ctx, partition, record.RecordedAt())
+		key, err := chain.key(ctx, partition, integrity.keyID, record.RecordedAt())
 		if err != nil {
-			return fmt.Errorf("audit: obtain integrity key: %w", err)
+			return safeKeyFailure(err)
 		}
 		if integrity.keyID != key.ID {
 			return ErrIntegrityInvalid
@@ -224,6 +233,19 @@ func (chain *Chain) verifyRange(ctx context.Context, partition string, start uin
 		}
 	}
 	return nil
+}
+
+func safeKeyFailure(err error) error {
+	switch {
+	case errors.Is(err, context.Canceled):
+		return context.Canceled
+	case errors.Is(err, context.DeadlineExceeded):
+		return context.DeadlineExceeded
+	case errors.Is(err, ErrInvalidArgument):
+		return ErrInvalidArgument
+	default:
+		return ErrKeyUnavailable
+	}
 }
 
 // MerkleRoot returns an order-sensitive deterministic SHA-256 Merkle root over
@@ -268,12 +290,12 @@ func merkleRight(nodes [][]byte, index int) []byte {
 	return nodes[index]
 }
 
-func (chain *Chain) key(ctx context.Context, partition string, recordedAt time.Time) (IntegrityKey, error) {
+func (chain *Chain) key(ctx context.Context, partition, keyID string, recordedAt time.Time) (IntegrityKey, error) {
 	switch chain.algorithm {
 	case IntegritySHA256:
 		return IntegrityKey{}, nil
 	}
-	key, err := chain.keys.Key(ctx, partition, recordedAt)
+	key, err := callKeyProvider(chain.keys, ctx, KeyRequest{Partition: partition, KeyID: keyID, RecordedAt: recordedAt})
 	if err != nil {
 		return IntegrityKey{}, err
 	}
@@ -285,6 +307,16 @@ func (chain *Chain) key(ctx context.Context, partition string, recordedAt time.T
 	}
 	key.Bytes = append([]byte(nil), key.Bytes...)
 	return key, nil
+}
+
+func callKeyProvider(provider KeyProvider, ctx context.Context, request KeyRequest) (key IntegrityKey, err error) {
+	defer func() {
+		if recover() != nil {
+			key = IntegrityKey{}
+			err = ErrKeyUnavailable
+		}
+	}()
+	return provider.Key(ctx, request)
 }
 
 func (chain *Chain) digest(record Record, key []byte) []byte {

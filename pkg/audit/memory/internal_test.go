@@ -3,6 +3,7 @@ package memory
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,6 +22,20 @@ func (ctx *cancelAfterContext) Err() error {
 	return nil
 }
 func (*cancelAfterContext) Value(any) any { return nil }
+
+type observedContext struct {
+	context.Context
+	checked chan struct{}
+	once    sync.Once
+}
+
+func (ctx *observedContext) Err() error {
+	err := ctx.Context.Err()
+	if err == nil {
+		ctx.once.Do(func() { close(ctx.checked) })
+	}
+	return err
+}
 
 func TestQueryCancellationDuringIterationAndCorruptCursorAreRejected(t *testing.T) {
 	t.Parallel()
@@ -56,6 +71,70 @@ func TestExportPropagatesQueryValidation(t *testing.T) {
 	}
 }
 
+func TestAppendCancellationAfterPreparationPreventsCommit(t *testing.T) {
+	t.Parallel()
+
+	store, _ := New(Config{MaxRecords: 1, MaxBytes: 1 << 20, MaxBatchRecords: 1})
+	record := internalMemoryRecord("prepared-cancel", time.Now())
+	if _, err := store.Append(&cancelAfterContext{}, record); !errors.Is(err, context.Canceled) {
+		t.Fatalf("canceled prepared Append() error = %v", err)
+	}
+	if len(store.records) != 0 {
+		t.Fatal("canceled prepared append committed")
+	}
+}
+
+func TestAppendCancellationWhileWaitingForStoreLockReturnsPromptly(t *testing.T) {
+	t.Parallel()
+
+	store, _ := New(Config{MaxRecords: 1, MaxBytes: 1 << 20, MaxBatchRecords: 1})
+	<-store.gate
+	defer store.unlock()
+	base, cancel := context.WithCancel(context.Background())
+	ctx := &observedContext{Context: base, checked: make(chan struct{})}
+	result := make(chan error, 1)
+	go func() {
+		_, err := store.Append(ctx, internalMemoryRecord("lock-cancel", time.Now()))
+		result <- err
+	}()
+	<-ctx.checked
+	cancel()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("lock-wait Append() error = %v", err)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("canceled append remained blocked on store lock")
+	}
+}
+
+func TestQueryCancellationWhileWaitingForStoreLockReturnsPromptly(t *testing.T) {
+	t.Parallel()
+
+	store, _ := New(Config{MaxRecords: 1, MaxBytes: 1 << 20, MaxBatchRecords: 1})
+	<-store.gate
+	defer store.unlock()
+	base, cancel := context.WithCancel(context.Background())
+	ctx := &observedContext{Context: base, checked: make(chan struct{})}
+	query, _ := audit.NewQuery(audit.QueryInput{Tenant: audit.NoTenant(), Limit: 1})
+	result := make(chan error, 1)
+	go func() {
+		_, err := store.Query(ctx, query)
+		result <- err
+	}()
+	<-ctx.checked
+	cancel()
+	select {
+	case err := <-result:
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("lock-wait Query() error = %v", err)
+		}
+	case <-time.After(100 * time.Millisecond):
+		t.Fatal("canceled query remained blocked on store lock")
+	}
+}
+
 func internalMemoryRecord(id string, now time.Time) audit.Record {
 	builder, _ := audit.NewBuilder(audit.BuilderConfig{Clock: func() time.Time { return now }, IDGenerator: func() (string, error) { return id, nil }})
 	record, _ := builder.Build(audit.RecordInput{
@@ -67,5 +146,7 @@ func internalMemoryRecord(id string, now time.Time) audit.Record {
 	if id == "" {
 		return audit.Record{}
 	}
-	return record
+	redactor := audit.RedactorFunc(func(_ context.Context, record audit.Record) (audit.Record, error) { return record, nil })
+	redacted, _ := redactor.Redact(context.Background(), record)
+	return redacted
 }

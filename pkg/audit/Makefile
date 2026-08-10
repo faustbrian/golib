@@ -3,7 +3,7 @@ POSTGRES_VERSION ?= 18
 BENCH_TIME ?= 100ms
 FUZZ_TIME ?= 2s
 
-.PHONY: benchmark check coverage docs format format-check fuzz integration integration-matrix module-check mutation test test-race vet
+.PHONY: benchmark check clean-consumer coverage docs format format-check fuzz integration integration-matrix module-check mutation soak stress test test-race vet
 
 format:
 	gofmt -w $$(find . -type f -name '*.go')
@@ -41,9 +41,19 @@ fuzz:
 	./scripts/with-gocache.sh $(GO) test . -run '^$$' -fuzz '^FuzzCursor$$' -fuzztime='$(FUZZ_TIME)'
 	cd ../.. && GOLIB_FUZZ_SMOKE_BUDGET='$(FUZZ_TIME)' pkg/audit/scripts/with-gocache.sh ./scripts/check-module.sh pkg/audit/postgres fuzz
 
+stress:
+	./scripts/with-gocache.sh $(GO) test ./memory -run 'Stress' -count=100
+	cd postgres && ../scripts/with-gocache.sh $(GO) test -tags=integration . -run 'TestPostgreSQLAppendQueryIdempotencyAndWriterPrivileges' -count=1
+
+soak:
+	./scripts/with-gocache.sh $(GO) test ./memory -run 'Soak' -count=25
+
 benchmark:
 	./scripts/with-gocache.sh $(GO) test ./... -run '^$$' -bench . -benchmem -benchtime='$(BENCH_TIME)'
-	cd ../.. && pkg/audit/scripts/with-gocache.sh ./scripts/check-module.sh pkg/audit/postgres benchmark
+	cd postgres && POSTGRES_VERSION='$(POSTGRES_VERSION)' ../scripts/with-gocache.sh $(GO) test -tags=integration . -run '^$$' -bench . -benchmem -benchtime='$(BENCH_TIME)'
+
+clean-consumer:
+	./scripts/with-gocache.sh ./scripts/check-clean-consumer.sh
 
 vet:
 	cd ../.. && pkg/audit/scripts/with-gocache.sh ./scripts/check-module.sh pkg/audit vet
@@ -52,4 +62,4 @@ vet:
 docs:
 	./scripts/check-docs.sh
 
-check: format-check module-check vet test integration test-race coverage fuzz benchmark docs
+check: format-check module-check vet test integration-matrix test-race coverage fuzz stress soak mutation benchmark clean-consumer docs

@@ -3,6 +3,7 @@
 package postgres
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"errors"
@@ -13,10 +14,16 @@ import (
 
 	"github.com/faustbrian/golib/pkg/audit"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const rollbackTimeout = time.Duration(5_000_000_000)
+
+const (
+	DefaultMaxBatchBytes = 16 << 20
+	MaxBatchBytes        = 64 << 20
+)
 
 var (
 	// ErrPoolRequired reports construction without a PostgreSQL pool.
@@ -24,6 +31,9 @@ var (
 	// ErrTransactionRequired reports transaction-writer construction without a
 	// caller-owned transaction.
 	ErrTransactionRequired = errors.New("audit/postgres: transaction is required")
+	// ErrRetryableTransaction reports a PostgreSQL deadlock or serialization
+	// failure. The complete transaction must be retried with identical IDs.
+	ErrRetryableTransaction = errors.New("audit/postgres: transaction must be retried")
 )
 
 // Config bounds decoded records and append batches. Zero values select core
@@ -31,6 +41,7 @@ var (
 type Config struct {
 	Limits          audit.Limits
 	MaxBatchRecords int
+	MaxBatchBytes   int
 }
 
 type database interface {
@@ -45,6 +56,7 @@ type Store struct {
 	pool            database
 	limits          audit.Limits
 	maxBatchRecords int
+	maxBatchBytes   int
 }
 
 // TxWriter stages records in one caller-owned pgx transaction. It deliberately
@@ -54,53 +66,61 @@ type TxWriter struct {
 	tx              pgx.Tx
 	limits          audit.Limits
 	maxBatchRecords int
+	maxBatchBytes   int
 }
 
 // New constructs a durable adapter over an existing pool. The pool remains
 // caller-owned; Store starts no goroutines and Close is unnecessary.
 func New(pool *pgxpool.Pool, config Config) (*Store, error) {
-	limits, maximum, err := validateConfig(config)
+	limits, maximum, maximumBytes, err := validateConfig(config)
 	if err != nil {
 		return nil, err
 	}
 	if pool == nil {
 		return nil, ErrPoolRequired
 	}
-	return &Store{pool: pool, limits: limits, maxBatchRecords: maximum}, nil
+	return &Store{pool: pool, limits: limits, maxBatchRecords: maximum, maxBatchBytes: maximumBytes}, nil
 }
 
 // NewTx constructs a staging writer over a caller-owned transaction. The
 // caller alone commits or rolls back that transaction.
 func NewTx(tx pgx.Tx, config Config) (*TxWriter, error) {
-	limits, maximum, err := validateConfig(config)
+	limits, maximum, maximumBytes, err := validateConfig(config)
 	if err != nil {
 		return nil, err
 	}
 	if tx == nil {
 		return nil, ErrTransactionRequired
 	}
-	return &TxWriter{tx: tx, limits: limits, maxBatchRecords: maximum}, nil
+	return &TxWriter{tx: tx, limits: limits, maxBatchRecords: maximum, maxBatchBytes: maximumBytes}, nil
 }
 
-func validateConfig(config Config) (audit.Limits, int, error) {
+func validateConfig(config Config) (audit.Limits, int, int, error) {
 	limits := config.Limits
 	if limits == (audit.Limits{}) {
 		limits = audit.DefaultLimits()
 	}
 	if err := limits.Validate(); err != nil {
-		return audit.Limits{}, 0, err
+		return audit.Limits{}, 0, 0, err
 	}
 	maximum := config.MaxBatchRecords
 	if maximum == 0 {
 		maximum = audit.MaxAppendBatchRecords
 	}
 	if maximum < 1 {
-		return audit.Limits{}, 0, fmt.Errorf("%w: PostgreSQL batch limit", audit.ErrInvalidArgument)
+		return audit.Limits{}, 0, 0, fmt.Errorf("%w: PostgreSQL batch limit", audit.ErrInvalidArgument)
 	}
 	if maximum > audit.MaxAppendBatchRecords {
-		return audit.Limits{}, 0, fmt.Errorf("%w: PostgreSQL batch limit", audit.ErrInvalidArgument)
+		return audit.Limits{}, 0, 0, fmt.Errorf("%w: PostgreSQL batch limit", audit.ErrInvalidArgument)
 	}
-	return limits, maximum, nil
+	maximumBytes := config.MaxBatchBytes
+	if maximumBytes == 0 {
+		maximumBytes = DefaultMaxBatchBytes
+	}
+	if maximumBytes < 1 || maximumBytes > MaxBatchBytes {
+		return audit.Limits{}, 0, 0, fmt.Errorf("%w: PostgreSQL batch byte limit", audit.ErrInvalidArgument)
+	}
+	return limits, maximum, maximumBytes, nil
 }
 
 // Stage inserts an atomic bounded batch without committing or rolling back the
@@ -115,7 +135,7 @@ func (writer *TxWriter) Stage(ctx context.Context, records []audit.Record) (audi
 	if len(records) == 0 || len(records) > writer.maxBatchRecords {
 		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, audit.ErrBatchTooLarge)
 	}
-	preparer := &Store{limits: writer.limits}
+	preparer := &Store{limits: writer.limits, maxBatchBytes: writer.maxBatchBytes}
 	prepared, err := preparer.prepare(records)
 	if err != nil {
 		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, err)
@@ -184,8 +204,23 @@ type preparedRecord struct {
 
 func (store *Store) prepare(records []audit.Record) ([]preparedRecord, error) {
 	result := make([]preparedRecord, len(records))
+	maximumBytes := store.maxBatchBytes
+	if maximumBytes == 0 {
+		maximumBytes = DefaultMaxBatchBytes
+	}
+	totalBytes := 0
 	for index, record := range records {
+		if record.ID() == "" {
+			return nil, audit.ErrInvalidArgument
+		}
+		if !record.RedactionApplied() {
+			return nil, audit.ErrRedactionRequired
+		}
 		canonical, _ := audit.CanonicalJSON(record)
+		totalBytes += len(canonical)
+		if totalBytes > maximumBytes {
+			return nil, audit.ErrBatchTooLarge
+		}
 		validated, err := audit.ParseCanonicalJSON(canonical, store.limits)
 		if err != nil {
 			return nil, err
@@ -239,12 +274,21 @@ func (store *Store) Query(ctx context.Context, query audit.Query) (audit.Page, e
 	}
 	defer rows.Close()
 	var records []audit.Record
+	var snapshot uint64
 	for rows.Next() {
-		var canonical []byte
-		if err := rows.Scan(&canonical); err != nil {
+		var canonical, digest []byte
+		var watermark int64
+		if err := rows.Scan(&canonical, &digest, &watermark); err != nil {
 			return audit.Page{}, &databaseError{operation: "scan query", cause: err}
 		}
-		record, err := audit.ParseCanonicalJSON(canonical, store.limits)
+		if watermark <= 0 {
+			return audit.Page{}, audit.ErrIntegrityInvalid
+		}
+		snapshot = uint64(watermark)
+		if !persistedDigestValid(canonical, digest) {
+			return audit.Page{}, audit.ErrIntegrityInvalid
+		}
+		record, err := parsePersistedRecord(ctx, canonical, store.limits)
 		if err != nil {
 			return audit.Page{}, err
 		}
@@ -257,7 +301,7 @@ func (store *Store) Query(ctx context.Context, query audit.Query) (audit.Page, e
 	if len(records) > int(query.Limit()) {
 		page.Records = records[:query.Limit()]
 		last := page.Records[len(page.Records)-1]
-		page.Next, _ = audit.NewCursor(last.RecordedAt(), last.ID())
+		page.Next, _ = audit.NewSnapshotCursor(last.RecordedAt(), last.ID(), snapshot)
 	}
 	return page, nil
 }
@@ -292,15 +336,22 @@ func (store *Store) Export(ctx context.Context, query audit.Query, consume func(
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		var canonical []byte
-		if err := rows.Scan(&canonical); err != nil {
+		var canonical, digest []byte
+		var watermark int64
+		if err := rows.Scan(&canonical, &digest, &watermark); err != nil {
 			return &databaseError{operation: "scan export", cause: err}
 		}
-		record, err := audit.ParseCanonicalJSON(canonical, store.limits)
+		if watermark <= 0 {
+			return audit.ErrIntegrityInvalid
+		}
+		if !persistedDigestValid(canonical, digest) {
+			return audit.ErrIntegrityInvalid
+		}
+		record, err := parsePersistedRecord(ctx, canonical, store.limits)
 		if err != nil {
 			return err
 		}
-		if err := consume(record); err != nil {
+		if err := consumeSafely(consume, record); err != nil {
 			return err
 		}
 	}
@@ -310,10 +361,34 @@ func (store *Store) Export(ctx context.Context, query audit.Query, consume func(
 	return nil
 }
 
+func consumeSafely(consume func(audit.Record) error, record audit.Record) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = audit.ErrExportConsumerFailed
+		}
+	}()
+	err = consume(record)
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, context.Canceled):
+		return context.Canceled
+	case errors.Is(err, context.DeadlineExceeded):
+		return context.DeadlineExceeded
+	default:
+		return audit.ErrExportConsumerFailed
+	}
+}
+
 func (store *Store) queryRows(ctx context.Context, query audit.Query, limit int) (pgx.Rows, error) {
 	var statement strings.Builder
-	statement.WriteString("SELECT canonical_record FROM audit.records WHERE true")
-	args := make([]any, 0, 12)
+	args := make([]any, 0, 13)
+	if query.After().Snapshot() == 0 {
+		statement.WriteString("SELECT canonical_record, canonical_sha256, snapshot.watermark FROM audit.records CROSS JOIN (SELECT COALESCE(MAX(accepted_order), 0) AS watermark FROM audit.records) AS snapshot WHERE accepted_order <= snapshot.watermark")
+	} else {
+		statement.WriteString("SELECT canonical_record, canonical_sha256, snapshot.watermark FROM audit.records CROSS JOIN (SELECT $1::bigint AS watermark) AS snapshot WHERE accepted_order <= snapshot.watermark")
+		args = append(args, query.After().Snapshot())
+	}
 	add := func(fragment string, values ...any) { statement.WriteString(fragment); args = append(args, values...) }
 	placeholder := func() string { return "$" + strconv.Itoa(len(args)+1) }
 	switch query.Tenant().Mode() {
@@ -327,7 +402,7 @@ func (store *Store) queryRows(ctx context.Context, query audit.Query, limit int)
 	default:
 		return nil, fmt.Errorf("%w: tenant scope", audit.ErrInvalidArgument)
 	}
-	filters := []struct{ column, value string }{{"actor_id", query.ActorID()}, {"subject_type", query.SubjectType()}, {"subject_id", query.SubjectID()}, {"action", query.Action()}, {"correlation_id", query.CorrelationID()}}
+	filters := []struct{ column, value string }{{"record_id", query.RecordID()}, {"actor_id", query.ActorID()}, {"subject_type", query.SubjectType()}, {"subject_id", query.SubjectID()}, {"action", query.Action()}, {"correlation_id", query.CorrelationID()}}
 	for _, filter := range filters {
 		if filter.value != "" {
 			mark := placeholder()
@@ -360,6 +435,21 @@ func (store *Store) queryRows(ctx context.Context, query audit.Query, limit int)
 	return rows, nil
 }
 
+func persistedDigestValid(canonical, digest []byte) bool {
+	expected := sha256.Sum256(canonical)
+	return bytes.Equal(expected[:], digest)
+}
+
+func parsePersistedRecord(ctx context.Context, canonical []byte, limits audit.Limits) (audit.Record, error) {
+	record, err := audit.ParseCanonicalJSON(canonical, limits)
+	if err != nil {
+		return audit.Record{}, err
+	}
+	return audit.RedactorFunc(func(context.Context, audit.Record) (audit.Record, error) {
+		return record, nil
+	}).Redact(ctx, record)
+}
+
 type databaseError struct {
 	operation string
 	cause     error
@@ -368,7 +458,14 @@ type databaseError struct {
 func (failure *databaseError) Error() string {
 	return "audit/postgres: " + failure.operation + " failed"
 }
-func (failure *databaseError) Unwrap() error { return failure.cause }
+func (failure *databaseError) Is(target error) bool {
+	if target == ErrRetryableTransaction {
+		var postgresError *pgconn.PgError
+		return errors.As(failure.cause, &postgresError) &&
+			(postgresError.Code == "40P01" || postgresError.Code == "40001")
+	}
+	return errors.Is(failure.cause, target)
+}
 
 func rollback(parent context.Context, tx pgx.Tx) {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), rollbackTimeout)

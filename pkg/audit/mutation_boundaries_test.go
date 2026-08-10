@@ -218,8 +218,10 @@ func TestQueryAndRetentionAcceptExactCeilings(t *testing.T) {
 	}
 	candidates := make([]RetentionCandidate, MaxQueryRecords)
 	record := internalRecord("retained", now)
+	canonical, _ := CanonicalJSON(record)
+	digest := sha256.Sum256(canonical)
 	for index := range candidates {
-		candidates[index], _ = NewRetentionCandidate(record, make([]byte, sha256.Size))
+		candidates[index], _ = NewRetentionCandidate(record, digest[:])
 	}
 	if plan, err := NewRetentionPlan(candidates); err != nil || len(plan.Candidates()) != int(MaxQueryRecords) {
 		t.Fatalf("exact-limit retention plan length = %d, %v", len(plan.Candidates()), err)
@@ -240,7 +242,7 @@ func TestRedactorPreservesExplicitChangesUntilAllAreRemoved(t *testing.T) {
 	}
 	redactor, _ := NewRedactor(RedactionRules{})
 	redacted, err := redactor.Redact(context.Background(), record)
-	if err != nil || !redacted.changes.noChange {
+	if err != nil || redacted.changes.noChange || !redacted.changes.redacted {
 		t.Fatalf("fully redacted changes = %#v, %v", redacted.changes, err)
 	}
 }
@@ -349,7 +351,7 @@ func TestIntegrityAlgorithmSelectsKeyedAndUnkeyedDigests(t *testing.T) {
 	now := time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC)
 	record := internalRecord("algorithm-boundary", now)
 	providerCalls := 0
-	provider := KeyProviderFunc(func(context.Context, string, time.Time) (IntegrityKey, error) {
+	provider := KeyProviderFunc(func(context.Context, KeyRequest) (IntegrityKey, error) {
 		providerCalls++
 		return IntegrityKey{ID: "key", Bytes: []byte("0123456789abcdef0123456789abcdef")}, nil
 	})

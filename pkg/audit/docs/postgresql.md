@@ -1,14 +1,18 @@
 # PostgreSQL adapter and operations
 
-The separate `audit/postgres` module embeds an append-only migration. It creates
-`audit.records`, stable query indexes, immutable retention events, update
-rejection, legal-hold-aware pruning, and three `NOLOGIN` group roles:
-`audit_writer`, `audit_reader`, and `audit_retention`. Grant those roles to
-deployment-specific login roles. Ordinary applications should receive only
-writer rights and must not own the schema, tables, functions, or migrations.
-The writer role receives schema usage and execute access to the idempotent
-`audit.append_record` function, but no direct table read, update, or delete
-authority. Reader and retention access remain separate.
+The separate `audit/postgres` module embeds append-only forward migrations. It
+creates `audit.records`, stable query indexes, immutable retention events,
+update rejection, legal-hold-aware pruning, canonical projections and digests,
+and acceptance-order watermarks. Migrations create no deployment roles and the
+hardening migration revokes privileges from historical fixed role names.
+
+Create deployment-specific roles, pass their distinct names to
+`PrivilegeSQL(RoleNames{...})`, review the returned statements, and apply them
+with the migration owner. Ordinary applications should receive only writer
+rights and must not own the schema, tables, functions, or migrations. The
+writer receives schema usage and execute access to the idempotent append
+function, but no direct table read, update, or delete authority. Reader and
+retention access remain separate.
 
 ## Migration and rolling upgrade
 
@@ -17,35 +21,29 @@ canonical schema version and database columns are additive compatibility
 surfaces. For future changes: deploy readers that accept old and new formats,
 apply additive schema/index changes concurrently where appropriate, deploy new
 writers, backfill only derived/index data without rewriting canonical records,
-then remove obsolete readers in a later release. Test Up and Down only on
-disposable databases. The migration creates missing cluster-wide group roles
-idempotently; Down destroys only the database-local audit schema and leaves
-those potentially shared roles in place for the deployment owner to manage.
+then remove obsolete readers in a later release. Migration 2 is intentionally
+forward-only because silently dropping the audit schema would destroy accepted
+records; rollback requires an explicit deployment-owned recovery plan.
 
 The integration suite applies the migration inside a transaction, interrupts
 it with rollback, proves the namespace was not partially retained, and then
-performs a clean application. Version 1 has no older wire format with which to
-run two distinct library binaries; its rolling exercise is the frozen v1
-canonical fixture across the current writer, PostgreSQL persistence, current
-reader, backup, and restore. A future format cannot ship until the matrix also
-runs the previous released reader and writer binaries.
+performs a clean application. It also upgrades the original schema, backfills
+acceptance order and digests, and verifies the frozen version-1 record through
+the current writer, persistence, reader, backup, and restore. Because there is
+no previous released binary, this is the only meaningful mixed-version
+exercise for version 1. A future format cannot ship until the matrix also runs
+the previous released reader and writer binaries.
 
-## Partitioning and high volume
+## High volume and partitioning boundary
 
-For high volume, range-partition by `recorded_at` with the record ID retained in
-every stable order and uniqueness design. Create equivalent tenant, actor,
-subject, action, correlation, and time indexes per partition. Keep a searchable
-hot window and archive old partitions only after chain/export verification.
-Legal holds must prevent detaching or dropping any partition containing held
-records unless held records are first preserved in an independently verified
-active-hold store.
-
-The shipped table is deliberately unpartitioned, so it has no adapter-owned
-partition rollover to execute. A deployment that replaces it with a partitioned
-schema owns a pre-production rollover exercise: create the next partition before
-the boundary, write equal-time records on both sides, prove stable
-`recorded_at, record_id` pagination, probe every per-partition index, retain held
-records, archive and verify the old partition, and rehearse attach/detach rollback.
+The supported schema is deliberately unpartitioned because PostgreSQL cannot
+enforce the adapter's global record-ID uniqueness on a range-partitioned table
+unless the partition key becomes part of that uniqueness constraint. The
+adapter therefore does not claim partition rollover support. Replacing the
+table with a partitioned design is a different first-party adapter contract,
+not a deployment tuning step; it requires its own global-ID reconciliation,
+indexes, retention and legal-hold semantics, migrations, rollover and restore
+tests, and compatibility evidence before use.
 
 ## Backup, restore, and reconciliation
 

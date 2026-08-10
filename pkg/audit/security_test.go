@@ -82,6 +82,278 @@ func TestRecorderDoesNotExposeRedactionDiagnostics(t *testing.T) {
 	}
 }
 
+func TestRecorderDoesNotExposeSinkAlertOrBufferDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	record := mustSecurityRecord(t)
+	primarySecret := errors.New("primary password=primary-secret")
+	alertSecret := errors.New("pager token=alert-secret")
+	alertRecorder, err := audit.NewRecorder(audit.RecorderConfig{
+		Sink: failingSink(primarySecret), Redactor: passthroughRedactor(), Mode: audit.DeliveryFailOpenWithAlert,
+		Alerter: audit.AlertFunc(func(context.Context, audit.DeliveryAlert) error { return alertSecret }), RecoveryTimeout: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := alertRecorder.Submit(context.Background(), record); err == nil || strings.Contains(err.Error(), "secret") || errors.Unwrap(err) != nil {
+		t.Fatalf("alert failure exposed diagnostic = %v", err)
+	}
+
+	bufferSecret := errors.New("buffer credential=buffer-secret")
+	bufferRecorder, err := audit.NewRecorder(audit.RecorderConfig{
+		Sink: failingSink(primarySecret), Redactor: passthroughRedactor(), Mode: audit.DeliveryDurableBuffer,
+		Buffer: testBuffer(failingSink(bufferSecret)), RecoveryTimeout: time.Second,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := bufferRecorder.Submit(context.Background(), record); err == nil || strings.Contains(err.Error(), "secret") || errors.Unwrap(err) != nil {
+		t.Fatalf("buffer failure exposed diagnostic = %v", err)
+	}
+}
+
+func TestRecorderContainsSecretBearingDependencyPanics(t *testing.T) {
+	t.Parallel()
+
+	record := mustSecurityRecord(t)
+	panicValue := "password=panic-secret"
+	panicSink := sinkFunc{
+		append: func(context.Context, audit.Record) (audit.AppendResult, error) {
+			panic(panicValue)
+		},
+		appendBatch: func(context.Context, []audit.Record) (audit.BatchResult, error) {
+			panic(panicValue)
+		},
+	}
+	primaryFailure := failingSink(audit.NewAppendError(audit.AppendRejected, errors.New("primary failed")))
+	cases := []struct {
+		name string
+		call func() error
+	}{
+		{"redactor", func() error {
+			recorder, _ := audit.NewRecorder(audit.RecorderConfig{
+				Sink: acceptingSink(audit.AppendAccepted), Mode: audit.DeliveryFailClosed,
+				Redactor: audit.RedactorFunc(func(context.Context, audit.Record) (audit.Record, error) { panic(panicValue) }),
+			})
+			_, err := recorder.Submit(context.Background(), record)
+			return err
+		}},
+		{"sink", func() error {
+			recorder, _ := audit.NewRecorder(audit.RecorderConfig{Sink: panicSink, Redactor: passthroughRedactor(), Mode: audit.DeliveryFailClosed})
+			_, err := recorder.SubmitBatch(context.Background(), []audit.Record{record})
+			return err
+		}},
+		{"sink-single", func() error {
+			recorder, _ := audit.NewRecorder(audit.RecorderConfig{Sink: panicSink, Redactor: passthroughRedactor(), Mode: audit.DeliveryFailClosed})
+			_, err := recorder.Submit(context.Background(), record)
+			return err
+		}},
+		{"alerter", func() error {
+			recorder, _ := audit.NewRecorder(audit.RecorderConfig{
+				Sink: primaryFailure, Redactor: passthroughRedactor(), Mode: audit.DeliveryFailOpenWithAlert,
+				Alerter: audit.AlertFunc(func(context.Context, audit.DeliveryAlert) error { panic(panicValue) }), RecoveryTimeout: time.Second,
+			})
+			_, err := recorder.Submit(context.Background(), record)
+			return err
+		}},
+		{"buffer", func() error {
+			recorder, _ := audit.NewRecorder(audit.RecorderConfig{
+				Sink: primaryFailure, Redactor: passthroughRedactor(), Mode: audit.DeliveryDurableBuffer,
+				Buffer: testBuffer(panicSink), RecoveryTimeout: time.Second,
+			})
+			_, err := recorder.SubmitBatch(context.Background(), []audit.Record{record})
+			return err
+		}},
+	}
+	for _, test := range cases {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					t.Fatalf("dependency panic escaped: %v", recovered)
+				}
+			}()
+			err := test.call()
+			if err == nil || strings.Contains(err.Error(), "secret") || strings.Contains(err.Error(), "password") {
+				t.Fatalf("contained panic error = %v", err)
+			}
+		})
+	}
+}
+
+func TestIntegrityContainsSecretBearingKeyProviderPanic(t *testing.T) {
+	t.Parallel()
+
+	chain, err := audit.NewChain(audit.ChainConfig{
+		Algorithm: audit.IntegrityHMACSHA256,
+		Keys: audit.KeyProviderFunc(func(context.Context, audit.KeyRequest) (audit.IntegrityKey, error) {
+			panic("private-key=panic-secret")
+		}),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("key-provider panic escaped: %v", recovered)
+		}
+	}()
+	_, err = chain.Seal(context.Background(), mustSecurityRecord(t), audit.ChainLink{Partition: "tenant-1", Sequence: 1})
+	if !errors.Is(err, audit.ErrKeyUnavailable) || strings.Contains(err.Error(), "secret") || strings.Contains(err.Error(), "key=") {
+		t.Fatalf("contained key-provider panic error = %v", err)
+	}
+}
+
+func TestBuilderContainsSecretBearingConstructionDependencies(t *testing.T) {
+	t.Parallel()
+
+	input := securityInput(audit.IntegrityInput{}, nil)
+	secret := errors.New("entropy token=builder-secret")
+	builder, err := audit.NewBuilder(audit.BuilderConfig{
+		Clock:       time.Now,
+		IDGenerator: func() (string, error) { return "", secret },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := builder.Build(input); !errors.Is(err, audit.ErrRecordIDUnavailable) || strings.Contains(err.Error(), "secret") || errors.Unwrap(err) != nil {
+		t.Fatalf("ID generator failure exposed diagnostic = %v", err)
+	}
+
+	for name, test := range map[string]struct {
+		config audit.BuilderConfig
+		want   error
+	}{
+		"clock": {config: audit.BuilderConfig{
+			Clock:       func() time.Time { panic("clock password=builder-secret") },
+			IDGenerator: func() (string, error) { return "clock-panic", nil },
+		}, want: audit.ErrClockUnavailable},
+		"ID generator": {config: audit.BuilderConfig{
+			Clock:       time.Now,
+			IDGenerator: func() (string, error) { panic("generator password=builder-secret") },
+		}, want: audit.ErrRecordIDUnavailable},
+	} {
+		builder, err := audit.NewBuilder(test.config)
+		if err != nil {
+			t.Fatal(err)
+		}
+		func() {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					t.Fatalf("%s panic escaped: %v", name, recovered)
+				}
+			}()
+			if _, err := builder.Build(input); !errors.Is(err, test.want) || strings.Contains(err.Error(), "secret") {
+				t.Fatalf("%s panic error = %v", name, err)
+			}
+		}()
+	}
+}
+
+type panicLimitsBuffer struct{ sinkFunc }
+
+func (panicLimitsBuffer) BufferLimits() audit.BufferLimits {
+	panic("buffer password=configuration-secret")
+}
+
+func TestRecorderContainsSecretBearingConfigurationDependencies(t *testing.T) {
+	t.Parallel()
+
+	defer func() {
+		if recovered := recover(); recovered != nil {
+			t.Fatalf("recorder configuration panic escaped: %v", recovered)
+		}
+	}()
+	if _, err := audit.NewRecorder(audit.RecorderConfig{
+		Sink: acceptingSink(audit.AppendAccepted), Redactor: passthroughRedactor(),
+		Mode: audit.DeliveryDurableBuffer, Buffer: panicLimitsBuffer{}, RecoveryTimeout: time.Second,
+	}); !errors.Is(err, audit.ErrInvalidArgument) || strings.Contains(err.Error(), "secret") {
+		t.Fatalf("panicking BufferLimits error = %v", err)
+	}
+
+	recorder, err := audit.NewRecorder(audit.RecorderConfig{
+		Sink: acceptingSink(audit.AppendAccepted), Redactor: passthroughRedactor(),
+		Mode: audit.DeliveryFailClosed, DelayThreshold: time.Second,
+		Clock: func() time.Time { panic("clock token=observation-secret") },
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := recorder.Submit(context.Background(), mustSecurityRecord(t))
+	if err != nil || result.Disposition != audit.DeliveryPersisted {
+		t.Fatalf("panicking observation clock Submit() = %#v, %v", result, err)
+	}
+}
+
+type panicClassificationError struct{}
+
+func (panicClassificationError) Error() string { return "token=classification-secret" }
+func (panicClassificationError) Is(error) bool { panic("classification Is password=secret") }
+func (panicClassificationError) As(any) bool   { panic("classification As password=secret") }
+
+func TestDependencyErrorClassificationPanicsAreContained(t *testing.T) {
+	t.Parallel()
+
+	dependencyErr := panicClassificationError{}
+	record := mustSecurityRecord(t)
+	query, _ := audit.NewQuery(audit.QueryInput{Tenant: audit.AllTenants(), Limit: 1})
+	cases := []struct {
+		name string
+		call func() error
+	}{
+		{name: "redactor", call: func() error {
+			recorder, _ := audit.NewRecorder(audit.RecorderConfig{
+				Sink: acceptingSink(audit.AppendAccepted), Mode: audit.DeliveryFailClosed,
+				Redactor: audit.RedactorFunc(func(context.Context, audit.Record) (audit.Record, error) {
+					return audit.Record{}, dependencyErr
+				}),
+			})
+			_, err := recorder.Submit(context.Background(), record)
+			return err
+		}},
+		{name: "sink", call: func() error {
+			recorder, _ := audit.NewRecorder(audit.RecorderConfig{
+				Sink: failingSink(dependencyErr), Redactor: passthroughRedactor(), Mode: audit.DeliveryFailClosed,
+			})
+			_, err := recorder.Submit(context.Background(), record)
+			return err
+		}},
+		{name: "exporter", call: func() error {
+			exporter, _ := audit.NewObservedExporter(exporterFunc(func(context.Context, audit.Query, func(audit.Record) error) error {
+				return dependencyErr
+			}), audit.ObserverFunc(func(context.Context, audit.Observation) {}))
+			return exporter.Export(context.Background(), query, func(audit.Record) error { return nil })
+		}},
+		{name: "key provider", call: func() error {
+			chain, _ := audit.NewChain(audit.ChainConfig{
+				Algorithm: audit.IntegrityHMACSHA256,
+				Keys: audit.KeyProviderFunc(func(context.Context, audit.KeyRequest) (audit.IntegrityKey, error) {
+					return audit.IntegrityKey{}, dependencyErr
+				}),
+			})
+			_, err := chain.Seal(context.Background(), record, audit.ChainLink{Partition: "tenant-1", Sequence: 1})
+			return err
+		}},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					t.Fatalf("dependency error classification panic escaped: %v", recovered)
+				}
+			}()
+			err := test.call()
+			if err == nil || strings.Contains(err.Error(), "secret") {
+				t.Fatalf("contained dependency classification error = %v", err)
+			}
+			_ = errors.Is(err, audit.ErrBackpressure)
+		})
+	}
+	if outcome := audit.AppendOutcomeOf(dependencyErr); outcome != audit.AppendUnknown {
+		t.Fatalf("AppendOutcomeOf(panicking error) = %v", outcome)
+	}
+}
+
 func securityBuilder(t *testing.T) *audit.Builder {
 	t.Helper()
 	now := time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC)

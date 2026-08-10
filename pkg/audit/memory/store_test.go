@@ -3,6 +3,7 @@ package memory_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -37,6 +38,39 @@ func TestStoreAppendIsIdempotentByRecordIDAndRejectsConflicts(t *testing.T) {
 	if _, err := store.Append(context.Background(), conflict); !errors.Is(err, audit.ErrDuplicateConflict) ||
 		audit.AppendOutcomeOf(err) != audit.AppendRejected {
 		t.Fatalf("conflicting append error = %v", err)
+	}
+}
+
+func TestStoreCannotSatisfyDurableBufferPolicy(t *testing.T) {
+	t.Parallel()
+
+	store, err := memory.New(memory.Config{MaxRecords: 1, MaxBytes: 1 << 20, MaxBatchRecords: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, durable := any(store).(audit.DurableBuffer); durable {
+		t.Fatal("process-local memory store satisfies audit.DurableBuffer")
+	}
+}
+
+func TestStoreRequiresExplicitRedactionBeforeAppend(t *testing.T) {
+	t.Parallel()
+
+	store, err := memory.New(memory.Config{MaxRecords: 1, MaxBytes: 1 << 20, MaxBatchRecords: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw := rawTestRecordAt(t, "redaction-required", "invoice.created", "", time.Now())
+	if _, err := store.Append(context.Background(), raw); !errors.Is(err, audit.ErrRedactionRequired) || audit.AppendOutcomeOf(err) != audit.AppendRejected {
+		t.Fatalf("unredacted Append() error = %v", err)
+	}
+	redactor := audit.RedactorFunc(func(_ context.Context, record audit.Record) (audit.Record, error) { return record, nil })
+	redacted, err := redactor.Redact(context.Background(), raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := store.Append(context.Background(), redacted); err != nil {
+		t.Fatalf("redacted Append() error = %v", err)
 	}
 }
 
@@ -88,6 +122,10 @@ func TestStoreQueryUsesExplicitTenantScopeAndStableCursorOrder(t *testing.T) {
 	if len(page.Records) != 1 || page.Records[0].ID() != "record-a" || page.Next.IsZero() {
 		t.Fatalf("first tenant page = %#v", page)
 	}
+	late := testRecordAt(t, "record-aa", "invoice.backdated", "tenant-1", recordedAt)
+	if _, err := store.Append(context.Background(), late); err != nil {
+		t.Fatal(err)
+	}
 	nextQuery, err := audit.NewQuery(audit.QueryInput{Tenant: tenant, Limit: 1, After: page.Next})
 	if err != nil {
 		t.Fatal(err)
@@ -98,6 +136,17 @@ func TestStoreQueryUsesExplicitTenantScopeAndStableCursorOrder(t *testing.T) {
 	}
 	if len(nextPage.Records) != 1 || nextPage.Records[0].ID() != "record-b" || !nextPage.Next.IsZero() {
 		t.Fatalf("second tenant page = %#v", nextPage)
+	}
+	fresh, err := audit.NewQuery(audit.QueryInput{Tenant: tenant, Limit: 10})
+	if err != nil {
+		t.Fatal(err)
+	}
+	freshPage, err := store.Query(context.Background(), fresh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(freshPage.Records) != 3 || freshPage.Records[1].ID() != late.ID() {
+		t.Fatalf("fresh snapshot = %#v", freshPage.Records)
 	}
 }
 
@@ -145,6 +194,38 @@ func TestStoreExportStreamsOutsideLockAndHonorsCancellation(t *testing.T) {
 	})
 	if !errors.Is(err, context.Canceled) || count != 1 {
 		t.Fatalf("canceled Export() count/error = %d, %v", count, err)
+	}
+}
+
+func TestStoreExportContainsConsumerErrorsAndPanics(t *testing.T) {
+	t.Parallel()
+
+	store, _ := memory.New(memory.Config{MaxRecords: 1, MaxBytes: 1 << 20, MaxBatchRecords: 1})
+	if _, err := store.Append(context.Background(), testRecord(t, "export-private", "invoice.exported")); err != nil {
+		t.Fatal(err)
+	}
+	query, _ := audit.NewQuery(audit.QueryInput{Tenant: audit.NoTenant(), Limit: 1})
+	for name, consume := range map[string]func(audit.Record) error{
+		"error":    func(audit.Record) error { return errors.New("token=export-secret") },
+		"panic":    func(audit.Record) error { panic("token=export-secret") },
+		"canceled": func(audit.Record) error { return context.Canceled },
+		"deadline": func(audit.Record) error { return context.DeadlineExceeded },
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					t.Fatalf("consumer panic escaped: %v", recovered)
+				}
+			}()
+			err := store.Export(context.Background(), query, consume)
+			if (name == "canceled" && errors.Is(err, context.Canceled)) ||
+				(name == "deadline" && errors.Is(err, context.DeadlineExceeded)) {
+				return
+			}
+			if !errors.Is(err, audit.ErrExportConsumerFailed) || strings.Contains(err.Error(), "secret") {
+				t.Fatalf("Export() error = %v", err)
+			}
+		})
 	}
 }
 
@@ -225,7 +306,7 @@ func TestStoreBatchDeduplicatesWithinCallAndQueriesEveryFilter(t *testing.T) {
 
 	tenant, _ := audit.Tenant("tenant-1")
 	query, err := audit.NewQuery(audit.QueryInput{
-		Tenant: tenant, From: base, Through: base.Add(time.Hour), ActorID: "actor-1",
+		Tenant: tenant, From: base, Through: base.Add(time.Hour), RecordID: "record-a", ActorID: "actor-1",
 		SubjectType: "invoice", SubjectID: "invoice-1", Action: "invoice.denied",
 		CorrelationID: "correlation-1", Outcome: audit.OutcomeDenied, Limit: 2,
 	})
@@ -239,6 +320,7 @@ func TestStoreBatchDeduplicatesWithinCallAndQueriesEveryFilter(t *testing.T) {
 	for name, mutate := range map[string]func(*audit.QueryInput){
 		"from":         func(input *audit.QueryInput) { input.From = base.Add(time.Second) },
 		"through":      func(input *audit.QueryInput) { input.Through = base.Add(-time.Second) },
+		"record ID":    func(input *audit.QueryInput) { input.RecordID = "record-b" },
 		"actor":        func(input *audit.QueryInput) { input.ActorID = "other" },
 		"subject type": func(input *audit.QueryInput) { input.SubjectType = "account" },
 		"subject ID":   func(input *audit.QueryInput) { input.SubjectID = "other" },
@@ -282,7 +364,7 @@ func TestStoreQueryAndExportValidateCancellationAndCallbackFailures(t *testing.T
 		t.Fatalf("nil callback Export() error = %v", err)
 	}
 	callbackFailure := errors.New("archive failed")
-	if err := store.Export(context.Background(), query, func(audit.Record) error { return callbackFailure }); !errors.Is(err, callbackFailure) {
+	if err := store.Export(context.Background(), query, func(audit.Record) error { return callbackFailure }); !errors.Is(err, audit.ErrExportConsumerFailed) || errors.Is(err, callbackFailure) {
 		t.Fatalf("callback-failed Export() error = %v", err)
 	}
 }
@@ -294,6 +376,17 @@ func testRecord(t *testing.T, id, action string) audit.Record {
 }
 
 func testRecordAt(t *testing.T, id, action, tenant string, clock time.Time) audit.Record {
+	t.Helper()
+	raw := rawTestRecordAt(t, id, action, tenant, clock)
+	redactor := audit.RedactorFunc(func(_ context.Context, record audit.Record) (audit.Record, error) { return record, nil })
+	record, err := redactor.Redact(context.Background(), raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return record
+}
+
+func rawTestRecordAt(t *testing.T, id, action, tenant string, clock time.Time) audit.Record {
 	t.Helper()
 	builder, err := audit.NewBuilder(audit.BuilderConfig{
 		Clock:       func() time.Time { return clock },
@@ -333,5 +426,10 @@ func detailedRecord(t *testing.T, id, tenant string, clock time.Time) audit.Reco
 	if err != nil {
 		t.Fatal(err)
 	}
-	return record
+	redactor := audit.RedactorFunc(func(_ context.Context, record audit.Record) (audit.Record, error) { return record, nil })
+	redacted, err := redactor.Redact(context.Background(), record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return redacted
 }

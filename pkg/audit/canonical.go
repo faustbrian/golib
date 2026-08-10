@@ -41,6 +41,7 @@ type canonicalContext struct {
 
 type canonicalChanges struct {
 	NoChange bool              `json:"no_change"`
+	Redacted bool              `json:"redacted,omitempty"`
 	Before   map[string]string `json:"before,omitempty"`
 	After    map[string]string `json:"after,omitempty"`
 }
@@ -135,7 +136,7 @@ func ParseCanonicalJSON(encoded []byte, limits Limits) (Record, error) {
 			Environment: value.Context.Environment, NetworkOrigin: value.Context.NetworkOrigin,
 			UserAgent: value.Context.UserAgent,
 		},
-		Changes:    ChangeSetInput{NoChange: value.Changes.NoChange, Before: value.Changes.Before, After: value.Changes.After},
+		Changes:    ChangeSetInput{NoChange: value.Changes.NoChange, Redacted: value.Changes.Redacted, Before: value.Changes.Before, After: value.Changes.After},
 		Policy:     PolicyMetadata{PolicyID: value.Policy.ID, Version: value.Policy.Version},
 		Attributes: value.Attributes,
 		Integrity: IntegrityInput{Algorithm: value.Integrity.Algorithm, Partition: value.Integrity.Partition,
@@ -145,7 +146,12 @@ func ParseCanonicalJSON(encoded []byte, limits Limits) (Record, error) {
 	if err := validateInput(value.ID, canonicalTime(recordedAt), input, limits); err != nil {
 		return Record{}, err
 	}
-	return recordFromInput(value.ID, canonicalTime(recordedAt), input), nil
+	record := recordFromInput(value.ID, canonicalTime(recordedAt), input)
+	canonical, _ := CanonicalJSON(record)
+	if !bytes.Equal(encoded, canonical) {
+		return Record{}, invalid("canonical_record", "is not canonical")
+	}
+	return record, nil
 }
 
 func ensureJSONEnd(decoder *json.Decoder) error {
@@ -197,7 +203,12 @@ func toCanonical(record Record) canonicalRecord {
 			record.context.sourceService, record.context.sourceVersion, record.context.environment,
 			record.context.networkOrigin, record.context.userAgent,
 		},
-		Changes:    canonicalChanges{record.changes.noChange, cloneMap(record.changes.before), cloneMap(record.changes.after)},
+		Changes: canonicalChanges{
+			NoChange: record.changes.noChange,
+			Redacted: record.changes.redacted,
+			Before: cloneMap(record.changes.before),
+			After: cloneMap(record.changes.after),
+		},
 		Policy:     canonicalPolicy{record.policy.PolicyID, record.policy.Version},
 		Attributes: cloneMap(record.attributes),
 		Integrity: canonicalIntegrity{

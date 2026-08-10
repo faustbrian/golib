@@ -25,18 +25,6 @@ func TestConfigurationAndCapacityAcceptExactCeilings(t *testing.T) {
 	if _, err := New(Config{MaxRecords: 1, MaxBytes: 1, MaxBatchRecords: audit.MaxAppendBatchRecords}); err != nil {
 		t.Fatalf("exact-limit New() error = %v", err)
 	}
-	var nilStore *Store
-	if limits := nilStore.BufferLimits(); limits != (audit.BufferLimits{}) {
-		t.Fatalf("nil BufferLimits() = %#v", limits)
-	}
-	bounded, err := New(Config{MaxRecords: audit.MaxAppendBatchRecords, MaxBytes: 99, MaxBatchRecords: audit.MaxAppendBatchRecords})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if limits := bounded.BufferLimits(); limits != (audit.BufferLimits{MaxRecords: audit.MaxAppendBatchRecords, MaxBytes: 99, MaxBatchRecords: audit.MaxAppendBatchRecords}) {
-		t.Fatalf("BufferLimits() = %#v", limits)
-	}
-
 	record := internalMemoryRecord("exact-capacity", time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC))
 	encoded, _ := audit.CanonicalJSON(record)
 	store, err := New(Config{MaxRecords: 1, MaxBytes: len(encoded), MaxBatchRecords: 1})

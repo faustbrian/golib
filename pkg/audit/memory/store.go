@@ -5,10 +5,10 @@ package memory
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
-	"sync"
 
 	"github.com/faustbrian/golib/pkg/audit"
 )
@@ -22,22 +22,24 @@ type Config struct {
 }
 
 type entry struct {
-	record  audit.Record
-	encoded []byte
+	record        audit.Record
+	encoded       []byte
+	acceptedOrder uint64
 }
 
-// Store is a bounded concurrency-safe in-memory sink. Its mutex owns records,
-// insertion order, and the byte counter; no caller callback runs under it.
+// Store is a bounded concurrency-safe in-memory sink. Its context-aware gate
+// owns records, insertion order, and the byte counter; no caller callback runs
+// while the gate is held.
 type Store struct {
-	mu        sync.RWMutex
+	gate      chan struct{}
 	config    Config
 	records   map[string]entry
 	order     []string
 	usedBytes int
+	nextOrder uint64
 }
 
 var _ audit.Sink = (*Store)(nil)
-var _ audit.DurableBuffer = (*Store)(nil)
 var _ audit.Reader = (*Store)(nil)
 var _ audit.Exporter = (*Store)(nil)
 
@@ -55,19 +57,9 @@ func New(config Config) (*Store, error) {
 	if config.MaxBatchRecords > audit.MaxAppendBatchRecords {
 		return nil, fmt.Errorf("%w: memory limits must be positive and within core ceilings", audit.ErrInvalidArgument)
 	}
-	return &Store{config: config, records: make(map[string]entry)}, nil
-}
-
-// BufferLimits reports the configured finite process-local capacity. Store is
-// useful as a buffer contract test double but does not survive process failure.
-func (store *Store) BufferLimits() audit.BufferLimits {
-	if store == nil {
-		return audit.BufferLimits{}
-	}
-	return audit.BufferLimits{
-		MaxRecords: store.config.MaxRecords, MaxBytes: store.config.MaxBytes,
-		MaxBatchRecords: store.config.MaxBatchRecords,
-	}
+	gate := make(chan struct{}, 1)
+	gate <- struct{}{}
+	return &Store{gate: gate, config: config, records: make(map[string]entry)}, nil
 }
 
 // Query returns records ordered by recording time then record ID. The cursor
@@ -80,12 +72,20 @@ func (store *Store) Query(ctx context.Context, query audit.Query) (audit.Page, e
 		return audit.Page{}, err
 	}
 
-	store.mu.RLock()
-	candidates := make([]audit.Record, 0, len(store.records))
-	for _, value := range store.records {
-		candidates = append(candidates, value.record)
+	if err := store.lock(ctx); err != nil {
+		return audit.Page{}, err
 	}
-	store.mu.RUnlock()
+	candidates := make([]audit.Record, 0, len(store.records))
+	snapshot := query.After().Snapshot()
+	if snapshot == 0 {
+		snapshot = store.nextOrder
+	}
+	for _, value := range store.records {
+		if value.acceptedOrder <= snapshot {
+			candidates = append(candidates, value.record)
+		}
+	}
+	store.unlock()
 
 	sort.Slice(candidates, func(left, right int) bool {
 		leftTime, rightTime := candidates[left].RecordedAt(), candidates[right].RecordedAt()
@@ -110,16 +110,16 @@ func (store *Store) Query(ctx context.Context, query audit.Query) (audit.Page, e
 		}
 		matched = append(matched, record)
 		if len(matched) > limit {
-			return pageFromMatches(matched, limit)
+			return pageFromMatches(matched, limit, snapshot)
 		}
 	}
 	return audit.Page{Records: matched}, nil
 }
 
-func pageFromMatches(matched []audit.Record, limit int) (audit.Page, error) {
+func pageFromMatches(matched []audit.Record, limit int, snapshot uint64) (audit.Page, error) {
 	page := audit.Page{Records: matched[:limit]}
 	last := page.Records[len(page.Records)-1]
-	next, err := audit.NewCursor(last.RecordedAt(), last.ID())
+	next, err := audit.NewSnapshotCursor(last.RecordedAt(), last.ID(), snapshot)
 	if err != nil {
 		return audit.Page{}, err
 	}
@@ -127,7 +127,7 @@ func pageFromMatches(matched []audit.Record, limit int) (audit.Page, error) {
 	return page, nil
 }
 
-// Export invokes consume outside the store mutex for at most Query.Limit
+// Export invokes consume outside the store gate for at most Query.Limit
 // records in stable query order.
 func (store *Store) Export(ctx context.Context, query audit.Query, consume func(audit.Record) error) error {
 	if consume == nil {
@@ -141,15 +141,37 @@ func (store *Store) Export(ctx context.Context, query audit.Query, consume func(
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		if err := consume(record); err != nil {
+		if err := consumeSafely(consume, record); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
+func consumeSafely(consume func(audit.Record) error, record audit.Record) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = audit.ErrExportConsumerFailed
+		}
+	}()
+	err = consume(record)
+	switch {
+	case err == nil:
+		return nil
+	case errors.Is(err, context.Canceled):
+		return context.Canceled
+	case errors.Is(err, context.DeadlineExceeded):
+		return context.DeadlineExceeded
+	default:
+		return audit.ErrExportConsumerFailed
+	}
+}
+
 func matches(query audit.Query, record audit.Record) bool {
 	if !query.Tenant().Includes(record.Context().TenantID()) {
+		return false
+	}
+	if query.RecordID() != "" && record.ID() != query.RecordID() {
 		return false
 	}
 	if !query.From().IsZero() && record.RecordedAt().Before(query.From()) {
@@ -213,14 +235,22 @@ func (store *Store) AppendBatch(ctx context.Context, records []audit.Record) (au
 		if record.ID() == "" {
 			return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, audit.ErrInvalidArgument)
 		}
+		if !record.RedactionApplied() {
+			return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, audit.ErrRedactionRequired)
+		}
 		if len(encoded) > store.config.MaxBytes {
 			return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, audit.ErrBackpressure)
 		}
 		prepared[index] = entry{record: record, encoded: encoded}
 	}
 
-	store.mu.Lock()
-	defer store.mu.Unlock()
+	if err := store.lock(ctx); err != nil {
+		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, err)
+	}
+	defer store.unlock()
+	if err := ctx.Err(); err != nil {
+		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, err)
+	}
 
 	results := make([]audit.AppendResult, len(records))
 	pending := make(map[string]entry, len(records))
@@ -253,6 +283,8 @@ func (store *Store) AppendBatch(ctx context.Context, records []audit.Record) (au
 	for index, candidate := range prepared {
 		if results[index].Status == audit.AppendAccepted {
 			id := candidate.record.ID()
+			store.nextOrder++
+			candidate.acceptedOrder = store.nextOrder
 			store.records[id] = candidate
 			store.order = append(store.order, id)
 			store.usedBytes = store.usedBytes + len(candidate.encoded)
@@ -260,3 +292,14 @@ func (store *Store) AppendBatch(ctx context.Context, records []audit.Record) (au
 	}
 	return audit.BatchResult{Results: results}, nil
 }
+
+func (store *Store) lock(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-store.gate:
+		return nil
+	}
+}
+
+func (store *Store) unlock() { store.gate <- struct{}{} }

@@ -190,6 +190,161 @@ func TestInternalObserversAndRedactorsValidateNilReceivers(t *testing.T) {
 	}
 }
 
+func TestInternalExportFailureSanitizationCoversEveryBoundary(t *testing.T) {
+	t.Parallel()
+
+	query, _ := NewQuery(QueryInput{Tenant: NoTenant(), Limit: 1})
+	panicExporter := internalExporterFunc(func(context.Context, Query, func(Record) error) error {
+		panic("token=export-secret")
+	})
+	if err := callObservedExport(panicExporter, context.Background(), query, func(Record) error { return nil }); !errors.Is(err, ErrExportFailed) {
+		t.Fatalf("panic exporter error = %v", err)
+	}
+	for name, consume := range map[string]func(Record) error{
+		"panic":    func(Record) error { panic("token=consumer-secret") },
+		"canceled": func(Record) error { return context.Canceled },
+		"deadline": func(Record) error { return context.DeadlineExceeded },
+		"failure":  func(Record) error { return errors.New("token=consumer-secret") },
+	} {
+		err := consumeObservedSafely(consume, Record{})
+		switch name {
+		case "canceled":
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("%s consumer error = %v", name, err)
+			}
+		case "deadline":
+			if !errors.Is(err, context.DeadlineExceeded) {
+				t.Fatalf("%s consumer error = %v", name, err)
+			}
+		default:
+			if !errors.Is(err, ErrExportConsumerFailed) {
+				t.Fatalf("%s consumer error = %v", name, err)
+			}
+		}
+	}
+	for input, expected := range map[error]error{
+		nil:                                   nil,
+		context.Canceled:                      context.Canceled,
+		context.DeadlineExceeded:              context.DeadlineExceeded,
+		ErrExportConsumerFailed:               ErrExportConsumerFailed,
+		ErrInvalidArgument:                    ErrInvalidArgument,
+		ErrIntegrityInvalid:                   ErrIntegrityInvalid,
+		errors.New("private exporter detail"): ErrExportFailed,
+	} {
+		if err := safeExportFailure(input); !errors.Is(err, expected) || (expected == nil && err != nil) {
+			t.Fatalf("safeExportFailure(%v) = %v, want %v", input, err, expected)
+		}
+	}
+}
+
+func TestInternalRedactionValidationRejectsEveryStateForgery(t *testing.T) {
+	t.Parallel()
+
+	base := internalRecord("redaction-state", time.Now())
+	noChangeForgery := base
+	noChangeForgery.changes = ChangeSet{}
+
+	alreadyRedacted := base
+	alreadyRedacted.changes = ChangeSet{redacted: true}
+	redactedForgery := alreadyRedacted
+	redactedForgery.changes = ChangeSet{noChange: true}
+
+	structured := base
+	structured.changes = ChangeSet{before: map[string]string{"state": "before"}}
+	structuredForgery := structured
+	structuredForgery.changes = ChangeSet{noChange: true, before: map[string]string{"state": "before"}}
+
+	emptyChanges := base
+	emptyChanges.changes = ChangeSet{}
+	emptyForgery := emptyChanges
+	emptyForgery.changes = ChangeSet{noChange: true}
+
+	for name, pair := range map[string][2]Record{
+		"no-change":        {base, noChangeForgery},
+		"already-redacted": {alreadyRedacted, redactedForgery},
+		"structured":       {structured, structuredForgery},
+		"empty":            {emptyChanges, emptyForgery},
+	} {
+		if err := validateRedaction(pair[0], pair[1]); !errors.Is(err, ErrInvalidArgument) {
+			t.Fatalf("%s redaction forgery error = %v", name, err)
+		}
+	}
+	if mapKeysSubset(map[string]string{"injected": "value"}, map[string]string{"safe": "value"}) {
+		t.Fatal("injected redaction key accepted")
+	}
+	input := internalRecordInput(time.Now())
+	input.Changes = ChangeSetInput{Redacted: true}
+	if err := validateInput("redacted-input", time.Now(), input, DefaultLimits()); err != nil {
+		t.Fatalf("explicit redacted input error = %v", err)
+	}
+}
+
+func TestInternalRedactionValidationChecksEachInvariantIndependently(t *testing.T) {
+	t.Parallel()
+
+	original := internalRecord("redaction-invariants", time.Now())
+	original.attributes = map[string]string{"safe": "value"}
+	original.changes = ChangeSet{
+		before: map[string]string{"state": "before"},
+		after:  map[string]string{"state": "after"},
+	}
+
+	changedAction := original
+	changedAction.action = "resource.changed"
+	injectedAttribute := original
+	injectedAttribute.attributes = map[string]string{"safe": "value", "injected": "value"}
+	injectedBefore := original
+	injectedBefore.changes.before = map[string]string{"state": "before", "injected": "value"}
+	injectedAfter := original
+	injectedAfter.changes.after = map[string]string{"state": "after", "injected": "value"}
+
+	for name, candidate := range map[string]Record{
+		"non-privacy field": changedAction,
+		"attribute key":     injectedAttribute,
+		"before key":        injectedBefore,
+		"after key":         injectedAfter,
+	} {
+		if err := validateRedaction(original, candidate); !errors.Is(err, ErrInvalidArgument) {
+			t.Fatalf("%s forgery error = %v", name, err)
+		}
+	}
+
+	oneSidedChanges := original
+	oneSidedChanges.changes.after = nil
+	if err := validateRedaction(original, oneSidedChanges); err != nil {
+		t.Fatalf("one-sided retained changes error = %v", err)
+	}
+
+	alreadyRedacted := original
+	alreadyRedacted.changes = ChangeSet{redacted: true}
+	redactedFlagRemoved := alreadyRedacted
+	redactedFlagRemoved.changes = ChangeSet{}
+	if err := validateRedaction(alreadyRedacted, redactedFlagRemoved); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("removed redacted flag error = %v", err)
+	}
+
+	emptyOriginal := original
+	emptyOriginal.changes = ChangeSet{}
+	if err := validateRedaction(emptyOriginal, emptyOriginal); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("missing fully-redacted marker error = %v", err)
+	}
+}
+
+func TestInternalSafeKeyFailurePreservesOnlyPublicClassifications(t *testing.T) {
+	t.Parallel()
+
+	for input, expected := range map[error]error{
+		context.Canceled:               context.Canceled,
+		context.DeadlineExceeded:       context.DeadlineExceeded,
+		ErrInvalidArgument:             ErrInvalidArgument,
+		errors.New("kms token=secret"): ErrKeyUnavailable,
+	} {
+		if err := safeKeyFailure(input); !errors.Is(err, expected) {
+			t.Fatalf("safeKeyFailure(%v) = %v, want %v", input, err, expected)
+		}
+	}
+}
+
 func TestInternalQueryAndRetentionRejectIncoherentPrivateState(t *testing.T) {
 	t.Parallel()
 
@@ -255,7 +410,7 @@ func TestInternalChainVerificationRejectsEveryLinkDivergence(t *testing.T) {
 	}
 
 	key := IntegrityKey{ID: "key-1", Bytes: make([]byte, sha256.Size)}
-	hmacChain, _ := NewChain(ChainConfig{Algorithm: IntegrityHMACSHA256, Keys: KeyProviderFunc(func(context.Context, string, time.Time) (IntegrityKey, error) { return key, nil })})
+	hmacChain, _ := NewChain(ChainConfig{Algorithm: IntegrityHMACSHA256, Keys: KeyProviderFunc(func(context.Context, KeyRequest) (IntegrityKey, error) { return key, nil })})
 	keyed, err := hmacChain.Seal(context.Background(), internalRecord("keyed", base), ChainLink{Partition: "tenant-1", Sequence: 1})
 	if err != nil {
 		t.Fatal(err)
@@ -266,8 +421,8 @@ func TestInternalChainVerificationRejectsEveryLinkDivergence(t *testing.T) {
 	}
 	providerFailure := errors.New("provider failed")
 	keyed.integrity.keyID = "key-1"
-	hmacChain.keys = KeyProviderFunc(func(context.Context, string, time.Time) (IntegrityKey, error) { return IntegrityKey{}, providerFailure })
-	if err := hmacChain.Verify(context.Background(), []Record{keyed}); !errors.Is(err, providerFailure) {
+	hmacChain.keys = KeyProviderFunc(func(context.Context, KeyRequest) (IntegrityKey, error) { return IntegrityKey{}, providerFailure })
+	if err := hmacChain.Verify(context.Background(), []Record{keyed}); !errors.Is(err, ErrKeyUnavailable) {
 		t.Fatalf("verification provider error = %v", err)
 	}
 }

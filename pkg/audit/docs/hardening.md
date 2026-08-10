@@ -36,9 +36,20 @@ stress, soak, fault, exact statement coverage, viable mutation, benchmarks,
 security, dependency, documentation, API, and clean-consumer gates are release
 requirements rather than optional warnings.
 
-Benchmarks measure canonical encoding against the equivalent canonical-plus-
-SHA-256 standard-library baseline, redaction, single and atomic batch append,
-fully filtered pagination, streaming export, and chain verification. Results
-must be retained with Go version, machine, corpus, duration, latency,
+Benchmarks measure canonical encoding, redaction, single and atomic batch
+append, fully filtered pagination, streaming export, and chain verification.
+Core workloads include explicit equivalent standard-library reference paths;
+the PostgreSQL workloads execute against the selected real database image.
+Results must be retained with Go version, machine, corpus, duration, latency,
 throughput, and allocations; they are engineering evidence, not universal
 service-level objectives.
+
+## Owned release exclusions
+
+These boundaries are not reported as passing adapter gates:
+
+| Boundary | Owner | Reason | Risk | Expiry |
+| --- | --- | --- | --- | --- |
+| Partition rollover | audit maintainers | The supported schema is unpartitioned so global record-ID uniqueness remains enforceable. | A deployment-specific partitioned fork can lose global idempotency or bypass legal holds during rollover. | 2027-02-09, or before any partitioned adapter is released, whichever comes first. |
+| Physical standby promotion | audit maintainers | The adapter owns no PostgreSQL topology; local evidence terminates a backend and proves pool reconnection and idempotent recovery. | A deployment's proxy, DNS, replication, or promotion policy may produce a longer or ambiguous outage. | 2027-02-09, or before claiming support for a managed failover topology, whichever comes first. |
+| Previous-binary rolling deployment | audit maintainers | Version 1 has no previous released reader or writer binary; the frozen version-1 fixture is exercised through upgrade, backup, and restore instead. | The first post-v1 format could break old readers if released without a real two-binary matrix. | Before the first format or API release after v1. |

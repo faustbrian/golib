@@ -69,9 +69,10 @@ func TestObservedExporterReportsOnlyBoundedCounts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.AppendBatch(context.Background(), []audit.Record{
-		deliveryRecord(t, "export-1"), deliveryRecord(t, "export-2"),
-	}); err != nil {
+	redactor := audit.RedactorFunc(func(_ context.Context, record audit.Record) (audit.Record, error) { return record, nil })
+	first, _ := redactor.Redact(context.Background(), deliveryRecord(t, "export-1"))
+	second, _ := redactor.Redact(context.Background(), deliveryRecord(t, "export-2"))
+	if _, err := store.AppendBatch(context.Background(), []audit.Record{first, second}); err != nil {
 		t.Fatal(err)
 	}
 	var observation audit.Observation
@@ -119,14 +120,14 @@ func TestObservedExporterReportsPartialFailuresAndValidatesCalls(t *testing.T) {
 		t.Fatal(err)
 	}
 	query, _ := audit.NewQuery(audit.QueryInput{Tenant: audit.NoTenant(), Limit: 1})
-	if err := decorated.Export(context.Background(), query, func(audit.Record) error { return nil }); !errors.Is(err, exportFailure) {
+	if err := decorated.Export(context.Background(), query, func(audit.Record) error { return nil }); !errors.Is(err, audit.ErrExportFailed) || errors.Is(err, exportFailure) {
 		t.Fatalf("failed Export() error = %v", err)
 	}
 	if observation.Kind != audit.ObservationFailed || observation.Count != 1 {
 		t.Fatalf("failure observation = %#v", observation)
 	}
 	callbackFailure := errors.New("consumer failed")
-	if err := decorated.Export(context.Background(), query, func(audit.Record) error { return callbackFailure }); !errors.Is(err, callbackFailure) {
+	if err := decorated.Export(context.Background(), query, func(audit.Record) error { return callbackFailure }); !errors.Is(err, audit.ErrExportConsumerFailed) || errors.Is(err, callbackFailure) {
 		t.Fatalf("callback-failed Export() error = %v", err)
 	}
 	if observation.Kind != audit.ObservationFailed || observation.Count != 0 {
