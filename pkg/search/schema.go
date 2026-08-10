@@ -33,16 +33,20 @@ func NewIndexDefinition(name string, settings, mappings json.RawMessage, limits 
 	if !validIndexName(name) {
 		return IndexDefinition{}, ErrInvalidIndexDefinition
 	}
+	if limits.MaxJSONDepth <= 0 || limits.MaxJSONNodes <= 0 {
+		return IndexDefinition{}, ErrInvalidLimits
+	}
 	if len(settings)+len(mappings) > limits.MaxSourceBytes {
 		return IndexDefinition{}, ErrSchemaLimit
 	}
-	canonicalSettings, err := canonicalJSONObject(settings)
+	remainingNodes := limits.MaxJSONNodes
+	canonicalSettings, err := canonicalJSONObject(settings, limits.MaxJSONDepth, &remainingNodes)
 	if err != nil {
-		return IndexDefinition{}, ErrInvalidIndexDefinition
+		return IndexDefinition{}, errors.Join(ErrInvalidIndexDefinition, err)
 	}
-	canonicalMappings, err := canonicalJSONObject(mappings)
+	canonicalMappings, err := canonicalJSONObject(mappings, limits.MaxJSONDepth, &remainingNodes)
 	if err != nil {
-		return IndexDefinition{}, ErrInvalidIndexDefinition
+		return IndexDefinition{}, errors.Join(ErrInvalidIndexDefinition, err)
 	}
 	hash := sha256.New()
 	_, _ = hash.Write(canonicalSettings)
@@ -92,7 +96,10 @@ func CompareDefinitions(current, target IndexDefinition) Compatibility {
 	return Compatibility{Kind: ReindexRequired, Reasons: reasons}
 }
 
-func canonicalJSONObject(value json.RawMessage) (json.RawMessage, error) {
+func canonicalJSONObject(value json.RawMessage, maximumDepth int, remainingNodes *int) (json.RawMessage, error) {
+	if err := validateBoundedJSONObject(value, maximumDepth, remainingNodes); err != nil {
+		return nil, err
+	}
 	decoder := json.NewDecoder(bytes.NewReader(value))
 	decoder.UseNumber()
 	var decoded any
@@ -121,7 +128,7 @@ func validIndexName(name string) bool {
 		return false
 	}
 	for _, character := range name {
-		if unicode.IsUpper(character) || unicode.IsSpace(character) || strings.ContainsRune(`\/*?"<>|,#:`, character) {
+		if unicode.IsUpper(character) || unicode.IsSpace(character) || unicode.IsControl(character) || strings.ContainsRune(`\/*?"<>|,#:`, character) {
 			return false
 		}
 	}

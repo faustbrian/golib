@@ -59,3 +59,46 @@ func TestIndexDefinitionRejectsUnsafeNamesAndUnboundedSchema(t *testing.T) {
 		t.Fatalf("NewIndexDefinition() error = %v", err)
 	}
 }
+
+func TestIndexDefinitionRejectsHostileJSONStructureAcrossSettingsAndMappings(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		configure func(*search.Limits)
+		settings  json.RawMessage
+		mappings  json.RawMessage
+		want      error
+	}{
+		{"settings depth", func(limits *search.Limits) { limits.MaxJSONDepth = 2 }, json.RawMessage(`{"outer":{"too":{}}}`), json.RawMessage(`{}`), search.ErrJSONDepthLimit},
+		{"mappings depth", func(limits *search.Limits) { limits.MaxJSONDepth = 2 }, json.RawMessage(`{}`), json.RawMessage(`{"outer":{"too":{}}}`), search.ErrJSONDepthLimit},
+		{"combined node count", func(limits *search.Limits) { limits.MaxJSONNodes = 3 }, json.RawMessage(`{"first":1,"second":2}`), json.RawMessage(`{"third":3,"fourth":4}`), search.ErrJSONNodeLimit},
+		{"duplicate settings key", func(*search.Limits) {}, json.RawMessage(`{"same":1,"same":2}`), json.RawMessage(`{}`), search.ErrDuplicateJSONKey},
+		{"duplicate mappings key", func(*search.Limits) {}, json.RawMessage(`{}`), json.RawMessage(`{"same":1,"s\u0061me":2}`), search.ErrDuplicateJSONKey},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			limits := search.DefaultLimits()
+			test.configure(&limits)
+			if _, err := search.NewIndexDefinition("index-v1", test.settings, test.mappings, limits); !errors.Is(err, search.ErrInvalidIndexDefinition) || !errors.Is(err, test.want) {
+				t.Fatalf("NewIndexDefinition() error = %v, want ErrInvalidIndexDefinition and %v", err, test.want)
+			}
+		})
+	}
+}
+
+func TestIndexDefinitionAcceptsExactJSONLimitsAndUnicode(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	limits.MaxJSONDepth = 2
+	limits.MaxJSONNodes = 4
+	definition, err := search.NewIndexDefinition("haku-ä", json.RawMessage(`{"label":"Helsinki 🧭"}`), json.RawMessage(`{"fields":["nimi","sijainti"]}`), limits)
+	if err != nil {
+		t.Fatalf("NewIndexDefinition() error = %v", err)
+	}
+	if definition.Name() != "haku-ä" {
+		t.Fatalf("Name() = %q", definition.Name())
+	}
+}

@@ -206,6 +206,48 @@ func TestFakeMatchesOpenSearchMinimumShouldMatchDefaults(t *testing.T) {
 	}
 }
 
+func TestFakeExistsMatchesOpenSearchIndexedValueSemantics(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	fake, err := searchtest.NewFake(limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, document := range []search.Document{
+		mustDocument(t, "tenant-a", "events", "a-missing", 1, `{}`, limits),
+		mustDocument(t, "tenant-a", "events", "b-null", 1, `{"value":null}`, limits),
+		mustDocument(t, "tenant-a", "events", "c-empty", 1, `{"value":[]}`, limits),
+		mustDocument(t, "tenant-a", "events", "d-null-array", 1, `{"value":[null]}`, limits),
+		mustDocument(t, "tenant-a", "events", "e-valued-array", 1, `{"value":[null,"present"]}`, limits),
+		mustDocument(t, "tenant-a", "events", "f-scalar", 1, `{"value":0}`, limits),
+	} {
+		if outcome, writeErr := fake.Write(t.Context(), search.IndexDocument(document), search.RefreshNone); writeErr != nil || outcome.State != search.OutcomeApplied {
+			t.Fatalf("Write(%q) = %#v, %v", document.ID, outcome, writeErr)
+		}
+	}
+
+	result, err := fake.Search(t.Context(), search.Request{
+		Tenant: "tenant-a",
+		Index:  "events",
+		Query:  search.ExistsQuery{Field: "value"},
+		Sort:   []search.Sort{{Field: "_id", Direction: search.Ascending}},
+		Page:   search.OffsetPage{Size: 10},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	hits := result.Hits()
+	got := make([]string, len(hits))
+	for index, hit := range hits {
+		got[index] = hit.ID
+	}
+	want := []string{"e-valued-array", "f-scalar"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("Search() IDs = %v, want %v", got, want)
+	}
+}
+
 func TestFakeRejectsDocumentsBeyondItsConfiguredCapacity(t *testing.T) {
 	t.Parallel()
 	limits := search.DefaultLimits()

@@ -3,8 +3,6 @@ package search_test
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
-	"strings"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/search"
@@ -29,28 +27,40 @@ func TestDocumentRejectsHostileJSONStructure(t *testing.T) {
 	t.Parallel()
 
 	limits := search.DefaultLimits()
-	deep := strings.Repeat(`{"nested":`, 33) + `true` + strings.Repeat(`}`, 33)
-	fields := make([]string, 20_000)
-	for index := range fields {
-		fields[index] = fmt.Sprintf(`"field%d":null`, index)
-	}
 	for _, test := range []struct {
-		name   string
-		source json.RawMessage
+		name      string
+		configure func(*search.Limits)
+		source    json.RawMessage
+		want      error
 	}{
-		{"excessive depth", json.RawMessage(deep)},
-		{"high field count within byte limit", json.RawMessage(`{` + strings.Join(fields, ",") + `}`)},
-		{"duplicate object keys", json.RawMessage(`{"same":1,"same":2}`)},
+		{"excessive depth", func(limits *search.Limits) { limits.MaxJSONDepth = 2 }, json.RawMessage(`{"outer":{"too":{"deep":true}}}`), search.ErrJSONDepthLimit},
+		{"high field count within byte limit", func(limits *search.Limits) { limits.MaxJSONNodes = 2 }, json.RawMessage(`{"first":1,"second":2,"third":3}`), search.ErrJSONNodeLimit},
+		{"duplicate object keys", func(*search.Limits) {}, json.RawMessage(`{"same":1,"s\u0061me":2}`), search.ErrDuplicateJSONKey},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
-			if len(test.source) > limits.MaxSourceBytes {
-				t.Fatalf("test source length = %d, exceeds byte limit %d", len(test.source), limits.MaxSourceBytes)
-			}
-			if _, err := search.NewDocument("tenant", "index", "id", 1, test.source, limits); !errors.Is(err, search.ErrInvalidSource) {
-				t.Fatalf("NewDocument() error = %v, want ErrInvalidSource", err)
+			configured := limits
+			test.configure(&configured)
+			if _, err := search.NewDocument("tenant", "index", "id", 1, test.source, configured); !errors.Is(err, search.ErrInvalidSource) || !errors.Is(err, test.want) {
+				t.Fatalf("NewDocument() error = %v, want ErrInvalidSource and %v", err, test.want)
 			}
 		})
+	}
+}
+
+func TestDocumentAcceptsExactJSONLimitsAndPreservesUnicode(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	limits.MaxJSONDepth = 2
+	limits.MaxJSONNodes = 4
+	source := json.RawMessage(`{"näme":"Helsinki 🧭","values":[1,2]}`)
+	document, err := search.NewDocument("vuokralainen", "haku-ä", "tunnus", 1, source, limits)
+	if err != nil {
+		t.Fatalf("NewDocument() error = %v", err)
+	}
+	if string(document.Source) != string(source) {
+		t.Fatalf("NewDocument() source = %s, want %s", document.Source, source)
 	}
 }
 

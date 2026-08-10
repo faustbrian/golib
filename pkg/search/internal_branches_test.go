@@ -304,7 +304,7 @@ func TestInternalValueSchemaDocumentAndLimitBranches(t *testing.T) {
 	if limits.Validate() != nil {
 		t.Fatal("default limits invalid")
 	}
-	for i := range 14 {
+	for i := range 16 {
 		invalid := limits
 		switch i {
 		case 0:
@@ -334,6 +334,10 @@ func TestInternalValueSchemaDocumentAndLimitBranches(t *testing.T) {
 		case 12:
 			invalid.MaxQueryClauses = 0
 		case 13:
+			invalid.MaxJSONDepth = 0
+		case 14:
+			invalid.MaxJSONNodes = 0
+		case 15:
 			invalid.MaxPages = int(^uint(0) >> 1)
 			invalid.MaxPageItems = 2
 		}

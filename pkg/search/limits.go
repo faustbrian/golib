@@ -23,6 +23,8 @@ type Limits struct {
 	MaxCursorDuration time.Duration
 	MaxQueryDepth     int
 	MaxQueryClauses   int
+	MaxJSONDepth      int
+	MaxJSONNodes      int
 }
 
 // DefaultLimits returns conservative bounded defaults.
@@ -41,6 +43,8 @@ func DefaultLimits() Limits {
 		MaxCursorDuration: 15 * time.Minute,
 		MaxQueryDepth:     32,
 		MaxQueryClauses:   1_024,
+		MaxJSONDepth:      32,
+		MaxJSONNodes:      4_096,
 	}
 }
 
@@ -50,7 +54,8 @@ func (l Limits) Validate() error {
 		l.MaxSourceBytes <= 0 || l.MaxQueryBytes <= 0 || l.MaxBulkItems <= 0 || l.MaxBulkBytes <= 0 ||
 		l.MaxPageItems <= 0 || l.MaxPages <= 0 || l.MaxResultBytes <= 0 ||
 		l.MaxCursorDuration <= 0 ||
-		l.MaxQueryDepth <= 0 || l.MaxQueryClauses <= 0 || l.MaxPages > int(^uint(0)>>1)/l.MaxPageItems {
+		l.MaxQueryDepth <= 0 || l.MaxQueryClauses <= 0 || l.MaxJSONDepth <= 0 ||
+		l.MaxJSONNodes <= 0 || l.MaxPages > int(^uint(0)>>1)/l.MaxPageItems {
 		return ErrInvalidLimits
 	}
 

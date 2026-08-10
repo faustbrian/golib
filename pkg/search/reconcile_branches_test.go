@@ -189,7 +189,7 @@ func TestInternalReconcilerRepairBranches(t *testing.T) {
 	source = &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{validBranchRecord(t, "a", 1), validBranchRecord(t, "b", 1)}, Done: true}}}
 	index = &branchReader{pages: []ReconciliationPage{{Done: true}}}
 	reconciler, _ = NewReconciler(source, index, branchRepair{}, bounded)
-	if _, err := reconciler.Run(t.Context(), request); !errors.Is(err, ErrBulkLimit) {
+	if report, err := reconciler.Run(t.Context(), request); !errors.Is(err, ErrRepairPartial) || report.Complete {
 		t.Fatal(err)
 	}
 }

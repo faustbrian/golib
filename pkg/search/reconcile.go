@@ -156,23 +156,47 @@ func (r *Reconciler) Run(ctx context.Context, request ReconciliationRequest) (Re
 	if !request.Repair || len(operations) == 0 {
 		return report, nil
 	}
-	bulk := BulkRequest{Operations: operations, Refresh: RefreshWaitFor}
-	if err := bulk.Validate(AllCapabilities(), r.limits); err != nil {
-		return report, err
+	report.Complete = false
+	for start := 0; start < len(operations); {
+		end := min(start+r.limits.MaxBulkItems, len(operations))
+		batchOperations := append([]WriteOperation(nil), operations[start:end]...)
+		bulk := BulkRequest{Operations: batchOperations, Refresh: RefreshWaitFor}
+		if err := bulk.Validate(AllCapabilities(), r.limits); err != nil {
+			return report, err
+		}
+		result, err := r.repair.Bulk(ctx, bulk)
+		if err != nil {
+			return report, err
+		}
+		items := result.Items()
+		if !repairResultMatches(batchOperations, items) {
+			return report, ErrRepairPartial
+		}
+		for _, item := range items {
+			if item.State == OutcomeApplied {
+				report.Repaired++
+			}
+		}
+		if result.Partial() {
+			return report, ErrRepairPartial
+		}
+		start = end
 	}
-	result, err := r.repair.Bulk(ctx, bulk)
-	if err != nil {
-		return report, err
+	report.Complete = true
+	return report, nil
+}
+
+func repairResultMatches(operations []WriteOperation, items []ItemOutcome) bool {
+	if len(items) != len(operations) {
+		return false
 	}
-	for _, item := range result.Items() {
-		if item.State == OutcomeApplied {
-			report.Repaired++
+	for position, item := range items {
+		operation := operations[position]
+		if item.Position != position || item.ID != operation.ID || item.Action != operation.Action {
+			return false
 		}
 	}
-	if result.Partial() {
-		return report, ErrRepairPartial
-	}
-	return report, nil
+	return true
 }
 
 func readReconciliation(ctx context.Context, reader ReconciliationReader, request ReconciliationRequest, requireDocuments bool) ([]ReconciliationRecord, error) {
