@@ -161,6 +161,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- correct the pre-v1 audit dispositions to reflect the implemented bounded
+  target model, separate diagnostic-copy limits, and existing reconnect and
+  resource evidence without broadening any managed-service support claim
 - keep real-broker integration tests in the explicit interoperability gate so
   ordinary tests, race detection, exact coverage, and mutation remain bounded
   to their intended local evidence instead of starting Kafka for every run or
