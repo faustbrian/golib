@@ -1,0 +1,5 @@
+schema-registry Confluent-compatible adapter
+Copyright (c) 2026 Brian Faust
+
+Confluent is a trademark of its respective owner. This adapter is not endorsed
+by Confluent, Inc.

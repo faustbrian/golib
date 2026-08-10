@@ -1,0 +1,82 @@
+package glue // import "github.com/faustbrian/golib/pkg/schema-registry/providers/glue"
+
+Package glue adapts AWS Glue Schema Registry without erasing its registry,
+schema-name, UUID-version-ID, lifecycle, or compatibility semantics.
+
+CONSTANTS
+
+const (
+	// ProviderName is the stable capability and provider-ID namespace.
+	ProviderName = "aws-glue"
+)
+
+VARIABLES
+
+var (
+	// ErrInvalidFrame marks malformed framing, invalid IDs, or exceeded frame bounds.
+	ErrInvalidFrame = errors.New("AWS Glue schema registry: invalid frame")
+	// ErrCompressionUnsupported marks a valid Glue compression byte this framer does not implement.
+	ErrCompressionUnsupported = errors.New("AWS Glue schema registry: compressed frame unsupported")
+)
+
+TYPES
+
+type API interface {
+	GetSchemaByDefinition(context.Context, *awsglue.GetSchemaByDefinitionInput, ...func(*awsglue.Options)) (*awsglue.GetSchemaByDefinitionOutput, error)
+	RegisterSchemaVersion(context.Context, *awsglue.RegisterSchemaVersionInput, ...func(*awsglue.Options)) (*awsglue.RegisterSchemaVersionOutput, error)
+	GetSchemaVersion(context.Context, *awsglue.GetSchemaVersionInput, ...func(*awsglue.Options)) (*awsglue.GetSchemaVersionOutput, error)
+}
+    API is the narrow AWS SDK v2 boundary used by Provider. Configure SDK retry,
+    endpoint, region, and credentials explicitly when constructing its client;
+    Provider adds one total context timeout and does not add a second retry
+    loop.
+
+type Config struct {
+	API            API
+	Scope          string
+	RequestTimeout time.Duration
+	MaxConcurrent  int
+	Canonicalizers map[schemaregistry.Format]schemaregistry.Canonicalizer
+}
+    Config binds one AWS region/account/registry scope to explicit schema format
+    implementations.
+
+type Provider struct {
+	// Has unexported fields.
+}
+    Provider is safe for concurrent use when the supplied AWS SDK client is.
+
+func New(config Config) (*Provider, error)
+    New validates all policy before AWS I/O.
+
+func (provider *Provider) Capabilities() schemaregistry.Capabilities
+    Capabilities returns an immutable snapshot of AWS Glue semantics.
+
+func (provider *Provider) CheckCompatibility(context.Context, schemaregistry.CompatibilityRequest) (schemaregistry.CompatibilityResult, error)
+    CheckCompatibility is explicit unsupported because Glue applies configured
+    compatibility while registering and exposes no candidate dry-run with the
+    same semantics.
+
+func (provider *Provider) Register(ctx context.Context, request schemaregistry.RegisterRequest) (schemaregistry.RegisterResult, error)
+    Register performs exact-definition lookup before idempotent version
+    registration.
+
+func (provider *Provider) Resolve(ctx context.Context, lookup schemaregistry.Lookup) (schemaregistry.ResolveResult, error)
+    Resolve loads one schema version by an advertised AWS Glue selector.
+
+type UncompressedFramer struct {
+	// Has unexported fields.
+}
+    UncompressedFramer implements AWS Glue header version 3 with compression
+    byte 0 and a 16-byte schema-version UUID. ZLIB byte 5 is rejected
+    explicitly.
+
+func NewUncompressedFramer(scope string, maxPayloadBytes int) (*UncompressedFramer, error)
+    NewUncompressedFramer constructs a bounded AWS Glue uncompressed framer.
+
+func (framer *UncompressedFramer) Frame(ctx context.Context, id schemaregistry.ProviderID, payload []byte) ([]byte, error)
+    Frame writes an AWS Glue header-version-3 frame with compression byte zero.
+
+func (framer *UncompressedFramer) Unframe(ctx context.Context, framed []byte) (schemaregistry.ProviderID, []byte, error)
+    Unframe parses an uncompressed AWS Glue frame and returns an owned payload
+    copy.

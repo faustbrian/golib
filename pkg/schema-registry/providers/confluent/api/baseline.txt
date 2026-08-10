@@ -1,0 +1,118 @@
+package confluent // import "github.com/faustbrian/golib/pkg/schema-registry/providers/confluent"
+
+Package confluent implements the Confluent Schema Registry REST semantics
+without treating its global integer IDs as portable schema identity.
+
+CONSTANTS
+
+const (
+	// ProviderName is the stable capability and provider-ID namespace.
+	ProviderName = "confluent"
+)
+
+VARIABLES
+
+var ErrInvalidFrame = errors.New("confluent schema registry: invalid frame")
+    ErrInvalidFrame marks malformed framing, invalid IDs, or exceeded frame
+    bounds.
+
+var ErrInvalidResponse = errors.New("confluent schema registry: invalid response")
+    ErrInvalidResponse marks a malformed or identity-inconsistent registry
+    response.
+
+
+TYPES
+
+type ClassicFramer struct {
+	// Has unexported fields.
+}
+    ClassicFramer implements Confluent wire version 0 for Avro and JSON Schema:
+    one zero magic byte, one big-endian uint32 schema ID, then payload. Protobuf
+    message-index framing is intentionally a separate contract.
+
+func NewClassicFramer(scope string, maxPayloadBytes int) (*ClassicFramer, error)
+    NewClassicFramer constructs a bounded Confluent Avro or JSON Schema framer.
+
+func (framer *ClassicFramer) Frame(ctx context.Context, id schemaregistry.ProviderID, payload []byte) ([]byte, error)
+    Frame writes a version-0 frame for an explicit scoped schema ID.
+
+func (framer *ClassicFramer) Unframe(ctx context.Context, framed []byte) (schemaregistry.ProviderID, []byte, error)
+    Unframe parses a bounded version-0 frame and returns an owned payload copy.
+
+type Config struct {
+	Endpoint            string
+	Scope               string
+	Transport           http.RoundTripper
+	Credentials         CredentialProvider
+	AllowHTTPForTesting bool
+	RequestTimeout      time.Duration
+	MaxResponseBytes    int
+	MaxAttempts         int
+	MaxConcurrent       int
+	RetryDelay          time.Duration
+	ReferenceLimits     schemaregistry.GraphLimits
+	Canonicalizers      map[schemaregistry.Format]schemaregistry.Canonicalizer
+}
+    Config defines endpoint policy, one total request budget, response bounds,
+    and explicit format implementations.
+
+type CredentialProvider interface {
+	Authorization(context.Context) (string, error)
+}
+    CredentialProvider returns an Authorization header value for the configured
+    endpoint only. It must not include schema contents in errors.
+
+type ProtobufFramer struct {
+	// Has unexported fields.
+}
+    ProtobufFramer implements Confluent wire version 0 including the Protobuf
+    message-index vector. Message indexes select one nested descriptor and are
+    deliberately exposed rather than hidden in the value codec.
+
+func NewProtobufFramer(scope string, maxPayloadBytes, maxMessageIndexes int) (*ProtobufFramer, error)
+    NewProtobufFramer constructs a bounded Confluent Protobuf framer.
+
+func (framer *ProtobufFramer) FrameMessage(
+	ctx context.Context,
+	id schemaregistry.ProviderID,
+	messageIndexes []int,
+	payload []byte,
+) ([]byte, error)
+    FrameMessage frames one Protobuf payload and its descriptor index path.
+
+func (framer *ProtobufFramer) UnframeMessage(
+	ctx context.Context,
+	framed []byte,
+) (schemaregistry.ProviderID, []int, []byte, error)
+    UnframeMessage parses one bounded Confluent Protobuf frame.
+
+type Provider struct {
+	// Has unexported fields.
+}
+    Provider is safe for concurrent use when its supplied dependencies are.
+
+func New(config Config) (*Provider, error)
+    New validates endpoint and resource policy before any I/O.
+
+func (provider *Provider) Capabilities() schemaregistry.Capabilities
+    Capabilities returns an immutable snapshot of Confluent semantics.
+
+func (provider *Provider) CheckCompatibility(ctx context.Context, request schemaregistry.CompatibilityRequest) (schemaregistry.CompatibilityResult, error)
+    CheckCompatibility checks the candidate only when the configured subject
+    mode matches the requested mode.
+
+func (provider *Provider) Delete(ctx context.Context, request schemaregistry.DeleteRequest) (schemaregistry.DeleteResult, error)
+    Delete resolves the exact target first and refuses deletion unless its
+    portable fingerprint matches the caller's confirmation guard.
+
+func (provider *Provider) List(ctx context.Context, request schemaregistry.ListRequest) (schemaregistry.ListPage, error)
+    List returns a bounded, deterministic page of subject descriptors. Confluent
+    does not expose portable fingerprints or schema versions in its subject-list
+    response, so those fields remain unset.
+
+func (provider *Provider) Register(ctx context.Context, request schemaregistry.RegisterRequest) (schemaregistry.RegisterResult, error)
+    Register performs exact-content lookup before idempotent registration.
+
+func (provider *Provider) Resolve(ctx context.Context, lookup schemaregistry.Lookup) (schemaregistry.ResolveResult, error)
+    Resolve loads one schema by an advertised Confluent selector and resolves
+    its bounded reference graph.
