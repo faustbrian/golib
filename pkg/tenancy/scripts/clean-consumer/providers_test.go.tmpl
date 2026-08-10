@@ -1,0 +1,144 @@
+package consumer_test
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"testing"
+	"time"
+
+	"github.com/faustbrian/golib/pkg/audit"
+	auditmemory "github.com/faustbrian/golib/pkg/audit/memory"
+	cachepkg "github.com/faustbrian/golib/pkg/cache"
+	cachememory "github.com/faustbrian/golib/pkg/cache/backend/memory"
+	golibevents "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib"
+	"github.com/faustbrian/golib/pkg/queue/job"
+	"github.com/faustbrian/golib/pkg/search"
+	"github.com/faustbrian/golib/pkg/search/searchtest"
+	telemetrymetric "github.com/faustbrian/golib/pkg/telemetry/metric"
+	"github.com/faustbrian/golib/pkg/tenancy"
+	"github.com/faustbrian/golib/pkg/workflow"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	"go.opentelemetry.io/otel/sdk/metric/metricdata"
+)
+
+type tenantCache struct {
+	values      *cachepkg.Cache[string, string]
+	integration *tenancy.Integration
+	encoder     *tenancy.NamespaceEncoder
+}
+
+func newTenantCache(t *testing.T) *tenantCache {
+	t.Helper()
+	backend, err := cachememory.New(cachememory.Config{MaxEntries: 32, MaxBytes: 1 << 20, Clock: cachepkg.SystemClock{}})
+	if err != nil { t.Fatal(err) }
+	keys, err := cachepkg.NewKeySpace("tenant", "orders", 1, cachepkg.StringKeyEncoder{}, 256)
+	if err != nil { t.Fatal(err) }
+	values, err := cachepkg.New(cachepkg.Config[string, string]{
+		Backend: backend, Keys: keys, Codec: cachepkg.JSONCodec[string]{Version: 1},
+		TTL: cachepkg.TTLPolicy{TTL: time.Hour}, Clock: cachepkg.SystemClock{}, MaxValue: 1024,
+	})
+	if err != nil { t.Fatal(err) }
+	t.Cleanup(func() { _ = values.Close(); _ = backend.Close() })
+	integration, _ := tenancy.NewIntegration(tenancy.BoundaryCache, tenancy.PropagationOptions{})
+	encoder, _ := tenancy.NewNamespaceEncoder([]byte("0123456789abcdef0123456789abcdef"))
+	return &tenantCache{values: values, integration: integration, encoder: encoder}
+}
+
+func (cache *tenantCache) key(ctx context.Context, logical string) (string, error) {
+	tenant, err := tenancy.RequireTenant(ctx)
+	if err != nil { return "", err }
+	scope, err := tenancy.NewTenantScope(tenant, tenancy.Metadata{})
+	if err != nil { return "", err }
+	return cache.integration.Key(cache.encoder, scope, logical)
+}
+
+func (cache *tenantCache) set(ctx context.Context, logical, value string) error {
+	key, err := cache.key(ctx, logical)
+	if err != nil { return err }
+	return cache.values.Set(ctx, key, value)
+}
+
+func (cache *tenantCache) get(ctx context.Context, logical string) (cachepkg.Result[string], error) {
+	key, err := cache.key(ctx, logical)
+	if err != nil { return cachepkg.Result[string]{}, err }
+	return cache.values.Get(ctx, key)
+}
+
+func tenantContext(t *testing.T, tenant string) context.Context {
+	t.Helper()
+	scope, err := tenancy.NewTenantScope(tenancy.MustTenantID(tenant), tenancy.Metadata{})
+	if err != nil { t.Fatal(err) }
+	ctx, err := tenancy.WithScope(context.Background(), scope)
+	if err != nil { t.Fatal(err) }
+	return ctx
+}
+
+func TestRealCacheAndSearchProvidersDoNotCrossTenantStorage(t *testing.T) {
+	cache := newTenantCache(t)
+	a, b := tenantContext(t, "tenant-a"), tenantContext(t, "tenant-b")
+	if err := cache.set(a, "order-42", "a-secret"); err != nil { t.Fatal(err) }
+	if result, err := cache.get(b, "order-42"); err != nil || result.State != cachepkg.Miss { t.Fatalf("tenant-b cache read = %#v, %v", result, err) }
+	if err := cache.set(b, "order-42", "b-secret"); err != nil { t.Fatal(err) }
+	if result, _ := cache.get(a, "order-42"); result.Value != "a-secret" { t.Fatalf("tenant-a cache value = %q", result.Value) }
+	if err := cache.set(context.Background(), "order-42", "unscoped"); !errors.Is(err, tenancy.ErrTenantScopeRequired) { t.Fatalf("unscoped cache error = %v", err) }
+
+	provider, err := searchtest.NewFake(search.DefaultLimits())
+	if err != nil { t.Fatal(err) }
+	for _, tenant := range []string{"tenant-a", "tenant-b"} {
+		document, err := search.NewDocument(tenant, "orders", "42", 1, json.RawMessage(`{"owner":"`+tenant+`"}`), search.DefaultLimits())
+		if err != nil { t.Fatal(err) }
+		if _, err := provider.Write(context.Background(), search.IndexDocument(document), search.RefreshWaitFor); err != nil { t.Fatal(err) }
+	}
+	result, err := provider.Search(context.Background(), search.Request{Tenant: "tenant-a", Index: "orders", Query: search.MatchAllQuery{}, Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}}, Page: search.OffsetPage{Size: 10}})
+	if err != nil || len(result.Hits()) != 1 || string(result.Hits()[0].Source) != `{"owner":"tenant-a"}` { t.Fatalf("tenant-a search = %#v, %v", result.Hits(), err) }
+}
+
+func TestQueueReplayWorkflowRetryAndAuditAttributionRejectTenantChanges(t *testing.T) {
+	message := job.Message{Timeout: time.Minute, Body: []byte(`{"order":42}`), Metadata: &job.Metadata{OriginalID: "job-42", JobType: "order.process", ContentType: "application/json", TenantID: "tenant-a"}}
+	event, retained, _, err := golibevents.QueueToCloudEvent(message, golibevents.QueueOptions{Source: "urn:orders"})
+	if err != nil { t.Fatal(err) }
+	retained.Metadata.TenantID = "tenant-b"
+	if _, _, err := golibevents.CloudEventToQueue(event, retained); !errors.Is(err, golibevents.ErrMetadataCollision) { t.Fatalf("cross-tenant replay error = %v", err) }
+
+	now := time.Now().UTC()
+	work, err := workflow.NewPendingWork(workflow.PendingWorkSpec{ID: "work-42", Kind: workflow.WorkActivity, InstanceID: "order-42", Sequence: 1, AvailableAt: now, Deadline: now.Add(time.Minute), TenantID: "tenant-a"})
+	if err != nil { t.Fatal(err) }
+	if work.TenantID() != "tenant-a" { t.Fatalf("workflow tenant = %q", work.TenantID()) }
+	if _, err := workflow.NewPendingWork(workflow.PendingWorkSpec{ID: "work-43", Kind: workflow.WorkActivity, InstanceID: "order-42", Sequence: 2, AvailableAt: now, Deadline: now.Add(time.Minute), TenantID: " bad "}); err == nil { t.Fatal("workflow accepted malformed retry tenant") }
+
+	store, err := auditmemory.New(auditmemory.Config{MaxRecords: 4, MaxBytes: 1 << 20, MaxBatchRecords: 4})
+	if err != nil { t.Fatal(err) }
+	redactor, _ := audit.NewRedactor(audit.RedactionRules{})
+	recorder, _ := audit.NewRecorder(audit.RecorderConfig{Sink: store, Redactor: redactor, Mode: audit.DeliveryFailClosed})
+	sequence := 0
+	builder, _ := audit.NewBuilder(audit.BuilderConfig{Clock: func() time.Time { return now }, IDGenerator: func() (string, error) { sequence++; return "audit-"+string(rune('0'+sequence)), nil }})
+	for _, tenant := range []string{"tenant-a", "tenant-b"} {
+		record, err := builder.Build(audit.RecordInput{OccurredAt: now, Action: "support.impersonation", Outcome: audit.OutcomeSucceeded, Actor: audit.ActorInput{Kind: audit.ActorHuman, ID: "support-7"}, Subject: audit.SubjectInput{Type: "tenant", ID: tenant}, Context: audit.ContextInput{TenantID: tenant, IdempotencyID: "case-42/"+tenant}, Changes: audit.ChangeSetInput{NoChange: true}})
+		if err != nil { t.Fatal(err) }
+		if _, err := recorder.Submit(context.Background(), record); err != nil { t.Fatal(err) }
+	}
+	tenantA, _ := audit.Tenant("tenant-a")
+	query, _ := audit.NewQuery(audit.QueryInput{Tenant: tenantA, Limit: 4})
+	page, err := store.Query(context.Background(), query)
+	if err != nil || len(page.Records) != 1 || page.Records[0].Actor().ID() != "support-7" { t.Fatalf("tenant audit page = %#v, %v", page.Records, err) }
+}
+
+func TestTelemetryDropsTenantIdentityAndBoundsCardinality(t *testing.T) {
+	options, err := telemetrymetric.Options(telemetrymetric.Config{CardinalityLimit: 2, Views: []telemetrymetric.ViewConfig{{Name: "orders.processed", AllowedAttributes: []attribute.Key{"outcome"}}}})
+	if err != nil { t.Fatal(err) }
+	reader := sdkmetric.NewManualReader()
+	provider := sdkmetric.NewMeterProvider(append(options, sdkmetric.WithReader(reader))...)
+	t.Cleanup(func() { _ = provider.Shutdown(context.Background()) })
+	counter, err := provider.Meter("consumer").Int64Counter("orders.processed")
+	if err != nil { t.Fatal(err) }
+	for _, tenant := range []string{"tenant-a", "tenant-b", "tenant-c"} { counter.Add(context.Background(), 1, metric.WithAttributes(attribute.String("tenant.id", tenant), attribute.String("outcome", "ok"))) }
+	var collected metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &collected); err != nil { t.Fatal(err) }
+	points := collected.ScopeMetrics[0].Metrics[0].Data.(metricdata.Sum[int64]).DataPoints
+	if len(points) != 1 { t.Fatalf("metric points = %#v", points) }
+	_, tenantPresent := points[0].Attributes.Value(attribute.Key("tenant.id"))
+	if points[0].Attributes.Len() != 1 || tenantPresent { t.Fatalf("metric points retained tenant identity: %#v", points) }
+}
