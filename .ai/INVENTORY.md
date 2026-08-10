@@ -91,7 +91,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
 | 41 | Protocol | `pending` | `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1, 13, 19 |
-| 45 | Event contracts | `pending` | `pkg/schema-registry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26 |
 | 46 | Event interoperability | `pending` | `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-35, 43, 45 |
 | 47 | Durable orchestration | `pending` | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 27-35, 43, 44, 46 |
 | 48 | Search | `pending` | `pkg/search/.ai/GOAL_HARDEN.md` | 3-18, 29-32, 43 |
@@ -139,10 +138,24 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 42. Current scoped evidence verifies canonical scoped capabilities and signed URLs, key lifecycle, replay and revocation adapters, hardening requirements, and every mandatory capability-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/tenancy/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 43. Current scoped evidence verifies explicit tenant identity, propagation, namespaces, administration, PostgreSQL/RLS, asynchronous lifecycle, hardening, documentation, and every mandatory tenancy-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/audit/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 44. Current scoped evidence verifies immutable bounded audit records, explicit delivery and privacy policy, deterministic integrity, bounded query/export and retention contracts, the memory adapter, the durable PostgreSQL adapter, hardening requirements, and every mandatory audit-module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/schema-registry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 45. Current scoped evidence verifies provider-neutral schema identity and capability contracts, bounded caches and offline bundles, explicit wire integration, Confluent Platform interoperability, AWS Glue Java SerDe interoperability, hardening requirements, and every locally executable mandatory affected-module gate. The credentialed live AWS Glue service run remains an explicit pull-request verification gap rather than a completion blocker. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
+
+### Schema registry contracts evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/schema-registry/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Provider-neutral schema content and identity, explicit provider capabilities and outcomes, bounded compatibility and reference operations, positive and negative caches, immutable offline bundles, explicit codecs and wire frames, and separately releasable Confluent and AWS Glue adapters. |
+| Status | `pending` to `verified` |
+| Evidence | Package-local core, format, Confluent, and Glue checks; exact coverage and mutation; race, fuzz, leak, stress, soak, fault, API, documentation, security, supply-chain, clean-consumer, benchmark, migration and rollback exercises; Confluent Platform 8.2.0 integration with franz-go; and AWS Glue Java SerDe 1.1.27 wire differential testing. |
+| Result | Passed exact 100.0% statement coverage in every production package; killed 309/309 core and format, 213/213 Confluent, and 83/83 Glue viable mutants with 100% efficacy and mutator coverage; passed the complete locally executable affected-module gates and independent-client interoperability. |
+| Environment | Go 1.26.5 on darwin/arm64 with a fresh task-owned disposable `GOCACHE` removed after every bounded Go or mutation run; pinned Confluent Platform 8.2.0 containers and the pinned AWS Glue Java SerDe 1.1.27 reference implementation. |
+| Observed | 2026-08-10 |
+| Gaps | The credentialed live AWS Glue service integration was not run because no non-production region, registry, or schema identifiers were available. This boundary must be stated explicitly in the pull request; it does not block completion per maintainer direction. |
 
 ### Feature flag fleet resilience evidence
 
