@@ -164,8 +164,6 @@ func TestAggregateVerifierQueriesBoundInitialDeduplicationCapacity(t *testing.T)
 }
 
 func TestGrowAggregateVerifierQueriesCapsAllocatedCapacity(t *testing.T) {
-	t.Parallel()
-
 	queries := make([]AggregateVerifierQuery, 2)
 	same, err := growAggregateVerifierQueries(queries, 5, cap(queries))
 	if err != nil {
