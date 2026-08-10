@@ -175,7 +175,8 @@ func (request ChildStartRequest) valid() bool {
 		request.childDefinition.valid() && request.attempt > 0 && request.attempt <= request.maxAttempts &&
 		instanceIDPattern.MatchString(request.idempotencyKey) && !request.startedAt.IsZero() &&
 		request.deadline.After(request.startedAt) && request.inputLimit > 0 &&
-		len(request.input) <= int(request.inputLimit)
+		len(request.input) <= int(request.inputLimit) &&
+		optionalMetadataValid(request.tenantID) && optionalMetadataValid(request.correlationID)
 }
 
 // ChildStarter creates or observes one pinned child using the supplied stable
