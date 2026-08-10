@@ -339,6 +339,9 @@ under a two-second context while the broker is down. The timed and
 allocation-counted boundary starts
 after the broker is ready again and ends only after the same client returns the
 exact pre-failure three-partition metadata, offset, and durability state.
+Readiness is proven through a new, independently closed franz-go admin client
+that observes all three topic leaders after every restart; an old lifecycle-log
+match or a stable mapped port is not accepted as broker readiness.
 Docker control, broker shutdown and startup, the deliberate failed request,
 fixture construction, topic creation, client construction, warm-up, and
 shutdown are outside the reported reconnect boundary.

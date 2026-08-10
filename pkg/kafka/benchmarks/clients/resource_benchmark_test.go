@@ -31,7 +31,10 @@ import (
 
 var benchmarkFixtureRestartMu sync.Mutex
 
-const benchmarkReconnectDownTimeout = 2 * time.Second
+const (
+	benchmarkReconnectDownTimeout  = 2 * time.Second
+	benchmarkFixtureStartupTimeout = 2 * time.Minute
+)
 
 type reconnectInspectionMeasurement struct {
 	duration       time.Duration
@@ -95,6 +98,7 @@ func BenchmarkEquivalentInspectionReconnect(benchmark *testing.B) {
 					fixture,
 					inspector,
 					topic,
+					len(want.partitions),
 					benchmarkInspectionOperationTimeout,
 				)
 				if err != nil {
@@ -217,6 +221,7 @@ func TestEquivalentInspectionReconnectOutcomes(t *testing.T) {
 				fixture,
 				inspector,
 				topic,
+				len(before.partitions),
 				benchmarkInspectionOperationTimeout,
 			)
 			if err != nil {
@@ -273,6 +278,7 @@ func reconnectInspection(
 	fixture *restartBenchmarkFixture,
 	inspector benchmarkInspector,
 	topic string,
+	partitionCount int,
 	timeout time.Duration,
 ) (
 	benchmarkInspectionTopic,
@@ -304,7 +310,10 @@ func reconnectInspection(
 		)
 	}
 
-	startCtx, startCancel := context.WithTimeout(context.Background(), 2*timeout)
+	startCtx, startCancel := context.WithTimeout(
+		context.Background(),
+		benchmarkFixtureStartupTimeout,
+	)
 	err = fixture.container.Start(startCtx)
 	startCancel()
 	if err != nil {
@@ -326,6 +335,23 @@ func reconnectInspection(
 	if !slices.Equal(restartedBrokers, fixture.brokers) {
 		return benchmarkInspectionTopic{}, reconnectInspectionMeasurement{}, errors.New(
 			"benchmark broker address changed after restart",
+		)
+	}
+	readyCtx, readyCancel := context.WithTimeout(
+		context.Background(),
+		benchmarkFixtureStartupTimeout,
+	)
+	err = waitForRestartedBenchmarkBroker(
+		readyCtx,
+		restartedBrokers,
+		topic,
+		partitionCount,
+	)
+	readyCancel()
+	if err != nil {
+		return benchmarkInspectionTopic{}, reconnectInspectionMeasurement{}, fmt.Errorf(
+			"wait for restarted benchmark broker: %w",
+			err,
 		)
 	}
 
@@ -364,6 +390,64 @@ func reconnectInspection(
 				reconnectCtx.Err(),
 				reconnectErr,
 			)
+		case <-retry.C:
+		}
+	}
+}
+
+func waitForRestartedBenchmarkBroker(
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	partitionCount int,
+) error {
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(brokers...),
+		kgo.ClientID("golib-client-benchmark-restart-readiness"),
+		kgo.DialTimeout(benchmarkRequestTimeout),
+		kgo.MetadataMinAge(benchmarkRetryMin),
+	)
+	if err != nil {
+		return fmt.Errorf("construct restart readiness client: %w", err)
+	}
+	defer client.Close()
+	admin := kadm.NewClient(client)
+	retry := time.NewTicker(benchmarkRetryMin)
+	defer retry.Stop()
+	readinessErr := errors.New("restarted benchmark broker is not ready")
+	for {
+		attemptCtx, attemptCancel := context.WithTimeout(
+			ctx,
+			benchmarkRequestTimeout,
+		)
+		details, listErr := admin.ListTopics(attemptCtx, topic)
+		attemptCancel()
+		if listErr == nil {
+			detail, exists := details[topic]
+			ready := exists && detail.Err == nil &&
+				len(detail.Partitions) == partitionCount
+			for _, partition := range detail.Partitions {
+				if partition.Err != nil || partition.Leader < 0 {
+					ready = false
+					break
+				}
+			}
+			if ready {
+				return nil
+			}
+			if exists && detail.Err != nil {
+				readinessErr = detail.Err
+			} else {
+				readinessErr = errors.New(
+					"restarted benchmark topic metadata is incomplete",
+				)
+			}
+		} else {
+			readinessErr = listErr
+		}
+		select {
+		case <-ctx.Done():
+			return errors.Join(ctx.Err(), readinessErr)
 		case <-retry.C:
 		}
 	}
@@ -730,7 +814,10 @@ func newRestartBenchmarkFixture(t testing.TB) *restartBenchmarkFixture {
 	if err := listener.Close(); err != nil {
 		t.Fatalf("release benchmark broker port: %v", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	ctx, cancel := context.WithTimeout(
+		context.Background(),
+		benchmarkFixtureStartupTimeout,
+	)
 	defer cancel()
 	container, err := tckafka.Run(
 		ctx,

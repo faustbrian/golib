@@ -174,6 +174,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- require fresh topic-leader metadata after each comparison-fixture restart
+  before measuring inspection reconnect behavior, preventing stale container
+  lifecycle logs from admitting a broker that is not operational yet
 - separate active release blockers from accepted conditional non-claims so
   optional unsupported profiles are not misreported as unresolved Medium
   release findings
