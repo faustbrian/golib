@@ -79,7 +79,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 12 | Integration | `pending-reexecution` | `pkg/cache/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 8 |
 | 13 | Integration | `pending-reexecution` | `pkg/http-client/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | 3, 6-11 |
 | 14 | Verification | `pending-reexecution` | `pkg/fault-injection/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-13 |
-| 18 | Fleet | `pending-reexecution` | `pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md` | 3-17 |
 | 19 | Security | `pending-reexecution` | `pkg/secret-envelope/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 20 | Security | `pending-reexecution` | `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
@@ -135,7 +134,8 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/search/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 48 has current scoped evidence for backend-neutral contracts, bounded indexing and pagination, migration and reconciliation, the deterministic fake, OpenSearch production adoption, and every mandatory affected-package gate; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/search/adapters/opensearch/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 49. Current scoped evidence verifies the production OpenSearch adapter, hardening requirements, OpenSearch 2.19.3 and 3.6.0 compatibility, exact coverage and mutation, and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/settings/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 16. Current scoped evidence verifies immutable bounded snapshots, explicit per-class degradation, monotonic writes and reads, bounded fleet convergence and lifecycle, PostgreSQL and Valkey interoperability, and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/service/.ai/GOAL_RESILIENCE.md` | `verified` | The base resilience goal formerly included in pending order 18 has current lifecycle, adoption, Kubernetes, exact coverage and mutation, documentation, API, security, supply-chain, race, and benchmark evidence; its separate `GOAL_RESILIENCE_HARDEN.md` remains pending. |
+| `pkg/service/.ai/GOAL_RESILIENCE.md` | `verified` | The base resilience goal formerly included in pending order 18 has current lifecycle, adoption, Kubernetes, exact coverage and mutation, documentation, API, security, supply-chain, race, and benchmark evidence. |
+| `pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md` | `verified` | Former pending order 18. Current scoped evidence verifies every stateful-policy lifecycle, admission and shutdown races, honest bounded drain, dependency-failure liveness, bounded fleet amplification, explicit resilience architecture, and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/capability/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 42. Current scoped evidence verifies canonical scoped capabilities and signed URLs, key lifecycle, replay and revocation adapters, hardening requirements, and every mandatory capability-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/tenancy/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 43 has current scoped evidence for explicit tenant identity, propagation, namespaces, administration, PostgreSQL/RLS, asynchronous lifecycle, documentation, and every mandatory tenancy-module gate. |
 | `pkg/tenancy/.ai/GOAL_HARDEN.md` | `verified` | The hardening goal formerly included in pending order 43 has current scoped evidence for fail-closed identity propagation, cross-tenant isolation at every supported boundary, hostile inputs, failure injection, concurrency, external interoperability, and every mandatory tenancy-module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -224,7 +224,20 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Result | Passed every mandatory affected-package gate, including exact 1368/1368, 124/124, 49/49, and 181/181 production statements; 765/765 viable mutants killed with 100% efficacy and mutant coverage; race, leak-sensitive lifecycle tests, four 10,000-execution fuzz targets, API, documentation, vulnerability, secrets, licenses, SBOM, clean-consumer interoperability, benchmarks, and the pinned kind v0.31.0 / Kubernetes v1.35.0 lifecycle contract. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each run; Docker 29.6.2 and the digest-pinned Kubernetes node image for the disposable-cluster gate. |
 | Observed | 2026-08-09T10:05:22Z |
-| Gaps | None within the scoped base resilience contract; `pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md` remains a separate pending campaign. |
+| Gaps | None within the scoped base resilience contract. The separate `pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md` campaign is recorded below. |
+
+### Service resilience integration hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/service/.ai/GOAL_RESILIENCE_HARDEN.md` |
+| Scope | Startup, readiness, overload, drain, shutdown, repeated shutdown, failure, SIGTERM, and termination deadlines across stateful policy lifecycles; inbound admission and outbound attempt races; dependency-outage liveness; queued and uncooperative drain behavior; replica scaling, mixed revisions, cold policy state, backend outage, HPA feedback, and fleet amplification; and architecture boundaries for policy composition, algorithms, registries, resilience dependencies, and metric identity. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | Current `pkg/service` contract; the current catalog-enabled `pkg/service/integration/adoption` contract, including its race gate; exact package coverage and mutation artifacts; the pinned kind v0.31.0 / Kubernetes v1.35.0 lifecycle report; clean-consumer and compatibility races; and current repository inventory validation. |
+| Result | Passed every mandatory affected-package gate. Production coverage is exactly 1373/1373 root, 124/124 `healthhttp`, 49/49 `integration`, and 181/181 `serverhttp` statements. Mutation killed 623/623 root, 50/50 `healthhttp`, 20/20 `integration`, and 72/72 `serverhttp` viable mutants, with zero lived, uncovered, timed-out, nonviable, or skipped mutants. Race, leak-sensitive lifecycle, fault, four 10,000-execution fuzz targets, adoption, API, documentation, vulnerability, secrets, licenses, SBOM, clean-consumer interoperability, benchmark, compatibility, and Kubernetes lifecycle gates passed. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run; Docker 29.6.2 and the digest-pinned Kubernetes node image for the disposable-cluster gate. |
+| Observed | 2026-08-10 |
+| Gaps | None within the scoped hardening contract. NilAway remains advisory with its diagnostics visible, and the SBOM gate retains its non-failing isolated-snapshot main-module-version warning. |
 
 ### Explicit tenant isolation base evidence
 

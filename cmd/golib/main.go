@@ -470,7 +470,7 @@ func discover(root string) (catalog, error) {
 		}
 		moduleSpecifications := specifications(directory)
 		moduleCorpora := conformanceCorpora(directory)
-		moduleGates := gates(kind, hasDefaultFiles)
+		moduleGates := gates(directory, kind, hasDefaultFiles)
 		moduleGates["conformance"] = conformanceRequired(
 			kind,
 			moduleSpecifications,
@@ -1681,8 +1681,9 @@ func implementationEvidence(root, directory, goal string) ([]string, error) {
 	return result, nil
 }
 
-func gates(kind string, hasPackages bool) map[string]bool {
+func gates(directory, kind string, hasPackages bool) map[string]bool {
 	production := kind == "public library" || kind == "adapter"
+	raceRequired := production || directory == "pkg/service/integration/adoption"
 	return map[string]bool{
 		"api_compatibility": production,
 		"benchmarks":        production,
@@ -1691,7 +1692,7 @@ func gates(kind string, hasPackages bool) map[string]bool {
 		"fuzz":              production,
 		"lint":              kind != "fixture" && hasPackages,
 		"mutation":          production,
-		"race":              production,
+		"race":              raceRequired,
 		"security":          kind != "fixture" && hasPackages,
 		"tests":             kind != "fixture" && hasPackages,
 	}
