@@ -19,9 +19,6 @@ documented in each module's changelog.
 
 ### Fixed
 
-- Provision required backing services independently for every stateful quality
-  gate, preventing tests, fuzzing, or mutation subprocesses from contaminating
-  later verification while avoiding containers for service-free gates.
 - Reject specification decision registers that omit their unresolved-decision
   inventory or leave it open outside a stable release-blocking decision entry.
 - Require superseded specification decisions to reference a different existing
