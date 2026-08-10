@@ -515,6 +515,9 @@ All notable changes to this module are documented here.
   replay recovery, disaster recovery, capacity, dashboards, alerts, and SLOs;
   plus migration, upgrade, rollback, troubleshooting, FAQ, glossary, and
   explicitly unverified Amazon MSK/ECS deployment guidance
+- a consolidated topic design guide covering keying, partition expansion,
+  replication, ISR, retention, compaction, tombstones, size policy, and
+  deployment inspection responsibilities
 
 ### Changed
 

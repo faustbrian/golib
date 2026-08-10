@@ -398,7 +398,8 @@ See the [current audit](docs/audit.md), [compatibility matrix](docs/compatibilit
 [documentation index](docs/README.md), [guarantees](docs/guarantees.md),
 [public conformance suites](docs/conformance.md),
 [observability](docs/observability.md), [performance evidence](docs/performance.md),
-[operations](docs/operations.md), [operational runbooks](docs/runbooks.md),
+[operations](docs/operations.md), [topic and partition design](docs/topic-design.md),
+[operational runbooks](docs/runbooks.md),
 [migration and upgrades](docs/migration.md),
 [troubleshooting and glossary](docs/troubleshooting.md),
 [Amazon MSK and ECS deployment](docs/aws-msk-ecs.md), and

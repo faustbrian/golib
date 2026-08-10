@@ -17,6 +17,7 @@
 - [Observability hooks, slog, and OpenTelemetry adapters](observability.md)
 - [Performance evidence and benchmark matrix](performance.md)
 - [Operations](operations.md)
+- [Topic, keying, partitioning, replication, ISR, retention, and compaction](topic-design.md)
 - [Operational runbooks, capacity, dashboards, alerts, and disaster recovery](runbooks.md)
 - [Migration, deprecation, upgrades, and rollback](migration.md)
 - [Troubleshooting, FAQ, and glossary](troubleshooting.md)
