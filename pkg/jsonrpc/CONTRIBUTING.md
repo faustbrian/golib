@@ -37,7 +37,8 @@ Preserve JSON-RPC 2.0 request, notification, ID, batch, response, and error sema
 ### Specification decision review
 
 Changes to parsing, validation, serialization, resolution, transport mapping,
-or protocol behavior MUST review `docs/specification-decisions.md`. Update an
+or protocol behavior MUST review the
+[specification decision register](docs/specification-decisions.md). Update an
 existing stable decision instead of silently changing it. A newly discovered
 ambiguity MUST remain visibly unresolved until its normative source, credible
 interpretations, selected behavior, consequences, executable evidence, and

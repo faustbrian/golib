@@ -148,6 +148,12 @@ func validateSpecificationDecisionModule(root string, item module) error {
 		problems = append(problems, fmt.Errorf("read decision register: %w", err))
 		return errors.Join(problems...)
 	}
+	if err := validateSpecificationDecisionLinks(
+		filepath.Join(root, item.Directory),
+		registerPath,
+	); err != nil {
+		problems = append(problems, err)
+	}
 	decisions, parseErr := parseSpecificationDecisions(string(contents))
 	if parseErr != nil {
 		problems = append(problems, parseErr)
@@ -170,6 +176,78 @@ func validateSpecificationDecisionModule(root string, item module) error {
 		}
 	}
 	return errors.Join(problems...)
+}
+
+func validateSpecificationDecisionLinks(moduleRoot, registerPath string) error {
+	problems := []error{}
+	type decisionLinkDocument struct {
+		relative string
+		required bool
+	}
+	documents := []decisionLinkDocument{
+		{relative: "README.md", required: true},
+		{relative: "CONTRIBUTING.md"},
+	}
+	for _, pattern := range []string{"docs/conformance*.md", "docs/compatib*.md"} {
+		matches, err := filepath.Glob(filepath.Join(moduleRoot, filepath.FromSlash(pattern)))
+		if err != nil {
+			problems = append(problems, fmt.Errorf("discover %s: %w", pattern, err))
+			continue
+		}
+		for _, match := range matches {
+			relative, err := filepath.Rel(moduleRoot, match)
+			if err != nil {
+				problems = append(problems, fmt.Errorf("resolve documentation path %s: %w", match, err))
+				continue
+			}
+			documents = append(
+				documents,
+				decisionLinkDocument{relative: filepath.ToSlash(relative)},
+			)
+		}
+	}
+
+	for _, document := range documents {
+		path := filepath.Join(moduleRoot, filepath.FromSlash(document.relative))
+		contents, err := os.ReadFile(path)
+		if errors.Is(err, fs.ErrNotExist) && !document.required {
+			continue
+		}
+		if err != nil {
+			problems = append(problems, fmt.Errorf("read %s: %w", document.relative, err))
+			continue
+		}
+		if !markdownLinksToFile(path, registerPath, contents) {
+			problems = append(
+				problems,
+				fmt.Errorf("%s does not link docs/specification-decisions.md", document.relative),
+			)
+		}
+	}
+
+	return errors.Join(problems...)
+}
+
+func markdownLinksToFile(documentPath, targetPath string, contents []byte) bool {
+	for _, match := range markdownLinkPattern.FindAllSubmatch(contents, -1) {
+		target := strings.Trim(strings.TrimSpace(string(match[1])), "<>")
+		parsed, err := url.Parse(target)
+		if err != nil || parsed.IsAbs() || parsed.Path == "" {
+			continue
+		}
+		decoded, err := url.PathUnescape(parsed.Path)
+		if err != nil {
+			continue
+		}
+		candidate := filepath.Clean(filepath.Join(
+			filepath.Dir(documentPath),
+			filepath.FromSlash(decoded),
+		))
+		if candidate == filepath.Clean(targetPath) {
+			return true
+		}
+	}
+	return false
 }
 
 func validateSpecificationProvenance(root, moduleDirectory, provenance string) error {

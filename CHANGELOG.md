@@ -13,6 +13,9 @@ documented in each module's changelog.
   executable evidence. The validator supports deterministic all-module and
   explicit module selections through the same root command convention as the
   remaining repository gates.
+- Require each specification-backed module README and every existing
+  conformance, compatibility, and contribution guide to link the canonical
+  decision register instead of merely naming its path as code.
 
 ### Fixed
 

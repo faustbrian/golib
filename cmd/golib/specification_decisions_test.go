@@ -92,6 +92,60 @@ func TestValidateSpecificationDecisionsFailsClosed(t *testing.T) {
 			wantError: "decision register",
 		},
 		{
+			name: "readme does not link decision register",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				mustWriteFile(t, filepath.Join(root, "pkg/example/README.md"), "# Example\n")
+			},
+			wantError: "README.md does not link",
+		},
+		{
+			name: "missing readme",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				if err := os.Remove(filepath.Join(root, "pkg/example/README.md")); err != nil {
+					t.Fatal(err)
+				}
+			},
+			wantError: "read README.md",
+		},
+		{
+			name: "conformance documentation does not link decision register",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				mustWriteFile(t, filepath.Join(root, "pkg/example/docs/conformance.md"), "# Conformance\n")
+			},
+			wantError: "docs/conformance.md does not link",
+		},
+		{
+			name: "compatibility documentation does not link decision register",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				mustWriteFile(t, filepath.Join(root, "pkg/example/docs/compatibility.md"), "# Compatibility\n")
+			},
+			wantError: "docs/compatibility.md does not link",
+		},
+		{
+			name: "named compatibility documentation does not link decision register",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				mustWriteFile(
+					t,
+					filepath.Join(root, "pkg/example/docs/compatibility-decisions.md"),
+					"# Compatibility decisions\n",
+				)
+			},
+			wantError: "docs/compatibility-decisions.md does not link",
+		},
+		{
+			name: "contributing documentation does not link decision register",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				mustWriteFile(t, filepath.Join(root, "pkg/example/CONTRIBUTING.md"), "# Contributing\n")
+			},
+			wantError: "CONTRIBUTING.md does not link",
+		},
+		{
 			name: "missing conformance corpus",
 			mutate: func(t *testing.T, _ string, current *catalog) {
 				t.Helper()
@@ -310,6 +364,26 @@ func validSpecificationDecisionFixture(t *testing.T) (string, catalog) {
 		t,
 		filepath.Join(root, "pkg/example/docs/specification-decisions.md"),
 		"# Specification decisions\n\n"+validDecisionEntry("EXAMPLE-DEC-001", "TestSpecificationVector"),
+	)
+	mustWriteFile(
+		t,
+		filepath.Join(root, "pkg/example/README.md"),
+		"# Example\n\nSee the [specification decisions](docs/specification-decisions.md).\n",
+	)
+	mustWriteFile(
+		t,
+		filepath.Join(root, "pkg/example/docs/conformance.md"),
+		"# Conformance\n\nSee the [specification decisions](specification-decisions.md).\n",
+	)
+	mustWriteFile(
+		t,
+		filepath.Join(root, "pkg/example/docs/compatibility.md"),
+		"# Compatibility\n\nSee the [specification decisions](specification-decisions.md).\n",
+	)
+	mustWriteFile(
+		t,
+		filepath.Join(root, "pkg/example/CONTRIBUTING.md"),
+		"# Contributing\n\nSee the [specification decisions](docs/specification-decisions.md).\n",
 	)
 	mustWriteFile(
 		t,

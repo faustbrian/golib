@@ -38,7 +38,8 @@ Separate normative JSON:API requirements, recommendations, official extensions, 
 
 Changes to parsing, validation, serialization, negotiation, extensions,
 profiles, or protocol behavior MUST review
-`docs/specification-decisions.md`. Update a stable decision instead of
+the [specification decision register](docs/specification-decisions.md). Update
+a stable decision instead of
 silently changing it. A newly discovered ambiguity or contradiction MUST stay
 visibly unresolved until its authorities, interpretations, selected behavior,
 consequences, executable evidence, and reconsideration condition are recorded.
