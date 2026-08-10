@@ -41,6 +41,26 @@ func TestBulkRequestIsTenantIsolatedBoundedAndExternallyVersioned(t *testing.T) 
 	}
 }
 
+func TestBulkRequestRejectsUpdateWhenUpdateExistingIsUnsupported(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	document, err := search.NewDocument("tenant-a", "events-write", "event-1", 9, json.RawMessage(`{"status":"delivered"}`), limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	capabilities := search.AllCapabilities()
+	capabilities.UpdateExisting = false
+	request := search.BulkRequest{
+		Operations: []search.WriteOperation{search.UpdateDocument(document)},
+		Refresh:    search.RefreshNone,
+	}
+
+	if err := request.Validate(capabilities, limits); !errors.Is(err, search.ErrUnsupported) {
+		t.Fatalf("Validate() error = %v, want ErrUnsupported", err)
+	}
+}
+
 func TestBulkResultRetainsEveryPartialAndUnknownOutcome(t *testing.T) {
 	t.Parallel()
 

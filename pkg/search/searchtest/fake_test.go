@@ -40,6 +40,44 @@ func TestFakeProvidesDeterministicTenantIsolatedContractBehavior(t *testing.T) {
 	}
 }
 
+func TestFakeKeepsCompositeDocumentIdentitiesDistinct(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	fake, err := searchtest.NewFake(limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	documents := []search.Document{
+		mustDocument(t, "a", "b\x00c", "d", 1, `{"owner":"index"}`, limits),
+		mustDocument(t, "a\x00b", "c", "d", 1, `{"owner":"tenant"}`, limits),
+		mustDocument(t, "a", "b", "c\x00d", 1, `{"owner":"id"}`, limits),
+	}
+	for _, document := range documents {
+		outcome, writeErr := fake.Write(t.Context(), search.IndexDocument(document), search.RefreshNone)
+		if writeErr != nil || outcome.State != search.OutcomeApplied {
+			t.Fatalf("Write(%q, %q, %q) = %#v, %v", document.Tenant, document.Index, document.ID, outcome, writeErr)
+		}
+	}
+
+	for _, document := range documents {
+		result, searchErr := fake.Search(t.Context(), search.Request{
+			Tenant: document.Tenant,
+			Index:  document.Index,
+			Query:  search.MatchAllQuery{},
+			Sort:   []search.Sort{{Field: "_id", Direction: search.Ascending}},
+			Page:   search.OffsetPage{Size: 10},
+		})
+		if searchErr != nil {
+			t.Fatalf("Search(%q, %q) error = %v", document.Tenant, document.Index, searchErr)
+		}
+		hits := result.Hits()
+		if len(hits) != 1 || hits[0].ID != document.ID || string(hits[0].Source) != string(document.Source) {
+			t.Fatalf("Search(%q, %q) = %#v", document.Tenant, document.Index, hits)
+		}
+	}
+}
+
 func TestFakeEnforcesExternalVersionsAndReportsPerItemOutcomes(t *testing.T) {
 	t.Parallel()
 
@@ -94,4 +132,13 @@ func TestFakeRejectsDocumentsBeyondItsConfiguredCapacity(t *testing.T) {
 	if outcome.State != search.OutcomeRejected || outcome.Retryable || outcome.Code != "fake_capacity" {
 		t.Fatalf("outcome = %#v", outcome)
 	}
+}
+
+func mustDocument(t *testing.T, tenant, index, id string, version uint64, source string, limits search.Limits) search.Document {
+	t.Helper()
+	document, err := search.NewDocument(tenant, index, id, version, json.RawMessage(source), limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return document
 }
