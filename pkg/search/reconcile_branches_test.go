@@ -193,3 +193,22 @@ func TestInternalReconcilerRepairBranches(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestInternalReconcilerRejectsMisattributedRepairPosition(t *testing.T) {
+	limits := DefaultLimits()
+	source := &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{validBranchRecord(t, "a", 1)}, Done: true}}}
+	index := &branchReader{pages: []ReconciliationPage{{Done: true}}}
+	result := BulkResult{items: []ItemOutcome{{Position: 1, ID: "a", Action: ActionIndex, State: OutcomeApplied}}}
+	reconciler, err := NewReconciler(source, index, branchRepair{result: result}, limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := reconciler.Run(t.Context(), ReconciliationRequest{Tenant: "t", Index: "i", PageSize: 1, MaxRecords: 1, Repair: true})
+	if !errors.Is(err, ErrRepairPartial) {
+		t.Fatalf("Run() error = %v, want ErrRepairPartial", err)
+	}
+	if report.Complete {
+		t.Fatalf("report.Complete = true for misattributed repair: %#v", report)
+	}
+}

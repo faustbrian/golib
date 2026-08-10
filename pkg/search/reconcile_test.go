@@ -79,6 +79,109 @@ func TestReconcilerRejectsReaderPagesLargerThanRequested(t *testing.T) {
 	}
 }
 
+func TestReconcilerBatchesRepairsWithinTheConfiguredItemLimit(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	limits.MaxBulkItems = 2
+	records := make([]search.ReconciliationRecord, 0, 5)
+	for _, id := range []string{"a", "b", "c", "d", "e"} {
+		document, err := search.NewDocument("tenant-a", "events", id, 1, json.RawMessage(`{"id":"`+id+`"}`), limits)
+		if err != nil {
+			t.Fatal(err)
+		}
+		records = append(records, search.SourceRecord(document))
+	}
+	repair := &repairIndexer{}
+	reconciler, err := search.NewReconciler(
+		&reconciliationReader{records: records},
+		&reconciliationReader{},
+		repair,
+		limits,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := reconciler.Run(t.Context(), search.ReconciliationRequest{Tenant: "tenant-a", Index: "events", PageSize: 5, MaxRecords: 5, Repair: true})
+	if err != nil {
+		t.Fatalf("Run() error = %v", err)
+	}
+	if report.Repaired != 5 || !report.Complete {
+		t.Fatalf("report = %#v", report)
+	}
+	if len(repair.requests) != 3 {
+		t.Fatalf("repair requests = %#v", repair.requests)
+	}
+	wantIDs := [][]string{{"a", "b"}, {"c", "d"}, {"e"}}
+	for batch, request := range repair.requests {
+		if len(request.Operations) != len(wantIDs[batch]) {
+			t.Fatalf("repair batch %d operation count = %d, want %d", batch, len(request.Operations), len(wantIDs[batch]))
+		}
+		for position, operation := range request.Operations {
+			if operation.ID != wantIDs[batch][position] {
+				t.Fatalf("repair batch %d operation %d ID = %q, want %q", batch, position, operation.ID, wantIDs[batch][position])
+			}
+		}
+	}
+}
+
+func TestReconcilerRejectsMisattributedRepairResults(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	documents := make([]search.ReconciliationRecord, 0, 2)
+	for _, id := range []string{"a", "b"} {
+		document, err := search.NewDocument("tenant-a", "events", id, 1, json.RawMessage(`{"id":"`+id+`"}`), limits)
+		if err != nil {
+			t.Fatal(err)
+		}
+		documents = append(documents, search.SourceRecord(document))
+	}
+
+	tests := map[string][]search.ItemOutcome{
+		"missing outcome": {
+			{Position: 0, ID: "a", Action: search.ActionIndex, State: search.OutcomeApplied},
+		},
+		"wrong ID": {
+			{Position: 0, ID: "other", Action: search.ActionIndex, State: search.OutcomeApplied},
+			{Position: 1, ID: "b", Action: search.ActionIndex, State: search.OutcomeApplied},
+		},
+		"wrong action": {
+			{Position: 0, ID: "a", Action: search.ActionDelete, State: search.OutcomeApplied},
+			{Position: 1, ID: "b", Action: search.ActionIndex, State: search.OutcomeApplied},
+		},
+	}
+	for name, outcomes := range tests {
+		name, outcomes := name, outcomes
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			result, err := search.NewBulkResult(outcomes)
+			if err != nil {
+				t.Fatal(err)
+			}
+			repair := &fixedRepairIndexer{result: result}
+			reconciler, err := search.NewReconciler(
+				&reconciliationReader{records: documents},
+				&reconciliationReader{},
+				repair,
+				limits,
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			report, err := reconciler.Run(t.Context(), search.ReconciliationRequest{Tenant: "tenant-a", Index: "events", PageSize: 2, MaxRecords: 2, Repair: true})
+			if !errors.Is(err, search.ErrRepairPartial) {
+				t.Fatalf("Run() error = %v, want ErrRepairPartial", err)
+			}
+			if report.Complete {
+				t.Fatalf("report.Complete = true for misattributed repair: %#v", report)
+			}
+		})
+	}
+}
+
 type oversizedReader struct{ page search.ReconciliationPage }
 
 func (reader oversizedReader) Read(context.Context, string, string, string, int) (search.ReconciliationPage, error) {
@@ -108,4 +211,13 @@ func (r *repairIndexer) Bulk(_ context.Context, request search.BulkRequest) (sea
 		items[index] = search.ItemOutcome{Position: index, ID: operation.ID, Action: operation.Action, State: search.OutcomeApplied, Version: operation.Version}
 	}
 	return search.NewBulkResult(items)
+}
+
+type fixedRepairIndexer struct{ result search.BulkResult }
+
+func (*fixedRepairIndexer) Write(context.Context, search.WriteOperation, search.RefreshPolicy) (search.ItemOutcome, error) {
+	panic("unexpected Write")
+}
+func (r *fixedRepairIndexer) Bulk(context.Context, search.BulkRequest) (search.BulkResult, error) {
+	return r.result, nil
 }
