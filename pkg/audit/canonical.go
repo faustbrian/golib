@@ -206,8 +206,8 @@ func toCanonical(record Record) canonicalRecord {
 		Changes: canonicalChanges{
 			NoChange: record.changes.noChange,
 			Redacted: record.changes.redacted,
-			Before: cloneMap(record.changes.before),
-			After: cloneMap(record.changes.after),
+			Before:   cloneMap(record.changes.before),
+			After:    cloneMap(record.changes.after),
 		},
 		Policy:     canonicalPolicy{record.policy.PolicyID, record.policy.Version},
 		Attributes: cloneMap(record.attributes),
