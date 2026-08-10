@@ -202,7 +202,13 @@ func NewCompensationAttemptStart(spec CompensationAttemptStartSpec) (Transition,
 	}
 	startedAt := canonicalTime(spec.StartedAt)
 	dueAt := canonicalTime(startedAt.Add(step.Compensation.Timeout))
-	if startedAt.Before(work.AvailableAt()) || !startedAt.Before(work.Deadline()) || dueAt.After(work.Deadline()) {
+	if startedAt.Before(work.AvailableAt()) {
+		return Transition{}, ErrInvalidCompensation
+	}
+	if !startedAt.Before(work.Deadline()) {
+		return Transition{}, ErrInvalidCompensation
+	}
+	if dueAt.After(work.Deadline()) {
 		return Transition{}, ErrInvalidCompensation
 	}
 	if startedAt.Before(spec.Lease.ClaimedAt()) || !startedAt.Before(spec.Lease.ExpiresAt()) {
@@ -249,8 +255,14 @@ type CompensationAttemptOutcomeSpec struct {
 // outcome without translating failure into successful rollback.
 func NewCompensationAttemptOutcome(spec CompensationAttemptOutcomeSpec) (Transition, error) {
 	step, ok := definitionActivityStep(spec.Definition, spec.StepName)
+	if !ok {
+		return Transition{}, ErrInvalidCompensation
+	}
+	if step.Compensation == nil {
+		return Transition{}, ErrInvalidCompensation
+	}
 	progress, exists := spec.Instance.Compensation(spec.StepName)
-	if !ok || step.Compensation == nil || !exists {
+	if !exists {
 		return Transition{}, ErrInvalidCompensation
 	}
 	if spec.Definition.Reference() != spec.Instance.definition {
@@ -259,7 +271,10 @@ func NewCompensationAttemptOutcome(spec CompensationAttemptOutcomeSpec) (Transit
 	if progress.status != CompensationRunning || progress.attempt != spec.Attempt {
 		return Transition{}, ErrInvalidCompensation
 	}
-	if !spec.Outcome.valid() || len(spec.Outcome.data) > int(step.Compensation.ResultLimit) {
+	if !spec.Outcome.valid() {
+		return Transition{}, ErrInvalidCompensation
+	}
+	if len(spec.Outcome.data) > int(step.Compensation.ResultLimit) {
 		return Transition{}, ErrInvalidCompensation
 	}
 	if spec.OccurredAt.Before(spec.Instance.updatedAt) {
@@ -304,8 +319,14 @@ type CompensationRetrySpec struct {
 // compensation admission and its durable work.
 func NewCompensationRetry(spec CompensationRetrySpec) (Transition, error) {
 	step, ok := definitionActivityStep(spec.Definition, spec.StepName)
+	if !ok {
+		return Transition{}, ErrInvalidCompensation
+	}
+	if step.Compensation == nil {
+		return Transition{}, ErrInvalidCompensation
+	}
 	progress, exists := spec.Instance.Compensation(spec.StepName)
-	if !ok || step.Compensation == nil || !exists {
+	if !exists {
 		return Transition{}, ErrInvalidCompensation
 	}
 	if spec.Definition.Reference() != spec.Instance.definition {

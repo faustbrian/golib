@@ -35,8 +35,19 @@ type CompensationWorkProcessor struct {
 
 // NewCompensationWorkProcessor validates one bounded explicit processor.
 func NewCompensationWorkProcessor(config CompensationWorkProcessorConfig) (*CompensationWorkProcessor, error) {
-	if config.Store == nil || config.Definitions == nil || config.Compensations == nil || config.Clock == nil ||
-		!validHistoryTraversal("processor-instance", config.PageSize, config.MaxHistoryEvents) {
+	if config.Store == nil {
+		return nil, ErrInvalidCompensationProcessor
+	}
+	if config.Definitions == nil {
+		return nil, ErrInvalidCompensationProcessor
+	}
+	if config.Compensations == nil {
+		return nil, ErrInvalidCompensationProcessor
+	}
+	if config.Clock == nil {
+		return nil, ErrInvalidCompensationProcessor
+	}
+	if !validHistoryTraversal("processor-instance", config.PageSize, config.MaxHistoryEvents) {
 		return nil, ErrInvalidCompensationProcessor
 	}
 	return &CompensationWorkProcessor{config: config}, nil
@@ -45,7 +56,16 @@ func NewCompensationWorkProcessor(config CompensationWorkProcessorConfig) (*Comp
 // Process persists compensation attempt start before handler invocation and
 // persists an explicit result before returning WorkComplete.
 func (processor *CompensationWorkProcessor) Process(ctx context.Context, lease WorkLease) (WorkDecision, error) {
-	if processor == nil || ctx == nil || !lease.Valid() || lease.Work().Kind() != WorkCompensation {
+	if processor == nil {
+		return WorkDecision{}, ErrInvalidCompensationProcessor
+	}
+	if ctx == nil {
+		return WorkDecision{}, ErrInvalidCompensationProcessor
+	}
+	if !lease.Valid() {
+		return WorkDecision{}, ErrInvalidCompensationProcessor
+	}
+	if lease.Work().Kind() != WorkCompensation {
 		return WorkDecision{}, ErrInvalidCompensationProcessor
 	}
 	work := lease.Work()
@@ -117,8 +137,13 @@ func (processor *CompensationWorkProcessor) load(
 	}
 	definition, _ := processor.config.Definitions.Resolve(instance.Definition().Name(), instance.Definition().Version())
 	step, ok := activityProcessorStep(definition, dispatch.StepName())
-	if !ok || step.Compensation == nil || dispatch.Attempt() > step.Compensation.Retry.MaxAttempts ||
-		instance.Sequence() < work.Sequence() {
+	if !ok {
+		return Instance{}, Definition{}, StepSpec{}, Activity{}, ErrInvalidCompensationProcessor
+	}
+	if step.Compensation == nil {
+		return Instance{}, Definition{}, StepSpec{}, Activity{}, ErrInvalidCompensationProcessor
+	}
+	if dispatch.Attempt() > step.Compensation.Retry.MaxAttempts || instance.Sequence() < work.Sequence() {
 		return Instance{}, Definition{}, StepSpec{}, Activity{}, ErrInvalidCompensationProcessor
 	}
 	compensation, err := processor.config.Compensations.Resolve(step.Compensation.Target)
@@ -211,7 +236,13 @@ func (processor *CompensationWorkProcessor) scheduleRetry(
 	dispatch CompensationDispatch,
 ) (WorkDecision, error) {
 	progress, _ := instance.Compensation(dispatch.StepName())
-	if step.Compensation == nil || !progress.Retryable() || progress.Attempt() >= step.Compensation.Retry.MaxAttempts {
+	if step.Compensation == nil {
+		return activityComplete()
+	}
+	if !progress.Retryable() {
+		return activityComplete()
+	}
+	if progress.Attempt() >= step.Compensation.Retry.MaxAttempts {
 		return activityComplete()
 	}
 	scheduledAt := processor.config.Clock.Now()

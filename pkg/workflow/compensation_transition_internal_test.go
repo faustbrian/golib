@@ -234,6 +234,12 @@ func TestCompensationTransitionInternalBoundaries(t *testing.T) {
 		TransitionID: "outcome-1", Instance: running, Definition: definition,
 		StepName: "reserve", Attempt: 1, OccurredAt: now, Outcome: succeeded,
 	}
+	maximumOutcome := validOutcome
+	maximumOutcome.TransitionID = "outcome-maximum"
+	maximumOutcome.Outcome = ActivityOutcome{kind: ActivitySucceeded, data: make([]byte, 64)}
+	if _, err := NewCompensationAttemptOutcome(maximumOutcome); err != nil {
+		t.Fatalf("maximum compensation outcome: %v", err)
+	}
 	for _, spec := range []CompensationAttemptOutcomeSpec{
 		func() CompensationAttemptOutcomeSpec { value := validOutcome; value.StepName = "missing"; return value }(),
 		func() CompensationAttemptOutcomeSpec {

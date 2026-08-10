@@ -49,19 +49,104 @@ func TestActivityProcessorCommitReconciliationBoundaries(t *testing.T) {
 func TestActivityProcessorRejectsInvalidConstructionAndCalls(t *testing.T) {
 	t.Parallel()
 
-	if processor, err := NewActivityWorkProcessor(ActivityWorkProcessorConfig{}); processor != nil || !errors.Is(err, ErrInvalidActivityProcessor) {
-		t.Fatalf("zero processor = %#v, %v", processor, err)
+	now := time.Date(2026, 8, 11, 18, 0, 0, 0, time.UTC)
+	definition := internalActivityTransitionDefinition(t)
+	definitions, err := CompileDefinitions(definition)
+	if err != nil {
+		t.Fatalf("compile definitions: %v", err)
 	}
+	activity, err := NewActivity("orders.execute", func(context.Context, ActivityRequest) ActivityOutcome {
+		return ActivityOutcome{}
+	})
+	if err != nil {
+		t.Fatalf("construct activity: %v", err)
+	}
+	activities, err := CompileActivities(activity)
+	if err != nil {
+		t.Fatalf("compile activities: %v", err)
+	}
+	valid := ActivityWorkProcessorConfig{
+		Store:       &internalProcessorStore{history: internalProcessorReadyHistory(t, definition, now)},
+		Definitions: definitions, Activities: activities, Clock: internalProcessorClock{now: now.Add(2 * time.Second)},
+		PageSize: 10, MaxHistoryEvents: 100,
+	}
+	if processor, err := NewActivityWorkProcessor(valid); err != nil || processor == nil {
+		t.Fatalf("valid processor = %#v, %v", processor, err)
+	}
+	for name, mutate := range map[string]func(*ActivityWorkProcessorConfig){
+		"store":       func(config *ActivityWorkProcessorConfig) { config.Store = nil },
+		"definitions": func(config *ActivityWorkProcessorConfig) { config.Definitions = nil },
+		"activities":  func(config *ActivityWorkProcessorConfig) { config.Activities = nil },
+		"clock":       func(config *ActivityWorkProcessorConfig) { config.Clock = nil },
+		"traversal":   func(config *ActivityWorkProcessorConfig) { config.PageSize = 0 },
+	} {
+		config := valid
+		mutate(&config)
+		if processor, err := NewActivityWorkProcessor(config); processor != nil || !errors.Is(err, ErrInvalidActivityProcessor) {
+			t.Fatalf("%s processor = %#v, %v", name, processor, err)
+		}
+	}
+
+	work := internalActivityWork(t, now, WorkActivity, encodeActivityDispatch("execute", 1, "key-1"))
+	lease := internalActivityLease(t, work, now)
 	var processor *ActivityWorkProcessor
-	if _, err := processor.Process(context.Background(), WorkLease{}); !errors.Is(err, ErrInvalidActivityProcessor) {
+	if _, err := processor.Process(context.Background(), lease); !errors.Is(err, ErrInvalidActivityProcessor) {
 		t.Fatalf("nil processor error = %v", err)
 	}
-	processor = &ActivityWorkProcessor{}
-	if _, err := processor.Process(nil, WorkLease{}); !errors.Is(err, ErrInvalidActivityProcessor) {
+	processor = &ActivityWorkProcessor{config: valid}
+	if _, err := processor.Process(nil, lease); !errors.Is(err, ErrInvalidActivityProcessor) {
 		t.Fatalf("nil context error = %v", err)
+	}
+	if _, err := processor.Process(context.Background(), WorkLease{}); !errors.Is(err, ErrInvalidActivityProcessor) {
+		t.Fatalf("invalid lease error = %v", err)
+	}
+	wrongWork := internalActivityWork(t, now, WorkTimer, nil)
+	wrongLease := internalActivityLease(t, wrongWork, now)
+	if _, err := processor.Process(context.Background(), wrongLease); !errors.Is(err, ErrInvalidActivityProcessor) {
+		t.Fatalf("wrong work kind error = %v", err)
 	}
 	if _, ok := activityProcessorStep(Definition{}, "missing"); ok {
 		t.Fatal("zero definition resolved a processor step")
+	}
+}
+
+func TestActivityProcessorLoadsTheExactMaximumAttempt(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 11, 19, 0, 0, 0, time.UTC)
+	definition := internalActivityTransitionDefinition(t)
+	definitions, err := CompileDefinitions(definition)
+	if err != nil {
+		t.Fatalf("compile definitions: %v", err)
+	}
+	activity, err := NewActivity("orders.execute", func(context.Context, ActivityRequest) ActivityOutcome {
+		return ActivityOutcome{}
+	})
+	if err != nil {
+		t.Fatalf("construct activity: %v", err)
+	}
+	activities, err := CompileActivities(activity)
+	if err != nil {
+		t.Fatalf("compile activities: %v", err)
+	}
+	store := &internalProcessorStore{history: internalProcessorReadyHistory(t, definition, now)}
+	processor := &ActivityWorkProcessor{config: ActivityWorkProcessorConfig{
+		Store: store, Definitions: definitions, Activities: activities,
+		PageSize: 10, MaxHistoryEvents: 100,
+	}}
+	work := internalProcessorWork(t, now, 2, encodeActivityDispatch("execute", 2, "key-2"))
+	dispatch, err := DecodeActivityDispatch(work.Payload())
+	if err != nil {
+		t.Fatalf("decode dispatch: %v", err)
+	}
+	_, _, step, _, err := processor.load(context.Background(), work, dispatch)
+	if err != nil || dispatch.Attempt() != step.Retry.MaxAttempts {
+		t.Fatalf("maximum attempt = %d, step = %#v, error %v", dispatch.Attempt(), step, err)
+	}
+	failed := internalActivityInstance(definition, now, ActivityProgressFailed, step.Retry.MaxAttempts, true)
+	decision, err := processor.scheduleRetry(context.Background(), work, failed, definition, step, dispatch)
+	if err != nil || decision.Kind() != WorkComplete {
+		t.Fatalf("maximum retry decision = %#v, error %v", decision, err)
 	}
 }
 

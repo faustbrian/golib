@@ -10,16 +10,61 @@ import (
 func TestCompensationProcessorRejectsInvalidConstructionAndCalls(t *testing.T) {
 	t.Parallel()
 
-	if processor, err := NewCompensationWorkProcessor(CompensationWorkProcessorConfig{}); processor != nil || !errors.Is(err, ErrInvalidCompensationProcessor) {
-		t.Fatalf("zero processor = %#v, %v", processor, err)
+	now := time.Date(2026, 8, 11, 21, 0, 0, 0, time.UTC)
+	definition := internalCompensationTransitionDefinition(t)
+	definitions, err := CompileDefinitions(definition)
+	if err != nil {
+		t.Fatalf("compile definitions: %v", err)
 	}
+	compensation, err := NewActivity("inventory.release", func(context.Context, ActivityRequest) ActivityOutcome {
+		return ActivityOutcome{}
+	})
+	if err != nil {
+		t.Fatalf("construct compensation: %v", err)
+	}
+	compensations, err := CompileActivities(compensation)
+	if err != nil {
+		t.Fatalf("compile compensations: %v", err)
+	}
+	valid := CompensationWorkProcessorConfig{
+		Store:       &internalProcessorStore{history: internalCompensationProcessorReadyHistory(t, definition, now)},
+		Definitions: definitions, Compensations: compensations,
+		Clock: internalProcessorClock{now: now.Add(5 * time.Second)}, PageSize: 10, MaxHistoryEvents: 100,
+	}
+	if processor, err := NewCompensationWorkProcessor(valid); err != nil || processor == nil {
+		t.Fatalf("valid processor = %#v, %v", processor, err)
+	}
+	for name, mutate := range map[string]func(*CompensationWorkProcessorConfig){
+		"store":         func(config *CompensationWorkProcessorConfig) { config.Store = nil },
+		"definitions":   func(config *CompensationWorkProcessorConfig) { config.Definitions = nil },
+		"compensations": func(config *CompensationWorkProcessorConfig) { config.Compensations = nil },
+		"clock":         func(config *CompensationWorkProcessorConfig) { config.Clock = nil },
+		"traversal":     func(config *CompensationWorkProcessorConfig) { config.PageSize = 0 },
+	} {
+		config := valid
+		mutate(&config)
+		if processor, err := NewCompensationWorkProcessor(config); processor != nil || !errors.Is(err, ErrInvalidCompensationProcessor) {
+			t.Fatalf("%s processor = %#v, %v", name, processor, err)
+		}
+	}
+
+	work := internalActivityWork(t, now, WorkCompensation, encodeCompensationDispatch("reserve", 1, "key-1"))
+	lease := internalActivityLease(t, work, now)
 	var processor *CompensationWorkProcessor
-	if _, err := processor.Process(context.Background(), WorkLease{}); !errors.Is(err, ErrInvalidCompensationProcessor) {
+	if _, err := processor.Process(context.Background(), lease); !errors.Is(err, ErrInvalidCompensationProcessor) {
 		t.Fatalf("nil processor error = %v", err)
 	}
-	processor = &CompensationWorkProcessor{}
-	if _, err := processor.Process(nil, WorkLease{}); !errors.Is(err, ErrInvalidCompensationProcessor) {
+	processor = &CompensationWorkProcessor{config: valid}
+	if _, err := processor.Process(nil, lease); !errors.Is(err, ErrInvalidCompensationProcessor) {
 		t.Fatalf("nil context error = %v", err)
+	}
+	if _, err := processor.Process(context.Background(), WorkLease{}); !errors.Is(err, ErrInvalidCompensationProcessor) {
+		t.Fatalf("invalid lease error = %v", err)
+	}
+	wrongWork := internalActivityWork(t, now, WorkTimer, nil)
+	wrongLease := internalActivityLease(t, wrongWork, now)
+	if _, err := processor.Process(context.Background(), wrongLease); !errors.Is(err, ErrInvalidCompensationProcessor) {
+		t.Fatalf("wrong work kind error = %v", err)
 	}
 }
 
@@ -126,6 +171,88 @@ func TestCompensationProcessorClassifiesLoadAndStateFailures(t *testing.T) {
 				t.Fatalf("decision = %#v, error = %v", decision, processErr)
 			}
 		})
+	}
+}
+
+func TestCompensationProcessorAcceptsExactAttemptBoundaries(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 11, 20, 0, 0, 0, time.UTC)
+	definition := internalCompensationTransitionDefinition(t)
+	definitions, err := CompileDefinitions(definition)
+	if err != nil {
+		t.Fatalf("compile definitions: %v", err)
+	}
+	compensation, err := NewActivity("inventory.release", func(context.Context, ActivityRequest) ActivityOutcome {
+		return ActivityOutcome{}
+	})
+	if err != nil {
+		t.Fatalf("construct compensation: %v", err)
+	}
+	compensations, err := CompileActivities(compensation)
+	if err != nil {
+		t.Fatalf("compile compensations: %v", err)
+	}
+	store := &internalProcessorStore{history: internalCompensationProcessorReadyHistory(t, definition, now)}
+	processor := &CompensationWorkProcessor{config: CompensationWorkProcessorConfig{
+		Store: store, Definitions: definitions, Compensations: compensations,
+		Clock:    internalProcessorClock{now: now.Add(7 * time.Second)},
+		PageSize: 10, MaxHistoryEvents: 100,
+	}}
+	work := internalCompensationProcessorWork(t, now, 5, encodeCompensationDispatch("reserve", 2, "key-2"))
+	dispatch, err := DecodeCompensationDispatch(work.Payload())
+	if err != nil {
+		t.Fatalf("decode dispatch: %v", err)
+	}
+	_, _, step, _, err := processor.load(context.Background(), work, dispatch)
+	if err != nil || dispatch.Attempt() != step.Compensation.Retry.MaxAttempts {
+		t.Fatalf("maximum load attempt = %d, step = %#v, error %v", dispatch.Attempt(), step, err)
+	}
+
+	failed := internalCompensationProcessorFailedInstance(definition, now)
+	progress := failed.compensations["reserve"]
+	progress.attempt = step.Compensation.Retry.MaxAttempts
+	failed.compensations["reserve"] = progress
+	decision, err := processor.scheduleRetry(
+		context.Background(), work, failed, definition, step, dispatch,
+	)
+	if err != nil || decision.Kind() != WorkComplete {
+		t.Fatalf("maximum retry decision = %#v, error %v", decision, err)
+	}
+	decision, err = processor.scheduleRetry(context.Background(), work, failed, definition, StepSpec{}, dispatch)
+	if err != nil || decision.Kind() != WorkComplete {
+		t.Fatalf("missing policy retry decision = %#v, error %v", decision, err)
+	}
+	nonRetryable := failed
+	nonRetryable.compensations = map[string]CompensationProgress{
+		"reserve": {stepName: "reserve", status: CompensationFailed, attempt: 1},
+	}
+	decision, err = processor.scheduleRetry(context.Background(), work, nonRetryable, definition, step, dispatch)
+	if err != nil || decision.Kind() != WorkComplete {
+		t.Fatalf("non-retryable decision = %#v, error %v", decision, err)
+	}
+
+	uncompensated := internalUncompensatedDefinition(t)
+	uncompensatedDefinitions, err := CompileDefinitions(uncompensated)
+	if err != nil {
+		t.Fatalf("compile uncompensated definition: %v", err)
+	}
+	uncompensatedStore := &internalProcessorStore{history: []HistoryEvent{
+		internalCompensationProcessorEvent(t, HistoryEventSpec{
+			Sequence: 1, InstanceID: "instance-1", Kind: EventInstanceStarted,
+			OccurredAt: now, Definition: uncompensated.Reference(),
+		}),
+	}}
+	processor.config.Store = uncompensatedStore
+	processor.config.Definitions = uncompensatedDefinitions
+	uncompensatedWork := internalCompensationProcessorWork(
+		t, now, 1, encodeCompensationDispatch("reserve", 1, "key-1"),
+	)
+	uncompensatedDispatch, _ := DecodeCompensationDispatch(uncompensatedWork.Payload())
+	if _, _, _, _, err := processor.load(
+		context.Background(), uncompensatedWork, uncompensatedDispatch,
+	); !errors.Is(err, ErrInvalidCompensationProcessor) {
+		t.Fatalf("uncompensated load error = %v", err)
 	}
 }
 

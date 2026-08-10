@@ -40,8 +40,19 @@ type ActivityWorkProcessor struct{ config ActivityWorkProcessorConfig }
 
 // NewActivityWorkProcessor validates one bounded explicit processor.
 func NewActivityWorkProcessor(config ActivityWorkProcessorConfig) (*ActivityWorkProcessor, error) {
-	if config.Store == nil || config.Definitions == nil || config.Activities == nil || config.Clock == nil ||
-		!validHistoryTraversal("processor-instance", config.PageSize, config.MaxHistoryEvents) {
+	if config.Store == nil {
+		return nil, ErrInvalidActivityProcessor
+	}
+	if config.Definitions == nil {
+		return nil, ErrInvalidActivityProcessor
+	}
+	if config.Activities == nil {
+		return nil, ErrInvalidActivityProcessor
+	}
+	if config.Clock == nil {
+		return nil, ErrInvalidActivityProcessor
+	}
+	if !validHistoryTraversal("processor-instance", config.PageSize, config.MaxHistoryEvents) {
 		return nil, ErrInvalidActivityProcessor
 	}
 	return &ActivityWorkProcessor{config: config}, nil
@@ -50,7 +61,16 @@ func NewActivityWorkProcessor(config ActivityWorkProcessorConfig) (*ActivityWork
 // Process persists each externally observable activity boundary. Poison work
 // is dead-lettered; store failures retain the lease for fenced recovery.
 func (processor *ActivityWorkProcessor) Process(ctx context.Context, lease WorkLease) (WorkDecision, error) {
-	if processor == nil || ctx == nil || !lease.Valid() || lease.Work().Kind() != WorkActivity {
+	if processor == nil {
+		return WorkDecision{}, ErrInvalidActivityProcessor
+	}
+	if ctx == nil {
+		return WorkDecision{}, ErrInvalidActivityProcessor
+	}
+	if !lease.Valid() {
+		return WorkDecision{}, ErrInvalidActivityProcessor
+	}
+	if lease.Work().Kind() != WorkActivity {
 		return WorkDecision{}, ErrInvalidActivityProcessor
 	}
 	work := lease.Work()
