@@ -449,6 +449,87 @@ func TestResolveConsumerRebalanceWaitOutcomePrefersPollGateRelease(
 	}
 }
 
+func TestConsumerRebalanceWaitBudgetUsesTheConfiguredAbsoluteDeadline(
+	t *testing.T,
+) {
+	startedAt := time.Unix(10, 0)
+	timeout := 2 * time.Second
+	for name, test := range map[string]struct {
+		observedAt time.Time
+		remaining  time.Duration
+		wait       bool
+	}{
+		"before deadline": {
+			observedAt: startedAt.Add(500 * time.Millisecond),
+			remaining:  1500 * time.Millisecond,
+			wait:       true,
+		},
+		"at deadline": {
+			observedAt: startedAt.Add(timeout),
+			remaining:  0,
+			wait:       false,
+		},
+		"after deadline": {
+			observedAt: startedAt.Add(timeout + time.Nanosecond),
+			remaining:  0,
+			wait:       false,
+		},
+	} {
+		remaining, wait := consumerRebalanceWaitBudget(
+			timeout,
+			startedAt,
+			test.observedAt,
+		)
+		if remaining != test.remaining || wait != test.wait {
+			t.Fatalf(
+				"%s budget = %v/%t, want %v/%t",
+				name,
+				remaining,
+				wait,
+				test.remaining,
+				test.wait,
+			)
+		}
+	}
+}
+
+func TestConsumerRebalanceStateSignalsAndClosesPollCompletion(t *testing.T) {
+	state := newConsumerRebalanceState(RebalanceCancelHandler)
+	state.beginPoll(true)
+	pollDone, waitDone, blocked := state.blockedWait()
+	if !blocked || pollDone == nil || waitDone == nil {
+		t.Fatalf("blocked observer channels = %t/%v/%v", blocked, pollDone, waitDone)
+	}
+	close(waitDone)
+	state.endPoll()
+
+	completedAt, open := <-pollDone
+	if !open || completedAt.IsZero() {
+		t.Fatalf("poll completion = %v, open %t", completedAt, open)
+	}
+	select {
+	case _, open = <-pollDone:
+		if open {
+			t.Fatal("poll completion channel remained open")
+		}
+	default:
+		t.Fatal("poll completion channel was not closed")
+	}
+}
+
+func TestConsumerRebalanceStateSelectsObserverWaitOnlyWhilePending(
+	t *testing.T,
+) {
+	waitDone := make(chan struct{})
+	if got := consumerRebalanceObserverWait(true, waitDone); got != waitDone {
+		t.Fatal("pending rebalance did not retain observer wait")
+	}
+	if got := consumerRebalanceObserverWait(false, waitDone); got !=
+		completedConsumerRebalanceObserver {
+		t.Fatal("completed rebalance retained observer wait")
+	}
+}
+
 func TestConsumerRebalanceStateAvoidsWaitAllocationWithoutObservers(
 	t *testing.T,
 ) {

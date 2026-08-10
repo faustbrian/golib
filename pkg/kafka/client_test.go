@@ -11,6 +11,7 @@ import (
 	"errors"
 	"io"
 	"math/big"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -19,6 +20,7 @@ import (
 	"time"
 
 	"github.com/twmb/franz-go/pkg/kerr"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
 
 type usernamePasswordProviderStub struct {
@@ -200,6 +202,93 @@ func TestClientSecurityOptionsApplyTLSAndSASL(t *testing.T) {
 			"clientSecurityOptions() provider length = %d, want 2",
 			len(options),
 		)
+	}
+}
+
+func TestClientSecurityOptionsUseStaticTLSWithoutTrustAnchorProvider(
+	t *testing.T,
+) {
+	certificate := newTestTLSCertificate(t)
+	leaf, err := x509.ParseCertificate(certificate.Certificate[0])
+	if err != nil {
+		t.Fatalf("parse server certificate: %v", err)
+	}
+	if len(leaf.DNSNames) == 0 {
+		t.Fatal("server certificate has no DNS identity")
+	}
+	roots := x509.NewCertPool()
+	roots.AddCert(leaf)
+	listener, err := tls.Listen("tcp", "127.0.0.1:0", &tls.Config{
+		Certificates: []tls.Certificate{certificate},
+		MinVersion:   tls.VersionTLS12,
+	})
+	if err != nil {
+		t.Fatalf("listen for static TLS: %v", err)
+	}
+	t.Cleanup(func() {
+		_ = listener.Close()
+	})
+
+	handshake := make(chan error, 1)
+	go func() {
+		connection, acceptErr := listener.Accept()
+		if acceptErr != nil {
+			handshake <- acceptErr
+
+			return
+		}
+		defer func() {
+			_ = connection.Close()
+		}()
+		tlsConnection, ok := connection.(*tls.Conn)
+		if !ok {
+			handshake <- errors.New("accepted connection is not TLS")
+
+			return
+		}
+		handshakeCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		if handshakeErr := tlsConnection.HandshakeContext(handshakeCtx); handshakeErr != nil {
+			handshake <- handshakeErr
+
+			return
+		}
+		handshake <- nil
+		_ = tlsConnection.SetReadDeadline(time.Now().Add(time.Second))
+		_, _ = tlsConnection.Read(make([]byte, 1))
+	}()
+
+	security := ClientSecurity{
+		Transport: TransportTLS,
+		TLS: &tls.Config{
+			MinVersion: tls.VersionTLS12,
+			RootCAs:    roots,
+			ServerName: leaf.DNSNames[0],
+		},
+		CredentialTimeout: time.Second,
+	}
+	options := []kgo.Opt{
+		kgo.SeedBrokers(listener.Addr().String()),
+		kgo.DialTimeout(time.Second),
+		kgo.RequestTimeoutOverhead(time.Second),
+	}
+	options = append(options, clientSecurityOptions(security, time.Second)...)
+	client, err := kgo.NewClient(options...)
+	if err != nil {
+		t.Fatalf("construct static TLS client: %v", err)
+	}
+	t.Cleanup(client.Close)
+	pingCtx, cancelPing := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancelPing()
+	pingErr := client.Ping(pingCtx)
+	if closeErr := listener.Close(); closeErr != nil && !errors.Is(closeErr, net.ErrClosed) {
+		t.Fatalf("close static TLS listener: %v", closeErr)
+	}
+	if handshakeErr := <-handshake; handshakeErr != nil {
+		t.Fatalf("static TLS handshake: %v", handshakeErr)
+	}
+	if pingErr == nil || errors.Is(pingErr, ErrCredentialProviderPanic) {
+		t.Fatalf("static TLS Kafka probe error = %v", pingErr)
 	}
 }
 
@@ -823,6 +912,24 @@ func TestTrustAnchorProviderRejectsInvalidMaterial(t *testing.T) {
 		if !errors.Is(err, ErrInvalidTrustAnchors) {
 			t.Fatalf("case %d trust-anchor error = %v", index, err)
 		}
+	}
+	firstValid := newTestTrustAnchor(t, 15)
+	secondValid := newTestTrustAnchor(t, 16)
+	validRoots, err := callTrustAnchorProvider(
+		context.Background(),
+		time.Second,
+		TrustAnchorProviderFunc(func(context.Context) (TrustAnchors, error) {
+			return TrustAnchors{Certificates: [][]byte{
+				firstValid.Raw,
+				secondValid.Raw,
+			}}, nil
+		}),
+	)
+	if err != nil {
+		t.Fatalf("two valid trust anchors error = %v", err)
+	}
+	if subjects := validRoots.Subjects(); len(subjects) != 2 {
+		t.Fatalf("two valid trust anchors = %d subjects", len(subjects))
 	}
 	if !validTrustAnchorCount(maxTrustAnchorCertificates) ||
 		validTrustAnchorCount(0) ||

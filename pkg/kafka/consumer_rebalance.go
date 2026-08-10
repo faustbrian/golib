@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+var completedConsumerRebalanceObserver = func() <-chan struct{} {
+	done := make(chan struct{})
+	close(done)
+
+	return done
+}()
+
 type consumerRebalanceState struct {
 	mu             sync.Mutex
 	policy         RebalanceHandlerPolicy
@@ -13,7 +20,7 @@ type consumerRebalanceState struct {
 	pending        bool
 	observeWait    bool
 	pollDone       chan time.Time
-	waitDone       chan struct{}
+	waitDone       <-chan struct{}
 	handlerID      uint64
 	handlerCancels map[uint64]context.CancelCauseFunc
 }
@@ -23,6 +30,7 @@ func newConsumerRebalanceState(
 ) *consumerRebalanceState {
 	return &consumerRebalanceState{
 		policy:         policy,
+		waitDone:       completedConsumerRebalanceObserver,
 		handlerCancels: make(map[uint64]context.CancelCauseFunc),
 	}
 }
@@ -35,29 +43,40 @@ func (state *consumerRebalanceState) beginPoll(observeWait bool) {
 	state.pending = false
 	state.observeWait = observeWait
 	state.pollDone = nil
-	state.waitDone = nil
+	state.waitDone = completedConsumerRebalanceObserver
 }
 
 func (state *consumerRebalanceState) endPoll() {
 	state.mu.Lock()
 	pollDone := state.pollDone
-	waitDone := state.waitDone
-	waitForObserver := state.pending && waitDone != nil
+	waitDone := consumerRebalanceObserverWait(state.pending, state.waitDone)
 	state.active = false
 	state.pending = false
 	state.observeWait = false
 	state.pollDone = nil
-	state.waitDone = nil
+	state.waitDone = completedConsumerRebalanceObserver
 	clear(state.handlerCancels)
 	state.mu.Unlock()
 
+	select {
+	case pollDone <- time.Now():
+	default:
+	}
 	if pollDone != nil {
-		pollDone <- time.Now()
 		close(pollDone)
 	}
-	if waitForObserver {
-		<-waitDone
+	<-waitDone
+}
+
+func consumerRebalanceObserverWait(
+	pending bool,
+	waitDone <-chan struct{},
+) <-chan struct{} {
+	if pending {
+		return waitDone
 	}
+
+	return completedConsumerRebalanceObserver
 }
 
 func (state *consumerRebalanceState) blockedWait() (
@@ -72,12 +91,14 @@ func (state *consumerRebalanceState) blockedWait() (
 		return nil, nil, false
 	}
 	state.pending = true
+	var waitDone chan<- struct{}
 	if state.observeWait {
 		state.pollDone = make(chan time.Time, 1)
-		state.waitDone = make(chan struct{})
+		observerWaitDone := make(chan struct{})
+		state.waitDone = observerWaitDone
+		waitDone = observerWaitDone
 	}
 	pollDone := state.pollDone
-	waitDone := state.waitDone
 	cancels := make([]context.CancelCauseFunc, 0, len(state.handlerCancels))
 	if state.policy == RebalanceCancelHandler {
 		for _, cancel := range state.handlerCancels {

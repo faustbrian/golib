@@ -787,11 +787,13 @@ func (consumer *Consumer) onRebalanceCallbackBlocked(ctx context.Context) {
 	if !blocked || !consumer.observers.enabled() {
 		return
 	}
-	if waitDone != nil {
-		defer close(waitDone)
-	}
-	remaining := consumer.rebalanceTimeout - time.Since(startedAt)
-	if remaining <= 0 {
+	defer close(waitDone)
+	remaining, wait := consumerRebalanceWaitBudget(
+		consumer.rebalanceTimeout,
+		startedAt,
+		time.Now(),
+	)
+	if !wait {
 		consumer.observeResolvedConsumerRebalanceWait(
 			ctx,
 			startedAt,
@@ -831,6 +833,19 @@ func (consumer *Consumer) onRebalanceCallbackBlocked(ctx context.Context) {
 			ErrorTimeout,
 		)
 	}
+}
+
+func consumerRebalanceWaitBudget(
+	timeout time.Duration,
+	startedAt time.Time,
+	observedAt time.Time,
+) (time.Duration, bool) {
+	elapsed := observedAt.Sub(startedAt)
+	if elapsed >= timeout {
+		return 0, false
+	}
+
+	return timeout - elapsed, true
 }
 
 func (consumer *Consumer) observeResolvedConsumerRebalanceWait(
