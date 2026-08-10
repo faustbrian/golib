@@ -727,3 +727,11 @@ replacement.
   vectors, `docs/migration.md`, and conformance checks enforce the current
   surfaces. Reconsider when a superseding decision records source, migration,
   executable evidence, and release impact; preserve this entry as history.
+
+## Unresolved decisions
+
+None for the currently supported provider-independent webhook surfaces. New
+provider profiles, algorithms, canonicalization rules, transport mappings,
+errata, or peer divergences MUST be registered before observable behavior is
+selected. An unresolved wire, security, resource, or lifecycle decision blocks
+the affected release claim.

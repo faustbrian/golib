@@ -12,6 +12,8 @@ and Semantic Versioning.
 
 ### Changed
 
+- Declare the unresolved-decision inventory explicitly so repository
+  specification governance fails closed on any future open interpretation.
 - Link the specification source matrix directly to the canonical decision
   register.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers

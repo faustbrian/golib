@@ -148,6 +148,9 @@ func validateSpecificationDecisionModule(root string, item module) error {
 		problems = append(problems, fmt.Errorf("read decision register: %w", err))
 		return errors.Join(problems...)
 	}
+	if err := validateUnresolvedDecisionInventory(string(contents)); err != nil {
+		problems = append(problems, err)
+	}
 	if err := validateSpecificationDecisionLinks(
 		filepath.Join(root, item.Directory),
 		registerPath,
@@ -176,6 +179,61 @@ func validateSpecificationDecisionModule(root string, item module) error {
 		}
 	}
 	return errors.Join(problems...)
+}
+
+func validateUnresolvedDecisionInventory(contents string) error {
+	lines := strings.Split(strings.ReplaceAll(contents, "\r\n", "\n"), "\n")
+	sections := []string{}
+	nonterminal := false
+	for index, line := range lines {
+		if !strings.HasPrefix(line, "## ") {
+			continue
+		}
+		if !isUnresolvedDecisionInventoryHeading(strings.TrimSpace(strings.TrimPrefix(line, "## "))) {
+			nonterminal = nonterminal || len(sections) != 0
+			continue
+		}
+
+		body := []string{}
+		for next := index + 1; next < len(lines) && !strings.HasPrefix(lines[next], "## "); next++ {
+			body = append(body, lines[next])
+		}
+		sections = append(sections, strings.Join(strings.Fields(strings.Join(body, "\n")), " "))
+	}
+
+	if len(sections) == 0 {
+		return errors.New("decision register has no unresolved decision inventory")
+	}
+	if len(sections) > 1 {
+		return errors.New("decision register has more than one unresolved decision inventory")
+	}
+	if nonterminal {
+		return errors.New("unresolved decision inventory must be the final level-two section")
+	}
+	if sections[0] == "" {
+		return errors.New("unresolved decision inventory has no disposition")
+	}
+
+	disposition := strings.ToLower(sections[0])
+	closedWithNone := disposition == "none" ||
+		strings.HasPrefix(disposition, "none.") ||
+		strings.HasPrefix(disposition, "none ")
+	closedWithStatement := strings.HasPrefix(disposition, "no known ") &&
+		(strings.Contains(disposition, " unresolved") ||
+			strings.Contains(disposition, " remains open"))
+	if !closedWithNone && !closedWithStatement {
+		return errors.New("unresolved decision inventory remains open")
+	}
+	return nil
+}
+
+func isUnresolvedDecisionInventoryHeading(heading string) bool {
+	switch strings.ToLower(strings.TrimSpace(heading)) {
+	case "unresolved decisions", "unresolved and excluded behavior":
+		return true
+	default:
+		return false
+	}
 }
 
 func validateSpecificationDecisionLinks(moduleRoot, registerPath string) error {
@@ -421,7 +479,7 @@ func parseSpecificationDecisions(contents string) ([]specificationDecision, erro
 			continue
 		}
 		heading := strings.TrimPrefix(line, "## ")
-		if strings.HasPrefix(strings.ToLower(heading), "unresolved ") {
+		if isUnresolvedDecisionInventoryHeading(heading) {
 			current = -1
 			continue
 		}

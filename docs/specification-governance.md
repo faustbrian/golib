@@ -53,6 +53,12 @@ Unresolved decisions block the specification gate. A superseded decision must
 remain in the register and identify its replacement; history must not be
 erased.
 
+Every register must end with one `## Unresolved decisions` or
+`## Unresolved and excluded behavior` inventory. The inventory must explicitly
+state that no known decision remains unresolved. A known open question must
+instead receive a stable decision identifier, owner, and `unresolved` status so
+the gate blocks it visibly; the terminal inventory must not be used to hide it.
+
 Executable evidence names exact Go `Test`, `Fuzz`, or `Benchmark` functions.
 A trailing `*` may identify a tested function family when at least one matching
 function exists. Prose such as "covered by parser tests" is not attributable
@@ -87,8 +93,9 @@ make specification-decisions
 The check discovers applicable modules from current source and catalog policy,
 then fails for missing registers, corpora, provenance, conformance gates,
 stable identifiers, required fields, local links, statuses, replacement links,
-or executable evidence. Package conformance gates verify pinned remote bytes,
-official fixtures, errata review ceilings, and interoperability behavior.
+executable evidence, or an explicit closed unresolved-decision inventory.
+Package conformance gates verify pinned remote bytes, official fixtures, errata
+review ceilings, and interoperability behavior.
 
 The repository and package checks are complementary. Neither may be replaced
 by a passing peer comparison, generated schema validation, documentation

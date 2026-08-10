@@ -22,7 +22,12 @@ func TestValidateSpecificationDecisionsAcceptsGroupedTerminalSectionAndEvidenceP
 	root, current := validSpecificationDecisionFixture(t)
 	path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
 	replaceFileText(t, path, "`TestSpecificationVector`", "`TestSpecification*`")
-	mustAppendFile(t, path, "\n## Unresolved and excluded behavior\n\nNo material decision is unresolved.\n")
+	replaceFileText(
+		t,
+		path,
+		"## Unresolved decisions\n\nNone.",
+		"## Unresolved and excluded behavior\n\nNo known material decision is unresolved.",
+	)
 	replaceFileText(
 		t,
 		path,
@@ -62,6 +67,36 @@ func TestParseSpecificationDecisionsRejectsGapWithinIdentifierSeries(t *testing.
 	_, err := parseSpecificationDecisions(contents)
 	if err == nil || !strings.Contains(err.Error(), "WSDL11-DEC-003 has sequence 003, want 002") {
 		t.Fatalf("parseSpecificationDecisions() error = %v, want WSDL11 sequence gap", err)
+	}
+}
+
+func TestParseSpecificationDecisionsDoesNotTreatDecisionSeriesAsInventory(t *testing.T) {
+	t.Parallel()
+
+	decisions, err := parseSpecificationDecisions(
+		"## UNRESOLVED-DEC-001: Explicit unresolved policy\n",
+	)
+	if err != nil {
+		t.Fatalf("parseSpecificationDecisions() error = %v", err)
+	}
+	if len(decisions) != 1 || decisions[0].identifier != "UNRESOLVED-DEC-001" {
+		t.Fatalf("parseSpecificationDecisions() = %#v, want unresolved decision series", decisions)
+	}
+}
+
+func TestValidateUnresolvedDecisionInventoryAcceptsClosedDispositions(t *testing.T) {
+	t.Parallel()
+
+	for _, disposition := range []string{
+		"None.",
+		"No known material decision is unresolved.",
+		"No known material ambiguity remains open.",
+	} {
+		if err := validateUnresolvedDecisionInventory(
+			"# Decisions\n\n## Unresolved decisions\n\n" + disposition + "\n",
+		); err != nil {
+			t.Errorf("validateUnresolvedDecisionInventory(%q) error = %v", disposition, err)
+		}
 	}
 }
 
@@ -196,6 +231,74 @@ func TestValidateSpecificationDecisionsFailsClosed(t *testing.T) {
 				replaceFileText(t, path, "`resolved`", "`unresolved`")
 			},
 			wantError: "unresolved",
+		},
+		{
+			name: "missing unresolved decision inventory",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(
+					t,
+					path,
+					"\n## Unresolved decisions\n\nNone.\n",
+					"",
+				)
+			},
+			wantError: "unresolved decision inventory",
+		},
+		{
+			name: "noncanonical unresolved decision inventory heading",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "## Unresolved decisions", "## Unresolved issues")
+			},
+			wantError: "unresolved decision inventory",
+		},
+		{
+			name: "open unresolved decision inventory",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(
+					t,
+					path,
+					"None.",
+					"The empty batch response policy remains unresolved.",
+				)
+			},
+			wantError: "remains open",
+		},
+		{
+			name: "empty unresolved decision inventory",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				replaceFileText(t, path, "None.", "")
+			},
+			wantError: "has no disposition",
+		},
+		{
+			name: "duplicate unresolved decision inventory",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				mustAppendFile(t, path, "\n## Unresolved and excluded behavior\n\nNone.\n")
+			},
+			wantError: "more than one unresolved decision inventory",
+		},
+		{
+			name: "nonterminal unresolved decision inventory",
+			mutate: func(t *testing.T, root string, _ *catalog) {
+				t.Helper()
+				path := filepath.Join(root, "pkg/example/docs/specification-decisions.md")
+				mustAppendFile(
+					t,
+					path,
+					"\n"+validDecisionEntry("EXAMPLE-DEC-002", "TestSpecificationVector"),
+				)
+			},
+			wantError: "must be the final level-two section",
 		},
 		{
 			name: "unknown decision status",
@@ -363,7 +466,9 @@ func validSpecificationDecisionFixture(t *testing.T) (string, catalog) {
 	mustWriteFile(
 		t,
 		filepath.Join(root, "pkg/example/docs/specification-decisions.md"),
-		"# Specification decisions\n\n"+validDecisionEntry("EXAMPLE-DEC-001", "TestSpecificationVector"),
+		"# Specification decisions\n\n"+
+			validDecisionEntry("EXAMPLE-DEC-001", "TestSpecificationVector")+
+			"\n## Unresolved decisions\n\nNone.\n",
 	)
 	mustWriteFile(
 		t,
