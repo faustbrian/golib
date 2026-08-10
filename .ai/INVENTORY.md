@@ -180,9 +180,9 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Scope | Atomic multi-replica bootstrap and refresh, immutable last-known-good metadata, bounded provider work and invalidation histories, explicit degraded policy, resilience composition seams, provider conformance, and Kubernetes lifecycle semantics. |
 | Status | `pending-reexecution` to `verified` |
 | Evidence | Package-local Make targets with isolated Go build caches; exhaustive root-package Gremlins mutation; and package-scoped `scripts/check-module.sh pkg/feature-flags` safety, secrets, licenses, SBOM, API, NilAway, conformance, and interoperability gates. |
-| Result | Passed exact 100.0% meaningful production statement coverage; 776/776 viable mutants killed with 100.00% efficacy and mutant coverage; race, five 10,000-execution fuzz targets, fault, leak, PostgreSQL and Valkey provider integration, Kubernetes simulation, API, documentation, security, supply-chain, and equivalent-work benchmark gates. |
+| Result | Passed exact 100.0% meaningful production statement coverage: core 1983/1983, OpenFeature 138/138, PostgreSQL 34/34, and Valkey 51/51; killed all 857/857 viable mutants (core 789/789, OpenFeature 33/33, PostgreSQL 15/15, and Valkey 20/20) with 100.00% efficacy and mutant coverage; race, five 10,000-execution fuzz targets, fault, leak, PostgreSQL and Valkey provider integration, Kubernetes simulation, API, documentation, security, supply-chain, and equivalent-work benchmark gates passed. |
 | Environment | Go 1.26.5 on darwin/arm64 with a separate task-owned disposable `GOCACHE` removed after every bounded Go or mutation run; disposable PostgreSQL and Valkey containers were removed after provider gates. |
-| Observed | 2026-08-09T10:42:32Z |
+| Observed | 2026-08-10T08:00:43Z |
 | Gaps | None within the scoped resilience and hardening contracts. NilAway remains advisory and its existing non-fleet diagnostics remain visible. |
 
 ### Settings fleet resilience evidence
