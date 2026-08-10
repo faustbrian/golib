@@ -19,3 +19,8 @@ All notable changes to this module are documented here.
 ### Distribution
 
 - Include the canonical MIT licence for independent publication.
+
+### Fixed
+
+- Preserve the tenant-specific error classification when malformed queue
+  tenant metadata also violates generic queue metadata validation.

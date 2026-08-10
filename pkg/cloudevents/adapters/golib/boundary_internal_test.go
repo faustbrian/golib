@@ -205,9 +205,15 @@ func TestStringExtensionAndAttributeEqualityBoundaries(t *testing.T) {
 func TestVerifyQueueExtensionsDetectsMalformedAndCollidingValues(t *testing.T) {
 	t.Parallel()
 
-	metadata := &job.Metadata{TenantID: "tenant-a"}
+	metadata := &job.Metadata{
+		TenantID:    "tenant-a",
+		Correlation: map[string]string{correlationIDExtension: "correlation?value"},
+	}
 	tenant, _ := cloudevents.NewStringAttribute("tenant-a")
-	if err := verifyQueueExtensions(helperEvent(t, map[string]cloudevents.Attribute{"tenantid": tenant}, false), metadata); err != nil {
+	correlation, _ := cloudevents.NewStringAttribute("correlation?value")
+	if err := verifyQueueExtensions(helperEvent(t, map[string]cloudevents.Attribute{
+		"tenantid": tenant, correlationIDExtension: correlation,
+	}, false), metadata); err != nil {
 		t.Fatal(err)
 	}
 	different, _ := cloudevents.NewStringAttribute("tenant-b")

@@ -246,6 +246,11 @@ func QueueToCloudEvent(
 	message job.Message,
 	options QueueOptions,
 ) (cloudevents.Event, job.Message, Report, error) {
+	if message.Metadata != nil {
+		if _, err := validatedTenant(message.Metadata.TenantID); err != nil {
+			return cloudevents.Event{}, job.Message{}, Report{}, err
+		}
+	}
 	if err := message.Validate(); err != nil || options.Source == "" {
 		return cloudevents.Event{}, job.Message{}, Report{}, fmt.Errorf("%w: queue mapping", ErrInvalidAdapterInput)
 	}
