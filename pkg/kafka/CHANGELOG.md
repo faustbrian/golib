@@ -6,6 +6,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- pin the Testcontainers Ryuk resource reaper by immutable digest before every
+  integration run, reject upstream tag or registry substitutions before
+  container creation, and reject a running reaper with another image ID
 - add pinned Apache Kafka 4.3.1 `kafkaservice` interoperability evidence for
   concrete producer startup, readiness, publication, and shutdown plus
   consumer pre-cancellation settlement, admitted-handler join, explicit
