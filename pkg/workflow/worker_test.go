@@ -471,6 +471,153 @@ func TestWorkerHooksObserveClaimProcessingAndLeaseLoss(t *testing.T) {
 	t.Parallel()
 
 	now := time.Date(2026, 8, 9, 14, 0, 0, 0, time.UTC)
+	t.Run("successful processing", func(t *testing.T) {
+		hooks := newRecordingHooks()
+		store := &workerStore{}
+		processor := processorFunc(func(context.Context, workflow.WorkLease) (workflow.WorkDecision, error) {
+			return mustWorkDecision(t, workflow.WorkDecisionSpec{Kind: workflow.WorkComplete}), nil
+		})
+		worker := mustWorkerWithHooks(t, store, processor, newManualClock(now), hooks)
+		if err := worker.Handle(context.Background(), mustWorkerLease(t, now, "work-1", "tenant-1")); err != nil {
+			t.Fatalf("handle work: %v", err)
+		}
+		started := receiveWithin(t, hooks.channel)
+		completed := receiveWithin(t, hooks.channel)
+		if started.Kind() != workflow.WorkerProcessingStarted ||
+			completed.Kind() != workflow.WorkerCompleted ||
+			started.WorkKind() != workflow.WorkActivity || started.Attempt() != 1 ||
+			started.WorkID() != "work-1" || completed.WorkID() != "work-1" {
+			t.Fatalf("successful lifecycle hooks = %#v %#v", started, completed)
+		}
+	})
+
+	t.Run("lease heartbeat", func(t *testing.T) {
+		clock := newManualClock(now)
+		hooks := newRecordingHooks()
+		release := make(chan struct{})
+		processor := processorFunc(func(context.Context, workflow.WorkLease) (workflow.WorkDecision, error) {
+			<-release
+			return mustWorkDecision(t, workflow.WorkDecisionSpec{Kind: workflow.WorkComplete}), nil
+		})
+		store := &workerStore{renewLease: mustWorkerLeaseAttemptAt(
+			t, now.Add(20*time.Second), "work-1", "", 1, 1, now.Add(80*time.Second),
+		)}
+		worker := mustWorkerWithHooks(t, store, processor, clock, hooks)
+		done := make(chan error, 1)
+		go func() { done <- worker.Handle(context.Background(), mustWorkerLease(t, now, "work-1", "")) }()
+		started := receiveWithin(t, hooks.channel)
+		receiveWithin(t, clock.ready)
+		clock.FireDuration(20*time.Second, now.Add(20*time.Second))
+		renewed := receiveWithin(t, hooks.channel)
+		close(release)
+		completed := receiveWithin(t, hooks.channel)
+		if err := receiveWithin(t, done); err != nil {
+			t.Fatalf("handle renewed work: %v", err)
+		}
+		if started.Kind() != workflow.WorkerProcessingStarted ||
+			renewed.Kind() != workflow.WorkerLeaseRenewed ||
+			completed.Kind() != workflow.WorkerCompleted {
+			t.Fatalf("heartbeat hooks = %#v %#v %#v", started, renewed, completed)
+		}
+	})
+
+	t.Run("retry and dead letter", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			decision workflow.WorkDecisionSpec
+			want     workflow.WorkerEventKind
+		}{
+			{name: "retry", decision: workflow.WorkDecisionSpec{
+				Kind: workflow.WorkRetryDecision, Code: "temporary", RetryAt: now.Add(time.Minute),
+			}, want: workflow.WorkerRetryScheduled},
+			{name: "dead letter", decision: workflow.WorkDecisionSpec{
+				Kind: workflow.WorkDeadLetterDecision, Code: "poison",
+			}, want: workflow.WorkerDeadLettered},
+		}
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				hooks := newRecordingHooks()
+				processor := processorFunc(func(context.Context, workflow.WorkLease) (workflow.WorkDecision, error) {
+					return mustWorkDecision(t, test.decision), nil
+				})
+				worker := mustWorkerWithHooks(t, &workerStore{}, processor, newManualClock(now), hooks)
+				if err := worker.Handle(context.Background(), mustWorkerLease(t, now, "work-1", "")); err != nil {
+					t.Fatalf("handle work: %v", err)
+				}
+				_ = receiveWithin(t, hooks.channel)
+				finalized := receiveWithin(t, hooks.channel)
+				if finalized.Kind() != test.want || finalized.Cause() != nil {
+					t.Fatalf("finalization hook = %#v", finalized)
+				}
+			})
+		}
+	})
+
+	t.Run("failed finalization emits no success", func(t *testing.T) {
+		failure := errors.New("store failure")
+		tests := []struct {
+			name        string
+			decision    workflow.WorkDecisionSpec
+			completeErr error
+			failErr     error
+		}{
+			{name: "completion", decision: workflow.WorkDecisionSpec{Kind: workflow.WorkComplete}, completeErr: failure},
+			{name: "retry", decision: workflow.WorkDecisionSpec{
+				Kind: workflow.WorkRetryDecision, Code: "temporary", RetryAt: now.Add(time.Minute),
+			}, failErr: failure},
+			{name: "dead letter", decision: workflow.WorkDecisionSpec{
+				Kind: workflow.WorkDeadLetterDecision, Code: "poison",
+			}, failErr: failure},
+		}
+		for _, test := range tests {
+			t.Run(test.name, func(t *testing.T) {
+				hooks := newRecordingHooks()
+				store := &workerStore{completeErr: test.completeErr, failErr: test.failErr}
+				processor := processorFunc(func(context.Context, workflow.WorkLease) (workflow.WorkDecision, error) {
+					return mustWorkDecision(t, test.decision), nil
+				})
+				worker := mustWorkerWithHooks(t, store, processor, newManualClock(now), hooks)
+				err := worker.Handle(context.Background(), mustWorkerLease(t, now, "work-1", ""))
+				if !errors.Is(err, failure) {
+					t.Fatalf("finalization error = %v", err)
+				}
+				if started := receiveWithin(t, hooks.channel); started.Kind() != workflow.WorkerProcessingStarted {
+					t.Fatalf("processing start hook = %#v", started)
+				}
+				select {
+				case event := <-hooks.channel:
+					t.Fatalf("failed finalization emitted success hook %#v", event)
+				default:
+				}
+			})
+		}
+	})
+
+	t.Run("readmission", func(t *testing.T) {
+		hooks := newRecordingHooks()
+		lease := mustWorkerLeaseAttemptAt(t, now, "work-1", "", 2, 2, now.Add(time.Minute))
+		store := &workerStore{claims: [][]workflow.WorkLease{{lease}}}
+		processor := processorFunc(func(context.Context, workflow.WorkLease) (workflow.WorkDecision, error) {
+			return mustWorkDecision(t, workflow.WorkDecisionSpec{Kind: workflow.WorkComplete}), nil
+		})
+		worker := mustWorkerWithHooks(t, store, processor, newManualClock(now), hooks)
+		ctx, cancel := context.WithCancel(context.Background())
+		done := make(chan error, 1)
+		go func() { done <- worker.Run(ctx) }()
+		readmitted := receiveWithin(t, hooks.channel)
+		started := receiveWithin(t, hooks.channel)
+		completed := receiveWithin(t, hooks.channel)
+		cancel()
+		if err := receiveWithin(t, done); err != nil {
+			t.Fatalf("stop readmitted worker: %v", err)
+		}
+		if readmitted.Kind() != workflow.WorkerWorkReadmitted || readmitted.Attempt() != 2 ||
+			started.Kind() != workflow.WorkerProcessingStarted ||
+			completed.Kind() != workflow.WorkerCompleted {
+			t.Fatalf("readmission hooks = %#v %#v %#v", readmitted, started, completed)
+		}
+	})
+
 	t.Run("claim", func(t *testing.T) {
 		clock := newManualClock(now)
 		hooks := newRecordingHooks()
@@ -500,14 +647,19 @@ func TestWorkerHooksObserveClaimProcessingAndLeaseLoss(t *testing.T) {
 		worker := mustWorkerWithHooks(t, store, processor, newManualClock(now), hooks)
 		done := make(chan error, 1)
 		go func() { done <- worker.Run(ctx) }()
+		claimed := receiveWithin(t, hooks.channel)
+		started := receiveWithin(t, hooks.channel)
 		event := receiveWithin(t, hooks.channel)
 		cancel()
 		if err := receiveWithin(t, done); err != nil {
 			t.Fatalf("run processing worker: %v", err)
 		}
-		if event.Kind() != workflow.WorkerProcessingFailed || event.WorkID() != "work-1" ||
+		if claimed.Kind() != workflow.WorkerWorkClaimed ||
+			started.Kind() != workflow.WorkerProcessingStarted ||
+			event.Kind() != workflow.WorkerProcessingFailed || event.WorkID() != "work-1" ||
+			event.WorkKind() != workflow.WorkActivity || event.Attempt() != 1 ||
 			!errors.Is(event.Cause(), processorFailure) {
-			t.Fatalf("processing hook = %#v", event)
+			t.Fatalf("processing hooks = %#v %#v %#v", claimed, started, event)
 		}
 	})
 
@@ -524,15 +676,20 @@ func TestWorkerHooksObserveClaimProcessingAndLeaseLoss(t *testing.T) {
 		done := make(chan error, 1)
 		go func() { done <- worker.Run(ctx) }()
 		receiveWithin(t, processor.started)
+		receiveWithin(t, clock.ready)
 		clock.FireDuration(20*time.Second, now.Add(20*time.Second))
+		claimed := receiveWithin(t, hooks.channel)
+		started := receiveWithin(t, hooks.channel)
 		event := receiveWithin(t, hooks.channel)
 		cancel()
 		if err := receiveWithin(t, done); err != nil {
 			t.Fatalf("stop stale worker: %v", err)
 		}
-		if event.Kind() != workflow.WorkerLeaseLost || event.WorkID() != "work-1" ||
+		if claimed.Kind() != workflow.WorkerWorkClaimed ||
+			started.Kind() != workflow.WorkerProcessingStarted ||
+			event.Kind() != workflow.WorkerLeaseLost || event.WorkID() != "work-1" ||
 			!errors.Is(event.Cause(), workflow.ErrStaleWorkLease) {
-			t.Fatalf("lease-lost hook = %#v", event)
+			t.Fatalf("lease-lost hooks = %#v %#v %#v", claimed, started, event)
 		}
 	})
 }
@@ -611,6 +768,18 @@ func mustWorkerLease(t *testing.T, now time.Time, id, tenant string) workflow.Wo
 }
 
 func mustWorkerLeaseAt(t *testing.T, now time.Time, id, tenant string, token uint64, expiresAt time.Time) workflow.WorkLease {
+	return mustWorkerLeaseAttemptAt(t, now, id, tenant, token, 1, expiresAt)
+}
+
+func mustWorkerLeaseAttemptAt(
+	t *testing.T,
+	now time.Time,
+	id string,
+	tenant string,
+	token uint64,
+	attempt uint32,
+	expiresAt time.Time,
+) workflow.WorkLease {
 	t.Helper()
 	work, err := workflow.NewPendingWork(workflow.PendingWorkSpec{
 		ID: id, Kind: workflow.WorkActivity, InstanceID: "instance-" + id,
@@ -620,7 +789,7 @@ func mustWorkerLeaseAt(t *testing.T, now time.Time, id, tenant string, token uin
 		t.Fatalf("construct worker work: %v", err)
 	}
 	lease, err := workflow.NewWorkLease(workflow.WorkLeaseSpec{
-		Work: work, Owner: "worker-1", Token: token, Attempt: 1,
+		Work: work, Owner: "worker-1", Token: token, Attempt: attempt,
 		ClaimedAt: now, ExpiresAt: expiresAt,
 	})
 	if err != nil {

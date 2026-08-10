@@ -5,6 +5,18 @@ import (
 	"time"
 )
 
+func TestWorkDecisionCompleteValidityRequiresEmptyMetadata(t *testing.T) {
+	if !(WorkDecision{kind: WorkComplete}).Valid() {
+		t.Fatal("plain completion was rejected")
+	}
+	if (WorkDecision{kind: WorkComplete, code: "unexpected"}).Valid() {
+		t.Fatal("completion accepted a failure code")
+	}
+	if (WorkDecision{kind: WorkComplete, retryAt: time.Unix(1, 0)}).Valid() {
+		t.Fatal("completion accepted a retry time")
+	}
+}
+
 func TestFairLeaseOrderRoundRobinsTenantsWithoutReorderingWithinTenant(t *testing.T) {
 	t.Parallel()
 

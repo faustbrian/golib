@@ -144,15 +144,33 @@ const (
 	WorkerProcessingFailed WorkerEventKind = 2
 	// WorkerLeaseLost reports cancellation caused by a stale ownership fence.
 	WorkerLeaseLost WorkerEventKind = 3
+	// WorkerWorkClaimed reports first admission of one durable work item.
+	WorkerWorkClaimed WorkerEventKind = 4
+	// WorkerWorkReadmitted reports admission after any prior durable claim.
+	// Attempt metadata distinguishes it from first admission; the hook does not
+	// guess whether the cause was an explicit retry or lease-expiry recovery.
+	WorkerWorkReadmitted WorkerEventKind = 5
+	// WorkerProcessingStarted reports bounded processor invocation.
+	WorkerProcessingStarted WorkerEventKind = 6
+	// WorkerLeaseRenewed reports successful ownership extension or heartbeat.
+	WorkerLeaseRenewed WorkerEventKind = 7
+	// WorkerCompleted reports durable successful work finalization.
+	WorkerCompleted WorkerEventKind = 8
+	// WorkerRetryScheduled reports durable retry admission.
+	WorkerRetryScheduled WorkerEventKind = 9
+	// WorkerDeadLettered reports durable poison-work isolation.
+	WorkerDeadLettered WorkerEventKind = 10
 )
 
 // WorkerEvent is one synchronous lifecycle notification. WorkID is data and
 // must not be used as an unbounded metric label.
 type WorkerEvent struct {
-	kind   WorkerEventKind
-	workID string
-	at     time.Time
-	cause  error
+	kind     WorkerEventKind
+	workKind WorkKind
+	workID   string
+	attempt  uint32
+	at       time.Time
+	cause    error
 }
 
 // Kind returns the lifecycle classification.
@@ -161,14 +179,22 @@ func (event WorkerEvent) Kind() WorkerEventKind { return event.kind }
 // WorkID returns the affected work identity, or empty for claim failures.
 func (event WorkerEvent) WorkID() string { return event.workID }
 
+// WorkKind returns the bounded durable-work classification, or zero for a
+// claim operation that failed before any work was admitted.
+func (event WorkerEvent) WorkKind() WorkKind { return event.workKind }
+
+// Attempt returns the durable claim attempt, or zero for a claim failure.
+func (event WorkerEvent) Attempt() uint32 { return event.attempt }
+
 // At returns the deterministic observation time.
 func (event WorkerEvent) At() time.Time { return event.at }
 
 // Cause returns the underlying error for caller-owned logs and traces.
 func (event WorkerEvent) Cause() error { return event.cause }
 
-// WorkerHooks receives synchronous bounded lifecycle events. Implementations
-// must return promptly and must not panic.
+// WorkerHooks receives synchronous bounded lifecycle events. Calls may occur
+// concurrently from the bounded worker handlers. Implementations must provide
+// their own synchronization, return promptly, and must not panic.
 type WorkerHooks interface {
 	OnWorkerEvent(WorkerEvent)
 }
@@ -234,6 +260,11 @@ func (worker *Worker) Run(ctx context.Context) error {
 					continue
 				}
 				for _, lease := range fairLeaseOrder(leases) {
+					kind := WorkerWorkClaimed
+					if lease.Attempt() > 1 {
+						kind = WorkerWorkReadmitted
+					}
+					worker.observeLease(kind, lease, nil)
 					active++
 					handlers.Add(1)
 					go func(claimed WorkLease) {
@@ -243,7 +274,7 @@ func (worker *Worker) Run(ctx context.Context) error {
 							if errors.Is(err, ErrStaleWorkLease) {
 								kind = WorkerLeaseLost
 							}
-							worker.observe(kind, claimed.Work().ID(), err)
+							worker.observeLease(kind, claimed, err)
 						}
 						results <- struct{}{}
 					}(lease)
@@ -274,6 +305,17 @@ func (worker *Worker) observe(kind WorkerEventKind, workID string, cause error) 
 	})
 }
 
+func (worker *Worker) observeLease(kind WorkerEventKind, lease WorkLease, cause error) {
+	if worker.config.Hooks == nil {
+		return
+	}
+	work := lease.Work()
+	worker.config.Hooks.OnWorkerEvent(WorkerEvent{
+		kind: kind, workKind: work.Kind(), workID: work.ID(), attempt: lease.Attempt(),
+		at: worker.config.Clock.Now(), cause: cause,
+	})
+}
+
 // Handle processes one valid current lease, renews it on a bounded cadence,
 // and applies its explicit fenced disposition. It is exposed for embedding in
 // caller-owned admission loops.
@@ -281,6 +323,7 @@ func (worker *Worker) Handle(ctx context.Context, lease WorkLease) error {
 	if worker == nil || ctx == nil || !lease.Valid() || lease.Owner() != worker.config.Owner {
 		return ErrInvalidWorker
 	}
+	worker.observeLease(WorkerProcessingStarted, lease, nil)
 	processContext, cancel := context.WithCancel(ctx)
 	defer cancel()
 	type processResult struct {
@@ -322,6 +365,7 @@ func (worker *Worker) Handle(ctx context.Context, lease WorkLease) error {
 				<-processed
 				return err
 			}
+			worker.observeLease(WorkerLeaseRenewed, current, nil)
 			timer.Stop()
 			timer = worker.config.Clock.NewTimer(worker.config.RenewEvery)
 		case <-ctx.Done():
@@ -350,7 +394,11 @@ func (worker *Worker) finalize(ctx context.Context, lease WorkLease, decision Wo
 		if err != nil {
 			return err
 		}
-		return worker.config.Store.Complete(finalizeContext, completion)
+		if err := worker.config.Store.Complete(finalizeContext, completion); err != nil {
+			return err
+		}
+		worker.observeLease(WorkerCompleted, lease, nil)
+		return nil
 	case WorkRetryDecision:
 		failure, err := NewWorkFailure(WorkFailureSpec{
 			WorkID: lease.Work().ID(), Owner: lease.Owner(), Token: lease.Token(), FailedAt: now,
@@ -359,7 +407,11 @@ func (worker *Worker) finalize(ctx context.Context, lease WorkLease, decision Wo
 		if err != nil {
 			return err
 		}
-		return worker.config.Store.Fail(finalizeContext, failure)
+		if err := worker.config.Store.Fail(finalizeContext, failure); err != nil {
+			return err
+		}
+		worker.observeLease(WorkerRetryScheduled, lease, nil)
+		return nil
 	default:
 		failure, err := NewWorkFailure(WorkFailureSpec{
 			WorkID: lease.Work().ID(), Owner: lease.Owner(), Token: lease.Token(), FailedAt: now,
@@ -368,7 +420,11 @@ func (worker *Worker) finalize(ctx context.Context, lease WorkLease, decision Wo
 		if err != nil {
 			return err
 		}
-		return worker.config.Store.Fail(finalizeContext, failure)
+		if err := worker.config.Store.Fail(finalizeContext, failure); err != nil {
+			return err
+		}
+		worker.observeLease(WorkerDeadLettered, lease, nil)
+		return nil
 	}
 }
 

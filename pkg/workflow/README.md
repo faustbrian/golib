@@ -66,7 +66,12 @@ before returning `WorkComplete`. If an external activity outcome is unknown, it
 must first persist unknown-outcome/reconciliation state; returning an error does
 not make an uncertain side effect safe to redispatch. Worker shutdown stops new
 claims, cancels active processors, preserves any already-known disposition, and
-waits for processors to exit.
+waits for processors to exit. Synchronous worker hooks report bounded claim,
+readmission, processing, lease-heartbeat, completion, retry, dead-letter, and
+failure kinds. A readmission may follow an explicit retry or lease-expiry
+recovery; the package exposes the durable attempt rather than guessing the
+cause. Work and tenant identities remain event data and must not become metric
+labels.
 
 `StepRace` currently accepts signal and approval branches, so selecting a
 winner cannot imply cancellation of an already-started external side effect.

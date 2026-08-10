@@ -7,6 +7,9 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Bounded worker lifecycle hooks for claims and readmission, processor starts,
+  lease heartbeats, completions, retries, dead letters, and existing failure
+  paths, with durable work kind and attempt metadata kept out of metric labels.
 - Fenced child-start processing with persisted pre-creation attempts, explicit
   known-started, known-absent, and unknown outcomes, stable idempotency keys,
   crash-safe redelivery, and durable policy-bound retries only after known
