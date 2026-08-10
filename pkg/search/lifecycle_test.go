@@ -81,6 +81,60 @@ func TestMigrationCheckpointsEveryReindexStepAndRejectsPlanDrift(t *testing.T) {
 	}
 }
 
+func TestMigrationRejectsConflictingLifecycleNames(t *testing.T) {
+	t.Parallel()
+
+	definition, err := search.NewIndexDefinition("events-v2", json.RawMessage(`{}`), json.RawMessage(`{}`), search.DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := search.MigrationPlan{ID: "migration-conflict", Tenant: "tenant-a", Alias: "events-read", SourceIndex: "events-v1", Target: definition, MaxReindexSteps: 1}
+	for name, mutate := range map[string]func(*search.MigrationPlan){
+		"source equals target": func(plan *search.MigrationPlan) { plan.SourceIndex = plan.Target.Name() },
+		"alias equals source":  func(plan *search.MigrationPlan) { plan.Alias = plan.SourceIndex },
+		"alias equals target":  func(plan *search.MigrationPlan) { plan.Alias = plan.Target.Name() },
+	} {
+		t.Run(name, func(t *testing.T) {
+			plan := base
+			mutate(&plan)
+			migrator, err := search.NewMigrator(&lifecycleBackend{alias: plan.SourceIndex, reindexSteps: 1}, &migrationStore{}, &lifecycleAuthorizer{}, &lifecycleObserver{})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := migrator.Run(t.Context(), plan); !errors.Is(err, search.ErrInvalidMigrationPlan) {
+				t.Fatalf("Run() error = %v, want ErrInvalidMigrationPlan", err)
+			}
+		})
+	}
+}
+
+func TestMigrationCleanupRefusesToDeleteTheActiveIndex(t *testing.T) {
+	t.Parallel()
+
+	definition, err := search.NewIndexDefinition("events-v2", json.RawMessage(`{}`), json.RawMessage(`{}`), search.DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	backend := &lifecycleBackend{alias: "events-v1", reindexSteps: 1}
+	store := &migrationStore{}
+	migrator, err := search.NewMigrator(backend, store, &lifecycleAuthorizer{}, &lifecycleObserver{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := search.MigrationPlan{ID: "migration-cleanup", Tenant: "tenant-a", Alias: "events-read", SourceIndex: "events-v1", Target: definition, MaxReindexSteps: 1}
+	if _, err := migrator.Run(t.Context(), plan); err != nil {
+		t.Fatal(err)
+	}
+
+	backend.alias = plan.SourceIndex
+	if _, err := migrator.Cleanup(t.Context(), plan); !errors.Is(err, search.ErrAliasChanged) {
+		t.Fatalf("Cleanup() error = %v, want ErrAliasChanged", err)
+	}
+	if len(backend.deleted) != 0 {
+		t.Fatalf("Cleanup() deleted active indexes: %v", backend.deleted)
+	}
+}
+
 type lifecycleBackend struct {
 	alias                                             string
 	reindexSteps                                      int

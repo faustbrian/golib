@@ -292,3 +292,19 @@ func TestInternalLifecycleRollbackCleanupAndLoadBranches(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestMigrationResumeRejectsDifferentPhysicalTargetWithSameDefinition(t *testing.T) {
+	plan, fingerprint := lifecycleBranchPlan(t)
+	changedTarget, err := NewIndexDefinition("events-v3", plan.Target.Settings(), plan.Target.Mappings(), DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	changedPlan := plan
+	changedPlan.Target = changedTarget
+	backend := &branchLifecycleBackend{alias: plan.SourceIndex}
+	store := &branchMigrationStore{state: MigrationState{ID: plan.ID, PlanFingerprint: fingerprint, Phase: MigrationVerified}}
+
+	if _, err := newBranchMigrator(backend, store, nil, nil).Run(t.Context(), changedPlan); !errors.Is(err, ErrMigrationPlanChanged) {
+		t.Fatalf("Run() error = %v, want ErrMigrationPlanChanged", err)
+	}
+}
