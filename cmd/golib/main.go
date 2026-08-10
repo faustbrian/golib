@@ -1256,6 +1256,8 @@ func specifications(directory string) []string {
 			"RFC 7519 JSON Web Token",
 			"RFC 8259 JSON",
 			"RFC 8725 JSON Web Token Best Current Practices",
+			"RFC 9110 HTTP Semantics",
+			"RFC 9111 HTTP Caching",
 		}
 	}
 	if directory == "pkg/authentication/oidc" {

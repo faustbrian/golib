@@ -10,6 +10,8 @@ practices in [RFC 8725](https://www.rfc-editor.org/rfc/rfc8725). The current
 [IANA JOSE registry](https://www.iana.org/assignments/jose/jose.xhtml) remains
 the algorithm-status authority. RFC 7520 vectors are pinned to
 `ietf-jose/cookbook` commit `13692b68bfc18b99557a5b1ed311fd5077bfff04`.
+Observable ambiguities and package-owned policy choices are maintained in the
+[specification decision register](specification-decisions.md).
 
 ## Algorithm and key matrix
 

@@ -29,6 +29,8 @@ All notable changes to this module are documented here.
 
 ### Documentation
 
+- Add the stable JWT, JOSE, JSON, remote-JWKS, cache, lifecycle, and diagnostic
+  specification decision register with executable evidence links.
 - Document strict claim and algorithm policy, local and remote key ownership,
   fail-stale refresh behavior, cancellation, close semantics, error redaction,
   adoption, migration, security tradeoffs, and compatibility.

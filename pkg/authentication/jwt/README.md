@@ -154,6 +154,8 @@ dependency and this algorithm list when upgrading it.
 
 The RFC-derived acceptance, remote-boundary, and error matrix is recorded in
 [`docs/hardening.md`](docs/hardening.md).
+The stable interpretation and defensive-policy register is recorded in
+[`docs/specification-decisions.md`](docs/specification-decisions.md).
 The complete exported surface and defaults are recorded in
 [`docs/api.md`](docs/api.md).
 
