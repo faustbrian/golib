@@ -55,7 +55,8 @@ func TestCompensationProcessorRejectsInvalidConstructionAndCalls(t *testing.T) {
 		t.Fatalf("nil processor error = %v", err)
 	}
 	processor = &CompensationWorkProcessor{config: valid}
-	if _, err := processor.Process(nil, lease); !errors.Is(err, ErrInvalidCompensationProcessor) {
+	var nilContext context.Context
+	if _, err := processor.Process(nilContext, lease); !errors.Is(err, ErrInvalidCompensationProcessor) {
 		t.Fatalf("nil context error = %v", err)
 	}
 	if _, err := processor.Process(context.Background(), WorkLease{}); !errors.Is(err, ErrInvalidCompensationProcessor) {

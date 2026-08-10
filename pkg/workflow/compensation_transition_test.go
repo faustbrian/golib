@@ -133,34 +133,6 @@ func TestCompensationBuildersRejectMalformedOrUnboundedInput(t *testing.T) {
 	}
 }
 
-func mustUncompensatedReserveDefinition(t *testing.T) workflow.Definition {
-	t.Helper()
-	definition, err := workflow.NewDefinition(workflow.DefinitionSpec{
-		Name: "orders", Version: "uncompensated-v1", Mode: workflow.Orchestration,
-		Steps: []workflow.StepSpec{{
-			Name: "reserve", Kind: workflow.StepActivity, Target: "inventory.reserve",
-			Timeout: time.Minute, InputLimit: 64, ResultLimit: 64,
-			Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
-		}},
-	})
-	if err != nil {
-		t.Fatalf("construct uncompensated definition: %v", err)
-	}
-	return definition
-}
-
-func mustCompensationWork(t *testing.T, now time.Time, payload []byte) workflow.PendingWork {
-	t.Helper()
-	work, err := workflow.NewPendingWork(workflow.PendingWorkSpec{
-		ID: "compensation-work", Kind: workflow.WorkCompensation, InstanceID: "instance-1",
-		Sequence: 5, AvailableAt: now, Deadline: now.Add(time.Hour), Payload: payload,
-	})
-	if err != nil {
-		t.Fatalf("construct compensation work: %v", err)
-	}
-	return work
-}
-
 func mustCompensationLease(t *testing.T, work workflow.PendingWork, now time.Time) workflow.WorkLease {
 	t.Helper()
 	lease, err := workflow.NewWorkLease(workflow.WorkLeaseSpec{

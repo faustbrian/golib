@@ -94,7 +94,8 @@ func TestActivityProcessorRejectsInvalidConstructionAndCalls(t *testing.T) {
 		t.Fatalf("nil processor error = %v", err)
 	}
 	processor = &ActivityWorkProcessor{config: valid}
-	if _, err := processor.Process(nil, lease); !errors.Is(err, ErrInvalidActivityProcessor) {
+	var nilContext context.Context
+	if _, err := processor.Process(nilContext, lease); !errors.Is(err, ErrInvalidActivityProcessor) {
 		t.Fatalf("nil context error = %v", err)
 	}
 	if _, err := processor.Process(context.Background(), WorkLease{}); !errors.Is(err, ErrInvalidActivityProcessor) {

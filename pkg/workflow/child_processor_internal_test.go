@@ -43,7 +43,8 @@ func TestChildProcessorRejectsInvalidConstructionCallsAndLoadedStates(t *testing
 		t.Fatalf("nil processor error = %v", err)
 	}
 	processor := &ChildWorkProcessor{}
-	if _, err := processor.Process(nil, WorkLease{}); !errors.Is(err, ErrInvalidChildProcessor) {
+	var nilContext context.Context
+	if _, err := processor.Process(nilContext, WorkLease{}); !errors.Is(err, ErrInvalidChildProcessor) {
 		t.Fatalf("nil context error = %v", err)
 	}
 
@@ -74,7 +75,7 @@ func TestChildProcessorRejectsInvalidConstructionCallsAndLoadedStates(t *testing
 		t.Fatalf("nil processor with valid lease error = %v", err)
 	}
 	processor = &ChildWorkProcessor{}
-	if _, err := processor.Process(nil, lease); !errors.Is(err, ErrInvalidChildProcessor) {
+	if _, err := processor.Process(nilContext, lease); !errors.Is(err, ErrInvalidChildProcessor) {
 		t.Fatalf("nil context with valid lease error = %v", err)
 	}
 	if _, err := processor.Process(context.Background(), WorkLease{}); !errors.Is(err, ErrInvalidChildProcessor) {

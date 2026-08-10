@@ -153,7 +153,8 @@ func TestInspectionAndExportRejectInvalidOrUnboundedRequests(t *testing.T) {
 		}
 	}
 	validInspection := workflow.InstanceInspectionSpec{InstanceID: "instance-1", PageSize: 1, MaxEvents: 2}
-	if _, err := workflow.InspectInstance(nil, reader, registry, validInspection); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+	var nilContext context.Context
+	if _, err := workflow.InspectInstance(nilContext, reader, registry, validInspection); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
 		t.Fatalf("nil context error = %v", err)
 	}
 	if _, err := workflow.InspectInstance(context.Background(), nil, registry, validInspection); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
@@ -165,7 +166,7 @@ func TestInspectionAndExportRejectInvalidOrUnboundedRequests(t *testing.T) {
 	validExport := workflow.HistoryExportSpec{InstanceID: "instance-1", PageSize: 1, MaxEvents: 2}
 	validSink := func(context.Context, []workflow.HistoryEvent) error { return nil }
 	for name, err := range map[string]error{
-		"nil context": workflow.ExportHistory(nil, reader, validExport, validSink),
+		"nil context": workflow.ExportHistory(nilContext, reader, validExport, validSink),
 		"nil reader":  workflow.ExportHistory(context.Background(), nil, validExport, validSink),
 		"nil sink":    workflow.ExportHistory(context.Background(), reader, validExport, nil),
 		"invalid spec": workflow.ExportHistory(

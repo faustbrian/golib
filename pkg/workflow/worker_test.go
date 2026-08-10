@@ -139,10 +139,9 @@ func TestWorkerRenewsLeaseAndCancelsAStaleProcessor(t *testing.T) {
 	if err != nil {
 		t.Fatalf("construct worker: %v", err)
 	}
-	done := make(chan struct{})
+	done := make(chan error, 1)
 	go func() {
-		worker.Handle(context.Background(), lease)
-		close(done)
+		done <- worker.Handle(context.Background(), lease)
 	}()
 	receiveWithin(t, processor.started)
 	receiveWithin(t, clock.ready)
@@ -152,7 +151,14 @@ func TestWorkerRenewsLeaseAndCancelsAStaleProcessor(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("stale renewal did not cancel the processor")
 	}
-	receiveWithin(t, done)
+	select {
+	case handleErr := <-done:
+		if !errors.Is(handleErr, workflow.ErrStaleWorkLease) {
+			t.Fatalf("stale handle error = %v", handleErr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("stale handler did not return")
+	}
 	if len(store.completions) != 0 || store.renewals != 1 {
 		t.Fatalf("stale handling calls = completions %d renewals %d", len(store.completions), store.renewals)
 	}
@@ -371,10 +377,11 @@ func TestWorkerHandleLeavesFailedOrInvalidProcessingForRecovery(t *testing.T) {
 		})
 	}
 	worker := mustWorker(t, &workerStore{}, &countingProcessor{}, newManualClock(now))
+	var nilContext context.Context
 	if err := (*workflow.Worker)(nil).Handle(context.Background(), mustWorkerLease(t, now, "work-1", "")); !errors.Is(err, workflow.ErrInvalidWorker) {
 		t.Fatalf("nil worker handle = %v", err)
 	}
-	if err := worker.Handle(nil, mustWorkerLease(t, now, "work-1", "")); !errors.Is(err, workflow.ErrInvalidWorker) {
+	if err := worker.Handle(nilContext, mustWorkerLease(t, now, "work-1", "")); !errors.Is(err, workflow.ErrInvalidWorker) {
 		t.Fatalf("nil context handle = %v", err)
 	}
 	if err := worker.Handle(context.Background(), workflow.WorkLease{}); !errors.Is(err, workflow.ErrInvalidWorker) {

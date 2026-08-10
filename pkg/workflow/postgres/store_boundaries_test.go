@@ -487,13 +487,14 @@ func TestWorkStoreRequestAndDriverFailureBoundaries(t *testing.T) {
 
 	completion := mustWorkCompletion(t, now)
 	deadLetter := mustWorkDeadLetter(t, now)
+	var nilContext context.Context
 	if err := (*Store)(nil).Complete(context.Background(), completion); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
 		t.Fatalf("nil completion store = %v", err)
 	}
 	if err := (&Store{}).Complete(context.Background(), completion); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
 		t.Fatalf("nil completion database = %v", err)
 	}
-	if err := newStore(&fakeDatabase{}, "workflow").Complete(nil, completion); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+	if err := newStore(&fakeDatabase{}, "workflow").Complete(nilContext, completion); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
 		t.Fatalf("nil completion context = %v", err)
 	}
 	if err := newStore(&fakeDatabase{}, "workflow").Complete(context.Background(), workflow.WorkCompletion{}); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
@@ -508,7 +509,7 @@ func TestWorkStoreRequestAndDriverFailureBoundaries(t *testing.T) {
 	if err := (&Store{}).Fail(context.Background(), deadLetter); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
 		t.Fatalf("nil failure database = %v", err)
 	}
-	if err := newStore(&fakeDatabase{}, "workflow").Fail(nil, deadLetter); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+	if err := newStore(&fakeDatabase{}, "workflow").Fail(nilContext, deadLetter); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
 		t.Fatalf("nil failure context = %v", err)
 	}
 	if err := newStore(&fakeDatabase{}, "workflow").Fail(context.Background(), workflow.WorkFailure{}); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
