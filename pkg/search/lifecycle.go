@@ -253,17 +253,26 @@ func (m *Migrator) Cleanup(ctx context.Context, plan MigrationPlan) (MigrationSt
 	if state.Phase == MigrationCleaned {
 		return state, nil
 	}
-	var inactive string
+	var active, inactive string
 	switch state.Phase {
 	case MigrationComplete:
+		active = plan.Target.Name()
 		inactive = plan.SourceIndex
 	case MigrationRolledBack:
+		active = plan.SourceIndex
 		inactive = plan.Target.Name()
 	default:
 		return state, ErrInvalidMigrationPhase
 	}
 	if err := m.authorize(ctx, plan, LifecycleCleanup, inactive); err != nil {
 		return state, err
+	}
+	current, err := m.backend.ResolveAlias(ctx, plan.Tenant, plan.Alias)
+	if err != nil {
+		return state, err
+	}
+	if current != active {
+		return state, ErrAliasChanged
 	}
 	if err := m.backend.DeleteIndex(ctx, plan.Tenant, inactive); err != nil {
 		return state, err
@@ -299,9 +308,10 @@ func (m *Migrator) checkpoint(ctx context.Context, plan MigrationPlan, state Mig
 	return m.observer.Record(ctx, LifecycleEvent{MigrationID: plan.ID, Tenant: plan.Tenant, Resource: resource, Operation: operation, Phase: state.Phase})
 }
 func validateMigrationPlan(plan MigrationPlan) (string, error) {
-	if plan.ID == "" || plan.Tenant == "" || plan.Alias == "" || plan.SourceIndex == "" || plan.Target.Name() == "" || plan.Target.Fingerprint() == "" || plan.MaxReindexSteps <= 0 || !validIndexName(plan.SourceIndex) || !validIndexName(plan.Alias) {
+	target := plan.Target.Name()
+	if plan.ID == "" || plan.Tenant == "" || plan.Alias == "" || plan.SourceIndex == "" || target == "" || plan.Target.Fingerprint() == "" || plan.MaxReindexSteps <= 0 || !validIndexName(plan.SourceIndex) || !validIndexName(plan.Alias) || plan.SourceIndex == target || plan.Alias == plan.SourceIndex || plan.Alias == target {
 		return "", ErrInvalidMigrationPlan
 	}
-	sum := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%s\x00%s\x00%s\x00%s", plan.ID, plan.Tenant, plan.Alias, plan.SourceIndex, plan.Target.Fingerprint())))
+	sum := sha256.Sum256([]byte(fmt.Sprintf("%s\x00%s\x00%s\x00%s\x00%s\x00%s", plan.ID, plan.Tenant, plan.Alias, plan.SourceIndex, target, plan.Target.Fingerprint())))
 	return hex.EncodeToString(sum[:]), nil
 }
