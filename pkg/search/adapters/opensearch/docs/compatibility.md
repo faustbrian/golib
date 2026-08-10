@@ -1,7 +1,7 @@
 # Compatibility and capabilities
 
 The module pins official client `opensearch-go/v4` `v4.7.3` and supports exact
-OpenSearch versions `2.19.3` and `3.6.0`. Each release records those versions
+OpenSearch versions `2.19.6` and `3.8.0`. Each release records those versions
 in integration evidence; users must test their
 exact server, plugins, analyzers, mappings, and ranking corpus.
 

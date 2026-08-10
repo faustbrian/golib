@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 
-versions='2.19.3 3.6.0'
+versions='2.19.6 3.8.0'
 container=''
 image=''
 remove_image=0

@@ -1,7 +1,7 @@
 # Hardening and real-cluster exercises
 
 The conformance harness runs the complete adapter workflow against exact
-OpenSearch `2.19.3` and `3.6.0` containers. Each container is limited to one
+OpenSearch `2.19.6` and `3.8.0` containers. Each container is limited to one
 CPU, 1 GiB of memory, 512 processes, and 1,024 file descriptors. The harness
 creates no connection to a pre-existing service and removes its containers and
 newly pulled images on exit.
@@ -15,7 +15,7 @@ minutes per supported version for a release soak.
 
 The interoperability harness creates a two-data-node cluster, proves endpoint
 rotation and one-attempt failover, then replaces one node at a time from
-`2.19.3` to `3.6.0`. It exercises the mixed-version cluster between
+`2.19.6` to `3.8.0`. It exercises the mixed-version cluster between
 replacements and reruns conformance and multi-node checks after the upgrade.
 
 Deterministic transport tests inject cancellation, timeouts, connection

@@ -1,8 +1,8 @@
 #!/bin/sh
 set -eu
 
-old_version=2.19.3
-new_version=3.6.0
+old_version=2.19.6
+new_version=3.8.0
 suffix=$$
 network="golib-opensearch-upgrade-$suffix"
 node1="golib-opensearch-upgrade-node1-$suffix"
