@@ -344,13 +344,49 @@ func (store *Store) Commit(ctx context.Context, transition workflow.Transition) 
 		return notCommitted(err)
 	}
 	defer rollback(tx, ctx)
+	staged, err := store.stageTransition(ctx, tx, transition)
+	if err != nil || !staged {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return workflow.NewStoreCommitError(workflow.StoreCommitUnknown, err)
+	}
+	return nil
+}
 
-	exact, err := store.exactTransition(ctx, tx, transition)
-	if err != nil {
+// Stage appends a transition through a caller-owned PostgreSQL transaction so
+// the caller can atomically persist an outbox record or application state. It
+// never commits or rolls back tx. Returning nil means the transition is staged
+// or was an exact replay, not that it is durable; externally observable work
+// must wait until the caller confirms tx.Commit. A commit error remains unknown
+// and must be reconciled through ReconcileTransition.
+func (store *Store) Stage(
+	ctx context.Context,
+	tx pgx.Tx,
+	transition workflow.Transition,
+) error {
+	if store == nil || store.database == nil || ctx == nil || tx == nil ||
+		!transition.Valid() || !transitionSequenceFits(transition) {
+		return notCommitted(workflow.ErrInvalidStoreRequest)
+	}
+	if err := ctx.Err(); err != nil {
 		return notCommitted(err)
 	}
+	_, err := store.stageTransition(ctx, pgxTransaction{tx: tx}, transition)
+	return err
+}
+
+func (store *Store) stageTransition(
+	ctx context.Context,
+	tx transaction,
+	transition workflow.Transition,
+) (bool, error) {
+	exact, err := store.exactTransition(ctx, tx, transition)
+	if err != nil {
+		return false, notCommitted(err)
+	}
 	if exact {
-		return nil
+		return false, nil
 	}
 
 	events := transition.Events()
@@ -359,10 +395,10 @@ func (store *Store) Commit(ctx context.Context, transition workflow.Transition) 
 			transition.InstanceID(), transition.Definition().Name(), transition.Definition().Version(),
 			transition.Definition().Fingerprint(), events[0].OccurredAt())
 		if execErr != nil {
-			return notCommitted(execErr)
+			return false, notCommitted(execErr)
 		}
 		if result.RowsAffected() != 1 {
-			return store.concurrentTransition(ctx, tx, transition)
+			return false, store.concurrentTransition(ctx, tx, transition)
 		}
 	} else {
 		var sequence int64
@@ -371,15 +407,15 @@ func (store *Store) Commit(ctx context.Context, transition workflow.Transition) 
 			&sequence, &name, &version, &fingerprint,
 		)
 		if errors.Is(err, pgx.ErrNoRows) {
-			return notCommitted(workflow.ErrStoreNotFound)
+			return false, notCommitted(workflow.ErrStoreNotFound)
 		}
 		if err != nil {
-			return notCommitted(err)
+			return false, notCommitted(err)
 		}
 		if uint64(sequence) != transition.ExpectedSequence() ||
 			name != transition.Definition().Name() || version != transition.Definition().Version() ||
 			fingerprint != transition.Definition().Fingerprint() {
-			return store.concurrentTransition(ctx, tx, transition)
+			return false, store.concurrentTransition(ctx, tx, transition)
 		}
 	}
 
@@ -390,23 +426,23 @@ func (store *Store) Commit(ctx context.Context, transition workflow.Transition) 
 		transition.ExpectedSequence(), last.Sequence(), last.OccurredAt(),
 	).Scan(&insertedFingerprint)
 	if errors.Is(err, pgx.ErrNoRows) {
-		return store.concurrentTransition(ctx, tx, transition)
+		return false, store.concurrentTransition(ctx, tx, transition)
 	}
 	if err != nil {
-		return notCommitted(err)
+		return false, notCommitted(err)
 	}
 	if insertedFingerprint != transition.Fingerprint() {
-		return notCommitted(workflow.ErrDuplicateTransition)
+		return false, notCommitted(workflow.ErrDuplicateTransition)
 	}
 
 	for _, event := range events {
 		if _, err = tx.Exec(ctx, store.queries.insertHistory, historyArguments(event)...); err != nil {
-			return notCommitted(err)
+			return false, notCommitted(err)
 		}
 	}
 	for _, work := range transition.Work() {
 		if _, err = tx.Exec(ctx, store.queries.insertWork, workArguments(work)...); err != nil {
-			return notCommitted(err)
+			return false, notCommitted(err)
 		}
 	}
 
@@ -422,15 +458,12 @@ func (store *Store) Commit(ctx context.Context, transition workflow.Transition) 
 		terminalArchiveTime(last),
 	)
 	if err != nil {
-		return notCommitted(err)
+		return false, notCommitted(err)
 	}
 	if result.RowsAffected() != 1 {
-		return notCommitted(workflow.ErrStoreConflict)
+		return false, notCommitted(workflow.ErrStoreConflict)
 	}
-	if err := tx.Commit(ctx); err != nil {
-		return workflow.NewStoreCommitError(workflow.StoreCommitUnknown, err)
-	}
-	return nil
+	return true, nil
 }
 
 func terminalArchiveTime(event workflow.HistoryEvent) *time.Time {

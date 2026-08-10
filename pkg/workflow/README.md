@@ -68,6 +68,34 @@ as retry readmission. Exact command replay is idempotent; conflicting command
 reuse or a stale work token is rejected, and an uncertain commit must be
 reconciled by replaying that command identity.
 
+`postgres.Store.Stage` writes a transition through a caller-owned `pgx.Tx`
+without committing or rolling it back. This is the explicit composition point
+for application state and optional transactional outbox records: stage every
+record in one transaction, commit it once, and allow no externally observable
+progression before commit succeeds. A commit transport error remains unknown;
+reconcile the transition identity before deciding whether the same transaction
+intent is safe to retry. `Stage` returning nil means staged or exact replay, not
+durably committed.
+
+```go
+tx, err := pool.Begin(ctx)
+if err != nil {
+	return err
+}
+defer tx.Rollback(ctx)
+
+if err := store.Stage(ctx, tx, transition); err != nil {
+	return err
+}
+if err := outboxWriter.Insert(ctx, tx, envelope); err != nil {
+	return err
+}
+if err := tx.Commit(ctx); err != nil {
+	// The outcome is unknown: reconcile transition.ID() before retrying.
+	return err
+}
+```
+
 A `WorkProcessor` must honor cancellation and stop all of its goroutines before
 returning. It must persist the workflow transition represented by a work item
 before returning `WorkComplete`. If an external activity outcome is unknown, it

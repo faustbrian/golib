@@ -146,6 +146,40 @@ func TestCommitClassifiesValidationAndTransactionFailures(t *testing.T) {
 	}
 }
 
+func TestStageRejectsInvalidCallerOwnedTransactionRequests(t *testing.T) {
+	t.Parallel()
+
+	transition := mustCreateTransition(t)
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	tests := []struct {
+		name       string
+		store      *Store
+		ctx        context.Context
+		tx         pgx.Tx
+		transition workflow.Transition
+		want       error
+	}{
+		{name: "nil store", ctx: context.Background(), tx: &inertPGXTx{}, transition: transition, want: workflow.ErrInvalidStoreRequest},
+		{name: "nil database", store: &Store{}, ctx: context.Background(), tx: &inertPGXTx{}, transition: transition, want: workflow.ErrInvalidStoreRequest},
+		{name: "nil context", store: newStore(&fakeDatabase{}, "workflow"), tx: &inertPGXTx{}, transition: transition, want: workflow.ErrInvalidStoreRequest},
+		{name: "nil transaction", store: newStore(&fakeDatabase{}, "workflow"), ctx: context.Background(), transition: transition, want: workflow.ErrInvalidStoreRequest},
+		{name: "invalid transition", store: newStore(&fakeDatabase{}, "workflow"), ctx: context.Background(), tx: &inertPGXTx{}, want: workflow.ErrInvalidStoreRequest},
+		{name: "canceled", store: newStore(&fakeDatabase{}, "workflow"), ctx: canceled, tx: &inertPGXTx{}, transition: transition, want: context.Canceled},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := test.store.Stage(test.ctx, test.tx, test.transition)
+			if !errors.Is(err, test.want) ||
+				workflow.StoreCommitOutcomeOf(err) != workflow.StoreCommitNotCommitted {
+				t.Fatalf("stage error = %v outcome %d", err, workflow.StoreCommitOutcomeOf(err))
+			}
+		})
+	}
+}
+
+type inertPGXTx struct{ pgx.Tx }
+
 func TestCommitRejectsConflictingTransitionIdentity(t *testing.T) {
 	t.Parallel()
 

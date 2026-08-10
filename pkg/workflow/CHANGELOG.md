@@ -9,6 +9,8 @@ and releases use Semantic Versioning.
 
 - Stable unresolved dead-letter inspection and idempotent, audited, fenced
   PostgreSQL retry or discard decisions with explicit replacement deadlines.
+- Caller-owned PostgreSQL transaction staging for atomically composing workflow
+  transitions with application state or optional transactional outbox records.
 - Bounded worker lifecycle hooks for claims and readmission, processor starts,
   lease heartbeats, completions, retries, dead letters, and existing failure
   paths, with durable work kind and attempt metadata kept out of metric labels.

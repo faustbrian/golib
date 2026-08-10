@@ -369,6 +369,71 @@ func TestPostgreSQLDeadLetterResolutionIsAuditedAndFenced(t *testing.T) {
 	}
 }
 
+func TestPostgreSQLStageComposesWithCallerOwnedTransaction(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	pool := integrationPool(t, ctx)
+
+	if _, err := pool.Exec(ctx, "CREATE SCHEMA workflow"); err != nil {
+		t.Fatalf("create workflow schema: %v", err)
+	}
+	for _, migration := range SchemaMigrations() {
+		if _, err := pool.Exec(ctx, migration.Up); err != nil {
+			t.Fatalf("apply workflow migration %d: %v", migration.Version, err)
+		}
+	}
+	if _, err := pool.Exec(ctx, "CREATE TABLE workflow.effects (id text PRIMARY KEY)"); err != nil {
+		t.Fatalf("create companion effect table: %v", err)
+	}
+	store, err := New(pool, Config{})
+	if err != nil {
+		t.Fatalf("construct store: %v", err)
+	}
+	transition := mustCreateTransition(t)
+
+	stage := func(commit bool) {
+		t.Helper()
+		tx, beginErr := pool.Begin(ctx)
+		if beginErr != nil {
+			t.Fatalf("begin caller transaction: %v", beginErr)
+		}
+		defer func() { _ = tx.Rollback(ctx) }()
+		if stageErr := store.Stage(ctx, tx, transition); stageErr != nil {
+			t.Fatalf("stage workflow transition: %v", stageErr)
+		}
+		if _, execErr := tx.Exec(ctx, "INSERT INTO workflow.effects (id) VALUES ('effect-1')"); execErr != nil {
+			t.Fatalf("stage companion effect: %v", execErr)
+		}
+		if commit {
+			if commitErr := tx.Commit(ctx); commitErr != nil {
+				t.Fatalf("commit caller transaction: %v", commitErr)
+			}
+		}
+	}
+	stage(false)
+	for table, want := range map[string]int{"workflow_instances": 0, "effects": 0} {
+		var count int
+		if err := pool.QueryRow(ctx, "SELECT count(*) FROM workflow."+table).Scan(&count); err != nil || count != want {
+			t.Fatalf("rolled-back %s count = %d, %v", table, count, err)
+		}
+	}
+	stage(true)
+	for table, want := range map[string]int{"workflow_instances": 1, "effects": 1} {
+		var count int
+		if err := pool.QueryRow(ctx, "SELECT count(*) FROM workflow."+table).Scan(&count); err != nil || count != want {
+			t.Fatalf("committed %s count = %d, %v", table, count, err)
+		}
+	}
+	replay, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatalf("begin replay transaction: %v", err)
+	}
+	defer func() { _ = replay.Rollback(ctx) }()
+	if err := store.Stage(ctx, replay, transition); err != nil {
+		t.Fatalf("stage exact replay: %v", err)
+	}
+}
+
 func integrationPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 	connection := os.Getenv("WORKFLOW_POSTGRES_URL")
