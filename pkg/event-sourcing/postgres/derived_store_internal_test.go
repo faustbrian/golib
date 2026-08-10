@@ -1199,15 +1199,31 @@ func TestTransactionCheckpointWriterStagesAndPropagatesFailures(t *testing.T) {
 	<-waiting.operation
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := waiting.Stage(
-		cancelled,
-		"summary",
-		0,
-		1,
-	); !errors.Is(err, context.Canceled) {
-		t.Fatalf("Stage(waiting) error = %v", err)
+	result := make(chan error, 1)
+	go func() {
+		result <- waiting.Stage(cancelled, "summary", 0, 1)
+	}()
+	var waitErr error
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	select {
+	case waitErr = <-result:
+	case <-timer.C:
+		t.Fatal("Stage(waiting) did not observe cancellation promptly")
 	}
-	waiting.operation.release()
+	if !errors.Is(waitErr, context.Canceled) {
+		t.Fatalf("Stage(waiting) error = %v", waitErr)
+	}
+	released := false
+	select {
+	case <-waiting.operation:
+		released = true
+	default:
+	}
+	waiting.operation <- struct{}{}
+	if released {
+		t.Fatal("canceled waiter released the active operation permit")
+	}
 }
 
 func snapshotBeginner(

@@ -406,17 +406,39 @@ func TestTransactionWriterStagesWithoutClaimingDurableCommit(t *testing.T) {
 	<-waiting.operation
 	cancelled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := waiting.Stage(
-		cancelled,
-		stream,
-		eventsourcing.ExpectNewStream(),
-		[]eventsourcing.PendingMessage{pending},
-	); !errors.Is(err, context.Canceled) ||
-		eventsourcing.AppendCommitOutcome(err) !=
+	result := make(chan error, 1)
+	go func() {
+		_, err := waiting.Stage(
+			cancelled,
+			stream,
+			eventsourcing.ExpectNewStream(),
+			[]eventsourcing.PendingMessage{pending},
+		)
+		result <- err
+	}()
+	var waitErr error
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	select {
+	case waitErr = <-result:
+	case <-timer.C:
+		t.Fatal("waiting Stage() did not observe cancellation promptly")
+	}
+	if !errors.Is(waitErr, context.Canceled) ||
+		eventsourcing.AppendCommitOutcome(waitErr) !=
 			eventsourcing.CommitNotCommitted {
-		t.Fatalf("waiting Stage() = %v", err)
+		t.Fatalf("waiting Stage() = %v", waitErr)
+	}
+	released := false
+	select {
+	case <-waiting.operation:
+		released = true
+	default:
 	}
 	waiting.operation <- struct{}{}
+	if released {
+		t.Fatal("canceled waiter released the active operation permit")
+	}
 }
 
 func TestAppendRejectsInvalidInputBeforeDatabaseUse(t *testing.T) {
