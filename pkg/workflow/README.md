@@ -28,8 +28,9 @@ race winners, schedule version-pinned child workflows, and persist known
 terminal outcomes. A fenced child-start processor persists each creation
 attempt before invoking a caller-owned idempotent adapter, records known
 creation, known absence, or uncertainty, and durably admits policy retries only
-after a known-absent failure. Broader operator stores and optional integrations
-are not yet delivered.
+after a known-absent failure. The PostgreSQL adapter exposes stable unresolved
+dead-letter pages and audited, idempotent, token-fenced retry or discard
+commands. Optional messaging integrations are not yet delivered.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that
@@ -44,9 +45,10 @@ outcome. `NewActivityRetry` records the deterministic backoff decision and the
 next semantic attempt together; work redelivery retains the same attempt
 idempotency key while a policy retry receives a new one.
 
-The `postgres` package is the first durable adapter. Its versioned migration
-creates instance, transition, history, and due-work tables in a caller-owned
-schema. A commit uses optimistic sequence checks and one PostgreSQL transaction
+The `postgres` package is the first durable adapter. Its immutable ordered
+migrations create instance, transition, history, due-work, and dead-letter
+resolution tables in a caller-owned schema. A commit uses optimistic sequence
+checks and one PostgreSQL transaction
 for the transition identity, contiguous history, due work, and current instance
 position. Exact transition replay is idempotent; conflicting identity reuse is
 rejected. History reads use a bounded stable forward cursor. A transport error
@@ -59,6 +61,12 @@ exceeds the persisted work deadline, and every retry or crash recovery
 increments the attempt and fencing token so a stale owner cannot complete or
 release work. A terminal transition archives its instance in the same database
 transaction, so active and archived list views cannot lag the durable outcome.
+Unresolved dead letters use failure-time and work-identity keyset pagination.
+Retry or discard locks the exact work fencing token and writes the authorized
+actor, reason, action, and complete command fingerprint in the same transaction
+as retry readmission. Exact command replay is idempotent; conflicting command
+reuse or a stale work token is rejected, and an uncertain commit must be
+reconciled by replaying that command identity.
 
 A `WorkProcessor` must honor cancellation and stop all of its goroutines before
 returning. It must persist the workflow transition represented by a work item
@@ -121,17 +129,19 @@ streams owned pages to a caller sink without accumulating unbounded history or
 acknowledging external work.
 
 ```go
-migration := postgres.SchemaMigration()
-if _, err := pool.Exec(ctx, migration.Up); err != nil {
-	return err
+for _, migration := range postgres.SchemaMigrations() {
+	if _, err := pool.Exec(ctx, migration.Up); err != nil {
+		return err
+	}
 }
 
 store, err := postgres.New(pool, postgres.Config{}) // schema: workflow
 ```
 
-The caller creates and owns the schema, applies migrations, owns the pool, and
-decides how migration rollback is authorized. The adapter does not publish or
-acknowledge external messages.
+The caller creates and owns the schema, applies migrations in order, rolls them
+back in reverse order when explicitly authorized, owns the pool, and authorizes
+every operator actor. The adapter does not publish or acknowledge external
+messages.
 
 The package does not claim exactly-once external side effects. Applications
 must make activities idempotent and treat unknown outcomes as requiring

@@ -326,7 +326,7 @@ func TestScanHistoryEventRejectsExactNumericAndPartialDefinitionBoundaries(t *te
 		replaceHistoryValue(valid, 0, int64(-1)),
 		replaceHistoryValue(valid, 8, int64(^uint32(0))+1),
 		replaceHistoryValue(valid, 1, int16(0)),
-		replaceHistoryValue(valid, 1, int16(workflow.EventOperatorCommandRecorded+1)),
+		replaceHistoryValue(valid, 1, int16(workflow.EventChildStartRetryScheduled+1)),
 		replaceHistoryValue(valid, 3, "orders"),
 		replaceHistoryValue(valid, 4, "1"),
 		replaceHistoryValue(valid, 5, strings.Repeat("a", 64)),
@@ -357,6 +357,42 @@ func TestScanHistoryEventAcceptsExactPersistedNumericBoundaries(t *testing.T) {
 	}
 	if _, err := scanHistoryEvent(&fakeRow{values: maximumKind}, "instance-1"); err != nil {
 		t.Fatalf("maximum event kind: %v", err)
+	}
+}
+
+func TestScanHistoryEventAcceptsRaceAndChildHistoryAddedAfterOperatorCommands(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, 8, 10, 21, 0, 0, 0, time.UTC)
+	tests := []workflow.HistoryEventSpec{
+		{
+			Sequence: 1, InstanceID: "instance-1", Kind: workflow.EventRaceWon,
+			OccurredAt: now, StepName: "decision", Data: []byte("signal"),
+		},
+		{
+			Sequence: 2, InstanceID: "instance-1", Kind: workflow.EventChildStartRetryScheduled,
+			OccurredAt: now, SuccessorID: "child-1", StepName: "child", Attempt: 1,
+			DueAt: now.Add(time.Minute),
+		},
+	}
+	for _, spec := range tests {
+		event, err := workflow.NewHistoryEvent(spec)
+		if err != nil {
+			t.Fatalf("construct event kind %d: %v", spec.Kind, err)
+		}
+		arguments := historyArguments(event)[1:]
+		arguments[0] = int64(event.Sequence())
+		arguments[1] = int16(event.Kind())
+		arguments[8] = int64(event.Attempt())
+		arguments[10] = (*time.Time)(nil)
+		if !event.DueAt().IsZero() {
+			dueAt := event.DueAt()
+			arguments[10] = &dueAt
+		}
+		decoded, err := scanHistoryEvent(&fakeRow{values: arguments}, spec.InstanceID)
+		if err != nil || decoded.Kind() != spec.Kind || decoded.Sequence() != spec.Sequence {
+			t.Fatalf("decoded event kind %d = %#v, %v", spec.Kind, decoded, err)
+		}
 	}
 }
 

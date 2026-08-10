@@ -25,6 +25,23 @@ func SchemaMigration() Migration {
 	return migration
 }
 
+// SchemaMigrations returns every immutable default-schema migration in order.
+func SchemaMigrations() []Migration {
+	migrations, _ := SchemaMigrationsFor("workflow")
+	return migrations
+}
+
+// SchemaMigrationsFor returns every immutable migration for a caller-owned
+// schema in application order. Callers roll back in reverse order.
+func SchemaMigrationsFor(schema string) ([]Migration, error) {
+	initial, err := SchemaMigrationFor(schema)
+	if err != nil {
+		return nil, err
+	}
+	resolutions := deadLetterResolutionMigrationFor(schema)
+	return []Migration{initial, resolutions}, nil
+}
+
 // SchemaMigrationFor returns the first durable workflow-store migration for a
 // caller-owned schema. The schema must already exist.
 func SchemaMigrationFor(schema string) (Migration, error) {
@@ -111,4 +128,36 @@ CREATE INDEX %s ON %s (available_at, work_id) WHERE state = 1;`,
 		Down: fmt.Sprintf("DROP TABLE %s;\nDROP TABLE %s;\nDROP TABLE %s;\nDROP TABLE %s;",
 			work, history, transitions, instances),
 	}, nil
+}
+
+func deadLetterResolutionMigrationFor(schema string) Migration {
+	work := pgx.Identifier{schema, "workflow_work"}.Sanitize()
+	resolutions := pgx.Identifier{schema, "workflow_work_resolutions"}.Sanitize()
+	deadLettersIndex := pgx.Identifier{"workflow_work_dead_letter_idx"}.Sanitize()
+	qualifiedDeadLettersIndex := pgx.Identifier{schema, "workflow_work_dead_letter_idx"}.Sanitize()
+	return Migration{
+		Version: 2,
+		Name:    "add_workflow_dead_letter_resolutions",
+		Up: fmt.Sprintf(`CREATE TABLE %s (
+    command_id text PRIMARY KEY,
+    fingerprint text NOT NULL CHECK (length(fingerprint) = 64),
+    work_id text NOT NULL REFERENCES %s(work_id),
+    lease_token bigint NOT NULL CHECK (lease_token > 0),
+    action smallint NOT NULL CHECK (action BETWEEN 1 AND 2),
+    actor text NOT NULL,
+    reason text NOT NULL,
+    occurred_at timestamptz NOT NULL,
+    retry_at timestamptz,
+    deadline timestamptz,
+    UNIQUE (work_id, lease_token),
+    CHECK (
+        (action = 1 AND retry_at IS NOT NULL AND deadline IS NOT NULL
+            AND retry_at >= occurred_at AND deadline > retry_at)
+        OR (action = 2 AND retry_at IS NULL AND deadline IS NULL)
+    )
+);
+CREATE INDEX %s ON %s (completed_at, work_id, lease_token)
+    WHERE state = 4;`, resolutions, work, deadLettersIndex, work),
+		Down: fmt.Sprintf("DROP INDEX %s;\nDROP TABLE %s;", qualifiedDeadLettersIndex, resolutions),
+	}
 }

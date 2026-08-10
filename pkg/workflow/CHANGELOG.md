@@ -7,6 +7,8 @@ and releases use Semantic Versioning.
 
 ### Added
 
+- Stable unresolved dead-letter inspection and idempotent, audited, fenced
+  PostgreSQL retry or discard decisions with explicit replacement deadlines.
 - Bounded worker lifecycle hooks for claims and readmission, processor starts,
   lease heartbeats, completions, retries, dead letters, and existing failure
   paths, with durable work kind and attempt metadata kept out of metric labels.

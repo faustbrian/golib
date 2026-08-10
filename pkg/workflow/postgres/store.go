@@ -105,6 +105,11 @@ type querySet struct {
 	completeWork     string
 	retryWork        string
 	deadLetterWork   string
+	listDeadLetters  string
+	findResolution   string
+	lockDeadLetter   string
+	insertResolution string
+	retryDeadLetter  string
 }
 
 // Store persists workflow transitions, history, and due work in PostgreSQL.
@@ -130,6 +135,7 @@ func newStore(database database, schema string) *Store {
 	transitions := pgx.Identifier{schema, "workflow_transitions"}.Sanitize()
 	history := pgx.Identifier{schema, "workflow_history"}.Sanitize()
 	work := pgx.Identifier{schema, "workflow_work"}.Sanitize()
+	resolutions := pgx.Identifier{schema, "workflow_work_resolutions"}.Sanitize()
 	return &Store{database: database, queries: querySet{
 		findTransition: "SELECT fingerprint FROM " + transitions + " WHERE transition_id = $1",
 		insertInstance: "INSERT INTO " + instances + `
@@ -213,6 +219,30 @@ SET state = 4, failure_code = $4, completed_at = $5,
     lease_owner = NULL, lease_expires_at = NULL
 WHERE work_id = $1 AND state = 2 AND lease_owner = $2 AND lease_token = $3
     AND lease_expires_at > $5`,
+		listDeadLetters: "SELECT work.work_id, work.kind, work.instance_id, work.sequence, " +
+			"work.available_at, work.deadline, work.payload, work.tenant_id, work.correlation_id, " +
+			"work.attempts, work.lease_token, work.failure_code, work.completed_at FROM " + work + ` AS work
+WHERE work.state = 4 AND work.completed_at IS NOT NULL
+    AND NOT EXISTS (
+        SELECT 1 FROM ` + resolutions + ` AS resolution
+        WHERE resolution.work_id = work.work_id
+            AND resolution.lease_token = work.lease_token
+    )
+    AND ($1::timestamptz IS NULL OR (work.completed_at, work.work_id) > ($1, $2))
+ORDER BY work.completed_at, work.work_id LIMIT $3`,
+		findResolution: "SELECT fingerprint FROM " + resolutions + " WHERE command_id = $1",
+		lockDeadLetter: "SELECT work_id FROM " + work +
+			" WHERE work_id = $1 AND state = 4 AND lease_token = $2 FOR UPDATE",
+		insertResolution: "INSERT INTO " + resolutions + `
+    (command_id, fingerprint, work_id, lease_token, action, actor, reason,
+     occurred_at, retry_at, deadline)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+ON CONFLICT DO NOTHING
+RETURNING fingerprint`,
+		retryDeadLetter: "UPDATE " + work + `
+SET state = 1, available_at = $3, deadline = $4, failure_code = '',
+    completed_at = NULL, lease_owner = NULL, lease_expires_at = NULL
+WHERE work_id = $1 AND state = 4 AND lease_token = $2`,
 	}}
 }
 
@@ -548,6 +578,147 @@ func (store *Store) Fail(ctx context.Context, failure workflow.WorkFailure) erro
 		failure.WorkID(), failure.Owner(), failure.Token(), failure.Code(), failure.FailedAt())
 }
 
+// ListDeadLetters returns one stable bounded page of unresolved poison work.
+// Resolutions are fenced by the returned token and remain hidden after discard
+// or while an operator-requested retry is pending.
+func (store *Store) ListDeadLetters(
+	ctx context.Context,
+	query workflow.DeadLetterQuery,
+) (workflow.DeadLetterPage, error) {
+	if store == nil || store.database == nil || ctx == nil || !query.Valid() {
+		return workflow.DeadLetterPage{}, workflow.ErrInvalidStoreRequest
+	}
+	if err := ctx.Err(); err != nil {
+		return workflow.DeadLetterPage{}, err
+	}
+	var after any
+	if !query.After().FailedAt().IsZero() {
+		after = query.After().FailedAt()
+	}
+	rows, err := store.database.Query(
+		ctx, store.queries.listDeadLetters, after, query.After().WorkID(), int32(query.Limit()+1),
+	)
+	if err != nil {
+		return workflow.DeadLetterPage{}, newOperationError("list dead letters", err)
+	}
+	defer rows.Close()
+	items := make([]workflow.DeadLetterRecord, 0, query.Limit())
+	for rows.Next() {
+		item, scanErr := scanDeadLetterRecord(rows)
+		if scanErr != nil {
+			return workflow.DeadLetterPage{}, newOperationError("scan dead letter", scanErr)
+		}
+		items = append(items, item)
+	}
+	if err := rows.Err(); err != nil {
+		return workflow.DeadLetterPage{}, newOperationError("iterate dead letters", err)
+	}
+	hasMore := len(items) > int(query.Limit())
+	if hasMore {
+		items = items[:query.Limit()]
+	}
+	page, err := workflow.NewDeadLetterPage(query, items, hasMore)
+	if err != nil {
+		return workflow.DeadLetterPage{}, newOperationError(
+			"validate dead-letter page", errors.Join(ErrCorruptStore, err),
+		)
+	}
+	return page, nil
+}
+
+// ResolveDeadLetter atomically records caller-authorized audit data and either
+// returns the exact fenced work item to admission or marks that fence discarded.
+// Exact CommandID replay is idempotent; a commit transport failure is unknown.
+func (store *Store) ResolveDeadLetter(
+	ctx context.Context,
+	resolution workflow.DeadLetterResolution,
+) error {
+	if store == nil || store.database == nil || ctx == nil || !resolution.Valid() {
+		return notCommitted(workflow.ErrInvalidStoreRequest)
+	}
+	if err := ctx.Err(); err != nil {
+		return notCommitted(err)
+	}
+	tx, err := store.database.Begin(ctx)
+	if err != nil {
+		return notCommitted(err)
+	}
+	defer rollback(tx, ctx)
+	exact, err := store.exactDeadLetterResolution(ctx, tx, resolution)
+	if err != nil {
+		return notCommitted(err)
+	}
+	if exact {
+		return nil
+	}
+	var workID string
+	err = tx.QueryRow(
+		ctx, store.queries.lockDeadLetter, resolution.WorkID(), resolution.Token(),
+	).Scan(&workID)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return notCommitted(workflow.ErrStaleWorkLease)
+	}
+	if err != nil {
+		return notCommitted(err)
+	}
+	var insertedFingerprint string
+	err = tx.QueryRow(ctx, store.queries.insertResolution,
+		resolution.CommandID(), resolution.Fingerprint(), resolution.WorkID(), resolution.Token(),
+		resolution.Action(), resolution.Actor(), resolution.Reason(), resolution.OccurredAt(),
+		nullableTime(resolution.RetryAt()), nullableTime(resolution.Deadline()),
+	).Scan(&insertedFingerprint)
+	if errors.Is(err, pgx.ErrNoRows) {
+		exact, exactErr := store.exactDeadLetterResolution(ctx, tx, resolution)
+		if exactErr != nil {
+			return notCommitted(exactErr)
+		}
+		if exact {
+			return nil
+		}
+		return notCommitted(workflow.ErrStoreConflict)
+	}
+	if err != nil {
+		return notCommitted(err)
+	}
+	if insertedFingerprint != resolution.Fingerprint() {
+		return notCommitted(workflow.ErrStoreConflict)
+	}
+	if resolution.Action() == workflow.DeadLetterRetry {
+		result, execErr := tx.Exec(ctx, store.queries.retryDeadLetter,
+			resolution.WorkID(), resolution.Token(), resolution.RetryAt(), resolution.Deadline(),
+		)
+		if execErr != nil {
+			return notCommitted(execErr)
+		}
+		if result.RowsAffected() != 1 {
+			return notCommitted(workflow.ErrStaleWorkLease)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return workflow.NewStoreCommitError(workflow.StoreCommitUnknown, err)
+	}
+	return nil
+}
+
+func (store *Store) exactDeadLetterResolution(
+	ctx context.Context,
+	tx transaction,
+	resolution workflow.DeadLetterResolution,
+) (bool, error) {
+	var fingerprint string
+	err := tx.QueryRow(ctx, store.queries.findResolution, resolution.CommandID()).Scan(&fingerprint)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	if fingerprint != resolution.Fingerprint() {
+		return false, workflow.ErrStoreConflict
+	}
+	return true, nil
+}
+
 func (store *Store) fencedExec(ctx context.Context, query, operation string, arguments ...any) error {
 	result, err := store.databaseExec(ctx, query, arguments...)
 	if err != nil {
@@ -608,16 +779,19 @@ func (store *Store) concurrentTransition(ctx context.Context, tx transaction, tr
 
 func historyArguments(event workflow.HistoryEvent) []any {
 	definition := event.Definition()
-	var dueAt any
-	if !event.DueAt().IsZero() {
-		dueAt = event.DueAt()
-	}
 	return []any{
 		event.InstanceID(), event.Sequence(), event.Kind(), event.OccurredAt(),
 		definition.Name(), definition.Version(), definition.Fingerprint(), event.SuccessorID(),
-		event.StepName(), event.Attempt(), event.IdempotencyKey(), dueAt, event.Code(),
+		event.StepName(), event.Attempt(), event.IdempotencyKey(), nullableTime(event.DueAt()), event.Code(),
 		event.Retryable(), event.Data(),
 	}
+}
+
+func nullableTime(value time.Time) any {
+	if value.IsZero() {
+		return nil
+	}
+	return value
 }
 
 func workArguments(work workflow.PendingWork) []any {
@@ -644,7 +818,7 @@ func scanHistoryEvent(row rowScanner, instanceID string) (workflow.HistoryEvent,
 		return workflow.HistoryEvent{}, err
 	}
 	if sequence < 1 || attempt < 0 || attempt > int64(^uint32(0)) ||
-		kind < int16(workflow.EventInstanceStarted) || kind > int16(workflow.EventOperatorCommandRecorded) {
+		kind < int16(workflow.EventInstanceStarted) || kind > int16(workflow.EventChildStartRetryScheduled) {
 		return workflow.HistoryEvent{}, ErrCorruptStore
 	}
 	definition := workflow.DefinitionReference{}
@@ -741,6 +915,54 @@ func scanWorkLease(
 		return workflow.WorkLease{}, errors.Join(ErrCorruptStore, err)
 	}
 	return lease, nil
+}
+
+func scanDeadLetterRecord(row rowScanner) (workflow.DeadLetterRecord, error) {
+	var id, instanceID, tenantID, correlationID, failureCode string
+	var kind int16
+	var sequence, attempts, token int64
+	var availableAt, deadline, failedAt time.Time
+	var payload []byte
+	if err := row.Scan(
+		&id, &kind, &instanceID, &sequence, &availableAt, &deadline, &payload,
+		&tenantID, &correlationID, &attempts, &token, &failureCode, &failedAt,
+	); err != nil {
+		return workflow.DeadLetterRecord{}, err
+	}
+	if kind < int16(workflow.WorkActivity) {
+		return workflow.DeadLetterRecord{}, ErrCorruptStore
+	}
+	if kind > int16(workflow.WorkCompensation) {
+		return workflow.DeadLetterRecord{}, ErrCorruptStore
+	}
+	if sequence < 1 {
+		return workflow.DeadLetterRecord{}, ErrCorruptStore
+	}
+	if attempts < 1 {
+		return workflow.DeadLetterRecord{}, ErrCorruptStore
+	}
+	if attempts > int64(^uint32(0)) {
+		return workflow.DeadLetterRecord{}, ErrCorruptStore
+	}
+	if token < 1 {
+		return workflow.DeadLetterRecord{}, ErrCorruptStore
+	}
+	work, err := workflow.NewPendingWork(workflow.PendingWorkSpec{
+		ID: id, Kind: workflow.WorkKind(kind), InstanceID: instanceID,
+		Sequence: uint64(sequence), AvailableAt: availableAt, Deadline: deadline,
+		Payload: payload, TenantID: tenantID, CorrelationID: correlationID,
+	})
+	if err != nil {
+		return workflow.DeadLetterRecord{}, errors.Join(ErrCorruptStore, err)
+	}
+	record, err := workflow.NewDeadLetterRecord(workflow.DeadLetterRecordSpec{
+		Work: work, Attempt: uint32(attempts), Token: uint64(token),
+		FailureCode: failureCode, FailedAt: failedAt,
+	})
+	if err != nil {
+		return workflow.DeadLetterRecord{}, errors.Join(ErrCorruptStore, err)
+	}
+	return record, nil
 }
 
 func notCommitted(cause error) error {

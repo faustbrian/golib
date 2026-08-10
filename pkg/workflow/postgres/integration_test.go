@@ -259,6 +259,116 @@ func TestPostgreSQLAtomicTransitionsAndStableHistory(t *testing.T) {
 	}
 }
 
+func TestPostgreSQLDeadLetterResolutionIsAuditedAndFenced(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+	defer cancel()
+	pool := integrationPool(t, ctx)
+
+	if _, err := pool.Exec(ctx, "CREATE SCHEMA workflow"); err != nil {
+		t.Fatalf("create workflow schema: %v", err)
+	}
+	for _, migration := range SchemaMigrations() {
+		if _, err := pool.Exec(ctx, migration.Up); err != nil {
+			t.Fatalf("apply workflow migration %d: %v", migration.Version, err)
+		}
+	}
+	store, err := New(pool, Config{})
+	if err != nil {
+		t.Fatalf("construct store: %v", err)
+	}
+	created := mustCreateTransition(t)
+	if err := store.Commit(ctx, created); err != nil {
+		t.Fatalf("commit workflow: %v", err)
+	}
+	claimAt := created.Work()[0].AvailableAt()
+	claim, err := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-1", Now: claimAt, LeaseDuration: 30 * time.Second, Limit: 1,
+	})
+	if err != nil {
+		t.Fatalf("construct claim: %v", err)
+	}
+	leases, err := store.Claim(ctx, claim)
+	if err != nil || len(leases) != 1 {
+		t.Fatalf("claim work = %#v, %v", leases, err)
+	}
+	deadAt := claimAt.Add(time.Second)
+	dead, err := workflow.NewWorkFailure(workflow.WorkFailureSpec{
+		WorkID: leases[0].Work().ID(), Owner: leases[0].Owner(), Token: leases[0].Token(),
+		FailedAt: deadAt, Code: "poison", Disposition: workflow.WorkDeadLetter,
+	})
+	if err != nil {
+		t.Fatalf("construct dead letter: %v", err)
+	}
+	if err := store.Fail(ctx, dead); err != nil {
+		t.Fatalf("dead-letter work: %v", err)
+	}
+	query, err := workflow.NewDeadLetterQuery(workflow.DeadLetterQuerySpec{Limit: 10})
+	if err != nil {
+		t.Fatalf("construct dead-letter query: %v", err)
+	}
+	page, err := store.ListDeadLetters(ctx, query)
+	if err != nil || len(page.Items()) != 1 || page.Items()[0].Token() != 1 ||
+		page.Items()[0].Attempt() != 1 || page.Items()[0].FailureCode() != "poison" {
+		t.Fatalf("list first dead letter = %#v, %v", page, err)
+	}
+	retryAt := deadAt.Add(2 * time.Second)
+	retry, err := workflow.NewDeadLetterResolution(workflow.DeadLetterResolutionSpec{
+		CommandID: "resolve-work-1", WorkID: "work-1", Token: 1,
+		Action: workflow.DeadLetterRetry, Actor: "operator-1", Reason: "payload-repaired",
+		OccurredAt: deadAt.Add(time.Second), RetryAt: retryAt, Deadline: retryAt.Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("construct retry resolution: %v", err)
+	}
+	if err := store.ResolveDeadLetter(ctx, retry); err != nil {
+		t.Fatalf("retry dead letter: %v", err)
+	}
+	if err := store.ResolveDeadLetter(ctx, retry); err != nil {
+		t.Fatalf("replay retry resolution: %v", err)
+	}
+	stale, _ := workflow.NewDeadLetterResolution(workflow.DeadLetterResolutionSpec{
+		CommandID: "resolve-stale", WorkID: "work-1", Token: 1,
+		Action: workflow.DeadLetterDiscard, Actor: "operator-1", Reason: "discard-work",
+		OccurredAt: retryAt,
+	})
+	if err := store.ResolveDeadLetter(ctx, stale); !errors.Is(err, workflow.ErrStaleWorkLease) {
+		t.Fatalf("stale resolution = %v", err)
+	}
+	reclaim, _ := workflow.NewWorkClaimRequest(workflow.WorkClaimRequestSpec{
+		Owner: "worker-2", Now: retryAt, LeaseDuration: 30 * time.Second, Limit: 1,
+	})
+	retried, err := store.Claim(ctx, reclaim)
+	if err != nil || len(retried) != 1 || retried[0].Token() != 2 || retried[0].Attempt() != 2 {
+		t.Fatalf("claim retried dead letter = %#v, %v", retried, err)
+	}
+	deadAgain, _ := workflow.NewWorkFailure(workflow.WorkFailureSpec{
+		WorkID: "work-1", Owner: "worker-2", Token: 2, FailedAt: retryAt.Add(time.Second),
+		Code: "still-poison", Disposition: workflow.WorkDeadLetter,
+	})
+	if err := store.Fail(ctx, deadAgain); err != nil {
+		t.Fatalf("dead-letter retried work: %v", err)
+	}
+	page, err = store.ListDeadLetters(ctx, query)
+	if err != nil || len(page.Items()) != 1 || page.Items()[0].Token() != 2 {
+		t.Fatalf("list second dead letter = %#v, %v", page, err)
+	}
+	discard, _ := workflow.NewDeadLetterResolution(workflow.DeadLetterResolutionSpec{
+		CommandID: "discard-work-1", WorkID: "work-1", Token: 2,
+		Action: workflow.DeadLetterDiscard, Actor: "operator-1", Reason: "manual-discard",
+		OccurredAt: retryAt.Add(2 * time.Second),
+	})
+	if err := store.ResolveDeadLetter(ctx, discard); err != nil {
+		t.Fatalf("discard dead letter: %v", err)
+	}
+	if page, err = store.ListDeadLetters(ctx, query); err != nil || len(page.Items()) != 0 {
+		t.Fatalf("list resolved dead letters = %#v, %v", page, err)
+	}
+	var resolutionCount int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM workflow.workflow_work_resolutions").Scan(&resolutionCount); err != nil || resolutionCount != 2 {
+		t.Fatalf("resolution audit count = %d, %v", resolutionCount, err)
+	}
+}
+
 func integrationPool(t *testing.T, ctx context.Context) *pgxpool.Pool {
 	t.Helper()
 	connection := os.Getenv("WORKFLOW_POSTGRES_URL")

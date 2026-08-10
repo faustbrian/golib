@@ -51,6 +51,21 @@ func TestSchemaMigrationIsVersionedAndOwnsAtomicStoreTables(t *testing.T) {
 	if _, err := SchemaMigrationFor("unsafe-schema"); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
 		t.Fatalf("unsafe migration schema error = %v", err)
 	}
+	migrations, err := SchemaMigrationsFor("tenant_workflow")
+	if err != nil || len(migrations) != 2 || migrations[0] != migration ||
+		migrations[1].Version != 2 || migrations[1].Name != "add_workflow_dead_letter_resolutions" ||
+		!strings.Contains(migrations[1].Up, `"tenant_workflow"."workflow_work_resolutions"`) ||
+		!strings.Contains(migrations[1].Up, `CREATE INDEX "workflow_work_dead_letter_idx"`) ||
+		!strings.Contains(migrations[1].Down, `DROP INDEX "tenant_workflow"."workflow_work_dead_letter_idx"`) {
+		t.Fatalf("schema migrations = %#v, %v", migrations, err)
+	}
+	if defaults := SchemaMigrations(); len(defaults) != 2 ||
+		!strings.Contains(defaults[1].Up, `"workflow"."workflow_work_resolutions"`) {
+		t.Fatalf("default schema migrations = %#v", defaults)
+	}
+	if _, err := SchemaMigrationsFor("unsafe-schema"); !errors.Is(err, workflow.ErrInvalidStoreRequest) {
+		t.Fatalf("unsafe migration list error = %v", err)
+	}
 }
 
 func TestCommitAtomicallyPersistsHistoryAndDueWork(t *testing.T) {
