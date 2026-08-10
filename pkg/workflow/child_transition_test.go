@@ -110,3 +110,31 @@ func TestChildWorkflowScheduleAndOutcomeRemainVersionPinned(t *testing.T) {
 		t.Fatalf("completed parent decision = %#v, error %v", completedDecision, err)
 	}
 }
+
+func TestRegistryValidatesChildDefinitionsAfterNonChildSteps(t *testing.T) {
+	t.Parallel()
+
+	child := mustDefinition(t, "shipment", "3")
+	parent, err := workflow.NewDefinition(workflow.DefinitionSpec{
+		Name: "order", Version: "child-after-activity", Mode: workflow.Orchestration,
+		Steps: []workflow.StepSpec{
+			{
+				Name: "prepare", Kind: workflow.StepActivity, Target: "order.prepare",
+				Timeout: time.Second, InputLimit: 1, ResultLimit: 1,
+				Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
+			},
+			{
+				Name: "shipment", Kind: workflow.StepChild, Target: "shipment",
+				ChildDefinition: child.Reference(), Timeout: time.Minute,
+				InputLimit: 1, ResultLimit: 1,
+				Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("construct parent definition: %v", err)
+	}
+	if _, err := workflow.CompileDefinitions(parent); !errors.Is(err, workflow.ErrDefinitionNotFound) {
+		t.Fatalf("unregistered later child error = %v", err)
+	}
+}

@@ -361,17 +361,84 @@ func TestDefinitionRejectsAmbiguousControlFlowBranches(t *testing.T) {
 		other,
 		{Name: "join", Kind: workflow.StepJoin, FanOutLimit: 2, Branches: []string{"work", "other"}},
 	}
+	partialJoin := []workflow.StepSpec{
+		{Name: "fan-out", Kind: workflow.StepParallel, FanOutLimit: 2, Branches: []string{"work", "other"}},
+		activity,
+		other,
+		{Name: "join", Kind: workflow.StepJoin, FanOutLimit: 1, Branches: []string{"work"}},
+	}
+	nestedJoinBranch := []workflow.StepSpec{
+		{Name: "fan-out", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"join"}},
+		{Name: "join", Kind: workflow.StepJoin, FanOutLimit: 1, Branches: []string{"work"}},
+		activity,
+	}
+	nestedRaceBranch := []workflow.StepSpec{
+		{Name: "fan-out", Kind: workflow.StepParallel, FanOutLimit: 1, Branches: []string{"race"}},
+		{Name: "race", Kind: workflow.StepRace, FanOutLimit: 1, Branches: []string{"signal"}},
+		signal,
+	}
 	for name, steps := range map[string][]workflow.StepSpec{
 		"duplicate-owners": duplicateOwners,
 		"duplicate-join":   duplicateJoin,
 		"mismatched-join":  mismatchedJoin,
 		"mixed-join":       mixedJoin,
+		"partial-join":     partialJoin,
+		"nested-join":      nestedJoinBranch,
+		"nested-race":      nestedRaceBranch,
 		"non-activity":     nonActivityBranch,
 		"non-signal-race":  nonSignalRace,
 		"duplicate-race":   duplicateRaceOwners,
 	} {
 		if _, err := workflow.NewDefinition(workflow.DefinitionSpec{
 			Name: "control", Version: name, Mode: workflow.Orchestration, Steps: steps,
+		}); !errors.Is(err, workflow.ErrInvalidDefinition) {
+			t.Fatalf("%s error = %v", name, err)
+		}
+	}
+}
+
+func TestDefinitionRejectsEachChildAndFanOutBoundaryIndependently(t *testing.T) {
+	t.Parallel()
+
+	childDefinition := mustDefinition(t, "child.workflow", "1").Reference()
+	validChild := workflow.StepSpec{
+		Name: "child", Kind: workflow.StepChild, Target: "child.workflow",
+		ChildDefinition: childDefinition, Timeout: time.Second, InputLimit: 1, ResultLimit: 1,
+		Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
+	}
+	validActivity := workflow.StepSpec{
+		Name: "work", Kind: workflow.StepActivity, Target: "work.execute",
+		Timeout: time.Second, InputLimit: 1, ResultLimit: 1,
+		Retry: workflow.RetryPolicy{MaxAttempts: 1, InitialDelay: time.Second, MaxDelay: time.Second},
+	}
+	invalidChildTarget := validChild
+	invalidChildTarget.Target = " spaces "
+	invalidChildReference := validChild
+	invalidChildReference.ChildDefinition = workflow.DefinitionReference{}
+	mismatchedChildReference := validChild
+	mismatchedChildReference.Target = "other.workflow"
+	zeroChildTimeout := validChild
+	zeroChildTimeout.Timeout = 0
+	zeroFanOut := workflow.StepSpec{
+		Name: "parallel", Kind: workflow.StepParallel, Branches: []string{"work"},
+	}
+	oversizedFanOut := zeroFanOut
+	oversizedFanOut.FanOutLimit = workflow.MaxFanOut + 1
+	emptyFanOut := zeroFanOut
+	emptyFanOut.FanOutLimit = 1
+	emptyFanOut.Branches = nil
+
+	for name, steps := range map[string][]workflow.StepSpec{
+		"invalid child target":       {invalidChildTarget},
+		"invalid child reference":    {invalidChildReference},
+		"mismatched child reference": {mismatchedChildReference},
+		"zero child timeout":         {zeroChildTimeout},
+		"zero fan-out limit":         {zeroFanOut, validActivity},
+		"oversized fan-out limit":    {oversizedFanOut, validActivity},
+		"empty fan-out branches":     {emptyFanOut, validActivity},
+	} {
+		if _, err := workflow.NewDefinition(workflow.DefinitionSpec{
+			Name: "boundary", Version: "1", Mode: workflow.Orchestration, Steps: steps,
 		}); !errors.Is(err, workflow.ErrInvalidDefinition) {
 			t.Fatalf("%s error = %v", name, err)
 		}

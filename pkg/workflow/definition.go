@@ -219,7 +219,14 @@ func validateDefinition(spec DefinitionSpec) error {
 	for _, step := range spec.Steps {
 		for _, branch := range step.Branches {
 			kind, exists := names[branch]
-			if !exists || branch == step.Name || kind == StepParallel || kind == StepJoin || kind == StepRace {
+			if !exists {
+				return invalidDefinition("step.branch")
+			}
+			if branch == step.Name {
+				return invalidDefinition("step.branch")
+			}
+			switch kind {
+			case StepParallel, StepJoin, StepRace:
 				return invalidDefinition("step.branch")
 			}
 		}
@@ -260,7 +267,10 @@ func validateOrchestrationControlFlow(steps []StepSpec, kinds map[string]StepKin
 			}
 		case StepJoin:
 			owner, exists := owners[step.Branches[0]]
-			if !exists || branchCounts[owner] != len(step.Branches) {
+			if !exists {
+				return invalidDefinition("step.join")
+			}
+			if branchCounts[owner] != len(step.Branches) {
 				return invalidDefinition("step.join")
 			}
 			if _, exists := joined[owner]; exists {
@@ -286,8 +296,13 @@ func validateStep(step StepSpec) error {
 			return invalidDefinition("step.activity")
 		}
 	case StepChild:
-		if !stableName.MatchString(step.Target) || !step.ChildDefinition.valid() ||
-			step.ChildDefinition.Name() != step.Target || step.Timeout <= 0 ||
+		if !stableName.MatchString(step.Target) {
+			return invalidDefinition("step.child")
+		}
+		if !step.ChildDefinition.valid() {
+			return invalidDefinition("step.child")
+		}
+		if step.ChildDefinition.Name() != step.Target || step.Timeout <= 0 ||
 			!validPayloadLimit(step.InputLimit) || !validPayloadLimit(step.ResultLimit) ||
 			!validRetry(step.Retry) {
 			return invalidDefinition("step.child")
