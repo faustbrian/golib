@@ -11,7 +11,7 @@ import (
 )
 
 const (
-	rollbackTimeout       = time.Duration(5_000_000_000)
+	rollbackTimeout = time.Duration(5_000_000_000)
 	// PostgreSQL bigint is signed; the explicit literal avoids architecture-
 	// dependent integer conversion while retaining its exact durable boundary.
 	maxPostgreSQLSequence = uint64(9_223_372_036_854_775_807)
