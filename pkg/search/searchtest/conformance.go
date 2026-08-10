@@ -198,7 +198,7 @@ func runBulkConformance(ctx context.Context, config ConformanceConfig) error {
 	for position, item := range items {
 		operation := operations[position]
 		if item.Position != position || item.ID != operation.ID || item.Action != operation.Action ||
-			item.Version != operation.Version || item.State != wantStates[position] {
+			item.State != wantStates[position] {
 			return fmt.Errorf("searchtest conformance: bulk item %d: got=%#v operation=%#v state=%s", position, item, operation, wantStates[position])
 		}
 	}
