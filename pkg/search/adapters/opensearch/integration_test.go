@@ -76,6 +76,10 @@ func TestRealOpenSearchConformanceSharedSemantics(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = client.Close() })
+	info, err := client.Info(t.Context())
+	if err != nil || info.Version != expectedVersion {
+		t.Fatalf("Info() = %#v/%v, expected %s", info, err, expectedVersion)
+	}
 
 	for _, fixture := range []struct {
 		tenant     string
