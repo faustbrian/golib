@@ -214,6 +214,14 @@ Replay mode survives the wire round trip. Applications must keep replay
 records away from process managers and external side effects unless a
 separately authorized replay operation opts in.
 
+## Runnable examples
+
+The package examples compile complete direct-dispatch and consumer-group
+handling workflows. They show stable event construction, bounded topic policy,
+acknowledgement-aware producer cleanup, durable-handler settlement, and group
+shutdown. Replace their placeholder endpoint, identities, and persistence seam
+before use. See [`example_test.go`](example_test.go).
+
 ## Development
 
 Run `make check` from this module. With Docker available, `make integration`

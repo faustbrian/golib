@@ -25,6 +25,9 @@ and this project adheres to
 
 ### Added
 
+- Add compile-checked direct-dispatch and consumer-group examples with explicit
+  acknowledgement ambiguity, durable-handler settlement, and lifecycle
+  cleanup guidance.
 - Prove against the digest-pinned real broker that replay deliveries remain
   unsettled when a consumer has not opted in, then are redelivered and committed
   only after explicit replay handling is enabled.
