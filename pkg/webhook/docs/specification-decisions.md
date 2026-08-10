@@ -13,6 +13,8 @@ replacement.
 
 ## WEBHOOK-DEC-001: Protocol identity and HTTP Message Signatures
 
+**Authoritative reference:** [RFC 9421](https://www.rfc-editor.org/rfc/rfc9421.html).
+
 - **Status, owner, and classification:** `resolved`; `webhook` maintainers;
   local wire protocol and compatibility policy.
 - **Source and issue:** RFC 9421 [HTTP Message Signatures](https://www.rfc-editor.org/rfc/rfc9421.html)
@@ -24,7 +26,10 @@ replacement.
   provider format, expose an unversioned helper, or define a small versioned
   local protocol. Providers disagree on headers, timestamps, body treatment,
   key selection, and canonical request targets.
-- **Selected behavior and consequences:** `Webhook-Signature` `v1` is a local,
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `Webhook-Signature` `v1` is a local,
   versioned HMAC protocol specified by `docs/signatures.md`. It neither parses
   nor emits RFC 9421 `Signature` or `Signature-Input` fields and makes no
   provider claim. Negotiation is not implicit: unknown versions fail closed.
@@ -38,6 +43,8 @@ replacement.
 
 ## WEBHOOK-DEC-002: HMAC algorithms and body digest
 
+**Authoritative reference:** [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; normative
   cryptographic profile plus local algorithm policy.
 - **Source and issue:** RFC 2104 defines HMAC, while RFC 4231 supplies
@@ -46,7 +53,10 @@ replacement.
 - **Interpretations and peer behavior:** Support one digest, permit arbitrary
   hash names, derive the body digest from the MAC algorithm, or fix a body
   digest independently. Provider schemes use several incompatible choices.
-- **Selected behavior and consequences:** A signer and verifier are configured
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  A signer and verifier are configured
   for exactly one allow-listed `sha256` or `sha512` HMAC algorithm. The canonical
   body component is always SHA-256, including under HMAC-SHA-512. The algorithm
   name is signed, unknown algorithms are rejected, and no inbound header can
@@ -60,6 +70,8 @@ replacement.
 
 ## WEBHOOK-DEC-003: Canonical framing, encoding, and Unicode
 
+**Authoritative reference:** [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; local
   wire-format policy informed by RFC 4648.
 - **Source and issue:** RFC 4648 Section 5 defines base64url and Section 3.2
@@ -69,7 +81,10 @@ replacement.
   serialize JSON, use length prefixes, normalize Unicode, or encode every
   variable field. Ambiguous concatenation and platform line endings can create
   cross-language disagreement.
-- **Selected behavior and consequences:** `v1` uses fixed ASCII labels in a
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `v1` uses fixed ASCII labels in a
   fixed order, LF delimiters, a final empty line, and unpadded base64url for
   every variable byte field. It signs caller string bytes exactly and performs
   no Unicode normalization. Empty values remain explicit empty encoded fields.
@@ -81,6 +96,8 @@ replacement.
 
 ## WEBHOOK-DEC-004: Method, path, and query canonicalization
 
+**Authoritative reference:** [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; Go URL
   interoperability and local request-target policy.
 - **Source and issue:** RFC 3986 defines URI components, while Go 1.26.5
@@ -90,7 +107,10 @@ replacement.
 - **Interpretations and peer behavior:** Sign the raw request target, decoded
   values, a reconstructed URL, an uppercased method, or a provider-specific
   subset. Peers differ especially around duplicate query parameters.
-- **Selected behavior and consequences:** Sign the exact nonempty method with
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Sign the exact nonempty method with
   case preserved; use `EscapedPath` with `/` for an empty path; parse the raw
   query using Go form semantics; sort keys through `Values.Encode`; preserve
   duplicate value order; and emit Go's canonical escaping. Semantically
@@ -105,6 +125,8 @@ replacement.
 
 ## WEBHOOK-DEC-005: Host and behavior-changing header coverage
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   HTTP field and canonicalization policy.
 - **Source and issue:** RFC 9110 defines the target URI, media type field, and
@@ -114,7 +136,10 @@ replacement.
   lowercase the full authority, remove default ports, combine duplicate field
   lines, or bind exact values. Intermediaries can otherwise alter decoding or
   deduplication semantics without changing the body.
-- **Selected behavior and consequences:** Lowercase the request host while
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Lowercase the request host while
   preserving an explicit port. Bind exactly one UTF-8 `Content-Type` and
   `Idempotency-Key` value, each bounded to 256 bytes; absence is an explicit
   empty canonical field. Duplicate, line-breaking, oversized, or invalid UTF-8
@@ -128,6 +153,8 @@ replacement.
 
 ## WEBHOOK-DEC-006: Timestamp precision and tolerance
 
+**Authoritative reference:** [RFC 3339](https://www.rfc-editor.org/rfc/rfc3339.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; local replay
   freshness policy using Go time semantics.
 - **Source and issue:** HTTP dates in RFC 9110 and Internet timestamps in RFC
@@ -136,7 +163,10 @@ replacement.
 - **Interpretations and peer behavior:** Use milliseconds, seconds, HTTP-date,
   asymmetric age limits, or exact equality. Providers vary and often leave
   boundary behavior undocumented.
-- **Selected behavior and consequences:** `v1` signs a canonical nonnegative
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `v1` signs a canonical nonnegative
   Unix-second integer. Signer inputs are truncated to that precision. Verifiers
   accept absolute skew less than or equal to the configured tolerance, compare
   caller-provided timestamps by Unix second, and reject negative,
@@ -150,6 +180,8 @@ replacement.
 
 ## WEBHOOK-DEC-007: Nonces, key rotation, and revocation
 
+**Authoritative reference:** [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   cryptographic lifecycle policy.
 - **Source and issue:** HMAC standards do not require a nonce, key identifier,
@@ -158,7 +190,10 @@ replacement.
 - **Interpretations and peer behavior:** Emit deterministic MACs, sign with one
   current key, emit every active key, select keys at wall-clock or signed time,
   and accept revoked keys until expiry. Provider rotation behavior varies.
-- **Selected behavior and consequences:** Every signature carries a nonempty
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Every signature carries a nonempty
   valid UTF-8 nonce bounded to 128 bytes. The default is 18 random bytes encoded
   as base64url. One nonce is shared across all signatures in one operation.
   Signers emit every non-revoked key active at the normalized signed timestamp,
@@ -174,6 +209,8 @@ replacement.
 
 ## WEBHOOK-DEC-008: Signature header grammar and set rejection
 
+**Authoritative reference:** [RFC 8941](https://www.rfc-editor.org/rfc/rfc8941.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; local HTTP
   field grammar and defensive parsing policy.
 - **Source and issue:** RFC 9110 permits repeated field lines and field-specific
@@ -184,7 +221,10 @@ replacement.
 - **Interpretations and peer behavior:** Accept parameters in any order, ignore
   unknowns, split comma-combined fields, salvage valid siblings, or require
   exact serialization. Lenient parsers create cross-implementation ambiguity.
-- **Selected behavior and consequences:** Each active key produces one separate
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Each active key produces one separate
   `Webhook-Signature` field line with fixed parameter order and exact lowercase
   names. Comma combination, padding, whitespace variation, duplicate or unknown
   parameters, duplicate key IDs, noncanonical timestamps, invalid encodings,
@@ -199,6 +239,8 @@ replacement.
 
 ## WEBHOOK-DEC-009: Exact request body, ordering, and ownership
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; Go HTTP body
   lifecycle plus defensive resource policy.
 - **Source and issue:** RFC 9110 defines message content and Go `net/http`
@@ -207,7 +249,10 @@ replacement.
 - **Interpretations and peer behavior:** Hash decoded JSON, hash decompressed
   content, trust `Content-Length`, buffer without a cap, or hash exact bytes.
   Middleware ordering can otherwise create unverifiable behavior.
-- **Selected behavior and consequences:** Bound declared size before reading,
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Bound declared size before reading,
   read at most the configured limit plus one byte, hash the exact remaining
   stream bytes without decoding or normalization, close the original body, and
   restore an independent reader. Verification must be first; previously
@@ -222,6 +267,8 @@ replacement.
 
 ## WEBHOOK-DEC-010: Candidate verification and external errors
 
+**Authoritative reference:** [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   verification and diagnostic policy.
 - **Source and issue:** RFC 2104 defines MAC verification but does not define
@@ -230,7 +277,10 @@ replacement.
 - **Interpretations and peer behavior:** Fail on the first invalid candidate,
   expose exact causes, try configured candidates, or return a boolean. Detailed
   errors can disclose key lifecycle and parsing state.
-- **Selected behavior and consequences:** After strict set parsing, the
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  After strict set parsing, the
   verifier examines candidates in wire order and accepts the first active
   configured key whose MAC passes `hmac.Equal`. Invalid candidates do not alter
   later candidate state. External errors expose stable categories and the
@@ -246,6 +296,8 @@ replacement.
 
 ## WEBHOOK-DEC-011: Replay identity and atomic storage
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   replay policy, not an exactly-once guarantee.
 - **Source and issue:** HTTP and HMAC standards do not define webhook replay
@@ -253,7 +305,10 @@ replacement.
 - **Interpretations and peer behavior:** Deduplicate by signature, nonce,
   provider event ID, key ID, or payload hash; check then insert; fail open on
   store outage; or delegate entirely to the application.
-- **Selected behavior and consequences:** Optional replay protection hashes a
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Optional replay protection hashes a
   length-prefixed domain string, required namespace, and authenticated event ID
   with SHA-256. It deliberately excludes key ID so overlap signatures share one
   replay identity. `ReplayStore.CheckAndRecord` must atomically create only an
@@ -268,6 +323,8 @@ replacement.
 
 ## WEBHOOK-DEC-012: Event ID extraction occurs after authentication
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   sequencing and application extension policy.
 - **Source and issue:** No standard defines where a generic event ID resides.
@@ -276,7 +333,10 @@ replacement.
 - **Interpretations and peer behavior:** Require one fixed header, decode JSON
   before verification, let every handler deduplicate, or inject an extractor
   after authentication.
-- **Selected behavior and consequences:** `VerifyRequest` authenticates strict
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `VerifyRequest` authenticates strict
   fields and exact body first, then invokes the configured extractor, then
   atomically records replay state. `HeaderEventID` requires one bounded UTF-8
   field. Extractor errors map to a safe missing-ID category and unauthenticated
@@ -290,6 +350,8 @@ replacement.
 
 ## WEBHOOK-DEC-013: Envelope is CloudEvents-shaped but not CloudEvents
 
+**Authoritative reference:** [CloudEvents 1.0.2](https://github.com/cloudevents/spec/blob/v1.0.2/cloudevents/spec.md).
+
 - **Status, owner, and classification:** `resolved`; maintainers; local JSON
   wire policy with an explicit non-conformance boundary.
 - **Source and issue:** CloudEvents 1.0.2 defines context attributes, extension
@@ -300,7 +362,10 @@ replacement.
 - **Interpretations and peer behavior:** Claim structured CloudEvents JSON,
   remove familiar names, validate the complete CloudEvents model, or preserve
   the existing small local envelope while stating the boundary.
-- **Selected behavior and consequences:** The output is a deterministic local
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  The output is a deterministic local
   v1 JSON envelope, not a CloudEvents implementation or interoperability claim.
   It requires ID, type, source, nonzero time, and valid JSON data; emits UTC
   RFC3339Nano time and `application/json`; preserves raw data; and orders fields
@@ -314,6 +379,8 @@ replacement.
 
 ## WEBHOOK-DEC-014: Outbound method, content type, and idempotency field
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; application
   delivery profile on top of RFC 9110.
 - **Source and issue:** HTTP permits many methods and media types and does not
@@ -322,7 +389,10 @@ replacement.
 - **Interpretations and peer behavior:** Preserve arbitrary caller method and
   content type, infer JSON, use PUT for idempotency, or define a fixed POST
   profile. Webhook receivers overwhelmingly vary by provider.
-- **Selected behavior and consequences:** `Deliverer` always emits POST with
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `Deliverer` always emits POST with
   `Content-Type: application/json`, preserves other cloned caller headers, and
   emits `Idempotency-Key` only when explicitly supplied. Both fixed field
   values are signed. The package does not claim that a receiver honors that
@@ -335,6 +405,8 @@ replacement.
 
 ## WEBHOOK-DEC-015: Retryable outcomes and Retry-After
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; RFC 9110
   interpretation plus bounded application policy.
 - **Source and issue:** RFC 9110 defines `Retry-After` and status semantics but
@@ -343,7 +415,10 @@ replacement.
 - **Interpretations and peer behavior:** Retry all 4xx/5xx, only 429/503, every
   transport error, or caller-configured statuses. Clients also disagree on
   invalid, past, overflowing, and excessive `Retry-After` values.
-- **Selected behavior and consequences:** Retry transport failures and exactly
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Retry transport failures and exactly
   408, 425, 429, 500, 502, 503, and 504. Any 2xx succeeds; every other status is
   terminal. Parse nonnegative delta-seconds or a future HTTP-date, cap at
   `MaxDelay`, and otherwise use capped exponential delay. Overflow saturates
@@ -357,6 +432,8 @@ replacement.
 
 ## WEBHOOK-DEC-016: Retry ownership and ambiguous receipt
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; delivery
   lifecycle and idempotency safety policy.
 - **Source and issue:** HTTP cannot reveal whether a timed-out request caused a
@@ -364,7 +441,10 @@ replacement.
 - **Interpretations and peer behavior:** Retry regardless, require an
   idempotency key, let every layer retry, or make durable infrastructure the
   sole retry owner.
-- **Selected behavior and consequences:** `Deliver` forces one attempt when no
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `Deliver` forces one attempt when no
   explicit idempotency key exists. `DeliverOnce` always performs one attempt
   and is mandatory for queue/outbox consumers, leaving durable retry ownership
   outside the core. This reduces duplicate risk but still makes no exactly-once
@@ -378,6 +458,8 @@ replacement.
 
 ## WEBHOOK-DEC-017: Response bounds and failure classification
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   resource and result policy.
 - **Source and issue:** RFC 9110 does not define how much response content a
@@ -386,7 +468,10 @@ replacement.
 - **Interpretations and peer behavior:** Ignore response bodies, read without a
   bound, truncate silently, expose transport errors verbatim, or preserve a
   bounded result and stable category.
-- **Selected behavior and consequences:** Require positive request and response
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Require positive request and response
   bounds that leave room for a sentinel byte. Read at most response limit plus
   one, close on every path, reject missing bodies and read/close failures, and
   classify each attempt as none, retryable, terminal, or exhausted. Diagnostic
@@ -399,6 +484,8 @@ replacement.
 
 ## WEBHOOK-DEC-018: Dead letters and operator replay are hooks
 
+**Authoritative reference:** [RFC 9110](https://www.rfc-editor.org/rfc/rfc9110.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; application
   lifecycle boundary.
 - **Source and issue:** HTTP defines neither dead-letter persistence nor an
@@ -406,7 +493,10 @@ replacement.
   duplicate `outbox` and `queue` ownership.
 - **Interpretations and peer behavior:** Persist internally, drop terminal
   results, expose callbacks, or require one external orchestration package.
-- **Selected behavior and consequences:** Terminal and exhausted deliveries
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Terminal and exhausted deliveries
   invoke an optional bounded-result `DeadLetterFunc`. Operator `Replay` invokes
   its audit hook before creating a new delivery ID and never reuses an attempt
   ID. Hook failures are returned; observer panics are contained, while
@@ -420,6 +510,8 @@ replacement.
 
 ## WEBHOOK-DEC-019: Endpoint URL syntax and scheme policy
 
+**Authoritative reference:** [RFC 3986](https://www.rfc-editor.org/rfc/rfc3986.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; RFC 3986
   parsing with defensive SSRF policy.
 - **Source and issue:** RFC 3986 permits URI forms and components that are not
@@ -428,7 +520,10 @@ replacement.
 - **Interpretations and peer behavior:** Accept anything `url.Parse` accepts,
   allow HTTP by default, normalize risky forms, or reject unless explicitly
   enabled. SSRF filters often disagree on canonical host treatment.
-- **Selected behavior and consequences:** Require an absolute hierarchical URL
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Require an absolute hierarchical URL
   with host; exact lowercase `https` is default and lowercase `http` is opt-in.
   Reject opaque forms, userinfo, fragments, empty hosts, non-ASCII hosts,
   trailing-dot hosts, malformed ports, and ports outside 1-65535. Do not
@@ -441,6 +536,8 @@ replacement.
 
 ## WEBHOOK-DEC-020: Special-purpose address registry policy
 
+**Authoritative reference:** [IANA IPv4 special-purpose registry](https://www.iana.org/assignments/iana-ipv4-special-registry/iana-ipv4-special-registry.xhtml).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   network policy based on pinned IANA registry snapshots.
 - **Source and issue:** IANA IPv4 and IPv6 special-purpose registries classify
@@ -450,7 +547,10 @@ replacement.
 - **Interpretations and peer behavior:** Allow every global-unicast address,
   block only RFC 1918, mirror registry forwarding flags, or deny a conservative
   reviewed set. Library filters commonly miss mapped IPv4 and mixed DNS answers.
-- **Selected behavior and consequences:** Unmap IPv4-mapped IPv6; deny invalid,
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Unmap IPv4-mapped IPv6; deny invalid,
   private, loopback, link-local, multicast, unspecified, and non-global-unicast
   addresses; additionally deny the explicit pinned special-purpose prefixes in
   `reservedPrefixes`. Caller deny prefixes win over caller allow prefixes.
@@ -465,6 +565,8 @@ replacement.
 
 ## WEBHOOK-DEC-021: DNS rebinding, redirects, proxies, and transport
 
+**Authoritative reference:** [Go 1.26.5 net/http source](https://cs.opensource.google/go/go/+/refs/tags/go1.26.5:src/net/http/).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive Go
   HTTP transport policy.
 - **Source and issue:** Go `net/http` owns redirect, proxy, DNS, connection
@@ -473,7 +575,10 @@ replacement.
 - **Interpretations and peer behavior:** Validate only the original URL, follow
   redirects with revalidation, trust environment proxies, pin one DNS answer,
   or own a direct dial path. Generic clients often validate too early.
-- **Selected behavior and consequences:** Validate immediately before every
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Validate immediately before every
   attempt and again in the transport; re-resolve at dial time; validate every
   answer; dial only validated addresses; disable environment proxies; return
   redirects without following; and disable automatic HTTP/2 on this custom
@@ -488,6 +593,8 @@ replacement.
 
 ## WEBHOOK-DEC-022: Fan-out concurrency and ordering
 
+**Authoritative reference:** [Go memory model](https://go.dev/ref/mem).
+
 - **Status, owner, and classification:** `resolved`; maintainers; bounded
   orchestration policy.
 - **Source and issue:** Neither HTTP nor webhook conventions define fan-out
@@ -495,7 +602,10 @@ replacement.
   endpoint is an unbounded resource risk.
 - **Interpretations and peer behavior:** Spawn freely, run serially, return
   completion order, stop on first failure, or use a fixed worker set.
-- **Selected behavior and consequences:** `FanOut` rejects input beyond
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  `FanOut` rejects input beyond
   `MaxFanOut`, requires a positive worker limit, uses a fixed worker bound, and
   returns one result per input in input order. Cancellation prevents new useful
   work but does not claim to interrupt a remote side effect already in flight.
@@ -508,6 +618,8 @@ replacement.
 
 ## WEBHOOK-DEC-023: Observation fields and trace propagation
 
+**Authoritative reference:** [W3C Trace Context](https://www.w3.org/TR/2021/REC-trace-context-1-20211123/).
+
 - **Status, owner, and classification:** `resolved`; maintainers; defensive
   privacy policy plus optional W3C Trace Context interoperability.
 - **Source and issue:** W3C Trace Context defines propagation fields but not
@@ -516,7 +628,10 @@ replacement.
   create high-cardinality telemetry.
 - **Interpretations and peer behavior:** Sign trace fields, log full requests,
   attach raw errors, disable propagation, or expose a closed semantic schema.
-- **Selected behavior and consequences:** Core observations contain only fixed
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Core observations contain only fixed
   operation, outcome, reason, algorithm, status class, attempt, and bounded
   duration fields. They exclude payload, signature, secret, endpoint, event ID,
   replay key, and raw error text. The optional telemetry wrapper injects trace
@@ -531,6 +646,8 @@ replacement.
 
 ## WEBHOOK-DEC-024: Provider presets remain unsupported
 
+**Authoritative reference:** [RFC 2104](https://www.rfc-editor.org/rfc/rfc2104.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; conformance
   claim and extension policy.
 - **Source and issue:** Vendor webhook schemes differ in secret encoding,
@@ -539,7 +656,10 @@ replacement.
 - **Interpretations and peer behavior:** Market generic HMAC as compatible,
   embed provider switches in core, copy SDK snippets, or require isolated
   authoritative profiles and vectors.
-- **Selected behavior and consequences:** No provider preset is supported.
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  No provider preset is supported.
   Vendor names cannot enter the supported matrix until an isolated package has
   authoritative versioned documentation, independent positive vectors,
   negative mutations, rotation and retry semantics, and a maintenance owner.
@@ -552,6 +672,8 @@ replacement.
 
 ## WEBHOOK-DEC-025: Delivery queue wire encoding
 
+**Authoritative reference:** [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; local JSON
   persistence boundary based on RFC 8259 and Go encoding contracts.
 - **Source and issue:** RFC 8259 defines JSON but not webhook delivery fields,
@@ -560,7 +682,10 @@ replacement.
 - **Interpretations and peer behavior:** Serialize the public Go struct
   directly, use gob, preserve arbitrary headers, accept unknown fields, or
   define a private bounded versioned shape.
-- **Selected behavior and consequences:** Marshal a dedicated `v1` JSON shape
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Marshal a dedicated `v1` JSON shape
   with endpoint string, copied body, IDs, headers, and metadata under an exact
   byte limit. Decode one JSON value with unknown-field rejection and no trailing
   data, reconstruct and validate the endpoint, copy mutable collections, and
@@ -576,6 +701,8 @@ replacement.
 
 ## WEBHOOK-DEC-026: Compatibility and reconsideration policy
 
+**Authoritative reference:** [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
+
 - **Status, owner, and classification:** `resolved`; maintainers; SemVer and
   change-control policy.
 - **Source and issue:** None of the external specifications determines which
@@ -584,15 +711,19 @@ replacement.
 - **Interpretations and peer behavior:** Treat only Go identifiers as API,
   silently tighten parsers, evolve canonical bytes in place, or version every
   observable protocol and operational classification.
-- **Selected behavior and consequences:** Canonical bytes, field grammar,
+- **Selected behavior and consequences:**
+  Security, resource, compatibility, and wire consequences are included in
+  the selected behavior below.
+  Canonical bytes, field grammar,
   algorithm identifiers, envelope and delivery JSON, exported error identity,
   retry classification, replay identity, endpoint defaults, and established
   provider profiles are compatibility surfaces. Wire changes require a new
   protocol version and normally major impact. Security fixes may reject
   formerly accepted unsafe input but require explicit changelog and migration
   review. Unknown or unresolved behavior cannot become a silent default.
-- **Evidence, public surface, upstream, and reconsideration:** API baselines,
-  golden vectors, `docs/migration.md`, conformance checks, and the tests named
-  throughout this register enforce the current surfaces. Reconsider when a
-  superseding decision records source, migration, executable evidence, and
-  release impact; preserve this entry as history.
+- **Evidence, public surface, upstream, and reconsideration:**
+  `TestIndependentInteroperabilityVectors`,
+  `TestDeliveryRequestWireRoundTripIsDeterministic`, API baselines, golden
+  vectors, `docs/migration.md`, and conformance checks enforce the current
+  surfaces. Reconsider when a superseding decision records source, migration,
+  executable evidence, and release impact; preserve this entry as history.
