@@ -10968,7 +10968,9 @@
       "required_services": [],
       "build_tags": [],
       "test_tags": [],
-      "interoperability_tools": [],
+      "interoperability_tools": [
+        "Apache Kafka 4.3.1"
+      ],
       "specifications": [],
       "conformance_corpora": [],
       "provenance": [],
@@ -10980,7 +10982,7 @@
       "goal_evidence": [
         {
           "file": "pkg/kafka/kafkaservice/.ai/GOAL.md",
-          "requirements_sha256": "02ae293a6a772ac7bac19ee68eb1de32ccbef482aa29ff8cebc8fdbc7ca74b06",
+          "requirements_sha256": "92002c27aa253b394c348aa9beaba7571b663f12b759c49c130372b436b2b024",
           "implementation_evidence": [
             "pkg/kafka/kafkaservice/CHANGELOG.md",
             "pkg/kafka/kafkaservice/README.md"
@@ -11012,7 +11014,7 @@
         },
         {
           "file": "pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md",
-          "requirements_sha256": "0b8b4b89bd532a20a85a3f826545a7368f47a76f45c5a85431e626e46d52cb42",
+          "requirements_sha256": "259c305250b3dfd0ddcf8ffa84db0697ac2b0963bbc1ff2c78f4ed70d8f60382",
           "implementation_evidence": [
             "pkg/kafka/kafkaservice/CHANGELOG.md",
             "pkg/kafka/kafkaservice/README.md"

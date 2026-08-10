@@ -1121,6 +1121,9 @@ func interoperabilityTools(directory string) []string {
 	if directory == "pkg/kafka/adapters/gotelemetry" {
 		return []string{"Apache Kafka 4.3.1"}
 	}
+	if directory == "pkg/kafka/kafkaservice" {
+		return []string{"Apache Kafka 4.3.1"}
+	}
 	if directory == "pkg/webhook" {
 		return []string{"Python 3 standard-library HMAC-SHA-256 and HMAC-SHA-512 vectors"}
 	}
