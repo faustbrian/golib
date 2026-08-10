@@ -76,7 +76,11 @@ func TestIndependentOpenSSLHMACRotationFixture(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer fixture.Close()
+	defer func() {
+		if err := fixture.Close(); err != nil {
+			t.Errorf("close fixture: %v", err)
+		}
+	}()
 	keys := make(map[string]audit.IntegrityKey)
 	var records []audit.Record
 	scanner := bufio.NewScanner(fixture)

@@ -9,6 +9,45 @@ import (
 	"github.com/faustbrian/golib/pkg/audit"
 )
 
+func TestStoreValidationFailuresLeaveUsableState(t *testing.T) {
+	query, err := audit.NewQuery(audit.QueryInput{Tenant: audit.NoTenant(), Limit: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var nilStore *Store
+	if _, err := nilStore.Query(context.Background(), query); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("nil-store Query() error = %v", err)
+	}
+	if _, err := nilStore.Append(context.Background(), audit.Record{}); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("nil-store Append() error = %v", err)
+	}
+
+	store, err := New(Config{MaxRecords: 1, MaxBytes: 1 << 20, MaxBatchRecords: 1})
+	if err != nil {
+		t.Fatal(err)
+	}
+	record := internalMemoryRecord("guard-record", time.Date(2026, time.August, 10, 9, 0, 0, 0, time.UTC))
+	//lint:ignore SA1012 Explicit nil-context validation is the contract under test.
+	if _, err := store.Query(nil, query); !errors.Is(err, audit.ErrInvalidArgument) { //nolint:staticcheck // Explicit nil-context validation is under test.
+		t.Fatalf("nil-context Query() error = %v", err)
+	}
+	if _, err := store.Query(context.Background(), audit.Query{}); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("invalid-query Query() error = %v", err)
+	}
+	//lint:ignore SA1012 Explicit nil-context validation is the contract under test.
+	if _, err := store.Append(nil, record); !errors.Is(err, audit.ErrInvalidArgument) { //nolint:staticcheck // Explicit nil-context validation is under test.
+		t.Fatalf("nil-context Append() error = %v", err)
+	}
+	result, err := store.Append(context.Background(), record)
+	if err != nil || result.Status != audit.AppendAccepted {
+		t.Fatalf("Append() = %#v, %v", result, err)
+	}
+	page, err := store.Query(context.Background(), query)
+	if err != nil || len(page.Records) != 1 || page.Records[0].ID() != record.ID() {
+		t.Fatalf("Query() = %#v, %v", page, err)
+	}
+}
+
 func TestConfigurationAndCapacityAcceptExactCeilings(t *testing.T) {
 	t.Parallel()
 

@@ -29,6 +29,294 @@ import (
 
 const frozenV1Canonical = `{"schema_version":1,"id":"golden-record","occurred_at":"2026-08-09T12:00:00Z","recorded_at":"2026-08-09T12:00:00Z","action":"invoice.approved","outcome":1,"reason_code":"policy_match","description":"approved automatically","actor":{"kind":2,"id":"billing","authentication_method":"workload_identity","delegated_by":{"kind":1,"id":"user-42","authentication_method":"passkey"}},"subject":{"type":"invoice","id":"invoice-7","deleted":false},"context":{"tenant_id":"tenant-1","correlation_id":"corr-1","source_service":"billing","environment":"production"},"changes":{"no_change":false,"before":{"status":"pending"},"after":{"status":"approved"}},"policy":{"id":"approval","version":"2026-08-01"},"attributes":{"app.channel":"automatic"},"integrity":{"algorithm":1,"partition":"tenant-1","sequence":1,"digest":"632f0f2444cd6ca903c2b20f7e7f57f6341211febf9e51f5bbc9c47be4cf8181"}}`
 
+func TestInitialMigrationRejectsUnsafeRoleCollision(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	if _, err := pool.Exec(ctx, "CREATE ROLE audit_writer LOGIN"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err == nil {
+		t.Fatal("initial migration accepted a pre-existing LOGIN audit_writer role")
+	}
+	if _, err := pool.Exec(ctx, `ALTER ROLE audit_writer NOLOGIN;
+		CREATE ROLE audit_member LOGIN;
+		GRANT audit_writer TO audit_member`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err == nil {
+		t.Fatal("initial migration accepted a fixed role with a LOGIN member")
+	}
+	if _, err := pool.Exec(ctx, `REVOKE audit_writer FROM audit_member;
+		DROP ROLE audit_member;
+		GRANT pg_read_all_data TO audit_writer`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err == nil {
+		t.Fatal("initial migration accepted a fixed role that inherits external privileges")
+	}
+	var usage bool
+	if err := pool.QueryRow(ctx, "SELECT has_schema_privilege('audit_writer', 'audit', 'USAGE')").Scan(&usage); err == nil && usage {
+		t.Fatal("failed migration granted audit schema usage to LOGIN role")
+	}
+}
+
+func TestHardeningMigrationRejectsPoisonedLegacyRows(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err != nil {
+		t.Fatal(err)
+	}
+	malformed := []byte(`{}`)
+	digest := sha256.Sum256(malformed)
+	if _, err := pool.Exec(ctx, `INSERT INTO audit.records (
+		record_id, occurred_at, recorded_at, actor_kind, subject_type, subject_id,
+		action, outcome, canonical_record, canonical_sha256
+	) VALUES ('poisoned', '2026-08-09T12:00:00Z', '2026-08-09T12:00:00Z',
+		1, 'invoice', 'invoice-1', 'invoice.created', 1, $1, $2)`, malformed, digest[:]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err == nil {
+		t.Fatal("hardening migration accepted a malformed legacy record")
+	}
+	var rolledBack bool
+	if err := pool.QueryRow(ctx, "SELECT to_regclass('audit.record_identities') IS NULL").Scan(&rolledBack); err != nil || !rolledBack {
+		t.Fatalf("failed hardening migration rollback = %t, %v", rolledBack, err)
+	}
+}
+
+func TestPostgreSQLTransactionStageIsBatchAtomic(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	applyMigrations(t, ctx, pool)
+	fixture := postgresRecord(t, "canonical-fixture", "tenant-1", "invoice.created", time.Date(2026, time.August, 9, 12, 0, 0, 123456789, time.UTC))
+	canonical, err := audit.CanonicalJSON(fixture)
+	if err != nil {
+		t.Fatal(err)
+	}
+	escaped := bytes.Replace(canonical, []byte(`,"actor":`), []byte(`,"description":"\u003c\u003e\u0026\u2028\u2029","actor":`), 1)
+	for name, expected := range map[string][]byte{
+		"simple":  canonical,
+		"escaped": escaped,
+		"rich":    []byte(frozenV1Canonical),
+	} {
+		var databaseCanonical []byte
+		if err := pool.QueryRow(ctx, "SELECT audit.canonical_record(convert_from($1, 'UTF8')::jsonb)", expected).Scan(&databaseCanonical); err != nil {
+			t.Fatal(err)
+		}
+		if !bytes.Equal(databaseCanonical, expected) {
+			t.Fatalf("%s database canonical reconstruction = %q, want %q", name, databaseCanonical, expected)
+		}
+	}
+	store, err := auditpostgres.New(pool, auditpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	yearZero := postgresRecord(t, "year-zero", "tenant-1", "time.boundary", time.Date(0, time.January, 1, 0, 0, 0, 0, time.UTC))
+	if result, err := store.Append(ctx, yearZero); err != nil || result.Status != audit.AppendAccepted {
+		t.Fatalf("year-zero Append() = %#v, %v", result, err)
+	}
+	base := time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC)
+	original := postgresRecord(t, "stage-conflict", "tenant-1", "invoice.created", base)
+	if _, err := store.Append(ctx, original); err != nil {
+		t.Fatal(err)
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer, err := auditpostgres.NewTx(tx, auditpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	first := postgresRecord(t, "stage-first", "tenant-1", "invoice.created", base)
+	conflict := postgresRecord(t, original.ID(), "tenant-1", "invoice.changed", base)
+	if _, err := writer.Stage(ctx, []audit.Record{first, conflict}); !errors.Is(err, audit.ErrDuplicateConflict) {
+		_ = tx.Rollback(context.Background())
+		t.Fatalf("Stage() error = %v", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var count int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM audit.records WHERE record_id = $1", first.ID()).Scan(&count); err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("failed Stage() persisted %d earlier records", count)
+	}
+}
+
+func TestPostgreSQLRetentionPreservesRecordIdentity(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	applyMigrations(t, ctx, pool)
+	store, err := auditpostgres.New(pool, auditpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	retention, err := auditpostgres.NewRetentionAdmin(pool, auditpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := time.Date(2026, time.August, 9, 12, 0, 0, 0, time.UTC)
+	record := postgresRecord(t, "retained-identity", "tenant-1", "invoice.created", base)
+	if _, err := store.Append(ctx, record); err != nil {
+		t.Fatal(err)
+	}
+	tenant, _ := audit.Tenant("tenant-1")
+	request, _ := audit.NewRetentionRequest(audit.RetentionRequestInput{Tenant: tenant, Before: base.Add(time.Hour), Limit: 10})
+	plan, err := retention.PlanRetention(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := retention.ApplyRetention(ctx, plan)
+	if err != nil || result.Deleted != 1 {
+		t.Fatalf("ApplyRetention() = %#v, %v", result, err)
+	}
+	if result, err := store.Append(ctx, record); err != nil || result.Status != audit.AppendDuplicate {
+		t.Fatalf("identical retry after retention = %#v, %v", result, err)
+	}
+	conflict := postgresRecord(t, record.ID(), "tenant-1", "invoice.changed", base)
+	if _, err := store.Append(ctx, conflict); !errors.Is(err, audit.ErrDuplicateConflict) {
+		t.Fatalf("conflicting retry after retention error = %v", err)
+	}
+	var live, identities int
+	if err := pool.QueryRow(ctx, `SELECT
+		(SELECT count(*) FROM audit.records WHERE record_id = $1),
+		(SELECT count(*) FROM audit.record_identities WHERE record_id = $1)`, record.ID()).Scan(&live, &identities); err != nil {
+		t.Fatal(err)
+	}
+	if live != 0 || identities != 1 {
+		t.Fatalf("retained identity state = live %d identities %d", live, identities)
+	}
+	for _, statement := range []string{
+		"UPDATE audit.record_identities SET canonical_sha256 = decode(repeat('00', 32), 'hex') WHERE record_id = 'retained-identity'",
+		"DELETE FROM audit.record_identities WHERE record_id = 'retained-identity'",
+	} {
+		_, err := pool.Exec(ctx, statement)
+		var immutable *pgconn.PgError
+		if !errors.As(err, &immutable) || immutable.Code != "55000" {
+			t.Fatalf("identity mutation %q error = %v", statement, err)
+		}
+	}
+
+	concurrent := postgresRecord(t, "concurrent-retained-identity", "tenant-1", "invoice.created", base)
+	if _, err := store.Append(ctx, concurrent); err != nil {
+		t.Fatal(err)
+	}
+	concurrentPlan, err := retention.PlanRetention(ctx, request)
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := make(chan struct{})
+	appendResult := make(chan struct {
+		result audit.AppendResult
+		err    error
+	}, 1)
+	retentionResult := make(chan struct {
+		result audit.RetentionApplyResult
+		err    error
+	}, 1)
+	go func() {
+		<-start
+		result, appendErr := store.Append(ctx, concurrent)
+		appendResult <- struct {
+			result audit.AppendResult
+			err    error
+		}{result, appendErr}
+	}()
+	go func() {
+		<-start
+		result, applyErr := retention.ApplyRetention(ctx, concurrentPlan)
+		retentionResult <- struct {
+			result audit.RetentionApplyResult
+			err    error
+		}{result, applyErr}
+	}()
+	close(start)
+	appended := <-appendResult
+	retained := <-retentionResult
+	if appended.err != nil || appended.result.Status != audit.AppendDuplicate {
+		t.Fatalf("concurrent retry = %#v, %v", appended.result, appended.err)
+	}
+	if retained.err != nil || retained.result.Deleted != 1 {
+		t.Fatalf("concurrent retention = %#v, %v", retained.result, retained.err)
+	}
+	if err := pool.QueryRow(ctx, `SELECT
+		(SELECT count(*) FROM audit.records WHERE record_id = $1),
+		(SELECT count(*) FROM audit.record_identities WHERE record_id = $1)`, concurrent.ID()).Scan(&live, &identities); err != nil {
+		t.Fatal(err)
+	}
+	if live != 0 || identities != 1 {
+		t.Fatalf("concurrent retained identity state = live %d identities %d", live, identities)
+	}
+}
+
 func TestPostgreSQLBackupRestoreAndReconciliation(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 6*time.Minute)
 	defer cancel()
@@ -70,8 +358,97 @@ func TestPostgreSQLBackupRestoreAndReconciliation(t *testing.T) {
 	) VALUES ('legacy-hold', 'legacy-record', 'hold', 'migration-proof', '2026-08-09T11:00:00Z')`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err != nil {
+	migrationTx, err := pool.Begin(ctx)
+	if err != nil {
 		t.Fatal(err)
+	}
+	if _, err := migrationTx.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err != nil {
+		_ = migrationTx.Rollback(context.Background())
+		t.Fatal(err)
+	}
+	legacyStore, err := auditpostgres.New(pool, auditpostgres.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	rollingRecord := postgresRecord(t, "rolling-writer-record", "tenant-1", "migration.concurrent", time.Date(2026, time.August, 9, 11, 30, 0, 0, time.UTC))
+	rollingResult := make(chan struct {
+		result audit.AppendResult
+		err    error
+	}, 1)
+	go func() {
+		result, appendErr := legacyStore.Append(ctx, rollingRecord)
+		rollingResult <- struct {
+			result audit.AppendResult
+			err    error
+		}{result, appendErr}
+	}()
+	hostileRollingRecord := postgresRecord(t, "rolling-hostile-record", "tenant-1", "migration.concurrent", rollingRecord.RecordedAt())
+	hostileCanonical, err := audit.CanonicalJSON(hostileRollingRecord)
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostileCanonical = append(append([]byte(nil), hostileCanonical[:len(hostileCanonical)-1]...), []byte(`,"injected":"value"}`)...)
+	hostileDigest := sha256.Sum256(hostileCanonical)
+	hostileRollingResult := make(chan error, 1)
+	go func() {
+		var status int16
+		hostileRollingResult <- pool.QueryRow(ctx, `SELECT audit.append_record(
+			$1::text, $2::timestamptz, $3::timestamptz, $4::text, $5::smallint,
+			$6::text, $7::text, $8::text, $9::text, $10::smallint, $11::text,
+			$12::bytea, $13::bytea)`,
+			hostileRollingRecord.ID(), hostileRollingRecord.OccurredAt(), hostileRollingRecord.RecordedAt(),
+			hostileRollingRecord.Context().TenantID(), hostileRollingRecord.Actor().Kind(), hostileRollingRecord.Actor().ID(),
+			hostileRollingRecord.Subject().Type(), hostileRollingRecord.Subject().ID(), hostileRollingRecord.Action(),
+			hostileRollingRecord.Outcome(), hostileRollingRecord.Context().CorrelationID(), hostileCanonical, hostileDigest[:],
+		).Scan(&status)
+	}()
+	blocked := false
+	deadline := time.NewTimer(10 * time.Second)
+	probe := time.NewTicker(10 * time.Millisecond)
+	for !blocked {
+		select {
+		case outcome := <-rollingResult:
+			deadline.Stop()
+			probe.Stop()
+			_ = migrationTx.Rollback(context.Background())
+			t.Fatalf("rolling writer completed before migration commit: %#v, %v", outcome.result, outcome.err)
+		case <-deadline.C:
+			probe.Stop()
+			_ = migrationTx.Rollback(context.Background())
+			t.Fatal("rolling writer did not reach the migration lock")
+		case <-probe.C:
+			if err := pool.QueryRow(ctx, `SELECT EXISTS (
+				SELECT 1 FROM pg_stat_activity
+				WHERE datname = current_database()
+				  AND wait_event_type = 'Lock'
+				  AND query LIKE '%audit.append_record%'
+			)`).Scan(&blocked); err != nil {
+				_ = migrationTx.Rollback(context.Background())
+				t.Fatal(err)
+			}
+		}
+	}
+	deadline.Stop()
+	probe.Stop()
+	if err := migrationTx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rolled := <-rollingResult
+	if rolled.err != nil || rolled.result.Status != audit.AppendAccepted {
+		t.Fatalf("rolling writer after migration = %#v, %v", rolled.result, rolled.err)
+	}
+	if err := <-hostileRollingResult; err == nil {
+		t.Fatal("hostile rolling writer bypassed the hardened insert trigger")
+	}
+	var rollingIdentity int
+	if err := pool.QueryRow(ctx, "SELECT count(*) FROM audit.record_identities WHERE record_id = $1", rollingRecord.ID()).Scan(&rollingIdentity); err != nil || rollingIdentity != 1 {
+		t.Fatalf("rolling writer identity count/error = %d, %v", rollingIdentity, err)
+	}
+	var hostileRows int
+	if err := pool.QueryRow(ctx, `SELECT
+		(SELECT count(*) FROM audit.records WHERE record_id = $1) +
+		(SELECT count(*) FROM audit.record_identities WHERE record_id = $1)`, hostileRollingRecord.ID()).Scan(&hostileRows); err != nil || hostileRows != 0 {
+		t.Fatalf("hostile rolling writer persistence/error = %d, %v", hostileRows, err)
 	}
 	var acceptedOrder int64
 	var legacyWriterUsage bool
@@ -181,11 +558,12 @@ func TestPostgreSQLBackupRestoreAndReconciliation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(page.Records) != 2 || page.Records[0].ID() != record.ID() || page.Records[1].ID() != legacy.ID() {
+	if len(page.Records) != 3 || page.Records[0].ID() != rollingRecord.ID() ||
+		page.Records[1].ID() != record.ID() || page.Records[2].ID() != legacy.ID() {
 		t.Fatalf("restored records = %#v", page.Records)
 	}
 	original, _ := audit.CanonicalJSON(record)
-	reconciled, _ := audit.CanonicalJSON(page.Records[0])
+	reconciled, _ := audit.CanonicalJSON(page.Records[1])
 	if string(original) != string(reconciled) {
 		t.Fatal("restored canonical record did not reconcile")
 	}
@@ -193,7 +571,7 @@ func TestPostgreSQLBackupRestoreAndReconciliation(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := chain.Verify(ctx, []audit.Record{page.Records[1]}); err != nil {
+	if err := chain.Verify(ctx, []audit.Record{page.Records[2]}); err != nil {
 		t.Fatalf("restored integrity verification: %v", err)
 	}
 	var restoredDigest, restoredHold, restoredIndexes, restoredTriggers bool
@@ -589,6 +967,8 @@ func TestPostgreSQLAppendQueryIdempotencyAndWriterPrivileges(t *testing.T) {
 	assertRoleDenied(t, ctx, pool, roles.Writer, "UPDATE audit.records SET action = 'tampered' WHERE record_id = 'role-record'")
 	assertRoleDenied(t, ctx, pool, roles.Writer, "DELETE FROM audit.records WHERE record_id = 'role-record'")
 	assertRoleDenied(t, ctx, pool, roles.Writer, "SELECT canonical_record FROM audit.records WHERE record_id = 'role-record'")
+	assertRoleDenied(t, ctx, pool, roles.Writer, "UPDATE audit.record_identities SET canonical_sha256 = decode(repeat('00', 32), 'hex') WHERE record_id = 'role-record'")
+	assertRoleDenied(t, ctx, pool, roles.Writer, "DELETE FROM audit.record_identities WHERE record_id = 'role-record'")
 	if _, err := pool.Exec(ctx, migrationDownSQL(t)); err == nil {
 		t.Fatal("destructive audit Down migration succeeded")
 	}
@@ -963,30 +1343,86 @@ func assertConcurrentRetentionPlans(t *testing.T, ctx context.Context, pool *pgx
 
 func assertWriterRejectsInconsistentRecord(t *testing.T, ctx context.Context, pool *pgxpool.Pool, writerRole string, record audit.Record) {
 	t.Helper()
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer tx.Rollback(context.Background())
-	if _, err := tx.Exec(ctx, "SET LOCAL ROLE "+pgx.Identifier{writerRole}.Sanitize()); err != nil {
-		t.Fatal(err)
-	}
 	canonical, err := audit.CanonicalJSON(record)
 	if err != nil {
 		t.Fatal(err)
 	}
-	digest := sha256.Sum256(canonical)
-	var status int16
-	err = tx.QueryRow(ctx, `SELECT audit.append_record(
-		$1::text, $2::timestamptz, $3::timestamptz, $4::text, $5::smallint,
-		$6::text, $7::text, $8::text, $9::text, $10::smallint, $11::text,
-		$12::bytea, $13::bytea)`,
-		record.ID(), record.OccurredAt(), record.RecordedAt(), "different-tenant",
-		record.Actor().Kind(), record.Actor().ID(), record.Subject().Type(), record.Subject().ID(),
-		record.Action(), record.Outcome(), record.Context().CorrelationID(), canonical, digest[:],
-	).Scan(&status)
+	attempt := func(tenant string, encoded []byte, occurredAt, recordedAt time.Time) (int16, error) {
+		tx, beginErr := pool.Begin(ctx)
+		if beginErr != nil {
+			t.Fatal(beginErr)
+		}
+		defer tx.Rollback(context.Background())
+		if _, roleErr := tx.Exec(ctx, "SET LOCAL ROLE "+pgx.Identifier{writerRole}.Sanitize()); roleErr != nil {
+			t.Fatal(roleErr)
+		}
+		digest := sha256.Sum256(encoded)
+		var status int16
+		scanErr := tx.QueryRow(ctx, `SELECT audit.append_record(
+			$1::text, $2::timestamptz, $3::timestamptz, $4::text, $5::smallint,
+			$6::text, $7::text, $8::text, $9::text, $10::smallint, $11::text,
+			$12::bytea, $13::bytea)`,
+			record.ID(), occurredAt, recordedAt, tenant,
+			record.Actor().Kind(), record.Actor().ID(), record.Subject().Type(), record.Subject().ID(),
+			record.Action(), record.Outcome(), record.Context().CorrelationID(), encoded, digest[:],
+		).Scan(&status)
+		return status, scanErr
+	}
+
+	status, err := attempt("different-tenant", canonical, record.OccurredAt(), record.RecordedAt())
 	if err == nil {
 		t.Fatalf("inconsistent writer append status = %d, want rejection", status)
+	}
+	canonicalTime := record.OccurredAt().Format(time.RFC3339Nano)
+	offsetTime := record.OccurredAt().In(time.FixedZone("offset", 2*60*60)).Format(time.RFC3339Nano)
+
+	for name, hostile := range map[string][]byte{
+		"unknown field":           append(append([]byte(nil), canonical[:len(canonical)-1]...), []byte(`,"injected":"value"}`)...),
+		"noncanonical whitespace": append([]byte(" "), canonical...),
+		"noncanonical timestamp": bytes.ReplaceAll(
+			canonical, []byte(canonicalTime), []byte(offsetTime),
+		),
+		"credential-bearing authentication method": bytes.Replace(
+			canonical, []byte(`"actor":{"kind":1,"id":"actor-1"}`),
+			[]byte(`"actor":{"kind":1,"id":"actor-1","authentication_method":"Authorization: Bearer secret"}`), 1,
+		),
+		"control-character authentication method": bytes.Replace(
+			canonical, []byte(`"actor":{"kind":1,"id":"actor-1"}`),
+			[]byte(`"actor":{"kind":1,"id":"actor-1","authentication_method":"mTLS\n"}`), 1,
+		),
+		"invalid change state": bytes.Replace(
+			canonical, []byte(`"changes":{"no_change":true}`), []byte(`"changes":{"no_change":false}`), 1,
+		),
+		"sensitive attribute": bytes.Replace(
+			canonical, []byte(`,"integrity":{}`), []byte(`,"attributes":{"password":"value"},"integrity":{}`), 1,
+		),
+		"separator-obfuscated credential attribute": bytes.Replace(
+			canonical, []byte(`,"integrity":{}`), []byte(`,"attributes":{"pass_word":"value"},"integrity":{}`), 1,
+		),
+		"API credential attribute": bytes.Replace(
+			canonical, []byte(`,"integrity":{}`), []byte(`,"attributes":{"api-key":"value"},"integrity":{}`), 1,
+		),
+		"overflowing integrity sequence": bytes.Replace(
+			canonical, []byte(`,"integrity":{}`),
+			[]byte(`,"integrity":{"algorithm":1,"partition":"tenant-1","sequence":18446744073709551616,"previous_digest":"0000000000000000000000000000000000000000000000000000000000000000","digest":"0000000000000000000000000000000000000000000000000000000000000000"}`), 1,
+		),
+	} {
+		status, err := attempt(record.Context().TenantID(), hostile, record.OccurredAt(), record.RecordedAt())
+		if err == nil {
+			t.Fatalf("%s canonical record accepted with status %d", name, status)
+		}
+	}
+	zeroTime := time.Time{}.UTC()
+	zeroCanonical := bytes.ReplaceAll(canonical, []byte(canonicalTime), []byte(zeroTime.Format(time.RFC3339Nano)))
+	if status, err := attempt(record.Context().TenantID(), zeroCanonical, zeroTime, zeroTime); err == nil {
+		t.Fatalf("zero timestamp canonical record accepted with status %d", status)
+	}
+	outOfRangeTime := time.Date(10000, time.January, 1, 0, 0, 0, 0, time.UTC)
+	outOfRangeCanonical := bytes.ReplaceAll(
+		canonical, []byte(canonicalTime), []byte(outOfRangeTime.Format(time.RFC3339Nano)),
+	)
+	if status, err := attempt(record.Context().TenantID(), outOfRangeCanonical, outOfRangeTime, outOfRangeTime); err == nil {
+		t.Fatalf("out-of-range timestamp canonical record accepted with status %d", status)
 	}
 }
 
@@ -1095,20 +1531,17 @@ func postgresTestConfig() postgrestest.Config {
 }
 
 func postgresImage(version string) string {
-	switch version {
-	case "14":
-		return "postgres:14.23-alpine@sha256:f1341c01408dc7278e9d365ed4f860cd3f87dd16b4464ac326fc0f422083a579"
-	case "15":
-		return "postgres:15.18-alpine@sha256:3d0f7584ed7d04e27fa050d6683a74746608faf21f202be78460d679cc56461f"
-	case "16":
-		return "postgres:16.14-alpine@sha256:16bc17c64a573ef34162af9298258d1aec548232985b33ed7b1eac33ba35c229"
-	case "17":
-		return "postgres:17.10-alpine@sha256:742f40ea20b9ff2ff31db5458d127452988a2164df9e17441e191f3b72252193"
-	case "18":
-		return "postgres:18.4-alpine@sha256:9a8afca54e7861fd90fab5fdf4c42477a6b1cb7d293595148e674e0a3181de15"
-	default:
-		panic("unsupported PostgreSQL integration version: " + version)
+	contents, err := os.ReadFile("testdata/postgres-images.tsv")
+	if err != nil {
+		panic("read PostgreSQL image matrix: " + err.Error())
 	}
+	for _, line := range strings.Split(strings.TrimSpace(string(contents)), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 2 && fields[0] == version {
+			return fields[1]
+		}
+	}
+	panic("unsupported PostgreSQL integration version: " + version)
 }
 
 func TestPostgreSQLVersionMatrixUsesImmutableImages(t *testing.T) {

@@ -72,20 +72,10 @@ func (store *Store) Query(ctx context.Context, query audit.Query) (audit.Page, e
 		return audit.Page{}, err
 	}
 
-	if err := store.lock(ctx); err != nil {
+	candidates, snapshot, err := store.snapshot(ctx, query)
+	if err != nil {
 		return audit.Page{}, err
 	}
-	candidates := make([]audit.Record, 0, len(store.records))
-	snapshot := query.After().Snapshot()
-	if snapshot == 0 {
-		snapshot = store.nextOrder
-	}
-	for _, value := range store.records {
-		if value.acceptedOrder <= snapshot {
-			candidates = append(candidates, value.record)
-		}
-	}
-	store.unlock()
 
 	sort.Slice(candidates, func(left, right int) bool {
 		leftTime, rightTime := candidates[left].RecordedAt(), candidates[right].RecordedAt()
@@ -114,6 +104,25 @@ func (store *Store) Query(ctx context.Context, query audit.Query) (audit.Page, e
 		}
 	}
 	return audit.Page{Records: matched}, nil
+}
+
+func (store *Store) snapshot(ctx context.Context, query audit.Query) ([]audit.Record, uint64, error) {
+	release, err := store.lock(ctx)
+	defer release()
+	if err != nil {
+		return nil, 0, err
+	}
+	candidates := make([]audit.Record, 0, len(store.records))
+	snapshot := query.After().Snapshot()
+	if snapshot == 0 {
+		snapshot = store.nextOrder
+	}
+	for _, value := range store.records {
+		if value.acceptedOrder <= snapshot {
+			candidates = append(candidates, value.record)
+		}
+	}
+	return candidates, snapshot, nil
 }
 
 func pageFromMatches(matched []audit.Record, limit int, snapshot uint64) (audit.Page, error) {
@@ -244,10 +253,11 @@ func (store *Store) AppendBatch(ctx context.Context, records []audit.Record) (au
 		prepared[index] = entry{record: record, encoded: encoded}
 	}
 
-	if err := store.lock(ctx); err != nil {
+	release, err := store.lock(ctx)
+	defer release()
+	if err != nil {
 		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, err)
 	}
-	defer store.unlock()
 	if err := ctx.Err(); err != nil {
 		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, err)
 	}
@@ -293,13 +303,15 @@ func (store *Store) AppendBatch(ctx context.Context, records []audit.Record) (au
 	return audit.BatchResult{Results: results}, nil
 }
 
-func (store *Store) lock(ctx context.Context) error {
+func (store *Store) lock(ctx context.Context) (func(), error) {
 	select {
 	case <-ctx.Done():
-		return ctx.Err()
+		return noRelease, ctx.Err()
 	case <-store.gate:
-		return nil
+		return store.unlock, nil
 	}
 }
+
+func noRelease() {}
 
 func (store *Store) unlock() { store.gate <- struct{}{} }

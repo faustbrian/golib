@@ -61,7 +61,8 @@ type Store struct {
 
 // TxWriter stages records in one caller-owned pgx transaction. It deliberately
 // does not implement audit.Sink because a successful Stage is not durable until
-// the caller commits.
+// the caller commits. A retryable transaction failure rolls back the complete
+// caller transaction so it cannot retain locks or be committed partially.
 type TxWriter struct {
 	tx              pgx.Tx
 	limits          audit.Limits
@@ -123,8 +124,10 @@ func validateConfig(config Config) (audit.Limits, int, int, error) {
 	return limits, maximum, maximumBytes, nil
 }
 
-// Stage inserts an atomic bounded batch without committing or rolling back the
-// caller-owned transaction.
+// Stage inserts an atomic bounded batch without committing the caller-owned
+// transaction. Ordinary stage failures roll back only the batch savepoint; a
+// deadlock or serialization failure rolls back the complete transaction, which
+// must be retried with identical record IDs.
 func (writer *TxWriter) Stage(ctx context.Context, records []audit.Record) (audit.BatchResult, error) {
 	if writer == nil || writer.tx == nil || ctx == nil {
 		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, audit.ErrInvalidArgument)
@@ -140,13 +143,33 @@ func (writer *TxWriter) Stage(ctx context.Context, records []audit.Record) (audi
 	if err != nil {
 		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, err)
 	}
+	stage, err := writer.tx.Begin(ctx)
+	if err != nil {
+		failure := &databaseError{operation: "begin stage", cause: err}
+		if errors.Is(failure, ErrRetryableTransaction) {
+			_ = rollback(ctx, writer.tx)
+		}
+		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, failure)
+	}
 	results := make([]audit.AppendResult, len(prepared))
 	for index, value := range prepared {
-		status, err := insert(ctx, writer.tx, value)
+		status, err := insert(ctx, stage, value)
 		if err != nil {
+			stageRollbackErr := rollback(ctx, stage)
+			if errors.Is(err, ErrRetryableTransaction) || stageRollbackErr != nil {
+				_ = rollback(ctx, writer.tx)
+			}
 			return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, err)
 		}
 		results[index] = audit.AppendResult{RecordID: value.record.ID(), Status: status}
+	}
+	if err := stage.Commit(ctx); err != nil {
+		failure := &databaseError{operation: "commit stage", cause: err}
+		stageRollbackErr := rollback(ctx, stage)
+		if errors.Is(failure, ErrRetryableTransaction) || stageRollbackErr != nil {
+			_ = rollback(ctx, writer.tx)
+		}
+		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, failure)
 	}
 	return audit.BatchResult{Results: results}, nil
 }
@@ -182,7 +205,7 @@ func (store *Store) AppendBatch(ctx context.Context, records []audit.Record) (au
 	if err != nil {
 		return audit.BatchResult{}, audit.NewAppendError(audit.AppendRejected, &databaseError{operation: "begin", cause: err})
 	}
-	defer rollback(ctx, tx)
+	defer func() { _ = rollback(ctx, tx) }()
 	results := make([]audit.AppendResult, len(prepared))
 	for index, value := range prepared {
 		status, err := insert(ctx, tx, value)
@@ -472,8 +495,8 @@ func (failure *databaseError) Is(target error) (matches bool) {
 	return errors.Is(failure.cause, target)
 }
 
-func rollback(parent context.Context, tx pgx.Tx) {
+func rollback(parent context.Context, tx pgx.Tx) error {
 	ctx, cancel := context.WithTimeout(context.WithoutCancel(parent), rollbackTimeout)
 	defer cancel()
-	_ = tx.Rollback(ctx)
+	return tx.Rollback(ctx)
 }

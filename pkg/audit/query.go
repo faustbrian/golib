@@ -135,19 +135,28 @@ func ParseCursor(value string) (Cursor, error) {
 	if err != nil {
 		return Cursor{}, invalid("cursor", "is malformed")
 	}
-	parts := strings.Split(string(decoded), "\n")
-	if len(parts) != 3 && len(parts) != 4 {
+	encoded := string(decoded)
+	if strings.HasPrefix(encoded, "v1\n") {
+		parts := strings.SplitN(encoded, "\n", 3)
+		if len(parts) != 3 {
+			return Cursor{}, invalid("cursor", "has an unsupported format")
+		}
+		recordedAt, parseErr := time.Parse(canonicalTimeLayout, parts[1])
+		if parseErr != nil {
+			return Cursor{}, invalid("cursor", "has a malformed time")
+		}
+		return NewCursor(recordedAt, parts[2])
+	}
+	if !strings.HasPrefix(encoded, "v2\n") {
+		return Cursor{}, invalid("cursor", "has an unsupported format")
+	}
+	parts := strings.SplitN(encoded, "\n", 4)
+	if len(parts) != 4 {
 		return Cursor{}, invalid("cursor", "has an unsupported format")
 	}
 	recordedAt, err := time.Parse(canonicalTimeLayout, parts[1])
 	if err != nil {
 		return Cursor{}, invalid("cursor", "has a malformed time")
-	}
-	if len(parts) == 3 && parts[0] == "v1" {
-		return NewCursor(recordedAt, parts[2])
-	}
-	if len(parts) != 4 || parts[0] != "v2" {
-		return Cursor{}, invalid("cursor", "has an unsupported format")
 	}
 	snapshot, err := strconv.ParseUint(parts[2], 10, 64)
 	if err != nil {

@@ -15,8 +15,9 @@ import (
 )
 
 const (
-	canonicalTimeLayout  = "2006-01-02T15:04:05.999999999Z07:00"
-	integrityDigestBytes = 32
+	canonicalTimeLayout          = "2006-01-02T15:04:05.999999999Z07:00"
+	integrityDigestBytes         = 32
+	maxAuthenticationMethodBytes = 128
 )
 
 var (
@@ -575,6 +576,12 @@ func validateActor(input ActorInput, limits Limits, delegated bool) error {
 	if err := boundedOptional("authentication_method", input.AuthenticationMethod, limits.MaxFieldBytes); err != nil {
 		return err
 	}
+	if len(input.AuthenticationMethod) > maxAuthenticationMethodBytes {
+		return invalid("authentication_method", "exceeds label byte limit")
+	}
+	if !safeAuthenticationMethod(input.AuthenticationMethod) {
+		return fmt.Errorf("%w: authentication_method must be a credential-free label", ErrSensitiveData)
+	}
 	if delegated && input.DelegatedBy != nil {
 		return invalid("delegated_actor", "delegation cannot be nested")
 	}
@@ -582,6 +589,19 @@ func validateActor(input ActorInput, limits Limits, delegated bool) error {
 		return validateActor(*input.DelegatedBy, limits, true)
 	}
 	return nil
+}
+
+func safeAuthenticationMethod(value string) bool {
+	for _, character := range value {
+		if (character >= 'a' && character <= 'z') ||
+			(character >= 'A' && character <= 'Z') ||
+			(character >= '0' && character <= '9') ||
+			character == '.' || character == '_' || character == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func copyActor(input ActorInput) Actor {
@@ -603,8 +623,8 @@ func validateMap(name string, first, second map[string]string, maxEntries, maxBy
 			if key == "" {
 				return invalid(name, "contains an empty key")
 			}
-			if !utf8.ValidString(key) || !utf8.ValidString(value) {
-				return invalid(name, "contains invalid UTF-8")
+			if !validText(key) || !validText(value) {
+				return invalid(name, "contains invalid durable text")
 			}
 			lower := strings.ToLower(key)
 			if sensitiveName(lower) {
@@ -623,13 +643,11 @@ func validateMap(name string, first, second map[string]string, maxEntries, maxBy
 }
 
 func sensitiveName(value string) bool {
-	for _, prohibited := range []string{"authorization", "cookie", "password", "secret", "token", "credential"} {
-		if strings.Contains(value, prohibited) {
-			return true
-		}
-	}
 	normalized := strings.NewReplacer("_", "", "-", "", ".", "", "/", "", " ", "").Replace(value)
-	for _, prohibited := range []string{"requestbody", "responsebody", "rawbody", "httprequestbody", "httpresponsebody"} {
+	for _, prohibited := range []string{
+		"authorization", "cookie", "password", "secret", "token", "credential", "apikey",
+		"requestbody", "responsebody", "rawbody", "httprequestbody", "httpresponsebody",
+	} {
 		if strings.Contains(normalized, prohibited) {
 			return true
 		}
@@ -644,13 +662,17 @@ func boundedRequired(name, value string, maximum int) error {
 	return boundedOptional(name, value, maximum)
 }
 func boundedOptional(name, value string, maximum int) error {
-	if !utf8.ValidString(value) {
-		return invalid(name, "must be valid UTF-8")
+	if !validText(value) {
+		return invalid(name, "must be valid durable text")
 	}
 	if len(value) > maximum {
 		return invalid(name, "exceeds byte limit")
 	}
 	return nil
+}
+
+func validText(value string) bool {
+	return utf8.ValidString(value) && !strings.ContainsRune(value, '\x00')
 }
 func invalid(field, reason string) error {
 	return fmt.Errorf("%w: %s %s", ErrInvalidArgument, field, reason)
@@ -668,7 +690,8 @@ func cloneMap(input map[string]string) map[string]string {
 func canonicalTime(value time.Time) time.Time { return value.Round(0).UTC().Truncate(time.Microsecond) }
 
 func validCanonicalTime(value time.Time) bool {
-	return !value.IsZero() && value.Year() >= 0 && value.Year() <= 9999
+	canonical := canonicalTime(value)
+	return !value.IsZero() && canonical.Year() >= 0 && canonical.Year() <= 9999
 }
 
 func randomID(reader io.Reader) (string, error) {

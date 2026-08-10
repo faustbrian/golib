@@ -57,7 +57,10 @@ type fakeTx struct {
 	pgx.Tx
 	rows           []pgx.Row
 	rowIndex       int
+	nested         pgx.Tx
+	beginErr       error
 	commitErr      error
+	rollbackErr    error
 	rollbackCalled bool
 }
 
@@ -67,7 +70,13 @@ func (tx *fakeTx) QueryRow(context.Context, string, ...any) pgx.Row {
 	return row
 }
 func (tx *fakeTx) Commit(context.Context) error   { return tx.commitErr }
-func (tx *fakeTx) Rollback(context.Context) error { tx.rollbackCalled = true; return nil }
+func (tx *fakeTx) Rollback(context.Context) error { tx.rollbackCalled = true; return tx.rollbackErr }
+func (tx *fakeTx) Begin(context.Context) (pgx.Tx, error) {
+	if tx.nested != nil {
+		return tx.nested, tx.beginErr
+	}
+	return tx, tx.beginErr
+}
 
 type fakeDatabase struct {
 	tx        pgx.Tx
@@ -157,11 +166,52 @@ func TestConfigAndTransactionWriterValidation(t *testing.T) {
 	}
 
 	statementFailure := errors.New("statement failed")
-	writer.tx = &fakeTx{rows: []pgx.Row{fakeRow{scan: func(...any) error { return statementFailure }}}}
+	beginFailure := errors.New("begin stage failed")
+	writer.tx = &fakeTx{beginErr: beginFailure}
+	if _, err := writer.Stage(context.Background(), []audit.Record{record}); !errors.Is(err, beginFailure) || audit.AppendOutcomeOf(err) != audit.AppendRejected {
+		t.Fatalf("begin-failed Stage() error = %v", err)
+	}
+	beginRetryable := &fakeTx{beginErr: &pgconn.PgError{Code: "40001"}}
+	writer.tx = beginRetryable
+	if _, err := writer.Stage(context.Background(), []audit.Record{record}); !errors.Is(err, ErrRetryableTransaction) || !beginRetryable.rollbackCalled {
+		t.Fatalf("retryable begin Stage() error/rollback = %v, %t", err, beginRetryable.rollbackCalled)
+	}
+	statementStage := &fakeTx{rows: []pgx.Row{fakeRow{scan: func(...any) error { return statementFailure }}}}
+	writer.tx = &fakeTx{nested: statementStage}
 	if _, err := writer.Stage(context.Background(), []audit.Record{record}); !errors.Is(err, statementFailure) || audit.AppendOutcomeOf(err) != audit.AppendRejected {
 		t.Fatalf("statement-failed Stage() error = %v", err)
 	}
-	writer.tx = &fakeTx{rows: []pgx.Row{appendStatusRow(1)}}
+	retryableStage := &fakeTx{rows: []pgx.Row{fakeRow{scan: func(...any) error {
+		return &pgconn.PgError{Code: "40P01"}
+	}}}}
+	retryableOuter := &fakeTx{nested: retryableStage}
+	writer.tx = retryableOuter
+	if _, err := writer.Stage(context.Background(), []audit.Record{record}); !errors.Is(err, ErrRetryableTransaction) || !retryableOuter.rollbackCalled {
+		t.Fatalf("retryable Stage() error/rollback = %v, %t", err, retryableOuter.rollbackCalled)
+	}
+	failedRollbackStage := &fakeTx{
+		rows:        []pgx.Row{fakeRow{scan: func(...any) error { return statementFailure }}},
+		rollbackErr: errors.New("savepoint rollback failed"),
+	}
+	failedRollbackOuter := &fakeTx{nested: failedRollbackStage}
+	writer.tx = failedRollbackOuter
+	if _, err := writer.Stage(context.Background(), []audit.Record{record}); !errors.Is(err, statementFailure) || !failedRollbackOuter.rollbackCalled {
+		t.Fatalf("rollback-failed Stage() error/outer rollback = %v, %t", err, failedRollbackOuter.rollbackCalled)
+	}
+	commitFailure := errors.New("commit stage failed")
+	commitStage := &fakeTx{rows: []pgx.Row{appendStatusRow(1)}, commitErr: commitFailure}
+	commitOuter := &fakeTx{nested: commitStage}
+	writer.tx = commitOuter
+	if _, err := writer.Stage(context.Background(), []audit.Record{record}); !errors.Is(err, commitFailure) || audit.AppendOutcomeOf(err) != audit.AppendRejected || !commitStage.rollbackCalled || commitOuter.rollbackCalled {
+		t.Fatalf("commit-failed Stage() error/stage/outer rollback = %v, %t, %t", err, commitStage.rollbackCalled, commitOuter.rollbackCalled)
+	}
+	retryableCommitStage := &fakeTx{rows: []pgx.Row{appendStatusRow(1)}, commitErr: &pgconn.PgError{Code: "40001"}}
+	retryableCommitOuter := &fakeTx{nested: retryableCommitStage}
+	writer.tx = retryableCommitOuter
+	if _, err := writer.Stage(context.Background(), []audit.Record{record}); !errors.Is(err, ErrRetryableTransaction) || !retryableCommitOuter.rollbackCalled {
+		t.Fatalf("retryable commit Stage() error/rollback = %v, %t", err, retryableCommitOuter.rollbackCalled)
+	}
+	writer.tx = &fakeTx{nested: &fakeTx{rows: []pgx.Row{appendStatusRow(1)}}}
 	result, err := writer.Stage(context.Background(), []audit.Record{record})
 	if err != nil || len(result.Results) != 1 || result.Results[0].Status != audit.AppendAccepted {
 		t.Fatalf("Stage() = %#v, %v", result, err)

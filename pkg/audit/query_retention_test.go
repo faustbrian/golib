@@ -56,6 +56,14 @@ func TestCursorRoundTripAndBounds(t *testing.T) {
 	if parsed.RecordID() != "record-1" || !parsed.RecordedAt().Equal(now.UTC().Truncate(time.Microsecond)) || parsed.String() != cursor.String() {
 		t.Fatalf("cursor round trip = %#v", parsed)
 	}
+	newlineCursor, err := audit.NewCursor(now, "record\nwith\nnewlines")
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err = audit.ParseCursor(newlineCursor.String())
+	if err != nil || parsed.RecordID() != newlineCursor.RecordID() || parsed.String() != newlineCursor.String() {
+		t.Fatalf("newline cursor round trip = %#v, %v", parsed, err)
+	}
 	snapshotCursor, err := audit.NewSnapshotCursor(now, "record-1", 42)
 	if err != nil {
 		t.Fatal(err)
@@ -85,6 +93,10 @@ func TestCursorRoundTripAndBounds(t *testing.T) {
 	malformedTime := base64.RawURLEncoding.EncodeToString([]byte("v1\nnot-a-time\nrecord-1"))
 	if _, err := audit.ParseCursor(malformedTime); !errors.Is(err, audit.ErrInvalidArgument) {
 		t.Fatalf("ParseCursor(malformed time) error = %v", err)
+	}
+	malformedSnapshotTime := base64.RawURLEncoding.EncodeToString([]byte("v2\nnot-a-time\n42\nrecord-1"))
+	if _, err := audit.ParseCursor(malformedSnapshotTime); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("ParseCursor(malformed snapshot time) error = %v", err)
 	}
 	oversizedID := base64.RawURLEncoding.EncodeToString([]byte("v1\n2026-08-09T12:00:00Z\n" + strings.Repeat("r", audit.DefaultLimits().MaxFieldBytes+1)))
 	if _, err := audit.ParseCursor(oversizedID); !errors.Is(err, audit.ErrInvalidArgument) {
@@ -142,6 +154,8 @@ func TestQueryRequiresBoundedCoherentFilters(t *testing.T) {
 		{Tenant: audit.AllTenants(), ActorID: strings.Repeat("a", audit.DefaultLimits().MaxFieldBytes+1), Limit: 1},
 		{Tenant: audit.AllTenants(), From: time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC), Limit: 1},
 		{Tenant: audit.AllTenants(), Through: time.Date(-1, 1, 1, 0, 0, 0, 0, time.UTC), Limit: 1},
+		{Tenant: audit.AllTenants(), From: time.Date(0, 1, 1, 0, 0, 0, 0, time.FixedZone("east", 14*60*60)), Limit: 1},
+		{Tenant: audit.AllTenants(), Through: time.Date(9999, 12, 31, 23, 0, 0, 0, time.FixedZone("west", -14*60*60)), Limit: 1},
 	}
 	for _, input := range cases {
 		if _, err := audit.NewQuery(input); !errors.Is(err, audit.ErrInvalidArgument) {
@@ -170,6 +184,7 @@ func TestRetentionContractsAreImmutableAndBounded(t *testing.T) {
 		{ID: "id", RecordID: "record", ReasonCode: "reason", Kind: audit.RetentionEventKind(99), OccurredAt: now},
 		{ID: "id", RecordID: "record", ReasonCode: "reason", Kind: audit.RetentionHold},
 		{ID: "id", RecordID: "record", ReasonCode: "reason", Kind: audit.RetentionHold, OccurredAt: time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC)},
+		{ID: "id", RecordID: "record", ReasonCode: "reason", Kind: audit.RetentionHold, OccurredAt: time.Date(0, 1, 1, 0, 0, 0, 0, time.FixedZone("east", 14*60*60))},
 	} {
 		if _, err := audit.NewRetentionEvent(input); !errors.Is(err, audit.ErrInvalidArgument) {
 			t.Fatalf("NewRetentionEvent(%#v) error = %v", input, err)
@@ -187,6 +202,7 @@ func TestRetentionContractsAreImmutableAndBounded(t *testing.T) {
 		{Tenant: audit.AllTenants(), Before: now},
 		{Tenant: audit.AllTenants(), Before: now, Limit: audit.MaxQueryRecords + 1},
 		{Tenant: audit.AllTenants(), Before: time.Date(10000, 1, 1, 0, 0, 0, 0, time.UTC), Limit: 1},
+		{Tenant: audit.AllTenants(), Before: time.Date(9999, 12, 31, 23, 0, 0, 0, time.FixedZone("west", -14*60*60)), Limit: 1},
 	} {
 		if _, err := audit.NewRetentionRequest(input); !errors.Is(err, audit.ErrInvalidArgument) {
 			t.Fatalf("NewRetentionRequest(%#v) error = %v", input, err)

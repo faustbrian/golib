@@ -48,7 +48,7 @@ func (admin *RetentionAdmin) AppendRetentionEvent(ctx context.Context, event aud
 	if err != nil {
 		return audit.AppendResult{}, audit.NewAppendError(audit.AppendRejected, &databaseError{operation: "begin retention event", cause: err})
 	}
-	defer rollback(ctx, tx)
+	defer func() { _ = rollback(ctx, tx) }()
 	kind := retentionKind(event.Kind())
 	var inserted string
 	err = tx.QueryRow(ctx, `
@@ -161,7 +161,7 @@ func (admin *RetentionAdmin) ApplyRetention(ctx context.Context, plan audit.Rete
 	if err != nil {
 		return audit.RetentionApplyResult{}, audit.NewAppendError(audit.AppendRejected, &databaseError{operation: "begin retention apply", cause: err})
 	}
-	defer rollback(ctx, tx)
+	defer func() { _ = rollback(ctx, tx) }()
 	result := audit.RetentionApplyResult{}
 	for _, candidate := range candidates {
 		var deleted bool

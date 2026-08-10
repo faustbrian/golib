@@ -44,7 +44,10 @@ func TestBuilderRejectsPartialIntegrityMetadata(t *testing.T) {
 func TestBuilderRejectsUnrestrictedBodyFields(t *testing.T) {
 	t.Parallel()
 
-	for _, key := range []string{"request_body", "response.body", "raw-body", "http.request.body", "password_hint"} {
+	for _, key := range []string{
+		"request_body", "response.body", "raw-body", "http.request.body",
+		"password_hint", "pass_word", "api-key", "cred.ential",
+	} {
 		key := key
 		t.Run(key, func(t *testing.T) {
 			t.Parallel()
@@ -53,6 +56,50 @@ func TestBuilderRejectsUnrestrictedBodyFields(t *testing.T) {
 				t.Fatalf("Build() error = %v", err)
 			}
 		})
+	}
+}
+
+func TestBuilderRejectsCredentialsInAuthenticationMethod(t *testing.T) {
+	t.Parallel()
+
+	for _, method := range []string{
+		"Authorization: Bearer secret",
+		"Basic dXNlcjpwYXNzd29yZA==",
+		"password=hunter2",
+	} {
+		method := method
+		t.Run(method, func(t *testing.T) {
+			t.Parallel()
+			input := securityInput(audit.IntegrityInput{}, nil)
+			input.Actor.AuthenticationMethod = method
+			_, err := securityBuilder(t).Build(input)
+			if !errors.Is(err, audit.ErrSensitiveData) {
+				t.Fatalf("Build() error = %v", err)
+			}
+		})
+	}
+	input := securityInput(audit.IntegrityInput{}, nil)
+	input.Actor.AuthenticationMethod = strings.Repeat("a", 129)
+	if _, err := securityBuilder(t).Build(input); !errors.Is(err, audit.ErrInvalidArgument) {
+		t.Fatalf("oversized authentication method error = %v", err)
+	}
+
+	for _, method := range []string{
+		"a", "z", "A", "Z", "0", "9", ".", "_", "-",
+		"webauthn", "mTLS", "workload_identity", strings.Repeat("a", 128),
+	} {
+		input := securityInput(audit.IntegrityInput{}, nil)
+		input.Actor.AuthenticationMethod = method
+		if _, err := securityBuilder(t).Build(input); err != nil {
+			t.Fatalf("safe method %q error = %v", method, err)
+		}
+	}
+	for _, method := range []string{"`", "{", "@", "[", "/", ":"} {
+		input := securityInput(audit.IntegrityInput{}, nil)
+		input.Actor.AuthenticationMethod = method
+		if _, err := securityBuilder(t).Build(input); !errors.Is(err, audit.ErrSensitiveData) {
+			t.Fatalf("unsafe method %q error = %v", method, err)
+		}
 	}
 }
 

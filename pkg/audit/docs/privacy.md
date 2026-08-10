@@ -13,8 +13,14 @@ semantics. Redaction that would alter an already sealed canonical record is
 rejected; redact before integrity sealing. Persistence adapters reject records
 that have not crossed an explicit redaction boundary.
 
-Authorization headers, cookies, passwords, credentials, secrets, tokens, and
-unrestricted request or response bodies are rejected by field-name policy.
+Authorization headers, cookies, passwords, API keys, credentials, secrets,
+tokens, and unrestricted request or response bodies are rejected by field-name
+policy.
+Authentication method is a bounded credential-free label containing only
+letters, digits, `.`, `_`, or `-`; pass the mechanism name, never an
+authorization header or credential value.
+All durable text rejects NUL because PostgreSQL cannot represent that code
+point in JSON text; other valid UTF-8 remains supported within field limits.
 Callers must still minimize values, pseudonymize identifiers where lawful,
 define retention and erasure exceptions, apply legal holds, restrict privileged
 fields, and prevent canonical records from reaching logs, traces, metrics,

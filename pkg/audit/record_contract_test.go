@@ -82,6 +82,7 @@ func TestBuilderValidationRejectsAmbiguousOrOversizedRecords(t *testing.T) {
 		"invalid UTF-8 field": func(value *audit.RecordInput) {
 			value.Subject.Type = string([]byte{0xff})
 		},
+		"NUL field":           func(value *audit.RecordInput) { value.Description = "safe\x00unsafe" },
 		"ambiguous no change": func(value *audit.RecordInput) { value.Changes = audit.ChangeSetInput{} },
 		"contradictory no change": func(value *audit.RecordInput) {
 			value.Changes = audit.ChangeSetInput{NoChange: true, After: map[string]string{"status": "paid"}}
@@ -92,6 +93,9 @@ func TestBuilderValidationRejectsAmbiguousOrOversizedRecords(t *testing.T) {
 		},
 		"invalid UTF-8 attribute value": func(value *audit.RecordInput) {
 			value.Attributes = map[string]string{"app.safe": string([]byte{0xff})}
+		},
+		"NUL attribute value": func(value *audit.RecordInput) {
+			value.Attributes = map[string]string{"app.safe": "safe\x00unsafe"}
 		},
 		"reserved attribute": func(value *audit.RecordInput) { value.Attributes = map[string]string{"audit.internal": "value"} },
 		"nested delegation": func(value *audit.RecordInput) {
@@ -153,6 +157,8 @@ func TestBuilderCanonicalizesDurableTimestampPrecisionAndRejectsUnencodableYears
 	for _, invalidTime := range []time.Time{
 		time.Date(-1, time.January, 1, 0, 0, 0, 0, time.UTC),
 		time.Date(10000, time.January, 1, 0, 0, 0, 0, time.UTC),
+		time.Date(0, time.January, 1, 0, 0, 0, 0, time.FixedZone("east", 14*60*60)),
+		time.Date(9999, time.December, 31, 23, 0, 0, 0, time.FixedZone("west", -14*60*60)),
 	} {
 		input.OccurredAt = invalidTime
 		if _, err := builder.Build(input); !errors.Is(err, audit.ErrInvalidArgument) {

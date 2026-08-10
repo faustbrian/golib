@@ -22,7 +22,7 @@ integration:
 	cd ../.. && POSTGRES_VERSION='$(POSTGRES_VERSION)' pkg/audit/scripts/with-gocache.sh ./scripts/check-module.sh pkg/audit/postgres test
 
 integration-matrix:
-	for version in 14 15 16 17 18; do $(MAKE) integration POSTGRES_VERSION=$$version || exit $$?; done
+	./scripts/run-postgres-matrix.sh
 
 test-race:
 	cd ../.. && pkg/audit/scripts/with-gocache.sh ./scripts/check-module.sh pkg/audit race

@@ -24,12 +24,14 @@ records. PostgreSQL fault tests classify validation and statement failures as
 rejected and post-commit ambiguity as unknown, including deadlock and
 serialization SQLSTATEs. Real-database tests cover transactional migration
 interruption, atomic caller-owned writes, duplicate reconciliation, stable
-pagination, cancellation, backup and restore, two-phase retention, legal holds,
+pagination, cancellation, protocol-compatible rolling writes across migration,
+backup and restore, two-phase retention, legal holds,
 backend termination and pool reconnection, and least-privilege read/update/delete
 denial.
 
 The supported PostgreSQL matrix is the upstream-supported majors 14 through 18
-using the digest-pinned current-minor images declared in the integration test.
+using the digest-pinned current-minor images declared in
+`postgres/testdata/postgres-images.tsv`.
 Run `make integration-matrix`; a missing image, database tool, container runtime,
 or major result is a failure. Race and `goleak` checks cover all packages. Fuzz,
 stress, soak, fault, exact statement coverage, viable mutation, benchmarks,
