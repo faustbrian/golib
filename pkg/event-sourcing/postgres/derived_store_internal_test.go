@@ -574,7 +574,7 @@ func TestProjectionStoreStatusAndStateTransitions(t *testing.T) {
 		state projection.RunState
 	}{
 		"running": {
-			scan:  scanValues(projectionStateRunning, checkpoint),
+			scan:  scanValues(int16(1), checkpoint),
 			state: projection.StateRunning,
 		},
 		"missing": {
@@ -1155,6 +1155,7 @@ func TestTransactionCheckpointWriterStagesAndPropagatesFailures(t *testing.T) {
 	); err != nil {
 		t.Fatalf("Stage() error = %v", err)
 	}
+	assertOperationPermitAvailable(t, writer.operation)
 
 	failure := errors.New("database failure")
 	writer.store.database = &fakeDatabase{execErrs: []error{failure}}

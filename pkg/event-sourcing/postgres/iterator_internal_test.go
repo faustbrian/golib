@@ -3,6 +3,7 @@ package postgres
 import (
 	"context"
 	"errors"
+	"math"
 	"reflect"
 	"strings"
 	"testing"
@@ -234,6 +235,23 @@ func TestScanMessageAcceptsMaximumStoredMetadataJSONSize(t *testing.T) {
 	}
 	if len(message.Metadata()) != 15 {
 		t.Fatalf("scanMessage(maximum metadata) entries = %d", len(message.Metadata()))
+	}
+}
+
+func TestScanMessageAcceptsMaximumSchemaVersion(t *testing.T) {
+	t.Parallel()
+
+	message, err := scanMessage(fakeRow{scan: storedMessageScan(
+		storedMessageValues{schemaVersion: int64(math.MaxUint32)},
+	)})
+	if err != nil {
+		t.Fatalf("scanMessage(maximum schema version) error = %v", err)
+	}
+	if message.Event().Version() != eventsourcing.SchemaVersion(math.MaxUint32) {
+		t.Fatalf(
+			"scanMessage(maximum schema version) = %d",
+			message.Event().Version(),
+		)
 	}
 }
 

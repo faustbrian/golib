@@ -1,6 +1,7 @@
 package postgres
 
 import (
+	"math"
 	"testing"
 	"time"
 
@@ -15,7 +16,7 @@ func FuzzScanMessage(f *testing.F) {
 		"account-1",
 		int64(1),
 		"account.changed",
-		int32(1),
+		int64(1),
 		"application/json",
 		[]byte(`{}`),
 		[]byte(`{}`),
@@ -28,7 +29,7 @@ func FuzzScanMessage(f *testing.F) {
 		"",
 		int64(0),
 		"",
-		int32(0),
+		int64(0),
 		"",
 		[]byte(nil),
 		[]byte(nil),
@@ -41,7 +42,7 @@ func FuzzScanMessage(f *testing.F) {
 		"account-oversized-metadata",
 		int64(1),
 		"account.changed",
-		int32(1),
+		int64(1),
 		"application/json",
 		[]byte(`{}`),
 		oversizedStoredMetadataJSON(f),
@@ -54,10 +55,23 @@ func FuzzScanMessage(f *testing.F) {
 		"account-maximum-metadata",
 		int64(1),
 		"account.changed",
-		int32(1),
+		int64(1),
 		"application/json",
 		[]byte(`{}`),
 		maximumStoredMetadataJSON(f),
+		int64(1),
+	)
+	f.Add(
+		int64(1),
+		"message-maximum-schema-version",
+		"account",
+		"account-maximum-schema-version",
+		int64(1),
+		"account.changed",
+		int64(math.MaxUint32),
+		"application/json",
+		[]byte(`{}`),
+		[]byte(`{}`),
 		int64(1),
 	)
 
@@ -69,7 +83,7 @@ func FuzzScanMessage(f *testing.F) {
 		aggregateID string,
 		streamVersion int64,
 		eventName string,
-		schemaVersion int32,
+		schemaVersion int64,
 		contentType string,
 		payload []byte,
 		metadata []byte,
@@ -87,7 +101,7 @@ func FuzzScanMessage(f *testing.F) {
 			*destinations[3].(*string) = aggregateID
 			*destinations[4].(*int64) = streamVersion
 			*destinations[5].(*string) = eventName
-			*destinations[6].(*int64) = int64(schemaVersion)
+			*destinations[6].(*int64) = schemaVersion
 			*destinations[7].(*string) = contentType
 			*destinations[8].(*[]byte) = payload
 			*destinations[9].(*[]byte) = metadata

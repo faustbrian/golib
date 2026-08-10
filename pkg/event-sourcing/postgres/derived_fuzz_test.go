@@ -79,9 +79,9 @@ func FuzzScanSnapshot(f *testing.F) {
 }
 
 func FuzzProjectionStatus(f *testing.F) {
-	f.Add(int16(projectionStateRunning), int64(1), true)
+	f.Add(int16(1), int64(1), true)
 	f.Add(int16(0), int64(0), false)
-	f.Add(int16(projectionStatePaused), int64(-1), true)
+	f.Add(int16(2), int64(-1), true)
 
 	f.Fuzz(func(
 		t *testing.T,

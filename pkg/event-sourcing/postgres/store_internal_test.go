@@ -390,6 +390,7 @@ func TestTransactionWriterStagesWithoutClaimingDurableCommit(t *testing.T) {
 	if err != nil || len(staged) != 1 {
 		t.Fatalf("Stage() = %#v, %v", staged, err)
 	}
+	assertOperationPermitAvailable(t, writer.operation)
 
 	var nilWriter *TxWriter
 	if _, err := nilWriter.Stage(
@@ -438,6 +439,17 @@ func TestTransactionWriterStagesWithoutClaimingDurableCommit(t *testing.T) {
 	waiting.operation <- struct{}{}
 	if released {
 		t.Fatal("canceled waiter released the active operation permit")
+	}
+}
+
+func assertOperationPermitAvailable(t testing.TB, permit operationPermit) {
+	t.Helper()
+
+	select {
+	case <-permit:
+		permit <- struct{}{}
+	default:
+		t.Fatal("completed operation retained its serialization permit")
 	}
 }
 
