@@ -1310,7 +1310,15 @@ func specifications(directory string) []string {
 	case "json-schema":
 		return []string{"JSON Schema drafts 4, 6, 7, 2019-09, and 2020-12", "JSON-Schema-Test-Suite"}
 	case "jsonapi":
-		return []string{"JSON:API 1.0 and 1.1", "JSON:API extensions and recommendations"}
+		return []string{
+			"JSON:API 1.0 and 1.1",
+			"JSON:API Atomic Operations extension",
+			"JSON:API Cursor Pagination profile",
+			"JSON:API recommendations",
+			"RFC 8259 JSON",
+			"RFC 8288 Web Linking",
+			"RFC 9110 HTTP Semantics",
+		}
 	case "jsonrpc":
 		return []string{
 			"JSON-RPC 2.0",
@@ -1421,6 +1429,11 @@ func conformanceCorpora(directory string) []string {
 		return []string{"TC39 Test262"}
 	case "json-schema":
 		return []string{"JSON-Schema-Test-Suite", "Bowtie"}
+	case "jsonapi":
+		return []string{
+			"Pinned specification-derived compound and error document fixtures",
+			"Core, Atomic Operations, Cursor Pagination, negotiation, hostile-input, and fuzz evidence",
+		}
 	case "jsonrpc":
 		return []string{
 			"Pinned JSON-RPC 2.0 official example corpus",

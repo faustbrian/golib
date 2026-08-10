@@ -66,8 +66,9 @@ language, cursor encoding, authentication policy, or domain-error mapping.
 Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
 [adoption guide](docs/adoption.md), and [API reference](docs/api.md). The
 [conformance matrix](docs/conformance.md), [extensions and profiles](docs/extensions-and-profiles.md),
-[recommendations](docs/recommendations.md), and [hardening evidence](docs/hardening.md)
-define the supported protocol surface.
+[recommendations](docs/recommendations.md), [specification decision register](docs/specification-decisions.md),
+and [hardening evidence](docs/hardening.md) define the supported protocol
+surface.
 
 AI tools can use [llms.txt](llms.txt) and [llms-full.txt](llms-full.txt).
 Release history is maintained in [CHANGELOG.md](CHANGELOG.md).

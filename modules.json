@@ -10592,10 +10592,20 @@
       "interoperability_tools": [],
       "specifications": [
         "JSON:API 1.0 and 1.1",
-        "JSON:API extensions and recommendations"
+        "JSON:API Atomic Operations extension",
+        "JSON:API Cursor Pagination profile",
+        "JSON:API recommendations",
+        "RFC 8259 JSON",
+        "RFC 8288 Web Linking",
+        "RFC 9110 HTTP Semantics"
       ],
-      "conformance_corpora": [],
-      "provenance": [],
+      "conformance_corpora": [
+        "Pinned specification-derived compound and error document fixtures",
+        "Core, Atomic Operations, Cursor Pagination, negotiation, hostile-input, and fuzz evidence"
+      ],
+      "provenance": [
+        "pkg/jsonapi/specification/manifest.tsv"
+      ],
       "goal_files": [
         "pkg/jsonapi/.ai/GOAL.md",
         "pkg/jsonapi/.ai/GOAL_HARDEN.md",

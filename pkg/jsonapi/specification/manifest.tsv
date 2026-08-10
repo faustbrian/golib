@@ -1,0 +1,3 @@
+id	version	role	status	sha256	bytes	url
+compound-document	1.1	specification-derived-valid-fixture	pinned	2b17f408b3b65628336bbc7f54341d749dd72495a12ed9b0a03213144d7e0d58	825	https://jsonapi.org/format/#document-compound-documents
+error-document	1.1	specification-derived-valid-fixture	pinned	0e738fa0e87d222b470dfb10d587ff66532b7555bb169e051f669d92bfeb9b1d	410	https://jsonapi.org/format/#errors

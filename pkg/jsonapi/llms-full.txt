@@ -70,8 +70,9 @@ language, cursor encoding, authentication policy, or domain-error mapping.
 Start with the [documentation index](docs/README.md), [quickstart](docs/quickstart.md),
 [adoption guide](docs/adoption.md), and [API reference](docs/api.md). The
 [conformance matrix](docs/conformance.md), [extensions and profiles](docs/extensions-and-profiles.md),
-[recommendations](docs/recommendations.md), and [hardening evidence](docs/hardening.md)
-define the supported protocol surface.
+[recommendations](docs/recommendations.md), [specification decision register](docs/specification-decisions.md),
+and [hardening evidence](docs/hardening.md) define the supported protocol
+surface.
 
 AI tools can use [llms.txt](llms.txt) and [llms-full.txt](llms-full.txt).
 Release history is maintained in [CHANGELOG.md](CHANGELOG.md).
@@ -1822,6 +1823,8 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Pin specification-derived JSON:API fixtures and make security, resource,
+  compatibility, and wire consequences explicit for every protocol decision.
 - Ignore non-compliant members during core and Atomic decoding as required by
   JSON:API 1.1 while retaining strict validation for recognized members.
 - Avoid speculative capacity arithmetic when encoding registered additional
@@ -2559,7 +2562,8 @@ executable evidence, and a changelog entry.
 | Credible interpretations | Reject any member not defined for the object; retain unknown members opaquely; or ignore them while continuing to validate all recognized members. |
 | Known peer behavior | No maintained peer fixture is pinned yet. The base specification explicitly requires ignore behavior, so peer disagreement cannot override it. |
 | Selected behavior | Core and Atomic decoders discard unrecognized and unapplied extension members, including nested object members, and continue validating recognized content. `@`-Members are likewise ignored recursively. Duplicate names, malformed JSON, resource-limit violations, invalid recognized values, and explicitly forbidden known members remain errors. |
-| Consequences | New or non-compliant members cannot break an otherwise valid document and are not reproduced on marshal. Applied registered extension members are extracted before the core decoder and retain their defined semantics. |
+| Security and resource consequences | Ignored members cannot smuggle recognized semantics into handlers; duplicate, malformed, and over-limit input still fails before application use. Recursive scanning remains subject to codec depth, member, and byte limits. |
+| Compatibility and wire consequences | New or non-compliant members do not break otherwise valid documents and are omitted when marshaled. Applied registered extension members are extracted first and retain their declared wire semantics. |
 | Executable evidence | `TestDecodersIgnoreNonCompliantMembers`, `TestAtAndNonCompliantMembersAreIgnored`, and the `TestCoreCodecIgnores*` extension-member cases |
 | Public surface | `Unmarshal`, `UnmarshalWith`, `Codec.Unmarshal`, `UnmarshalAtomic` |
 | Upstream record | The normative requirement is in the base format; no erratum is needed. |
@@ -2576,7 +2580,8 @@ executable evidence, and a changelog entry.
 | Credible interpretations | Infer semantics from any colon member; apply every declared URI dynamically; or require explicit immutable registration for semantic processing while ignoring unapplied content. |
 | Known peer behavior | No maintained peer matrix is pinned across object scopes. Official Atomic and Cursor artifacts are the current independent authorities. |
 | Selected behavior | An extension URI, namespace, object scope, member name, and optional validator must be registered before the member becomes semantic content. Profiles use document-level validators only after base validation and cannot mutate or weaken the validated document. Codec and negotiator registration are explicit and must use the same supported URI policy. |
-| Consequences | Unknown extension members are ignored under JSONAPI-DEC-001. Registered members round-trip by exact scope. Profile callbacks cannot convert an invalid core document into a valid one. Unsupported request extensions fail negotiation; unknown profiles remain declarations without package-owned semantics. |
+| Security and resource consequences | Explicit immutable registration prevents untrusted declarations from activating code or weakening core validation. Callback execution is bounded and cannot convert invalid core data into valid data. |
+| Compatibility and wire consequences | Unknown extension members follow JSONAPI-DEC-001. Registered members round-trip only at their exact scope; unsupported request extensions fail negotiation, while unknown profiles remain declarations without package-owned semantics. |
 | Executable evidence | `TestNewCodecRejectsInvalidExtensionDefinitions`, `TestCodecRoundTripsRegisteredResourceExtensionMember`, scope-specific member codec tests, `TestCodecAppliesRegisteredProfileDocumentValidation`, `TestProfileValidatorCannotMutateValidatedDocument`, negotiation tests |
 | Public surface | `NewCodec`, `ExtensionDefinition`, `MemberDefinition`, `ProfileDefinition`, `NewNegotiator` |
 | Upstream record | Official extension and profile registries are linked from `docs/extensions-and-profiles.md`. |
@@ -2593,7 +2598,8 @@ executable evidence, and a changelog entry.
 | Credible interpretations | Preserve every query parameter; reject everything outside core names; or accept explicitly registered implementation and extension families. |
 | Known peer behavior | No maintained router or server peer is pinned. The package compares behavior to the authoritative query grammar rather than one framework's routing conventions. |
 | Selected behavior | Parse core families with presence and ordering preserved. Accept implementation-specific and extension families only through explicit registration and valid name grammar. Reject malformed, unregistered, excessive, or semantically invalid parameters with a structured query error. Filtering, URL length, authorization, and backend execution remain application-owned. |
-| Consequences | Applications can support custom operators without making them implicit global behavior. Explicit empty values remain distinguishable from absence. Parser resource use is bounded. |
+| Security and resource consequences | Unregistered families cannot silently activate application behavior. Parameter count, name, value, and nesting limits bound parser work, while authorization and backend query safety remain caller-owned. |
+| Compatibility and wire consequences | Registered custom operators remain explicit and local. Parameter ordering and explicit empty values survive parsing, while malformed or unknown families produce structured errors rather than ambiguous query state. |
 | Executable evidence | `TestParseQueryParameters`, `TestParseQueryPreservesExplicitEmptyIncludeAndSort`, `TestQueryParserAcceptsRegisteredCustomAndExtensionFamilies`, `TestParseQueryRejectsMalformedOrUnknownParameters`, query-limit tests, `FuzzParseQuery` |
 | Public surface | `ParseQuery`, `NewQueryParser`, `QueryParser.Parse` |
 | Upstream record | No standard filter operator vocabulary exists in JSON:API 1.1. |
@@ -2610,7 +2616,8 @@ executable evidence, and a changelog entry.
 | Credible interpretations | Require `data` for every relationship; treat an empty object as meaningful; or accept any qualifying normative member while preserving exact linkage shape. |
 | Known peer behavior | No maintained peer fixture is pinned across every create, update, and relationship endpoint context. |
 | Selected behavior | A relationship must contain at least one qualifying recognized or applied extension member. When `data` is present, preserve null, one identifier, or identifier collection exactly. Context-specific validators enforce create, update, and relationship endpoint shapes; the package does not infer authorization or persistence behavior. |
-| Consequences | An object containing only ignored non-compliant members remains invalid after those members are discarded. Explicit empty to-many linkage remains distinct from absent linkage. |
+| Security and resource consequences | Ignored members cannot satisfy the relationship minimum-member invariant or authorize traversal or mutation. Validation work remains bounded by document and relationship limits. |
+| Compatibility and wire consequences | A relationship containing only ignored members is invalid. Null, to-one, empty to-many, nonempty to-many, and absent linkage remain distinct wire states. |
 | Executable evidence | `TestMarshalRelationshipDataShapes`, `TestValidateRelationshipRequestContexts`, `TestRelationshipIdentifierTraversalClassifiesEveryShape`, `TestValidateAcceptsToManyCompoundLinkage` |
 | Public surface | `Relationship`, `RelationshipData`, validation contexts |
 | Upstream record | No known erratum changes the relationship object minimum-member rule. |
@@ -2627,7 +2634,8 @@ executable evidence, and a changelog entry.
 | Credible interpretations | Compare only type plus server ID; treat local identities separately; or build one alias-aware identity graph and apply the specified sparse-fieldset exception. |
 | Known peer behavior | No maintained peer graph implementation is pinned. Official examples and the package's identity fixtures are the current evidence. |
 | Selected behavior | Build an alias-aware identity index from type plus `id` or `lid`, reject duplicate represented resources, and traverse primary and included relationship linkage. Apply the full-linkage exception only when the relevant relationship field was excluded by a sparse fieldset. |
-| Consequences | A resource cannot appear twice through alternate identity aliases. Unreachable included resources fail unless the precise sparse-fieldset exception applies. |
+| Security and resource consequences | Alias-aware uniqueness prevents identity confusion and duplicate-resource substitution. Graph traversal is bounded by document resource and relationship limits. |
+| Compatibility and wire consequences | A resource cannot appear twice through alternate identity aliases. Unreachable included resources fail unless the exact sparse-fieldset exception applies, producing deterministic compound-document acceptance. |
 | Executable evidence | `TestValidateLinksIncludedResourceThroughItsLocalIdentity`, `TestIncludedIdentityFollowsValidationContext`, `TestValidateWithAllowsSparseFieldsetFullLinkageException`, identity and validation tests |
 | Public surface | `Document.ValidateWith`, `ValidationOptions` |
 | Upstream record | No known erratum resolves aliasing beyond the base `id` and `lid` rules. |
@@ -2644,7 +2652,8 @@ executable evidence, and a changelog entry.
 | Credible interpretations | Apply fieldsets directly to generic maps; parse only and leave projection to applications; or reject fieldsets without a registered schema. |
 | Known peer behavior | Framework peers commonly combine parsing and serialization, but no equivalent-work peer fixture is pinned for this transport-neutral package. |
 | Selected behavior | Parse `fields[type]` into ordered explicit field names and preserve empty presence. Applications own schema validation, authorization, and projection. Validation receives fieldset context only for the normative full-linkage exception. |
-| Consequences | The package does not expose fields accidentally or invent resource schemas. Callers must apply the parsed fieldset before constructing a response. |
+| Security and resource consequences | The package never projects unknown application fields or makes authorization decisions. Callers must authorize and apply the bounded parsed fieldset before response construction. |
+| Compatibility and wire consequences | Ordered field names and explicit empty fieldsets are preserved. The generic document codec does not remove response members or invent a resource schema. |
 | Executable evidence | `TestParseQueryParameters`, `TestParseQueryPreservesExplicitEmptyIncludeAndSort`, `TestValidateWithAllowsSparseFieldsetFullLinkageException` |
 | Public surface | `Query.Fieldsets`, `QueryParser`, `ValidationOptions` |
 | Upstream record | JSON:API does not define an application schema registry. |
@@ -2661,7 +2670,8 @@ executable evidence, and a changelog entry.
 | Credible interpretations | Impose offset pagination globally; preserve opaque page parameters; or activate concrete rules only under an applied profile. |
 | Known peer behavior | No maintained peer fixture is pinned. The official Cursor profile examples and URI are treated as the profile authority. |
 | Selected behavior | Preserve generic base `page[...]` parameters without inventing offset semantics. Apply `page[size]`, `page[after]`, `page[before]`, stable sort, directional links, metadata, and error rules only through the Cursor profile API. Pagination links are valid only for collection primary data, and URL construction remains caller-owned. |
-| Consequences | Base users can choose a pagination model. Cursor users receive strict bounded profile behavior without changing base conformance. |
+| Security and resource consequences | Cursor values remain opaque and page sizes are bounded; applications still own cursor integrity, authorization, query cost, and URL construction. |
+| Compatibility and wire consequences | Base users retain arbitrary registered `page[...]` models. Cursor-profile users receive its exact parameters, links, metadata, and errors without imposing those wire rules on base JSON:API. |
 | Executable evidence | `TestParseQueryParameters`, `TestPaginationLinksRequireCollectionData`, `TestCursorPaginationParsesProfileParameters`, `TestValidateCursorPaginationLinks`, cursor page and metadata tests, `FuzzCursorPaginationQuery` |
 | Public surface | `Query.Page`, cursor parser, page validation, cursor metadata helpers |
 | Upstream record | The profile URI intentionally uses HTTP because that is the URI published by the profile. |
@@ -2678,7 +2688,8 @@ executable evidence, and a changelog entry.
 | Credible interpretations | Validate document shape only; execute callbacks without transaction control; or require an explicit caller-supplied transaction lifecycle. |
 | Known peer behavior | No maintained cross-language executor fixture is pinned; the extension's processing rules are the authoritative behavior. |
 | Selected behavior | Validate before beginning. Use a caller-supplied transaction boundary, apply operations sequentially, validate positional results before commit, stop at the first failure or cancellation, and attempt rollback exactly once after any post-begin failure. Convert callback panics to bounded errors and preserve rollback failure without hiding the primary failure. |
-| Consequences | The package owns orchestration semantics but not database durability. Applications must provide transaction methods whose commit and rollback contracts match their datastore. |
+| Security and resource consequences | Validation precedes side effects, callbacks execute sequentially, panics become bounded errors, and cancellation stops further operations. The caller remains responsible for durable transaction isolation and commit-unknown handling. |
+| Compatibility and wire consequences | Results retain operation order and partial success is never emitted as a valid Atomic response. The package defines callback and error behavior but does not prescribe a datastore wire protocol. |
 | Executable evidence | `TestExecuteAtomicAppliesInOrderAndCommits`, `TestExecuteAtomicRollsBackAtFirstOperationFailure`, commit/rollback failure tests, panic and cancellation tests, invalid-result rollback tests |
 | Public surface | `ExecuteAtomic`, Atomic transaction and operation callback interfaces |
 | Upstream record | Atomic Operations remains an official JSON:API extension rather than base format text. |
@@ -2695,8 +2706,9 @@ executable evidence, and a changelog entry.
 | Credible interpretations | Enforce recommendations as protocol rules; ignore them entirely; or document adoption guidance while keeping validation normative. |
 | Known peer behavior | Frameworks commonly enforce local URL and naming conventions, but no such convention is portable JSON:API conformance evidence. |
 | Selected behavior | Document and use recommendations in examples where useful, but never reject a base-compliant document solely for violating a recommendation. Routing, pluralization, filters, timestamps, asynchronous resources, and method override remain application or middleware policy. |
-| Consequences | Conformance claims do not inflate SHOULD-like advice into MUST behavior. Applications can adopt stricter conventions explicitly. |
-| Executable evidence | `docs/recommendations.md`, query parser tests proving filter-family preservation, document models supporting recommended links without requiring them |
+| Security and resource consequences | Recommendation-only behavior cannot weaken validation or silently activate routing, method override, filtering, or asynchronous execution. Applications must secure any adopted convention independently. |
+| Compatibility and wire consequences | Base-compliant documents are not rejected for recommendation differences. Applications may add stricter conventions without those conventions becoming package-level wire requirements. |
+| Executable evidence | `TestParseQueryParameters`, `TestParseQueryPreservesExplicitEmptyIncludeAndSort`, and the recommendation authority matrix in `docs/recommendations.md` |
 | Public surface | Documentation and examples; no recommendation-only validator |
 | Upstream record | The recommendations page explicitly remains separate from the normative format. |
 | Reconsider when | A recommendation is promoted into normative base, extension, or profile text. |
@@ -2712,8 +2724,9 @@ executable evidence, and a changelog entry.
 | Credible interpretations | Let the most specific artifact override base behavior; treat all official pages as equally normative; or apply each artifact only within its declared authority. |
 | Known peer behavior | No peer vote determines authority. Differential disagreement must be classified against the governing artifact. |
 | Selected behavior | Base normative text always applies. An applied extension may add specification semantics only within its namespace and declared scope. A profile may add implementation semantics but cannot alter base or extension rules. Recommendations and examples are informative. Application conventions cannot be reported as JSON:API requirements. A direct unresolved contradiction blocks release rather than being silently prioritized. |
-| Consequences | Conformance matrices label base, extension, profile, recommendation, referenced-standard, package-policy, and application-policy evidence separately. Compatibility review is required when a decision moves between categories. |
-| Executable evidence | `docs/conformance.md`, `docs/extensions-and-profiles.md`, `docs/recommendations.md`, profile-after-core validation tests, Atomic and Cursor conformance tests |
+| Security and resource consequences | Lower-authority artifacts cannot disable base validation, resource limits, or extension namespace isolation. An unresolved contradiction fails closed at release review rather than selecting permissive behavior. |
+| Compatibility and wire consequences | Base, extension, profile, recommendation, referenced-standard, package-policy, and application-policy behavior remain separately labeled. Moving a decision between authorities is compatibility-sensitive. |
+| Executable evidence | `TestCodecAppliesRegisteredProfileDocumentValidation`, `TestProfileValidatorCannotMutateValidatedDocument`, `TestExecuteAtomicAppliesInOrderAndCommits`, and `TestCursorPaginationParsesProfileParameters` |
 | Public surface | All parsing, validation, negotiation, extension, profile, and documentation claims |
 | Upstream record | No unresolved direct contradiction is currently recorded. |
 | Reconsider when | A governing artifact publishes an erratum or revision that changes its authority or conflicts with another applied artifact. |

@@ -14,6 +14,8 @@ and releases follow [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Pin specification-derived JSON:API fixtures and make security, resource,
+  compatibility, and wire consequences explicit for every protocol decision.
 - Ignore non-compliant members during core and Atomic decoding as required by
   JSON:API 1.1 while retaining strict validation for recognized members.
 - Avoid speculative capacity arithmetic when encoding registered additional
