@@ -22,6 +22,9 @@ can be adopted independently; using one does not require adopting the rest.
 - Use [`postgres`](pkg/postgres), [`migrations`](pkg/migrations),
   [`outbox`](pkg/outbox), and [`idempotency`](pkg/idempotency) for durable
   persistence workflows.
+- Use the focused resilience packages through the
+  [resilience architecture guide](docs/resilience.md); policy order, deadlines,
+  retry safety, and local versus distributed state remain explicit.
 - Use [`wire`](pkg/wire), [`tabular`](pkg/tabular), [`xsd`](pkg/xsd), and
   [`wsdl`](pkg/wsdl) for bounded serialization and document processing.
 
