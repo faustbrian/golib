@@ -511,6 +511,10 @@ All notable changes to this module are documented here.
 - compile-checked synchronous, batch, bounded asynchronous, consumer-group,
   producer-transaction, and consume-transform-produce adoption examples with
   explicit ambiguity, settlement, shutdown, and identity guidance
+- operational runbooks for rolling deployment, graceful shutdown, incidents,
+  replay recovery, disaster recovery, capacity, dashboards, alerts, and SLOs;
+  plus migration, upgrade, rollback, troubleshooting, FAQ, glossary, and
+  explicitly unverified Amazon MSK/ECS deployment guidance
 
 ### Changed
 
