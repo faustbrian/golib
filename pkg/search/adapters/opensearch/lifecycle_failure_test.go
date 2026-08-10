@@ -158,10 +158,10 @@ func newLifecycleFailureClient(t *testing.T, transport http.RoundTripper) *adapt
 	t.Helper()
 
 	client, err := adapter.New(adapter.Config{
-		Endpoints:          []string{"https://search.example.test"},
-		Transport:          transport,
-		TransportOwnership: adapter.TransportBorrowed,
-		RequestTimeout:     time.Second,
+		Endpoints:            []string{"https://search.example.test"},
+		Transport:            transport,
+		TransportOwnership:   adapter.TransportBorrowed,
+		RequestTimeout:       time.Second,
 		MaximumResponseBytes: 4 << 10,
 		Lifecycle: &adapter.LifecycleConfig{Authorizer: adapter.LifecycleAuthorizerFunc(
 			func(context.Context, string, []string) error { return nil },

@@ -182,6 +182,56 @@ func TestReconcilerRejectsMisattributedRepairResults(t *testing.T) {
 	}
 }
 
+func TestReconcilerStopsAfterAPartialRepairBatch(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	limits.MaxBulkItems = 2
+	records := make([]search.ReconciliationRecord, 0, 5)
+	for _, id := range []string{"a", "b", "c", "d", "e"} {
+		document, err := search.NewDocument("tenant-a", "events", id, 1, json.RawMessage(`{"id":"`+id+`"}`), limits)
+		if err != nil {
+			t.Fatal(err)
+		}
+		records = append(records, search.SourceRecord(document))
+	}
+	first, err := search.NewBulkResult([]search.ItemOutcome{
+		{Position: 0, ID: "a", Action: search.ActionIndex, State: search.OutcomeApplied},
+		{Position: 1, ID: "b", Action: search.ActionIndex, State: search.OutcomeApplied},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	partial, err := search.NewBulkResult([]search.ItemOutcome{
+		{Position: 0, ID: "c", Action: search.ActionIndex, State: search.OutcomeApplied},
+		{Position: 1, ID: "d", Action: search.ActionIndex, State: search.OutcomeUnknown},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	repair := &scriptedRepairIndexer{results: []search.BulkResult{first, partial}}
+	reconciler, err := search.NewReconciler(
+		&reconciliationReader{records: records},
+		&reconciliationReader{},
+		repair,
+		limits,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	report, err := reconciler.Run(t.Context(), search.ReconciliationRequest{Tenant: "tenant-a", Index: "events", PageSize: 5, MaxRecords: 5, Repair: true})
+	if !errors.Is(err, search.ErrRepairPartial) {
+		t.Fatalf("Run() error = %v, want ErrRepairPartial", err)
+	}
+	if report.Repaired != 3 || report.Complete {
+		t.Fatalf("report = %#v", report)
+	}
+	if len(repair.requests) != 2 {
+		t.Fatalf("repair request count = %d, want 2", len(repair.requests))
+	}
+}
+
 type oversizedReader struct{ page search.ReconciliationPage }
 
 func (reader oversizedReader) Read(context.Context, string, string, string, int) (search.ReconciliationPage, error) {
@@ -220,4 +270,18 @@ func (*fixedRepairIndexer) Write(context.Context, search.WriteOperation, search.
 }
 func (r *fixedRepairIndexer) Bulk(context.Context, search.BulkRequest) (search.BulkResult, error) {
 	return r.result, nil
+}
+
+type scriptedRepairIndexer struct {
+	requests []search.BulkRequest
+	results  []search.BulkResult
+}
+
+func (*scriptedRepairIndexer) Write(context.Context, search.WriteOperation, search.RefreshPolicy) (search.ItemOutcome, error) {
+	panic("unexpected Write")
+}
+func (r *scriptedRepairIndexer) Bulk(_ context.Context, request search.BulkRequest) (search.BulkResult, error) {
+	position := len(r.requests)
+	r.requests = append(r.requests, request)
+	return r.results[position], nil
 }
