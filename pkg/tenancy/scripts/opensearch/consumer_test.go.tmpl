@@ -63,13 +63,24 @@ func TestOpenSearchUsesOpaqueTenantNamespacesWithoutCrossTenantHits(t *testing.T
 	codec, _ := search.NewCursorCodec([]byte("integration-cursor-key-32-bytes!!"), time.Now, 4096)
 	client, err := opensearch.New(opensearch.Config{
 		Endpoints: []string{endpoint}, AllowInsecureHTTP: parsed.Scheme == "http", RequestTimeout: 10 * time.Second, MaximumResponseBytes: 8 << 20,
-		Search: &opensearch.SearchConfig{Limits: limits, CursorCodec: codec, Clock: time.Now, Resolver: opensearch.IndexResolverFunc(func(_ context.Context, tenant, _ string, _ opensearch.IndexAccess) (opensearch.IndexTarget, error) {
-			name, ok := aliases[tenant]
-			if !ok {
-				return opensearch.IndexTarget{}, tenancy.ErrTenantScopeRequired
-			}
-			return opensearch.IndexTarget{Name: name, Fingerprint: "tenancy-v2"}, nil
-		})},
+		Search: &opensearch.SearchConfig{Limits: limits, CursorCodec: codec, Clock: time.Now,
+			Authorizer: opensearch.SearchAuthorizerFunc(func(ctx context.Context, request opensearch.SearchAuthorization) error {
+				tenant, err := tenancy.RequireTenant(ctx)
+				if err != nil {
+					return err
+				}
+				if request.Tenant != tenant.Value() || request.Index != "orders" {
+					return tenancy.ErrConflictingScope
+				}
+				return nil
+			}),
+			Resolver: opensearch.IndexResolverFunc(func(_ context.Context, tenant, _ string, _ opensearch.IndexAccess) (opensearch.IndexTarget, error) {
+				name, ok := aliases[tenant]
+				if !ok {
+					return opensearch.IndexTarget{}, tenancy.ErrTenantScopeRequired
+				}
+				return opensearch.IndexTarget{Name: name, Fingerprint: "tenancy-v2"}, nil
+			})},
 		Lifecycle: &opensearch.LifecycleConfig{Authorizer: opensearch.LifecycleAuthorizerFunc(func(context.Context, string, []string) error { return nil })},
 	})
 	if err != nil {
