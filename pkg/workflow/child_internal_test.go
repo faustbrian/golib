@@ -224,6 +224,194 @@ func TestChildHistoryRejectsIncoherentTransitions(t *testing.T) {
 	}
 }
 
+func TestChildStartHistoryAndBuildersRejectIncoherentBoundaries(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2036, 8, 11, 18, 0, 0, 0, time.UTC)
+	parent, child, registry := internalChildDefinitions(t)
+	base := internalChildInstance(parent, now)
+	schedule, err := NewChildSchedule(ChildScheduleSpec{
+		TransitionID: "schedule", WorkID: "child-work", ChildID: "child-1",
+		Instance: base, Definition: parent, StepName: "child", ScheduledAt: now.Add(time.Second),
+		Deadline: now.Add(time.Hour),
+	})
+	if err != nil {
+		t.Fatalf("schedule child: %v", err)
+	}
+	scheduled := base
+	if err := scheduled.applyChild(registry, schedule.Events()[0]); err != nil {
+		t.Fatalf("apply schedule: %v", err)
+	}
+	scheduled.sequence = 2
+	scheduled.updatedAt = now.Add(time.Second)
+	lease, err := NewWorkLease(WorkLeaseSpec{
+		Work: schedule.Work()[0], Owner: "worker-1", Token: 1, Attempt: 1,
+		ClaimedAt: now.Add(2 * time.Second), ExpiresAt: now.Add(time.Minute),
+	})
+	if err != nil {
+		t.Fatalf("lease child: %v", err)
+	}
+	validStart := ChildStartAttemptSpec{
+		TransitionID: "child-start", Lease: lease, Instance: scheduled,
+		Definition: parent, StartedAt: now.Add(2 * time.Second),
+	}
+	start, err := NewChildStartAttempt(validStart)
+	if err != nil {
+		t.Fatalf("start child: %v", err)
+	}
+	running := scheduled
+	if err := running.applyChild(registry, start.Events()[0]); err != nil {
+		t.Fatalf("apply start: %v", err)
+	}
+	running.sequence = 3
+	running.updatedAt = now.Add(2 * time.Second)
+	startedOutcome, _ := NewChildStartOutcome(ChildStartOutcomeSpec{Kind: ChildStarted})
+	validOutcome := ChildStartAttemptOutcomeSpec{
+		TransitionID: "child-started", Instance: running, Definition: parent,
+		StepName: "child", ChildID: "child-1", Attempt: 1,
+		OccurredAt: now.Add(3 * time.Second), Outcome: startedOutcome,
+	}
+	started, err := NewChildStartAttemptOutcome(validOutcome)
+	if err != nil {
+		t.Fatalf("complete child start: %v", err)
+	}
+	active := running
+	if err := active.applyChild(registry, started.Events()[0]); err != nil {
+		t.Fatalf("apply child started: %v", err)
+	}
+	active.sequence = 4
+	active.updatedAt = now.Add(3 * time.Second)
+	if progress, _ := active.Child("child"); progress.Status() != ChildActive ||
+		progress.Attempt() != 1 || progress.IdempotencyKey() != "child-1" ||
+		progress.DueAt() != (time.Time{}) || progress.Retryable() {
+		t.Fatalf("active child = %#v", progress)
+	}
+
+	invalidStarts := []ChildStartAttemptSpec{
+		func() ChildStartAttemptSpec { value := validStart; value.StartedAt = now; return value }(),
+		func() ChildStartAttemptSpec { value := validStart; value.TransitionID = ""; return value }(),
+		func() ChildStartAttemptSpec {
+			value := validStart
+			value.Instance.sequence = ^uint64(0)
+			return value
+		}(),
+	}
+	for index, spec := range invalidStarts {
+		if _, err := NewChildStartAttempt(spec); !errors.Is(err, ErrInvalidChildTransition) {
+			t.Fatalf("invalid start %d error = %v", index, err)
+		}
+	}
+	invalidOutcomes := []ChildStartAttemptOutcomeSpec{
+		func() ChildStartAttemptOutcomeSpec { value := validOutcome; value.Instance = scheduled; return value }(),
+		func() ChildStartAttemptOutcomeSpec { value := validOutcome; value.TransitionID = ""; return value }(),
+		func() ChildStartAttemptOutcomeSpec {
+			value := validOutcome
+			value.Instance.sequence = ^uint64(0)
+			return value
+		}(),
+	}
+	for index, spec := range invalidOutcomes {
+		if _, err := NewChildStartAttemptOutcome(spec); !errors.Is(err, ErrInvalidChildTransition) {
+			t.Fatalf("invalid start outcome %d error = %v", index, err)
+		}
+	}
+
+	failedOutcome, _ := NewChildStartOutcome(ChildStartOutcomeSpec{
+		Kind: ChildStartFailed, Code: "temporary", Retryable: true,
+	})
+	failedTransition, err := NewChildStartAttemptOutcome(ChildStartAttemptOutcomeSpec{
+		TransitionID: "child-failed", Instance: running, Definition: parent,
+		StepName: "child", ChildID: "child-1", Attempt: 1,
+		OccurredAt: now.Add(3 * time.Second), Outcome: failedOutcome,
+	})
+	if err != nil {
+		t.Fatalf("fail child start: %v", err)
+	}
+	failed := running
+	if err := failed.applyChild(registry, failedTransition.Events()[0]); err != nil {
+		t.Fatalf("apply child failure: %v", err)
+	}
+	failed.sequence = 4
+	failed.updatedAt = now.Add(3 * time.Second)
+	validRetry := ChildStartRetrySpec{
+		TransitionID: "child-retry", WorkID: "child-retry-work", Instance: failed,
+		Definition: parent, StepName: "child", ScheduledAt: now.Add(4 * time.Second),
+		Deadline: now.Add(time.Hour),
+	}
+	retry, err := NewChildStartRetry(validRetry)
+	if err != nil {
+		t.Fatalf("retry child start: %v", err)
+	}
+	waiting := failed
+	if err := waiting.applyChild(registry, retry.Events()[0]); err != nil {
+		t.Fatalf("apply child retry: %v", err)
+	}
+	waiting.sequence = 5
+	waiting.updatedAt = now.Add(4 * time.Second)
+	if progress, _ := waiting.Child("child"); progress.Status() != ChildStartRetryWaiting ||
+		progress.DueAt() != now.Add(5*time.Second) {
+		t.Fatalf("waiting child = %#v", progress)
+	}
+	invalidRetries := []ChildStartRetrySpec{
+		func() ChildStartRetrySpec { value := validRetry; value.Instance = running; return value }(),
+		func() ChildStartRetrySpec { value := validRetry; value.WorkID = ""; return value }(),
+		func() ChildStartRetrySpec { value := validRetry; value.TransitionID = ""; return value }(),
+		func() ChildStartRetrySpec {
+			value := validRetry
+			value.Instance.sequence = ^uint64(0)
+			return value
+		}(),
+	}
+	for index, spec := range invalidRetries {
+		if _, err := NewChildStartRetry(spec); !errors.Is(err, ErrInvalidChildTransition) {
+			t.Fatalf("invalid retry %d error = %v", index, err)
+		}
+	}
+
+	unknownOutcome, _ := NewChildStartOutcome(ChildStartOutcomeSpec{
+		Kind: ChildStartUnknown, Code: "uncertain",
+	})
+	unknownTransition, err := NewChildStartAttemptOutcome(ChildStartAttemptOutcomeSpec{
+		TransitionID: "child-unknown", Instance: running, Definition: parent,
+		StepName: "child", ChildID: "child-1", Attempt: 1,
+		OccurredAt: now.Add(3 * time.Second), Outcome: unknownOutcome,
+	})
+	if err != nil {
+		t.Fatalf("unknown child start: %v", err)
+	}
+	unknown := running
+	if err := unknown.applyChild(registry, unknownTransition.Events()[0]); err != nil {
+		t.Fatalf("apply child unknown: %v", err)
+	}
+	unknown.sequence = 4
+	unknown.updatedAt = now.Add(3 * time.Second)
+	if progress, _ := unknown.Child("child"); progress.Status() != ChildStartUnknownStatus ||
+		progress.Code() != "uncertain" || progress.Retryable() {
+		t.Fatalf("unknown child = %#v", progress)
+	}
+
+	if validChildEventFields(HistoryEventSpec{Kind: EventChildStarted, StepName: " spaces "}) {
+		t.Fatal("invalid child start step fields accepted")
+	}
+	invalidHistory := []struct {
+		instance Instance
+		event    HistoryEvent
+	}{
+		{instance: active, event: start.Events()[0]},
+		{instance: scheduled, event: started.Events()[0]},
+		{instance: scheduled, event: failedTransition.Events()[0]},
+		{instance: scheduled, event: unknownTransition.Events()[0]},
+		{instance: running, event: retry.Events()[0]},
+	}
+	for index, test := range invalidHistory {
+		value := test.instance
+		if err := value.applyChild(registry, test.event); !errors.Is(err, ErrInvalidTransition) {
+			t.Fatalf("invalid start history %d error = %v", index, err)
+		}
+	}
+	_ = child
+}
+
 func internalChildDefinitions(t *testing.T) (Definition, Definition, *Registry) {
 	t.Helper()
 	child := mustInternalDefinition(t, "child", "1")
