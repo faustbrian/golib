@@ -547,22 +547,23 @@ func TestInternalWriteProjectionAndResultBranches(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	validResult, _ := NewResult(nil, Total{}, nil, map[string]json.RawMessage{"s": json.RawMessage(`{}`)}, Diagnostics{Warnings: []string{"w"}}, "")
+	validResult, _ := NewResult(nil, Total{Relation: TotalExact}, nil, map[string]json.RawMessage{"s": json.RawMessage(`{}`)}, Diagnostics{Backend: "test", Warnings: []string{"w"}}, "")
 	_ = validResult.Suggestions()
 	_ = validResult.Diagnostics()
 	inf := math.Inf(1)
-	invalidHits := []Hit{{}, {Index: "i", ID: "id", Score: &inf}, {Index: "i", ID: "id", Source: json.RawMessage(`{`)}, {Index: "i", ID: "id", SortValues: []json.RawMessage{json.RawMessage(`{`)}}}
+	invalidHits := []Hit{{}, {Index: "i", ID: "id", Version: 1, Score: &inf}, {Index: "i", ID: "id", Version: 1, Source: json.RawMessage(`{`)}, {Index: "i", ID: "id", Version: 1, SortValues: []json.RawMessage{json.RawMessage(`{`)}}}
 	for _, hit := range invalidHits {
-		if _, err := NewResult([]Hit{hit}, Total{}, nil, nil, Diagnostics{}, ""); err == nil {
+		if _, err := NewResult([]Hit{hit}, Total{Value: 1, Relation: TotalExact}, nil, nil, Diagnostics{Backend: "test"}, ""); err == nil {
 			t.Fatal("invalid hit accepted")
 		}
 	}
 	for _, diagnostics := range []Diagnostics{{Took: -1}, {Shards: ShardDiagnostics{Total: -1}}, {Shards: ShardDiagnostics{Successful: -1}}, {Shards: ShardDiagnostics{Skipped: -1}}, {Shards: ShardDiagnostics{Failed: -1}}, {Shards: ShardDiagnostics{Total: 2, Successful: 1}}} {
-		if _, err := NewResult(nil, Total{}, nil, nil, diagnostics, ""); err == nil {
+		diagnostics.Backend = "test"
+		if _, err := NewResult(nil, Total{Relation: TotalExact}, nil, nil, diagnostics, ""); err == nil {
 			t.Fatal("invalid diagnostics accepted")
 		}
 	}
-	if _, err := NewResult(nil, Total{Relation: "bad"}, nil, nil, Diagnostics{}, ""); err == nil {
+	if _, err := NewResult(nil, Total{Relation: "bad"}, nil, nil, Diagnostics{Backend: "test"}, ""); err == nil {
 		t.Fatal("invalid relation accepted")
 	}
 }

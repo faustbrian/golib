@@ -112,8 +112,12 @@ func (o WriteOperation) validate(limits Limits) error {
 	switch o.Action {
 	case ActionIndex, ActionUpdate, ActionUpsert:
 		trimmed := bytesTrimSpace(o.Source)
-		if len(o.Source) == 0 || len(o.Source) > limits.MaxSourceBytes || len(trimmed) < 2 || trimmed[0] != '{' || trimmed[len(trimmed)-1] != '}' || !json.Valid(trimmed) {
+		if len(o.Source) == 0 || len(o.Source) > limits.MaxSourceBytes || len(trimmed) < 2 || trimmed[0] != '{' || trimmed[len(trimmed)-1] != '}' {
 			return ErrInvalidOperation
+		}
+		remainingNodes := limits.MaxJSONNodes
+		if err := validateBoundedJSONObject(trimmed, limits.MaxJSONDepth, &remainingNodes); err != nil {
+			return errors.Join(ErrInvalidOperation, err)
 		}
 	case ActionDelete:
 		if len(o.Source) != 0 {
@@ -177,6 +181,23 @@ func NewBulkResult(items []ItemOutcome) (BulkResult, error) {
 }
 
 func (r BulkResult) Items() []ItemOutcome { return append([]ItemOutcome(nil), r.items...) }
+
+// ValidateRequest verifies that every outcome is attributed to the operation
+// at the same position in request and that applied versions match.
+func (r BulkResult) ValidateRequest(request BulkRequest) error {
+	if len(r.items) == 0 || len(r.items) != len(request.Operations) {
+		return ErrInvalidBulkResult
+	}
+	for position, item := range r.items {
+		operation := request.Operations[position]
+		if item.Position != position || item.ID != operation.ID || item.Action != operation.Action ||
+			item.State == OutcomeApplied && item.Version != operation.Version {
+			return ErrInvalidBulkResult
+		}
+	}
+	return nil
+}
+
 func (r BulkResult) Partial() bool {
 	for _, item := range r.items {
 		if item.State != OutcomeApplied {

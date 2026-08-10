@@ -17,6 +17,8 @@ for an index definition, settings and mappings share one combined node budget.
 Document sources, settings, and mappings reject duplicate object keys after
 JSON escape decoding, so ambiguous input such as `"name"` and `"n\u0061me"`
 cannot be silently overwritten. Both bounds must be positive.
+`BulkRequest.Validate` applies the same source checks to direct
+`WriteOperation` literals before adapter I/O.
 
 ## Queries
 
@@ -47,14 +49,23 @@ boost syntax.
 Core types describe intent, not portable relevance. An adapter publishes its
 capabilities and may provide additional trusted APIs. Applications own document
 schemas, analyzer selection, ranking, and authorization.
+`UpdateDocument` means update an existing document and is available only when
+an adapter declares `Capabilities.UpdateExisting`; unsupported adapters reject
+it before network execution instead of translating it to index or upsert.
 
 ## Results and failures
 
 `Result` owns hits, scores, sort values, source fields, highlights,
 aggregations, suggestions, diagnostics, partial-failure details, and the next
-cursor. `BulkResult` preserves item order and per-item status, including an
-unknown outcome after ambiguous transport failure. Callers must reconcile an
-unknown write before retrying unless the same stable ID and external version
+cursor. Result construction requires an explicit exact or lower-bound total
+relation, positive hit versions, valid named aggregation and suggestion JSON,
+and internally consistent bounded diagnostic identifiers and text. A timeout or
+failed shard cannot be reported as a complete result. `BulkResult` preserves
+item order and per-item status, including an unknown outcome after ambiguous
+transport failure. `BulkResult.ValidateRequest` verifies that each outcome's
+position, document ID, and action match the originating operation and that an
+applied outcome reports the requested external version. Callers must reconcile
+an unknown write before retrying unless the same stable ID and external version
 make replay safe.
 
 All I/O interfaces accept `context.Context`. Applications compose retry,

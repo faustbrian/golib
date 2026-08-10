@@ -5,7 +5,9 @@ import (
 	"encoding/json"
 	"errors"
 	"math"
+	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var ErrInvalidResult = errors.New("search: invalid backend result")
@@ -62,12 +64,12 @@ type Result struct {
 }
 
 func NewResult(hits []Hit, total Total, aggregations, suggestions map[string]json.RawMessage, diagnostics Diagnostics, nextCursor string) (Result, error) {
-	if total.Relation != "" && total.Relation != TotalExact && total.Relation != TotalLowerBound {
+	if total.Relation != TotalExact && total.Relation != TotalLowerBound || total.Value < uint64(len(hits)) {
 		return Result{}, ErrInvalidResult
 	}
 	copyHits := make([]Hit, len(hits))
 	for index, hit := range hits {
-		if hit.Index == "" || hit.ID == "" || hit.Score != nil && (math.IsNaN(*hit.Score) || math.IsInf(*hit.Score, 0)) {
+		if hit.Index == "" || hit.ID == "" || hit.Version == 0 || hit.Score != nil && (math.IsNaN(*hit.Score) || math.IsInf(*hit.Score, 0)) {
 			return Result{}, ErrInvalidResult
 		}
 		if len(hit.Source) > 0 && !json.Valid(hit.Source) {
@@ -80,9 +82,7 @@ func NewResult(hits []Hit, total Total, aggregations, suggestions map[string]jso
 		}
 		copyHits[index] = cloneHit(hit)
 	}
-	if diagnostics.Took < 0 || diagnostics.Shards.Total < 0 || diagnostics.Shards.Successful < 0 ||
-		diagnostics.Shards.Skipped < 0 || diagnostics.Shards.Failed < 0 ||
-		diagnostics.Shards.Total != 0 && diagnostics.Shards.Successful+diagnostics.Shards.Skipped+diagnostics.Shards.Failed != diagnostics.Shards.Total {
+	if !validRawResultMap(aggregations) || !validRawResultMap(suggestions) || !validDiagnostics(diagnostics) {
 		return Result{}, ErrInvalidResult
 	}
 
@@ -90,6 +90,50 @@ func NewResult(hits []Hit, total Total, aggregations, suggestions map[string]jso
 		hits: copyHits, total: total, aggregations: cloneRawMap(aggregations), suggestions: cloneRawMap(suggestions),
 		diagnostics: cloneDiagnostics(diagnostics), nextCursor: nextCursor,
 	}, nil
+}
+
+func validRawResultMap(values map[string]json.RawMessage) bool {
+	for name, value := range values {
+		if !validField(name) || !json.Valid(value) {
+			return false
+		}
+	}
+	return true
+}
+
+func validDiagnostics(value Diagnostics) bool {
+	shards := value.Shards
+	if value.Took < 0 || !validDiagnosticIdentifier(value.Backend, MaxFieldNameBytes, true) ||
+		!validDiagnosticIdentifier(value.RequestID, DefaultLimits().MaxIDBytes, false) ||
+		shards.Total < 0 || shards.Successful < 0 || shards.Skipped < 0 || shards.Failed < 0 ||
+		shards.Successful > shards.Total || shards.Skipped > shards.Total-shards.Successful ||
+		shards.Failed != shards.Total-shards.Successful-shards.Skipped ||
+		(value.TimedOut || shards.Failed > 0 || len(value.Failures) > 0) && !value.Partial {
+		return false
+	}
+	for _, failure := range value.Failures {
+		if !validDiagnosticIdentifier(failure.Scope, MaxFieldNameBytes, true) ||
+			!validDiagnosticIdentifier(failure.Code, MaxFieldNameBytes, true) || !validDiagnosticText(failure.Message) {
+			return false
+		}
+	}
+	for _, warning := range value.Warnings {
+		if !validDiagnosticText(warning) {
+			return false
+		}
+	}
+	return true
+}
+
+func validDiagnosticIdentifier(value string, maximumBytes int, required bool) bool {
+	if value == "" {
+		return !required
+	}
+	return len(value) <= maximumBytes && utf8.ValidString(value) && !strings.ContainsAny(value, "\x00\r\n")
+}
+
+func validDiagnosticText(value string) bool {
+	return len(value) <= DefaultLimits().MaxSourceBytes && utf8.ValidString(value) && !strings.ContainsRune(value, '\x00')
 }
 
 func (r Result) Hits() []Hit {

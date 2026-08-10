@@ -3,6 +3,7 @@ package search_test
 import (
 	"encoding/json"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -60,8 +61,80 @@ func TestResultPreservesPartialFailuresAndRejectsInvalidBackendValues(t *testing
 
 	nan := 0.0
 	nan /= nan
-	_, err = search.NewResult([]search.Hit{{Index: "idx", ID: "id", Score: &nan, Source: json.RawMessage(`{}`)}}, search.Total{}, nil, nil, search.Diagnostics{}, "")
+	_, err = search.NewResult([]search.Hit{{Index: "idx", ID: "id", Version: 1, Score: &nan, Source: json.RawMessage(`{}`)}}, search.Total{Value: 1, Relation: search.TotalExact}, nil, nil, search.Diagnostics{Backend: "test"}, "")
 	if !errors.Is(err, search.ErrInvalidResult) {
 		t.Fatalf("NewResult() error = %v, want ErrInvalidResult", err)
+	}
+}
+
+func TestResultRejectsAmbiguousOrMalformedBackendValues(t *testing.T) {
+	t.Parallel()
+
+	validHit := search.Hit{Index: "idx", ID: "id", Version: 1, Source: json.RawMessage(`{}`)}
+	validTotal := search.Total{Value: 1, Relation: search.TotalExact}
+	validDiagnostics := search.Diagnostics{Backend: "test"}
+	tests := []struct {
+		name         string
+		hits         []search.Hit
+		total        search.Total
+		aggregations map[string]json.RawMessage
+		suggestions  map[string]json.RawMessage
+		diagnostics  search.Diagnostics
+	}{
+		{name: "missing total relation", hits: []search.Hit{validHit}, total: search.Total{Value: 1}, diagnostics: validDiagnostics},
+		{name: "missing hit version", hits: []search.Hit{{Index: "idx", ID: "id", Source: json.RawMessage(`{}`)}}, total: validTotal, diagnostics: validDiagnostics},
+		{name: "total below returned hits", hits: []search.Hit{validHit}, total: search.Total{Relation: search.TotalExact}, diagnostics: validDiagnostics},
+		{name: "malformed aggregation", hits: []search.Hit{validHit}, total: validTotal, aggregations: map[string]json.RawMessage{"counts": json.RawMessage(`{`)}, diagnostics: validDiagnostics},
+		{name: "malformed suggestion", hits: []search.Hit{validHit}, total: validTotal, suggestions: map[string]json.RawMessage{"names": json.RawMessage(`{`)}, diagnostics: validDiagnostics},
+		{name: "empty aggregation name", hits: []search.Hit{validHit}, total: validTotal, aggregations: map[string]json.RawMessage{"": json.RawMessage(`{}`)}, diagnostics: validDiagnostics},
+		{name: "unsafe suggestion name", hits: []search.Hit{validHit}, total: validTotal, suggestions: map[string]json.RawMessage{"names\nraw": json.RawMessage(`{}`)}, diagnostics: validDiagnostics},
+		{name: "overlong aggregation name", hits: []search.Hit{validHit}, total: validTotal, aggregations: map[string]json.RawMessage{strings.Repeat("a", search.MaxFieldNameBytes+1): json.RawMessage(`{}`)}, diagnostics: validDiagnostics},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := search.NewResult(test.hits, test.total, test.aggregations, test.suggestions, test.diagnostics, ""); !errors.Is(err, search.ErrInvalidResult) {
+				t.Fatalf("NewResult() error = %v, want ErrInvalidResult", err)
+			}
+		})
+	}
+
+	diagnostics := search.Diagnostics{
+		Backend:  "test",
+		Partial:  true,
+		Failures: []search.Failure{{Scope: "backend", Code: "timeout", Retryable: true}},
+	}
+	if _, err := search.NewResult(nil, search.Total{Relation: search.TotalExact}, nil, nil, diagnostics, ""); err != nil {
+		t.Fatalf("NewResult() rejected non-shard partial diagnostics: %v", err)
+	}
+}
+
+func TestResultRejectsStructurallyInvalidDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		diagnostics search.Diagnostics
+	}{
+		{name: "missing backend"},
+		{name: "unsafe backend", diagnostics: search.Diagnostics{Backend: "backend\nraw"}},
+		{name: "unsafe request ID", diagnostics: search.Diagnostics{Backend: "test", RequestID: "request\x00raw"}},
+		{name: "unattributed shard count", diagnostics: search.Diagnostics{Backend: "test", Shards: search.ShardDiagnostics{Successful: 1}}},
+		{name: "timeout not partial", diagnostics: search.Diagnostics{Backend: "test", TimedOut: true}},
+		{name: "failed shards not partial", diagnostics: search.Diagnostics{Backend: "test", Shards: search.ShardDiagnostics{Total: 1, Failed: 1}}},
+		{name: "failure details not partial", diagnostics: search.Diagnostics{Backend: "test", Failures: []search.Failure{{Scope: "backend", Code: "failed"}}}},
+		{name: "missing failure scope", diagnostics: search.Diagnostics{Backend: "test", Partial: true, Shards: search.ShardDiagnostics{Total: 1, Failed: 1}, Failures: []search.Failure{{Code: "failed"}}}},
+		{name: "missing failure code", diagnostics: search.Diagnostics{Backend: "test", Partial: true, Shards: search.ShardDiagnostics{Total: 1, Failed: 1}, Failures: []search.Failure{{Scope: "shard"}}}},
+		{name: "unsafe warning", diagnostics: search.Diagnostics{Backend: "test", Warnings: []string{"warning\x00raw"}}},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			if _, err := search.NewResult(nil, search.Total{Relation: search.TotalExact}, nil, nil, test.diagnostics, ""); !errors.Is(err, search.ErrInvalidResult) {
+				t.Fatalf("NewResult() error = %v, want ErrInvalidResult", err)
+			}
+		})
 	}
 }

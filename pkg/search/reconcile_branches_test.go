@@ -168,6 +168,15 @@ func TestInternalReconcilerRepairBranches(t *testing.T) {
 	if _, err := reconciler.Run(t.Context(), request); !errors.Is(err, ErrRepairPartial) {
 		t.Fatal(err)
 	}
+	malformedDocument := &Document{Tenant: "t", Index: "i", ID: "a", Version: 1, Source: json.RawMessage(`{`)}
+	source = &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{{
+		ID: "a", Version: 1, Digest: "digest", Document: malformedDocument,
+	}}, Done: true}}}
+	index = &branchReader{pages: []ReconciliationPage{{Done: true}}}
+	reconciler, _ = NewReconciler(source, index, branchRepair{}, limits)
+	if _, err := reconciler.Run(t.Context(), request); !errors.Is(err, ErrInvalidOperation) {
+		t.Fatalf("malformed repair document error = %v, want ErrInvalidOperation", err)
+	}
 	request.Repair = false
 	source, index = newReaders()
 	reconciler, _ = NewReconciler(source, index, branchRepair{}, limits)

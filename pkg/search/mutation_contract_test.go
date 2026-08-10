@@ -581,12 +581,12 @@ func TestMutationContractWriteAndResultBoundaries(t *testing.T) {
 			t.Fatal(operation, err)
 		}
 	}
-	for _, hit := range []Hit{{Index: "", ID: "id"}, {Index: "i", ID: ""}, {Index: "i", ID: "id", Source: json.RawMessage(`{`)}} {
-		if _, err := NewResult([]Hit{hit}, Total{}, nil, nil, Diagnostics{}, ""); !errors.Is(err, ErrInvalidResult) {
+	for _, hit := range []Hit{{Index: "", ID: "id", Version: 1}, {Index: "i", ID: "", Version: 1}, {Index: "i", ID: "id", Version: 1, Source: json.RawMessage(`{`)}} {
+		if _, err := NewResult([]Hit{hit}, Total{Value: 1, Relation: TotalExact}, nil, nil, Diagnostics{Backend: "test"}, ""); !errors.Is(err, ErrInvalidResult) {
 			t.Fatal(hit, err)
 		}
 	}
-	if _, err := NewResult([]Hit{{Index: "i", ID: "id"}}, Total{}, nil, nil, Diagnostics{}, ""); err != nil {
+	if _, err := NewResult([]Hit{{Index: "i", ID: "id", Version: 1}}, Total{Value: 1, Relation: TotalExact}, nil, nil, Diagnostics{Backend: "test"}, ""); err != nil {
 		t.Fatal(err)
 	}
 	for _, diagnostics := range []Diagnostics{
@@ -594,7 +594,9 @@ func TestMutationContractWriteAndResultBoundaries(t *testing.T) {
 		{Shards: ShardDiagnostics{Total: 2, Successful: 1}},
 		{Shards: ShardDiagnostics{Total: 3, Successful: 1, Skipped: 1, Failed: 1}},
 	} {
-		_, err := NewResult(nil, Total{}, nil, nil, diagnostics, "")
+		diagnostics.Backend = "test"
+		diagnostics.Partial = diagnostics.Shards.Failed > 0
+		_, err := NewResult(nil, Total{Relation: TotalExact}, nil, nil, diagnostics, "")
 		if diagnostics.Shards.Total == 2 && !errors.Is(err, ErrInvalidResult) || diagnostics.Shards.Total != 2 && err != nil {
 			t.Fatal(diagnostics, err)
 		}

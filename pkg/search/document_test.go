@@ -3,6 +3,8 @@ package search_test
 import (
 	"encoding/json"
 	"errors"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/search"
@@ -27,6 +29,7 @@ func TestDocumentRejectsHostileJSONStructure(t *testing.T) {
 	t.Parallel()
 
 	limits := search.DefaultLimits()
+	tooManyFields := jsonObjectWithFields(limits.MaxJSONNodes + 1)
 	for _, test := range []struct {
 		name      string
 		configure func(*search.Limits)
@@ -34,18 +37,37 @@ func TestDocumentRejectsHostileJSONStructure(t *testing.T) {
 		want      error
 	}{
 		{"excessive depth", func(limits *search.Limits) { limits.MaxJSONDepth = 2 }, json.RawMessage(`{"outer":{"too":{"deep":true}}}`), search.ErrJSONDepthLimit},
-		{"high field count within byte limit", func(limits *search.Limits) { limits.MaxJSONNodes = 2 }, json.RawMessage(`{"first":1,"second":2,"third":3}`), search.ErrJSONNodeLimit},
+		{"high field count within byte limit", func(*search.Limits) {}, tooManyFields, search.ErrJSONNodeLimit},
 		{"duplicate object keys", func(*search.Limits) {}, json.RawMessage(`{"same":1,"s\u0061me":2}`), search.ErrDuplicateJSONKey},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 			configured := limits
 			test.configure(&configured)
+			if len(test.source) > configured.MaxSourceBytes {
+				t.Fatalf("test source length = %d, exceeds byte limit %d", len(test.source), configured.MaxSourceBytes)
+			}
 			if _, err := search.NewDocument("tenant", "index", "id", 1, test.source, configured); !errors.Is(err, search.ErrInvalidSource) || !errors.Is(err, test.want) {
 				t.Fatalf("NewDocument() error = %v, want ErrInvalidSource and %v", err, test.want)
 			}
 		})
 	}
+}
+
+func jsonObjectWithFields(count int) json.RawMessage {
+	var object strings.Builder
+	object.Grow(count * 12)
+	object.WriteByte('{')
+	for index := range count {
+		if index != 0 {
+			object.WriteByte(',')
+		}
+		object.WriteByte('"')
+		object.WriteString(strconv.Itoa(index))
+		object.WriteString(`":null`)
+	}
+	object.WriteByte('}')
+	return json.RawMessage(object.String())
 }
 
 func TestDocumentAcceptsExactJSONLimitsAndPreservesUnicode(t *testing.T) {

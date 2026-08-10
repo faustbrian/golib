@@ -63,6 +63,8 @@ func TestIndexDefinitionRejectsUnsafeNamesAndUnboundedSchema(t *testing.T) {
 func TestIndexDefinitionRejectsHostileJSONStructureAcrossSettingsAndMappings(t *testing.T) {
 	t.Parallel()
 
+	defaultLimits := search.DefaultLimits()
+	mappingExplosion := jsonObjectWithFields(defaultLimits.MaxJSONNodes + 1)
 	tests := []struct {
 		name      string
 		configure func(*search.Limits)
@@ -72,6 +74,7 @@ func TestIndexDefinitionRejectsHostileJSONStructureAcrossSettingsAndMappings(t *
 	}{
 		{"settings depth", func(limits *search.Limits) { limits.MaxJSONDepth = 2 }, json.RawMessage(`{"outer":{"too":{}}}`), json.RawMessage(`{}`), search.ErrJSONDepthLimit},
 		{"mappings depth", func(limits *search.Limits) { limits.MaxJSONDepth = 2 }, json.RawMessage(`{}`), json.RawMessage(`{"outer":{"too":{}}}`), search.ErrJSONDepthLimit},
+		{"mapping explosion within byte limit", func(*search.Limits) {}, json.RawMessage(`{}`), mappingExplosion, search.ErrJSONNodeLimit},
 		{"combined node count", func(limits *search.Limits) { limits.MaxJSONNodes = 3 }, json.RawMessage(`{"first":1,"second":2}`), json.RawMessage(`{"third":3,"fourth":4}`), search.ErrJSONNodeLimit},
 		{"duplicate settings key", func(*search.Limits) {}, json.RawMessage(`{"same":1,"same":2}`), json.RawMessage(`{}`), search.ErrDuplicateJSONKey},
 		{"duplicate mappings key", func(*search.Limits) {}, json.RawMessage(`{}`), json.RawMessage(`{"same":1,"s\u0061me":2}`), search.ErrDuplicateJSONKey},
@@ -81,6 +84,9 @@ func TestIndexDefinitionRejectsHostileJSONStructureAcrossSettingsAndMappings(t *
 			t.Parallel()
 			limits := search.DefaultLimits()
 			test.configure(&limits)
+			if len(test.settings)+len(test.mappings) > limits.MaxSourceBytes {
+				t.Fatalf("test definition length = %d, exceeds byte limit %d", len(test.settings)+len(test.mappings), limits.MaxSourceBytes)
+			}
 			if _, err := search.NewIndexDefinition("index-v1", test.settings, test.mappings, limits); !errors.Is(err, search.ErrInvalidIndexDefinition) || !errors.Is(err, test.want) {
 				t.Fatalf("NewIndexDefinition() error = %v, want ErrInvalidIndexDefinition and %v", err, test.want)
 			}
