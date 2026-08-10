@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- prove zero-downtime overlap-first PLAIN principal rotation across three
+  verified-TLS Kafka brokers, preserving exact acks-all delivery through each
+  rolling restart and rejecting the retired credential on every recovered
+  broker
 - add a release-readiness findings report with explicit severity, impact,
   disposition, release conditions, and residual risks, including the current
   mutation, final-fingerprint, reverse-dependency, MSK, and PLAIN-rotation

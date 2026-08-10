@@ -128,6 +128,12 @@ The fixtures prove:
   producers use the replacement password from their providers after the
   secured broker returns, preserve every acknowledged record, and reject the
   retired password on a new connection; and
+- zero-downtime PLAIN principal rotation: one three-partition producer changes
+  from an old principal to an overlapping new principal, refreshes its provider
+  across all three `SASL_SSL` brokers, preserves acks-all delivery at RF=3 and
+  `min.insync.replicas=2` while each broker restarts in turn, restores ISR=3
+  before the next restart, and proves every broker rejects the old credential
+  after the rollout; and
 - live SCRAM-SHA-256 and SCRAM-SHA-512 credential replacement: three
   independent producers per mechanism cross Kafka's three-second
   broker-enforced reauthentication lifetime through three successive
@@ -173,17 +179,17 @@ TLS material, not its JAAS context. A same-principal password change therefore
 requires a broker or listener restart and creates a mixed-credential window in
 a rolling cluster. Use an external server callback handler or introduce a
 second principal with overlapping least-privilege ACLs before removing the old
-principal when zero-downtime rotation is required. The package credential
-provider can supply either client credential, but it cannot make the broker
-verifier transition atomic. See Kafka's
+principal when zero-downtime rotation is required. The three-broker fixture
+proves that overlap-first rollout while withholding any claim that the package
+can make the broker verifier transition atomic. See Kafka's
 [PLAIN production guidance](https://kafka.apache.org/43/security/authentication-using-sasl/#use-of-sasl-plain-in-production)
 and the pinned
 [SASL channel reconfiguration source](https://github.com/apache/kafka/blob/4.3.1/clients/src/main/java/org/apache/kafka/common/network/SaslChannelBuilder.java#L189-L207).
 
 This proves interoperability only with the pinned Apache fixture. Specific
-external OAuth identity-provider evidence, zero-downtime multi-broker PLAIN
-cutover, broader ACL-change stress, and managed-service authentication remain
-separate required evidence. The fixtures do not use Kafka's
+external OAuth identity-provider evidence, broader ACL-change stress, and
+managed-service authentication remain separate required evidence. The fixtures
+do not use Kafka's
 non-production unsecured OAUTHBEARER implementation and do not claim
 compatibility with a particular OAuth identity provider.
 
