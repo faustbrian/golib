@@ -26,6 +26,10 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- graceful `SIGTERM` and overlapping replacement-process evidence proving
+  readiness is removed before accepted append and projection work drains, the
+  replacement stays unready through exact reconciliation, and no duplicate
+  event is appended
 - PostgreSQL 14 through 18 commit-response fault evidence proving a durably
   committed append reports unknown when its response is dropped, repeated
   reconciliation remains read-only, and no duplicate event is created

@@ -315,6 +315,24 @@ or transaction. Keep transactions short; caller-owned transactions retain
 stream and global-position locks until commit or rollback. The adapter starts
 no goroutines and does not own pool shutdown.
 
+The application owns signals, intake, readiness, drain deadlines, and pool
+shutdown. On `SIGTERM`, remove readiness before stopping intake, then let every
+accepted append and projection operation finish within a bounded drain
+deadline before closing the pool. Do not cancel an accepted operation merely
+because the pod has stopped serving new work. Liveness may remain healthy while
+readiness is false and the bounded drain is in progress.
+
+There is an unavoidable duplicate window when PostgreSQL durably commits after
+the old pod stops serving but before that pod observes the acknowledgement.
+Persist the exact stream, expected version, immutable pending envelopes, and
+stable message IDs for every unresolved append. A replacement pod must remain
+unready while it calls `ReconcileAppend` with that exact input. It must not
+append again after `CommitCommitted`; only `CommitNotCommitted` permits a retry.
+`CommitUnknown`, including a reconciliation mismatch, still forbids retry. For
+an unresolved projection checkpoint write, compare `Status` with the exact
+expected next checkpoint and keep replacement readiness false until the durable
+state is known.
+
 Ordinary driver failures expose the stable `ErrDatabaseOperationFailed` text
 without formatting the PostgreSQL diagnostic. Their original cause remains
 available to `errors.Is` and `errors.As`, including `pgconn.PgError` SQLSTATE
@@ -371,6 +389,14 @@ retry commits exactly one message at stream and global position 1. They also
 terminate an idle pool backend after a durable append and prove the existing
 pool can establish a replacement connection, read unchanged history, and
 append the next stream and global versions.
+
+The lifecycle suite sends `SIGTERM` to a process with an append and projection
+checkpoint blocked inside PostgreSQL. It proves readiness changes from 200 to
+503 before either operation drains, an overlapping replacement stays unready
+while exact append reconciliation is blocked, and the old process exits only
+after both writes commit. The replacement becomes ready only after observing
+the committed message identity and checkpoint, leaving one event at stream and
+global position 1 and no duplicate retry.
 
 The server-restart suite stops and starts the PostgreSQL container, resolves
 its new test endpoint, reconstructs the caller-owned pool, reads unchanged
