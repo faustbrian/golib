@@ -58,4 +58,7 @@ versioning once released.
 - Add external-consumer compositions for cache, search, queue/event replay,
   workflow retry, audit attribution, telemetry cardinality, and durable
   administrative fan-out with partial failure and idempotent resume.
+- Add an exhaustive owned-surface inventory covering identity, context,
+  propagation, namespace, persistence, provider, analyzer, error, diagnostic,
+  and administrative escape-hatch boundaries.
 - MIT licensing and a private vulnerability-reporting and support boundary.
