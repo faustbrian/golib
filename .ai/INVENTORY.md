@@ -152,7 +152,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/cloudevents/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 46 retains current scoped evidence for the stable CloudEvents core, normative JSON event and batch formats, HTTP and Kafka bindings, supported tracing and partitioning extensions, Golib ecosystem conversions, conformance, independent SDK interoperability, and every mandatory CloudEvents module gate; its separate `GOAL_HARDEN.md` is verified below. |
 | `pkg/cloudevents/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 46. Current scoped evidence verifies complete supported-surface normative coverage, loss-aware conversions, exact payload and extension preservation, hostile HTTP and Kafka boundaries, explicit schema lookup, independent SDK interoperability, privacy and cardinality controls, fuzzing, race safety, performance, exact statement and mutation coverage, and every mandatory scoped module gate; requeue only when affected inputs or requirements change. |
 | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 47. Current scoped evidence verifies explicit durable orchestration and choreography, deterministic replay, versioning and migration, activities and truthful compensation, bounded workers, PostgreSQL durability and recovery, optional messaging composition, operator controls, observability, hardening requirements, and every mandatory workflow package gate; requeue only when affected inputs or requirements change. |
-| `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
+| `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `verified` | Current scoped evidence verifies priority-aware local allocation, audited desired-state control, fleet visibility, Kubernetes integration, exact coverage and mutation, and every mandatory queue and queue-control-plane gate; requeue only when affected content or requirements change. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies RFC 9162 behavior, persistence and proof boundaries, hostile-input hardening, independent interoperability, exact coverage and mutation, fuzzing, performance, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies Ethereum-compatible state transitions, proofs, persistence and recovery, hostile-input hardening, independent client interoperability, exact coverage and mutation, fuzzing, performance, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
@@ -169,6 +169,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; rate-limit interoperability used PostgreSQL and Valkey containers with explicit Valkey policy isolation. |
 | Observed | 2026-08-10T11:05:52Z |
 | Gaps | NilAway remains advisory and its diagnostics remain visible where reported; no mandatory gate gap remains in these execution units. |
+
+### Queue worker balancing evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` |
+| Scope | Priority-aware worker groups and local admission in `pkg/queue`; authenticated and audited policy control, desired-state distribution, fleet visibility, operator workflows, and Kubernetes integration in `pkg/queue-control-plane`. |
+| Status | `implemented-unverified` to `verified` |
+| Evidence | Stable isolated module-gate campaigns with content-bound checkpoints for `pkg/queue` and `pkg/queue-control-plane`; queue-control-plane's final affected gates ran at revision `c486b8c3eefcd5fa8bd24f645fb02dc0e53e9d1e`. |
+| Result | Every mandatory scoped gate passed. `pkg/queue` covered 4591/4591 production statements and killed 2204/2204 viable mutants. `pkg/queue-control-plane` covered 3351/3351 production statements and killed 1930/1930 viable mutants, including a reviewed zero-mutant UI package. Race, fuzzing, API, documentation, security, supply-chain, and equivalent-work benchmark gates passed; interoperability is not applicable by catalog policy. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; gate-managed PostgreSQL, Redis, Valkey, and Kubernetes fakes were used where applicable. |
+| Observed | 2026-08-11T13:32:37Z |
+| Gaps | NilAway remains advisory; no mandatory scoped gap remains. |
 
 ### Cache resilience evidence
 
