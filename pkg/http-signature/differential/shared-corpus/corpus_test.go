@@ -14,7 +14,7 @@ import (
 	httpsignature "github.com/faustbrian/golib/pkg/http-signature"
 )
 
-const differentialKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+const differentialKey = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef" // gitleaks:allow -- Public fixture key.
 
 type corpus struct {
 	StructuredFields []structuredFieldCase `json:"structured_fields"`
