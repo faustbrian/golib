@@ -111,7 +111,7 @@ type modFile struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fatal("usage: golib <manifest|validate|specifications|select|safety>")
+		fatal("usage: golib <manifest|validate|cohesion|specifications|select|safety>")
 	}
 
 	root, err := repositoryRoot()
@@ -124,6 +124,8 @@ func main() {
 		manifest(root)
 	case "validate":
 		validate(root)
+	case "cohesion":
+		validateCohesion(root)
 	case "specifications":
 		validateSpecifications(root, os.Args[2:])
 	case "select":
@@ -133,6 +135,26 @@ func main() {
 	default:
 		fatal("unknown command %q", os.Args[1])
 	}
+}
+
+func validateCohesion(root string) {
+	validate(root)
+	current := catalog{}
+	readJSON(filepath.Join(root, "modules.json"), &current)
+	if err := validateCohesionContract(root, current); err != nil {
+		fatal("cohesion validation: %v", err)
+	}
+	fmt.Printf("validated cohesion for %d releasable modules\n", releasableModuleCount(current))
+}
+
+func releasableModuleCount(current catalog) int {
+	count := 0
+	for _, item := range current.Modules {
+		if item.Releasable {
+			count++
+		}
+	}
+	return count
 }
 
 func repositoryRoot() (string, error) {

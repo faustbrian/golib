@@ -2957,9 +2957,9 @@ func TestRepositoryCheckIncludesSpecificationDecisionValidation(t *testing.T) {
 	}
 	if !strings.Contains(
 		string(contents),
-		"repository-check: inventory specification-decisions root-test workflow-lint",
+		"repository-check: inventory cohesion specification-decisions root-test workflow-lint",
 	) {
-		t.Fatal("repository-check does not enforce specification decision validation")
+		t.Fatal("repository-check does not enforce cohesion and specification decision validation")
 	}
 }
 

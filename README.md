@@ -45,6 +45,7 @@ Install the version from [`.go-version`](.go-version), then run:
 
 ```bash
 make inventory
+make cohesion
 make specification-decisions
 make workspace-test MODULES=pkg/clock
 make check MODULES=pkg/jsonrpc

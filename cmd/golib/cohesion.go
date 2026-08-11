@@ -100,3 +100,58 @@ func applyCohesionFamilies(current *catalog, config cohesionConfig) error {
 	}
 	return nil
 }
+
+func validateCohesionContract(root string, current catalog) error {
+	familyOrders := map[int]string{}
+	familyLabels := map[string]string{}
+	for _, item := range current.Modules {
+		if !item.Releasable {
+			if item.Family != "" || item.FamilyLabel != "" ||
+				item.FamilyDescription != "" || item.FamilyOrder != 0 {
+				return fmt.Errorf("non-releasable module %s has cohesion family metadata", item.Directory)
+			}
+			continue
+		}
+		if item.Family == "" || item.FamilyLabel == "" ||
+			item.FamilyDescription == "" || item.FamilyOrder <= 0 {
+			return fmt.Errorf("releasable module %s has incomplete family metadata", item.Directory)
+		}
+		if previous := familyOrders[item.FamilyOrder]; previous != "" && previous != item.Family {
+			return fmt.Errorf("cohesion family order %d is shared by %s and %s", item.FamilyOrder, previous, item.Family)
+		}
+		familyOrders[item.FamilyOrder] = item.Family
+		identity := item.FamilyLabel + "\x00" + item.FamilyDescription
+		if previous := familyLabels[item.Family]; previous != "" && previous != identity {
+			return fmt.Errorf("cohesion family %s has conflicting labels or descriptions", item.Family)
+		}
+		familyLabels[item.Family] = identity
+
+		for _, name := range []string{"README.md", "CHANGELOG.md", "LICENSE"} {
+			if err := validateCohesionEntryPoint(filepath.Join(root, item.Directory, name)); err != nil {
+				return fmt.Errorf("module %s %s: %w", item.Directory, name, err)
+			}
+		}
+		hasPublicPackage := false
+		for _, packageInfo := range item.Packages {
+			if packageInfo.Production && packageInfo.Kind == "public" {
+				hasPublicPackage = true
+				break
+			}
+		}
+		if !hasPublicPackage {
+			return fmt.Errorf("releasable module %s has no public production package", item.Directory)
+		}
+	}
+	return nil
+}
+
+func validateCohesionEntryPoint(path string) error {
+	info, err := os.Stat(path)
+	if err != nil {
+		return err
+	}
+	if !info.Mode().IsRegular() || info.Size() == 0 {
+		return errors.New("must be a nonempty regular file")
+	}
+	return nil
+}
