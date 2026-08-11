@@ -654,3 +654,32 @@ func TestFailFastParentChangedChildReturnsExactIndex(t *testing.T) {
 		t.Fatal("absent changed child reported present")
 	}
 }
+
+func TestFailFastDisclosedChildClassifiesEveryPathKind(t *testing.T) {
+	parent := makeStatelessPath([]byte{1})
+	child := byte(2)
+	probe := statelessTopologyProbe(parent, child)
+	stem := Stem(probe[:31])
+	for _, test := range []struct {
+		name string
+		path StemPath
+		want bool
+	}{
+		{name: "present", path: PresentStemPath(stem, 2), want: true},
+		{name: "different", path: DifferentStemPath(stem, 2, Stem{3}), want: true},
+		{name: "missing", path: MissingStemPath(stem, 2)},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			got, err := statelessDisclosedChildIsStem(
+				context.Background(),
+				map[Stem]StemPath{stem: test.path},
+				parent,
+				child,
+				&statelessUpdateBudget{limits: topologyStatelessUpdateLimits()},
+			)
+			if err != nil || got != test.want {
+				t.Fatalf("disclosed child stem = %v, want %v: %v", got, test.want, err)
+			}
+		})
+	}
+}
