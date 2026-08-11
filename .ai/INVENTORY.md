@@ -71,7 +71,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 20 | Security | `pending-reexecution` | `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18 |
-| 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 24, 25 |
+| 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md` | 18, 24, 25 |
 | 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 29 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 28 |
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
@@ -117,7 +117,9 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 31. Current scoped evidence verifies canonical synchronous publication, explicit acceptance ambiguity, stable duplicate identity, durable Redis and Valkey relay windows, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 32. Current scoped evidence verifies payload-safe propagation and telemetry, exact relay publication and settlement semantics, bounded cooperative-provider lifecycle, concurrency and retention safety, convention mapping, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
-| `pkg/queue/queueservice/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 27. Current scoped evidence verifies lifecycle ownership and transitions, bounded drain and termination, duplicate windows, Redis and Valkey recovery, process and pod termination, scaling, exact coverage and mutation, API, documentation, safety, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/queue/queueservice/.ai/GOAL.md` | `verified` | Former pending order 27. Current scoped evidence verifies the lifecycle adapter contract, exact coverage and mutation, API, documentation, safety, Redis and Valkey backend integration, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 27. Current scoped evidence verifies lifecycle transitions, bounded termination, duplicate windows, Redis and Valkey recovery, process and pod termination, scaling, exact coverage and mutation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/kafka/kafkaservice/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 26 has current scoped evidence for explicit producer and consumer lifecycle ownership, readiness, bounded drain and shutdown, panic-safe concurrency, Kafka error preservation, real-broker interoperability, documentation, exact coverage and mutation, and every mandatory module gate; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 29 has current scoped implementation and mandatory gate evidence. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 29. Current scoped evidence verifies transactional atomicity, commit-ambiguity recovery, stable retry and publication identity, concurrent and replica writers, process and database failure handling, hostile envelope boundaries, and equivalent-durability performance; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/event-sourcing/postgres/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 28. Current scoped evidence verifies durable ordering, commit reconciliation, transaction and iterator ownership, snapshots and projections, failure and process-death recovery, rolling deployment, PostgreSQL 14 through 18, exact coverage and mutation, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -331,18 +333,44 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Observed | 2026-08-10 |
 | Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped tenancy hardening contract. |
 
+### Kafka service lifecycle adapter evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/kafka/kafkaservice/.ai/GOAL.md` |
+| Scope | Explicit producer and consumer ownership; startup, readiness, run, drain, settlement, shutdown, duplicate-stop and concurrent-stop behavior; panic containment; correlation boundaries; Kafka error preservation; Kubernetes and migration documentation. |
+| Status | `pending-reexecution` to `verified`; `pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md` remains pending. |
+| Evidence | `GOLIB_VERIFICATION_SNAPSHOT=1 ./scripts/run-modules.sh check --jobs 1 --modules pkg/kafka/kafkaservice` against the completed base-goal inputs. |
+| Result | Passed every mandatory module gate, including exact 348/348 statements, 109/109 viable mutants killed with 100.00% efficacy and mutator coverage, race, 10,000-execution fuzz, API, documentation, security, supply-chain, benchmark, and pinned Apache Kafka 4.3.1 interoperability evidence. |
+| Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE` removed after the bounded run and an isolated digest-pinned Kafka fixture. |
+| Observed | 2026-08-11T01:33:12Z |
+| Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped base-goal contract. The separate hardening campaign remains pending. |
+
 ### Queue service lifecycle adapter evidence
 
 | Field | Record |
 | --- | --- |
-| Goal | `pkg/queue/queueservice/.ai/{GOAL.md,GOAL_HARDEN.md}` |
-| Scope | Typed producer, handler, and worker ownership; lifecycle transitions; startup rollback; readiness withdrawal; admission closure; one bounded termination budget; exactly-once shutdown; publish acceptance ambiguity; callback panic and error redaction; Redis and Valkey disconnect, lease, redelivery, dead-letter, scaling, process termination, and Kubernetes duplicate-window behavior. |
+| Goal | `pkg/queue/queueservice/.ai/GOAL.md` |
+| Scope | Typed producer, handler, and worker ownership; stable service identity; startup rollback; readiness withdrawal; admission closure; bounded drain; exactly-once shutdown; publish acceptance ambiguity; callback panic and error redaction; lifecycle, Kubernetes, backend, adoption, FAQ, migration, and CI-gate documentation. |
 | Status | `pending-reexecution` to `verified` |
-| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/queue/queueservice` with content-bound gate reuse and fresh goal traceability, plus the isolated Kind pod-termination scenario against the current package inputs. |
-| Result | Passed every mandatory queueservice module gate, including exact 436/436 statement coverage, 131/131 viable mutants killed with 100.00% efficacy and mutator coverage, Redis and Valkey backend integration, race, fuzz, API, documentation, security, supply-chain, benchmarks, and six pod-kill duplicate-window and settlement scenarios. |
-| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run; isolated Redis 8.6.4 and Valkey 9.1.0 services; Kind 0.30.0 with Kubernetes 1.34.0 and single-platform Linux/arm64 backend image archives. |
+| Evidence | Queueservice-only format, vet, unit, race, exact coverage, 10,000-execution fuzz, benchmark, documentation, API, safety, security, supply-chain, Redis and Valkey integration, interoperability, and mutation gates against the current package inputs. |
+| Result | Passed every mandatory queueservice module gate, including exact 100.0% statement coverage, 131/131 viable mutants killed with 100.00% efficacy and mutator coverage, Redis and Valkey backend integration, race, fuzz, API, documentation, security, supply-chain, and benchmark evidence. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run and isolated Redis 8.6.4 and Valkey 9.1.0 services for backend gates. |
+| Observed | 2026-08-09T15:14:08Z |
+| Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped base-goal contract. Hardening is tracked separately below. |
+
+### Queue service lifecycle hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` |
+| Scope | Producer and worker lifecycle transitions; callback faults; admission, readiness, health, cancellation, and repeated-stop races; one termination budget; Redis and Valkey disconnect, lease, timeout, redelivery, dead-letter, shutdown, scaling, process termination, and Kubernetes duplicate-window behavior. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/queue/queueservice` with content-bound gate evidence and fresh two-goal traceability, plus `.artifacts/pkg/queue/queueservice/evidence/pod-integration.json` for the isolated Kind pod-termination scenario. |
+| Result | Passed exact 436/436 statement coverage, killed 131/131 viable mutants with 100.00% efficacy and mutator coverage, passed every mandatory module gate, and passed all six Redis and Valkey pod-kill scenarios before effects, after effects, and after settlement. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable caches; isolated Redis 8.6.4 and Valkey 9.1.0 services; Kind 0.30.0 with Kubernetes 1.34.0 and single-platform Linux/arm64 backend image archives. |
 | Observed | 2026-08-11T01:44:43Z |
-| Gaps | NilAway advisory diagnostics remain visible under repository policy; no mandatory gap remains within the scoped base and hardening goal contracts. |
+| Gaps | NilAway advisory diagnostics remain visible under repository policy; no mandatory gap remains within the scoped hardening contract. |
 
 ### Encrypted external sort hardening evidence
 

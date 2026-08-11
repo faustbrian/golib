@@ -6,6 +6,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Document lifecycle ordering, Kubernetes SIGTERM, duplicate and ambiguous
+  delivery windows, API adoption, compatibility, migration, and FAQ guidance.
 - Stop retaining obsolete Cobra command-line dependencies after the CLI module
   replaced its Cobra implementation.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
