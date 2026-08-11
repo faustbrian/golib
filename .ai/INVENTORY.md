@@ -146,7 +146,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/schema-registry/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 45. Current scoped evidence verifies schema identity, compatibility, provider interoperability, cache and outage safety, hostile boundaries, migration and recovery, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 46. Current scoped evidence verifies the stable CloudEvents core, normative JSON event and batch formats, HTTP and Kafka bindings, supported tracing and partitioning extensions, Golib ecosystem conversions, conformance and independent SDK interoperability, hardening requirements, and every mandatory CloudEvents module gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
-| `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation and conformance work exists; refresh only affected evidence and include it in final repository gates. |
+| `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies RFC 9162 behavior, persistence and proof boundaries, hostile-input hardening, independent interoperability, exact coverage and mutation, fuzzing, performance, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
 
@@ -646,6 +646,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with OpenSearch 2.19.3 and 3.6.0 containers and task-owned disposable `GOCACHE` directories removed after every bounded Go and mutation run. |
 | Observed | 2026-08-09T20:26:42Z |
 | Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the base search goal. |
+
+### Merkle tree evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | RFC 9162 tree construction, inclusion and consistency proofs, multi-inclusion proofs, builders and snapshots, deterministic bounded encodings, hostile inputs, conformance, independent interoperability, concurrency, fuzzing, and equivalent-work performance. |
+| Status | `implemented-unverified` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/merkle-tree`, with mutation evidence resumed by exact content identity after the completed campaign's temporary aggregate manifest was lost. |
+| Result | Passed every mandatory module gate with exact 1245/1245 production statements and 1074/1074 viable mutants killed with zero live, uncovered, timed-out, nonviable, or skipped mutants; race, nine 10,000-execution fuzz targets, RFC 9162 conformance, independent interoperability, API, documentation, security, supply-chain, and benchmark gates passed. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; no external services. |
+| Observed | 2026-08-11T03:52:30Z |
+| Gaps | NilAway completed successfully in advisory mode with no diagnostics; no mandatory gap remains within the scoped Merkle tree goal contract. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
