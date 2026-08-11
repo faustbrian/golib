@@ -645,11 +645,11 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Goal | `pkg/sequencer/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` |
 | Scope | Leaderless runner lifecycle, admission closure and bounded drain, fenced lease renewal and takeover recovery, cancellation policy for unsafe operations, bounded shared retry ownership, mixed-binary registry compatibility, queue ambiguity, and Kubernetes operational recovery. |
 | Status | `pending-reexecution` to `verified` |
-| Evidence | Sequencer-only module contract plus package-scoped API, security, supply-chain, conformance, and PostgreSQL interoperability gates against the completed implementation. |
-| Result | Passed every mandatory sequencer module gate, including exact 100.0% production statement coverage across all ten packages and 561/561 viable mutants with 100% efficacy and mutant coverage; race, leak, model, fault, three 10,000-execution fuzz targets, PostgreSQL 18 integration, API, documentation, security, supply-chain, and equivalent-work benchmark gates also passed. |
-| Environment | Go 1.26.5 on darwin/arm64 with a separate task-owned disposable `GOCACHE` removed after every bounded Go or mutation run and gate-managed PostgreSQL 18 interoperability. |
-| Observed | 2026-08-09T18:22:59Z |
-| Gaps | The Kubernetes lifecycle contract is proved by package model and operational tests rather than a disposable cluster; the package catalog declares conformance not applicable. |
+| Evidence | Immutable sequencer-only module contract with content-bound checkpoints for exact coverage and mutation, nine fuzz targets, race and leak checks, real PostgreSQL restart and benchmark exercises, and a disposable Kind lifecycle rehearsal covering SIGTERM drain, abrupt kill and takeover, leaderless replicas, and mixed registries. |
+| Result | Passed every mandatory sequencer module gate with exact 1719/1719 production statements and 1142/1142 viable mutants killed; no mutant lived, timed out, remained uncovered, was excluded, or was classified non-viable. All nine fuzz targets passed at least 10,000 executions, and Kubernetes, PostgreSQL, API, documentation, security, supply-chain, and benchmark gates passed. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories, PostgreSQL 18, Kind v0.31.0, and Kubernetes v1.35.0; task-owned containers, images, clusters, and caches were removed after their bounded runs. |
+| Observed | 2026-08-11T07:41:04Z |
+| Gaps | NilAway remains advisory under repository policy and conformance is cataloged as not applicable; no mandatory gate gap remains for this goal. |
 
 ### Durable operation sequencing hardening evidence
 
