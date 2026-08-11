@@ -372,6 +372,18 @@ func TestStatelessWitnessDecoderRejectsShortEmbeddedProof(t *testing.T) {
 	); !errors.Is(err, errInvalidStatelessWitnessEncoding) {
 		t.Fatalf("short embedded proof error = %v", err)
 	}
+	headerOnly := append(
+		[]byte(nil),
+		encoded[:statelessWitnessHeaderBytes+statelessWitnessUpdateBytes+treeProofHeaderBytes]...,
+	)
+	binary.BigEndian.PutUint32(headerOnly[9:13], uint32(treeProofHeaderBytes))
+	limits := testStatelessWitnessDecodingLimits()
+	limits.MaxTemporaryBytes = 1
+	assertStatelessWitnessResource(
+		t,
+		decodeStatelessWitnessError(headerOnly, limits),
+		StatelessWitnessResourceTemporaryBytes,
+	)
 }
 
 func TestStatelessUpdaterVerifiesWitnessPostStateRoot(t *testing.T) {
