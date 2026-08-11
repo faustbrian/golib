@@ -46,6 +46,6 @@ docs:
 	test -s README.md
 	test -s CHANGELOG.md
 	test -s LICENSE
-	$(GO) doc .
+	bash scripts/check-docs.sh
 
 check: format-check vet test race coverage fuzz benchmark docs

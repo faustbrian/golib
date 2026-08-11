@@ -3,6 +3,7 @@ package gotelemetry
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"errors"
 	"reflect"
 	"testing"
@@ -31,8 +32,8 @@ func FuzzAttributePolicyValidate(f *testing.F) {
 }
 
 func FuzzObserverValidation(f *testing.F) {
-	f.Add(uint8(kafka.ObservationProduceRecord), int64(time.Millisecond), 1, 0, true, uint8(0))
-	f.Add(uint8(255), int64(-1), -1, -1, false, uint8(255))
+	f.Add(uint8(kafka.ObservationProduceRecord), int64(time.Millisecond), 1, 0, true, uint8(0), []byte("client|topic|group"))
+	f.Add(uint8(255), int64(-1), -1, -1, false, uint8(255), []byte{0xff, 0, 1})
 
 	instrumentation, err := New(Config{Runtime: completeTestRuntime()})
 	if err != nil {
@@ -47,16 +48,60 @@ func FuzzObserverValidation(f *testing.F) {
 		processedCount int,
 		succeeded bool,
 		category uint8,
+		metadata []byte,
 	) {
-		err := observer(context.Background(), kafka.Observation{
-			Kind:           kafka.ObservationKind(kind),
-			StartedAt:      time.Unix(1, 0),
-			Duration:       time.Duration(duration),
-			RecordCount:    recordCount,
-			ProcessedCount: processedCount,
-			Succeeded:      succeeded,
-			Category:       kafka.ErrorCategory(category),
-		})
+		if len(metadata) > 1024 {
+			t.Skip()
+		}
+		padded := make([]byte, 160)
+		copy(padded, metadata)
+		integer := func(offset int) int64 {
+			return int64(binary.LittleEndian.Uint64(padded[offset : offset+8]))
+		}
+		observation := kafka.Observation{
+			Kind:                   kafka.ObservationKind(kind),
+			StartedAt:              time.Unix(integer(0), integer(8)),
+			Duration:               time.Duration(duration),
+			ClientID:               string(metadata[:min(len(metadata), 32)]),
+			GroupID:                string(metadata[min(len(metadata), 32):min(len(metadata), 64)]),
+			Topic:                  string(metadata[min(len(metadata), 64):]),
+			BrokerID:               int32(integer(16)),
+			BrokerKnown:            padded[120]&1 != 0,
+			AuthenticationMethod:   kafka.AuthenticationMethod(padded[158]),
+			APIKey:                 int16(integer(24)),
+			APIKeyKnown:            padded[121]&1 != 0,
+			RequestBytes:           integer(32),
+			ResponseBytes:          integer(40),
+			QueueDuration:          time.Duration(integer(48)),
+			ThrottleDuration:       time.Duration(integer(56)),
+			ThrottledAfterResponse: padded[122]&1 != 0,
+			Partition:              int32(integer(104)),
+			PartitionKnown:         padded[123]&1 != 0,
+			Offset:                 integer(112),
+			OffsetKnown:            padded[124]&1 != 0,
+			Timestamp:              time.Unix(integer(128), integer(136)),
+			RecordCount:            recordCount,
+			PartitionCount:         int(int16(binary.LittleEndian.Uint16(padded[144:146]))),
+			BrokerCount:            int(int16(binary.LittleEndian.Uint16(padded[146:148]))),
+			TopicCount:             int(int16(binary.LittleEndian.Uint16(padded[148:150]))),
+			GroupCount:             int(int16(binary.LittleEndian.Uint16(padded[150:152]))),
+			GroupMemberCount:       int(int16(binary.LittleEndian.Uint16(padded[152:154]))),
+			ProcessedCount:         processedCount,
+			CommittedCount:         int(int16(binary.LittleEndian.Uint16(padded[154:156]))),
+			RecordBytes:            integer(64),
+			ReplayProcessed:        integer(72),
+			ReplaySkipped:          integer(80),
+			ReplayFailed:           integer(88),
+			ReplayRemaining:        integer(96),
+			DependencyHealthy:      padded[125]&1 != 0,
+			Ready:                  padded[126]&1 != 0,
+			ConsecutiveFailures:    int(int8(padded[156])),
+			ConsecutiveSuccesses:   int(int8(padded[157])),
+			Succeeded:              succeeded,
+			Truncated:              padded[127]&1 != 0,
+			Category:               kafka.ErrorCategory(category),
+		}
+		err := observer(context.Background(), observation)
 		if err != nil && !errors.Is(err, ErrInvalidObservation) {
 			t.Fatalf("Observer() error = %v", err)
 		}

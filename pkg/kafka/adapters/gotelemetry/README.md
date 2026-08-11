@@ -122,27 +122,53 @@ identity export.
 
 | Kafka observation | Span | Standard metric |
 | --- | --- | --- |
-| produce record, batch, async | `send [topic]`, `PRODUCER` | `messaging.client.operation.duration`, `messaging.client.sent.messages` |
+| produce record | `send [topic]`, `PRODUCER` | `messaging.client.operation.duration`, `messaging.client.sent.messages` |
+| produce batch | `send [topic]`, `PRODUCER` | `messaging.client.operation.duration`, `messaging.client.sent.messages` |
+| produce async | `send [topic]`, `PRODUCER` | `messaging.client.operation.duration`, `messaging.client.sent.messages` |
 | consume poll | `poll [topic]`, `CLIENT` | `messaging.client.operation.duration`, `messaging.client.consumed.messages` |
-| consume record or batch | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
+| consume record | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
+| consume batch | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
 | consume commit | `commit [topic]`, `CLIENT` | `messaging.client.operation.duration` |
+| broker connect | `kafka broker.connect`, `CLIENT` | adapter-owned policy metrics only |
+| broker request | `kafka broker.request`, `CLIENT` | adapter-owned policy and request metrics |
+| broker throttle | `kafka broker.throttle`, `INTERNAL` | adapter-owned policy and throttle metrics |
+| broker disconnect | `kafka broker.disconnect`, `CLIENT` | adapter-owned policy metrics only |
+| consume assigned | `kafka consumer.assigned`, `INTERNAL` | adapter-owned policy metrics only |
+| consume revoked | `kafka consumer.revoked`, `INTERNAL` | adapter-owned policy metrics only |
+| consume lost | `kafka consumer.lost`, `INTERNAL` | adapter-owned policy metrics only |
+| consume blocked | `kafka consumer.rebalance_blocked`, `INTERNAL` | adapter-owned policy metrics only |
+| consume group error | `kafka consumer.group_error`, `INTERNAL` | adapter-owned policy metrics only |
 | consume retry scheduled | `kafka consumer.retry_scheduled`, `INTERNAL` | adapter-owned policy metrics only |
 | consume rebalance wait | `kafka consumer.rebalance_wait`, `INTERNAL` | adapter-owned policy metrics only |
-| successfully processed replay record | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
-| skipped or failed replay record | `kafka replay.record`, `CLIENT` | adapter-owned policy metrics only |
-| replay plan, run, shutdown | `kafka replay.*`, `CLIENT` | adapter-owned policy metrics only |
-| inspector cluster, topics, consumer groups | `kafka inspector.*`, `CLIENT` | adapter-owned policy metrics only |
-| dependency health, readiness, inspector shutdown | `kafka inspector.*`, `CLIENT` | adapter-owned policy metrics only |
-| producer, consumer, transaction-processor shutdown | `kafka *.shutdown`, `CLIENT` | adapter-owned policy metrics only |
+| transaction begin | `kafka transaction.begin`, `CLIENT` | adapter-owned policy metrics only |
+| transaction commit | `kafka transaction.commit`, `CLIENT` | adapter-owned policy metrics only |
+| transaction abort | `kafka transaction.abort`, `CLIENT` | adapter-owned policy metrics only |
+| replay plan | `kafka replay.plan`, `CLIENT` | adapter-owned policy metrics only |
+| replay record processed | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
+| replay record skipped or failed | `kafka replay.record`, `CLIENT` | adapter-owned policy metrics only |
+| replay run | `kafka replay.run`, `CLIENT` | adapter-owned policy metrics only |
+| replay shutdown | `kafka replay.shutdown`, `CLIENT` | adapter-owned policy metrics only |
+| inspector cluster | `kafka inspector.cluster`, `CLIENT` | adapter-owned policy metrics only |
+| inspector topics | `kafka inspector.topics`, `CLIENT` | adapter-owned policy metrics only |
+| inspector consumer groups | `kafka inspector.consumer_groups`, `CLIENT` | adapter-owned policy metrics only |
+| dependency health | `kafka inspector.dependency_health`, `CLIENT` | adapter-owned policy metrics only |
+| readiness | `kafka inspector.readiness`, `CLIENT` | adapter-owned policy metrics only |
+| inspector shutdown | `kafka inspector.shutdown`, `CLIENT` | adapter-owned policy metrics only |
+| producer shutdown | `kafka producer.shutdown`, `CLIENT` | adapter-owned policy metrics only |
+| consumer shutdown | `kafka consumer.shutdown`, `CLIENT` | adapter-owned policy metrics only |
+| transaction-processor shutdown | `kafka transaction_processor.shutdown`, `CLIENT` | adapter-owned policy metrics only |
 
 The optional `[topic]` suffix is present only for an allowlisted topic. Failed
 operations set a generic error span status and the root package's stable,
 low-cardinality `error.type`; they do not record an exception or error message.
 
-Every root observation also emits:
+Every root observation emits:
 
 - `kafka.client.operations`;
-- `kafka.client.operation.duration`;
+- `kafka.client.operation.duration`.
+
+Applicable broker-request or throttle observations additionally emit:
+
 - `kafka.client.request.size` for request and response bytes;
 - `kafka.client.request.queue.duration`; and
 - `kafka.client.throttle.duration`.
@@ -224,6 +250,116 @@ OpenTelemetry API boundary. Export and queue limits remain the responsibility
 of the configured OpenTelemetry SDK and exporter. Configure the root
 `ObserverPolicy` deadline and SDK queues so telemetry cannot become an
 unbounded Kafka delivery or rebalance delay.
+
+No-op providers accept observations and emit nothing. A sampled-out tracer
+emits no span while metric recording remains independent. After SDK shutdown,
+provider instruments follow OpenTelemetry's no-op behavior and the adapter
+still preserves the Kafka result. Provider callbacks are synchronous and can
+consume the observer deadline, so providers must cooperate with cancellation
+and exporters should use bounded queues. Provider shutdown remains caller-owned.
+
+## Metric reference
+
+All counters are monotonic. Durations use seconds, sizes use bytes, and counts
+use brace units. Partition, offset, record/count/size, broker, health, and
+replay diagnostics never become metric dimensions. Broker-request metrics may
+add the bounded numeric protocol API key and fixed request direction.
+
+| Metric | Unit | Value and dimensions |
+| --- | --- | --- |
+| `messaging.client.operation.duration` | `s` | send, poll, or commit duration with allowlisted messaging identities |
+| `messaging.process.duration` | `s` | consumer or successful replay processing duration with allowlisted messaging identities |
+| `messaging.client.sent.messages` | `{message}` | attempted producer records with allowlisted messaging identities |
+| `messaging.client.consumed.messages` | `{message}` | records delivered by a poll with allowlisted messaging identities |
+| `kafka.client.operations` | `{operation}` | one per observation with bounded operation, outcome, error category, and optional allowlisted identities |
+| `kafka.client.operation.duration` | `s` | stable observation duration with the same bounded dimensions as the operation counter |
+| `kafka.client.request.size` | `By` | broker request and response bytes with fixed direction and optional numeric API key |
+| `kafka.client.request.queue.duration` | `s` | broker-request queue duration with optional numeric API key |
+| `kafka.client.throttle.duration` | `s` | broker throttle duration with a bounded after-response boolean |
+
+Histogram boundaries are explicit and versioned in `New`. Contract tests
+assert every unit, counter monotonicity flag, and complete boundary list.
+
+## Attribute reference and privacy
+
+Every span has `kafka.operation` and `kafka.outcome`. Failed operations add the
+root package's bounded `error.type`; error messages and exception events are
+never emitted. Standard messaging spans add `messaging.system`,
+`messaging.operation.name`, and `messaging.operation.type`.
+
+| Attribute | Surface and cardinality |
+| --- | --- |
+| `messaging.client.id`, `kafka.client.id` | exact client-ID allowlist only |
+| `messaging.destination.name`, `kafka.topic` | exact topic allowlist only |
+| `messaging.consumer.group.name`, `kafka.consumer.group` | exact consumer-group allowlist only |
+| `messaging.destination.partition.id`, `messaging.kafka.offset` | span-only numeric record coordinates |
+| `messaging.batch.message_count` | span-only bounded count for batch send or processing |
+| `kafka.broker.id` | span-only bounded numeric broker diagnostic |
+| `kafka.protocol.api_key` | span-only and broker-request metric bounded numeric protocol key |
+| `kafka.authentication.method` | span-only fixed configured SASL method |
+| `kafka.request.bytes`, `kafka.response.bytes`, `kafka.request.queue.duration`, `kafka.throttle.duration` | span-only protocol timing and size diagnostics |
+| `kafka.throttled_after_response` | span-only and throttle-metric fixed boolean |
+| `kafka.record.count`, `kafka.partition.count`, `kafka.record.processed_count`, `kafka.record.committed_count`, `kafka.record.size` | span-only bounded record diagnostics |
+| `kafka.broker.count`, `kafka.topic.count`, `kafka.consumer_group.count`, `kafka.consumer_group.member.count` | span-only bounded inspector counts |
+| `kafka.replay.processed`, `kafka.replay.skipped`, `kafka.replay.failed`, `kafka.replay.remaining` | span-only signed-64-bit replay progress |
+| `kafka.dependency.healthy`, `kafka.readiness.ready`, `kafka.readiness.consecutive_failures`, `kafka.readiness.consecutive_successes` | span-only bounded health and hysteresis state |
+| `kafka.observation.truncated` | span-only fixed boolean when root diagnostics were clipped |
+| `kafka.request.direction` | request-size metric only; fixed `request` or `response` |
+
+Keys, values, record headers, credentials, usernames, tokens, certificates,
+broker endpoints, application error text, and panic values are outside the
+observation contract. W3C trace header values are used only by
+`TraceContextPropagation`; they never become telemetry attributes.
+
+## API reference
+
+- `New(Config)` validates the runtime and copied policy, constructs every
+  instrument synchronously, and returns immutable instrumentation.
+- `Instrumentation.Observer()` returns the synchronous `kafka.ObserverFunc`.
+- `Config.Validate()` and `AttributePolicy.Validate()` validate without
+  constructing instruments.
+- `InstrumentError` exposes `ErrInstrumentCreation` and preserves the provider
+  cause through `errors.Is` and `errors.As` without rendering it.
+- `NewTraceContextPropagation(kafka.MessageLimits)` constructs the immutable
+  record-header policy. `Inject` returns an owned producer record and `Extract`
+  returns a context containing only valid remote W3C Trace Context.
+- `MessagingSemanticConventionVersion` exposes the pinned convention version.
+
+## Migration
+
+This module is pre-v1. Span names, kinds, attributes, metric names, units,
+boundaries, propagation validation, and the convention pin are user-visible
+migration surfaces. Upgrade OpenTelemetry and this adapter together, review
+the changelog, update dashboards and sampling rules, and revalidate allowlists.
+When migrating from direct franz-go hooks, remove duplicate client
+instrumentation first. Existing applications gain no propagation until they
+explicitly inject and extract records with `TraceContextPropagation`.
+
+## FAQ
+
+### Does the observer propagate trace context?
+
+No. Completion occurs after the record boundary. Use the explicit header
+policy before publication and at the consumer handler boundary.
+
+### Does the adapter install or shut down global OpenTelemetry state?
+
+No. Providers and their shutdown remain caller-owned.
+
+### Can an exporter delay Kafka work?
+
+Yes. Provider API callbacks are synchronous. Use a bounded root observer
+deadline, cancellation-cooperative providers, and bounded exporter queues.
+
+### Are identities or payloads exported by default?
+
+No. Identity allowlists default to empty, and payload-bearing data is absent
+from `kafka.Observation`.
+
+### What happens after SDK shutdown or when a trace is sampled out?
+
+The provider determines emission. Sampled-out spans do not suppress metrics,
+and shut-down or no-op providers do not turn a Kafka success into a failure.
 
 ## Verification
 

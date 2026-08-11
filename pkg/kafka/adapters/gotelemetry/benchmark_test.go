@@ -6,7 +6,10 @@ import (
 	"time"
 
 	kafka "github.com/faustbrian/golib/pkg/kafka"
+	metricnoop "go.opentelemetry.io/otel/metric/noop"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
 
 var (
@@ -40,6 +43,87 @@ func BenchmarkObserver(b *testing.B) {
 		if err := observer(ctx, observation); err != nil {
 			b.Fatal(err)
 		}
+	}
+}
+
+func BenchmarkObserverModes(b *testing.B) {
+	observation := kafka.Observation{
+		Kind:        kafka.ObservationProduceRecord,
+		StartedAt:   time.Unix(1, 0),
+		Duration:    time.Millisecond,
+		ClientID:    "checkout-producer",
+		Topic:       "orders",
+		RecordCount: 1,
+		RecordBytes: 128,
+		Succeeded:   true,
+	}
+	type mode struct {
+		name       string
+		runtime    Runtime
+		attributes AttributePolicy
+	}
+	sampledOut := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.NeverSample()),
+	)
+	recording := sdktrace.NewTracerProvider(
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+	)
+	b.Cleanup(func() {
+		_ = sampledOut.Shutdown(context.Background())
+		_ = recording.Shutdown(context.Background())
+	})
+	modes := []mode{
+		{
+			name: "no-op",
+			runtime: testRuntime{
+				tracerProvider: tracenoop.NewTracerProvider(),
+				meterProvider:  metricnoop.NewMeterProvider(),
+			},
+		},
+		{
+			name: "sampled-out",
+			runtime: testRuntime{
+				tracerProvider: sampledOut,
+				meterProvider:  metricnoop.NewMeterProvider(),
+			},
+		},
+		{
+			name: "allowlist-hit",
+			runtime: testRuntime{
+				tracerProvider: tracenoop.NewTracerProvider(),
+				meterProvider:  metricnoop.NewMeterProvider(),
+			},
+			attributes: AttributePolicy{
+				AllowedClientIDs: []string{"checkout-producer"},
+				AllowedTopics:    []string{"orders"},
+			},
+		},
+		{
+			name: "recording",
+			runtime: testRuntime{
+				tracerProvider: recording,
+				meterProvider:  metricnoop.NewMeterProvider(),
+			},
+		},
+	}
+	for _, current := range modes {
+		b.Run(current.name, func(b *testing.B) {
+			instrumentation, err := New(Config{
+				Runtime: current.runtime, Attributes: current.attributes,
+			})
+			if err != nil {
+				b.Fatalf("New() error = %v", err)
+			}
+			observer := instrumentation.Observer()
+			ctx := context.Background()
+			b.ReportAllocs()
+			b.ResetTimer()
+			for range b.N {
+				if err := observer(ctx, observation); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }
 

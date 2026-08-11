@@ -11,6 +11,9 @@ All notable changes to this module are documented here.
 
 ### Added
 
+- exhaustive span, metric, attribute, lifecycle, sampling, shutdown,
+  concurrency, fuzz, and benchmark contracts plus enforced API, privacy, FAQ,
+  and migration documentation
 - explicit, concurrency-safe W3C Trace Context injection and extraction for
   bounded Kafka records, with defensive producer copies, borrowed-consumer
   ownership, fail-closed duplicate fields, no baggage, and no global
