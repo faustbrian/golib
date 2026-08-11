@@ -756,11 +756,9 @@ func statelessWitnessRelationBytes(
 	claimCount uint64,
 	updateCount uint64,
 ) uint64 {
-	if claimCount <= updateCount {
-		return 0
-	}
+	relationCount := max(claimCount, updateCount) - updateCount
 
-	return (claimCount - updateCount) * 2 * statelessWitnessRelationScratch
+	return relationCount * 2 * statelessWitnessRelationScratch
 }
 
 func statelessWitnessStemPath(

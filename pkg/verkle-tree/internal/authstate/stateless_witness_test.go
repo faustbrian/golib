@@ -448,6 +448,29 @@ func TestStatelessWitnessUpdateKeysAreStrictlyIncreasing(t *testing.T) {
 	}
 }
 
+func TestStatelessWitnessRelationBytes(t *testing.T) {
+	t.Parallel()
+
+	for name, test := range map[string]struct {
+		claims  uint64
+		updates uint64
+		want    uint64
+	}{
+		"fewer claims":    {claims: 1, updates: 2, want: 0},
+		"equal counts":    {claims: 2, updates: 2, want: 0},
+		"one relation":    {claims: 3, updates: 2, want: 2 * statelessWitnessRelationScratch},
+		"three relations": {claims: 5, updates: 2, want: 6 * statelessWitnessRelationScratch},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := statelessWitnessRelationBytes(test.claims, test.updates); got != test.want {
+				t.Fatalf("relation bytes = %d, want %d", got, test.want)
+			}
+		})
+	}
+}
+
 func TestStatelessUpdaterVerifiesWitnessPostStateRoot(t *testing.T) {
 	t.Parallel()
 
