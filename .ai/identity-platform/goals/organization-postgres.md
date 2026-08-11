@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/organization/postgres/.ai/GOAL.md`
 - Requires: `organization`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
-- Unlocks after verification: `sso/postgres`, `scim/postgres`, `identity/http`
+- Unlocks after verification: `sso/postgres`, `scim/postgres`, `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `organization/postgres` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,29 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- The schema MUST persist organizations, active-organization selection,
+  memberships, invitations, static/dynamic roles, permission statements,
+  teams, team membership, typed additional fields, domain claims and aggregate
+  versions with tenant-scoped foreign keys.
+- Constraints/locking MUST enforce unique slugs in declared scope, unique
+  membership, bounded active selection, invitation identity, last-owner safety,
+  role/team limits and organization-compatible team membership under races.
+- Invitation accept/reject/cancel/expire and ownership transfer MUST be atomic
+  with events/outbox and idempotent by stable command identity.
+- Dynamic-role update/delete MUST lock affected bindings and produce a
+  deterministic permission result for concurrent authorization checks.
+- Stable cursor plans are REQUIRED for organizations, members, invitations,
+  roles and teams. Search/filter fields and case/collation semantics MUST be
+  explicit and indexed at production-shaped cardinality.
+- Domain-claim challenge, verification, expiry, uniqueness and takeover
+  prevention MUST be database-enforced where possible and reconciled after
+  unknown external proof outcomes.
+- Migration evidence MUST include existing organizations, legacy/static roles,
+  team enablement, added typed fields, mixed binaries, interrupted backfills,
+  backup/restore and query-plan budgets.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +80,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

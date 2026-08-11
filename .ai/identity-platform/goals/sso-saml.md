@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/sso/saml/.ai/GOAL.md`
 - Requires: `sso`
 - Consumes existing primitives: `http-client`, `secret-envelope`, `capability`, `audit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `sso/postgres`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `sso/saml` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,31 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Registration MUST support bounded IdP metadata import and explicit fields,
+  SP entity ID/ACS metadata export, certificate rotation and exact IdP/SP
+  identity. Metadata URL retrieval MUST satisfy SSRF/TLS/size policy.
+- SP-initiated redirect/post bindings and IdP-initiated SSO MUST be separate
+  profiles. IdP-initiated login MUST have stricter unsolicited-response,
+  organization-routing and replay policy and MUST not pretend to validate a
+  nonexistent request ID.
+- Signed AuthnRequests MUST be configurable with supported algorithms and key
+  rotation. Unsigned requests/responses/assertions MUST be accepted only under
+  an explicit pinned policy compatible with the provider.
+- Response validation MUST cover XML signature location/reference, issuer,
+  audience, destination, recipient, subject confirmation, InResponseTo,
+  NotBefore/NotOnOrAfter, session index and assertion/response replay.
+- Algorithm allowlists MUST reject SHA-1 and other weak profiles by default;
+  XML depth, nodes, attributes, text, decoded size, signatures, assertions and
+  certificates MUST be bounded before expensive work.
+- Attribute/NameID mapping MUST identify the stable subject and distinguish
+  verified from asserted email/roles. Unknown attributes MUST not create
+  privileges.
+- Official SAML fixtures and independent IdP proof MUST include signed request,
+  SP initiated, permitted IdP initiated, encrypted assertion if claimed,
+  rollover, replay and clock-boundary cases.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +82,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

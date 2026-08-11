@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/session/valkey/.ai/GOAL.md`
 - Requires: `identity/session`
 - Consumes existing primitives: `cache`, `identifier`, `audit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/session/valkey` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,25 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Key namespaces MUST bind deployment, tenant and purpose and use hash tags
+  deliberately for supported cluster atomicity. Raw session tokens MUST never
+  appear in keys, values visible to diagnostics, or channel messages.
+- The adapter MUST declare whether it is authoritative session storage,
+  secondary storage or cookie-cache support. Each profile MUST define fallback
+  and MUST NOT silently accept stale or missing state as authenticated.
+- Issue, rotate, compare-and-delete, family revoke, active selection,
+  maximum-session enforcement, version invalidation and TTL refresh MUST be
+  atomic within the declared topology or return unsupported at construction.
+- Eviction, flush, failover, replication lag, MOVED/ASK, partial pipeline and
+  script-cache loss MUST map to explicit unavailable or unknown outcomes.
+- Indexes for list/revoke-all MUST be bounded and cleaned with the primary key;
+  orphan repair MUST not resurrect revoked or expired sessions.
+- Real standalone and declared cluster-profile tests MUST cover clock/TTL
+  boundaries, failover, hot keys, restart and concurrent rotation. A mock Redis
+  protocol server is not interoperability proof.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +76,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

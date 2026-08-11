@@ -9,14 +9,14 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 - Unit: `identity/identitytest`
 - Canonical module: `pkg/identity/identitytest`
 - Canonical goal after scaffolding: `pkg/identity/identitytest/.ai/GOAL.md`
-- Requires: `identity/http`
+- Requires: `identity/reference`
 - Consumes existing primitives: `postgres`, `migrations`, `identifier`
 - Unlocks after verification: No program unit.
 
 ## Start gate and objective
 
-The worker MUST satisfy `../COMMON_REQUIREMENTS.md` and MUST start only after
-the coordinator marks this unit `in-progress` with `identity/http` verified.
+The worker MUST satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md` and MUST start only after
+the coordinator marks this unit `in-progress` with `identity/reference` verified.
 Build a test-only consumer toolkit for deterministic identity-platform tests,
 using public APIs and the complete HTTP surface without creating production
 authentication bypasses.

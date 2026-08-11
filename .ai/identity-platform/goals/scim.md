@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `scim` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,33 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Protocol discovery MUST expose ServiceProviderConfig, Schemas and
+  ResourceTypes that exactly match implemented Users, Groups, filters, sort,
+  PATCH, bulk and authentication capabilities.
+- User and Group operations MUST include create, get, list/filter/page/sort,
+  replace, atomic PATCH and delete/deactivate with SCIM content types, canonical
+  schemas and location/version metadata.
+- Filter and path grammar MUST support the declared RFC 7644 operators,
+  precedence, value types, multi-valued attributes and extension URNs. A
+  capability omitted from the parser/planner MUST be omitted from discovery.
+- PATCH MUST implement add/remove/replace for scalar, complex and multi-valued
+  attributes with mutability, required, uniqueness and caseExact semantics and
+  all-or-nothing resource versioning.
+- Authentication MUST support scoped digested bearer tokens with reveal-once
+  generation, rotation/revocation, expiry and organization/provider ownership.
+- Provider connections MUST support create/list/get/delete, ownership policy,
+  safe provider metadata, attribute mappings and hooks. A default connection
+  MUST not bypass organization scope.
+- Bulk, if advertised, MUST enforce operation/payload limits, failOnErrors,
+  bulkId dependencies and per-operation results without cross-tenant references.
+- Error responses MUST use stable SCIM status/scimType/detail with enumeration
+  and provider diagnostics redacted. ETag/If-Match conflicts MUST not be
+  reported as successful replacement.
+- RFC examples plus at least one independent SCIM client/conformance suite MUST
+  prove discovery and every advertised operation.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +84,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

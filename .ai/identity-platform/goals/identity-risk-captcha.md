@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/risk/captcha` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -57,7 +57,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

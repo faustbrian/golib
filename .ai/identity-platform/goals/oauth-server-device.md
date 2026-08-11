@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/oauth-server/device/.ai/GOAL.md`
 - Requires: `oauth-server`
 - Consumes existing primitives: `capability`, `rate-limit`, `audit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `oauth-server/postgres`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `oauth-server/device` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,27 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Device authorization MUST validate client, grant permission and requested
+  scopes before issuing codes and MUST publish verification URI and complete
+  URI exactly according to the configured public base URL.
+- Device codes MUST have cryptographic entropy and digest-at-rest lookup; user
+  codes MUST be non-confusable, bounded, rate-limited and collision-safe.
+- Optional pre-binding to a user MUST require explicit authenticated policy and
+  MUST not let a device choose an arbitrary subject.
+- Polling MUST return authorization_pending, slow_down, access_denied,
+  expired_token and success with exact interval escalation and no timing-based
+  user-code enumeration.
+- Verification UI contracts MUST support inspect, approve and deny with recent
+  authentication, client/scope display and CSRF protection. Approval MUST bind
+  the reviewing subject and consent version atomically.
+- Custom code generators and client validators MUST meet entropy,
+  canonicalization, authorization and redaction contracts or fail
+  construction.
+- RFC 8628 fixtures plus an independent CLI/client MUST prove issuance,
+  polling, slow-down, approval, denial, expiry, replay and cancellation.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +78,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

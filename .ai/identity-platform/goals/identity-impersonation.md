@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/impersonation/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`
 - Consumes existing primitives: `authorization`, `audit`, `capability`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/impersonation/postgres`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/impersonation` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,27 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Start MUST require a named authorization decision, recent non-impersonated
+  authentication, target eligibility, non-empty bounded reason and optional
+  approval/reference according to policy.
+- Ban/suspension, organization boundary, protected-account and actor-role rules
+  MUST be evaluated explicitly. Super-admin or service accounts MUST not be
+  impersonable merely because they exist.
+- The issued session MUST contain actor, target, grant ID, start/expiry, scope
+  and immutable lineage and MUST be distinguishable by every downstream audit
+  and presentation surface.
+- Nested/recursive impersonation and privilege use outside the granted scope
+  MUST fail. Authorization MUST be able to evaluate both actor authority and
+  target-effective permissions without confusing them.
+- Stop, expiry, actor disable, target disable, grant revoke and global session
+  revoke MUST terminate access with documented propagation. Stop MUST restore
+  only the original still-valid actor session, never mint a stronger one.
+- List/search of grants and sessions MUST be administrator-authorized,
+  tenant-scoped, bounded and auditable. Reasons are sensitive and MUST not be
+  exposed to the target unless policy explicitly says so.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +78,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

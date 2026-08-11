@@ -15,7 +15,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 
 ## Start gate and objective
 
-The worker MUST satisfy `../COMMON_REQUIREMENTS.md` and MUST start only after
+The worker MUST satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md` and MUST start only after
 the coordinator marks this unit `in-progress` with `identity/oauth` verified.
 Build a callback proxy for preview/development deployments whose callback URLs
 cannot be registered directly, without making the proxy an identity authority.

@@ -11,7 +11,8 @@ and their adapters through explicit packages.
 
 The goals remain in this planning tree until modules exist. On integration,
 the coordinator MUST move each goal unchanged to
-`pkg/<module>/.ai/GOAL.md`, update the inventory, and register the module.
+the exact canonical goal path declared in that goal, update the inventory, and
+register the module.
 
 ## Product boundary decisions
 
@@ -38,8 +39,11 @@ the coordinator MUST move each goal unchanged to
   passwords or hashes.
 - Social OAuth has one built-in provider-profile catalog. Provider-specific
   SDK wrappers remain out of scope.
-- The final public transport is standard-library `net/http`; packages below it
-  remain transport-neutral.
+- The public transport is standard-library `net/http`; packages below it
+  remain transport-neutral. `identity/http` depends on feature/protocol
+  contracts, while `identity/reference` is the only mandatory-all-adapters
+  composition. Concrete PostgreSQL, Valkey and provider adapters MUST NOT
+  become mandatory dependencies of the reusable HTTP module.
 
 ## Explicit exclusions
 
@@ -61,11 +65,15 @@ server issuance, grants, discovery, consent, and JWKS publication belong to
 
 ## Program completion contract
 
-Completion requires all 48 inventory units to be `verified`, every in-scope
+Completion requires all 58 inventory units to be `verified`, every in-scope
 row in `BETTER_AUTH_PARITY.md` to have executable proof, and every composed
 journey and cross-cutting property in `END_STATE.md` to pass against final
 inputs. No row may remain partial, depend on undocumented application glue, or
 be represented only by a primitive that lacks the required workflow.
+
+The configurable package contracts MUST compose under the exact defaults and
+bounds in `REFERENCE_PROFILE.md`. A package worker MUST NOT choose an
+incompatible local default merely because its isolated tests pass.
 
 The complete reference server MUST use standard `net/http`, PostgreSQL, and
 Valkey and MUST exercise provider integrations where the goals require them.

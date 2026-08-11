@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/risk/postgres/.ai/GOAL.md`
 - Requires: `identity/risk`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `audit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/risk/postgres` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,29 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Schema/key dimensions MUST be derived from the core's bounded canonical
+  action/subject/signal identities and scoped digests. Raw passwords, tokens,
+  OTPs and unbounded request strings MUST never become columns, keys or labels.
+- Atomic operations MUST support fixed/sliding windows, velocity counters,
+  lockout state, evidence/decision journal and compare-and-set overrides exactly
+  for the profiles declared by core; unsupported algorithms MUST fail setup.
+- Database time and isolation semantics MUST define every inclusive/exclusive
+  boundary. Concurrent increments/decisions MUST not undercount or extend a
+  lockout incorrectly.
+- IPv4/IPv6 and configured IPv6 subnet dimensions MUST be canonicalized before
+  digesting, with key rotation/retention that does not create bypass windows.
+- Provider-signal evidence MUST retain safe attributable status including
+  unavailable/ambiguous without storing challenge tokens or full HIBP data.
+- Cleanup/anonymization MUST use bounded indexed batches and preserve minimum
+  evidence for active windows, incident audit and unknown-outcome reconciliation.
+- Real PostgreSQL tests MUST cover contention/hot keys, isolation levels,
+  deadlock/serialization, disconnect/commit ambiguity, clock boundaries,
+  partition/retention and production-shaped query plans.
+- Migrations and restore MUST preserve active windows/lockouts or document a
+  deliberate security-safe reset; silent allowance reset is forbidden.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +80,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

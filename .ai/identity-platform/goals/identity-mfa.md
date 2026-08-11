@@ -12,13 +12,13 @@ appear in all capitals, as shown here.
 - Unit: `identity/mfa`
 - Canonical module: `pkg/identity/mfa`
 - Canonical goal after scaffolding: `pkg/identity/mfa/.ai/GOAL.md`
-- Requires: `identity`, `identity/session`, `identity/otp`, `identity/risk`
+- Requires: `identity`, `identity/session`, `identity/otp`, `identity/risk`, `webauthn`
 - Consumes existing primitives: `password`, `secret-envelope`, `audit`, `rate-limit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/mfa/postgres`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/mfa` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -36,7 +36,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Factor, Enrollment, TOTPProfile, Challenge, RecoverySet, TrustedDevice, StepUpPolicy, Store, and Service contracts. Public errors MUST be typed, stable,
+The design MUST define Factor, Enrollment, TOTPProfile, SecurityKeyProfile, WebAuthnVerifier, Challenge, RecoverySet, TrustedDevice, StepUpPolicy, Store, and Service contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -48,6 +48,34 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Enable/disable MUST require recent primary authentication and password or
+  equivalent configured proof, create a pending enrollment, and activate only
+  after a valid second-factor confirmation.
+- TOTP MUST expose a standards-compliant provisioning URI with issuer/account
+  label policy, encrypted secret storage, supported algorithm/digits/period,
+  bounded skew and per-step replay prevention using pinned RFC vectors.
+- OTP second factor MUST use the OTP purpose contract, distinct send/verify
+  limits and no fallback that silently reduces a required TOTP/security-key
+  policy.
+- WebAuthn security-key factors MUST use verified non-discoverable or explicitly
+  allowed discoverable assertions from `webauthn`, bind the credential to the
+  pending factor/user/RP and persist cryptographic state only through
+  `webauthn/postgres`. A passkey sign-in credential MUST not automatically
+  become an enrolled second factor.
+- Recovery codes MUST be unbiased, shown once, digest-stored, atomically
+  single-use, listable only as safe status/count and fully replaced on
+  regeneration. Viewing plaintext codes after creation is forbidden.
+- Trusted devices MUST use a bound, revocable, expiring credential with device
+  metadata privacy, key rotation and risk invalidation; a cookie flag alone is
+  insufficient.
+- Challenge state MUST cap total attempts across factor methods and account for
+  concurrency so switching methods cannot reset lockout.
+- Factor list, rename/remove, recovery and administrator reset MUST preserve at
+  least one policy-compliant recovery path, revoke relevant sessions/trusted
+  devices and emit immutable audit.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +85,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

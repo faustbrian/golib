@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/email` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,26 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Address policy MUST define parsing, canonical comparison, case/domain/IDN
+  handling, display preservation, maximum length and whether plus-address or
+  provider-specific normalization is deliberately unsupported.
+- Verification request MUST support signup-triggered, require-before-signin and
+  manual resend profiles, cooldown/attempt limits and an enumeration-safe
+  public result. Duplicate signup callbacks MUST not disclose account state.
+- Verification callback MUST bind user, canonical address, purpose, tenant,
+  redirect and token version; consume once; handle link scanners; and expose
+  before-verification/after-success hooks with exact transaction semantics.
+- Auto-signin after verification MUST be explicit, risk-assessed and issue a
+  new session only after the address transition commits. It MUST not reuse a
+  stale pre-verification session proof.
+- Email change MUST define current-address confirmation, new-address proof,
+  recent-authentication requirement, notification to old address, collision
+  race, primary replacement and rollback/unknown delivery outcomes.
+- Removing an address MUST preserve required verified/recovery identifiers and
+  revoke outstanding tokens for that address.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +77,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/sso/oidc/.ai/GOAL.md`
 - Requires: `sso`
 - Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `http-client`, `secret-envelope`, `audit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `sso/postgres`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `sso/oidc` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,26 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Registration MUST accept either pinned static metadata or HTTPS discovery
+  with exact issuer matching. Discovery MUST enforce SSRF-safe resolution,
+  redirect/IP policy, body/JSON limits, TLS and cache/refresh bounds.
+- Authorization requests MUST bind state, nonce, PKCE, redirect and requested
+  organization/provider and support configured prompt, login hint and scopes
+  without caller scope escalation.
+- Callback MUST validate issuer, audience/authorized party, signature/algorithm,
+  times, nonce, state, PKCE and subject before optional bounded UserInfo merge.
+  UserInfo MUST not override verified claims contrary to explicit policy.
+- Trusted origins and shared callback URLs MUST be exact allowlists. Mix-up,
+  malicious discovery, issuer aliases, JWK rotation races and token-substitution
+  cases MUST fail closed.
+- Logout, refresh and revocation capabilities MUST be declared per provider;
+  unsupported features MUST not be inferred from discovery omissions.
+- Official fixtures plus at least one independent enterprise IdP profile MUST
+  prove discovery, login, JWK rotation and mapping; provider-specific deviations
+  MUST remain attributable.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +77,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

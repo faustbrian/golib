@@ -7,20 +7,37 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 ## Product definition
 
 The finished program MUST compose into a complete backend identity product,
-not a collection of primitives. A reference server MUST expose every in-scope
+not a collection of primitives. `identity/reference` MUST assemble a server
+that exposes every in-scope
 journey through standard-library `net/http`, persist durable state in
 PostgreSQL, use Valkey for selected ephemeral/distributed state, publish an
-OpenAPI 3.1.1 document, and require no undocumented application glue beyond
-deployment configuration, provider credentials, templates, and policy choices.
+OpenAPI 3.1.1 document, and require no undocumented application glue. The only
+application-supplied seams MAY be deployment configuration, provider
+credentials, templates, explicit policy callbacks and bounded email/SMS
+`Sender` implementations equivalent to Better Auth delivery callbacks.
+Consumers MUST NOT supply domain stores, workflow orchestration, handlers,
+migrations or security middleware.
 
-The reference server is verification and adoption material, not an admin UI.
+The selected PostgreSQL end state MUST use the dedicated identity, password,
+session, risk, OTP, MFA, WebAuthn, passkey, social-OAuth, API-key,
+impersonation, organization, SSO, SCIM and OAuth-server adapters; an in-memory
+store or consumer-written adapter is not acceptable proof. Capability-backed
+one-time workflows MUST use the existing PostgreSQL capability consumption
+adapter.
+
+`identity/http` owns the reusable transport and MUST not import concrete
+storage/provider adapters. `identity/reference` owns the all-adapters deployment
+profile and cross-feature proof. The reference server is verification and
+adoption material, not an admin UI.
 Its handlers MUST call public package contracts exactly as a consumer would.
 
 ## Required composed journeys
 
 1. **Identity lifecycle:** create, retrieve, update, suspend/ban with expiry
    and reason, restore, anonymize and delete users; manage verified identifiers
-   and linked accounts; preserve tenant isolation and auditable outcomes.
+   and linked accounts; preserve tenant isolation and auditable outcomes;
+   round-trip declared typed additional fields with per-field input, output,
+   write, sensitivity and migration policy.
 2. **Email, password and username:** signup with email/password/username,
    verify email, signin by email or username, logout, forgot/reset/change
    password, automatic hash upgrade, HIBP policy, username availability and
@@ -29,7 +46,17 @@ Its handlers MUST call public package contracts exactly as a consumer would.
 3. **Sessions:** secure cookie issuance, validation, freshness, rotation,
    absolute/idle expiry, device labels, multiple simultaneous accounts in one
    client, active-account switching, configured maximum, list/revoke one/all,
-   logout idempotency, and last-login-method track/get/check/clear.
+   logout idempotency, and last-login-method track/get/check/clear. The same
+   contract suite MUST cover durable opaque sessions, Valkey/secondary storage,
+   bounded cookie caching and signed/encrypted stateless sessions with explicit
+   versioning/global invalidation. Custom session enrichment MUST define
+   schema, timeout, failure, caching, invalidation and redaction.
+   The same session MUST authenticate through an explicit bearer transport
+   profile without cookie fallback or weakened revocation/freshness.
+   A fresh session MUST generate a three-minute single-use transfer token for
+   an exact trusted target origin; that origin MUST consume it once to obtain
+   the same still-valid session under explicit cookie/no-cookie policy, while
+   replay, wrong-origin and revoked-source attempts fail.
 4. **Passwordless:** magic-link, email OTP, verified phone and phone OTP signin;
    anonymous-session creation and collision-safe upgrade to a permanent user.
 5. **MFA and WebAuthn:** enroll/challenge/remove TOTP, OTP, recovery codes,
@@ -39,7 +66,8 @@ Its handlers MUST call public package contracts exactly as a consumer would.
 6. **Social OAuth:** generic authorization-code/PKCE provider registration,
    every built-in provider profile, callback and token refresh, safe account
    linking/unlinking, Google One Tap prompt/button modes, and preview OAuth
-   proxy without production identity writes.
+   proxy without production identity writes, plus a real-browser popup flow
+   with exact opener-origin binding and redirect-flow-equivalent results.
 7. **API keys:** create a scoped user or organization key, reveal once,
    authenticate, list metadata, rename, rotate, expire and revoke it.
 8. **Administration:** explicitly authorized user search/management, bans,
@@ -58,7 +86,9 @@ Its handlers MUST call public package contracts exactly as a consumer would.
 12. **OAuth/OIDC provider:** register clients, authorize with consent and PKCE,
     exchange and refresh with rotation, revoke/introspect, discover metadata
     and JWKS, validate ID token/UserInfo at an independent relying party, and
-    complete device authorization including denial and slow polling.
+    complete device authorization including denial and slow polling, and issue
+    a bounded JWT from an explicitly enabled fresh-session exchange profile
+    with the same JWKS/key-rotation guarantees.
 13. **Abuse controls:** action-specific rate and velocity decisions, CAPTCHA
     challenges through reCAPTCHA, Turnstile, hCaptcha and CaptchaFox, replay
     denial, lockout/step-up, provider outage policy and recovery.
@@ -69,6 +99,14 @@ Its handlers MUST call public package contracts exactly as a consumer would.
     create deterministic test identities, capture delivery/OTP without real
     sends, authenticate requests, reset state, run parallel tests, consume the
     OpenAPI document, and prove test helpers cannot register production routes.
+16. **Extension and access policy:** register ordered typed before/after hooks,
+    custom identity/session fields and custom authorization statements without
+    global state; prove cancellation, transaction boundaries, response/error
+   behavior, custom roles and cross-tenant denial.
+17. **Typed modules and operations:** compose an external typed endpoint,
+    OpenAPI schema, middleware/hook, route-rate rule, reviewed trusted origin
+    and owned migration contributor; reject every collision; generate a secret
+    and a fully redacted diagnostic summary through public operational APIs.
 
 ## HTTP and browser-facing contract
 
@@ -86,6 +124,16 @@ schemas, security, errors and examples. Handler registration and schema
 composition MUST fail on duplicate routes, operation IDs or incompatible
 components. Extension packages MUST integrate through typed composition, not
 global registration or reflection.
+
+Every client HTTP route MUST have an explicit default, endpoint or extension
+rate rule. The complete profile MUST prove trusted-proxy derivation,
+IPv4-mapped IPv6 normalization, IPv6 subnet aggregation, Retry-After,
+distributed atomic counters and selected-store outage behavior.
+
+`identity/reference` MUST inject the complete selected feature and adapter set
+through this public HTTP constructor. Missing configuration or dependencies
+MUST fail before readiness; the HTTP module MUST remain usable with narrower
+consumer-supplied feature sets without acquiring concrete adapter dependencies.
 
 ## Persistence and failure recovery
 

@@ -27,7 +27,8 @@ parity, integration, and dependency requirements.
 
 ## Authority and ownership
 
-The coordinator alone owns `INVENTORY.md`, `DEPENDENCIES.md`, files directly
+The coordinator alone owns `INVENTORY.md`, `EXECUTION_LEDGER.md`,
+`DEPENDENCIES.md`, files directly
 under this directory, planning-goal moves, root manifests, integration, and
 final end-state proof. A worker owns only its assigned canonical package
 directory and package-local code, tests, fixtures, migrations, docs, examples,
@@ -35,8 +36,9 @@ module files, and changelog. The coordinator MUST reject cross-package worker
 edits instead of resolving semantic ownership during a merge.
 
 Read order is: `ORCHESTRATOR_GOAL.md`, `PROGRAM.md`,
-`COMMON_REQUIREMENTS.md`, `END_STATE.md`, `BETTER_AUTH_PARITY.md`,
-`DEPENDENCIES.md`, `INVENTORY.md`, `WORKER_PROMPT.md`, then the assigned goal.
+`COMMON_REQUIREMENTS.md`, `END_STATE.md`, `REFERENCE_PROFILE.md`,
+`BETTER_AUTH_PARITY.md`, `DEPENDENCIES.md`, `INVENTORY.md`,
+`EXECUTION_LEDGER.md`, `WORKER_PROMPT.md`, then the assigned goal.
 
 ## Computed execution waves
 
@@ -59,6 +61,7 @@ are `verified`; a wave is not a barrier.
 - `identity/apikey`
 - `identity/i18n`
 - `organization`
+- `webauthn/postgres`
 
 ### Wave 2
 
@@ -74,6 +77,7 @@ are `verified`; a wave is not a barrier.
 - `identity/anonymous`
 - `passkey`
 - `identity/oauth`
+- `identity/apikey/postgres`
 - `identity/impersonation`
 - `organization/postgres`
 - `sso`
@@ -86,30 +90,41 @@ are `verified`; a wave is not a barrier.
 - `identity/risk/captcha/turnstile`
 - `identity/risk/captcha/hcaptcha`
 - `identity/risk/captcha/captchafox`
+- `identity/password/postgres`
+- `identity/otp/postgres`
 - `identity/username`
 - `identity/phone`
 - `identity/mfa`
 - `identity/oauth/providers`
+- `identity/oauth/postgres`
 - `identity/oauth/proxy`
+- `identity/apikey/valkey`
+- `identity/impersonation/postgres`
 - `sso/oidc`
 - `sso/oauth2`
 - `sso/saml`
-- `sso/postgres`
 - `scim/postgres`
 - `scim/organization`
 - `oauth-server/oidc`
 - `oauth-server/device`
-- `oauth-server/postgres`
+- `passkey/postgres`
 
 ### Wave 4
 
 - `identity/oauth/onetap`
+- `identity/mfa/postgres`
+- `sso/postgres`
+- `oauth-server/postgres`
 
 ### Wave 5
 
 - `identity/http`
 
 ### Wave 6
+
+- `identity/reference`
+
+### Wave 7
 
 - `identity/identitytest`
 
@@ -118,6 +133,6 @@ are `verified`; a wave is not a barrier.
 Only dependency-free units begin `ready`. The coordinator changes a proposed
 unit to `ready` only after all its prerequisites are integrated and `verified`.
 Implementation on a worker branch is not verification. Program completion
-requires all 48 units verified, every in-scope parity row proved, every
+requires all 58 units verified, every in-scope parity row proved, every
 `END_STATE.md` journey passing without undocumented application glue, and all
 final repository gates current.

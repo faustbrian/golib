@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `sso` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,32 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Provider lifecycle MUST include register, get/list, update, enable/disable,
+  rotate credentials/certificates, delete and organization link/unlink with
+  explicit ownership and authorization. Provider IDs, domains and issuer/entity
+  IDs MUST have collision rules.
+- Routing MUST support explicit provider ID, verified-domain discovery,
+  configured default and deterministic multiple-provider conflict. Unverified
+  domains, arbitrary email suffixes and hostile discovery metadata MUST not
+  select a provider.
+- Login transactions MUST bind protocol, provider, organization, tenant,
+  redirect, state/relay state, initiator and expiry and MUST be atomically
+  single-use across shared callback URLs.
+- JIT user provisioning MUST define required stable subject, verified email
+  policy, collision/linking behavior, default attributes and rollback/unknown
+  outcome. Organization provisioning MUST be idempotent and custom-role mapping
+  MUST never create privilege outside configured statements.
+- SSO enforcement MUST define enrollment, grace, bypass/recovery administrators,
+  provider outage, disabled provider and break-glass audit behavior. It MUST not
+  permanently lock all administrators out.
+- Self-service provider administration MUST expose only organization-owned
+  providers and safe metadata; secrets, certificates/private keys and raw IdP
+  errors MUST remain redacted.
+- Hooks MUST cover provider and provisioning lifecycle with explicit
+  transaction/compensation behavior and MUST not reinterpret protocol proof.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +83,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

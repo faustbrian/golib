@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/password/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`
 - Consumes existing primitives: `password`, `capability`, `workflow`, `audit`, `rate-limit`
-- Unlocks after verification: `identity/username`, `identity/http`
+- Unlocks after verification: `identity/password/postgres`, `identity/username`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/password` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,31 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Signup MUST support explicit enabled/disabled policy, required verified email
+  policy, minimum/maximum password byte length, risk/HIBP decision, identity
+  fields permitted at signup and optional post-commit session issuance.
+- Signin MUST canonicalize the identifier through its owner, perform
+  constant-work dummy verification for unknown identities, enforce status/
+  verification/risk/MFA policy, upgrade hashes atomically and return
+  indistinguishable public failures.
+- Set-password for provider-only accounts MUST require recent authenticated
+  authorization or a verified reset capability and MUST not allow an OAuth
+  subject alone to choose a password.
+- Change-password MUST verify the current password unless a stronger explicit
+  recovery/admin contract applies, check risk/HIBP, prevent prohibited reuse,
+  update hash and optionally revoke other/all sessions atomically.
+- Forgot/reset MUST always return enumeration-safe request results, bind token
+  to user/password version/purpose/tenant, handle email delivery unknowns,
+  consume exactly once under races and revoke configured sessions after commit.
+- Administrator set/reset MUST be a separate authorized operation with audit,
+  forced-change/session policy and no ability to retrieve either old or new
+  password.
+- Password bytes MUST not be normalized, trimmed, copied into immutable logs or
+  retained beyond verification/hashing. Hash parameters and upgrade policy MUST
+  be bounded against denial of service.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +82,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

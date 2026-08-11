@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/passkey/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`, `webauthn`
 - Consumes existing primitives: `audit`, `identifier`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `passkey/postgres`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `passkey` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,32 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Flows MUST cover authenticated add, passkey-first pre-auth registration when
+  enabled, identifier-based signin, discoverable/usernameless signin and
+  conditional UI option generation without claiming browser UI ownership.
+- Registration policy MUST bind opaque stable user handle, RP, authenticated or
+  pre-auth subject, attestation/authenticator selection, resident-key and user-
+  verification requirements and exclude existing credentials.
+- Pre-auth registration MUST use a short-lived risk-assessed transaction and
+  MUST not create a durable user/session until verified WebAuthn registration
+  and identity creation commit coherently.
+- Credential management MUST list safe metadata, add, rename from caller or
+  authenticator hints, update labels and delete with recent authentication and
+  last-recovery-method policy.
+- Extensions MUST be typed and allowlisted; unknown outputs MUST be retained
+  only as bounded non-authoritative evidence and MUST not alter identity or
+  authorization silently.
+- Discoverable assertion MUST resolve user handle and credential together and
+  must not reveal whether either exists before cryptographic verification.
+- Synced passkey backup eligibility/state and signature-counter behavior MUST
+  follow an explicit profile that avoids false account takeover while still
+  surfacing cloned non-sync authenticators.
+- Official fixtures plus real browser/platform and roaming authenticator
+  profiles MUST prove passkey-first, usernameless, conditional UI where claimed,
+  rename/delete and recovery behavior.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +83,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

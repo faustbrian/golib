@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/sso/oauth2/.ai/GOAL.md`
 - Requires: `sso`
 - Consumes existing primitives: `http-client`, `capability`, `secret-envelope`, `audit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `sso/postgres`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `sso/oauth2` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,27 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Static provider configuration MUST define authorization/token/identity/
+  refresh/revocation endpoints, stable subject extraction, client
+  authentication, scopes, PKCE, redirect and explicit email-verification policy.
+- Authorization/callback MUST bind provider, organization, tenant, state,
+  redirect and PKCE and MUST reject mix-up, code substitution and callback
+  replay under shared redirect URIs.
+- An access token alone MUST not be identity proof. The adapter MUST call the
+  configured authenticated identity endpoint and validate a stable provider
+  subject and organization/domain evidence required by SSO policy.
+- Provider tokens MUST pass to the SSO token vault with redaction, encryption,
+  version and retention policy; refresh/revocation unknown outcomes MUST remain
+  attributable.
+- Provider errors, HTTP redirects, bodies, JSON depth/size and custom field
+  mappings MUST be bounded before use and MUST not create roles from unknown
+  claims.
+- Each declared provider profile requires pinned documentation/fixtures and
+  separate interoperability evidence; one generic OAuth server does not prove
+  all providers.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +78,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

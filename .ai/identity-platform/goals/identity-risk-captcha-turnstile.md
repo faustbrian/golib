@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/risk/captcha/turnstile/.ai/GOAL.md`
 - Requires: `identity/risk/captcha`
 - Consumes existing primitives: `http-client`, `secret-envelope`, `telemetry`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/risk/captcha/turnstile` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,25 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Verification MUST use the documented siteverify endpoint with secret,
+  response, optional remote IP and caller-supplied idempotency key according to
+  explicit privacy/retry policy.
+- Success MUST enforce configured hostname, action and optional cdata binding;
+  challenge timestamp/skew and any declared metadata limits MUST be validated.
+- Idempotency keys MUST be unique/bounded and reused only for the same logical
+  verification; they MUST not allow a token to authorize a different action or
+  subject.
+- Missing optional fields MUST remain unavailable evidence rather than empty
+  trusted values. Unknown error codes and malformed duplicate JSON fields MUST
+  fail conservatively.
+- Secret/token/remote-IP/cdata values MUST be redacted and bounded; endpoint
+  overrides MUST be opt-in and SSRF-safe.
+- Cloudflare test keys/official fixtures plus documented current provider
+  interoperability MUST cover positive/negative, replay/expiry, hostname/
+  action/cdata mismatch, idempotent retry, timeout, throttling and cancellation.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +76,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

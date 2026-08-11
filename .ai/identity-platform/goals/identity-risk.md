@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/risk` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,35 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- The action catalog MUST at least cover signup, password/username signin,
+  password reset/change, email/phone verification and change, OTP/magic-link
+  request/consume, OAuth start/callback/link, MFA/passkey enrollment/challenge,
+  API-key management, administration, impersonation, organization invitation,
+  SSO/SCIM and OAuth-server authorization/token/device endpoints.
+- Signals MUST distinguish trusted server facts from spoofable request hints.
+  The public contract MUST accept transport-neutral verified network facts;
+  it MUST NOT import or depend on `identity/http`. The later HTTP composition
+  supplies facts derived only from its trusted-proxy policy. Risk processing
+  MUST canonicalize IPv4/IPv6, support explicit IPv6 subnet aggregation and
+  avoid storing raw addresses when a scoped digest suffices.
+- Policies MUST define windows, thresholds, subject dimensions, allow/deny/
+  throttle/step-up result, retry-after, evidence lifetime, fail behavior and
+  override authorization. Unknown signal/provider outcomes MUST not become a
+  clean assessment.
+- Counters and evidence MUST have controlled cardinality, per-tenant namespace,
+  bounded fan-out and deterministic clock/window boundaries. Attackers MUST
+  not create unlimited keys through arbitrary identifiers, headers or actions.
+- Lockout MUST resist denial-of-service against known accounts, preserve a
+  safe recovery route, and never expose account existence through response,
+  timing or retry metadata.
+- CAPTCHA and HIBP are signals, not decisions. Their provider-specific evidence
+  and unavailable/ambiguous outcomes MUST survive normalization for the action
+  policy and audit trail.
+- Trusted administrative overrides MUST be narrow, expiring and audited; a
+  generic context flag MUST not bypass risk evaluation.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +86,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

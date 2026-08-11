@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `oauth-server/oidc` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,35 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Discovery MUST include exact issuer/endpoints, subject types, response/grant
+  types, signing algorithms, claims, scopes, authentication methods and PKCE
+  capabilities and MUST match the OAuth-server metadata.
+- ID tokens MUST bind issuer, audience/authorized party, subject, issued/expiry
+  time, nonce when supplied, authentication time/context/method and access-token
+  or code hashes where the selected flow requires them.
+- Public and pairwise subjects MUST be stable for the declared sector/client
+  policy, unlinkable across sectors, key-rotation safe and non-reversible to a
+  raw internal user ID.
+- Prompt `none`, login, consent and select-account plus `max_age` MUST produce
+  specification-correct success or interaction-required errors without
+  silently creating a session or consent.
+- UserInfo MUST authenticate the access token, enforce audience/scope/subject,
+  return only consented claims and never expose write-only or sensitive custom
+  identity fields.
+- An authenticated-session JWT exchange profile MAY issue a short-lived token
+  without a full authorization redirect only when explicitly enabled. It MUST
+  require a fresh valid session, bind configured audience/scope/claims, prohibit
+  arbitrary subject/audience requests, use the same JWKS rotation and never
+  outlive the source session or configured maximum.
+- JWKS MUST publish only public verification material, unique `kid` values and
+  supported algorithms. Rotation MUST preserve an overlap window, revoke
+  compromised keys explicitly and never serve private members.
+- Independent relying-party evidence MUST verify discovery, JWKS, ID token,
+  UserInfo, nonce, pairwise subject and rotation behavior; self-verification by
+  the same signer/verifier is insufficient.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +86,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

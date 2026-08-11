@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/scim/postgres/.ai/GOAL.md`
 - Requires: `scim`, `organization/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `scim/postgres` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,32 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- The schema MUST persist provider connections/ownership, digested bearer
+  tokens, mapping versions, Users/Groups projections, external IDs, ETags,
+  tombstones, reconciliation cursors and idempotency keys under tenant and
+  organization foreign keys.
+- Token creation/rotation MUST reveal once, store only lookup digest/prefix and
+  atomically revoke prior material according to overlap policy. Unknown commits
+  MUST not cause the same secret to be reissued.
+- Uniqueness MUST honor SCIM schema `uniqueness` and `caseExact` semantics in
+  the correct ownership scope. Database collation MUST not silently alter the
+  protocol comparison contract.
+- The filter planner MUST have an explicit supported AST-to-index mapping,
+  parameterize all values, reject or boundedly evaluate unsupported filters and
+  publish production-shaped query-plan budgets.
+- Replace/PATCH/delete and projection/outbox/version updates MUST be one
+  transaction. If external/provider side effects follow, unknown outcomes MUST
+  enter reconciliation rather than rewriting local success.
+- Bulk operations MUST define transaction isolation between operations,
+  bulkId resolution, failOnErrors and bounded savepoint/resource use.
+- Cleanup MUST retain tombstones and idempotency/version evidence for the
+  declared replay window and remove only bounded expired data.
+- Migration and restore evidence MUST include active connections/tokens,
+  custom mappings, large groups, mixed binaries and resumption of a partially
+  completed reconciliation.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +83,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

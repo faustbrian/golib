@@ -26,7 +26,7 @@ These requirements apply to every goal in `goals/`.
 5. `Unlocks` is informative. A dependant remains blocked until all of its own
    `Requires` units are `verified`.
 6. After integrating a scaffolded module, the coordinator MUST move its
-   planning goal to the canonical `pkg/<module>/.ai/GOAL.md` path and update
+   planning goal to the unit's declared canonical goal path and update
    the inventory link. The move MUST NOT weaken or silently rewrite the goal.
 7. Every worker MUST satisfy the parity rows and end-state requirements that
    name its unit. A package goal is incomplete when those documents assign an
@@ -34,6 +34,9 @@ These requirements apply to every goal in `goals/`.
 8. Workers MUST limit writes to their canonical package directory. The
    coordinator owns root registration, catalogs, orchestration state, and
    final integrated verification.
+9. Every worker MUST implement the applicable `REFERENCE_PROFILE.md` values as
+   explicit supported configuration. Core zero values MUST remain unambiguous;
+   the reference package owns deployment defaults.
 
 ## Module and API contract
 

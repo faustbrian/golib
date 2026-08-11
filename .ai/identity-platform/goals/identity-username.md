@@ -15,7 +15,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 
 ## Start gate and objective
 
-The worker MUST satisfy `../COMMON_REQUIREMENTS.md` and MUST start only after
+The worker MUST satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md` and MUST start only after
 the coordinator marks this unit `in-progress` with both prerequisites verified.
 Build username signup, password signin, availability and rename workflows on
 the identity and password contracts, with normalized uniqueness independent of
@@ -61,10 +61,12 @@ metric labels; audit must follow PII policy.
 Tests MUST prove signup, signin, update, availability, custom validation,
 length boundaries, canonical/display separation, collision races, rollback,
 cross-tenant policy and password/session interactions. Property/fuzz tests are
-REQUIRED for normalization and validation. Real PostgreSQL uniqueness evidence
-is REQUIRED through the integrated identity adapter. Exact coverage/mutation,
-race, benchmark, clean-consumer, API/docs/changelog and supply-chain gates MUST
-pass, followed by composed HTTP journeys for email-or-username signin.
+REQUIRED for normalization and validation. The unit MUST prove the repository
+contract has one atomic reservation outcome under concurrent callers. Real
+PostgreSQL uniqueness and composed HTTP email-or-username journeys belong to
+`identity/reference` after the relevant adapters and transport are verified.
+Exact coverage/mutation, race, benchmark, clean-consumer, API/docs/changelog and
+supply-chain gates MUST pass.
 
 The unit MUST remain unverified if canonicalization differs by operation,
 availability is treated as reservation, uniqueness is only process-local,

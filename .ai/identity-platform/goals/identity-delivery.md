@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/delivery/.ai/GOAL.md`
 - Requires: None; this root execution unit may be claimed when its existing primitive audit is current.
 - Consumes existing primitives: `workflow`, `outbox`, `audit`, `telemetry`
-- Unlocks after verification: `identity/password`, `identity/email`, `identity/otp`, `identity/phone`, `identity/http`
+- Unlocks after verification: `identity/password`, `identity/email`, `identity/otp`, `identity/phone`, `organization`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/delivery` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,30 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Message intents MUST cover verification, email/phone change, password reset,
+  magic link, OTP, invitation, MFA OTP/recovery notification and security/admin
+  notification with stable purpose and template version.
+- Templates MUST declare channel, locale, subject/body/content type, required
+  typed variables, sensitive variables, link/origin policy and size limits.
+  Missing or extra variables and unsafe URL/HTML contexts MUST fail before
+  enqueue.
+- Rendering MUST have deterministic locale fallback, context-aware escaping,
+  plain-text behavior and no secret-bearing diagnostic output. Template updates
+  MUST not change already enqueued message semantics without versioning.
+- Enqueue MUST return a stable intent/attempt ID, deduplicate by bounded
+  idempotency scope and distinguish queued from delivered. Enumeration-safe
+  workflows MUST be able to enqueue a no-op-equivalent result without exposing
+  recipient existence.
+- Sender adapters MUST define timeout, retry, provider idempotency, throttling,
+  accepted/delivered/bounced classification and unknown outcome. Retries MUST
+  not duplicate one-time credentials beyond documented workflow policy.
+- Recipient addresses and rendered bodies are sensitive; retention, audit,
+  tracing and delivery-provider deletion boundaries MUST be explicit.
+- Test capture MUST use the public Sender/Queue contracts and be impossible to
+  select accidentally in production configuration.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +81,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

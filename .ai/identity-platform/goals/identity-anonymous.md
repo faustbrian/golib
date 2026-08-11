@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/anonymous` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,24 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Anonymous creation MUST generate a non-addressable opaque identity with
+  configured display-name and placeholder-email policy, minimal privileges,
+  bounded expiry and an explicit anonymous principal/session marker.
+- Placeholder identifiers MUST be reserved to the anonymous namespace and
+  MUST never be delivered to or treated as verified real contact information.
+- Link/upgrade MUST require verified target credentials, consume the anonymous
+  transition once, preserve the permanent account as authority and apply a
+  typed merge plan for every transferable field/resource.
+- Conflict policy MUST cover an already signed-in permanent user, identifier or
+  provider-account collision, concurrent upgrades, banned target and unknown
+  commit. It MUST never force-link credentials based only on anonymous state.
+- `onLinkAccount`-style hooks MUST observe a committed mapping or a documented
+  pre-commit plan and be idempotent; hook failure MUST not duplicate transfer.
+- Delete-on-link, retain/anonymize and abandoned cleanup MUST be explicit,
+  bounded and compatible with audit/legal-hold policy.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +75,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

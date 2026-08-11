@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/otp/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`
 - Consumes existing primitives: `capability`, `password`, `rate-limit`, `audit`
-- Unlocks after verification: `identity/phone`, `identity/mfa`, `identity/http`
+- Unlocks after verification: `identity/otp/postgres`, `identity/phone`, `identity/mfa`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/otp` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,25 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Separate purpose profiles MUST exist for signin, email verification,
+  password reset, email change, MFA and generic step-up; a code issued for one
+  purpose/subject/channel MUST never satisfy another.
+- Code length/alphabet/entropy, expiry, resend interval, maximum sends,
+  verification attempts, replacement and delivery channel MUST be validated at
+  construction. Custom generators/verifiers MUST meet the same contract.
+- Send MUST store only a scoped digest, invalidate or retain earlier codes by
+  explicit policy, rate-limit identifier/IP/device dimensions and return an
+  enumeration-safe result.
+- Check-without-consume, if exposed, MUST be separately rate-limited and MUST
+  not make replay or brute-force easier. Verify/consume MUST be atomic under
+  concurrent correct and incorrect attempts.
+- Signin/verification/reset/change-email callbacks MUST invoke the owning
+  workflow and issue sessions only after that workflow commits.
+- Delayed, duplicated, bounced and unknown delivery outcomes MUST have
+  documented replacement and user-message behavior without logging codes.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +76,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

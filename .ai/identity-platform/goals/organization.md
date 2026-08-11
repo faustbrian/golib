@@ -12,13 +12,13 @@ appear in all capitals, as shown here.
 - Unit: `organization`
 - Canonical module: `pkg/organization`
 - Canonical goal after scaffolding: `pkg/organization/.ai/GOAL.md`
-- Requires: `identity`
+- Requires: `identity`, `identity/delivery`
 - Consumes existing primitives: `tenancy`, `authorization`, `identifier`, `audit`, `capability`
 - Unlocks after verification: `organization/postgres`, `sso`, `scim`, `scim/organization`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `organization` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -36,7 +36,9 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Organization, Member, Invitation, Team, RoleBinding, DomainClaim, Repository, UnitOfWork, Policy, Hook, and Event contracts. Public errors MUST be typed, stable,
+The design MUST define Organization, Member, Invitation, InvitationDelivery,
+Team, RoleBinding, DomainClaim, Repository, UnitOfWork, Policy, Hook, and Event
+contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -48,6 +50,39 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Organization operations MUST include create with policy hook, check slug
+  availability without reservation guarantees, list for user, get full bounded
+  view, update, archive/delete, set/get active organization and enforce
+  configured per-user/per-tenant organization limits.
+- Invitation operations MUST include send/resend with deduplication, get, list
+  by organization, list by recipient, accept, reject, cancel and expire.
+  Acceptance MUST bind the intended verified recipient and organization and
+  handle existing membership and role changes explicitly.
+- Invitation issuance and the delivery intent MUST have one idempotency key and
+  an explicit transaction/outbox boundary. Results MUST distinguish not
+  queued, queued, delivered, failed and unknown without rolling back a durable
+  invitation merely because external delivery is ambiguous.
+- Member operations MUST include list/search, add by authorized administrator,
+  remove, leave, update role, get active member/role and transfer ownership.
+  The last owner and last recovery administrator invariants MUST survive races.
+- Static and dynamic access control MUST support roles, permission statements,
+  custom permissions and organization-scoped role CRUD with maximum-role
+  limits. Role deletion/update MUST define effects on existing bindings and
+  MUST not broaden permission through unknown statements.
+- Team operations MUST include create, list, get/update/remove, active team,
+  list user teams, list/add/remove members and team permission checks. Team
+  membership MUST require compatible organization membership.
+- Organization, member, invitation, role and team additional fields MUST use
+  typed schemas with input/output/write/sensitivity policy rather than
+  unbounded metadata maps.
+- Hooks MUST cover organization, member, invitation, role and team before/after
+  transitions with the common ordering, transaction and failure semantics.
+- Domain claims MUST distinguish requested, challenge-issued, verified,
+  expired, revoked and conflict states and MUST NOT route SSO until proof is
+  current and uniquely owned.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +92,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

@@ -15,7 +15,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 
 ## Start gate and objective
 
-The worker MUST satisfy `../COMMON_REQUIREMENTS.md` and MUST start only after
+The worker MUST satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md` and MUST start only after
 the coordinator marks this unit `in-progress` with both prerequisites verified.
 Build Google Identity Services One Tap server-side orchestration for prompt and
 button modes, using the pinned Google provider profile and the existing OAuth
@@ -60,7 +60,9 @@ open redirects, cancellation and account collision.
 Pinned Google fixtures and documented current browser/sandbox interoperability
 for prompt, button and redirect behavior are REQUIRED. Exact coverage/mutation,
 JWT/parser fuzz, race, bounded benchmark, clean-consumer, API/docs/changelog and
-supply-chain gates MUST pass, followed by full HTTP signup/signin/link journeys.
+supply-chain gates MUST pass. This unit owns provider/browser interoperability
+through its public contract; `identity/http` and `identity/reference` own the
+later full HTTP signup/signin/link journeys.
 
 The unit MUST remain unverified if it trusts email or hosted domain without
 pinned semantics, omits nonce/origin/audience validation, conflates dismissal

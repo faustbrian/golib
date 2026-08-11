@@ -12,13 +12,13 @@ appear in all capitals, as shown here.
 - Unit: `oauth-server/postgres`
 - Canonical module: `pkg/oauth-server/postgres`
 - Canonical goal after scaffolding: `pkg/oauth-server/postgres/.ai/GOAL.md`
-- Requires: `oauth-server`, `identity/postgres`, `identity/session/postgres`
+- Requires: `oauth-server`, `oauth-server/device`, `identity/postgres`, `identity/session/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `secret-envelope`, `outbox`, `audit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `oauth-server/postgres` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -31,7 +31,10 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns durable OAuth clients, consents, codes, grants, refresh families, revocations, keys, and authorization transactions. It does not own endpoint policy, token cryptography, OIDC claims, and device-flow semantics. Those exclusions MUST remain
+This module owns durable OAuth clients, consents, codes, grants, refresh
+families, revocations, keys, authorization transactions and the device
+package's code/approval store contract. It does not own endpoint policy, token
+cryptography, OIDC claims, and device-flow semantics. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
@@ -48,6 +51,27 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- The schema MUST persist public/confidential clients, digested secrets and
+  rotation lineage, exact redirect sets, dynamic-registration access tokens,
+  grants/codes, opaque/JWT access metadata, refresh families, consent versions,
+  device codes, user codes, key metadata and revocation state.
+- Constraints MUST enforce client ID, redirect and token uniqueness, one-time
+  code/device consumption, refresh-family state, consent scope version and
+  registration-token ownership under concurrent requests.
+- Secret rotation MUST define reveal-once output, overlap/revoke timing and
+  unknown-commit recovery. Raw client, access, refresh, registration and device
+  bearer values MUST not be stored when digest lookup suffices.
+- Authorization-code redemption and token issuance MUST not duplicate tokens
+  after ambiguous commit. A reconciliation record MUST distinguish committed
+  token metadata from an unknown secret value that cannot safely be re-shown.
+- Introspection/revocation indexes and expiry cleanup MUST be bounded and
+  preserve active refresh families and signing-key overlap.
+- Migration evidence MUST cover OIDC-provider legacy data where supported,
+  client-secret upgrades, consent versions, pairwise-subject inputs, device
+  tables, mixed binaries, backup/restore and realistic query plans.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +81,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

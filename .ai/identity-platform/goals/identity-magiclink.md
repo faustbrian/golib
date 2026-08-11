@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/magiclink` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,25 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Request MUST support signin-only and signup-if-allowed profiles, expiration,
+  resend/supersession, callback URL allowlist and enumeration-safe delivery.
+- The capability MUST bind canonical identifier, tenant, action, redirect,
+  issue time, expiry, key/token version and maximum uses. Stored lookup/replay
+  state MUST not contain the raw link token.
+- Verification/inspection MUST allow UI or link-scanner policy to inspect
+  validity without consuming authentication exactly when configured; consume
+  MUST remain atomic and single-winner.
+- Callback MUST distinguish expired, superseded, already consumed, invalid,
+  risk denied, signup disabled and unknown commit without revealing whether an
+  account pre-existed.
+- Session issuance and optional identity creation MUST occur only after token
+  consumption and identity transaction can be reconciled; a retry after
+  unknown commit MUST not create a second user or session family.
+- Redirects MUST be exact-bound/allowlisted and MUST never copy the bearer link
+  into referrer-visible or third-party URLs.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +76,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

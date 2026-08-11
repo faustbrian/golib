@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `oauth-server` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,41 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Client management MUST include get public/private view, list, create, update,
+  rotate secret with overlap policy, delete, trusted-client policy and dynamic
+  registration with registration access token, expiration and allowed scopes.
+  Public clients MUST never receive or require a client secret.
+- Redirect URIs MUST use exact matching except specification-defined loopback
+  port handling. Client metadata, authentication method, grant types, response
+  types, audiences, organization policy and PKCE requirements MUST be validated
+  atomically at registration and authorization.
+- Authorization MUST support login-required, signup-required, account
+  selection, post-login continuation and consent-required outcomes as typed UI
+  contracts; cached trusted-client consent MUST be narrow, expiring and
+  revocable.
+- Grants MUST include authorization code, refresh token and client credentials
+  where policy permits. Unsupported implicit and resource-owner-password grants
+  MUST be rejected and omitted from metadata.
+- Consent operations MUST get, list, create/update narrow scopes and delete;
+  changed client scopes/claims/audiences MUST invalidate stale consent.
+- Token operations MUST include exchange, refresh rotation/reuse detection,
+  revocation and introspection for JWT and opaque profiles. Access-token
+  audience/resource binding and API-server verification guidance MUST be
+  executable, not documentation-only.
+- End-session behavior MUST validate client/post-logout redirect and session
+  ownership and state without becoming open redirect or cross-client logout.
+- Rate limits MUST be endpoint/client/subject aware and use the identity-risk
+  contract. Login, consent, client CRUD and device verification remain
+  explicitly authorized operations.
+- Discovery MUST advertise only implemented grants, authentication methods,
+  scopes, claims, PKCE, registration and endpoints. Configuration that diverges
+  from advertised metadata MUST fail construction.
+- Custom token response fields, claims and scopes MUST use typed declarations,
+  minimize data by consent and prevent hooks from adding unapproved privilege
+  or secrets.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +92,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

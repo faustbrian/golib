@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/postgres/.ai/GOAL.md`
 - Requires: `identity`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
-- Unlocks after verification: `identity/session/postgres`, `identity/risk/postgres`, `organization/postgres`, `oauth-server/postgres`, `identity/http`
+- Unlocks after verification: `identity/session/postgres`, `identity/risk/postgres`, `identity/password/postgres`, `identity/otp/postgres`, `identity/mfa/postgres`, `passkey/postgres`, `identity/oauth/postgres`, `identity/apikey/postgres`, `identity/impersonation/postgres`, `organization/postgres`, `oauth-server/postgres`, `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/postgres` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,33 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- The schema MUST persist users, accounts, identifiers, credentials references,
+  verifications, status transitions, typed additional fields and aggregate
+  versions without storing recoverable credential secrets.
+- Database constraints MUST enforce tenant-scoped canonical identifier and
+  provider-subject uniqueness, one valid primary identifier per kind, account
+  link integrity and optimistic version checks under concurrent writers.
+- Attribute storage MUST validate declared schema versions, preserve supported
+  scalar/list types without lossy conversion, prevent undeclared-field writes,
+  support indexed fields only by explicit migration, and redact sensitive
+  values from diagnostics and evidence.
+- Hooks that run inside the unit of work MUST observe precisely documented
+  pre-commit state; post-commit hooks and outbox consumers MUST not be presented
+  as atomic with the transaction.
+- List/search plans MUST remain index-backed for the documented filters and
+  cursor ordering at production-shaped cardinality. Arbitrary attribute search
+  is unsupported unless an explicit indexed field contract exists.
+- Link/unlink, primary replacement, suspension expiry, anonymization and delete
+  MUST have race tests with database-enforced outcomes and outbox consistency.
+- Migrations MUST cover empty, populated and mixed-schema attribute data,
+  interrupted backfills, constraint validation, rollback boundary and old/new
+  binary coexistence. Unsupported destructive downgrades MUST be explicit.
+- Reconciliation MUST classify missing outbox events, unknown commits,
+  orphaned references and partially migrated attributes without fabricating a
+  successful identity result.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +84,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

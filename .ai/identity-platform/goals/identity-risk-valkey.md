@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/risk/valkey/.ai/GOAL.md`
 - Requires: `identity/risk`
 - Consumes existing primitives: `rate-limit`, `cache`, `audit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/risk/valkey` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,28 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Namespaces and keys MUST use bounded action/tenant/scoped subject digests and
+  explicit hash tags. Raw identifiers, IP addresses, tokens or provider
+  responses MUST not appear in keys or diagnostic values.
+- Atomic scripts/transactions MUST implement only declared window, velocity,
+  attempt, lockout and one-time challenge counters with exact TTL ownership and
+  server-time semantics.
+- IPv6 subnet aggregation and key-version rotation MUST not permit alternate-
+  representation or version-change limit bypass.
+- Standalone, replicated and cluster profiles MUST declare which multi-key
+  decisions are atomic. Cross-slot configurations MUST fail construction rather
+  than degrade to multiple non-atomic commands.
+- Eviction, flush, failover, replication lag, script-cache loss, MOVED/ASK and
+  partial pipeline outcomes MUST map to core unavailable/unknown signals under
+  the action's explicit fail policy.
+- Hot-key amplification, key cardinality and value size MUST be bounded before
+  command execution; cleanup/expiry MUST not require unbounded scans.
+- Real supported Valkey topology tests MUST cover exact boundaries, contention,
+  restart/failover/eviction, cluster routing and recovery. Protocol fakes are
+  deterministic unit evidence only.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +79,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

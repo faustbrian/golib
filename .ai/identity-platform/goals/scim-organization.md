@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `scim/organization` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,27 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Connection ownership MUST bind tenant, organization and external provider;
+  list/get/delete/token rotation MUST require organization administration and
+  MUST not expose another provider's mappings or secrets.
+- User mapping MUST define externalId, userName, emails, active, names and
+  enterprise/custom attributes; matching order and collision behavior MUST be
+  deterministic and MUST not take over a pre-existing account without policy.
+- Group mapping MUST define organization membership, teams and optional role
+  bindings. Unmapped/unknown group display names MUST not become roles or
+  permissions automatically.
+- Create/replace/PATCH/deactivate/delete MUST map to explicit identity and
+  membership state transitions with suspension/removal/delete policy and
+  preserved recovery administrators.
+- Attribute mapping configuration MUST be typed, validated, versioned and
+  migration-safe. Sensitive or write-only identity fields MUST never be
+  exposed through SCIM.
+- Reconciliation MUST compare external projections, classify drift/conflict,
+  resume from stable cursors, be idempotent and avoid overwriting concurrent
+  local changes without an explicit source-of-truth policy.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +78,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

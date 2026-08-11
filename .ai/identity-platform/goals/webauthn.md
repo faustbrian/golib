@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/webauthn/.ai/GOAL.md`
 - Requires: None; this root execution unit may be claimed when its existing primitive audit is current.
 - Consumes existing primitives: `identifier`, `authentication`, `secret-envelope`, `audit`
-- Unlocks after verification: `passkey`, `identity/http`
+- Unlocks after verification: `identity/mfa`, `webauthn/postgres`, `passkey`, `identity/http`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `webauthn` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,33 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Registration and assertion options/results MUST round-trip WebAuthn JSON
+  without lossy base64url, integer or extension conversion and MUST distinguish
+  browser transport DTOs from verified domain objects.
+- RP ID/origin policy MUST handle HTTPS web origins, permitted loopback
+  development, explicit native/app profiles if supported, subdomain scope and
+  trusted proxy input without suffix or port confusion.
+- Challenges MUST have cryptographic entropy, purpose/RP/user binding,
+  expiration, digest-at-rest lookup and atomic single consumption under
+  concurrent ceremonies.
+- Registration MUST verify clientDataJSON, attestationObject/authData, RP ID
+  hash, user presence/verification, algorithm allowlist, credential ID/public
+  key consistency, exclude list and attestation trust profile.
+- Assertion MUST verify client data, authenticator data, flags, signature,
+  allowed/discoverable credential rules, user handle and extensions before
+  applying the counter/backup-state policy.
+- Attestation profiles MUST explicitly support none, self and named trust-store
+  formats only when implemented; metadata retrieval/cache/rotation/revocation
+  MUST be bounded and SSRF-safe.
+- CBOR, COSE, ASN.1 and JSON parsers MUST enforce depth, map/array/string/byte
+  limits, duplicate-key policy, supported algorithms/curves and canonical
+  integer conversion before allocation or signature work.
+- Official WebAuthn/FIDO fixtures and at least one independent browser or
+  authenticator implementation MUST prove registration/assertion, resident and
+  non-resident credentials, extensions claimed, backup flags and counter cases.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +84,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

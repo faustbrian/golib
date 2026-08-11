@@ -11,11 +11,11 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 - Canonical goal after scaffolding: `pkg/identity/risk/captcha/hcaptcha/.ai/GOAL.md`
 - Requires: `identity/risk/captcha`
 - Consumes existing primitives: `http-client`, `audit`, `telemetry`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/reference`
 
 ## Start gate and objective
 
-The worker MUST satisfy `../COMMON_REQUIREMENTS.md` and MUST start only after
+The worker MUST satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md` and MUST start only after
 the coordinator marks this unit `in-progress` with its prerequisite verified.
 Build an independently releasable hCaptcha adapter that converts hCaptcha site
 verification into the provider-neutral CAPTCHA evidence contract without

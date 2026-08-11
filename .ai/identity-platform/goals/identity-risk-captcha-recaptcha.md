@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/risk/captcha/recaptcha/.ai/GOAL.md`
 - Requires: `identity/risk/captcha`
 - Consumes existing primitives: `http-client`, `secret-envelope`, `telemetry`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/risk/captcha/recaptcha` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,26 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Configuration MUST select and document supported reCAPTCHA v2 checkbox/
+  invisible and v3 score profiles; enterprise-only APIs MUST be unsupported
+  unless separately implemented and evidenced.
+- Verification MUST send secret/response and optional remote IP only according
+  to explicit privacy policy, enforce HTTPS endpoint policy and never put
+  secrets/tokens in URL logs or diagnostics.
+- Result mapping MUST validate success, challenge timestamp/skew, expected
+  hostname, action for score profiles and configured score threshold while
+  preserving documented error codes and unknown codes conservatively.
+- A v2 response without score/action MUST not fabricate them; a v3 policy MUST
+  fail if required action/score evidence is missing.
+- Duplicate/timeout-or-duplicate, invalid-input-secret, invalid-input-response,
+  bad-request and provider/network/malformed outcomes MUST remain distinct for
+  risk policy and telemetry.
+- Official test keys/fixtures plus documented current provider interoperability
+  MUST cover each declared profile, hostname/action mismatch, expiry/replay,
+  throttling, cancellation and redaction.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +77,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

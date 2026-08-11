@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -36,7 +36,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define User, Account, Identifier, CredentialRef, Verification, StatusPolicy, Repository, UnitOfWork, Hook, and Event contracts. Public errors MUST be typed, stable,
+The design MUST define User, Account, Identifier, CredentialRef, Verification, StatusPolicy, AttributeSchema, AttributeValue, FieldPolicy, Repository, UnitOfWork, Hook, and Event contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -48,6 +48,33 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- User lifecycle MUST include create, get, list/search with stable cursor,
+  update, suspend/ban with reason and optional expiry, restore, anonymize and
+  delete. Status checks MUST be enforced by downstream authentication flows.
+- Account lifecycle MUST list, link and unlink credential/provider accounts,
+  expose only safe metadata, prevent orphaning the final usable access method,
+  and distinguish implicit, explicit and administrator-authorized linking.
+- Identifier lifecycle MUST cover email, phone, username and provider subject;
+  canonical value, display value, verification, primary selection, uniqueness,
+  replacement, cooldown/reuse and deletion MUST be separate decisions.
+- Typed additional fields MUST declare data type, cardinality, default,
+  validation, normalization, input permission, output permission, write
+  authorization, sensitivity, indexing and migration version. Unknown fields,
+  incompatible versions and unauthorized writes MUST fail deterministically.
+- Hooks MUST have ordered before/after phases, cancellation, bounded execution,
+  reentrancy policy and explicit transaction visibility. An observer failure
+  MUST NOT silently roll back an already committed identity mutation.
+- Repository queries MUST define tenant scope, status filters, pagination,
+  ordering, consistency and redaction. Search MUST be bounded and MUST NOT
+  become an enumeration bypass.
+- Events MUST carry stable IDs, aggregate version, actor, tenant, causation and
+  correlation without embedding secrets or unbounded attribute payloads.
+- Administrator create/update/delete and credential-reset consumers MUST be
+  supported through explicit authorization inputs; this module MUST NOT infer
+  administrator status from an authenticated principal.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +84,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

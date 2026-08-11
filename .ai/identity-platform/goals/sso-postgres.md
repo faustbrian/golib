@@ -12,13 +12,13 @@ appear in all capitals, as shown here.
 - Unit: `sso/postgres`
 - Canonical module: `pkg/sso/postgres`
 - Canonical goal after scaffolding: `pkg/sso/postgres/.ai/GOAL.md`
-- Requires: `sso`, `organization/postgres`
+- Requires: `sso`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `organization/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `secret-envelope`, `outbox`, `audit`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `sso/postgres` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -31,7 +31,11 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns durable SSO providers, domains, mappings, encrypted configuration, login transactions, enforcement state, and audit linkage. It does not own protocol parsing, SSO policy, and provider network calls. Those exclusions MUST remain
+This module owns durable SSO providers, domains, mappings, encrypted
+configuration, OIDC/OAuth token-vault state, SAML request/assertion replay
+state, login transactions, enforcement state, and audit linkage. It MUST
+implement the selected protocol packages' public persistence contracts. It
+does not own protocol parsing, SSO policy, and provider network calls. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
@@ -48,6 +52,32 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- The schema MUST persist provider ownership/configuration, protocol type,
+  verified domains, encrypted client secrets/private keys, certificates and
+  rollover, organization links, mappings/policy versions, login transactions,
+  replay IDs, JIT links and reconciliation state.
+- Recoverable credentials/keys MUST use `secret-envelope` with provider/
+  tenant/organization/protocol context and rotation. Metadata/list operations
+  MUST never return secret material.
+- Provider ID, issuer/entity ID, domain and organization-link uniqueness MUST
+  have database-enforced scope and deterministic conflict/takeover behavior.
+- Login state/relay state, authorization codes where stored, SAML request/
+  assertion IDs and provisioning commands MUST be digest-indexed, expiring and
+  atomically single-use.
+- JIT identity/membership/provider-link updates and outbox state MUST be atomic
+  where they share PostgreSQL; external or separately owned store ambiguity
+  MUST enter reconciliation.
+- Disable/delete/credential rotation/domain revocation MUST race safely with
+  login and immediately prevent new transactions at a documented isolation
+  point without corrupting in-flight evidence.
+- Stable indexed pagination and production-shaped query plans are REQUIRED for
+  providers, domains, organization links and reconciliation work.
+- Migration/restore evidence MUST cover active sessions/transactions, secret
+  and certificate rotation, populated mappings, mixed binaries, replay-state
+  retention and interrupted JIT provisioning.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +87,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

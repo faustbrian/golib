@@ -14,11 +14,11 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/session/postgres/.ai/GOAL.md`
 - Requires: `identity/session`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `audit`
-- Unlocks after verification: `oauth-server/postgres`, `identity/http`
+- Unlocks after verification: `identity/impersonation/postgres`, `oauth-server/postgres`, `identity/reference`
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/session/postgres` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,26 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- The schema MUST support opaque sessions, families, active-account selection,
+  device metadata, last-login-method persistence, user/global version counters
+  and enrichment-cache metadata without storing raw bearer tokens.
+- Token lookup MUST use a keyed or collision-resistant digest and constant-work
+  comparison. Prefixes MAY aid operations but MUST NOT authenticate.
+- Rotation, family replay revocation, active-session switch, maximum-session
+  enforcement and version increments MUST be atomic under concurrent requests.
+- List/revoke-one/revoke-other/revoke-all MUST use stable bounded pagination and
+  return outcomes that distinguish already absent from unknown commit without
+  revealing another tenant's sessions.
+- Expiry cleanup MUST use bounded indexed batches, database time and safe
+  ownership; it MUST preserve sessions refreshed concurrently and expose lag.
+- Cookie-cache/store refresh races and stateless version invalidation MUST be
+  tested against real PostgreSQL transactions and reconnect/commit ambiguity.
+- Migration evidence MUST include live rows, old/new binary rotation,
+  constraint rollout, version-counter backfill, query plans and restoration of
+  a backup containing active and revoked sessions.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +77,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

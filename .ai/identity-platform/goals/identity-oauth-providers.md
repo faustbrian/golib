@@ -15,7 +15,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 
 ## Start gate and objective
 
-The worker MUST satisfy `../COMMON_REQUIREMENTS.md` and MUST start only after
+The worker MUST satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md` and MUST start only after
 the coordinator marks this unit `in-progress` with `identity/oauth` verified.
 Build one maintained built-in catalog of exact OAuth/OIDC provider profiles.
 The generic orchestration remains in `identity/oauth`; this package supplies
@@ -27,7 +27,10 @@ Profiles are REQUIRED for Apple, Atlassian, Amazon Cognito, Discord, Dropbox,
 Facebook, Figma, GitHub, GitLab, Google, Hugging Face, Kakao, Kick, LINE,
 Linear, LinkedIn, Microsoft, Naver, Notion, Paybin, PayPal, Polar, Railway,
 Reddit, Roblox, Salesforce, Slack, Spotify, TikTok, Twitch, Twitter/X, Vercel,
-VK, WeChat and Zoom. Names and aliases MUST be stable and collision-free.
+VK, WeChat and Zoom. Generic-OAuth helper profiles are additionally REQUIRED
+for Auth0, Gumroad, HubSpot, Keycloak, Microsoft Entra ID, Okta, Patreon and
+Yandex; LINE and Slack MUST serve both catalog uses without conflicting IDs.
+Names and aliases MUST be stable and collision-free.
 
 ## Ownership and public contract
 

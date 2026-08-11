@@ -18,7 +18,7 @@ appear in all capitals, as shown here.
 
 ## Start gate
 
-The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+The worker MUST read and satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md`. It MUST NOT begin
 until the coordinator has marked `identity/phone` `in-progress`, recorded this
 worker, and verified every unit listed in Requires. The worker MUST reject an
 assignment whose rendered prerequisites or scope differs from the inventory.
@@ -48,6 +48,26 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+## Package-specific acceptance checklist
+
+- Operations MUST include send verification OTP, verify, signup-on-verification
+  when enabled, signin, update, remove and request password-reset OTP with
+  purpose separation and optional session suppression.
+- Number parsing MUST use pinned metadata, require explicit default region when
+  national input is allowed, produce E.164 canonical form, preserve bounded
+  display form and reject extensions/short codes/ambiguous inputs unless a
+  named profile supports them.
+- Verification and signin MUST enforce code attempts, send limits, number
+  uniqueness, account status, risk and required-verification policy without
+  revealing whether the number exists.
+- Update/remove MUST require recent authentication, verify the new number,
+  notify old channels where policy requires, resolve collision races and
+  preserve a configured recovery method.
+- Number recycling/porting risk, metadata upgrades and previously valid numbers
+  MUST have explicit re-verification and migration policy.
+- Sender and custom verifier callbacks MUST not be treated as proof until the
+  owning OTP/identity transition commits and MUST preserve unknown outcomes.
+
 ## Security and abuse requirements
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
@@ -57,7 +77,7 @@ involved.
 - Enumeration, replay, fixation, confused-deputy, downgrade, race, and
   cross-scope attacks MUST have deterministic regression cases.
 - Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
-  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+  redaction requirements in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 
 ## Persistence, lifecycle, and compatibility
 

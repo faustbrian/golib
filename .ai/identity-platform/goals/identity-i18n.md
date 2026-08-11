@@ -15,7 +15,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 
 ## Start gate and objective
 
-The worker MUST satisfy `../COMMON_REQUIREMENTS.md` and MUST start only after
+The worker MUST satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md` and MUST start only after
 the coordinator marks this unit `in-progress` with `identity` verified. Build a
 transport-neutral localization layer for identity-facing messages that
 preserves stable machine error identity and the original message while
@@ -60,7 +60,9 @@ cookie/session precedence, deletion, escaping and concurrent catalog swaps.
 Official BCP 47/HTTP language fixtures, parser/template fuzzing, exact
 coverage/mutation, race, lookup benchmarks, clean-consumer, API/docs with
 catalog authoring/update procedure, changelog and supply-chain gates MUST pass.
-The composed HTTP proof MUST verify negotiation and stable localized envelopes.
+This unit MUST prove transport-neutral locale selection and error translation;
+`identity/http` and `identity/reference` own the later localized-envelope and
+composed journey proof.
 
 The unit MUST remain unverified if localization changes machine semantics,
 breaks error unwrapping, uses unbounded attacker locale keys, drops original
