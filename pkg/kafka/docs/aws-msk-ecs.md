@@ -172,6 +172,20 @@ support the required protocol.
 
 ## Required direct compatibility run
 
+The nested IAM adapter provides an executable client-side core for this run at
+`adapters/mskiam/scripts/check-msk-compatibility.sh`. It requires explicit
+Provisioned or Serverless identity, pre-provisioned isolated topics, unique
+group and transactional IDs, an explicit transaction expectation, a bounded
+deadline, and an absolute persistent report path. Missing inputs fail the gate;
+the script never converts an absent AWS environment into a skipped result.
+Read-only AWS CLI v2 control-plane calls verify cluster identity, mode, state,
+Kafka version, IAM enablement, and the exact IAM bootstrap-broker set before
+the Kafka client runs; the retained report includes the CLI version but omits
+broker addresses.
+It does not provision or mutate infrastructure and does not replace the
+operator-controlled failure, rotation, replacement, quota, or cleanup steps
+below.
+
 Before claiming support, execute from the intended ECS launch type and Region:
 
 1. exact cluster and bootstrap identity capture;

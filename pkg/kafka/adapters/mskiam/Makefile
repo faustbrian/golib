@@ -2,7 +2,7 @@ GO ?= go
 FUZZ_TIME ?= 10000x
 BENCH_TIME ?= 100ms
 
-.PHONY: benchmark check coverage docs format format-check fuzz interoperability race test vet
+.PHONY: benchmark check coverage docs format format-check fuzz interoperability msk-interoperability race test vet
 
 format:
 	gofmt -w .
@@ -15,6 +15,15 @@ test:
 
 interoperability:
 	$(GO) test -count=1 -run '^TestProviderGeneratesOwnedExpiringMSKIAMToken$$' ./...
+	$(GO) test -count=1 -tags=msk \
+		-run '^(TestMSKCompatibilityConfigRejectsUnboundedInputs|TestMSKControlPlaneValidation)$$' .
+
+# This opt-in gate fails closed unless every documented live MSK input and an
+# absolute persistent report path are supplied. It is intentionally excluded
+# from the local unit check because it requires operator-provisioned AWS
+# resources and must never be reported as skipped evidence.
+msk-interoperability:
+	GO='$(GO)' ./scripts/check-msk-compatibility.sh
 
 race:
 	$(GO) test -race ./...

@@ -235,6 +235,57 @@ satisfy it themselves.
 No. The signer and Kafka adapter seams are locally verified, but live
 Provisioned and Serverless clusters are both explicitly unverified.
 
+## Direct compatibility evidence
+
+The opt-in `make msk-interoperability` gate exercises the root policy client
+against one already-provisioned IAM-enabled MSK cluster. It fails when any
+input is absent; it never skips and does not create, mutate, or delete topics,
+clusters, IAM policies, networking, or credentials. The supplied topics must
+be isolated fixtures provisioned by an operator before the run.
+
+Set every variable below. Do not place credentials in these variables; the
+adapter uses the normal AWS SDK credential chain.
+
+The runner also requires AWS CLI v2. It uses read-only
+`describe-cluster-v2` and `get-bootstrap-brokers` calls to verify the supplied
+cluster ARN, mode, active state, Kafka version, IAM profile, and bootstrap
+addresses before opening a Kafka client. The report records the exact CLI
+version but never records the broker addresses.
+
+| Variable | Contract |
+| --- | --- |
+| `GOLIB_MSK_MODE` | Exactly `provisioned` or `serverless` |
+| `GOLIB_MSK_REGION` | Canonical AWS Region used by the signer |
+| `GOLIB_MSK_CLUSTER_ARN` | Exact cluster identity retained in the report |
+| `GOLIB_MSK_KAFKA_VERSION` | Exact version that must match the live MSK control plane |
+| `GOLIB_MSK_BROKERS` | Ordered, comma-separated IAM bootstrap brokers with no duplicates |
+| `GOLIB_MSK_DATA_TOPIC` | Existing isolated topic for synchronous, batch, asynchronous, consumer, and replay evidence |
+| `GOLIB_MSK_TRANSACTION_SOURCE_TOPIC` | Existing isolated transaction source topic |
+| `GOLIB_MSK_TRANSACTION_OUTPUT_TOPIC` | Existing isolated transaction output topic |
+| `GOLIB_MSK_GROUP_ID` | Unique fixture group containing the run ID |
+| `GOLIB_MSK_TRANSACTIONAL_ID` | Unique fixture transaction owner containing the run ID |
+| `GOLIB_MSK_RUN_ID` | Printable, whitespace-free identity unique to this run |
+| `GOLIB_MSK_TRANSACTIONS` | Exactly `required` or `unsupported`; an unsupported declaration must produce a reviewed definite rejection |
+| `GOLIB_MSK_TRANSACTION_ERROR_CATEGORY` | Required only for `unsupported`; exact expected `authorization` or `permanent` rejection category |
+| `GOLIB_MSK_TIMEOUT` | Overall bound from one through 30 minutes |
+| `GOLIB_MSK_REPORT` | Absolute output path outside disposable build caches |
+
+The JSON-lines report records mode, Region, cluster ARN, control-plane-verified
+Kafka version, run identity, AWS CLI version, and exact client dependency versions without recording
+bootstrap brokers, credentials, tokens, record keys, or payloads. The gate
+proves verified TLS with IAM, bounded inspection, idempotent all-ISR single,
+batch, and asynchronous production, cooperative consumer settlement, exact
+direct-partition replay, and commit, abort, read-committed processing, or one
+explicit definite negative transaction profile. A timeout, retryable failure,
+ambiguous outcome, or unexpected category never proves lack of support.
+
+This gate is only the client-side core of the direct run. The operator must
+separately retain IAM-denial, task-role rotation, rolling replacement, endpoint
+interruption or maintenance, latency, allocation, leak, quota, and cleanup
+evidence described in the root
+[`docs/aws-msk-ecs.md`](../../docs/aws-msk-ecs.md) matrix. A successful core
+run alone does not change either MSK mode from unverified to supported.
+
 ## Verification
 
 ```sh

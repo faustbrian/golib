@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Add a fail-closed direct Amazon MSK compatibility gate for operator-owned
+  Provisioned and Serverless fixtures, with persistent redacted runtime and
+  dependency evidence, read-only control-plane identity and bootstrap
+  verification, inspection, producer modes, consumer settlement, replay, and
+  the explicitly declared transaction profile.
 - Add a bounded Amazon MSK IAM provider backed by AWS's supported Go signer.
 - Support the refreshing AWS SDK v2 default credential chain or one explicit
   caller-owned credentials provider.
