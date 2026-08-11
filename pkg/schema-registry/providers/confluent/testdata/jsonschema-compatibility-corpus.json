@@ -1,0 +1,143 @@
+{
+  "cases": [
+    {
+      "name": "backward-compatible-expanded-enum",
+      "mode": "BACKWARD",
+      "history": ["{\"type\":\"string\",\"enum\":[\"A\"]}"],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"A\",\"B\"]}",
+      "compatible": true
+    },
+    {
+      "name": "backward-incompatible-narrowed-enum",
+      "mode": "BACKWARD",
+      "history": ["{\"type\":\"string\",\"enum\":[\"A\",\"B\"]}"],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"A\"]}",
+      "compatible": false
+    },
+    {
+      "name": "forward-compatible-narrowed-enum",
+      "mode": "FORWARD",
+      "history": ["{\"type\":\"string\",\"enum\":[\"A\",\"B\"]}"],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"A\"]}",
+      "compatible": true
+    },
+    {
+      "name": "forward-incompatible-expanded-enum",
+      "mode": "FORWARD",
+      "history": ["{\"type\":\"string\",\"enum\":[\"A\"]}"],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"A\",\"B\"]}",
+      "compatible": false
+    },
+    {
+      "name": "full-compatible-identical-enum",
+      "mode": "FULL",
+      "history": ["{\"type\":\"string\",\"enum\":[\"A\"]}"],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"A\"]}",
+      "compatible": true
+    },
+    {
+      "name": "full-incompatible-expanded-enum",
+      "mode": "FULL",
+      "history": ["{\"type\":\"string\",\"enum\":[\"A\"]}"],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"A\",\"B\"]}",
+      "compatible": false
+    },
+    {
+      "name": "none-allows-incompatible-enum",
+      "mode": "NONE",
+      "history": ["{\"type\":\"string\",\"enum\":[\"A\"]}"],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"B\"]}",
+      "compatible": true
+    },
+    {
+      "name": "backward-non-transitive-ignores-earlier-enum",
+      "mode": "BACKWARD",
+      "history": [
+        "{\"type\":\"string\",\"enum\":[\"A\"]}",
+        "{\"type\":\"string\",\"enum\":[\"B\"]}"
+      ],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"B\"]}",
+      "compatible": true
+    },
+    {
+      "name": "forward-non-transitive-ignores-earlier-enum",
+      "mode": "FORWARD",
+      "history": [
+        "{\"type\":\"string\",\"enum\":[\"A\"]}",
+        "{\"type\":\"string\",\"enum\":[\"B\"]}"
+      ],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"B\"]}",
+      "compatible": true
+    },
+    {
+      "name": "full-non-transitive-ignores-earlier-enum",
+      "mode": "FULL",
+      "history": [
+        "{\"type\":\"string\",\"enum\":[\"A\"]}",
+        "{\"type\":\"string\",\"enum\":[\"B\"]}"
+      ],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"B\"]}",
+      "compatible": true
+    },
+    {
+      "name": "backward-transitive-detects-earlier-enum",
+      "mode": "BACKWARD_TRANSITIVE",
+      "history": [
+        "{\"type\":\"string\",\"enum\":[\"A\"]}",
+        "{\"type\":\"string\",\"enum\":[\"B\"]}"
+      ],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"B\"]}",
+      "compatible": false
+    },
+    {
+      "name": "forward-transitive-detects-earlier-enum",
+      "mode": "FORWARD_TRANSITIVE",
+      "history": [
+        "{\"type\":\"string\",\"enum\":[\"A\"]}",
+        "{\"type\":\"string\",\"enum\":[\"B\"]}"
+      ],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"B\"]}",
+      "compatible": false
+    },
+    {
+      "name": "full-transitive-detects-earlier-enum",
+      "mode": "FULL_TRANSITIVE",
+      "history": [
+        "{\"type\":\"string\",\"enum\":[\"A\"]}",
+        "{\"type\":\"string\",\"enum\":[\"B\"]}"
+      ],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"B\"]}",
+      "compatible": false
+    },
+    {
+      "name": "backward-transitive-compatible-history",
+      "mode": "BACKWARD_TRANSITIVE",
+      "history": [
+        "{\"type\":\"string\",\"enum\":[\"A\"]}",
+        "{\"type\":\"string\",\"enum\":[\"A\",\"B\"]}"
+      ],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"A\",\"B\",\"C\"]}",
+      "compatible": true
+    },
+    {
+      "name": "forward-transitive-compatible-history",
+      "mode": "FORWARD_TRANSITIVE",
+      "history": [
+        "{\"type\":\"string\",\"enum\":[\"A\",\"B\",\"C\"]}",
+        "{\"type\":\"string\",\"enum\":[\"A\",\"B\"]}"
+      ],
+      "candidate": "{\"type\":\"string\",\"enum\":[\"A\"]}",
+      "compatible": true
+    },
+    {
+      "name": "full-transitive-compatible-history",
+      "mode": "FULL_TRANSITIVE",
+      "history": [
+        "{\"title\":\"v1\",\"type\":\"string\",\"enum\":[\"A\"]}",
+        "{\"title\":\"v2\",\"type\":\"string\",\"enum\":[\"A\"]}"
+      ],
+      "candidate": "{\"title\":\"candidate\",\"type\":\"string\",\"enum\":[\"A\"]}",
+      "compatible": true
+    }
+  ]
+}

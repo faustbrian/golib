@@ -19,3 +19,10 @@ potentially sensitive. Observability should use low-cardinality provider,
 operation, outcome, lifecycle, and cache-state fields. Do not allow callers to
 construct endpoints from message data. Do not follow registry-supplied URLs or
 load `$ref`/imports from the network during decode.
+
+The 2026-08-10 dependency and advisory refresh checks the current Confluent
+[security advisories](https://www.confluent.io/trust-and-security/security-advisories/),
+AWS [security bulletins](https://aws.amazon.com/security/security-bulletins/),
+and Go dependency vulnerability database through the release `vuln` gates.
+Advisory review is time-bound; it is not a claim that future advisories are
+absent.

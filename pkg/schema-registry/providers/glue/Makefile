@@ -12,7 +12,7 @@ STRESS_COUNT ?= 25
 SOAK_COUNT ?= 100
 
 .PHONY: api-compat api-update benchmark check check-release conformance coverage dependencies docs \
-	fault-injection format-check fuzz integration interoperability leak license lint mutation nilaway race secrets soak staticcheck stress test tidy-check vet vuln
+	fault-injection format-check fuzz integration interoperability leak license lint live-integration mutation nilaway race secrets soak staticcheck stress test tidy-check vet vuln
 
 api-compat:
 	./scripts/check-api-compat.sh
@@ -36,11 +36,13 @@ stress:
 soak:
 	../../scripts/with-provider-gocache.sh $(GO) test . -run '^(TestProviderConcurrencyBudgetCancelsQueuedRequest|TestRegisterBoundaries|TestResolveBoundaries)$$' -count="$(SOAK_COUNT)"
 coverage:
-	profile="$$(mktemp)"; trap 'find "$${profile}" -delete' EXIT; ../../scripts/with-provider-gocache.sh $(GO) test -covermode=atomic -coverprofile="$${profile}" ./...; test "$$($(GO) tool cover -func="$${profile}" | awk '/^total:/ {print $$3}')" = "100.0%"
+	profile="$$(mktemp)"; trap 'find "$${profile}" -delete' EXIT; ../../scripts/with-provider-gocache.sh $(GO) test -covermode=atomic -coverprofile="$${profile}" ./...; ../../scripts/assert-exact-coverage.sh "$${profile}"
 fuzz:
 	../../scripts/with-provider-gocache.sh $(GO) test . -run '^$$' -fuzz '^FuzzWireFrames$$' -fuzztime="$(FUZZ_TIME)"
 integration:
 	./scripts/check-glue.sh
+live-integration:
+	./scripts/check-glue-live.sh
 interoperability:
 	./scripts/check-wire-reference.sh
 conformance: interoperability integration

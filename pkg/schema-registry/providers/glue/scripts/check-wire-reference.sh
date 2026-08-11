@@ -20,7 +20,7 @@ cp "$root/testdata/reference/pom.xml" "$root/testdata/reference/GlueWireReferenc
 mkdir -p "$work/src/main/java"
 mv "$work/GlueWireReference.java" "$work/src/main/java/"
 
-official=$(docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
+official_output=$(docker run --rm --read-only --cap-drop ALL --security-opt no-new-privileges \
 	--pids-limit 256 --memory 1g --tmpfs '/tmp:rw,nosuid,nodev,size=64m' \
 	--user "$(id -u):$(id -g)" --env HOME=/tmp --env MAVEN_CONFIG=/maven \
 	--env 'MAVEN_OPTS=-Djansi.tmpdir=/jansi -Djansi.force=false' \
@@ -28,10 +28,19 @@ official=$(docker run --rm --read-only --cap-drop ALL --security-opt no-new-priv
 	--volume "$jansi_tmp:/jansi:rw" \
 	--workdir /workspace "$image" \
 	mvn --quiet -Dmaven.repo.local=/maven compile exec:java \
-	-Dexec.mainClass=GlueWireReference -Dexec.args="$schema_id $payload")
+	-Dexec.mainClass=GlueWireReference -Dexec.args="$schema_id $payload 100000")
+official=$(printf '%s\n' "$official_output" | sed -n '1p')
+official_benchmark=$(printf '%s\n' "$official_output" | sed -n '2p')
+case "$official_benchmark" in
+	'official_aws_java_serde ns/op='*' iterations=100000 payload_bytes=1024') ;;
+	*) printf 'invalid AWS Java benchmark output: %s\n' "$official_benchmark" >&2; exit 1 ;;
+esac
 ours=$("$root/../../scripts/with-provider-gocache.sh" go run "$root/testdata/reference/go_frame.go" "$schema_id" "$payload")
 test "$ours" = "$official" || {
 	printf 'Go frame: %s\nAWS Java frame: %s\n' "$ours" "$official" >&2
 	exit 1
 }
 printf 'AWS Glue Java SerDe v1.1.27 wire frame matched: %s\n' "$ours"
+printf '%s\n' "$official_benchmark"
+"$root/../../scripts/with-provider-gocache.sh" go test "$root" -run '^$' \
+	-bench '^BenchmarkFrame$' -benchmem -benchtime=1s

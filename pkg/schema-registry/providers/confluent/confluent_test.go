@@ -3,6 +3,7 @@ package confluent_test
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"sync/atomic"
@@ -135,8 +136,14 @@ func TestCompatibilityRequiresMatchingConfiguredMode(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		switch request.URL.Path {
 		case "/config/orders-value":
+			if request.Method != http.MethodGet || request.URL.Query().Get("defaultToGlobal") != "true" {
+				t.Fatalf("config request = %s %q", request.Method, request.URL.RequestURI())
+			}
 			_, _ = writer.Write([]byte(`{"compatibilityLevel":"FULL"}`))
-		case "/compatibility/subjects/orders-value/versions/latest":
+		case "/compatibility/subjects/orders-value/versions":
+			if request.Method != http.MethodPost || request.URL.Query().Get("verbose") != "true" {
+				t.Fatalf("compatibility request = %s %q", request.Method, request.URL.RequestURI())
+			}
 			checks.Add(1)
 			_, _ = writer.Write([]byte(`{"is_compatible":true}`))
 		default:
@@ -160,6 +167,54 @@ func TestCompatibilityRequiresMatchingConfiguredMode(t *testing.T) {
 	})
 	if err != nil || !compatible.Supported || !compatible.Compatible || checks.Load() != 1 {
 		t.Fatalf("CheckCompatibility(match) = (%+v, %v), checks=%d", compatible, err, checks.Load())
+	}
+}
+
+func TestCompatibilitySupportsEveryConfluentModeWithoutCollapsingSemantics(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name string
+		wire string
+		mode schemaregistry.CompatibilityMode
+	}{
+		{"backward", "BACKWARD", schemaregistry.CompatibilityBackward},
+		{"backward transitive", "BACKWARD_TRANSITIVE", schemaregistry.CompatibilityBackwardTransitive},
+		{"forward", "FORWARD", schemaregistry.CompatibilityForward},
+		{"forward transitive", "FORWARD_TRANSITIVE", schemaregistry.CompatibilityForwardTransitive},
+		{"full", "FULL", schemaregistry.CompatibilityFull},
+		{"full transitive", "FULL_TRANSITIVE", schemaregistry.CompatibilityFullTransitive},
+		{"none", "NONE", schemaregistry.CompatibilityNone},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+				switch request.URL.Path {
+				case "/config/orders-value":
+					if request.Method != http.MethodGet || request.URL.Query().Get("defaultToGlobal") != "true" {
+						t.Fatalf("config request = %s %q", request.Method, request.URL.RequestURI())
+					}
+					_, _ = fmt.Fprintf(writer, `{"compatibilityLevel":%q}`, test.wire)
+				case "/compatibility/subjects/orders-value/versions":
+					if request.Method != http.MethodPost || request.URL.Query().Get("verbose") != "true" {
+						t.Fatalf("compatibility request = %s %q", request.Method, request.URL.RequestURI())
+					}
+					_, _ = writer.Write([]byte(`{"is_compatible":true}`))
+				default:
+					t.Fatalf("request path = %q", request.URL.Path)
+				}
+			}))
+			defer server.Close()
+
+			provider := newTestProvider(t, server.URL)
+			result, err := provider.CheckCompatibility(context.Background(), schemaregistry.CompatibilityRequest{
+				Subject: schemaregistry.Subject{Name: "orders-value"}, Candidate: compileAvro(t), Mode: test.mode,
+			})
+			if err != nil || !result.Supported || !result.Compatible {
+				t.Fatalf("CheckCompatibility(%s) = (%+v, %v)", test.wire, result, err)
+			}
+		})
 	}
 }
 

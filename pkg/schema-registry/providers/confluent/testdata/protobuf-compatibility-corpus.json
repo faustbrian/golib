@@ -1,0 +1,143 @@
+{
+  "cases": [
+    {
+      "name": "backward-compatible-added-field",
+      "mode": "BACKWARD",
+      "history": ["syntax = \"proto3\"; message Event { string id = 1; }"],
+      "candidate": "syntax = \"proto3\"; message Event { string id = 1; string extra = 2; }",
+      "compatible": true
+    },
+    {
+      "name": "backward-incompatible-wire-type",
+      "mode": "BACKWARD",
+      "history": ["syntax = \"proto3\"; message Event { string id = 1; }"],
+      "candidate": "syntax = \"proto3\"; message Event { int32 id = 1; }",
+      "compatible": false
+    },
+    {
+      "name": "forward-compatible-removed-field",
+      "mode": "FORWARD",
+      "history": ["syntax = \"proto3\"; message Event { string id = 1; string extra = 2; }"],
+      "candidate": "syntax = \"proto3\"; message Event { string id = 1; }",
+      "compatible": true
+    },
+    {
+      "name": "forward-incompatible-wire-type",
+      "mode": "FORWARD",
+      "history": ["syntax = \"proto3\"; message Event { string id = 1; }"],
+      "candidate": "syntax = \"proto3\"; message Event { int32 id = 1; }",
+      "compatible": false
+    },
+    {
+      "name": "full-compatible-added-field",
+      "mode": "FULL",
+      "history": ["syntax = \"proto3\"; message Event { string id = 1; }"],
+      "candidate": "syntax = \"proto3\"; message Event { string id = 1; string extra = 2; }",
+      "compatible": true
+    },
+    {
+      "name": "full-incompatible-wire-type",
+      "mode": "FULL",
+      "history": ["syntax = \"proto3\"; message Event { string id = 1; }"],
+      "candidate": "syntax = \"proto3\"; message Event { int32 id = 1; }",
+      "compatible": false
+    },
+    {
+      "name": "none-allows-incompatible-wire-type",
+      "mode": "NONE",
+      "history": ["syntax = \"proto3\"; message Event { string id = 1; }"],
+      "candidate": "syntax = \"proto3\"; message Event { int32 id = 1; }",
+      "compatible": true
+    },
+    {
+      "name": "backward-non-transitive-ignores-earlier-wire-type",
+      "mode": "BACKWARD",
+      "history": [
+        "syntax = \"proto3\"; message Event { string id = 1; }",
+        "syntax = \"proto3\"; message Event { int32 id = 1; }"
+      ],
+      "candidate": "syntax = \"proto3\"; message Event { int32 id = 1; }",
+      "compatible": true
+    },
+    {
+      "name": "forward-non-transitive-ignores-earlier-wire-type",
+      "mode": "FORWARD",
+      "history": [
+        "syntax = \"proto3\"; message Event { string id = 1; }",
+        "syntax = \"proto3\"; message Event { int32 id = 1; }"
+      ],
+      "candidate": "syntax = \"proto3\"; message Event { int32 id = 1; }",
+      "compatible": true
+    },
+    {
+      "name": "full-non-transitive-ignores-earlier-wire-type",
+      "mode": "FULL",
+      "history": [
+        "syntax = \"proto3\"; message Event { string id = 1; }",
+        "syntax = \"proto3\"; message Event { int32 id = 1; }"
+      ],
+      "candidate": "syntax = \"proto3\"; message Event { int32 id = 1; }",
+      "compatible": true
+    },
+    {
+      "name": "backward-transitive-detects-earlier-wire-type",
+      "mode": "BACKWARD_TRANSITIVE",
+      "history": [
+        "syntax = \"proto3\"; message Event { string id = 1; }",
+        "syntax = \"proto3\"; message Event { int32 id = 1; }"
+      ],
+      "candidate": "syntax = \"proto3\"; message Event { int32 id = 1; }",
+      "compatible": false
+    },
+    {
+      "name": "forward-transitive-detects-earlier-wire-type",
+      "mode": "FORWARD_TRANSITIVE",
+      "history": [
+        "syntax = \"proto3\"; message Event { string id = 1; }",
+        "syntax = \"proto3\"; message Event { int32 id = 1; }"
+      ],
+      "candidate": "syntax = \"proto3\"; message Event { int32 id = 1; }",
+      "compatible": false
+    },
+    {
+      "name": "full-transitive-detects-earlier-wire-type",
+      "mode": "FULL_TRANSITIVE",
+      "history": [
+        "syntax = \"proto3\"; message Event { string id = 1; }",
+        "syntax = \"proto3\"; message Event { int32 id = 1; }"
+      ],
+      "candidate": "syntax = \"proto3\"; message Event { int32 id = 1; }",
+      "compatible": false
+    },
+    {
+      "name": "backward-transitive-compatible-history",
+      "mode": "BACKWARD_TRANSITIVE",
+      "history": [
+        "syntax = \"proto3\"; message Event { string id = 1; }",
+        "syntax = \"proto3\"; message Event { string id = 1; string extra = 2; }"
+      ],
+      "candidate": "syntax = \"proto3\"; message Event { string id = 1; string extra = 2; string more = 3; }",
+      "compatible": true
+    },
+    {
+      "name": "forward-transitive-compatible-history",
+      "mode": "FORWARD_TRANSITIVE",
+      "history": [
+        "syntax = \"proto3\"; message Event { string id = 1; string extra = 2; string more = 3; }",
+        "syntax = \"proto3\"; message Event { string id = 1; string extra = 2; }"
+      ],
+      "candidate": "syntax = \"proto3\"; message Event { string id = 1; }",
+      "compatible": true
+    },
+    {
+      "name": "full-transitive-compatible-history",
+      "mode": "FULL_TRANSITIVE",
+      "history": [
+        "syntax = \"proto3\"; message Event { string id = 1; }",
+        "syntax = \"proto3\"; message Event { string id = 1; string extra = 2; }"
+      ],
+      "candidate": "syntax = \"proto3\"; message Event { string id = 1; string extra = 2; string more = 3; }",
+      "compatible": true
+    }
+  ]
+}

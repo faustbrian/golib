@@ -438,6 +438,13 @@ func TestResolveBoundaries(t *testing.T) {
 	if err != nil || result.Version.Number != 1 {
 		t.Fatalf("Resolve(provider ID version one) = (%+v, %v)", result, err)
 	}
+	mismatchedVersionID := "11112233-4455-6677-8899-aabbccddeeff"
+	provider = internalProvider(t, &apiFunction{version: func(context.Context, *awsglue.GetSchemaVersionInput) (*awsglue.GetSchemaVersionOutput, error) {
+		return &awsglue.GetSchemaVersionOutput{SchemaVersionId: &mismatchedVersionID, SchemaDefinition: &definition, DataFormat: types.DataFormatAvro, VersionNumber: &versionOne}, nil
+	}})
+	if _, err := provider.Resolve(context.Background(), schemaregistry.ByProviderID(schemaregistry.ProviderID{Provider: ProviderName, Scope: "scope", Value: internalVersionID})); !errors.Is(err, schemaregistry.ErrInvalidSchema) {
+		t.Fatalf("Resolve(mismatched provider ID) error = %v, want ErrInvalidSchema", err)
+	}
 	provider = internalProvider(t, &apiFunction{version: func(context.Context, *awsglue.GetSchemaVersionInput) (*awsglue.GetSchemaVersionOutput, error) {
 		return &awsglue.GetSchemaVersionOutput{SchemaVersionId: pointer(internalVersionID), SchemaDefinition: &definition, DataFormat: "YAML", VersionNumber: &versionTwo}, nil
 	}})
@@ -470,9 +477,27 @@ func TestResolveBoundaries(t *testing.T) {
 	if err != nil || result.Version.Number != 4 || result.Subject.Name != "s" || result.Lifecycle != schemaregistry.LifecyclePending {
 		t.Fatalf("Resolve(latest) = (%+v, %v)", result, err)
 	}
-	compatibility, err := provider.CheckCompatibility(context.Background(), schemaregistry.CompatibilityRequest{})
-	if err != nil || compatibility.Supported {
-		t.Fatalf("CheckCompatibility() = (%+v, %v)", compatibility, err)
+	for _, mode := range []schemaregistry.CompatibilityMode{
+		schemaregistry.CompatibilityBackward,
+		schemaregistry.CompatibilityBackwardTransitive,
+		schemaregistry.CompatibilityForward,
+		schemaregistry.CompatibilityForwardTransitive,
+		schemaregistry.CompatibilityFull,
+		schemaregistry.CompatibilityFullTransitive,
+		schemaregistry.CompatibilityNone,
+	} {
+		compatibility, compatibilityErr := provider.CheckCompatibility(context.Background(), schemaregistry.CompatibilityRequest{Mode: mode})
+		if compatibilityErr != nil || compatibility.Supported {
+			t.Fatalf("CheckCompatibility(%s) = (%+v, %v)", mode, compatibility, compatibilityErr)
+		}
+	}
+	for _, mode := range []string{"NONE", "DISABLED", "BACKWARD", "BACKWARD_ALL", "FORWARD", "FORWARD_ALL", "FULL", "FULL_ALL"} {
+		compatibility, compatibilityErr := provider.CheckCompatibility(context.Background(), schemaregistry.CompatibilityRequest{
+			Mode: schemaregistry.CompatibilityProviderSpecific, ProviderMode: mode,
+		})
+		if compatibilityErr != nil || compatibility.Supported {
+			t.Fatalf("CheckCompatibility(AWS %s) = (%+v, %v)", mode, compatibility, compatibilityErr)
+		}
 	}
 }
 

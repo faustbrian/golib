@@ -1,0 +1,28 @@
+{
+  "cases": [
+    {
+      "format": "avro",
+      "equivalent": [
+        "{\"type\":\"record\",\"name\":\"Event\",\"doc\":\"ignored\",\"fields\":[{\"name\":\"id\",\"type\":\"long\"}]}",
+        "{\"name\":\"Event\",\"type\":\"record\",\"fields\":[{\"type\":\"long\",\"name\":\"id\"}]}"
+      ],
+      "different": "{\"name\":\"Event\",\"type\":\"record\",\"fields\":[{\"type\":\"string\",\"name\":\"id\"}]}"
+    },
+    {
+      "format": "json-schema",
+      "equivalent": [
+        "{\"type\":\"object\",\"properties\":{\"id\":{\"type\":\"integer\"}}}",
+        "{\"properties\":{\"id\":{\"type\":\"integer\"}},\"type\":\"object\"}"
+      ],
+      "different": "{\"properties\":{\"id\":{\"type\":\"string\"}},\"type\":\"object\"}"
+    },
+    {
+      "format": "protobuf",
+      "equivalent": [
+        "syntax = \"proto3\"; // ignored\nmessage Event { int64 id = 1; }",
+        "syntax=\"proto3\";message Event{int64 id=1;}"
+      ],
+      "different": "syntax=\"proto3\";message Event{string id=1;}"
+    }
+  ]
+}

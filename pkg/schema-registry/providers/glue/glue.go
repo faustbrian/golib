@@ -210,6 +210,13 @@ func (provider *Provider) Resolve(ctx context.Context, lookup schemaregistry.Loo
 	if response == nil || response.SchemaDefinition == nil || response.SchemaVersionId == nil || !validUUID(*response.SchemaVersionId) {
 		return schemaregistry.ResolveResult{}, fmt.Errorf("%w: incomplete AWS Glue schema version", schemaregistry.ErrInvalidSchema)
 	}
+	if lookup.Kind() == schemaregistry.LookupByProviderID {
+		requestedUUID, _ := decodeUUID(lookup.ProviderID().Value)
+		responseUUID, _ := decodeUUID(*response.SchemaVersionId)
+		if responseUUID != requestedUUID {
+			return schemaregistry.ResolveResult{}, fmt.Errorf("%w: AWS Glue schema version identity", schemaregistry.ErrInvalidSchema)
+		}
+	}
 	if response.VersionNumber != nil && *response.VersionNumber < 1 {
 		return schemaregistry.ResolveResult{}, fmt.Errorf("%w: AWS Glue version identity", schemaregistry.ErrInvalidSchema)
 	}

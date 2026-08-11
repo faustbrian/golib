@@ -13,7 +13,9 @@ each waiter applies its own policy:
 - `ReturnUnavailable` performs no lookup and returns `ErrUnavailable`.
 
 `Prime` is the explicit preload path. Results are verified against their lookup
-before storage to prevent cache poisoning. Observers receive only state and
+before storage to prevent cache poisoning. `Prime` and `Invalidate` fence any
+older in-flight load for that selector, so stale completion cannot overwrite a
+preload or repopulate an invalidated entry. Observers receive only state and
 outcome, never schemas, subjects, IDs, payloads, or credentials.
 
 `Bundle.MarshalBinary` creates a deterministic versioned local artifact with

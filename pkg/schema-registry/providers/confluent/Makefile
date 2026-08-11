@@ -12,7 +12,7 @@ STRESS_COUNT ?= 25
 SOAK_COUNT ?= 100
 
 .PHONY: api-compat api-update benchmark check check-release conformance coverage dependencies docs \
-	fault-injection format-check fuzz integration leak license lint mutation nilaway race secrets soak staticcheck stress test tidy-check vet vuln
+	fault-injection format-check fuzz integration interoperability leak license lint mutation nilaway race secrets soak staticcheck stress test tidy-check vet vuln
 
 api-compat:
 	./scripts/check-api-compat.sh
@@ -36,12 +36,14 @@ stress:
 soak:
 	../../scripts/with-provider-gocache.sh $(GO) test . -run '^(TestProviderConcurrencyBudgetCancelsQueuedRequest|TestHTTPBoundaryClassificationAndRetries|TestProviderResolvesBoundedReferencesAndPreservesEscapedSubjects)$$' -count="$(SOAK_COUNT)"
 coverage:
-	profile="$$(mktemp)"; trap 'find "$${profile}" -delete' EXIT; ../../scripts/with-provider-gocache.sh $(GO) test -covermode=atomic -coverprofile="$${profile}" ./...; test "$$($(GO) tool cover -func="$${profile}" | awk '/^total:/ {print $$3}')" = "100.0%"
+	profile="$$(mktemp)"; trap 'find "$${profile}" -delete' EXIT; ../../scripts/with-provider-gocache.sh $(GO) test -covermode=atomic -coverprofile="$${profile}" ./...; ../../scripts/assert-exact-coverage.sh "$${profile}"
 fuzz:
 	../../scripts/with-provider-gocache.sh $(GO) test . -run '^$$' -fuzz '^FuzzWireFrames$$' -fuzztime="$(FUZZ_TIME)"
 integration:
 	./scripts/check-confluent.sh
-conformance: integration
+interoperability:
+	./scripts/check-wire-reference.sh
+conformance: integration interoperability
 mutation:
 	GREMLINS_VERSION=$(GREMLINS_VERSION) ../../scripts/check-provider-mutation.sh
 benchmark:
@@ -64,5 +66,5 @@ license:
 	../../scripts/run-provider-tool.sh github.com/google/go-licenses@$(GO_LICENSES_VERSION) go-licenses check ./...
 secrets:
 	../../scripts/run-provider-tool.sh github.com/zricethezav/gitleaks/v8@$(GITLEAKS_VERSION) gitleaks dir --redact --no-banner .
-check: tidy-check format-check vet staticcheck lint test race fuzz docs api-compat
+check: tidy-check format-check vet staticcheck lint test race fuzz docs api-compat interoperability
 check-release: check coverage mutation benchmark dependencies vuln license secrets nilaway leak fault-injection stress soak conformance

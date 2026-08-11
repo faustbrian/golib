@@ -1,0 +1,143 @@
+{
+  "cases": [
+    {
+      "name": "backward-compatible-default",
+      "mode": "BACKWARD",
+      "history": ["{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\",\"default\":\"\"}]}",
+      "compatible": true
+    },
+    {
+      "name": "backward-incompatible-missing-default",
+      "mode": "BACKWARD",
+      "history": ["{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\"}]}",
+      "compatible": false
+    },
+    {
+      "name": "forward-compatible-added-writer-field",
+      "mode": "FORWARD",
+      "history": ["{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\"}]}",
+      "compatible": true
+    },
+    {
+      "name": "forward-incompatible-removed-reader-field",
+      "mode": "FORWARD",
+      "history": ["{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[]}",
+      "compatible": false
+    },
+    {
+      "name": "full-compatible-default",
+      "mode": "FULL",
+      "history": ["{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\",\"default\":\"\"}]}",
+      "compatible": true
+    },
+    {
+      "name": "full-incompatible-missing-default",
+      "mode": "FULL",
+      "history": ["{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\"}]}",
+      "compatible": false
+    },
+    {
+      "name": "none-allows-incompatible",
+      "mode": "NONE",
+      "history": ["{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}"],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[]}",
+      "compatible": true
+    },
+    {
+      "name": "backward-non-transitive-ignores-earlier-version",
+      "mode": "BACKWARD",
+      "history": [
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}",
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"}]}"
+      ],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"}]}",
+      "compatible": true
+    },
+    {
+      "name": "forward-non-transitive-ignores-earlier-version",
+      "mode": "FORWARD",
+      "history": [
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}",
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"}]}"
+      ],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"}]}",
+      "compatible": true
+    },
+    {
+      "name": "full-non-transitive-ignores-earlier-version",
+      "mode": "FULL",
+      "history": [
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}",
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"}]}"
+      ],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"int\"}]}",
+      "compatible": true
+    },
+    {
+      "name": "backward-transitive-detects-earlier-version",
+      "mode": "BACKWARD_TRANSITIVE",
+      "history": [
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}",
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\",\"default\":\"\"}]}"
+      ],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"extra\",\"type\":\"string\"}]}",
+      "compatible": false
+    },
+    {
+      "name": "forward-transitive-detects-earlier-version",
+      "mode": "FORWARD_TRANSITIVE",
+      "history": [
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\"}]}",
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"extra\",\"type\":\"string\"}]}"
+      ],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"extra\",\"type\":\"string\"}]}",
+      "compatible": false
+    },
+    {
+      "name": "full-transitive-detects-earlier-version",
+      "mode": "FULL_TRANSITIVE",
+      "history": [
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\"}]}",
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"extra\",\"type\":\"string\"}]}"
+      ],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"extra\",\"type\":\"string\"}]}",
+      "compatible": false
+    },
+    {
+      "name": "backward-transitive-compatible-history",
+      "mode": "BACKWARD_TRANSITIVE",
+      "history": [
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}",
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\",\"default\":\"\"}]}"
+      ],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\",\"default\":\"\"}]}",
+      "compatible": true
+    },
+    {
+      "name": "forward-transitive-compatible-history",
+      "mode": "FORWARD_TRANSITIVE",
+      "history": [
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}",
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\",\"default\":\"\"}]}"
+      ],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\",\"default\":\"\"}]}",
+      "compatible": true
+    },
+    {
+      "name": "full-transitive-compatible-history",
+      "mode": "FULL_TRANSITIVE",
+      "history": [
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}",
+        "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\",\"default\":\"\"}]}"
+      ],
+      "candidate": "{\"type\":\"record\",\"name\":\"Event\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"},{\"name\":\"extra\",\"type\":\"string\",\"default\":\"\"}]}",
+      "compatible": true
+    }
+  ]
+}

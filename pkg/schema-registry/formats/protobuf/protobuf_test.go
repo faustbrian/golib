@@ -57,3 +57,36 @@ func TestCanonicalizerUsesDeterministicLinkedDescriptors(t *testing.T) {
 		t.Fatalf("Compile(invalid) error = %v, want ErrInvalidSchema", err)
 	}
 }
+
+func TestCanonicalizerRejectsAggregateImportTextBeforeCompilation(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name    string
+		imports map[string]string
+	}{
+		{
+			name: "source bytes",
+			imports: map[string]string{
+				"a.proto": "syntax=\"proto3\";",
+				"b.proto": "syntax=\"proto3\";",
+			},
+		},
+		{
+			name: "filename bytes",
+			imports: map[string]string{
+				"longa.proto": "",
+				"longb.proto": "",
+			},
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := registryprotobuf.New(registryprotobuf.Config{
+				Filename: "root.proto", Imports: test.imports, MaxSchemaBytes: 20, MaxImports: 2,
+			})
+			if err == nil {
+				t.Fatal("New(aggregate import text) error = nil")
+			}
+		})
+	}
+}

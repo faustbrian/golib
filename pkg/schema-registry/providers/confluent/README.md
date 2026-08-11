@@ -14,7 +14,7 @@ The adapter retries transport failures, throttling, and server errors within one
 total deadline. Registration performs an exact-content lookup first. A
 successful create call reports an unknown creation outcome because a concurrent
 caller may have created the version. Compatibility is checked only when the
-subject's configured mode matches the requested mode.
+effective subject or global mode matches the requested mode.
 
 `ClassicFramer` implements version-0 Avro/JSON framing. `ProtobufFramer`
 implements the version-0 message-index vector. IDs are scoped to the configured
@@ -30,8 +30,17 @@ and [wire format](https://docs.confluent.io/platform/current/schema-registry/fun
 
 ## Integration verification
 
-`make integration` starts pinned Confluent Platform 8.2.0 Kafka and Schema
+`make integration` starts pinned Confluent Platform 8.3.1 Kafka and Schema
 Registry images, runs the adapter against the real REST service, and compares
-registration, lookup, compatibility, listing, and classic wire framing with
-`franz-go/pkg/sr` v1.8.0 as an independent client. Containers, subjects, and
-the disposable Go build cache are removed after the run.
+registration, lookup, listing, references, all compatibility modes across Avro,
+JSON Schema, and Protobuf, and classic/Protobuf wire framing with
+`franz-go/pkg/sr` v1.8.0 as an independent client. The JSON Schema fixture
+also exercises its bounded value codec through a registered schema. Containers,
+subjects, and the disposable Go build cache are removed after the run.
+
+`make interoperability` compares classic and Protobuf framing byte-for-byte
+with Confluent's official Java `PrefixSchemaIdSerializer` from
+`kafka-schema-serializer` 8.3.1. It also publishes equivalent 1,024-byte
+framing benchmarks for the official serializer and the Go framers. The Maven
+runtime, primary Confluent artifact checksum, Maven cache, and Go build cache
+are isolated and verified by the gate.

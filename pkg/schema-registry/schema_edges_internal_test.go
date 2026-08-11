@@ -42,6 +42,10 @@ func TestSchemaBoundaryContracts(t *testing.T) {
 		{"invalid limits", definition, CompileLimits{}, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) { return definition.Content, nil }), ErrInvalidRequest},
 		{"too many references", Definition{Format: FormatAvro, Content: definition.Content, References: []Reference{{}, {}, {}}}, validLimits, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) { return definition.Content, nil }), ErrLimitExceeded},
 		{"too much metadata", Definition{Format: FormatAvro, Content: definition.Content, Metadata: map[string]string{"a": "", "b": "", "c": ""}}, validLimits, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) { return definition.Content, nil }), ErrLimitExceeded},
+		{"reference text too large", Definition{Format: FormatAvro, Content: definition.Content, References: []Reference{{Name: strings.Repeat("r", validLimits.MaxSchemaBytes+1), Fingerprint: Fingerprint{sum: [32]byte{1}}}}}, validLimits, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) { return definition.Content, nil }), ErrLimitExceeded},
+		{"reference subject too large", Definition{Format: FormatAvro, Content: definition.Content, References: []Reference{{Name: "r", Subject: strings.Repeat("s", validLimits.MaxSchemaBytes), Fingerprint: Fingerprint{sum: [32]byte{1}}}}}, validLimits, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) { return definition.Content, nil }), ErrLimitExceeded},
+		{"metadata key too large", Definition{Format: FormatAvro, Content: definition.Content, Metadata: map[string]string{strings.Repeat("k", validLimits.MaxSchemaBytes+1): ""}}, validLimits, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) { return definition.Content, nil }), ErrLimitExceeded},
+		{"metadata text too large", Definition{Format: FormatAvro, Content: definition.Content, Metadata: map[string]string{"key": strings.Repeat("m", validLimits.MaxSchemaBytes)}}, validLimits, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) { return definition.Content, nil }), ErrLimitExceeded},
 		{"unresolved reference", Definition{Format: FormatAvro, Content: definition.Content, References: []Reference{{Name: "a"}}}, validLimits, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) { return definition.Content, nil }), ErrInvalidSchema},
 		{"duplicate reference", Definition{Format: FormatAvro, Content: definition.Content, References: []Reference{{Name: "a", Fingerprint: Fingerprint{sum: [32]byte{1}}}, {Name: "a", Fingerprint: Fingerprint{sum: [32]byte{2}}}}}, validLimits, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) { return definition.Content, nil }), ErrInvalidSchema},
 		{"canonical too large", definition, CompileLimits{MaxSchemaBytes: 16, MaxCanonicalBytes: 1, MaxReferences: 1, MaxMetadata: 1}, canonicalizerFunction(func(context.Context, Definition) ([]byte, error) { return []byte("xx"), nil }), ErrLimitExceeded},
@@ -75,5 +79,23 @@ func TestSchemaBoundaryContracts(t *testing.T) {
 	canonical[0] = 'x'
 	if string(schema.Canonical()) != `"string"` {
 		t.Fatal("Canonical() returned aliased bytes")
+	}
+	exactReference, err := CompileWithLimits(context.Background(), Definition{
+		Format: FormatAvro, Content: definition.Content,
+		References: []Reference{{Name: strings.Repeat("n", 7), Subject: strings.Repeat("s", 9), Fingerprint: left}},
+	}, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) {
+		return definition.Content, nil
+	}), validLimits)
+	if err != nil || len(exactReference.Definition().References) != 1 {
+		t.Fatalf("CompileWithLimits(exact reference text) = (%+v, %v)", exactReference, err)
+	}
+	exactMetadata, err := CompileWithLimits(context.Background(), Definition{
+		Format: FormatAvro, Content: definition.Content,
+		Metadata: map[string]string{strings.Repeat("k", 7): strings.Repeat("v", 9)},
+	}, canonicalizerFunction(func(_ context.Context, definition Definition) ([]byte, error) {
+		return definition.Content, nil
+	}), validLimits)
+	if err != nil || len(exactMetadata.Definition().Metadata) != 1 {
+		t.Fatalf("CompileWithLimits(exact metadata text) = (%+v, %v)", exactMetadata, err)
 	}
 }

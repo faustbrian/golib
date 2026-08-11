@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-readonly kafka_image='confluentinc/cp-kafka@sha256:acbbf674f2ed40e5d0a8ca51beb0f00692c866fc22b5ce06f8cadbdc54cd4436'
-readonly registry_image='confluentinc/cp-schema-registry@sha256:7ec0b15c6d5a64aa95b4201db5231ea58952b035869b95bed45624468ce10b34'
+readonly kafka_image='confluentinc/cp-kafka@sha256:0ad069035863aa1b090f4d9af47bfd2c08dc32864f3575d7d8579e3155c2586d'
+readonly registry_image='confluentinc/cp-schema-registry@sha256:f0cfd047a839c1ace54d93b92e3459f0d03dc3b5c9db1192a2246fd79b4f44c4'
 readonly suffix="$$"
 readonly network="schema-registry-integration-${suffix}"
 readonly kafka="schema-registry-kafka-${suffix}"

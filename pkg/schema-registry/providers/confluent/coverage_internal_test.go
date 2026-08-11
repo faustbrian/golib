@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -14,6 +15,20 @@ import (
 )
 
 type canonicalizerFunction func(context.Context, schemaregistry.Definition) ([]byte, error)
+
+type observedErrContext struct {
+	context.Context
+	once     sync.Once
+	observed chan struct{}
+}
+
+func (ctx *observedErrContext) Err() error {
+	err := ctx.Context.Err()
+	if err == nil {
+		ctx.once.Do(func() { close(ctx.observed) })
+	}
+	return err
+}
 
 func (function canonicalizerFunction) Canonicalize(ctx context.Context, definition schemaregistry.Definition) ([]byte, error) {
 	return function(ctx, definition)
@@ -98,12 +113,24 @@ func TestHTTPBoundaryClassificationAndRetries(t *testing.T) {
 	if err := provider.waitRetry(context.Background()); err != nil {
 		t.Fatalf("waitRetry(timer) error = %v", err)
 	}
+	duringWait, cancelDuringWait := context.WithCancel(context.Background())
+	observed := &observedErrContext{Context: duringWait, observed: make(chan struct{})}
+	go func() {
+		<-observed.observed
+		cancelDuringWait()
+	}()
+	provider.retryDelay = time.Second
+	if err := provider.waitRetry(observed); !errors.Is(err, context.Canceled) {
+		t.Fatalf("waitRetry(canceled during delay) error = %v", err)
+	}
 	canceled, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := provider.waitRetry(canceled); !errors.Is(err, context.Canceled) {
-		t.Fatalf("waitRetry(canceled) error = %v", err)
-	}
 	provider.retryDelay = 0
+	for range 100 {
+		if err := provider.waitRetry(canceled); !errors.Is(err, context.Canceled) {
+			t.Fatalf("waitRetry(canceled) error = %v", err)
+		}
+	}
 	if err := provider.waitRetry(context.Background()); err != nil {
 		t.Fatalf("waitRetry(zero) error = %v", err)
 	}
@@ -577,14 +604,15 @@ func TestDeletionAndReferenceCompilationBoundaries(t *testing.T) {
 	if err := compile(provider, value, schemaregistry.ReferenceCoordinate{}, map[schemaregistry.ReferenceCoordinate]uint8{}, 0, provider.referenceLimits.MaxReferences, 1); !errors.Is(err, schemaregistry.ErrReferenceLimit) {
 		t.Fatalf("compileResponse(reference count) error = %v", err)
 	}
-	provider = internalProvider(t, sequentialTransport(response(200, `{"schema":"string","schemaType":"AVRO"}`)))
+	provider = internalProvider(t, sequentialTransport(response(200, `{"subject":"s","version":1,"schema":"string","schemaType":"AVRO"}`)))
 	if err := compile(provider, value, schemaregistry.ReferenceCoordinate{}, map[schemaregistry.ReferenceCoordinate]uint8{}, 0, provider.referenceLimits.MaxReferences-1, provider.referenceLimits.MaxDepth-1); err != nil {
 		t.Fatalf("compileResponse(exact reference and recursive depth limits) error = %v", err)
 	}
 	provider = internalProvider(t, sequentialTransport(
-		response(200, `{"schema":"string","schemaType":"AVRO","references":[{"name":"nested","subject":"nested","version":1}]}`),
-		response(200, `{"schema":"string","schemaType":"AVRO"}`),
+		response(200, `{"subject":"s","version":1,"schema":"string","schemaType":"AVRO","references":[{"name":"nested","subject":"nested","version":1}]}`),
+		response(200, `{"subject":"nested","version":1,"schema":"string","schemaType":"AVRO"}`),
 	))
+	provider.maxResponse = 512
 	provider.referenceLimits.MaxDepth = 2
 	if err := compile(provider, value, schemaregistry.ReferenceCoordinate{}, map[schemaregistry.ReferenceCoordinate]uint8{}, 0, 0, 1); !errors.Is(err, schemaregistry.ErrReferenceLimit) {
 		t.Fatalf("compileResponse(nested depth) error = %v", err)
@@ -602,7 +630,16 @@ func TestDeletionAndReferenceCompilationBoundaries(t *testing.T) {
 			t.Fatalf("compileResponse(%s) error = %v", test.name, err)
 		}
 	}
-	cycleResponse := `{"schema":"string","schemaType":"AVRO","references":[{"name":"x","subject":"s","version":1}]}`
+	for _, dependency := range []string{
+		`{"subject":"other","version":1,"id":7,"schema":"string","schemaType":"AVRO"}`,
+		`{"subject":"s","version":2,"id":7,"schema":"string","schemaType":"AVRO"}`,
+	} {
+		provider := internalProvider(t, sequentialTransport(response(200, dependency)))
+		if err := compile(provider, value, schemaregistry.ReferenceCoordinate{}, map[schemaregistry.ReferenceCoordinate]uint8{}, 0, 0, 1); !errors.Is(err, ErrInvalidResponse) {
+			t.Fatalf("compileResponse(mismatched dependency identity) error = %v, want %v", err, ErrInvalidResponse)
+		}
+	}
+	cycleResponse := `{"subject":"s","version":1,"schema":"string","schemaType":"AVRO","references":[{"name":"x","subject":"s","version":1}]}`
 	provider = internalProvider(t, sequentialTransport(response(200, cycleResponse), response(200, cycleResponse)))
 	if err := compile(provider, value, schemaregistry.ReferenceCoordinate{}, map[schemaregistry.ReferenceCoordinate]uint8{}, 0, 0, 1); !errors.Is(err, schemaregistry.ErrReferenceCycle) {
 		t.Fatalf("compileResponse(dependency cycle) error = %v", err)

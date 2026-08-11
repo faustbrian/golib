@@ -55,4 +55,8 @@ func TestCanonicalizerErrorBoundaries(t *testing.T) {
 	}); err == nil || errors.Is(err, context.Canceled) {
 		t.Fatalf("Canonicalize(invalid) error = %v", err)
 	}
+	if _, err := New(0).Canonicalize(context.Background(), definition); err == nil ||
+		err.Error() != "invalid Avro canonicalizer" {
+		t.Fatalf("Canonicalize(invalid limit) error = %v", err)
+	}
 }

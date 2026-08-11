@@ -5,6 +5,7 @@ package confluent_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -14,6 +15,7 @@ import (
 
 	schemaregistry "github.com/faustbrian/golib/pkg/schema-registry"
 	registryavro "github.com/faustbrian/golib/pkg/schema-registry/formats/avro"
+	registryjsonschema "github.com/faustbrian/golib/pkg/schema-registry/formats/jsonschema"
 	registryprotobuf "github.com/faustbrian/golib/pkg/schema-registry/formats/protobuf"
 	"github.com/faustbrian/golib/pkg/schema-registry/providers/confluent"
 	"github.com/twmb/franz-go/pkg/sr"
@@ -40,6 +42,16 @@ func TestProviderAgainstConfluentAndIndependentClient(t *testing.T) {
 	})
 
 	canonicalizer := registryavro.New(64 << 10)
+	jsonSchemaCanonicalizer, err := registryjsonschema.New(registryjsonschema.Config{
+		Dialect:             registryjsonschema.Draft202012,
+		MaxSchemaBytes:      64 << 10,
+		MaxTotalSchemaBytes: 64 << 10,
+		MaxPayloadBytes:     64 << 10,
+		MaxResources:        8,
+	})
+	if err != nil {
+		t.Fatalf("construct JSON Schema canonicalizer: %v", err)
+	}
 	protobufCanonicalizer, err := registryprotobuf.New(registryprotobuf.Config{
 		Filename:       "root.proto",
 		Imports:        map[string]string{"shared.proto": protobufDependency},
@@ -61,8 +73,9 @@ func TestProviderAgainstConfluentAndIndependentClient(t *testing.T) {
 		RetryDelay:          10 * time.Millisecond,
 		ReferenceLimits:     schemaregistry.GraphLimits{MaxSchemas: 16, MaxDepth: 8, MaxReferences: 32},
 		Canonicalizers: map[schemaregistry.Format]schemaregistry.Canonicalizer{
-			schemaregistry.FormatAvro:     canonicalizer,
-			schemaregistry.FormatProtobuf: protobufCanonicalizer,
+			schemaregistry.FormatAvro:       canonicalizer,
+			schemaregistry.FormatJSONSchema: jsonSchemaCanonicalizer,
+			schemaregistry.FormatProtobuf:   protobufCanonicalizer,
 		},
 	})
 	if err != nil {
@@ -115,17 +128,29 @@ func TestProviderAgainstConfluentAndIndependentClient(t *testing.T) {
 		t.Fatalf("resolved identity = %+v fingerprint %s", resolved.ID, resolved.Schema.Fingerprint())
 	}
 
-	configuration := independent.SetCompatibility(ctx, sr.SetCompatibility{Level: sr.CompatBackward}, subject)
-	if len(configuration) != 1 || configuration[0].Err != nil {
-		t.Fatalf("set independent compatibility = %+v", configuration)
-	}
-	compatible, err := provider.CheckCompatibility(ctx, schemaregistry.CompatibilityRequest{
-		Subject:   schemaregistry.Subject{Name: subject},
-		Candidate: schema,
-		Mode:      schemaregistry.CompatibilityBackward,
-	})
-	if err != nil || !compatible.Supported || !compatible.Compatible {
-		t.Fatalf("compatibility = %+v, %v", compatible, err)
+	verifyGlobalCompatibilityFallback(t, ctx, independent, provider, schema, subject)
+	for _, mode := range []struct {
+		independent sr.CompatibilityLevel
+		portable    schemaregistry.CompatibilityMode
+	}{
+		{sr.CompatBackward, schemaregistry.CompatibilityBackward},
+		{sr.CompatBackwardTransitive, schemaregistry.CompatibilityBackwardTransitive},
+		{sr.CompatForward, schemaregistry.CompatibilityForward},
+		{sr.CompatForwardTransitive, schemaregistry.CompatibilityForwardTransitive},
+		{sr.CompatFull, schemaregistry.CompatibilityFull},
+		{sr.CompatFullTransitive, schemaregistry.CompatibilityFullTransitive},
+		{sr.CompatNone, schemaregistry.CompatibilityNone},
+	} {
+		configuration := independent.SetCompatibility(ctx, sr.SetCompatibility{Level: mode.independent}, subject)
+		if len(configuration) != 1 || configuration[0].Err != nil {
+			t.Fatalf("set independent compatibility %s = %+v", mode.portable, configuration)
+		}
+		compatible, compatibilityErr := provider.CheckCompatibility(ctx, schemaregistry.CompatibilityRequest{
+			Subject: schemaregistry.Subject{Name: subject}, Candidate: schema, Mode: mode.portable,
+		})
+		if compatibilityErr != nil || !compatible.Supported || !compatible.Compatible {
+			t.Fatalf("compatibility %s = %+v, %v", mode.portable, compatible, compatibilityErr)
+		}
 	}
 
 	page, err := provider.List(ctx, schemaregistry.ListRequest{SubjectPrefix: subject, Limit: 1})
@@ -153,6 +178,199 @@ func TestProviderAgainstConfluentAndIndependentClient(t *testing.T) {
 	}
 
 	verifyProtobufReferences(t, ctx, independent, provider, protobufCanonicalizer, subject)
+	verifyJSONSchemaCodecAndWire(t, ctx, independent, provider, jsonSchemaCanonicalizer, subject)
+	for _, corpus := range []struct {
+		filename      string
+		format        schemaregistry.Format
+		schemaType    sr.SchemaType
+		canonicalizer schemaregistry.Canonicalizer
+	}{
+		{"testdata/compatibility-corpus.json", schemaregistry.FormatAvro, sr.TypeAvro, canonicalizer},
+		{"testdata/jsonschema-compatibility-corpus.json", schemaregistry.FormatJSONSchema, sr.TypeJSON, jsonSchemaCanonicalizer},
+		{"testdata/protobuf-compatibility-corpus.json", schemaregistry.FormatProtobuf, sr.TypeProtobuf, protobufCanonicalizer},
+	} {
+		verifyCompatibilityCorpus(t, ctx, independent, provider, corpus.filename, corpus.format, corpus.schemaType, corpus.canonicalizer, subject)
+	}
+}
+
+func verifyGlobalCompatibilityFallback(
+	t *testing.T,
+	ctx context.Context,
+	independent *sr.Client,
+	provider *confluent.Provider,
+	schema schemaregistry.Schema,
+	prefix string,
+) {
+	t.Helper()
+	subject := prefix + "-global-policy"
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cleanupCancel()
+		_, _ = independent.DeleteSubject(cleanupCtx, subject, sr.SoftDelete)
+		_, _ = independent.DeleteSubject(cleanupCtx, subject, sr.HardDelete)
+	})
+	if _, err := independent.CreateSchema(ctx, subject, sr.Schema{
+		Schema: string(schema.Definition().Content), Type: sr.TypeAvro,
+	}); err != nil {
+		t.Fatalf("register global-policy fixture: %v", err)
+	}
+	result, err := provider.CheckCompatibility(ctx, schemaregistry.CompatibilityRequest{
+		Subject:   schemaregistry.Subject{Name: subject},
+		Candidate: schema,
+		Mode:      schemaregistry.CompatibilityBackward,
+	})
+	if err != nil || !result.Supported || !result.Compatible {
+		t.Fatalf("global compatibility fallback = (%+v, %v)", result, err)
+	}
+}
+
+func verifyJSONSchemaCodecAndWire(
+	t *testing.T,
+	ctx context.Context,
+	independent *sr.Client,
+	provider *confluent.Provider,
+	adapter *registryjsonschema.Adapter,
+	prefix string,
+) {
+	t.Helper()
+	subject := prefix + "-json-wire"
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cleanupCancel()
+		_, _ = independent.DeleteSubject(cleanupCtx, subject, sr.SoftDelete)
+		_, _ = independent.DeleteSubject(cleanupCtx, subject, sr.HardDelete)
+	})
+
+	definition := schemaregistry.Definition{
+		Format:  schemaregistry.FormatJSONSchema,
+		Content: []byte("{\"type\":\"object\",\"additionalProperties\":false,\"required\":[\"id\"],\"properties\":{\"id\":{\"type\":\"integer\"}}}"),
+	}
+	schema, err := schemaregistry.Compile(ctx, definition, adapter)
+	if err != nil {
+		t.Fatalf("compile JSON Schema wire fixture: %v", err)
+	}
+	registered, err := provider.Register(ctx, schemaregistry.RegisterRequest{
+		Subject: schemaregistry.Subject{Name: subject},
+		Schema:  schema,
+	})
+	if err != nil {
+		t.Fatalf("register JSON Schema wire fixture: %v", err)
+	}
+	id, err := strconv.Atoi(registered.ID.Value)
+	if err != nil || id <= 0 {
+		t.Fatalf("JSON Schema provider ID = %q, %v", registered.ID.Value, err)
+	}
+	lookup, err := independent.LookupSchema(ctx, subject, sr.Schema{Schema: string(definition.Content), Type: sr.TypeJSON})
+	if err != nil || lookup.ID != id {
+		t.Fatalf("independent JSON Schema identity = (%+v, %v), want ID %d", lookup, err, id)
+	}
+
+	value := map[string]any{"id": 7}
+	payload, err := adapter.Encode(ctx, schema, value)
+	if err != nil {
+		t.Fatalf("encode JSON Schema payload: %v", err)
+	}
+	independentPayload, err := json.Marshal(value)
+	if err != nil || !bytes.Equal(payload, independentPayload) {
+		t.Fatalf("JSON payload = (%s, %v), independent = %s", payload, err, independentPayload)
+	}
+	framer, err := confluent.NewClassicFramer("integration", len(payload))
+	if err != nil {
+		t.Fatalf("construct JSON Schema framer: %v", err)
+	}
+	ours, err := framer.Frame(ctx, registered.ID, payload)
+	if err != nil {
+		t.Fatalf("frame JSON Schema payload: %v", err)
+	}
+	var header sr.ConfluentHeader
+	want, err := header.AppendEncode(nil, id, nil)
+	if err != nil {
+		t.Fatalf("independent JSON Schema frame: %v", err)
+	}
+	want = append(want, independentPayload...)
+	if !bytes.Equal(ours, want) {
+		t.Fatalf("JSON Schema wire frame = %x, independent = %x", ours, want)
+	}
+}
+
+func verifyCompatibilityCorpus(
+	t *testing.T,
+	ctx context.Context,
+	independent *sr.Client,
+	provider *confluent.Provider,
+	filename string,
+	format schemaregistry.Format,
+	schemaType sr.SchemaType,
+	canonicalizer schemaregistry.Canonicalizer,
+	prefix string,
+) {
+	t.Helper()
+	encoded, err := os.ReadFile(filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var corpus struct {
+		Cases []struct {
+			Name       string   `json:"name"`
+			Mode       string   `json:"mode"`
+			History    []string `json:"history"`
+			Candidate  string   `json:"candidate"`
+			Compatible bool     `json:"compatible"`
+		} `json:"cases"`
+	}
+	if err := json.Unmarshal(encoded, &corpus); err != nil {
+		t.Fatal(err)
+	}
+	modes := map[string]struct {
+		independent sr.CompatibilityLevel
+		portable    schemaregistry.CompatibilityMode
+	}{
+		"BACKWARD":            {sr.CompatBackward, schemaregistry.CompatibilityBackward},
+		"BACKWARD_TRANSITIVE": {sr.CompatBackwardTransitive, schemaregistry.CompatibilityBackwardTransitive},
+		"FORWARD":             {sr.CompatForward, schemaregistry.CompatibilityForward},
+		"FORWARD_TRANSITIVE":  {sr.CompatForwardTransitive, schemaregistry.CompatibilityForwardTransitive},
+		"FULL":                {sr.CompatFull, schemaregistry.CompatibilityFull},
+		"FULL_TRANSITIVE":     {sr.CompatFullTransitive, schemaregistry.CompatibilityFullTransitive},
+		"NONE":                {sr.CompatNone, schemaregistry.CompatibilityNone},
+	}
+	for index, test := range corpus.Cases {
+		mode, found := modes[test.Mode]
+		if !found || test.Name == "" || len(test.History) == 0 || test.Candidate == "" {
+			t.Fatalf("invalid compatibility corpus case %+v", test)
+		}
+		subject := fmt.Sprintf("%s-%s-compat-%d", prefix, format, index)
+		t.Cleanup(func() {
+			cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 10*time.Second)
+			defer cleanupCancel()
+			_, _ = independent.DeleteSubject(cleanupCtx, subject, sr.SoftDelete)
+			_, _ = independent.DeleteSubject(cleanupCtx, subject, sr.HardDelete)
+		})
+		configured := independent.SetCompatibility(ctx, sr.SetCompatibility{Level: sr.CompatNone}, subject)
+		if len(configured) != 1 || configured[0].Err != nil {
+			t.Fatalf("configure NONE for %s = %+v", test.Name, configured)
+		}
+		for _, history := range test.History {
+			if _, err := independent.CreateSchema(ctx, subject, sr.Schema{Schema: history, Type: schemaType}); err != nil {
+				t.Fatalf("register history for %s: %v", test.Name, err)
+			}
+		}
+		configured = independent.SetCompatibility(ctx, sr.SetCompatibility{Level: mode.independent}, subject)
+		if len(configured) != 1 || configured[0].Err != nil {
+			t.Fatalf("configure %s = %+v", test.Name, configured)
+		}
+		candidate, err := schemaregistry.Compile(ctx, schemaregistry.Definition{
+			Format: format, Content: []byte(test.Candidate),
+		}, canonicalizer)
+		if err != nil {
+			t.Fatalf("compile candidate %s: %v", test.Name, err)
+		}
+		result, err := provider.CheckCompatibility(ctx, schemaregistry.CompatibilityRequest{
+			Subject: schemaregistry.Subject{Name: subject}, Candidate: candidate, Mode: mode.portable,
+		})
+		if err != nil || !result.Supported || result.Compatible != test.Compatible {
+			t.Fatalf("compatibility %s = (%+v, %v), want %t", test.Name, result, err, test.Compatible)
+		}
+	}
 }
 
 const (

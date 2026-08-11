@@ -88,6 +88,7 @@ provider-release:
 	$(MAKE) -C providers/glue coverage mutation benchmark dependencies vuln license secrets leak fault-injection stress soak
 
 interoperability:
+	$(MAKE) -C providers/confluent interoperability
 	$(MAKE) -C providers/glue interoperability
 
 sbom:
@@ -100,7 +101,7 @@ integration:
 	$(MAKE) -C providers/confluent integration
 	$(MAKE) -C providers/glue integration
 
-conformance: integration
+conformance: integration interoperability
 
 dependencies:
 	./scripts/with-gocache.sh $(GO) mod verify

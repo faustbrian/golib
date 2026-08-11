@@ -488,8 +488,8 @@ func (client *Client) List(ctx context.Context, request ListRequest) (ListPage, 
 	if request.Limit > client.limits.MaxListResults {
 		return ListPage{}, fmt.Errorf("%w: list results", ErrLimitExceeded)
 	}
-	provider, ok := client.provider.(ListingProvider)
-	if !ok || interfaceIsNil(provider) {
+	provider, _ := client.provider.(ListingProvider)
+	if interfaceIsNil(provider) {
 		return ListPage{}, fmt.Errorf("%w: listing contract", ErrUnsupportedOperation)
 	}
 	if err := client.acquire(ctx); err != nil {
@@ -534,8 +534,8 @@ func (client *Client) Delete(ctx context.Context, request DeleteRequest) (Delete
 	default:
 		return DeleteResult{}, fmt.Errorf("%w: deletion mode", ErrInvalidRequest)
 	}
-	provider, ok := client.provider.(DeletingProvider)
-	if !ok || interfaceIsNil(provider) {
+	provider, _ := client.provider.(DeletingProvider)
+	if interfaceIsNil(provider) {
 		return DeleteResult{}, fmt.Errorf("%w: deletion contract", ErrUnsupportedOperation)
 	}
 	if err := client.acquire(ctx); err != nil {

@@ -3,6 +3,7 @@ package glue_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -83,9 +84,10 @@ func TestProviderPreservesGlueIdentityLifecycleAndUnknownCreationOutcome(t *test
 func TestProviderResolvesGlueUUIDWithoutConfusingItForPortableIdentity(t *testing.T) {
 	t.Parallel()
 
+	requestedID := strings.ToUpper(schemaVersionID)
 	api := &apiStub{
 		getVersion: func(_ context.Context, input *awsglue.GetSchemaVersionInput) (*awsglue.GetSchemaVersionOutput, error) {
-			if value(input.SchemaVersionId) != schemaVersionID {
+			if value(input.SchemaVersionId) != requestedID {
 				t.Fatalf("GetSchemaVersion ID = %q", value(input.SchemaVersionId))
 			}
 			definition := `"string"`
@@ -104,7 +106,7 @@ func TestProviderResolvesGlueUUIDWithoutConfusingItForPortableIdentity(t *testin
 	result, err := provider.Resolve(context.Background(), schemaregistry.ByProviderID(schemaregistry.ProviderID{
 		Provider: registryglue.ProviderName,
 		Scope:    "eu-north-1:123456789012:events",
-		Value:    schemaVersionID,
+		Value:    requestedID,
 	}))
 	if err != nil {
 		t.Fatalf("Resolve() error = %v", err)

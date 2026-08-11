@@ -187,7 +187,7 @@ func TestResolveCacheLoadCancellationAndAllSelectorValidation(t *testing.T) {
 	cache.slots <- struct{}{}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := cache.load(ctx, ByProviderID(ProviderID{Provider: "test", Value: "1"})); !errors.Is(err, context.Canceled) {
+	if _, err := cache.load(ctx, ByProviderID(ProviderID{Provider: "test", Value: "1"}), nil); !errors.Is(err, context.Canceled) {
 		t.Fatalf("load(canceled slot) error = %v", err)
 	}
 	<-cache.slots
@@ -246,5 +246,45 @@ func TestResolveCacheLoadCancellationAndAllSelectorValidation(t *testing.T) {
 		if !validAvailabilityPolicy(policy) {
 			t.Fatalf("validAvailabilityPolicy(%s) = false", policy)
 		}
+	}
+}
+
+func TestResolveCacheDetachedFlightBookkeeping(t *testing.T) {
+	t.Parallel()
+
+	cache, err := NewResolveCache(
+		resolverFunction(func(context.Context, Lookup) (ResolveResult, error) {
+			t.Fatal("resolver called")
+			return ResolveResult{}, nil
+		}),
+		validCacheConfig(&manualClock{now: time.Unix(100, 0)}),
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lookup := ByProviderID(ProviderID{Provider: "test", Value: "1"})
+	first, leader := cache.flight(lookup)
+	if !leader {
+		t.Fatal("first flight was not leader")
+	}
+	if err := cache.Invalidate(lookup); err != nil {
+		t.Fatal(err)
+	}
+	second, leader := cache.flight(lookup)
+	if !leader || second.generation == nil || second.generation == first.generation {
+		t.Fatal("fenced flight did not receive a new generation")
+	}
+
+	cache.finishFlight(lookup, first, CacheResolution{}, nil)
+	if cache.flights[lookup] != second || len(cache.activeFlights[lookup]) != 1 ||
+		cache.generations[lookup] != second.generation {
+		t.Fatal("detached flight completion removed current generation state")
+	}
+	cache.finishFlight(lookup, second, CacheResolution{}, nil)
+	if _, found := cache.flights[lookup]; found || len(cache.activeFlights[lookup]) != 0 {
+		t.Fatal("completed flight state was retained")
+	}
+	if _, found := cache.generations[lookup]; found {
+		t.Fatal("completed generation was retained")
 	}
 }

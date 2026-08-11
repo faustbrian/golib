@@ -21,6 +21,7 @@ func TestCanonicalizerAcceptsExactImportAndSchemaLimits(t *testing.T) {
 	}
 	withImport := valid
 	withImport.Imports = map[string]string{"unused.proto": `syntax = "proto3";`}
+	withImport.MaxSchemaBytes = len("unused.proto") + len(`syntax = "proto3";`)
 	if _, err := New(withImport); err != nil {
 		t.Fatalf("New(exact import limits) error = %v", err)
 	}

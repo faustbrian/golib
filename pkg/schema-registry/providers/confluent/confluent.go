@@ -295,7 +295,7 @@ func (provider *Provider) CheckCompatibility(ctx context.Context, request schema
 	var configuration struct {
 		Level string `json:"compatibilityLevel"`
 	}
-	configPath := "/config/" + url.PathEscape(request.Subject.Name)
+	configPath := "/config/" + url.PathEscape(request.Subject.Name) + "?defaultToGlobal=true"
 	if err := provider.doJSON(ctx, http.MethodGet, configPath, nil, &configuration); err != nil {
 		return schemaregistry.CompatibilityResult{}, err
 	}
@@ -312,7 +312,7 @@ func (provider *Provider) CheckCompatibility(ctx context.Context, request schema
 			}},
 		}, nil
 	}
-	path := "/compatibility/subjects/" + url.PathEscape(request.Subject.Name) + "/versions/latest?verbose=true"
+	path := "/compatibility/subjects/" + url.PathEscape(request.Subject.Name) + "/versions?verbose=true"
 	if err := provider.doJSON(ctx, http.MethodPost, path, body, &response); err != nil {
 		return schemaregistry.CompatibilityResult{}, err
 	}
@@ -461,6 +461,9 @@ func (provider *Provider) compileResponse(
 			}
 			return schemaregistry.Schema{}, err
 		}
+		if dependency.Subject != reference.Subject || dependency.Version != reference.Version {
+			return schemaregistry.Schema{}, ErrInvalidResponse
+		}
 		dependencyCoordinate := referenceCoordinate(reference.Subject, reference.Version)
 		compiled, err := provider.compileResponse(ctx, dependency, dependencyCoordinate, state, schemaCount, referenceCount, depth+1)
 		if err != nil {
@@ -601,13 +604,16 @@ func (provider *Provider) withBudget(ctx context.Context) (context.Context, cont
 }
 
 func (provider *Provider) waitRetry(ctx context.Context) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	timer := time.NewTimer(provider.retryDelay)
 	defer timer.Stop()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	case <-timer.C:
-		return nil
+		return ctx.Err()
 	}
 }
 

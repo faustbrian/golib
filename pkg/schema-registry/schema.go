@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"math/bits"
 	"slices"
 )
 
@@ -92,7 +93,7 @@ func ParseFingerprint(value string) (Fingerprint, error) {
 		return Fingerprint{}, fmt.Errorf("%w: fingerprint", ErrInvalidSchema)
 	}
 	decoded, err := hex.DecodeString(value[len(prefix):])
-	if err != nil || len(decoded) != sha256.Size {
+	if err != nil {
 		return Fingerprint{}, fmt.Errorf("%w: fingerprint", ErrInvalidSchema)
 	}
 	var sum [sha256.Size]byte
@@ -142,6 +143,30 @@ func CompileWithLimits(
 		len(definition.Metadata) > limits.MaxMetadata {
 		return Schema{}, fmt.Errorf("%w: schema definition", ErrLimitExceeded)
 	}
+	referenceBytes := uint64(0)
+	for _, reference := range definition.References {
+		var withinLimit bool
+		referenceBytes, withinLimit = boundedDefinitionText(referenceBytes, len(reference.Name), limits.MaxSchemaBytes)
+		if !withinLimit {
+			return Schema{}, fmt.Errorf("%w: schema reference text", ErrLimitExceeded)
+		}
+		referenceBytes, withinLimit = boundedDefinitionText(referenceBytes, len(reference.Subject), limits.MaxSchemaBytes)
+		if !withinLimit {
+			return Schema{}, fmt.Errorf("%w: schema reference text", ErrLimitExceeded)
+		}
+	}
+	metadataBytes := uint64(0)
+	for key, value := range definition.Metadata {
+		var withinLimit bool
+		metadataBytes, withinLimit = boundedDefinitionText(metadataBytes, len(key), limits.MaxSchemaBytes)
+		if !withinLimit {
+			return Schema{}, fmt.Errorf("%w: schema metadata text", ErrLimitExceeded)
+		}
+		metadataBytes, withinLimit = boundedDefinitionText(metadataBytes, len(value), limits.MaxSchemaBytes)
+		if !withinLimit {
+			return Schema{}, fmt.Errorf("%w: schema metadata text", ErrLimitExceeded)
+		}
+	}
 	if interfaceIsNil(canonicalizer) {
 		return Schema{}, fmt.Errorf("%w: no %s canonicalizer", ErrUnsupportedFormat, definition.Format)
 	}
@@ -188,6 +213,11 @@ func CompileWithLimits(
 		canonical:   append([]byte(nil), canonical...),
 		fingerprint: Fingerprint{sum: sum},
 	}, nil
+}
+
+func boundedDefinitionText(current uint64, additional, limit int) (uint64, bool) {
+	total, carry := bits.Add64(current, uint64(additional), 0)
+	return total, carry == 0 && total <= uint64(limit)
 }
 
 func compareReferenceNames(left, right Reference) int {

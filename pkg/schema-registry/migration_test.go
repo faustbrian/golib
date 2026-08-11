@@ -21,6 +21,29 @@ func TestExplicitDualRegistrationCutoverFailoverAndRollback(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Compile() error = %v", err)
 	}
+	bundle, err := schemaregistry.NewBundle(
+		schema,
+		nil,
+		schemaregistry.GraphLimits{MaxSchemas: 1, MaxDepth: 1, MaxReferences: 1},
+		schemaregistry.Provenance{Source: "source-export", Revision: "release-2026-08-10"},
+	)
+	if err != nil {
+		t.Fatalf("NewBundle(export) error = %v", err)
+	}
+	exported, err := bundle.MarshalBinary()
+	if err != nil {
+		t.Fatalf("MarshalBinary(export) error = %v", err)
+	}
+	recovery, err := schemaregistry.LoadBundle(
+		ctx,
+		exported,
+		map[schemaregistry.Format]schemaregistry.Canonicalizer{schemaregistry.FormatAvro: canonicalizer},
+		schemaregistry.GraphLimits{MaxSchemas: 1, MaxDepth: 1, MaxReferences: 1},
+		len(exported),
+	)
+	if err != nil || recovery.Provenance().Source != "source-export" {
+		t.Fatalf("LoadBundle(recovery) = (%+v, %v)", recovery.Provenance(), err)
+	}
 
 	subject := schemaregistry.Subject{Name: "orders-value"}
 	sourceID := schemaregistry.ProviderID{Provider: "source", Scope: "cluster-a", Value: "11"}
@@ -83,6 +106,10 @@ func TestExplicitDualRegistrationCutoverFailoverAndRollback(t *testing.T) {
 	fallback, err := source.Resolve(ctx, schemaregistry.ByProviderID(sourceRegistration.ID))
 	if err != nil || fallback.Schema.Fingerprint() != schema.Fingerprint() {
 		t.Fatalf("explicit source failover = (%s, %v)", fallback.Schema.Fingerprint(), err)
+	}
+	offline, found := recovery.Resolve(schema.Fingerprint())
+	if !found || offline.Fingerprint() != schema.Fingerprint() {
+		t.Fatalf("offline disaster recovery = (%s, %t)", offline.Fingerprint(), found)
 	}
 
 	targetUnavailable = false

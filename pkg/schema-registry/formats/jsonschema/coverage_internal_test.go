@@ -42,6 +42,7 @@ func TestAdapterConfigurationBoundaries(t *testing.T) {
 		{MaxSchemaBytes: 2, MaxTotalSchemaBytes: 8, MaxPayloadBytes: 8, MaxResources: 1, Resources: map[string][]byte{"x": []byte(`true`)}},
 		{MaxSchemaBytes: 8, MaxTotalSchemaBytes: 3, MaxPayloadBytes: 8, MaxResources: 1, Resources: map[string][]byte{"x": []byte(`true`)}},
 		{MaxSchemaBytes: 8, MaxTotalSchemaBytes: 16, MaxPayloadBytes: 8, MaxResources: 1, Resources: map[string][]byte{"x": []byte(`true`), "y": []byte(`true`)}},
+		{MaxSchemaBytes: 8, MaxTotalSchemaBytes: 7, MaxPayloadBytes: 8, MaxResources: 2, Resources: map[string][]byte{"x": []byte(`true`), "y": []byte(`true`)}},
 	}
 	for _, config := range invalid {
 		if _, err := New(config); err == nil {
@@ -127,6 +128,15 @@ func TestAdapterCanonicalAndPayloadErrorBoundaries(t *testing.T) {
 	}
 	if err := adapter.validate(context.Background(), schemaregistry.Schema{}, []byte(`null`)); !errors.Is(err, schemaregistry.ErrInvalidSchema) {
 		t.Fatalf("validate(empty schema) error = %v", err)
+	}
+	wrongFormat, err := schemaregistry.Compile(context.Background(), schemaregistry.Definition{
+		Format: schemaregistry.FormatAvro, Content: []byte(`true`),
+	}, identityCanonicalizer{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := adapter.validate(context.Background(), wrongFormat, []byte(`null`)); !errors.Is(err, schemaregistry.ErrInvalidSchema) {
+		t.Fatalf("validate(wrong format) error = %v", err)
 	}
 	malformed, err := schemaregistry.Compile(context.Background(), schemaregistry.Definition{
 		Format: schemaregistry.FormatJSONSchema, Content: []byte(`not-json`),

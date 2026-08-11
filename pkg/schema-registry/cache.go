@@ -101,9 +101,12 @@ type resolveCacheEntry struct {
 
 type resolveFlight struct {
 	done       chan struct{}
+	generation *resolveGeneration
 	resolution CacheResolution
 	err        error
 }
+
+type resolveGeneration [1]byte
 
 // ResolveCache is a bounded positive and negative cache. A single caller owns
 // each synchronous upstream load; waiters may cancel independently. It starts
@@ -113,10 +116,12 @@ type ResolveCache struct {
 	config   ResolveCacheConfig
 	slots    chan struct{}
 
-	mu       sync.Mutex
-	entries  map[Lookup]resolveCacheEntry
-	flights  map[Lookup]*resolveFlight
-	sequence uint64
+	mu            sync.Mutex
+	entries       map[Lookup]resolveCacheEntry
+	flights       map[Lookup]*resolveFlight
+	generations   map[Lookup]*resolveGeneration
+	activeFlights map[Lookup]map[*resolveFlight]struct{}
+	sequence      uint64
 }
 
 // NewResolveCache validates and constructs a cache.
@@ -129,11 +134,13 @@ func NewResolveCache(resolver Resolver, config ResolveCacheConfig) (*ResolveCach
 		return nil, fmt.Errorf("%w: cache config", ErrInvalidRequest)
 	}
 	return &ResolveCache{
-		resolver: resolver,
-		config:   config,
-		slots:    make(chan struct{}, config.MaxConcurrent),
-		entries:  make(map[Lookup]resolveCacheEntry, config.MaxEntries),
-		flights:  make(map[Lookup]*resolveFlight),
+		resolver:      resolver,
+		config:        config,
+		slots:         make(chan struct{}, config.MaxConcurrent),
+		entries:       make(map[Lookup]resolveCacheEntry, config.MaxEntries),
+		flights:       make(map[Lookup]*resolveFlight),
+		generations:   make(map[Lookup]*resolveGeneration),
+		activeFlights: make(map[Lookup]map[*resolveFlight]struct{}),
 	}, nil
 }
 
@@ -166,7 +173,7 @@ func (cache *ResolveCache) Resolve(
 		return CacheResolution{Result: entry.result, State: CacheFresh, Age: nonNegativeAge(now, entry.storedAt)}, nil
 	}
 	if policy == CacheOnly {
-		if found && now.Before(entry.staleUntil) {
+		if found {
 			return CacheResolution{Result: entry.result, State: CacheStale, Age: nonNegativeAge(now, entry.storedAt)}, nil
 		}
 		return CacheResolution{}, ErrOfflineMiss
@@ -182,7 +189,7 @@ func (cache *ResolveCache) Resolve(
 		}
 	}
 
-	resolution, err = cache.load(ctx, lookup)
+	resolution, err = cache.load(ctx, lookup, flight.generation)
 	cache.finishFlight(lookup, flight, resolution, err)
 	return applyStalePolicy(resolution, err, policy, found, entry, now)
 }
@@ -193,7 +200,12 @@ func (cache *ResolveCache) Invalidate(lookup Lookup) error {
 		return fmt.Errorf("%w: empty lookup", ErrInvalidRequest)
 	}
 	cache.mu.Lock()
+	cache.generations[lookup] = &resolveGeneration{}
 	delete(cache.entries, lookup)
+	delete(cache.flights, lookup)
+	if len(cache.activeFlights[lookup]) == 0 {
+		delete(cache.generations, lookup)
+	}
 	cache.mu.Unlock()
 	return nil
 }
@@ -209,14 +221,18 @@ func (cache *ResolveCache) Prime(lookup Lookup, result ResolveResult) error {
 		return err
 	}
 	now := cache.config.Clock.Now().Round(0)
-	cache.store(lookup, resolveCacheEntry{
+	cache.replace(lookup, resolveCacheEntry{
 		result: result, storedAt: now, freshUntil: now.Add(cache.config.FreshFor),
 		staleUntil: now.Add(cache.config.FreshFor + cache.config.StaleFor),
 	})
 	return nil
 }
 
-func (cache *ResolveCache) load(ctx context.Context, lookup Lookup) (CacheResolution, error) {
+func (cache *ResolveCache) load(
+	ctx context.Context,
+	lookup Lookup,
+	generation *resolveGeneration,
+) (CacheResolution, error) {
 	select {
 	case cache.slots <- struct{}{}:
 		defer func() { <-cache.slots }()
@@ -227,12 +243,12 @@ func (cache *ResolveCache) load(ctx context.Context, lookup Lookup) (CacheResolu
 	now := cache.config.Clock.Now().Round(0)
 	if err != nil {
 		if errors.Is(err, ErrNotFound) {
-			cache.store(lookup, resolveCacheEntry{
+			cache.storeIfGeneration(lookup, resolveCacheEntry{
 				storedAt:   now,
 				freshUntil: now.Add(cache.config.NegativeFor),
 				staleUntil: now.Add(cache.config.NegativeFor),
 				negative:   true,
-			})
+			}, generation)
 			return CacheResolution{State: CacheNegative}, ErrNotFound
 		}
 		return CacheResolution{}, err
@@ -240,12 +256,12 @@ func (cache *ResolveCache) load(ctx context.Context, lookup Lookup) (CacheResolu
 	if err := validateResolution(lookup, result); err != nil {
 		return CacheResolution{}, err
 	}
-	cache.store(lookup, resolveCacheEntry{
+	cache.storeIfGeneration(lookup, resolveCacheEntry{
 		result:     result,
 		storedAt:   now,
 		freshUntil: now.Add(cache.config.FreshFor),
 		staleUntil: now.Add(cache.config.FreshFor + cache.config.StaleFor),
-	})
+	}, generation)
 	return CacheResolution{Result: result, State: CacheLoaded}, nil
 }
 
@@ -301,9 +317,31 @@ func (cache *ResolveCache) entry(lookup Lookup, now time.Time) (resolveCacheEntr
 	return entry, true
 }
 
-func (cache *ResolveCache) store(lookup Lookup, entry resolveCacheEntry) {
+func (cache *ResolveCache) replace(lookup Lookup, entry resolveCacheEntry) {
 	cache.mu.Lock()
 	defer cache.mu.Unlock()
+	cache.generations[lookup] = &resolveGeneration{}
+	delete(cache.flights, lookup)
+	if len(cache.activeFlights[lookup]) == 0 {
+		delete(cache.generations, lookup)
+	}
+	cache.storeLocked(lookup, entry)
+}
+
+func (cache *ResolveCache) storeIfGeneration(
+	lookup Lookup,
+	entry resolveCacheEntry,
+	generation *resolveGeneration,
+) {
+	cache.mu.Lock()
+	defer cache.mu.Unlock()
+	if cache.generations[lookup] != generation {
+		return
+	}
+	cache.storeLocked(lookup, entry)
+}
+
+func (cache *ResolveCache) storeLocked(lookup Lookup, entry resolveCacheEntry) {
 	cache.sequence++
 	entry.sequence = cache.sequence
 	if _, exists := cache.entries[lookup]; !exists && len(cache.entries) >= cache.config.MaxEntries {
@@ -321,8 +359,14 @@ func (cache *ResolveCache) flight(lookup Lookup) (*resolveFlight, bool) {
 	if flight, found := cache.flights[lookup]; found {
 		return flight, false
 	}
-	flight := &resolveFlight{done: make(chan struct{})}
+	flight := &resolveFlight{done: make(chan struct{}), generation: cache.generations[lookup]}
 	cache.flights[lookup] = flight
+	active := cache.activeFlights[lookup]
+	if active == nil {
+		active = make(map[*resolveFlight]struct{})
+		cache.activeFlights[lookup] = active
+	}
+	active[flight] = struct{}{}
 	return flight, true
 }
 
@@ -335,7 +379,15 @@ func (cache *ResolveCache) finishFlight(
 	cache.mu.Lock()
 	flight.resolution = resolution
 	flight.err = err
-	delete(cache.flights, lookup)
+	if cache.flights[lookup] == flight {
+		delete(cache.flights, lookup)
+	}
+	active := cache.activeFlights[lookup]
+	delete(active, flight)
+	if len(active) == 0 {
+		delete(cache.activeFlights, lookup)
+		delete(cache.generations, lookup)
+	}
 	close(flight.done)
 	cache.mu.Unlock()
 }

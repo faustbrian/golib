@@ -27,6 +27,20 @@ type testClock struct {
 
 type panickingObserver struct{}
 
+func waitCacheTestValue[T any](t *testing.T, values <-chan T, description string) T {
+	t.Helper()
+	timer := time.NewTimer(5 * time.Second)
+	defer timer.Stop()
+	select {
+	case value := <-values:
+		return value
+	case <-timer.C:
+		t.Fatalf("timed out waiting for %s", description)
+		var zero T
+		return zero
+	}
+}
+
 func (panickingObserver) ObserveResolveCache(context.Context, schemaregistry.ResolveCacheEvent) {
 	panic("metrics failure")
 }
@@ -170,6 +184,144 @@ func TestResolveCacheDoesNotServeStaleForDefinitiveErrors(t *testing.T) {
 	}
 }
 
+func TestResolveCacheInvalidationAndPrimingFenceOlderFlights(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name  string
+		prime bool
+	}{
+		{name: "invalidation"},
+		{name: "prime", prime: true},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			clock := &testClock{now: time.Unix(100, 0)}
+			lookup := schemaregistry.ByProviderID(schemaregistry.ProviderID{Provider: "test", Scope: "local", Value: "1"})
+			oldResult := schemaregistry.ResolveResult{Schema: compileAvroString(t), ID: lookup.ProviderID(), Lifecycle: schemaregistry.LifecycleAvailable}
+			started := make(chan struct{})
+			release := make(chan struct{})
+			cache, err := schemaregistry.NewResolveCache(
+				resolverFunc(func(context.Context, schemaregistry.Lookup) (schemaregistry.ResolveResult, error) {
+					close(started)
+					<-release
+					return oldResult, nil
+				}),
+				schemaregistry.ResolveCacheConfig{MaxEntries: 2, MaxConcurrent: 1, FreshFor: time.Minute, StaleFor: time.Minute, NegativeFor: time.Minute, Clock: clock},
+			)
+			if err != nil {
+				t.Fatal(err)
+			}
+			loaded := make(chan error, 1)
+			go func() {
+				_, resolveErr := cache.Resolve(context.Background(), lookup, schemaregistry.FailClosed)
+				loaded <- resolveErr
+			}()
+			waitCacheTestValue(t, started, "fenced load to start")
+
+			var primed schemaregistry.ResolveResult
+			for range 2 {
+				if test.prime {
+					primed = oldResult
+					primed.Lifecycle = schemaregistry.LifecyclePending
+					if err := cache.Prime(lookup, primed); err != nil {
+						t.Fatalf("Prime() error = %v", err)
+					}
+				} else if err := cache.Invalidate(lookup); err != nil {
+					t.Fatalf("Invalidate() error = %v", err)
+				}
+			}
+			close(release)
+			if err := waitCacheTestValue(t, loaded, "fenced load to finish"); err != nil {
+				t.Fatalf("Resolve(in-flight) error = %v", err)
+			}
+
+			cached, err := cache.Resolve(context.Background(), lookup, schemaregistry.CacheOnly)
+			if test.prime {
+				if err != nil || cached.Result.Lifecycle != primed.Lifecycle {
+					t.Fatalf("Resolve(after prime) = (%+v, %v), want primed result", cached, err)
+				}
+			} else if !errors.Is(err, schemaregistry.ErrOfflineMiss) {
+				t.Fatalf("Resolve(after invalidation) = (%+v, %v), want ErrOfflineMiss", cached, err)
+			}
+		})
+	}
+}
+
+func TestResolveCacheKeepsNewestGenerationWhileDetachedLoadsFinish(t *testing.T) {
+	t.Parallel()
+
+	lookup := schemaregistry.ByProviderID(schemaregistry.ProviderID{Provider: "test", Scope: "local", Value: "1"})
+	baseResult := schemaregistry.ResolveResult{
+		Schema: compileAvroString(t), ID: lookup.ProviderID(), Lifecycle: schemaregistry.LifecycleAvailable,
+	}
+	started := []chan struct{}{make(chan struct{}), make(chan struct{}), make(chan struct{})}
+	release := []chan struct{}{make(chan struct{}), make(chan struct{}), make(chan struct{})}
+	lifecycles := []schemaregistry.LifecycleState{
+		schemaregistry.LifecycleAvailable,
+		schemaregistry.LifecyclePending,
+		schemaregistry.LifecycleDeleting,
+	}
+	var calls atomic.Int32
+	cache, err := schemaregistry.NewResolveCache(
+		resolverFunc(func(context.Context, schemaregistry.Lookup) (schemaregistry.ResolveResult, error) {
+			call := int(calls.Add(1)) - 1
+			close(started[call])
+			<-release[call]
+			result := baseResult
+			result.Lifecycle = lifecycles[call]
+			return result, nil
+		}),
+		schemaregistry.ResolveCacheConfig{
+			MaxEntries: 2, MaxConcurrent: 2, FreshFor: time.Minute,
+			StaleFor: time.Minute, NegativeFor: time.Minute,
+			Clock: &testClock{now: time.Unix(100, 0)},
+		},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolve := func() <-chan error {
+		done := make(chan error, 1)
+		go func() {
+			_, resolveErr := cache.Resolve(context.Background(), lookup, schemaregistry.FailClosed)
+			done <- resolveErr
+		}()
+		return done
+	}
+
+	first := resolve()
+	waitCacheTestValue(t, started[0], "first detached load to start")
+	if err := cache.Invalidate(lookup); err != nil {
+		t.Fatal(err)
+	}
+	second := resolve()
+	waitCacheTestValue(t, started[1], "second detached load to start")
+	close(release[1])
+	if err := waitCacheTestValue(t, second, "second detached load to finish"); err != nil {
+		t.Fatalf("Resolve(second) error = %v", err)
+	}
+	if err := cache.Invalidate(lookup); err != nil {
+		t.Fatal(err)
+	}
+	third := resolve()
+	waitCacheTestValue(t, started[2], "third detached load to start")
+	close(release[0])
+	if err := waitCacheTestValue(t, first, "first detached load to finish"); err != nil {
+		t.Fatalf("Resolve(first) error = %v", err)
+	}
+	close(release[2])
+	if err := waitCacheTestValue(t, third, "third detached load to finish"); err != nil {
+		t.Fatalf("Resolve(third) error = %v", err)
+	}
+
+	cached, err := cache.Resolve(context.Background(), lookup, schemaregistry.CacheOnly)
+	if err != nil || cached.Result.Lifecycle != schemaregistry.LifecycleDeleting {
+		t.Fatalf("Resolve(cache only) = (%+v, %v), want newest generation", cached, err)
+	}
+}
+
 func TestResolveCacheRejectsProviderIDWithoutProviderWhenPriming(t *testing.T) {
 	t.Parallel()
 
@@ -231,7 +383,7 @@ func TestResolveCacheCoalescesLoadsAndCancelsWaiters(t *testing.T) {
 		_, resolveErr := cache.Resolve(context.Background(), lookup, schemaregistry.FailClosed)
 		leaderDone <- resolveErr
 	}()
-	<-started
+	waitCacheTestValue(t, started, "coalesced load to start")
 
 	waiterCtx, cancelWaiter := context.WithCancel(context.Background())
 	waiterDone := make(chan error, 1)
@@ -240,11 +392,11 @@ func TestResolveCacheCoalescesLoadsAndCancelsWaiters(t *testing.T) {
 		waiterDone <- resolveErr
 	}()
 	cancelWaiter()
-	if err := <-waiterDone; !errors.Is(err, context.Canceled) {
+	if err := waitCacheTestValue(t, waiterDone, "canceled waiter to finish"); !errors.Is(err, context.Canceled) {
 		t.Fatalf("waiter error = %v, want context.Canceled", err)
 	}
 	close(release)
-	if err := <-leaderDone; err != nil {
+	if err := waitCacheTestValue(t, leaderDone, "coalesced leader to finish"); err != nil {
 		t.Fatalf("leader error = %v", err)
 	}
 	if calls.Load() != 1 {
@@ -292,7 +444,7 @@ func TestResolveCacheAppliesEachWaitersStalePolicy(t *testing.T) {
 		_, resolveErr := cache.Resolve(context.Background(), lookup, schemaregistry.FailClosed)
 		leader <- resolveErr
 	}()
-	<-started
+	waitCacheTestValue(t, started, "stale refresh to start")
 	waiter := make(chan struct {
 		resolution schemaregistry.CacheResolution
 		err        error
@@ -306,10 +458,10 @@ func TestResolveCacheAppliesEachWaitersStalePolicy(t *testing.T) {
 	}()
 	time.Sleep(10 * time.Millisecond)
 	close(release)
-	if err := <-leader; !errors.Is(err, schemaregistry.ErrUnavailable) {
+	if err := waitCacheTestValue(t, leader, "stale refresh leader to finish"); !errors.Is(err, schemaregistry.ErrUnavailable) {
 		t.Fatalf("leader error = %v, want ErrUnavailable", err)
 	}
-	got := <-waiter
+	got := waitCacheTestValue(t, waiter, "stale refresh waiter to finish")
 	if got.err != nil || got.resolution.State != schemaregistry.CacheStale ||
 		!errors.Is(got.resolution.StaleCause, schemaregistry.ErrUnavailable) {
 		t.Fatalf("waiter result = (%+v, %v), want stale", got.resolution, got.err)
