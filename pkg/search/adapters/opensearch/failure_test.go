@@ -51,6 +51,11 @@ func TestInfoClassifiesCancellationTransportAndOverload(t *testing.T) {
 			response: errorResponse(http.StatusForbidden, "cluster_block_exception"),
 			category: adapter.FailureClusterBlocked, status: http.StatusForbidden,
 		},
+		{
+			name: "429 cluster block", ctx: context.Background,
+			response: errorResponse(http.StatusTooManyRequests, "cluster_block_exception"),
+			category: adapter.FailureClusterBlocked, status: http.StatusTooManyRequests,
+		},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -118,6 +123,29 @@ func TestInfoClassifiesMalformedErrorBodiesWithoutEchoingThem(t *testing.T) {
 	}
 	if strings.Contains(infoErr.Error(), "query") || strings.Contains(infoErr.Error(), "secret") {
 		t.Fatalf("Info() error leaked response: %v", infoErr)
+	}
+}
+
+func TestCancellationClassificationDoesNotRetainPrivateTransportCauses(t *testing.T) {
+	t.Parallel()
+
+	private := errors.New("backend credential secret")
+	client, err := adapter.New(adapter.Config{
+		Endpoints: []string{"https://search.example.test"},
+		Transport: &observedTransport{err: errors.Join(private, context.DeadlineExceeded)}, TransportOwnership: adapter.TransportBorrowed,
+		RequestTimeout: time.Second, MaximumResponseBytes: 4 << 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	_, infoErr := client.Info(t.Context())
+	var failure *adapter.Failure
+	if !errors.As(infoErr, &failure) || failure.Category != adapter.FailureCancelled ||
+		!errors.Is(infoErr, context.DeadlineExceeded) || errors.Is(infoErr, private) ||
+		strings.Contains(infoErr.Error(), "credential") {
+		t.Fatalf("Info() failure = %#v / %v", failure, infoErr)
 	}
 }
 

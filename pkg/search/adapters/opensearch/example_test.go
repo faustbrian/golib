@@ -19,7 +19,7 @@ func (exampleTransport) RoundTrip(*http.Request) (*http.Response, error) {
 		StatusCode: http.StatusOK,
 		Header:     make(http.Header),
 		Body: io.NopCloser(strings.NewReader(
-			`{"took":1,"_shards":{"total":1,"successful":1},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"locations-v1","_id":"hel","_version":7,"_source":{"name":"Helsinki"}}]}}`,
+			`{"took":1,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"locations-v1","_id":"hel","_version":7,"_source":{"name":"Helsinki"},"sort":["hel"]}]}}`,
 		)),
 	}, nil
 }
@@ -39,9 +39,10 @@ func ExampleClient_Search() {
 		RequestTimeout:       2 * time.Second,
 		MaximumResponseBytes: 1 << 20,
 		Search: &opensearch.SearchConfig{
-			Limits: limits, CursorCodec: codec, Clock: time.Now,
+			Limits: limits, CursorCodec: codec,
+			Authorizer: opensearch.SearchAuthorizerFunc(func(context.Context, opensearch.SearchAuthorization) error { return nil }),
 			Resolver: opensearch.IndexResolverFunc(func(context.Context, string, string, opensearch.IndexAccess) (opensearch.IndexTarget, error) {
-				return opensearch.IndexTarget{Name: "locations-v1", Fingerprint: "mapping-v1"}, nil
+				return opensearch.IndexTarget{Name: "locations-v1", PhysicalName: "locations-v1", Fingerprint: "mapping-v1"}, nil
 			}),
 		},
 	})
@@ -53,7 +54,7 @@ func ExampleClient_Search() {
 	result, err := client.Search(context.Background(), search.Request{
 		Tenant: "tenant-a", Index: "locations",
 		Query: search.TermQuery{Field: "country", Value: search.StringValue("FI")},
-		Sort:  []search.Sort{{Field: "_id", Direction: search.Ascending}},
+		Sort:  []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
 		Page:  search.OffsetPage{Size: 10},
 	})
 	if err != nil {

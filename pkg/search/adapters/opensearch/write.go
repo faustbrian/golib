@@ -21,16 +21,20 @@ func (c *Client) Write(ctx context.Context, operation search.WriteOperation, ref
 	if c.search == nil {
 		return search.ItemOutcome{}, ErrSearchDisabled
 	}
+	if c.search.WriteGuard == nil {
+		return search.ItemOutcome{}, ErrWriteDisabled
+	}
 	validation := search.BulkRequest{Operations: []search.WriteOperation{operation}, Refresh: refresh}
 	if err := validation.Validate(search.Capabilities{ExternalVersion: true, UpdateExisting: false, BulkPartialOutcomes: true}, c.search.Limits); err != nil {
 		return search.ItemOutcome{}, err
 	}
-	target, err := c.search.Resolver.Resolve(ctx, operation.Tenant, operation.Index, IndexWrite)
-	if err != nil {
-		return search.ItemOutcome{}, ErrUnsafeIndexTarget
+	operation = cloneWriteOperations([]search.WriteOperation{operation})[0]
+	if err := c.authorizeWrite(ctx, OperationWrite, []search.WriteOperation{operation}, refresh); err != nil {
+		return search.ItemOutcome{}, err
 	}
-	if !validIndexTarget(target) {
-		return search.ItemOutcome{}, ErrUnsafeIndexTarget
+	target, err := c.resolveIndexTarget(ctx, OperationWrite, operation.Tenant, operation.Index, IndexWrite)
+	if err != nil {
+		return search.ItemOutcome{}, err
 	}
 
 	method := http.MethodPut
@@ -54,13 +58,15 @@ func (c *Client) Write(ctx context.Context, operation search.WriteOperation, ref
 	path := "/" + target.Name + "/_doc/" + url.PathEscape(operation.ID) + "?" + query.Encode()
 	responseBody, status, err := c.executeWrite(ctx, method, path, body)
 	if err != nil {
+		c.transport.telemetry.signal(ctx, OperationWrite, TelemetryUnknownWriteOutcome)
 		return unknownWriteOutcome(operation), err
 	}
-	outcome, err := decodeWriteResponse(operation, status, responseBody)
+	outcome, err := decodeWriteResponse(operation, target.PhysicalName, status, responseBody)
 	if err != nil {
+		c.transport.telemetry.signal(ctx, OperationWrite, TelemetryUnknownWriteOutcome)
 		return unknownWriteOutcome(operation), &Failure{Operation: OperationWrite, Category: FailureMalformed, OutcomeKnown: false, cause: err}
 	}
-	if status >= 200 && status < 300 || status == http.StatusNotFound && operation.Action == search.ActionDelete {
+	if status >= 200 && status < 300 || outcome.State == search.OutcomeNotFound {
 		return outcome, nil
 	}
 	return outcome, responseFailure(OperationWrite, status, responseBody)
@@ -97,8 +103,9 @@ func (c *Client) executeWrite(ctx context.Context, method, path string, body []b
 	return responseBody, response.StatusCode, nil
 }
 
-func decodeWriteResponse(operation search.WriteOperation, status int, body []byte) (search.ItemOutcome, error) {
+func decodeWriteResponse(operation search.WriteOperation, expectedIndex string, status int, body []byte) (search.ItemOutcome, error) {
 	var payload struct {
+		Index   string `json:"_index"`
 		ID      string `json:"_id"`
 		Version uint64 `json:"_version"`
 		Result  string `json:"result"`
@@ -113,7 +120,12 @@ func decodeWriteResponse(operation search.WriteOperation, status int, body []byt
 		return search.ItemOutcome{}, ErrMalformedResponse
 	}
 	if status >= 200 && status < 300 &&
-		(payload.ID != operation.ID || payload.Version != operation.Version || payload.Error != nil) {
+		(payload.Index != expectedIndex || payload.ID != operation.ID || payload.Version != operation.Version || payload.Error != nil ||
+			!validAppliedWriteResult(operation.Action, status, payload.Result)) {
+		return search.ItemOutcome{}, ErrMalformedResponse
+	}
+	if status == http.StatusNotFound && operation.Action == search.ActionDelete && payload.Error == nil &&
+		(payload.Index != expectedIndex || payload.ID != operation.ID || payload.Result != "not_found") {
 		return search.ItemOutcome{}, ErrMalformedResponse
 	}
 	state, retryable := classifyWriteStatus(operation.Action, status, payload.Error)
@@ -127,17 +139,33 @@ func decodeWriteResponse(operation search.WriteOperation, status int, body []byt
 	return search.ItemOutcome{Position: 0, ID: operation.ID, Action: operation.Action, State: state, Version: payload.Version, Code: code, Retryable: retryable}, nil
 }
 
+func validAppliedWriteResult(action search.WriteAction, status int, result string) bool {
+	switch action {
+	case search.ActionIndex, search.ActionUpsert:
+		return status == http.StatusOK && result == "updated" || status == http.StatusCreated && result == "created"
+	case search.ActionDelete:
+		return status == http.StatusOK && result == "deleted"
+	default:
+		return false
+	}
+}
+
 func classifyWriteStatus(action search.WriteAction, status int, failure *struct {
 	Type string `json:"type"`
 }) (search.OutcomeState, bool) {
-	if status >= 200 && status < 300 {
+	if action == search.ActionDelete && status == http.StatusOK ||
+		(action == search.ActionIndex || action == search.ActionUpsert) &&
+			(status == http.StatusOK || status == http.StatusCreated) {
 		return search.OutcomeApplied, false
 	}
-	if status == http.StatusNotFound && action == search.ActionDelete {
+	if status == http.StatusNotFound && action == search.ActionDelete && failure == nil {
 		return search.OutcomeNotFound, false
 	}
-	if status == http.StatusConflict {
+	if status == http.StatusConflict && failure != nil && failure.Type == "version_conflict_engine_exception" {
 		return search.OutcomeVersionConflict, false
+	}
+	if failure != nil && failure.Type == "cluster_block_exception" {
+		return search.OutcomeFailed, false
 	}
 	if status == http.StatusTooManyRequests || status == http.StatusServiceUnavailable {
 		return search.OutcomeRejected, true

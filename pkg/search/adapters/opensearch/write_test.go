@@ -22,7 +22,11 @@ func TestWriteUsesExternalVersioningForSupportedDocumentActions(t *testing.T) {
 		body, _ := io.ReadAll(request.Body)
 		requests <- observed{method: request.Method, target: request.URL.RequestURI(), body: string(body)}
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(writer, `{"_index":"tenant-a-events-v2","_id":"event-1","_version":9,"result":"updated"}`)
+		result := "updated"
+		if request.Method == http.MethodDelete {
+			result = "deleted"
+		}
+		_, _ = io.WriteString(writer, `{"_index":"tenant-a-events-v2","_id":"event-1","_version":9,"result":"`+result+`"}`)
 	}))
 	t.Cleanup(server.Close)
 	client := newWriteClient(t, server.URL, server.Client().Transport)
@@ -123,5 +127,194 @@ func TestWriteRejectsSuccessfulResponseWithWrongExternalVersion(t *testing.T) {
 	var failure *adapter.Failure
 	if !errors.As(err, &failure) || failure.Category != adapter.FailureMalformed || failure.OutcomeKnown || outcome.State != search.OutcomeUnknown {
 		t.Fatalf("Write() outcome/error = %#v/%v", outcome, err)
+	}
+}
+
+func TestWriteRejectsSuccessfulResponseFromAnotherPhysicalIndex(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(writer, `{"_index":"tenant-b-events-v2","_id":"event-1","_version":9,"result":"updated"}`)
+	}))
+	t.Cleanup(server.Close)
+	client := newWriteClient(t, server.URL, server.Client().Transport)
+	document, _ := search.NewDocument("tenant-a", "events", "event-1", 9, json.RawMessage(`{"value":"new"}`), search.DefaultLimits())
+
+	outcome, err := client.Write(t.Context(), search.IndexDocument(document), search.RefreshNone)
+	var failure *adapter.Failure
+	if !errors.As(err, &failure) || failure.Category != adapter.FailureMalformed || failure.OutcomeKnown || outcome.State != search.OutcomeUnknown {
+		t.Fatalf("Write() outcome/error = %#v/%v, want unknown malformed outcome", outcome, err)
+	}
+}
+
+func TestWriteRejectsSuccessfulResponseWithWrongResultSemantics(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		operation search.WriteOperation
+		response  string
+	}{
+		"index missing result": {
+			operation: mustWriteOperation(t, search.ActionIndex),
+			response:  `{"_id":"event-1","_version":9}`,
+		},
+		"index reports delete": {
+			operation: mustWriteOperation(t, search.ActionIndex),
+			response:  `{"_id":"event-1","_version":9,"result":"deleted"}`,
+		},
+		"delete reports update": {
+			operation: search.DeleteDocument("tenant-a", "events", "event-1", 9),
+			response:  `{"_id":"event-1","_version":9,"result":"updated"}`,
+		},
+	}
+	for name, test := range tests {
+		name, test := name, test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(writer, test.response)
+			}))
+			t.Cleanup(server.Close)
+			client := newWriteClient(t, server.URL, server.Client().Transport)
+
+			outcome, err := client.Write(t.Context(), test.operation, search.RefreshNone)
+			var failure *adapter.Failure
+			if !errors.As(err, &failure) || failure.Category != adapter.FailureMalformed || failure.OutcomeKnown || outcome.State != search.OutcomeUnknown {
+				t.Fatalf("Write() outcome/error = %#v/%v", outcome, err)
+			}
+		})
+	}
+}
+
+func TestWriteDeleteRequiresExactNotFoundEvidence(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		response    string
+		wantMissing bool
+	}{
+		"matching document not found": {
+			response:    `{"_index":"tenant-a-events-v2","_id":"event-1","result":"not_found"}`,
+			wantMissing: true,
+		},
+		"empty response": {
+			response: `{}`,
+		},
+		"missing index": {
+			response: `{"error":{"type":"index_not_found_exception"}}`,
+		},
+		"missing id": {
+			response: `{"result":"not_found"}`,
+		},
+		"wrong id": {
+			response: `{"_id":"other","result":"not_found"}`,
+		},
+		"missing result": {
+			response: `{"_id":"event-1"}`,
+		},
+		"wrong result": {
+			response: `{"_id":"event-1","result":"deleted"}`,
+		},
+	}
+	for name, test := range tests {
+		name, test := name, test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				writer.WriteHeader(http.StatusNotFound)
+				_, _ = io.WriteString(writer, test.response)
+			}))
+			t.Cleanup(server.Close)
+			client := newWriteClient(t, server.URL, server.Client().Transport)
+
+			outcome, err := client.Write(t.Context(), search.DeleteDocument("tenant-a", "events", "event-1", 9), search.RefreshNone)
+			if test.wantMissing {
+				if err != nil || outcome.State != search.OutcomeNotFound {
+					t.Fatalf("Write() outcome/error = %#v/%v, want exact not-found outcome", outcome, err)
+				}
+				return
+			}
+			if err == nil || outcome.State == search.OutcomeNotFound {
+				t.Fatalf("Write() outcome/error = %#v/%v, want explicit failure", outcome, err)
+			}
+		})
+	}
+}
+
+func TestWriteClassifiesVersionConflictOnlyFromExactBackendCode(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		response     string
+		wantState    search.OutcomeState
+		wantCategory adapter.FailureCategory
+	}{
+		"external version conflict": {
+			response:     `{"_id":"event-1","error":{"type":"version_conflict_engine_exception"}}`,
+			wantState:    search.OutcomeVersionConflict,
+			wantCategory: adapter.FailureVersionConflict,
+		},
+		"unattributed conflict status": {
+			response:     `{}`,
+			wantState:    search.OutcomeUnknown,
+			wantCategory: adapter.FailureRejected,
+		},
+		"different conflict": {
+			response:     `{"_id":"event-1","error":{"type":"resource_already_exists_exception"}}`,
+			wantState:    search.OutcomeFailed,
+			wantCategory: adapter.FailureRejected,
+		},
+	}
+	for name, test := range tests {
+		name, test := name, test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				writer.WriteHeader(http.StatusConflict)
+				_, _ = io.WriteString(writer, test.response)
+			}))
+			t.Cleanup(server.Close)
+			client := newWriteClient(t, server.URL, server.Client().Transport)
+
+			outcome, err := client.Write(t.Context(), mustWriteOperation(t, search.ActionIndex), search.RefreshNone)
+			var failure *adapter.Failure
+			if !errors.As(err, &failure) || outcome.State != test.wantState || failure.Category != test.wantCategory {
+				t.Fatalf("Write() outcome/error = %#v/%v", outcome, err)
+			}
+		})
+	}
+}
+
+func TestWriteClassifies429ClusterBlockAsNonRetryable(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusTooManyRequests)
+		_, _ = io.WriteString(writer, `{"error":{"type":"cluster_block_exception"}}`)
+	}))
+	t.Cleanup(server.Close)
+	client := newWriteClient(t, server.URL, server.Client().Transport)
+
+	outcome, err := client.Write(t.Context(), mustWriteOperation(t, search.ActionIndex), search.RefreshNone)
+	var failure *adapter.Failure
+	if !errors.As(err, &failure) || failure.Category != adapter.FailureClusterBlocked || failure.Retryable ||
+		outcome.State != search.OutcomeFailed || outcome.Retryable {
+		t.Fatalf("Write() cluster block = %#v/%#v", outcome, failure)
+	}
+}
+
+func mustWriteOperation(t *testing.T, action search.WriteAction) search.WriteOperation {
+	t.Helper()
+	document, err := search.NewDocument("tenant-a", "events", "event-1", 9, json.RawMessage(`{"value":"a"}`), search.DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	switch action {
+	case search.ActionIndex:
+		return search.IndexDocument(document)
+	case search.ActionUpsert:
+		return search.UpsertDocument(document)
+	default:
+		t.Fatalf("unsupported test action %q", action)
+		return search.WriteOperation{}
 	}
 }

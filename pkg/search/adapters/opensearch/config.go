@@ -17,6 +17,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+	"unicode/utf8"
 
 	official "github.com/opensearch-project/opensearch-go/v4"
 	"github.com/opensearch-project/opensearch-go/v4/signer"
@@ -142,6 +143,7 @@ type Client struct {
 	discovery            DiscoveryPolicy
 	search               *SearchConfig
 	lifecycle            *LifecycleConfig
+	pits                 *pointInTimeTracker
 
 	mu struct {
 		sync.RWMutex
@@ -198,28 +200,36 @@ func New(config Config) (*Client, error) {
 	}
 	pool.cursor.Store(^uint64(0))
 
-	return &Client{
+	searchConfig := cloneSearchConfig(config.Search)
+	client := &Client{
 		client: &official.Client{Transport: pool}, transport: pool,
 		timeout:              config.RequestTimeout,
 		maximumResponseBytes: config.MaximumResponseBytes,
 		discovery:            cloneDiscoveryPolicy(config.Discovery),
-		search:               cloneSearchConfig(config.Search),
+		search:               searchConfig,
 		lifecycle:            cloneLifecycleConfig(config.Lifecycle),
-	}, nil
+	}
+	if searchConfig != nil {
+		client.pits = newPointInTimeTracker(searchConfig.CursorCodec, searchConfig.MaximumOpenPointInTimes)
+	}
+	return client, nil
 }
 
 func validSearchConfig(config *SearchConfig) bool {
 	if config == nil {
 		return true
 	}
-	if config.Limits.Validate() != nil || config.CursorCodec == nil || config.Resolver == nil || config.Clock == nil {
+	if config.Limits.Validate() != nil || config.CursorCodec == nil || config.Resolver == nil {
+		return false
+	}
+	if config.MaximumOpenPointInTimes < 0 || config.MaximumOpenPointInTimes > MaximumOpenPointInTimes {
 		return false
 	}
 	if len(config.LocaleAnalyzers) > maximumLocaleAnalyzers {
 		return false
 	}
 	for locale, analyzer := range config.LocaleAnalyzers {
-		if locale == "" || len(locale) > 64 || strings.ContainsAny(locale, "\x00\r\n") || !analyzerPattern.MatchString(analyzer) {
+		if locale == "" || len(locale) > 64 || !utf8.ValidString(locale) || strings.ContainsAny(locale, "\x00\r\n") || !analyzerPattern.MatchString(analyzer) {
 			return false
 		}
 	}
@@ -231,6 +241,10 @@ func cloneSearchConfig(config *SearchConfig) *SearchConfig {
 		return nil
 	}
 	copyConfig := *config
+	copyConfig.Clock = nil
+	if copyConfig.MaximumOpenPointInTimes == 0 {
+		copyConfig.MaximumOpenPointInTimes = DefaultMaximumOpenPointInTimes
+	}
 	copyConfig.LocaleAnalyzers = make(map[string]string, len(config.LocaleAnalyzers))
 	for locale, analyzer := range config.LocaleAnalyzers {
 		copyConfig.LocaleAnalyzers[locale] = analyzer
@@ -249,6 +263,7 @@ func (c *Client) Close() error {
 		c.mu.Lock()
 		c.mu.closed = true
 		c.mu.Unlock()
+		c.pits.close()
 		closeErr = c.transport.Close()
 	})
 
@@ -408,6 +423,9 @@ func configureTransport(config Config) (http.RoundTripper, error) {
 		if template, ok := config.Transport.(*http.Transport); ok {
 			return configureHTTPTransport(template.Clone(), config), nil
 		}
+		if config.TLS != nil || config.Proxy.Mode != ProxyDisabled {
+			return nil, ErrInvalidConfig
+		}
 
 		return config.Transport, nil
 	}
@@ -429,7 +447,8 @@ func configureHTTPTransport(transport *http.Transport, config Config) *http.Tran
 	case ProxyEnvironment:
 		transport.Proxy = http.ProxyFromEnvironment
 	case ProxyExplicit:
-		transport.Proxy = http.ProxyURL(config.Proxy.URL)
+		proxy := *config.Proxy.URL
+		transport.Proxy = http.ProxyURL(&proxy)
 	default:
 		transport.Proxy = nil
 	}
@@ -512,14 +531,41 @@ func (transport *poolTransport) Stream(request *http.Request) (*http.Response, e
 	}
 
 	response, roundTripErr := transport.next.RoundTrip(request)
-	permit.complete(response, roundTripErr, true)
-	completed = true
 	status := 0
 	if response != nil {
 		status = response.StatusCode
 	}
-	transport.telemetry.observe(request.Context(), transport.telemetry.event(operation, started, status, roundTripErr, transport.resilience.snapshot()))
+	finish := func() {
+		permit.complete(response, roundTripErr, true)
+		transport.telemetry.observe(request.Context(), transport.telemetry.event(operation, started, status, roundTripErr, transport.resilience.snapshot()))
+	}
+	if response == nil || response.Body == nil {
+		finish()
+	} else {
+		response.Body = &admissionResponseBody{ReadCloser: response.Body, finish: finish}
+	}
+	completed = true
 	return response, roundTripErr
+}
+
+type admissionResponseBody struct {
+	io.ReadCloser
+	finishOnce sync.Once
+	finish     func()
+}
+
+func (body *admissionResponseBody) Read(buffer []byte) (int, error) {
+	read, err := body.ReadCloser.Read(buffer)
+	if errors.Is(err, io.EOF) {
+		body.finishOnce.Do(body.finish)
+	}
+	return read, err
+}
+
+func (body *admissionResponseBody) Close() error {
+	err := body.ReadCloser.Close()
+	body.finishOnce.Do(body.finish)
+	return err
 }
 
 func (transport *poolTransport) replaceEndpoints(endpoints []*url.URL) {

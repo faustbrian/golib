@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -46,6 +47,66 @@ func TestAdmissionRejectsExcessWorkWithoutReachingTransport(t *testing.T) {
 		t.Fatalf("snapshot = %#v", snapshot)
 	}
 }
+
+func TestAdmissionRemainsHeldUntilResponseBodyIsReleased(t *testing.T) {
+	t.Parallel()
+
+	entered, release := make(chan struct{}), make(chan struct{})
+	var calls atomic.Int64
+	transport := roundTripFunc(func(*http.Request) (*http.Response, error) {
+		if calls.Add(1) == 1 {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     make(http.Header),
+				Body: &gatedResponseBody{
+					entered: entered,
+					release: release,
+					reader:  strings.NewReader(`{"name":"node-a","cluster_name":"search","cluster_uuid":"cluster-a","version":{"number":"3.8.0"}}`),
+				},
+			}, nil
+		}
+		return jsonResponse(http.StatusOK, `{"name":"node-b","cluster_name":"search","cluster_uuid":"cluster-a","version":{"number":"3.8.0"}}`), nil
+	})
+	client, err := adapter.New(adapter.Config{
+		Endpoints: []string{"https://search.example.test"}, Transport: transport, TransportOwnership: adapter.TransportBorrowed,
+		RequestTimeout: time.Second, MaximumResponseBytes: 4096,
+		Resilience: adapter.ResilienceConfig{MaximumInFlight: 1},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+
+	first := make(chan error, 1)
+	go func() { _, callErr := client.Info(t.Context()); first <- callErr }()
+	<-entered
+	_, secondErr := client.Info(t.Context())
+	close(release)
+	firstErr := <-first
+
+	var failure *adapter.Failure
+	if !errors.As(secondErr, &failure) || failure.Category != adapter.FailureBackpressure || failure.OutcomeKnown || calls.Load() != 1 {
+		t.Fatalf("second Info() error/calls = %#v/%d", secondErr, calls.Load())
+	}
+	if firstErr != nil {
+		t.Fatalf("first Info() error = %v", firstErr)
+	}
+}
+
+type gatedResponseBody struct {
+	entered chan struct{}
+	release <-chan struct{}
+	reader  *strings.Reader
+	once    sync.Once
+}
+
+func (body *gatedResponseBody) Read(buffer []byte) (int, error) {
+	body.once.Do(func() { close(body.entered) })
+	<-body.release
+	return body.reader.Read(buffer)
+}
+
+func (*gatedResponseBody) Close() error { return nil }
 
 func TestCircuitBreakerStopsOverloadAmplificationUntilCooldown(t *testing.T) {
 	t.Parallel()

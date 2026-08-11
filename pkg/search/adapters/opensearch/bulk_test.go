@@ -46,12 +46,90 @@ func TestBulkEncodesExternalVersionsAndPreservesPartialOutcomes(t *testing.T) {
 	}
 }
 
+func TestBulkClassifies429ClusterBlockAsNonRetryable(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(writer, `{"took":1,"errors":true,"items":[{"index":{"_index":"tenant-a-events-v2","_id":"event-1","status":429,"error":{"type":"cluster_block_exception"}}}]}`)
+	}))
+	t.Cleanup(server.Close)
+	client := newWriteClient(t, server.URL, server.Client().Transport)
+	document, err := search.NewDocument("tenant-a", "events", "event-1", 7, json.RawMessage(`{"value":"a"}`), search.DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	result, err := client.Bulk(t.Context(), search.BulkRequest{
+		Operations: []search.WriteOperation{search.IndexDocument(document)}, Refresh: search.RefreshNone,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	items := result.Items()
+	if len(items) != 1 || items[0].State != search.OutcomeFailed || items[0].Retryable || items[0].Code != "cluster_block_exception" {
+		t.Fatalf("Bulk() cluster block = %#v", items)
+	}
+}
+
+func TestBulkAcceptsEverySupportedSuccessStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name, responseAction, result string
+		action                       search.WriteAction
+		status                       int
+	}{
+		{name: "delete ok", action: search.ActionDelete, responseAction: "delete", status: http.StatusOK, result: "deleted"},
+		{name: "index ok", action: search.ActionIndex, responseAction: "index", status: http.StatusOK, result: "updated"},
+		{name: "index created", action: search.ActionIndex, responseAction: "index", status: http.StatusCreated, result: "created"},
+		{name: "upsert ok", action: search.ActionUpsert, responseAction: "index", status: http.StatusOK, result: "updated"},
+		{name: "upsert created", action: search.ActionUpsert, responseAction: "index", status: http.StatusCreated, result: "created"},
+	}
+	for _, test := range tests {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				_ = json.NewEncoder(writer).Encode(map[string]any{
+					"took": 1, "errors": false,
+					"items": []any{map[string]any{test.responseAction: map[string]any{
+						"_index": "tenant-a-events-v2", "_id": "event-1", "_version": 7, "status": test.status, "result": test.result,
+					}}},
+				})
+			}))
+			t.Cleanup(server.Close)
+			client := newWriteClient(t, server.URL, server.Client().Transport)
+			document, err := search.NewDocument("tenant-a", "events", "event-1", 7, json.RawMessage(`{"value":"a"}`), search.DefaultLimits())
+			if err != nil {
+				t.Fatal(err)
+			}
+			operation := search.DeleteDocument("tenant-a", "events", "event-1", 7)
+			switch test.action {
+			case search.ActionIndex:
+				operation = search.IndexDocument(document)
+			case search.ActionUpsert:
+				operation = search.UpsertDocument(document)
+			}
+
+			result, err := client.Bulk(t.Context(), search.BulkRequest{
+				Operations: []search.WriteOperation{operation}, Refresh: search.RefreshNone,
+			})
+			items := result.Items()
+			if err != nil || len(items) != 1 || items[0].Action != test.action ||
+				items[0].State != search.OutcomeApplied || items[0].Version != 7 || result.Partial() {
+				t.Fatalf("Bulk() result/error = %#v/%v", items, err)
+			}
+		})
+	}
+}
+
 func TestBulkClassifiesNotFoundOnlyForDelete(t *testing.T) {
 	t.Parallel()
 
 	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(writer, `{"took":4,"errors":true,"items":[{"index":{"_id":"a","status":404,"error":{"type":"index_not_found_exception"}}},{"index":{"_id":"b","status":404}},{"delete":{"_id":"c","status":404,"result":"not_found"}}]}`)
+		_, _ = io.WriteString(writer, `{"took":4,"errors":true,"items":[{"index":{"_index":"tenant-a-events-v2","_id":"a","status":404,"error":{"type":"index_not_found_exception"}}},{"index":{"_index":"tenant-a-events-v2","_id":"b","status":404}},{"delete":{"_index":"tenant-a-events-v2","_id":"c","status":404,"result":"not_found"}}]}`)
 	}))
 	t.Cleanup(server.Close)
 	client := newWriteClient(t, server.URL, server.Client().Transport)
@@ -74,6 +152,126 @@ func TestBulkClassifiesNotFoundOnlyForDelete(t *testing.T) {
 	}
 }
 
+func TestBulkDeleteRequiresExactNotFoundEvidence(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		item        string
+		wantState   search.OutcomeState
+		wantCode    string
+		wantFailure bool
+	}{
+		"matching document not found": {
+			item:      `{"_index":"tenant-a-events-v2","_id":"event-1","status":404,"result":"not_found"}`,
+			wantState: search.OutcomeNotFound,
+		},
+		"missing index": {
+			item:      `{"_index":"tenant-a-events-v2","_id":"event-1","status":404,"error":{"type":"index_not_found_exception"}}`,
+			wantState: search.OutcomeFailed,
+			wantCode:  "index_not_found_exception",
+		},
+		"missing id": {
+			item:        `{"_index":"tenant-a-events-v2","status":404,"result":"not_found"}`,
+			wantFailure: true,
+		},
+		"missing result": {
+			item:        `{"_index":"tenant-a-events-v2","_id":"event-1","status":404}`,
+			wantFailure: true,
+		},
+		"wrong result": {
+			item:        `{"_index":"tenant-a-events-v2","_id":"event-1","status":404,"result":"deleted"}`,
+			wantFailure: true,
+		},
+	}
+	for name, test := range tests {
+		name, test := name, test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(writer, `{"took":1,"errors":true,"items":[{"delete":`+test.item+`}]}`)
+			}))
+			t.Cleanup(server.Close)
+			client := newWriteClient(t, server.URL, server.Client().Transport)
+
+			result, err := client.Bulk(t.Context(), search.BulkRequest{Operations: []search.WriteOperation{
+				search.DeleteDocument("tenant-a", "events", "event-1", 9),
+			}, Refresh: search.RefreshNone})
+			if test.wantFailure {
+				var failure *adapter.Failure
+				if !errors.As(err, &failure) || failure.Category != adapter.FailureMalformed ||
+					failure.OutcomeKnown || !result.HasUnknown() {
+					t.Fatalf("Bulk() result/error = %#v/%v, want malformed unknown outcome", result.Items(), err)
+				}
+				return
+			}
+			items := result.Items()
+			if err != nil || len(items) != 1 || items[0].State != test.wantState || items[0].Code != test.wantCode {
+				t.Fatalf("Bulk() result/error = %#v/%v", items, err)
+			}
+		})
+	}
+}
+
+func TestBulkClassifiesVersionConflictOnlyFromExactBackendCode(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string]struct {
+		item      string
+		wantState search.OutcomeState
+	}{
+		"external version conflict": {
+			item:      `{"_index":"tenant-a-events-v2","_id":"event-1","status":409,"error":{"type":"version_conflict_engine_exception"}}`,
+			wantState: search.OutcomeVersionConflict,
+		},
+		"unattributed conflict status": {
+			item:      `{"_index":"tenant-a-events-v2","_id":"event-1","status":409}`,
+			wantState: search.OutcomeUnknown,
+		},
+		"different conflict": {
+			item:      `{"_index":"tenant-a-events-v2","_id":"event-1","status":409,"error":{"type":"resource_already_exists_exception"}}`,
+			wantState: search.OutcomeFailed,
+		},
+	}
+	for name, test := range tests {
+		name, test := name, test
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(writer, `{"took":1,"errors":true,"items":[{"index":`+test.item+`}]}`)
+			}))
+			t.Cleanup(server.Close)
+			client := newWriteClient(t, server.URL, server.Client().Transport)
+
+			result, err := client.Bulk(t.Context(), search.BulkRequest{Operations: []search.WriteOperation{
+				mustWriteOperation(t, search.ActionIndex),
+			}, Refresh: search.RefreshNone})
+			items := result.Items()
+			if err != nil || len(items) != 1 || items[0].State != test.wantState {
+				t.Fatalf("Bulk() result/error = %#v/%v", items, err)
+			}
+		})
+	}
+}
+
+func TestBulkRejectsItemAttributedToAnotherPhysicalIndex(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		_, _ = io.WriteString(writer, `{"took":1,"errors":false,"items":[{"index":{"_index":"tenant-b-events-v2","_id":"event-1","_version":9,"status":201,"result":"created"}}]}`)
+	}))
+	t.Cleanup(server.Close)
+	client := newWriteClient(t, server.URL, server.Client().Transport)
+	document, err := search.NewDocument("tenant-a", "events", "event-1", 9, json.RawMessage(`{"value":"safe"}`), search.DefaultLimits())
+	if err != nil {
+		t.Fatal(err)
+	}
+	result, err := client.Bulk(t.Context(), search.BulkRequest{Operations: []search.WriteOperation{search.IndexDocument(document)}, Refresh: search.RefreshNone})
+	failure := new(adapter.Failure)
+	if !errors.As(err, &failure) || failure.Category != adapter.FailureMalformed || failure.OutcomeKnown || !result.HasUnknown() {
+		t.Fatalf("Bulk() = %#v/%#v, want malformed unknown outcome", result.Items(), failure)
+	}
+}
+
 func TestBulkReturnsPerItemUnknownOutcomesWhenTransportOutcomeIsAmbiguous(t *testing.T) {
 	t.Parallel()
 
@@ -93,7 +291,7 @@ func TestBulkRejectsEncodedBodyAboveConfiguredByteLimit(t *testing.T) {
 	requests := 0
 	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		requests++
-		_, _ = io.WriteString(writer, `{"took":1,"errors":false,"items":[{"index":{"_id":"a","_version":1,"status":201,"result":"created"}}]}`)
+		_, _ = io.WriteString(writer, `{"took":1,"errors":false,"items":[{"index":{"_index":"tenant-a-events-v2","_id":"a","_version":1,"status":201,"result":"created"}}]}`)
 	}))
 	t.Cleanup(server.Close)
 	limits := search.DefaultLimits()
@@ -113,7 +311,7 @@ func TestBulkRejectsEncodedBodyAboveConfiguredByteLimit(t *testing.T) {
 func TestBulkRejectsMisattributedResponseActions(t *testing.T) {
 	t.Parallel()
 	server := httptest.NewTLSServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
-		_, _ = io.WriteString(writer, `{"took":1,"errors":false,"items":[{"delete":{"_id":"a","_version":3,"status":200,"result":"deleted"}}]}`)
+		_, _ = io.WriteString(writer, `{"took":1,"errors":false,"items":[{"delete":{"_index":"tenant-a-events-v2","_id":"a","_version":3,"status":200,"result":"deleted"}}]}`)
 	}))
 	t.Cleanup(server.Close)
 	client := newWriteClient(t, server.URL, server.Client().Transport)
@@ -128,8 +326,12 @@ func TestBulkRejectsMisattributedResponseActions(t *testing.T) {
 func TestBulkRejectsInconsistentSuccessVersionAndErrorsFlag(t *testing.T) {
 	t.Parallel()
 	responses := []string{
-		`{"took":1,"errors":false,"items":[{"index":{"_id":"a","_version":2,"status":201,"result":"created"}}]}`,
-		`{"took":1,"errors":true,"items":[{"index":{"_id":"a","_version":3,"status":201,"result":"created"}}]}`,
+		`{"errors":false,"items":[{"index":{"_index":"tenant-a-events-v2","_id":"a","_version":3,"status":201,"result":"created"}}]}`,
+		`{"took":1,"items":[{"index":{"_index":"tenant-a-events-v2","_id":"a","_version":3,"status":201,"result":"created"}}]}`,
+		`{"took":1,"errors":false,"items":[{"index":{"_index":"tenant-a-events-v2","_id":"a","_version":2,"status":201,"result":"created"}}]}`,
+		`{"took":1,"errors":true,"items":[{"index":{"_index":"tenant-a-events-v2","_id":"a","_version":3,"status":201,"result":"created"}}]}`,
+		`{"took":1,"errors":false,"items":[{"index":{"_index":"tenant-a-events-v2","_id":"a","_version":3,"status":201}}]}`,
+		`{"took":1,"errors":false,"items":[{"index":{"_index":"tenant-a-events-v2","_id":"a","_version":3,"status":201,"result":"deleted"}}]}`,
 	}
 	for _, response := range responses {
 		response := response
@@ -159,9 +361,9 @@ func newWriteClientWithLimits(t *testing.T, endpoint string, transport http.Roun
 	client, err := adapter.New(adapter.Config{
 		Endpoints: []string{endpoint}, Transport: transport, TransportOwnership: adapter.TransportBorrowed,
 		RequestTimeout: time.Second, MaximumResponseBytes: 16 << 10,
-		Search: &adapter.SearchConfig{Limits: limits, CursorCodec: mustCursorCodec(t), Clock: time.Now,
+		Search: &adapter.SearchConfig{Limits: limits, CursorCodec: mustCursorCodec(t), Clock: time.Now, WriteGuard: allowWriteAuthorization(),
 			Resolver: adapter.IndexResolverFunc(func(context.Context, string, string, adapter.IndexAccess) (adapter.IndexTarget, error) {
-				return adapter.IndexTarget{Name: "tenant-a-events-v2", Fingerprint: "mapping-v2-fingerprint"}, nil
+				return adapter.IndexTarget{Name: "tenant-a-events-v2", PhysicalName: "tenant-a-events-v2", Fingerprint: "mapping-v2-fingerprint"}, nil
 			}),
 		},
 	})

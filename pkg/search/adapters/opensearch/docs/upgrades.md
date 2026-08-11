@@ -26,6 +26,15 @@ reduce recovery time, but a full rebuild from authoritative data must remain
 tested. Alias rollback handles a bad index generation; it does not downgrade a
 server binary or replace a tested restore plan.
 
+The supported-version matrix separately exercises the deployment operation: it
+mounts a fresh bounded filesystem repository into each disposable OpenSearch
+container, registers that repository through the official client, snapshots one
+isolated physical index, deletes and restores it, and verifies document sources
+and external versions through this adapter. This proves the local filesystem
+fixture only. Managed repository credentials, encryption, retention, provider
+restore procedures, and application source-of-truth recovery remain owned and
+must be tested by the deployment.
+
 The compatibility review was refreshed on 2026-08-10 against the official
 OpenSearch 2.19.6 and 3.8.0 release notes, the `opensearch-go` v4.7.3 release,
 and the current rolling-upgrade guide. OpenSearch 2.19.6 includes bulk-hang and

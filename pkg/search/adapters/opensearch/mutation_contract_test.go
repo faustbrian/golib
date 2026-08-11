@@ -33,7 +33,7 @@ func mutationDocument(t *testing.T, id string, version uint64) search.Document {
 func TestBulkWireContractAndResponseBoundaries(t *testing.T) {
 	index := search.IndexDocument(mutationDocument(t, "index-id", 7))
 	deleteOperation := search.DeleteDocument("tenant", "events", "delete-id", 8)
-	targets := []IndexTarget{{Name: "events-v1"}, {Name: "events-v1"}}
+	targets := []IndexTarget{{Name: "events-v1", PhysicalName: "events-v1"}, {Name: "events-v1", PhysicalName: "events-v1"}}
 	body := string(encodeBulkRequest([]search.WriteOperation{index, deleteOperation}, targets))
 	lines := strings.Split(strings.TrimSuffix(body, "\n"), "\n")
 	if len(lines) != 3 || !strings.Contains(lines[0], `"index"`) || !strings.Contains(lines[1], `"name":"value"`) || !strings.Contains(lines[2], `"delete"`) {
@@ -41,14 +41,14 @@ func TestBulkWireContractAndResponseBoundaries(t *testing.T) {
 	}
 	oneBody := encodeBulkRequest([]search.WriteOperation{index}, targets[:1])
 	exactClient := internalClient(t, func(*http.Request) (*http.Response, error) {
-		return internalResponse(200, `{"took":0,"errors":false,"items":[{"index":{"_id":"index-id","_version":7,"status":200,"result":"updated"}}]}`), nil
-	}, internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}, nil)
+		return internalResponse(200, `{"took":0,"errors":false,"items":[{"index":{"_index":"events-v1","_id":"index-id","_version":7,"status":200,"result":"updated"}}]}`), nil
+	}, internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}, nil)
 	exactClient.search.Limits.MaxBulkBytes = len(oneBody)
 	if _, err := exactClient.Bulk(t.Context(), search.BulkRequest{Operations: []search.WriteOperation{index}, Refresh: search.RefreshNone}); err != nil {
 		t.Fatalf("exact encoded bulk body rejected: %v", err)
 	}
 
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
 	for _, test := range []struct {
 		refresh search.RefreshPolicy
 		query   string
@@ -58,7 +58,7 @@ func TestBulkWireContractAndResponseBoundaries(t *testing.T) {
 		client := internalClient(t, func(request *http.Request) (*http.Response, error) {
 			seenQuery = request.URL.RawQuery
 			seenPath = request.URL.Path
-			return internalResponse(200, `{"took":0,"errors":false,"items":[{"index":{"_id":"index-id","_version":7,"status":200,"result":"updated"}}]}`), nil
+			return internalResponse(200, `{"took":0,"errors":false,"items":[{"index":{"_index":"events-v1","_id":"index-id","_version":7,"status":200,"result":"updated"}}]}`), nil
 		}, resolver, nil)
 		result, err := client.Bulk(t.Context(), search.BulkRequest{Operations: []search.WriteOperation{index}, Refresh: test.refresh})
 		if err != nil || len(result.Items()) != 1 || seenQuery != test.query || seenPath != "/_bulk" {
@@ -89,7 +89,7 @@ func TestBulkWireContractAndResponseBoundaries(t *testing.T) {
 	for _, test := range []struct {
 		status int
 		state  search.OutcomeState
-	}{{199, search.OutcomeUnknown}, {200, search.OutcomeApplied}, {299, search.OutcomeApplied}, {300, search.OutcomeUnknown}} {
+	}{{199, search.OutcomeUnknown}, {200, search.OutcomeApplied}, {201, search.OutcomeApplied}, {299, search.OutcomeUnknown}, {300, search.OutcomeUnknown}} {
 		state, _ := classifyBulkItem(search.ActionIndex, test.status, nil)
 		if state != test.state {
 			t.Fatalf("status %d classified as %s", test.status, state)
@@ -98,10 +98,12 @@ func TestBulkWireContractAndResponseBoundaries(t *testing.T) {
 	for _, status := range []int{200, 300, 599} {
 		errorsValue := status >= 300
 		version := ""
+		result := ""
 		if status < 300 {
 			version = `,"_version":7`
+			result = `,"result":"updated"`
 		}
-		response := `{"took":0,"errors":` + strconv.FormatBool(errorsValue) + `,"items":[{"index":{"_id":"index-id"` + version + `,"status":` + strconv.Itoa(status) + `}}]}`
+		response := `{"took":0,"errors":` + strconv.FormatBool(errorsValue) + `,"items":[{"index":{"_id":"index-id"` + version + result + `,"status":` + strconv.Itoa(status) + `}}]}`
 		if _, err := decodeBulkResponse(operation, []byte(response)); err != nil {
 			t.Fatalf("boundary status %d rejected: %v", status, err)
 		}
@@ -118,7 +120,7 @@ func TestConfigurationBoundaryContract(t *testing.T) {
 		t.Fatal("valid search configuration rejected")
 	}
 	invalidSearch := []*SearchConfig{}
-	for index := 0; index < 4; index++ {
+	for index := 0; index < 3; index++ {
 		candidate := *validSearch
 		switch index {
 		case 0:
@@ -127,17 +129,27 @@ func TestConfigurationBoundaryContract(t *testing.T) {
 			candidate.CursorCodec = nil
 		case 2:
 			candidate.Resolver = nil
-		case 3:
-			candidate.Clock = nil
 		}
 		invalidSearch = append(invalidSearch, &candidate)
+	}
+	candidate := *validSearch
+	candidate.Clock = nil
+	if !validSearchConfig(&candidate) {
+		t.Fatal("deprecated clock compatibility was rejected")
+	}
+	for _, maximum := range []int{-1, MaximumOpenPointInTimes + 1} {
+		candidate = *validSearch
+		candidate.MaximumOpenPointInTimes = maximum
+		if validSearchConfig(&candidate) {
+			t.Fatalf("invalid PIT capacity accepted: %d", maximum)
+		}
 	}
 	for _, locale := range []string{"", strings.Repeat("x", 65), "fi\n"} {
 		candidate := *validSearch
 		candidate.LocaleAnalyzers = map[string]string{locale: "standard"}
 		invalidSearch = append(invalidSearch, &candidate)
 	}
-	candidate := *validSearch
+	candidate = *validSearch
 	candidate.LocaleAnalyzers = map[string]string{"fi": "bad analyzer"}
 	invalidSearch = append(invalidSearch, &candidate)
 	for _, invalid := range invalidSearch {
@@ -313,8 +325,8 @@ func TestPITProjectionAndSearchResponsePredicatesAreIndependent(t *testing.T) {
 
 	maximumTook := math.MaxInt64 / int64(time.Millisecond)
 	validBodies := []string{
-		fmt.Sprintf(`{"took":%d,"_shards":{"total":0,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`, maximumTook),
-		`{"took":0,"_shards":{"total":0,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"gte"},"hits":[]}}`,
+		fmt.Sprintf(`{"took":%d,"timed_out":false,"_shards":{"total":0,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`, maximumTook),
+		`{"took":0,"timed_out":false,"_shards":{"total":0,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"gte"},"hits":[]}}`,
 	}
 	for _, body := range validBodies {
 		if _, err := decodeSearchResponse([]byte(body)); err != nil {
@@ -322,13 +334,13 @@ func TestPITProjectionAndSearchResponsePredicatesAreIndependent(t *testing.T) {
 		}
 	}
 	invalidBodies := []string{
-		fmt.Sprintf(`{"took":%d,"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`, maximumTook+1),
-		`{"_shards":{"total":-1},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`,
-		`{"_shards":{"successful":-1},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`,
-		`{"_shards":{"skipped":-1},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`,
-		`{"_shards":{"failed":-1},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`,
-		`{"hits":{"total":{"value":0,"relation":"other"},"hits":[]}}`,
-		`{"hits":{"total":{"value":0,"relation":"eq"},"hits":[{"_index":"i","_id":"id","_version":1}]}}`,
+		fmt.Sprintf(`{"took":%d,"timed_out":false,"_shards":{"total":0,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`, maximumTook+1),
+		`{"took":0,"timed_out":false,"_shards":{"total":-1,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`,
+		`{"took":0,"timed_out":false,"_shards":{"total":0,"successful":-1,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`,
+		`{"took":0,"timed_out":false,"_shards":{"total":0,"successful":0,"skipped":-1,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`,
+		`{"took":0,"timed_out":false,"_shards":{"total":0,"successful":0,"skipped":0,"failed":-1},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`,
+		`{"took":0,"timed_out":false,"_shards":{"total":0,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"other"},"hits":[]}}`,
+		`{"took":0,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[{"_index":"i","_id":"id","_version":1}]}}`,
 	}
 	for _, body := range invalidBodies {
 		if _, err := decodeSearchResponse([]byte(body)); err == nil {
@@ -433,11 +445,11 @@ func TestFailureDiagnosticAndClassificationContract(t *testing.T) {
 		{OperationInfo, 429, "unknown", FailureOverloaded},
 		{OperationInfo, 503, "unknown", FailureOverloaded},
 		{OperationInfo, 403, "cluster_block_exception", FailureClusterBlocked},
-		{OperationInfo, 409, "unknown", FailureVersionConflict},
+		{OperationInfo, 409, "unknown", FailureRejected},
 		{OperationInfo, 400, "version_conflict_engine_exception", FailureVersionConflict},
 		{OperationInfo, 400, "mapper_parsing_exception", FailureMappingRejected},
 		{OperationInfo, 400, "strict_dynamic_mapping_exception", FailureMappingRejected},
-		{OperationSearch, 404, "resource_not_found_exception", FailurePITExpired},
+		{OperationSearch, 404, "resource_not_found_exception", FailureRejected},
 		{OperationInfo, 404, "resource_not_found_exception", FailureRejected},
 	} {
 		body := []byte(`{"error":{"type":"` + test.code + `"}}`)
@@ -445,6 +457,17 @@ func TestFailureDiagnosticAndClassificationContract(t *testing.T) {
 		if got.Category != test.category {
 			t.Fatalf("operation=%s status=%d code=%s became %s", test.operation, test.status, test.code, got.Category)
 		}
+	}
+	resourceMissing := responseFailure(OperationSearch, http.StatusNotFound, []byte(`{"error":{"type":"resource_not_found_exception"}}`))
+	classified := classifyPITSearchFailure(resourceMissing)
+	classifiedFailure := new(Failure)
+	if !errors.As(classified, &classifiedFailure) || classifiedFailure.Category != FailurePITExpired ||
+		!errors.Is(classified, ErrPITExpired) || errors.Is(classified, ErrRejected) {
+		t.Fatalf("cursor resource-not-found classification = %#v/%v", classifiedFailure, classified)
+	}
+	unrelated := responseFailure(OperationInfo, http.StatusNotFound, []byte(`{"error":{"type":"resource_not_found_exception"}}`))
+	if classifyPITSearchFailure(unrelated) != unrelated {
+		t.Fatal("non-search failure was reclassified as PIT expiry")
 	}
 	for _, test := range []struct {
 		code  string
@@ -690,27 +713,36 @@ func TestLifecycleResponseBoundaryContract(t *testing.T) {
 		task := strings.Repeat("t", length)
 		client := internalClient(t, routeBody(`{"task":"`+task+`"}`, 200), nil, authorize)
 		cursor, _, err := client.Reindex(t.Context(), "tenant", "source", "target", "")
-		if length == 512 && (err != nil || cursor != task) {
+		if length == 512 && (err != nil || cursor == "" || cursor == task) {
 			t.Fatal(length, len(cursor), err)
 		}
 		if length == 513 && err == nil {
 			t.Fatal("oversized task accepted")
 		}
 	}
-	for _, length := range []int{512, 513} {
-		cursor := strings.Repeat("t", length)
-		client := internalClient(t, routeBody(`{"completed":false}`, 200), nil, authorize)
-		returned, done, err := client.Reindex(t.Context(), "tenant", "source", "target", cursor)
-		if length == 512 && (err != nil || done || returned != cursor) {
-			t.Fatal(length, done, err)
-		}
-		if length == 513 && !errors.Is(err, ErrLifecycleRejected) {
-			t.Fatal("oversized cursor accepted", err)
-		}
+	codec := internalReindexCursorCodec(t)
+	cursor, err := codec.encode("tenant", "source", "target", strings.Repeat("t", 512))
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := internalClient(t, routeBody(`{"completed":false}`, 200), nil, authorize)
+	returned, done, err := client.Reindex(t.Context(), "tenant", "source", "target", cursor)
+	if err != nil || done || returned == "" || returned == cursor {
+		t.Fatal(returned, done, err)
+	}
+	codec.random = errorReader{}
+	failedRenewal := internalClient(t, routeBody(`{"completed":false}`, 200), nil, authorize)
+	failedRenewal.lifecycle.ReindexCursorCodec = codec
+	returned, done, err = failedRenewal.Reindex(t.Context(), "tenant", "source", "target", cursor)
+	failedRenewalFailure := new(Failure)
+	if returned != cursor || done || !errors.As(err, &failedRenewalFailure) ||
+		failedRenewalFailure.Category != FailureMalformed || !failedRenewalFailure.OutcomeKnown {
+		t.Fatalf("failed cursor renewal = %q/%t/%#v", returned, done, failedRenewalFailure)
 	}
 
 	for _, response := range []string{
 		`{"completed":true,"response":{"total":3,"created":1,"updated":2,"version_conflicts":0,"failures":[]}}`,
+		`{"completed":true,"response":{}}`,
 		`{"completed":true,"response":{"total":4,"created":1,"updated":2,"version_conflicts":0,"failures":[]}}`,
 		`{"completed":true,"response":{"total":3,"created":1,"updated":2,"version_conflicts":1,"failures":[]}}`,
 		`{"completed":true,"response":{"total":3,"created":1,"updated":2,"version_conflicts":0,"failures":[{}]}}`,
@@ -718,7 +750,11 @@ func TestLifecycleResponseBoundaryContract(t *testing.T) {
 		`{"completed":true,"response":{"total":0,"created":18446744073709551615,"updated":1,"version_conflicts":0,"failures":[]}}`,
 	} {
 		client := internalClient(t, routeBody(response, 200), nil, authorize)
-		_, done, err := client.Reindex(t.Context(), "tenant", "source", "target", "task")
+		cursor, encodeErr := client.lifecycle.ReindexCursorCodec.encode("tenant", "source", "target", "task")
+		if encodeErr != nil {
+			t.Fatal(encodeErr)
+		}
+		_, done, err := client.Reindex(t.Context(), "tenant", "source", "target", cursor)
 		valid := strings.Contains(response, `"total":3`) && strings.Contains(response, `"version_conflicts":0`) && strings.Contains(response, `"failures":[]`) && !strings.Contains(response, `"error"`)
 		if valid != (err == nil && done) {
 			t.Fatalf("reindex response %s: done=%v err=%v", response, done, err)
@@ -727,6 +763,10 @@ func TestLifecycleResponseBoundaryContract(t *testing.T) {
 
 	for _, response := range []string{
 		`{"count":1,"_shards":{"total":1,"successful":1,"failed":0}}`,
+		`{"_shards":{"total":1,"successful":1,"failed":0}}`,
+		`{"count":1,"_shards":{"successful":1,"failed":0}}`,
+		`{"count":1,"_shards":{"total":1,"failed":0}}`,
+		`{"count":1,"_shards":{"total":1,"successful":1}}`,
 		`{"count":1,"_shards":{"total":0,"successful":0,"failed":0}}`,
 		`{"count":1,"_shards":{"total":1,"successful":0,"failed":0}}`,
 		`{"count":1,"_shards":{"total":1,"successful":1,"failed":1}}`,
@@ -758,7 +798,7 @@ func TestLifecycleResponseBoundaryContract(t *testing.T) {
 		}
 	}
 
-	client := internalClient(t, routeBody(`{"acknowledged":true}`, 200), nil, authorize)
+	client = internalClient(t, routeBody(`{"acknowledged":true}`, 200), nil, authorize)
 	for _, call := range []func() error{
 		func() error { return client.SwapAlias(t.Context(), "", "alias", "a", "b") },
 		func() error { return client.SwapAlias(t.Context(), "tenant", "bad/name", "a", "b") },
@@ -778,7 +818,7 @@ func TestLifecycleResponseBoundaryContract(t *testing.T) {
 		counts++
 		return internalResponse(200, `{"count":2,"_shards":{"total":1,"successful":1,"failed":0}}`), nil
 	}, nil, authorize)
-	if report, err := equal.VerifyIndex(t.Context(), "tenant", "source", "target"); err != nil || !report.Verified || report.Drift != 0 || counts != 2 {
+	if report, err := equal.VerifyIndex(t.Context(), "tenant", "source", "target", "definition"); err != nil || !report.Verified || report.Drift != 0 || counts != 2 {
 		t.Fatal(report, err)
 	}
 	failedAdd := internalClient(t, routeBody(`{}`, 500), nil, authorize)
@@ -1021,28 +1061,28 @@ func TestSearchEncodingWireContract(t *testing.T) {
 		t.Fatal(err)
 	}
 	zeroMinimumBody, _ := json.Marshal(zeroMinimum)
-	assertJSONEqual(t, zeroMinimumBody, `{"bool":{"should":[{"match_all":{}}]}}`)
+	assertJSONEqual(t, zeroMinimumBody, `{"bool":{"should":[{"match_all":{}}],"minimum_should_match":0}}`)
 }
 
 func TestSearchCursorStateAndResponseBoundaries(t *testing.T) {
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
-	response := `{"took":2,"pit_id":"rotated","_shards":{"total":0,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"events-v1","_id":"id","_version":1,"_source":{},"sort":["id"]}]}}`
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
+	response := `{"took":2,"timed_out":false,"pit_id":"rotated","_shards":{"total":0,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"events-v1","_id":"id","_version":1,"_source":{},"sort":["id"]}]}}`
 	decoded, err := decodeSearchResponse([]byte(response))
 	if err != nil || decoded.Diagnostics.Took != 2*time.Millisecond || len(decoded.Hits) != 1 {
 		t.Fatal(decoded, err)
 	}
 
 	client := internalClient(t, routeBody(response, 200), resolver, nil)
-	client.search.Limits.MaxPages = 3
+	client.search.Limits.MaxPages = 4
 	client.search.Limits.MaxPageItems = 2
 	client.search.Limits.MaxResultBytes = int64(len(response)) + 100
-	request := search.Request{Tenant: "tenant", Index: "events", Query: search.MatchAllQuery{}, Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}}, Page: search.CursorPage{Size: 1, KeepAlive: time.Minute}}
+	request := search.Request{Tenant: "tenant", Index: "events", Query: search.MatchAllQuery{}, Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}}, Page: search.CursorPage{Size: 1, KeepAlive: time.Minute}}
 	fingerprint, err := search.RequestFingerprint(request, client.search.Limits)
 	if err != nil {
 		t.Fatal(err)
 	}
 	binding := search.CursorBinding{Tenant: "tenant", Index: "events", QueryFingerprint: fingerprint, IndexFingerprint: "fingerprint"}
-	initialBytes := client.search.Limits.MaxResultBytes - int64(len(response))
+	initialBytes := client.search.Limits.MaxResultBytes - int64(len(response)) - 1
 	cursor, err := client.search.CursorCodec.Encode(binding, search.CursorState{PointInTime: "pit", SortValues: []json.RawMessage{json.RawMessage(`"previous"`)}, Page: 2, Items: 5, Bytes: initialBytes, ExpiresAt: time.Now().Add(time.Minute)})
 	if err != nil {
 		t.Fatal(err)
@@ -1053,12 +1093,18 @@ func TestSearchCursorStateAndResponseBoundaries(t *testing.T) {
 		t.Fatal(result, err)
 	}
 	state, err := client.search.CursorCodec.Decode(result.NextCursor(), binding, client.search.Limits)
-	if err != nil || state.PointInTime != "rotated" || state.Page != 3 || state.Items != 6 || state.Bytes != client.search.Limits.MaxResultBytes || len(state.SortValues) != 1 {
+	if err != nil || state.PointInTime != "rotated" || state.Page != 3 || state.Items != 6 || state.Bytes != client.search.Limits.MaxResultBytes-1 || len(state.SortValues) != 1 {
 		t.Fatal(state, err)
 	}
 
 	offset := search.Request{Tenant: "tenant", Index: "events", Query: search.MatchAllQuery{}, Page: search.OffsetPage{Size: 1}}
-	offsetResponse := `{"took":0,"_shards":{"total":0,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`
+	tooManyHits := internalClient(t, routeBody(`{"took":0,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":2,"relation":"eq"},"hits":[{"_index":"events-v1","_id":"a","_version":1},{"_index":"events-v1","_id":"b","_version":1}]}}`, 200), resolver, nil)
+	if _, err := tooManyHits.Search(t.Context(), offset); err == nil {
+		t.Fatal("response exceeding requested page size accepted")
+	} else if failure := new(Failure); !errors.As(err, &failure) || failure.Category != FailureMalformed {
+		t.Fatal(err)
+	}
+	offsetResponse := `{"took":0,"timed_out":false,"_shards":{"total":0,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`
 	bounded := internalClient(t, routeBody(offsetResponse, 200), resolver, nil)
 	bounded.search.Limits.MaxResultBytes = int64(len(offsetResponse))
 	if _, err := bounded.Search(t.Context(), offset); err != nil {
@@ -1070,11 +1116,40 @@ func TestSearchCursorStateAndResponseBoundaries(t *testing.T) {
 	}
 }
 
+func TestDecodeSearchResponseRejectsEachInvalidHitIdentity(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name, hit string
+		wantValid bool
+	}{
+		{name: "valid", hit: `{"_index":"events-v1","_id":"id","_version":1}`, wantValid: true},
+		{name: "empty index", hit: `{"_index":"","_id":"id","_version":1}`},
+		{name: "empty id", hit: `{"_index":"events-v1","_id":"","_version":1}`},
+		{name: "zero version", hit: `{"_index":"events-v1","_id":"id","_version":0}`},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			body := []byte(`{"took":0,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":1,"relation":"eq"},"hits":[` + test.hit + `]}}`)
+			_, err := decodeSearchResponse(body)
+			if (err == nil) != test.wantValid {
+				t.Fatalf("decodeSearchResponse() error = %v, want valid %t", err, test.wantValid)
+			}
+		})
+	}
+}
+
 func TestCapabilitiesReflectLifecycleConfiguration(t *testing.T) {
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
 	without := internalClient(t, routeBody(`{}`, 200), resolver, nil)
 	capabilities, err := without.Capabilities(t.Context())
 	if err != nil || capabilities.Lifecycle || capabilities.Templates {
+		t.Fatal(capabilities, err)
+	}
+	withUnguardedLifecycle := internalClient(t, routeBody(`{}`, 200), resolver, LifecycleAuthorizerFunc(func(context.Context, string, []string) error { return nil }))
+	withUnguardedLifecycle.lifecycle.MutationGuard = nil
+	capabilities, err = withUnguardedLifecycle.Capabilities(t.Context())
+	if err != nil || capabilities.Lifecycle || !capabilities.Templates {
 		t.Fatal(capabilities, err)
 	}
 	with := internalClient(t, routeBody(`{}`, 200), resolver, LifecycleAuthorizerFunc(func(context.Context, string, []string) error { return nil }))
@@ -1085,7 +1160,7 @@ func TestCapabilitiesReflectLifecycleConfiguration(t *testing.T) {
 }
 
 func TestContentTypeOwnershipAndWriteStatusBoundaries(t *testing.T) {
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
 	type observedRequest struct{ method, contentType string }
 	observed := make([]observedRequest, 0, 4)
 	client := internalClient(t, func(request *http.Request) (*http.Response, error) {
@@ -1115,7 +1190,7 @@ func TestContentTypeOwnershipAndWriteStatusBoundaries(t *testing.T) {
 		state  search.OutcomeState
 	}{
 		{199, search.ActionIndex, search.OutcomeUnknown}, {200, search.ActionIndex, search.OutcomeApplied},
-		{299, search.ActionIndex, search.OutcomeApplied}, {300, search.ActionIndex, search.OutcomeUnknown},
+		{201, search.ActionIndex, search.OutcomeApplied}, {299, search.ActionIndex, search.OutcomeUnknown}, {300, search.ActionIndex, search.OutcomeUnknown},
 		{404, search.ActionDelete, search.OutcomeNotFound}, {404, search.ActionIndex, search.OutcomeUnknown},
 	} {
 		state, _ := classifyWriteStatus(test.action, test.status, nil)
@@ -1124,14 +1199,18 @@ func TestContentTypeOwnershipAndWriteStatusBoundaries(t *testing.T) {
 		}
 	}
 	index := search.IndexDocument(mutationDocument(t, "id", 1))
-	for _, status := range []int{200, 299, 300} {
-		writeClient := internalClient(t, routeBody(`{"_id":"id","_version":1}`, status), resolver, nil)
+	for _, status := range []int{200, 201, 299, 300} {
+		result := "updated"
+		if status == http.StatusCreated {
+			result = "created"
+		}
+		writeClient := internalClient(t, routeBody(`{"_index":"events-v1","_id":"id","_version":1,"result":"`+result+`"}`, status), resolver, nil)
 		_, err := writeClient.Write(t.Context(), index, search.RefreshNone)
-		if status < 300 && err != nil {
+		if (status == 200 || status == 201) && err != nil {
 			t.Fatal(status, err)
 		}
-		if status == 300 && err == nil {
-			t.Fatal("non-success status accepted")
+		if status != 200 && status != 201 && err == nil {
+			t.Fatal("unsupported status accepted", status)
 		}
 	}
 	deleteOperation := search.DeleteDocument("tenant", "events", "id", 1)
@@ -1139,7 +1218,7 @@ func TestContentTypeOwnershipAndWriteStatusBoundaries(t *testing.T) {
 		operation search.WriteOperation
 		valid     bool
 	}{{deleteOperation, true}, {index, false}} {
-		writeClient := internalClient(t, routeBody(`{"_id":"id","result":"not_found"}`, 404), resolver, nil)
+		writeClient := internalClient(t, routeBody(`{"_index":"events-v1","_id":"id","result":"not_found"}`, 404), resolver, nil)
 		outcome, err := writeClient.Write(t.Context(), test.operation, search.RefreshNone)
 		if test.valid && (err != nil || outcome.State != search.OutcomeNotFound) {
 			t.Fatal(outcome, err)

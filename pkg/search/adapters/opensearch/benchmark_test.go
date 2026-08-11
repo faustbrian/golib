@@ -20,7 +20,9 @@ func (benchmarkTransport) RoundTrip(*http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: http.StatusOK, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(`{"name":"node","cluster_name":"cluster","cluster_uuid":"uuid","version":{"number":"3.2.0"}}`))}, nil
 }
 
-func BenchmarkInfo(b *testing.B) {
+// BenchmarkSyntheticInfoTransport measures adapter overhead without a backend.
+// Real-backend indexing and query workloads live behind the integration tag.
+func BenchmarkSyntheticInfoTransport(b *testing.B) {
 	b.Run("adapter", func(b *testing.B) {
 		client, err := adapter.New(adapter.Config{Endpoints: []string{"http://127.0.0.1:9200"}, AllowInsecureHTTP: true, Transport: benchmarkTransport{}, TransportOwnership: adapter.TransportBorrowed, RequestTimeout: time.Second, MaximumResponseBytes: 4096})
 		if err != nil {

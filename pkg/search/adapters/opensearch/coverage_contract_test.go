@@ -107,11 +107,11 @@ func TestRemainingLifecycleAndReconciliationOutcomes(t *testing.T) {
 	client := internalClient(t, func(*http.Request) (*http.Response, error) {
 		sequence++
 		if sequence == 1 {
-			return internalResponse(200, `{"count":1,"_shards":{"total":1,"successful":1}}`), nil
+			return internalResponse(200, `{"count":1,"_shards":{"total":1,"successful":1,"failed":0}}`), nil
 		}
 		return internalResponse(500, `{}`), nil
 	}, nil, authorize)
-	if _, err := client.VerifyIndex(t.Context(), "t", "source", "target"); err == nil {
+	if _, err := client.VerifyIndex(t.Context(), "t", "source", "target", "definition"); err == nil {
 		t.Fatal("target count failure accepted")
 	}
 	sequence = 0
@@ -121,21 +121,21 @@ func TestRemainingLifecycleAndReconciliationOutcomes(t *testing.T) {
 		if sequence == 2 {
 			count = 2
 		}
-		return internalResponse(200, strings.Replace(`{"count":COUNT,"_shards":{"total":1,"successful":1}}`, "COUNT", string(rune('0'+count)), 1)), nil
+		return internalResponse(200, strings.Replace(`{"count":COUNT,"_shards":{"total":1,"successful":1,"failed":0}}`, "COUNT", string(rune('0'+count)), 1)), nil
 	}, nil, authorize)
-	report, err := client.VerifyIndex(t.Context(), "t", "source", "target")
+	report, err := client.VerifyIndex(t.Context(), "t", "source", "target", "definition")
 	if err != nil || report.Drift != 1 || report.Verified {
 		t.Fatal(report, err)
 	}
 
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
 	step := 0
 	reconcile := internalClient(t, func(request *http.Request) (*http.Response, error) {
 		step++
 		if step == 1 {
 			return internalResponse(201, `{"pit_id":"pit"}`), nil
 		}
-		return internalResponse(200, `{"took":1,"_shards":{"total":1,"successful":1},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"events-v1","_id":"id","_version":0,"_source":{},"sort":["id"]}]}}`), nil
+		return internalResponse(200, `{"took":1,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"events-v1","_id":"id","_version":1,"sort":["id"]}]}}`), nil
 	}, resolver, nil)
 	if _, err := reconcile.Read(t.Context(), "t", "events", "", 1); err == nil {
 		t.Fatal("versionless reconciliation record accepted")
@@ -179,7 +179,7 @@ func TestRemainingResilienceOutcomes(t *testing.T) {
 }
 
 func TestRemainingSearchAndExecutionOutcomes(t *testing.T) {
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
 	client := internalClient(t, routeBody(`{}`, 200), resolver, nil)
 	if _, err := client.executeContent(t.Context(), OperationInfo, http.MethodPost, "/", []byte(`{}`), "application/json", 200); err != nil {
 		t.Fatal(err)
@@ -196,20 +196,23 @@ func TestRemainingSearchAndExecutionOutcomes(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	request := search.Request{Tenant: "t", Index: "events", Query: search.MatchAllQuery{}, Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}}, Page: search.CursorPage{Size: 1, KeepAlive: time.Minute}}
+	request := search.Request{Tenant: "t", Index: "events", Query: search.MatchAllQuery{}, Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}}, Page: search.CursorPage{Size: 1, KeepAlive: time.Minute}}
 	steps := 0
 	pitClient := internalClient(t, func(request *http.Request) (*http.Response, error) {
 		steps++
 		if steps == 1 {
 			return internalResponse(201, `{"pit_id":"pit"}`), nil
 		}
-		return internalResponse(200, `{"took":1,"pit_id":"rotated","_shards":{"total":1,"successful":1},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`), nil
+		if request.Method == http.MethodDelete {
+			return internalResponse(200, `{"pits":[{"pit_id":"rotated","successful":true}]}`), nil
+		}
+		return internalResponse(200, `{"took":1,"timed_out":false,"pit_id":"rotated","_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`), nil
 	}, resolver, nil)
 	if _, err := pitClient.Search(t.Context(), request); err != nil {
 		t.Fatal(err)
 	}
 
-	limited := internalClient(t, routeBody(`{"took":1,"_shards":{"total":1,"successful":1},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"events-v1","_id":"id","_version":1,"_source":{},"sort":["id"]}]}}`, 200), resolver, nil)
+	limited := internalClient(t, routeBody(`{"took":1,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"events-v1","_id":"id","_version":1,"_source":{},"sort":["id"]}]}}`, 200), resolver, nil)
 	limited.search.Limits.MaxPages = 1
 	fingerprint, err := search.RequestFingerprint(request, limited.search.Limits)
 	if err != nil {
@@ -246,14 +249,14 @@ func TestRemainingSearchAndExecutionOutcomes(t *testing.T) {
 		if cursorSteps == 1 {
 			return internalResponse(201, `{"pit_id":"pit"}`), nil
 		}
-		return internalResponse(200, `{"took":1,"_shards":{"total":1,"successful":1},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"events-v1","_id":"id","_version":1,"_source":{},"sort":["`+oversizedSort+`"]}]}}`), nil
+		return internalResponse(200, `{"took":1,"timed_out":false,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"events-v1","_id":"id","_version":1,"_source":{},"sort":["`+oversizedSort+`"]}]}}`), nil
 	}, resolver, nil)
 	request.Page = search.CursorPage{Size: 1, KeepAlive: time.Minute}
 	if _, err := tooLargeCursor.Search(t.Context(), request); !errors.Is(err, search.ErrInvalidCursor) {
 		t.Fatal(err)
 	}
 
-	invalidResult := internalClient(t, routeBody(`{"took":1,"_shards":{"total":1,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`, 200), resolver, nil)
+	invalidResult := internalClient(t, routeBody(`{"took":1,"timed_out":false,"_shards":{"total":1,"successful":0,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`, 200), resolver, nil)
 	request.Page = search.OffsetPage{Size: 1}
 	if _, err := invalidResult.Search(t.Context(), request); err == nil {
 		t.Fatal(err)

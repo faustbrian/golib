@@ -2,6 +2,8 @@ package opensearch_test
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -59,6 +61,49 @@ func TestHealthMarksRedOrIncompleteClustersUnready(t *testing.T) {
 	health, err := client.Health(context.Background())
 	if err != nil || health.Ready {
 		t.Fatalf("Health() = %#v/%v", health, err)
+	}
+}
+
+func TestHealthRejectsMissingOperationalFields(t *testing.T) {
+	t.Parallel()
+
+	const valid = `{"cluster_name":"search","status":"yellow","timed_out":false,"number_of_nodes":1,"number_of_data_nodes":1,"active_primary_shards":1,"active_shards":1,"relocating_shards":0,"initializing_shards":0,"unassigned_shards":0,"number_of_pending_tasks":0,"active_shards_percent_as_number":100}`
+	fields := []string{
+		"cluster_name", "timed_out", "number_of_nodes", "number_of_data_nodes", "active_primary_shards",
+		"active_shards", "relocating_shards", "initializing_shards", "unassigned_shards",
+		"number_of_pending_tasks", "active_shards_percent_as_number",
+	}
+	for _, field := range fields {
+		field := field
+		t.Run(field, func(t *testing.T) {
+			t.Parallel()
+			payload := map[string]any{}
+			if err := json.Unmarshal([]byte(valid), &payload); err != nil {
+				t.Fatal(err)
+			}
+			delete(payload, field)
+			body, err := json.Marshal(payload)
+			if err != nil {
+				t.Fatal(err)
+			}
+			client, err := adapter.New(adapter.Config{
+				Endpoints: []string{"https://search.example.test"}, TransportOwnership: adapter.TransportBorrowed,
+				Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+					return jsonResponse(http.StatusOK, string(body)), nil
+				}),
+				RequestTimeout: time.Second, MaximumResponseBytes: 4096,
+			})
+			if err != nil {
+				t.Fatal(err)
+			}
+			t.Cleanup(func() { _ = client.Close() })
+
+			_, err = client.Health(t.Context())
+			failure := new(adapter.Failure)
+			if !errors.As(err, &failure) || failure.Category != adapter.FailureMalformed {
+				t.Fatalf("Health() error = %#v / %v, want malformed response", failure, err)
+			}
+		})
 	}
 }
 

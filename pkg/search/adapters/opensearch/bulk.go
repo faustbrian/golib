@@ -19,19 +19,23 @@ func (c *Client) Bulk(ctx context.Context, request search.BulkRequest) (search.B
 	if c.search == nil {
 		return search.BulkResult{}, ErrSearchDisabled
 	}
+	if c.search.WriteGuard == nil {
+		return search.BulkResult{}, ErrWriteDisabled
+	}
 	capabilities := search.Capabilities{ExternalVersion: true, UpdateExisting: false, BulkPartialOutcomes: true}
 	if err := request.Validate(capabilities, c.search.Limits); err != nil {
+		return search.BulkResult{}, err
+	}
+	request.Operations = cloneWriteOperations(request.Operations)
+	if err := c.authorizeWrite(ctx, OperationBulk, request.Operations, request.Refresh); err != nil {
 		return search.BulkResult{}, err
 	}
 
 	targets := make([]IndexTarget, len(request.Operations))
 	for position, operation := range request.Operations {
-		target, err := c.search.Resolver.Resolve(ctx, operation.Tenant, operation.Index, IndexWrite)
+		target, err := c.resolveIndexTarget(ctx, OperationBulk, operation.Tenant, operation.Index, IndexWrite)
 		if err != nil {
-			return search.BulkResult{}, ErrUnsafeIndexTarget
-		}
-		if !validIndexTarget(target) {
-			return search.BulkResult{}, ErrUnsafeIndexTarget
+			return search.BulkResult{}, err
 		}
 		targets[position] = target
 	}
@@ -49,10 +53,12 @@ func (c *Client) Bulk(ctx context.Context, request search.BulkRequest) (search.B
 	}
 	responseBody, err := c.executeContent(ctx, OperationBulk, http.MethodPost, path, body, "application/x-ndjson", http.StatusOK)
 	if err != nil {
+		c.transport.telemetry.signal(ctx, OperationBulk, TelemetryUnknownWriteOutcome)
 		return unknownBulkResult(request.Operations), markUnknownOutcome(err)
 	}
-	result, decodeErr := decodeBulkResponse(request.Operations, responseBody)
+	result, decodeErr := decodeBulkResponse(request.Operations, responseBody, targets)
 	if decodeErr != nil {
+		c.transport.telemetry.signal(ctx, OperationBulk, TelemetryUnknownWriteOutcome)
 		return unknownBulkResult(request.Operations), &Failure{Operation: OperationBulk, Category: FailureMalformed, OutcomeKnown: false, cause: decodeErr}
 	}
 	return result, nil
@@ -80,8 +86,9 @@ func encodeBulkRequest(operations []search.WriteOperation, targets []IndexTarget
 	return body.Bytes()
 }
 
-func decodeBulkResponse(operations []search.WriteOperation, body []byte) (search.BulkResult, error) {
+func decodeBulkResponse(operations []search.WriteOperation, body []byte, expectedTargets ...[]IndexTarget) (search.BulkResult, error) {
 	type responseItem struct {
+		Index   string `json:"_index"`
 		ID      string `json:"_id"`
 		Version uint64 `json:"_version"`
 		Status  int    `json:"status"`
@@ -91,11 +98,11 @@ func decodeBulkResponse(operations []search.WriteOperation, body []byte) (search
 		} `json:"error"`
 	}
 	var payload struct {
-		Took   int64                     `json:"took"`
-		Errors bool                      `json:"errors"`
+		Took   *int64                    `json:"took"`
+		Errors *bool                     `json:"errors"`
 		Items  []map[string]responseItem `json:"items"`
 	}
-	if err := json.Unmarshal(body, &payload); err != nil || payload.Took < 0 || len(payload.Items) != len(operations) {
+	if err := json.Unmarshal(body, &payload); err != nil || payload.Took == nil || *payload.Took < 0 || payload.Errors == nil || len(payload.Items) != len(operations) {
 		return search.BulkResult{}, ErrMalformedResponse
 	}
 	outcomes := make([]search.ItemOutcome, len(operations))
@@ -111,6 +118,9 @@ func decodeBulkResponse(operations []search.WriteOperation, body []byte) (search
 			decoded = value
 		}
 		operation := operations[position]
+		if len(expectedTargets) == 1 && (len(expectedTargets[0]) != len(operations) || decoded.Index != expectedTargets[0][position].PhysicalName) {
+			return search.BulkResult{}, ErrMalformedResponse
+		}
 		expectedAction := "index"
 		if operation.Action == search.ActionDelete {
 			expectedAction = "delete"
@@ -120,7 +130,12 @@ func decodeBulkResponse(operations []search.WriteOperation, body []byte) (search
 		}
 		if decoded.Status >= 300 {
 			hasErrors = true
-		} else if decoded.Version != operation.Version || decoded.Error != nil {
+			if decoded.Status == http.StatusNotFound && operation.Action == search.ActionDelete &&
+				decoded.Error == nil && decoded.Result != "not_found" {
+				return search.BulkResult{}, ErrMalformedResponse
+			}
+		} else if decoded.Version != operation.Version || decoded.Error != nil ||
+			!validAppliedWriteResult(operation.Action, decoded.Status, decoded.Result) {
 			return search.BulkResult{}, ErrMalformedResponse
 		}
 		state, retryable := classifyBulkItem(operation.Action, decoded.Status, decoded.Error)
@@ -133,7 +148,7 @@ func decodeBulkResponse(operations []search.WriteOperation, body []byte) (search
 		}
 		outcomes[position] = search.ItemOutcome{Position: position, ID: operation.ID, Action: operation.Action, State: state, Version: decoded.Version, Code: code, Retryable: retryable}
 	}
-	if payload.Errors != hasErrors {
+	if *payload.Errors != hasErrors {
 		return search.BulkResult{}, ErrMalformedResponse
 	}
 	return search.NewBulkResult(outcomes)
@@ -143,12 +158,16 @@ func classifyBulkItem(action search.WriteAction, status int, failure *struct {
 	Type string `json:"type"`
 }) (search.OutcomeState, bool) {
 	switch {
-	case status >= 200 && status < 300:
+	case action == search.ActionDelete && status == http.StatusOK ||
+		(action == search.ActionIndex || action == search.ActionUpsert) &&
+			(status == http.StatusOK || status == http.StatusCreated):
 		return search.OutcomeApplied, false
-	case status == http.StatusNotFound && action == search.ActionDelete:
+	case status == http.StatusNotFound && action == search.ActionDelete && failure == nil:
 		return search.OutcomeNotFound, false
-	case status == http.StatusConflict:
+	case status == http.StatusConflict && failure != nil && failure.Type == "version_conflict_engine_exception":
 		return search.OutcomeVersionConflict, false
+	case failure != nil && failure.Type == "cluster_block_exception":
+		return search.OutcomeFailed, false
 	case status == http.StatusTooManyRequests || status == http.StatusServiceUnavailable:
 		return search.OutcomeRejected, true
 	case failure != nil:

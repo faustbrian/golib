@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "title": "OpenSearch adapter production signals",
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": "traffic",
+      "source": "telemetry",
+      "signals": ["request_rate", "request_latency", "response_category", "http_status"],
+      "group_by": ["operation", "category", "status"]
+    },
+    {
+      "id": "admission",
+      "source": "telemetry",
+      "signals": ["in_flight", "queued", "backpressure_rejections", "circuit_open"],
+      "group_by": ["operation"]
+    },
+    {
+      "id": "cluster-health",
+      "source": "health-report",
+      "signals": ["health_ready", "active_primary_shards", "initializing_shards", "unassigned_shards", "pending_tasks"],
+      "group_by": []
+    },
+    {
+      "id": "capacity",
+      "source": "capacity-report",
+      "signals": ["heap_used_bytes", "heap_max_bytes", "disk_available_bytes", "thread_pool_rejections", "breaker_trips"],
+      "group_by": []
+    },
+    {
+      "id": "data-safety",
+      "source": "telemetry",
+      "signals": ["unknown_write_outcomes", "partial_searches", "pit_cleanup_failures", "cutover_failures"],
+      "group_by": ["operation", "category"]
+    },
+    {
+      "id": "reconciliation",
+      "source": "reconciliation-report",
+      "signals": ["reconciliation_drift"],
+      "group_by": []
+    }
+  ],
+  "forbidden_labels": ["tenant", "index", "query", "document", "node", "task", "cursor", "endpoint", "credential"]
+}

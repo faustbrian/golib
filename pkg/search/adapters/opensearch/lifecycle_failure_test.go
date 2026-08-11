@@ -43,7 +43,11 @@ func TestLifecycleMutationsReportAmbiguousTransportAndMalformedOutcomes(t *testi
 			return client.AddAlias(t.Context(), "tenant-a", "events-write", "events-v2", true)
 		}},
 		{name: "delete index", invoke: func(client *adapter.Client) error {
-			return client.DeleteIndex(t.Context(), "tenant-a", "events-v1")
+			return client.CleanupIndex(t.Context(), search.LifecycleCleanupRequest{
+				MigrationID: "migration", Tenant: "tenant-a", Alias: "events-read",
+				ActiveIndex: "events-v2", ActiveFingerprint: "definition-v2",
+				InactiveIndex: "events-v1", InactiveFingerprint: "definition-v1",
+			})
 		}},
 		{name: "put template", invoke: func(client *adapter.Client) error {
 			return client.PutIndexTemplate(t.Context(), "tenant-a", "events-template", []string{"events-v*"}, 100, definition)
@@ -91,17 +95,29 @@ func TestReadOnlyLifecycleFailuresKeepKnownOutcomes(t *testing.T) {
 
 	reads := []struct {
 		name   string
-		invoke func(*adapter.Client) error
+		invoke func(*adapter.Client, http.RoundTripper) error
 	}{
-		{name: "poll reindex", invoke: func(client *adapter.Client) error {
-			_, _, err := client.Reindex(t.Context(), "tenant-a", "events-v1", "events-v2", "node:task-1")
+		{name: "poll reindex", invoke: func(_ *adapter.Client, transport http.RoundTripper) error {
+			requests := 0
+			client := newLifecycleFailureClient(t, roundTripFunc(func(request *http.Request) (*http.Response, error) {
+				requests++
+				if requests == 1 {
+					return cursorResponse(http.StatusOK, `{"task":"node:task-1"}`), nil
+				}
+				return transport.RoundTrip(request)
+			}))
+			cursor, _, err := client.Reindex(t.Context(), "tenant-a", "events-v1", "events-v2", "")
+			if err != nil {
+				return err
+			}
+			_, _, err = client.Reindex(t.Context(), "tenant-a", "events-v1", "events-v2", cursor)
 			return err
 		}},
-		{name: "verify index", invoke: func(client *adapter.Client) error {
-			_, err := client.VerifyIndex(t.Context(), "tenant-a", "events-v1", "events-v2")
+		{name: "verify index", invoke: func(client *adapter.Client, _ http.RoundTripper) error {
+			_, err := client.VerifyIndex(t.Context(), "tenant-a", "events-v1", "events-v2", "definition-v2")
 			return err
 		}},
-		{name: "resolve alias", invoke: func(client *adapter.Client) error {
+		{name: "resolve alias", invoke: func(client *adapter.Client, _ http.RoundTripper) error {
 			_, err := client.ResolveAlias(t.Context(), "tenant-a", "events-read")
 			return err
 		}},
@@ -124,10 +140,11 @@ func TestReadOnlyLifecycleFailuresKeepKnownOutcomes(t *testing.T) {
 			t.Run(read.name+"/"+fault.name, func(t *testing.T) {
 				t.Parallel()
 
-				client := newLifecycleFailureClient(t, roundTripFunc(func(*http.Request) (*http.Response, error) {
+				transport := roundTripFunc(func(*http.Request) (*http.Response, error) {
 					return fault.response()
-				}))
-				err := read.invoke(client)
+				})
+				client := newLifecycleFailureClient(t, transport)
+				err := read.invoke(client, transport)
 				var failure *adapter.Failure
 				if !errors.As(err, &failure) || failure.Category != fault.category || !failure.OutcomeKnown {
 					t.Fatalf("read error = %#v / %v", failure, err)
@@ -146,8 +163,8 @@ func TestReindexRejectsMalformedTaskCursorBeforeNetworkAccess(t *testing.T) {
 		return nil, errors.New("unexpected network access")
 	}))
 	_, _, err := client.Reindex(t.Context(), "tenant-a", "events-v1", "events-v2", "%")
-	if !errors.Is(err, adapter.ErrLifecycleRejected) {
-		t.Fatalf("Reindex() error = %v, want ErrLifecycleRejected", err)
+	if !errors.Is(err, adapter.ErrInvalidReindexCursor) {
+		t.Fatalf("Reindex() error = %v, want ErrInvalidReindexCursor", err)
 	}
 	if requests != 0 {
 		t.Fatalf("Reindex() requests = %d, want 0", requests)
@@ -163,9 +180,16 @@ func newLifecycleFailureClient(t *testing.T, transport http.RoundTripper) *adapt
 		TransportOwnership:   adapter.TransportBorrowed,
 		RequestTimeout:       time.Second,
 		MaximumResponseBytes: 4 << 10,
-		Lifecycle: &adapter.LifecycleConfig{Authorizer: adapter.LifecycleAuthorizerFunc(
-			func(context.Context, string, []string) error { return nil },
-		)},
+		Lifecycle: &adapter.LifecycleConfig{
+			Authorizer:         adapter.LifecycleAuthorizerFunc(func(context.Context, string, []string) error { return nil }),
+			ReindexCursorCodec: mustReindexCursorCodec(t),
+			MutationGuard: adapter.LifecycleMutationGuardFunc(func(_ context.Context, _ adapter.LifecycleMutationRequest, operation func() error) error {
+				return operation()
+			}),
+			CleanupGuard: adapter.LifecycleCleanupGuardFunc(func(_ context.Context, _ search.LifecycleCleanupRequest, operation func() error) error {
+				return operation()
+			}),
+		},
 	})
 	if err != nil {
 		t.Fatal(err)

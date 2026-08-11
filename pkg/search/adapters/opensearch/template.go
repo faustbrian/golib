@@ -21,7 +21,7 @@ func validPhysicalName(name string) bool {
 // definition owns settings, mappings, and analyzers; the definition name is
 // not used as a physical index by this operation.
 func (c *Client) PutIndexTemplate(ctx context.Context, tenant, name string, patterns []string, priority int, definition search.IndexDefinition) error {
-	if tenant == "" || !validPhysicalName(name) || len(patterns) == 0 || len(patterns) > MaximumIndexPatterns || priority < 0 || definition.Fingerprint() == "" {
+	if !validLifecycleTenant(tenant) || !validPhysicalName(name) || len(patterns) == 0 || len(patterns) > MaximumIndexPatterns || priority < 0 || definition.Fingerprint() == "" {
 		return ErrUnsafeIndexTarget
 	}
 	resources := make([]string, 1, len(patterns)+1)
@@ -40,7 +40,7 @@ func (c *Client) PutIndexTemplate(ctx context.Context, tenant, name string, patt
 		"template": map[string]any{"settings": definition.Settings(), "mappings": definition.Mappings()},
 		"_meta":    map[string]any{"definition_fingerprint": definition.Fingerprint()},
 	})
-	response, err := c.execute(ctx, OperationTemplate, http.MethodPut, "/_index_template/"+name, body, http.StatusOK)
+	response, err := c.executeMutation(ctx, OperationTemplate, http.MethodPut, "/_index_template/"+name, body, http.StatusOK)
 	if err != nil {
 		return err
 	}
@@ -49,18 +49,21 @@ func (c *Client) PutIndexTemplate(ctx context.Context, tenant, name string, patt
 
 // DeleteIndexTemplate idempotently removes one authorized template.
 func (c *Client) DeleteIndexTemplate(ctx context.Context, tenant, name string) error {
-	if tenant == "" || !validPhysicalName(name) {
+	if !validLifecycleTenant(tenant) || !validPhysicalName(name) {
 		return ErrUnsafeIndexTarget
 	}
 	if err := c.authorizeLifecycle(ctx, tenant, name); err != nil {
 		return err
 	}
-	response, err := c.execute(ctx, OperationTemplate, http.MethodDelete, "/_index_template/"+name, nil, http.StatusOK, http.StatusNotFound)
+	response, status, err := c.executeMutationWithStatus(ctx, OperationTemplate, http.MethodDelete, "/_index_template/"+name, nil, http.StatusOK, http.StatusNotFound)
 	if err != nil {
 		return err
 	}
-	if len(response) == 0 {
-		return nil
+	if status == http.StatusNotFound {
+		if responseHasErrorCode(response, "resource_not_found_exception") {
+			return nil
+		}
+		return responseFailure(OperationTemplate, status, response)
 	}
 	return requireAcknowledged(OperationTemplate, response)
 }
@@ -70,7 +73,7 @@ func requireAcknowledged(operation Operation, body []byte) error {
 		Acknowledged bool `json:"acknowledged"`
 	}
 	if json.Unmarshal(body, &response) != nil || !response.Acknowledged {
-		return malformedFailure(operation, ErrLifecycleRejected)
+		return unknownMalformedFailure(operation, ErrLifecycleRejected)
 	}
 	return nil
 }

@@ -17,14 +17,11 @@ var ErrPartialResults = errors.New("search/opensearch: partial results cannot be
 func (c *Client) Read(ctx context.Context, tenant, index, cursor string, pageSize int) (search.ReconciliationPage, error) {
 	result, err := c.Search(ctx, search.Request{
 		Tenant: tenant, Index: index, Query: search.MatchAllQuery{},
-		Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}},
+		Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
 		Page: search.CursorPage{Size: pageSize, Cursor: cursor, KeepAlive: ReconciliationPITKeepAlive},
 	})
 	if err != nil {
 		return search.ReconciliationPage{}, err
-	}
-	if result.Diagnostics().Partial {
-		return search.ReconciliationPage{}, ErrPartialResults
 	}
 	hits := result.Hits()
 	records := make([]search.ReconciliationRecord, len(hits))

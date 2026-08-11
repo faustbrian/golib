@@ -13,6 +13,29 @@ import (
 	"github.com/faustbrian/golib/pkg/search"
 )
 
+func TestInternalReindexCursorRejectsAuthenticatedUnsafeBackendTask(t *testing.T) {
+	t.Parallel()
+
+	codec, err := NewReindexCursorCodec([]byte("0123456789abcdef0123456789abcdef"), time.Now, 4096, time.Hour)
+	if err != nil {
+		t.Fatal(err)
+	}
+	payload, err := json.Marshal(reindexCursorEnvelope{
+		Version: 1, Tenant: "tenant", Source: "source", Target: "target",
+		Task: strings.Repeat("t", 513), ExpiresUnix: time.Now().Add(time.Minute).UnixNano(),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	token, err := codec.seal(payload)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := codec.decode(token, "tenant", "source", "target"); !errors.Is(err, ErrInvalidReindexCursor) {
+		t.Fatalf("decode() error = %v, want ErrInvalidReindexCursor", err)
+	}
+}
+
 type internalResolver struct {
 	target IndexTarget
 	err    error
@@ -30,10 +53,29 @@ func internalClient(t *testing.T, handler func(*http.Request) (*http.Response, e
 		if err != nil {
 			t.Fatal(err)
 		}
-		config.Search = &SearchConfig{Limits: search.DefaultLimits(), CursorCodec: codec, Resolver: resolver, Clock: time.Now}
+		config.Search = &SearchConfig{
+			Limits: search.DefaultLimits(), CursorCodec: codec, Resolver: resolver, Clock: time.Now,
+			Authorizer: SearchAuthorizerFunc(func(context.Context, SearchAuthorization) error { return nil }),
+			WriteGuard: WriteGuardFunc(func(context.Context, WriteAuthorization) error { return nil }),
+		}
 	}
 	if authorize != nil {
-		config.Lifecycle = &LifecycleConfig{Authorizer: authorize}
+		config.Lifecycle = &LifecycleConfig{
+			Authorizer:         authorize,
+			ReindexCursorCodec: internalReindexCursorCodec(t),
+			MutationGuard: LifecycleMutationGuardFunc(func(_ context.Context, _ LifecycleMutationRequest, operation func() error) error {
+				return operation()
+			}),
+			CleanupGuard: LifecycleCleanupGuardFunc(func(_ context.Context, _ search.LifecycleCleanupRequest, operation func() error) error {
+				return operation()
+			}),
+			Verifier: LifecycleVerifierFunc(func(_ context.Context, request LifecycleVerificationRequest) (LifecycleVerificationResult, error) {
+				return LifecycleVerificationResult{
+					TargetFingerprint: request.ExpectedTargetFingerprint,
+					Drift:             max(request.SourceCount, request.TargetCount) - min(request.SourceCount, request.TargetCount),
+				}, nil
+			}),
+		}
 	}
 	client, err := New(config)
 	if err != nil {
@@ -48,7 +90,7 @@ func routeBody(body string, status int) func(*http.Request) (*http.Response, err
 }
 
 func TestInternalClientCapabilitiesWriteAndBulkFailures(t *testing.T) {
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
 	client := internalClient(t, routeBody(`{}`, 200), nil, nil)
 	//lint:ignore SA1012 Explicit nil-context validation is the contract under test.
 	if _, err := client.Capabilities(nil); !errors.Is(err, ErrContextRequired) { //nolint:staticcheck // Explicit nil-context contract.
@@ -103,7 +145,7 @@ func TestInternalClientCapabilitiesWriteAndBulkFailures(t *testing.T) {
 	if _, err := badResolver.Bulk(t.Context(), request); !errors.Is(err, ErrUnsafeIndexTarget) {
 		t.Fatal(err)
 	}
-	badTarget := internalClient(t, routeBody(`{}`, 200), internalResolver{target: IndexTarget{Name: "bad/name", Fingerprint: "f"}}, nil)
+	badTarget := internalClient(t, routeBody(`{}`, 200), internalResolver{target: IndexTarget{Name: "bad/name", PhysicalName: "events-v1", Fingerprint: "f"}}, nil)
 	if _, err := badTarget.Write(t.Context(), operation, search.RefreshNone); !errors.Is(err, ErrUnsafeIndexTarget) {
 		t.Fatal(err)
 	}
@@ -123,7 +165,7 @@ func TestInternalClientCapabilitiesWriteAndBulkFailures(t *testing.T) {
 		t.Fatal(outcome, err)
 	}
 	deleteOp := search.DeleteDocument("t", "events", "id", 2)
-	notFound := internalClient(t, routeBody(`{"_id":"id","result":"not_found"}`, 404), resolver, nil)
+	notFound := internalClient(t, routeBody(`{"_index":"events-v1","_id":"id","result":"not_found"}`, 404), resolver, nil)
 	if outcome, err := notFound.Write(t.Context(), deleteOp, search.RefreshWaitFor); err != nil || outcome.State != search.OutcomeNotFound {
 		t.Fatal(outcome, err)
 	}
@@ -143,15 +185,15 @@ func TestInternalClientCapabilitiesWriteAndBulkFailures(t *testing.T) {
 		}
 	}
 	deleteRequest := search.BulkRequest{Operations: []search.WriteOperation{deleteOp}, Refresh: search.RefreshImmediate}
-	bulkDelete := internalClient(t, routeBody(`{"took":1,"errors":false,"items":[{"delete":{"_id":"id","_version":2,"status":200,"result":"deleted"}}]}`, 200), resolver, nil)
+	bulkDelete := internalClient(t, routeBody(`{"took":1,"errors":false,"items":[{"delete":{"_index":"events-v1","_id":"id","_version":2,"status":200,"result":"deleted"}}]}`, 200), resolver, nil)
 	if _, err := bulkDelete.Bulk(t.Context(), deleteRequest); err != nil {
 		t.Fatal(err)
 	}
 }
 
 func TestInternalClientSearchFailureBranches(t *testing.T) {
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
-	base := search.Request{Tenant: "t", Index: "events", Query: search.MatchAllQuery{}, Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}}, Page: search.OffsetPage{Size: 1}}
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
+	base := search.Request{Tenant: "t", Index: "events", Query: search.MatchAllQuery{}, Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}}, Page: search.OffsetPage{Size: 1}}
 	disabled := internalClient(t, routeBody(`{}`, 200), nil, nil)
 	if _, err := disabled.Search(t.Context(), base); !errors.Is(err, ErrSearchDisabled) {
 		t.Fatal(err)
@@ -166,7 +208,7 @@ func TestInternalClientSearchFailureBranches(t *testing.T) {
 	if _, err := badResolver.Search(t.Context(), base); !errors.Is(err, ErrUnsafeIndexTarget) {
 		t.Fatal(err)
 	}
-	badTarget := internalClient(t, routeBody(`{}`, 200), internalResolver{target: IndexTarget{Name: "bad/name", Fingerprint: "f"}}, nil)
+	badTarget := internalClient(t, routeBody(`{}`, 200), internalResolver{target: IndexTarget{Name: "bad/name", PhysicalName: "events-v1", Fingerprint: "f"}}, nil)
 	if _, err := badTarget.Search(t.Context(), base); !errors.Is(err, ErrUnsafeIndexTarget) {
 		t.Fatal(err)
 	}
@@ -230,7 +272,7 @@ func TestInternalLifecycleTemplateAndOperationalFailures(t *testing.T) {
 	if _, _, err := client.Reindex(t.Context(), "", "a", "b", ""); !errors.Is(err, ErrUnsafeIndexTarget) {
 		t.Fatal(err)
 	}
-	if _, err := client.VerifyIndex(t.Context(), "", "a", "b"); !errors.Is(err, ErrUnsafeIndexTarget) {
+	if _, err := client.VerifyIndex(t.Context(), "", "a", "b", "definition"); !errors.Is(err, ErrUnsafeIndexTarget) {
 		t.Fatal(err)
 	}
 	if _, err := client.ResolveAlias(t.Context(), "", "alias"); !errors.Is(err, ErrUnsafeIndexTarget) {
@@ -268,14 +310,15 @@ func TestInternalLifecycleTemplateAndOperationalFailures(t *testing.T) {
 	if err := denied.authorizeLifecycle(t.Context(), "t", "x"); !errors.Is(err, ErrLifecycleDenied) {
 		t.Fatal(err)
 	}
+	cleanupRequest := search.LifecycleCleanupRequest{MigrationID: "migration", Tenant: "t", Alias: "alias", ActiveIndex: "b", ActiveFingerprint: "definition-b", InactiveIndex: "a", InactiveFingerprint: "definition-a"}
 	for _, call := range []func() error{
 		func() error { return denied.CreateIndex(t.Context(), "t", definition) },
 		func() error { _, _, err := denied.Reindex(t.Context(), "t", "a", "b", ""); return err },
-		func() error { _, err := denied.VerifyIndex(t.Context(), "t", "a", "b"); return err },
+		func() error { _, err := denied.VerifyIndex(t.Context(), "t", "a", "b", "definition"); return err },
 		func() error { _, err := denied.ResolveAlias(t.Context(), "t", "alias"); return err },
 		func() error { return denied.SwapAlias(t.Context(), "t", "alias", "a", "b") },
 		func() error { return denied.AddAlias(t.Context(), "t", "alias", "a", false) },
-		func() error { return denied.DeleteIndex(t.Context(), "t", "a") },
+		func() error { return denied.CleanupIndex(t.Context(), cleanupRequest) },
 		func() error {
 			return denied.PutIndexTemplate(t.Context(), "t", "template", []string{"events-*"}, 0, definition)
 		},
@@ -286,15 +329,19 @@ func TestInternalLifecycleTemplateAndOperationalFailures(t *testing.T) {
 		}
 	}
 	failed := internalClient(t, routeBody(`{}`, 500), nil, authorize)
+	failedCursor, err := failed.lifecycle.ReindexCursorCodec.encode("t", "a", "b", "task")
+	if err != nil {
+		t.Fatal(err)
+	}
 	for _, call := range []func() error{
 		func() error { return failed.CreateIndex(t.Context(), "t", definition) },
 		func() error { _, _, err := failed.Reindex(t.Context(), "t", "a", "b", ""); return err },
-		func() error { _, _, err := failed.Reindex(t.Context(), "t", "a", "b", "task"); return err },
-		func() error { _, err := failed.VerifyIndex(t.Context(), "t", "a", "b"); return err },
+		func() error { _, _, err := failed.Reindex(t.Context(), "t", "a", "b", failedCursor); return err },
+		func() error { _, err := failed.VerifyIndex(t.Context(), "t", "a", "b", "definition"); return err },
 		func() error { _, err := failed.ResolveAlias(t.Context(), "t", "alias"); return err },
 		func() error { return failed.SwapAlias(t.Context(), "t", "alias", "a", "b") },
 		func() error { return failed.AddAlias(t.Context(), "t", "alias", "a", false) },
-		func() error { return failed.DeleteIndex(t.Context(), "t", "a") },
+		func() error { return failed.CleanupIndex(t.Context(), cleanupRequest) },
 		func() error {
 			return failed.PutIndexTemplate(t.Context(), "t", "template", []string{"events-*"}, 0, definition)
 		},
@@ -313,14 +360,16 @@ func TestInternalLifecycleTemplateAndOperationalFailures(t *testing.T) {
 		if err := bad.SwapAlias(t.Context(), "t", "alias", "a", "b"); err == nil {
 			t.Fatal("swap accepted")
 		}
-		if err := bad.DeleteIndex(t.Context(), "t", "index"); err == nil {
+		request := cleanupRequest
+		request.InactiveIndex = "index"
+		if err := bad.CleanupIndex(t.Context(), request); err == nil {
 			t.Fatal("delete accepted")
 		}
 		if err := bad.PutIndexTemplate(t.Context(), "t", "template", []string{"events-*"}, 0, definition); err == nil {
 			t.Fatal("template response accepted")
 		}
 	}
-	if _, _, err := client.Reindex(t.Context(), "t", "a", "b", strings.Repeat("x", 513)); !errors.Is(err, ErrLifecycleRejected) {
+	if _, _, err := client.Reindex(t.Context(), "t", "a", "b", strings.Repeat("x", 513)); !errors.Is(err, ErrInvalidReindexCursor) {
 		t.Fatal(err)
 	}
 	for _, body := range []string{"not-json", `{"task":""}`} {
@@ -331,7 +380,11 @@ func TestInternalLifecycleTemplateAndOperationalFailures(t *testing.T) {
 	}
 	for _, body := range []string{"not-json", `{"completed":true}`, `{"completed":false}`} {
 		bad := internalClient(t, routeBody(body, 200), nil, authorize)
-		_, done, err := bad.Reindex(t.Context(), "t", "a", "b", "task")
+		cursor, encodeErr := bad.lifecycle.ReindexCursorCodec.encode("t", "a", "b", "task")
+		if encodeErr != nil {
+			t.Fatal(encodeErr)
+		}
+		_, done, err := bad.Reindex(t.Context(), "t", "a", "b", cursor)
 		if body == `{"completed":false}` {
 			if err != nil || done {
 				t.Fatal(done, err)
@@ -355,7 +408,7 @@ func TestInternalLifecycleTemplateAndOperationalFailures(t *testing.T) {
 	if err := client.PutIndexTemplate(t.Context(), "t", "template", []string{"bad pattern"}, 0, definition); err == nil {
 		t.Fatal("bad pattern accepted")
 	}
-	emptyTemplate := internalClient(t, routeBody("", 404), nil, authorize)
+	emptyTemplate := internalClient(t, routeBody(`{"error":{"type":"resource_not_found_exception"}}`, 404), nil, authorize)
 	if err := emptyTemplate.DeleteIndexTemplate(t.Context(), "t", "template"); err != nil {
 		t.Fatal(err)
 	}
@@ -372,7 +425,7 @@ func TestInternalLifecycleTemplateAndOperationalFailures(t *testing.T) {
 }
 
 func TestInternalHealthCapacityAndReconciliationFailures(t *testing.T) {
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
 	for _, body := range []string{"not-json", `{"cluster_name":"","status":"green"}`, `{"cluster_name":"x","status":"bad"}`, `{"cluster_name":"x","status":"green","number_of_nodes":-1}`} {
 		client := internalClient(t, routeBody(body, 200), resolver, nil)
 		if _, err := client.Health(t.Context()); err == nil {
@@ -413,7 +466,7 @@ func TestInternalHealthCapacityAndReconciliationFailures(t *testing.T) {
 		t.Fatal("node status accepted")
 	}
 
-	partialBody := `{"took":1,"timed_out":true,"_shards":{"total":1,"successful":1},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`
+	partialBody := `{"took":1,"timed_out":true,"_shards":{"total":1,"successful":1,"skipped":0,"failed":0},"hits":{"total":{"value":0,"relation":"eq"},"hits":[]}}`
 	sequence = 0
 	partial := internalClient(t, func(request *http.Request) (*http.Response, error) {
 		sequence++
@@ -449,7 +502,7 @@ func TestInternalHealthCapacityAndReconciliationFailures(t *testing.T) {
 }
 
 func TestInternalInfoTransportBodyFailures(t *testing.T) {
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
 	late := internalClient(t, func(*http.Request) (*http.Response, error) { return internalResponse(200, `{}`), errors.New("late") }, resolver, nil)
 	if _, err := late.Info(t.Context()); err == nil {
 		t.Fatal("late error accepted")

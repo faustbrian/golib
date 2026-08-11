@@ -8,7 +8,11 @@ import (
 	"io"
 	"math"
 	"net/http"
+	"unicode"
+	"unicode/utf8"
 )
+
+const maximumClusterInfoIdentityBytes = 1_024
 
 var (
 	// ErrTransport identifies a request for which no usable response exists.
@@ -75,8 +79,8 @@ func (c *Client) Info(ctx context.Context) (info ClusterInfo, err error) {
 		} `json:"version"`
 	}
 	if err := json.Unmarshal(body, &payload); err != nil ||
-		payload.Name == "" || payload.ClusterName == "" ||
-		payload.ClusterUUID == "" || payload.Version.Number == "" {
+		!validClusterInfoIdentity(payload.Name) || !validClusterInfoIdentity(payload.ClusterName) ||
+		!validClusterInfoIdentity(payload.ClusterUUID) || !validClusterInfoIdentity(payload.Version.Number) {
 		return ClusterInfo{}, malformedFailure(OperationInfo, ErrMalformedResponse)
 	}
 
@@ -84,6 +88,18 @@ func (c *Client) Info(ctx context.Context) (info ClusterInfo, err error) {
 		Node: payload.Name, Cluster: payload.ClusterName,
 		ClusterUUID: payload.ClusterUUID, Version: payload.Version.Number,
 	}, nil
+}
+
+func validClusterInfoIdentity(value string) bool {
+	if value == "" || len(value) > maximumClusterInfoIdentityBytes {
+		return false
+	}
+	for _, character := range value {
+		if unicode.IsControl(character) {
+			return false
+		}
+	}
+	return true
 }
 
 func (c *Client) begin() error {
@@ -113,6 +129,9 @@ func readBounded(reader io.Reader, maximum int64) ([]byte, error) {
 		if len(extra) != 0 {
 			return nil, ErrResponseTooLarge
 		}
+	}
+	if !utf8.Valid(body) {
+		return nil, ErrMalformedResponse
 	}
 
 	return body, nil

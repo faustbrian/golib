@@ -6,15 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/faustbrian/golib/pkg/search"
 	adapter "github.com/faustbrian/golib/pkg/search/adapters/opensearch"
 	"github.com/opensearch-project/opensearch-go/v4/signer"
 	"github.com/opensearch-project/opensearch-go/v4/signer/awsv2"
@@ -318,6 +321,14 @@ func TestNewRejectsUnsafeOrAmbiguousTransportConfiguration(t *testing.T) {
 		{"insecure TLS forbidden", func(config *adapter.Config) {
 			config.TLS = &tls.Config{InsecureSkipVerify: true}
 		}, adapter.ErrInvalidTLS},
+		{"custom owned transport cannot ignore TLS policy", func(config *adapter.Config) {
+			config.Transport = &observedTransport{}
+			config.TLS = &tls.Config{MinVersion: tls.VersionTLS13}
+		}, adapter.ErrInvalidConfig},
+		{"custom owned transport cannot ignore proxy policy", func(config *adapter.Config) {
+			config.Transport = &observedTransport{}
+			config.Proxy = adapter.ProxyPolicy{Mode: adapter.ProxyEnvironment}
+		}, adapter.ErrInvalidConfig},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -338,6 +349,44 @@ func TestNewRejectsUnsafeOrAmbiguousTransportConfiguration(t *testing.T) {
 	}
 	if err := client.Close(); err != nil {
 		t.Fatalf("Close() error = %v", err)
+	}
+}
+
+func TestPointInTimeCapacityAcceptsDefaultAndExactMaximum(t *testing.T) {
+	t.Parallel()
+
+	codec, err := search.NewCursorCodec([]byte("0123456789abcdef0123456789abcdef"), time.Now, 4096)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, test := range []struct {
+		name       string
+		configured int
+		expected   int
+	}{
+		{name: "zero selects default", configured: 0, expected: adapter.DefaultMaximumOpenPointInTimes},
+		{name: "exact maximum", configured: adapter.MaximumOpenPointInTimes, expected: adapter.MaximumOpenPointInTimes},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			client, createErr := adapter.New(adapter.Config{
+				Endpoints: []string{"https://search.example.test"}, RequestTimeout: time.Second, MaximumResponseBytes: 4096,
+				Search: &adapter.SearchConfig{
+					Limits: search.DefaultLimits(), CursorCodec: codec,
+					MaximumOpenPointInTimes: test.configured,
+					Resolver: adapter.IndexResolverFunc(func(context.Context, string, string, adapter.IndexAccess) (adapter.IndexTarget, error) {
+						return adapter.IndexTarget{Name: "events-read", PhysicalName: "events-v1", Fingerprint: "definition"}, nil
+					}),
+				},
+			})
+			if createErr != nil {
+				t.Fatal(createErr)
+			}
+			t.Cleanup(func() { _ = client.Close() })
+			if snapshot := client.PointInTimeSnapshot(); snapshot.Maximum != test.expected || snapshot.Open != 0 {
+				t.Fatalf("PointInTimeSnapshot() = %#v", snapshot)
+			}
+		})
 	}
 }
 
@@ -390,6 +439,36 @@ func TestBorrowedTransportRemainsCallerOwned(t *testing.T) {
 	}
 	if transport.closed != 0 {
 		t.Fatalf("borrowed transport close count = %d", transport.closed)
+	}
+}
+
+func TestBorrowedHTTPTransportRemainsTheLiveCallerInstance(t *testing.T) {
+	t.Parallel()
+
+	var originalDials, replacementDials atomic.Int32
+	transport := http.DefaultTransport.(*http.Transport).Clone()
+	transport.Proxy = nil
+	transport.DialContext = func(context.Context, string, string) (net.Conn, error) {
+		originalDials.Add(1)
+		return nil, errors.New("original dial")
+	}
+	client, err := adapter.New(adapter.Config{
+		Endpoints: []string{"https://search.example.test"},
+		Transport: transport, TransportOwnership: adapter.TransportBorrowed,
+		RequestTimeout: time.Second, MaximumResponseBytes: 4 << 10,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = client.Close() })
+	transport.DialContext = func(context.Context, string, string) (net.Conn, error) {
+		replacementDials.Add(1)
+		return nil, errors.New("replacement dial")
+	}
+
+	_, _ = client.Info(t.Context())
+	if originalDials.Load() != 0 || replacementDials.Load() == 0 {
+		t.Fatalf("borrowed transport original/replacement dial calls = %d/%d", originalDials.Load(), replacementDials.Load())
 	}
 }
 

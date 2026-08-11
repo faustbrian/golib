@@ -3,6 +3,7 @@ package opensearch
 import (
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"io"
@@ -46,6 +47,17 @@ func (f internalObserverFunc) Observe(ctx context.Context, e TelemetryEvent) err
 
 func internalResponse(status int, body string) *http.Response {
 	return &http.Response{StatusCode: status, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(body))}
+}
+
+func internalReindexCursorCodec(t *testing.T) *ReindexCursorCodec {
+	t.Helper()
+	codec, err := NewReindexCursorCodec(
+		[]byte("0123456789abcdef0123456789abcdef"), time.Now, 4096, time.Hour,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return codec
 }
 
 func TestInternalConfigAndTransportHelpers(t *testing.T) {
@@ -145,16 +157,53 @@ func TestInternalConfigAndTransportHelpers(t *testing.T) {
 		}
 	}
 	codec, _ := search.NewCursorCodec([]byte("0123456789abcdef0123456789abcdef"), time.Now, 1024)
-	for _, locales := range []map[string]string{{"": "standard"}, {strings.Repeat("x", 65): "standard"}, {"fi": "bad/name"}} {
+	for _, locales := range []map[string]string{{"": "standard"}, {strings.Repeat("x", 65): "standard"}, {string([]byte{0xff}): "standard"}, {"fi": "bad/name"}} {
 		config := base
-		config.Search = &SearchConfig{Limits: search.DefaultLimits(), CursorCodec: codec, Resolver: internalResolver{target: IndexTarget{Name: "i", Fingerprint: "f"}}, Clock: time.Now, LocaleAnalyzers: locales}
+		config.Search = &SearchConfig{Limits: search.DefaultLimits(), CursorCodec: codec, Resolver: internalResolver{target: IndexTarget{Name: "i", PhysicalName: "i", Fingerprint: "f"}}, Clock: time.Now, LocaleAnalyzers: locales}
 		if _, err := New(config); err == nil {
 			t.Fatalf("locales %#v accepted", locales)
 		}
 	}
+	if validLifecycleTenant(string([]byte{0xff})) {
+		t.Fatal("invalid UTF-8 lifecycle tenant accepted")
+	}
 	var nilClient *Client
 	if err := nilClient.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestInternalReindexCursorAndPaginationDefensiveBranches(t *testing.T) {
+	codec := internalReindexCursorCodec(t)
+	codec.random = errorReader{}
+	if _, err := codec.seal([]byte(`{"task":"node:123"}`)); !errors.Is(err, ErrInvalidReindexCursor) {
+		t.Fatalf("seal() error = %v", err)
+	}
+	if _, err := codec.decode("", "tenant", "events-v1", "events-v2"); !errors.Is(err, ErrInvalidReindexCursor) {
+		t.Fatalf("decode() error = %v", err)
+	}
+	unauthenticated := base64.RawURLEncoding.EncodeToString(make([]byte, codec.aead.NonceSize()+codec.aead.Overhead()))
+	if _, err := codec.decode(unauthenticated, "tenant", "events-v1", "events-v2"); !errors.Is(err, ErrInvalidReindexCursor) {
+		t.Fatalf("unauthenticated decode() error = %v", err)
+	}
+	if pagination := searchPaginationAuthorization(nil); pagination != (SearchPaginationAuthorization{}) {
+		t.Fatalf("nil pagination authorization = %#v", pagination)
+	}
+
+	renewalCodec := internalReindexCursorCodec(t)
+	renewalCursor, err := renewalCodec.encode("tenant", "events-v1", "events-v2", "node:123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	authorize := LifecycleAuthorizerFunc(func(context.Context, string, []string) error { return nil })
+	client := internalClient(t, routeBody(`{"completed":false}`, http.StatusOK), nil, authorize)
+	client.lifecycle.ReindexCursorCodec = renewalCodec
+	renewalCodec.random = errorReader{}
+	returned, done, err := client.Reindex(t.Context(), "tenant", "events-v1", "events-v2", renewalCursor)
+	failure := new(Failure)
+	if returned != renewalCursor || done || !errors.Is(err, ErrInvalidReindexCursor) ||
+		!errors.As(err, &failure) || failure.Category != FailureMalformed {
+		t.Fatalf("renewal encoding failure = %q/%t/%#v", returned, done, failure)
 	}
 }
 
@@ -201,7 +250,7 @@ func TestInternalFailureWriteAndBulkClassifications(t *testing.T) {
 		status   int
 		body     string
 		category FailureCategory
-	}{{429, `{}`, FailureOverloaded}, {503, `{}`, FailureOverloaded}, {403, `{"error":{"type":"cluster_block_exception"}}`, FailureClusterBlocked}, {409, `{}`, FailureVersionConflict}, {400, `{"error":{"type":"mapper_parsing_exception"}}`, FailureMappingRejected}, {404, `{"error":{"type":"resource_not_found_exception"}}`, FailurePITExpired}, {400, `{}`, FailureRejected}} {
+	}{{429, `{}`, FailureOverloaded}, {503, `{}`, FailureOverloaded}, {403, `{"error":{"type":"cluster_block_exception"}}`, FailureClusterBlocked}, {409, `{}`, FailureRejected}, {400, `{"error":{"type":"mapper_parsing_exception"}}`, FailureMappingRejected}, {404, `{"error":{"type":"resource_not_found_exception"}}`, FailureRejected}, {400, `{}`, FailureRejected}} {
 		failure := responseFailure(OperationSearch, test.status, []byte(test.body))
 		if failure.Category != test.category {
 			t.Fatalf("%d=%s", test.status, failure.Category)
@@ -229,7 +278,7 @@ func TestInternalFailureWriteAndBulkClassifications(t *testing.T) {
 		status int
 		state  search.OutcomeState
 		retry  bool
-	}{{search.ActionIndex, 200, search.OutcomeApplied, false}, {search.ActionDelete, 404, search.OutcomeNotFound, false}, {search.ActionIndex, 404, search.OutcomeFailed, false}, {search.ActionIndex, 409, search.OutcomeVersionConflict, false}, {search.ActionIndex, 429, search.OutcomeRejected, true}, {search.ActionIndex, 503, search.OutcomeRejected, true}, {search.ActionIndex, 400, search.OutcomeFailed, false}, {search.ActionIndex, 418, search.OutcomeUnknown, false}} {
+	}{{search.ActionIndex, 200, search.OutcomeApplied, false}, {search.ActionDelete, 404, search.OutcomeFailed, false}, {search.ActionIndex, 404, search.OutcomeFailed, false}, {search.ActionIndex, 409, search.OutcomeFailed, false}, {search.ActionIndex, 429, search.OutcomeRejected, true}, {search.ActionIndex, 503, search.OutcomeRejected, true}, {search.ActionIndex, 400, search.OutcomeFailed, false}, {search.ActionIndex, 418, search.OutcomeUnknown, false}} {
 		failure := failureType
 		if test.status == 418 {
 			failure = nil
@@ -244,7 +293,7 @@ func TestInternalFailureWriteAndBulkClassifications(t *testing.T) {
 		status int
 		state  search.OutcomeState
 		retry  bool
-	}{{search.ActionIndex, 200, search.OutcomeApplied, false}, {search.ActionDelete, 404, search.OutcomeNotFound, false}, {search.ActionIndex, 409, search.OutcomeVersionConflict, false}, {search.ActionIndex, 429, search.OutcomeRejected, true}, {search.ActionIndex, 503, search.OutcomeRejected, true}, {search.ActionIndex, 400, search.OutcomeFailed, false}, {search.ActionIndex, 418, search.OutcomeUnknown, false}} {
+	}{{search.ActionIndex, 200, search.OutcomeApplied, false}, {search.ActionDelete, 404, search.OutcomeFailed, false}, {search.ActionIndex, 409, search.OutcomeFailed, false}, {search.ActionIndex, 429, search.OutcomeRejected, true}, {search.ActionIndex, 503, search.OutcomeRejected, true}, {search.ActionIndex, 400, search.OutcomeFailed, false}, {search.ActionIndex, 418, search.OutcomeUnknown, false}} {
 		failure := failureType
 		if test.status == 418 {
 			failure = nil
@@ -256,20 +305,20 @@ func TestInternalFailureWriteAndBulkClassifications(t *testing.T) {
 	}
 	op := search.WriteOperation{Action: search.ActionIndex, ID: "id", Version: 2}
 	for _, body := range []string{"not-json", `{"_id":"other"}`} {
-		if _, err := decodeWriteResponse(op, 200, []byte(body)); err == nil {
+		if _, err := decodeWriteResponse(op, "events-v1", 200, []byte(body)); err == nil {
 			t.Fatalf("write %q accepted", body)
 		}
 	}
-	if _, err := decodeWriteResponse(op, 200, []byte(`{"_id":"id","_version":2,"result":"updated"}`)); err != nil {
+	if _, err := decodeWriteResponse(op, "events-v1", 200, []byte(`{"_index":"events-v1","_id":"id","_version":2,"result":"updated"}`)); err != nil {
 		t.Fatal(err)
 	}
-	if outcome, err := decodeWriteResponse(op, 400, []byte(`{"_id":"id","error":{"type":"UPPER"}}`)); err != nil || outcome.Code != "unknown" {
+	if outcome, err := decodeWriteResponse(op, "events-v1", 400, []byte(`{"_id":"id","error":{"type":"UPPER"}}`)); err != nil || outcome.Code != "unknown" {
 		t.Fatal(outcome, err)
 	}
-	if outcome, err := decodeWriteResponse(op, 400, []byte(`{"error":{"type":"mapper_parsing_exception"}}`)); err != nil || outcome.State != search.OutcomeFailed {
+	if outcome, err := decodeWriteResponse(op, "events-v1", 400, []byte(`{"error":{"type":"mapper_parsing_exception"}}`)); err != nil || outcome.State != search.OutcomeFailed {
 		t.Fatal(outcome, err)
 	}
-	if outcome, err := decodeWriteResponse(op, 300, []byte(`{}`)); err != nil || outcome.State != search.OutcomeUnknown {
+	if outcome, err := decodeWriteResponse(op, "events-v1", 300, []byte(`{}`)); err != nil || outcome.State != search.OutcomeUnknown {
 		t.Fatal(outcome, err)
 	}
 	if result := markUnknownOutcome(errors.New("x")); result == nil {
@@ -279,7 +328,14 @@ func TestInternalFailureWriteAndBulkClassifications(t *testing.T) {
 		t.Fatal("failure mark nil")
 	}
 	bulkOp := []search.WriteOperation{{Action: search.ActionIndex, ID: "id"}}
-	for _, body := range []string{`{"took":1,"items":[{}]}`, `{"took":1,"items":[{"index":{"_id":"id","status":99}}]}`, `{"took":1,"errors":true,"items":[{"index":{"_id":"id","status":400,"error":{"type":"UPPER"}}}]}`} {
+	for _, body := range []string{
+		`{"took":1,"errors":true,"items":[{}]}`,
+		`{"took":1,"errors":true,"items":[{"index":{},"delete":{}}]}`,
+		`{"took":1,"errors":true,"items":[{"index":{"_id":"id","status":99}}]}`,
+		`{"took":1,"errors":true,"items":[{"index":{"_id":"id","status":400,"error":{"type":"UPPER"}}}]}`,
+		`{"took":1,"errors":true,"items":[{"index":{"_id":"id","_version":2,"status":200,"result":"updated"}}]}`,
+		`{"took":1,"errors":false,"items":[{"index":{"_id":"id","status":400,"error":{"type":"mapping"}}}]}`,
+	} {
 		result, err := decodeBulkResponse(bulkOp, []byte(body))
 		if strings.Contains(body, "UPPER") {
 			if err != nil || result.Items()[0].Code != "unknown" {
@@ -289,9 +345,30 @@ func TestInternalFailureWriteAndBulkClassifications(t *testing.T) {
 			t.Fatalf("bulk %q accepted", body)
 		}
 	}
+	deleteOp := []search.WriteOperation{{Action: search.ActionDelete, ID: "id"}}
+	for _, body := range []string{
+		`{"took":1,"errors":true,"items":[{"delete":{"_id":"id","status":404,"result":"deleted"}}]}`,
+		`{"took":1,"errors":false,"items":[{"delete":{"_id":"id","_version":1,"status":200,"result":"not_found"}}]}`,
+	} {
+		if _, err := decodeBulkResponse(deleteOp, []byte(body)); err == nil {
+			t.Fatalf("bulk %q accepted", body)
+		}
+	}
+	if state, retryable := classifyBulkItem(search.ActionDelete, http.StatusNotFound, nil); state != search.OutcomeNotFound || retryable {
+		t.Fatalf("classifyBulkItem(not found) = %q/%t", state, retryable)
+	}
+	if validAppliedWriteResult(search.ActionUpdate, http.StatusOK, "updated") {
+		t.Fatal("unsupported update result accepted")
+	}
 }
 
 func TestInternalSearchEncodingAndDecodingHelpers(t *testing.T) {
+	if _, err := encodeSearchRequest(search.Request{
+		Query: search.RawExtensionQuery{Adapter: "other", Payload: json.RawMessage(`{"match_all":{}}`)},
+		Page:  search.OffsetPage{Size: 1},
+	}, search.CursorState{}, nil); !errors.Is(err, search.ErrUnsupported) {
+		t.Fatalf("encodeSearchRequest() error = %v, want ErrUnsupported", err)
+	}
 	encodedRaw, err := encodeQuery(search.RawExtensionQuery{Adapter: "opensearch", Payload: json.RawMessage(`{"wildcard":{"tracking_code":{"value":"JJ*"}}}`)}, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -345,10 +422,58 @@ func TestInternalSearchEncodingAndDecodingHelpers(t *testing.T) {
 			t.Fatalf("search body %q accepted", body)
 		}
 	}
-	valid := `{"took":1,"timed_out":true,"pit_id":"p","_shards":{"total":1,"successful":0,"failed":1,"failures":[{"reason":{"type":"UPPER"}}]},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"i","_id":"id","_version":1,"_source":{},"sort":[1]}]},"aggregations":{"a":{}},"suggest":{"s":[]}}`
+	valid := `{"took":1,"timed_out":true,"pit_id":"p","_shards":{"total":1,"successful":0,"skipped":0,"failed":1,"failures":[{"reason":{"type":"UPPER"}}]},"hits":{"total":{"value":1,"relation":"eq"},"hits":[{"_index":"i","_id":"id","_version":1,"_source":{},"sort":[1]}]},"aggregations":{"a":{}},"suggest":{"s":[]}}`
 	decoded, err := decodeSearchResponse([]byte(valid))
 	if err != nil || !decoded.Diagnostics.Partial || decoded.Diagnostics.Failures[0].Code != "unknown" {
 		t.Fatal(err, decoded)
+	}
+}
+
+func TestInternalProjectionValidationCoversNestedObjectsAndArrays(t *testing.T) {
+	tests := []struct {
+		source     string
+		projection search.Projection
+		want       bool
+	}{
+		{source: `{}`, want: true},
+		{source: `not-json`, projection: search.Projection{Includes: []string{"public"}}},
+		{source: `null`, projection: search.Projection{Includes: []string{"public"}}},
+		{source: `{} {}`, projection: search.Projection{Includes: []string{"public"}}},
+		{source: `{"public":{}}`, projection: search.Projection{Includes: []string{"public"}}, want: true},
+		{source: `{"public":{"name":"x"}}`, projection: search.Projection{Includes: []string{"public"}}, want: true},
+		{source: `{"public":{"name":"x"}}`, projection: search.Projection{Includes: []string{"public.name"}}, want: true},
+		{source: `{"public":[]}`, projection: search.Projection{Includes: []string{"public"}}, want: true},
+		{source: `{"public":[{"name":"x"}]}`, projection: search.Projection{Includes: []string{"public"}}, want: true},
+		{source: `{"public":[{"name":"x"},{"private":"x"}]}`, projection: search.Projection{Includes: []string{"public.name"}}},
+		{source: `{"public":"x"}`, projection: search.Projection{Excludes: []string{"private"}}, want: true},
+		{source: `{"private":"x"}`, projection: search.Projection{Excludes: []string{"private"}}},
+		{source: `{"public":"x"}`, projection: search.Projection{Includes: []string{"other"}}},
+		{source: `{"public0":"leak"}`, projection: search.Projection{Includes: []string{"public[0]"}}},
+		{source: `{"public0":"leak"}`, projection: search.Projection{Includes: []string{"public?"}}},
+		{source: `{"public0":"allowed"}`, projection: search.Projection{Includes: []string{"public*"}}, want: true},
+	}
+	for _, test := range tests {
+		if got := sourceWithinProjection(json.RawMessage(test.source), test.projection); got != test.want {
+			t.Fatalf("sourceWithinProjection(%s, %#v) = %t, want %t", test.source, test.projection, got, test.want)
+		}
+	}
+}
+
+func TestInternalWriteAuthorizationChecksCancellationBeforeAndAfterGuard(t *testing.T) {
+	cancelled, cancel := context.WithCancel(t.Context())
+	cancel()
+	client := &Client{search: &SearchConfig{WriteGuard: WriteGuardFunc(func(context.Context, WriteAuthorization) error { return nil })}}
+	if err := client.authorizeWrite(cancelled, OperationWrite, nil, search.RefreshNone); !errors.Is(err, context.Canceled) {
+		t.Fatalf("authorizeWrite(pre-cancelled) error = %v", err)
+	}
+
+	active, cancelActive := context.WithCancel(t.Context())
+	client.search.WriteGuard = WriteGuardFunc(func(context.Context, WriteAuthorization) error {
+		cancelActive()
+		return nil
+	})
+	if err := client.authorizeWrite(active, OperationBulk, nil, search.RefreshNone); !errors.Is(err, context.Canceled) {
+		t.Fatalf("authorizeWrite(cancelled by guard) error = %v", err)
 	}
 }
 
@@ -482,7 +607,7 @@ func TestInternalReadBoundedStatusAndPoolPerform(t *testing.T) {
 }
 
 func TestInternalExecuteAndDiscoveryHelpers(t *testing.T) {
-	resolver := internalResolver{target: IndexTarget{Name: "events-v1", Fingerprint: "fingerprint"}}
+	resolver := internalResolver{target: IndexTarget{Name: "events-v1", PhysicalName: "events-v1", Fingerprint: "fingerprint"}}
 	client := internalClient(t, routeBody(`{}`, 200), resolver, nil)
 	//lint:ignore SA1012 Explicit nil-context validation is the contract under test.
 	if _, err := client.executeContent(nil, OperationInfo, http.MethodGet, "/", nil, "application/json", 200); !errors.Is(err, ErrContextRequired) { //nolint:staticcheck // nil-context validation is the contract under test.
@@ -497,6 +622,9 @@ func TestInternalExecuteAndDiscoveryHelpers(t *testing.T) {
 	_ = closed.Close()
 	if _, err := closed.executeContent(t.Context(), OperationInfo, http.MethodGet, "/", nil, "application/json", 200); !errors.Is(err, ErrClosed) {
 		t.Fatal(err)
+	}
+	if _, err := client.executeContent(t.Context(), OperationInfo, http.MethodGet, "%", nil, "application/json", 200); err == nil {
+		t.Fatal("malformed request target accepted")
 	}
 	responseError := internalClient(t, func(*http.Request) (*http.Response, error) { return internalResponse(200, `{}`), errors.New("late") }, resolver, nil)
 	if _, err := responseError.executeContent(t.Context(), OperationInfo, http.MethodGet, "/", nil, "application/json", 200); err == nil {

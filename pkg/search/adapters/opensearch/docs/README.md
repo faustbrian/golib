@@ -1,6 +1,8 @@
 # OpenSearch adapter documentation
 
 - [Compatibility and capabilities](compatibility.md)
+- [OpenSearch conformance](conformance.md)
+- [Specification decisions](specification-decisions.md)
 - [Operations and deployment](operations.md)
 - [AWS authentication and managed deployments](aws.md)
 - [Security and authentication](security.md)
@@ -8,6 +10,7 @@
 - [Pagination and cursor ownership](pagination.md)
 - [Migration, rebuild, replay, and reconciliation](rebuild.md)
 - [Capacity, dashboards, and alerts](observability.md)
+- [Validated dashboard, alert, drill, and runbook artifacts](../operations/)
 - [Upgrades and backup boundaries](upgrades.md)
 - [Troubleshooting](troubleshooting.md)
 - [API and compatibility inventory](api-inventory.md)

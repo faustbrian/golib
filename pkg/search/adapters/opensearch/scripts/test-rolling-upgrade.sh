@@ -1,23 +1,30 @@
 #!/bin/sh
 set -eu
 
-old_version=2.19.6
-new_version=3.8.0
-suffix=$$
+script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+. "$script_dir/opensearch-images.env"
+. "$script_dir/docker-test-ownership.sh"
+
+old_version=$opensearch_old_version
+new_version=$opensearch_new_version
+opensearch_run_id="$(date +%s)-$$-$(od -An -N6 -tx1 /dev/urandom | tr -d ' \n')"
+owner_label="$opensearch_owner_label_key=$opensearch_run_id"
+suffix=$opensearch_run_id
 network="golib-opensearch-upgrade-$suffix"
 node1="golib-opensearch-upgrade-node1-$suffix"
 node2="golib-opensearch-upgrade-node2-$suffix"
 volume1="golib-opensearch-upgrade-data1-$suffix"
 volume2="golib-opensearch-upgrade-data2-$suffix"
-old_image="opensearchproject/opensearch:$old_version"
-new_image="opensearchproject/opensearch:$new_version"
+old_image="$opensearch_image_repository@$opensearch_old_digest"
+new_image="$opensearch_image_repository@$opensearch_new_digest"
 remove_old_image=${OPENSEARCH_CLEAN_IMAGES:-0}
 remove_new_image=${OPENSEARCH_CLEAN_IMAGES:-0}
-
 cleanup() {
-	docker rm -f "$node1" "$node2" >/dev/null 2>&1 || true
-	docker volume rm "$volume1" "$volume2" >/dev/null 2>&1 || true
-	docker network rm "$network" >/dev/null 2>&1 || true
+	opensearch_remove_owned_if_present container "$node1"
+	opensearch_remove_owned_if_present container "$node2"
+	opensearch_remove_owned_if_present volume "$volume1"
+	opensearch_remove_owned_if_present volume "$volume2"
+	opensearch_remove_owned_if_present network "$network"
 	if [ "$remove_old_image" -eq 1 ]; then docker image rm "$old_image" >/dev/null 2>&1 || true; fi
 	if [ "$remove_new_image" -eq 1 ]; then docker image rm "$new_image" >/dev/null 2>&1 || true; fi
 }
@@ -25,16 +32,16 @@ trap cleanup EXIT HUP INT TERM
 
 if ! docker image inspect "$old_image" >/dev/null 2>&1; then remove_old_image=1; fi
 if ! docker image inspect "$new_image" >/dev/null 2>&1; then remove_new_image=1; fi
-docker network create "$network" >/dev/null
-docker volume create "$volume1" >/dev/null
-docker volume create "$volume2" >/dev/null
+docker network create --label "$owner_label" "$network" >/dev/null
+docker volume create --label "$owner_label" "$volume1" >/dev/null
+docker volume create --label "$owner_label" "$volume2" >/dev/null
 
 run_node() {
 	name=$1
 	node_name=$2
 	volume=$3
 	image=$4
-	docker run -d --name "$name" --network "$network" -p 127.0.0.1::9200 \
+	docker run -d --name "$name" --label "$owner_label" --network "$network" -p 127.0.0.1::9200 \
 		--cpus=1 --memory=1g --pids-limit=512 --ulimit nofile=65536:65536 \
 		-v "$volume:/usr/share/opensearch/data" \
 		-e cluster.name=golib-upgrade \
@@ -82,7 +89,14 @@ port1=$(wait_node "$node1")
 port2=$(wait_node "$node2")
 wait_cluster "$port1" 2
 urls="http://127.0.0.1:$port1,http://127.0.0.1:$port2"
-OPENSEARCH_URLS="$urls" OPENSEARCH_EXPECTED_VERSION="$old_version" \
+rolling_fixture="golib-rolling-fixture-$opensearch_run_id"
+OPENSEARCH_URL="http://127.0.0.1:$port1" OPENSEARCH_EXPECTED_VERSION="$old_version" \
+	OPENSEARCH_EXPECTED_NODE=node1 OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchRollingFixtureSeed$' -count=1 .
+OPENSEARCH_URL="http://127.0.0.1:$port2" OPENSEARCH_EXPECTED_VERSION="$old_version" \
+	OPENSEARCH_EXPECTED_NODE=node2 OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchRollingFixtureVerify$' -count=1 .
+OPENSEARCH_URLS="$urls" OPENSEARCH_EXPECTED_NODES=node1,node2 OPENSEARCH_ALLOWED_VERSIONS="$old_version" \
 	go test -tags=integration -run TestRealOpenSearchMultiNodeRotation -count=1 .
 
 docker stop "$node1" >/dev/null
@@ -90,6 +104,24 @@ OPENSEARCH_URLS="$urls" go test -tags=integration -run TestRealOpenSearchEndpoin
 docker start "$node1" >/dev/null
 port1=$(wait_node "$node1")
 wait_cluster "$port1" 2
+
+docker stop "$node1" "$node2" >/dev/null
+OPENSEARCH_URLS="$urls" OPENSEARCH_OUTAGE_ALIAS="$rolling_fixture-alias" OPENSEARCH_OUTAGE_PHYSICAL="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchCompleteOutageIsBounded$' -count=1 .
+docker start "$node1" "$node2" >/dev/null
+port1=$(wait_node "$node1")
+port2=$(wait_node "$node2")
+wait_cluster "$port1" 2
+OPENSEARCH_URL="http://127.0.0.1:$port1" OPENSEARCH_EXPECTED_VERSION="$old_version" \
+	OPENSEARCH_EXPECTED_NODE=node1 OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	OPENSEARCH_OUTAGE_ALIAS="$rolling_fixture-alias" \
+	go test -tags=integration -run '^TestRealOpenSearchOutageRecoveryReconcilesUnknownWrites$' -count=1 .
+OPENSEARCH_URL="http://127.0.0.1:$port1" OPENSEARCH_EXPECTED_VERSION="$old_version" \
+	OPENSEARCH_EXPECTED_NODE=node1 OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchRollingFixtureVerify$' -count=1 .
+OPENSEARCH_URL="http://127.0.0.1:$port2" OPENSEARCH_EXPECTED_VERSION="$old_version" \
+	OPENSEARCH_EXPECTED_NODE=node2 OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchRollingFixtureVerify$' -count=1 .
 
 manager=$(curl --connect-timeout 2 --max-time 5 --fail --silent \
 	"http://127.0.0.1:$port1/_cat/master?h=node" | tr -d '[:space:]')
@@ -118,19 +150,46 @@ node2)
 	;;
 esac
 
-docker rm -f "$first_node" >/dev/null
+opensearch_remove_owned container "$first_node"
+OPENSEARCH_URL="http://127.0.0.1:$second_port" OPENSEARCH_EXPECTED_VERSION="$old_version" \
+	OPENSEARCH_EXPECTED_NODE="$second_name" OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchRollingFixtureVerify$' -count=1 .
 run_node "$first_node" "$first_name" "$first_volume" "$new_image"
 first_port=$(wait_node "$first_node")
 wait_cluster "$second_port" 2
+OPENSEARCH_URL="http://127.0.0.1:$first_port" OPENSEARCH_EXPECTED_VERSION="$new_version" \
+	OPENSEARCH_EXPECTED_NODE="$first_name" OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchRollingFixtureVerify$' -count=1 .
+OPENSEARCH_URL="http://127.0.0.1:$second_port" OPENSEARCH_EXPECTED_VERSION="$old_version" \
+	OPENSEARCH_EXPECTED_NODE="$second_name" OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchRollingFixtureVerify$' -count=1 .
 OPENSEARCH_URL="http://127.0.0.1:$second_port" OPENSEARCH_EXPECTED_VERSION="$old_version" \
 	go test -tags=integration -run TestRealOpenSearchConformance -count=1 .
+OPENSEARCH_URL="http://127.0.0.1:$first_port" OPENSEARCH_EXPECTED_VERSION="$new_version" \
+	go test -tags=integration -run TestRealOpenSearchConformance -count=1 .
+urls="http://127.0.0.1:$first_port,http://127.0.0.1:$second_port"
+OPENSEARCH_URLS="$urls" OPENSEARCH_EXPECTED_NODES="$first_name,$second_name" OPENSEARCH_ALLOWED_VERSIONS="$old_version,$new_version" \
+	go test -tags=integration -run TestRealOpenSearchMultiNodeRotation -count=1 .
 
-docker rm -f "$second_node" >/dev/null
+opensearch_remove_owned container "$second_node"
+OPENSEARCH_URL="http://127.0.0.1:$first_port" OPENSEARCH_EXPECTED_VERSION="$new_version" \
+	OPENSEARCH_EXPECTED_NODE="$first_name" OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchRollingFixtureVerify$' -count=1 .
 run_node "$second_node" "$second_name" "$second_volume" "$new_image"
 second_port=$(wait_node "$second_node")
 wait_cluster "$second_port" 2
 urls="http://127.0.0.1:$first_port,http://127.0.0.1:$second_port"
 OPENSEARCH_URL="http://127.0.0.1:$second_port" OPENSEARCH_EXPECTED_VERSION="$new_version" \
 	go test -tags=integration -run TestRealOpenSearchConformance -count=1 .
-OPENSEARCH_URLS="$urls" OPENSEARCH_EXPECTED_VERSION="$new_version" \
+OPENSEARCH_URL="http://127.0.0.1:$first_port" OPENSEARCH_EXPECTED_VERSION="$new_version" \
+	go test -tags=integration -run TestRealOpenSearchConformance -count=1 .
+OPENSEARCH_URL="http://127.0.0.1:$first_port" OPENSEARCH_EXPECTED_VERSION="$new_version" \
+	OPENSEARCH_EXPECTED_NODE="$first_name" OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchRollingFixtureVerify$' -count=1 .
+OPENSEARCH_URL="http://127.0.0.1:$second_port" OPENSEARCH_EXPECTED_VERSION="$new_version" \
+	OPENSEARCH_EXPECTED_NODE="$second_name" OPENSEARCH_ROLLING_FIXTURE="$rolling_fixture" \
+	go test -tags=integration -run '^TestRealOpenSearchRollingFixtureVerify$' -count=1 .
+OPENSEARCH_URLS="$urls" OPENSEARCH_EXPECTED_NODES="$first_name,$second_name" OPENSEARCH_ALLOWED_VERSIONS="$new_version" \
 	go test -tags=integration -run TestRealOpenSearchMultiNodeRotation -count=1 .
+opensearch_assert_container_limits "$node1" 65536
+opensearch_assert_container_limits "$node2" 65536

@@ -82,6 +82,12 @@ func unknownTransportFailure(operation Operation, cause error) *Failure {
 	return failure
 }
 
+func unknownMalformedFailure(operation Operation, cause error) *Failure {
+	failure := malformedFailure(operation, cause)
+	failure.OutcomeKnown = false
+	return failure
+}
+
 func (failure *Failure) Error() string {
 	message := fmt.Sprintf("search/opensearch: %s failed (%s", failure.Operation, failure.Category)
 	if failure.Status != 0 {
@@ -104,8 +110,11 @@ func cancelledFailure(operation Operation, cause error) *Failure {
 }
 
 func transportFailure(operation Operation, cause error) *Failure {
-	if errors.Is(cause, context.Canceled) || errors.Is(cause, context.DeadlineExceeded) {
-		return cancelledFailure(operation, cause)
+	if errors.Is(cause, context.Canceled) {
+		return cancelledFailure(operation, context.Canceled)
+	}
+	if errors.Is(cause, context.DeadlineExceeded) {
+		return cancelledFailure(operation, context.DeadlineExceeded)
 	}
 	if errors.Is(cause, ErrBackpressure) {
 		return &Failure{Operation: operation, Category: FailureBackpressure, Retryable: true, OutcomeKnown: false, cause: ErrBackpressure}
@@ -124,16 +133,16 @@ func responseFailure(operation Operation, status int, body []byte) *Failure {
 	code := responseErrorCode(body)
 	category, retryable, sentinel := FailureRejected, false, ErrRejected
 	switch {
-	case status == http.StatusTooManyRequests || status == http.StatusServiceUnavailable:
-		category, retryable, sentinel = FailureOverloaded, true, ErrOverloaded
 	case code == "cluster_block_exception":
 		category, sentinel = FailureClusterBlocked, ErrClusterBlocked
-	case status == http.StatusConflict || code == "version_conflict_engine_exception":
+	case status == http.StatusTooManyRequests || status == http.StatusServiceUnavailable:
+		category, retryable, sentinel = FailureOverloaded, true, ErrOverloaded
+	case code == "version_conflict_engine_exception":
 		category, sentinel = FailureVersionConflict, ErrVersionConflict
 	case code == "mapper_parsing_exception" || code == "strict_dynamic_mapping_exception":
 		category, sentinel = FailureMappingRejected, ErrMappingRejected
 	case operation == OperationSearch && status == http.StatusNotFound &&
-		(code == "resource_not_found_exception" || responseHasErrorCode(body, "search_context_missing_exception")):
+		responseHasErrorCode(body, "search_context_missing_exception"):
 		category, sentinel = FailurePITExpired, ErrPITExpired
 	}
 
@@ -142,6 +151,19 @@ func responseFailure(operation Operation, status int, body []byte) *Failure {
 		Retryable: retryable, OutcomeKnown: true,
 		cause: errors.Join(ErrUnexpectedStatus, sentinel),
 	}
+}
+
+func classifyPITSearchFailure(err error) error {
+	failure := new(Failure)
+	if !errors.As(err, &failure) || failure.Operation != OperationSearch ||
+		failure.Status != http.StatusNotFound || failure.Code != "resource_not_found_exception" {
+		return err
+	}
+	copyFailure := *failure
+	copyFailure.Category = FailurePITExpired
+	copyFailure.Retryable = false
+	copyFailure.cause = errors.Join(ErrUnexpectedStatus, ErrPITExpired)
+	return &copyFailure
 }
 
 func responseHasErrorCode(body []byte, expected string) bool {

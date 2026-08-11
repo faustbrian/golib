@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "alerts": [
+    {"name": "cluster-not-ready", "severity": "critical", "condition": "health_ready == 0", "for": "1m", "runbook": "cluster-loss"},
+    {"name": "unknown-write-outcome", "severity": "critical", "condition": "increase(unknown_write_outcomes[5m]) > 0", "for": "0s", "runbook": "unknown-write-outcome"},
+    {"name": "sustained-overload", "severity": "warning", "condition": "rate(backpressure_rejections[10m]) > 0.05 * rate(request_rate[10m])", "for": "10m", "runbook": "overload"},
+    {"name": "circuit-open", "severity": "warning", "condition": "max_over_time(circuit_open[5m]) > 0", "for": "2m", "runbook": "overload"},
+    {"name": "low-disk-headroom", "severity": "critical", "condition": "disk_available_bytes < 0.15 * disk_capacity_bytes", "for": "10m", "runbook": "resource-exhaustion"},
+    {"name": "pit-cleanup-failure", "severity": "warning", "condition": "increase(pit_cleanup_failures[10m]) > 0", "for": "0s", "runbook": "pit-expiry"},
+    {"name": "migration-drift", "severity": "critical", "condition": "reconciliation_drift > 0", "for": "0s", "runbook": "migration-rollback"}
+  ]
+}

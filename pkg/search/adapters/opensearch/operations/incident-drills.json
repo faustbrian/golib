@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "drills": [
+    {"name": "overload", "objective": "admission rejects excess work without a second downstream attempt", "evidence": "ErrBackpressure and one in-flight request"},
+    {"name": "cluster-loss", "objective": "endpoint loss remains bounded and opens the local circuit", "evidence": "ErrTransport followed by ErrCircuitOpen"},
+    {"name": "unknown-write-outcome", "objective": "a reset after dispatch never becomes an automatic retry", "evidence": "OutcomeUnknown and OutcomeKnown false"},
+    {"name": "pit-expiry", "objective": "expired point-in-time state is classified and cleaned up", "evidence": "ErrPITExpired and owned PIT cleanup"},
+    {"name": "migration-rollback", "objective": "forward and reverse cutovers retain the application write fence", "evidence": "complete verification and two fenced alias swaps"},
+    {"name": "migration-unknown-outcome", "objective": "ambiguous lifecycle dispatch fails closed until authoritative state repair", "evidence": "dispatch checkpoint and transition evidence record"},
+    {"name": "generation-cleanup", "objective": "destructive cleanup rejects aliases, active readers, and unmet retention", "evidence": "fresh eligibility proof inside migration coordination"},
+    {"name": "drift-repair", "objective": "partial and unknown repairs converge without unsafe orphan deletion", "evidence": "durable tombstone and second zero-drift pass"},
+    {"name": "full-rebuild", "objective": "interrupted rebuild resumes one source snapshot and outbox boundary", "evidence": "persisted scan/replay checkpoints and fenced cutover"}
+  ]
+}

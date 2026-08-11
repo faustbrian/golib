@@ -48,7 +48,22 @@ func TestLifecycleImplementsCreateResumableReindexVerifyCutoverAndCleanup(t *tes
 	}))
 	t.Cleanup(server.Close)
 	client, err := adapter.New(adapter.Config{Endpoints: []string{server.URL}, Transport: server.Client().Transport, TransportOwnership: adapter.TransportBorrowed, RequestTimeout: time.Second, MaximumResponseBytes: 16 << 10,
-		Lifecycle: &adapter.LifecycleConfig{Authorizer: adapter.LifecycleAuthorizerFunc(func(context.Context, string, []string) error { return nil })},
+		Lifecycle: &adapter.LifecycleConfig{
+			Authorizer: adapter.LifecycleAuthorizerFunc(func(context.Context, string, []string) error { return nil }),
+			MutationGuard: adapter.LifecycleMutationGuardFunc(func(_ context.Context, _ adapter.LifecycleMutationRequest, operation func() error) error {
+				return operation()
+			}),
+			CleanupGuard: adapter.LifecycleCleanupGuardFunc(func(_ context.Context, _ search.LifecycleCleanupRequest, operation func() error) error {
+				return operation()
+			}),
+			ReindexCursorCodec: mustReindexCursorCodec(t),
+			Verifier: adapter.LifecycleVerifierFunc(func(_ context.Context, request adapter.LifecycleVerificationRequest) (adapter.LifecycleVerificationResult, error) {
+				return adapter.LifecycleVerificationResult{
+					TargetFingerprint: request.ExpectedTargetFingerprint,
+					Drift:             max(request.SourceCount, request.TargetCount) - min(request.SourceCount, request.TargetCount),
+				}, nil
+			}),
+		},
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -59,14 +74,14 @@ func TestLifecycleImplementsCreateResumableReindexVerifyCutoverAndCleanup(t *tes
 		t.Fatal(err)
 	}
 	cursor, done, err := client.Reindex(t.Context(), "tenant-a", "events-v1", "events-v2", "")
-	if err != nil || done || cursor != "node:task-1" {
+	if err != nil || done || cursor == "" || cursor == "node:task-1" {
 		t.Fatalf("start Reindex() = %q/%v/%v", cursor, done, err)
 	}
 	cursor, done, err = client.Reindex(t.Context(), "tenant-a", "events-v1", "events-v2", cursor)
-	if err != nil || !done || cursor != "node:task-1" {
+	if err != nil || !done || cursor == "" || cursor == "node:task-1" {
 		t.Fatalf("poll Reindex() = %q/%v/%v", cursor, done, err)
 	}
-	report, err := client.VerifyIndex(t.Context(), "tenant-a", "events-v1", "events-v2")
+	report, err := client.VerifyIndex(t.Context(), "tenant-a", "events-v1", "events-v2", "definition-v2")
 	if err != nil || !report.Verified || report.SourceCount != 10 || report.TargetCount != 10 {
 		t.Fatalf("VerifyIndex() = %#v/%v", report, err)
 	}
@@ -77,7 +92,11 @@ func TestLifecycleImplementsCreateResumableReindexVerifyCutoverAndCleanup(t *tes
 	if err := client.SwapAlias(t.Context(), "tenant-a", "events-read", "events-v1", "events-v2"); err != nil {
 		t.Fatal(err)
 	}
-	if err := client.DeleteIndex(t.Context(), "tenant-a", "events-v1"); err != nil {
+	if err := client.CleanupIndex(t.Context(), search.LifecycleCleanupRequest{
+		MigrationID: "migration", Tenant: "tenant-a", Alias: "events-read",
+		ActiveIndex: "events-v2", ActiveFingerprint: "definition-v2",
+		InactiveIndex: "events-v1", InactiveFingerprint: "definition-v1",
+	}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -102,8 +121,12 @@ func TestLifecycleRequiresAuthorizationBeforeNetworkAccess(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = client.Close() })
-	if err := client.DeleteIndex(t.Context(), "tenant-a", "events-v1"); !errors.Is(err, adapter.ErrLifecycleDenied) || strings.Contains(err.Error(), "private") {
-		t.Fatalf("DeleteIndex() error = %v", err)
+	if err := client.CleanupIndex(t.Context(), search.LifecycleCleanupRequest{
+		MigrationID: "migration", Tenant: "tenant-a", Alias: "events-read",
+		ActiveIndex: "events-v2", ActiveFingerprint: "definition-v2",
+		InactiveIndex: "events-v1", InactiveFingerprint: "definition-v1",
+	}); !errors.Is(err, adapter.ErrLifecycleDenied) || strings.Contains(err.Error(), "private") {
+		t.Fatalf("CleanupIndex() error = %v", err)
 	}
 	if called {
 		t.Fatal("denied lifecycle operation reached transport")
@@ -121,7 +144,12 @@ func TestAddAliasCreatesAnAuthorizedReadWriteBoundary(t *testing.T) {
 	client, err := adapter.New(adapter.Config{
 		Endpoints: []string{server.URL}, Transport: server.Client().Transport, TransportOwnership: adapter.TransportBorrowed,
 		RequestTimeout: time.Second, MaximumResponseBytes: 4096,
-		Lifecycle: &adapter.LifecycleConfig{Authorizer: adapter.LifecycleAuthorizerFunc(func(context.Context, string, []string) error { return nil })},
+		Lifecycle: &adapter.LifecycleConfig{
+			Authorizer: adapter.LifecycleAuthorizerFunc(func(context.Context, string, []string) error { return nil }),
+			MutationGuard: adapter.LifecycleMutationGuardFunc(func(_ context.Context, _ adapter.LifecycleMutationRequest, operation func() error) error {
+				return operation()
+			}),
+		},
 	})
 	if err != nil {
 		t.Fatal(err)

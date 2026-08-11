@@ -17,6 +17,16 @@ const (
 	TelemetryCircuitOpen  TelemetryCategory = "circuit_open"
 	TelemetryOverloaded   TelemetryCategory = "overloaded"
 	TelemetryHTTPFailure  TelemetryCategory = "http_failure"
+	TelemetrySemantic     TelemetryCategory = "semantic"
+)
+
+type TelemetrySignal string
+
+const (
+	TelemetryUnknownWriteOutcome TelemetrySignal = "unknown_write_outcomes"
+	TelemetryPartialSearch       TelemetrySignal = "partial_searches"
+	TelemetryPITCleanupFailure   TelemetrySignal = "pit_cleanup_failures"
+	TelemetryCutoverFailure      TelemetrySignal = "cutover_failures"
 )
 
 // TelemetryEvent contains only stable low-cardinality adapter state. It never
@@ -25,6 +35,7 @@ const (
 type TelemetryEvent struct {
 	Operation   Operation
 	Category    TelemetryCategory
+	Signal      TelemetrySignal
 	Status      int
 	Duration    time.Duration
 	InFlight    int
@@ -69,6 +80,10 @@ func (telemetry *telemetry) observe(ctx context.Context, event TelemetryEvent) {
 	}
 	defer func() { _ = recover() }()
 	_ = telemetry.observer.Observe(ctx, event)
+}
+
+func (telemetry *telemetry) signal(ctx context.Context, operation Operation, signal TelemetrySignal) {
+	telemetry.observe(ctx, TelemetryEvent{Operation: operation, Category: TelemetrySemantic, Signal: signal})
 }
 
 func (telemetry *telemetry) event(operation Operation, started time.Time, status int, err error, resilience ResilienceSnapshot) TelemetryEvent {

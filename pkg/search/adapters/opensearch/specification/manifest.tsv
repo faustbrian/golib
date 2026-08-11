@@ -1,0 +1,4 @@
+id	version	sections	role	url	sha256	status
+opensearch-2	2.19.6	REST-API-specification,server-semantics	OpenSearch-2-source-and-REST-contract	https://github.com/opensearch-project/OpenSearch/archive/97d3c13bf22a4a72ac11dc503fe44c97662b9161.tar.gz	290a4eaf01a2518673fef28f348d44dc67b1b681693f0e7456a8f9c27c5c5acb	pinned
+opensearch-3	3.8.0	REST-API-specification,server-semantics	OpenSearch-3-source-and-REST-contract	https://github.com/opensearch-project/OpenSearch/archive/e5a3c5691be87af6c12dbe3e158c59c04ee72973.tar.gz	f44b9342b958a3082f971207f46eb88c25d3004268555e1f2472b6a7346305d8	pinned
+opensearch-go	4.7.3	client,signer,transport	Official-Go-client-contract	https://github.com/opensearch-project/opensearch-go/archive/172ea95af6dfe30b612cc42ac736e7dd613154d9.tar.gz	11d3fdc75f5d97a0a654cfed342c23a81ba58a4696dc94fb4b410efa8ee62a2c	pinned

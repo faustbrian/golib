@@ -40,33 +40,36 @@ func (c *Client) Health(ctx context.Context) (HealthReport, error) {
 	var payload struct {
 		ClusterName         string       `json:"cluster_name"`
 		Status              HealthStatus `json:"status"`
-		TimedOut            bool         `json:"timed_out"`
-		Nodes               int          `json:"number_of_nodes"`
-		DataNodes           int          `json:"number_of_data_nodes"`
-		ActivePrimaryShards int          `json:"active_primary_shards"`
-		ActiveShards        int          `json:"active_shards"`
-		RelocatingShards    int          `json:"relocating_shards"`
-		InitializingShards  int          `json:"initializing_shards"`
-		UnassignedShards    int          `json:"unassigned_shards"`
-		PendingTasks        int          `json:"number_of_pending_tasks"`
-		ActiveShardsPercent float64      `json:"active_shards_percent_as_number"`
+		TimedOut            *bool        `json:"timed_out"`
+		Nodes               *int         `json:"number_of_nodes"`
+		DataNodes           *int         `json:"number_of_data_nodes"`
+		ActivePrimaryShards *int         `json:"active_primary_shards"`
+		ActiveShards        *int         `json:"active_shards"`
+		RelocatingShards    *int         `json:"relocating_shards"`
+		InitializingShards  *int         `json:"initializing_shards"`
+		UnassignedShards    *int         `json:"unassigned_shards"`
+		PendingTasks        *int         `json:"number_of_pending_tasks"`
+		ActiveShardsPercent *float64     `json:"active_shards_percent_as_number"`
 	}
 	if json.Unmarshal(body, &payload) != nil || payload.ClusterName == "" ||
+		payload.TimedOut == nil || payload.Nodes == nil || payload.DataNodes == nil ||
+		payload.ActivePrimaryShards == nil || payload.ActiveShards == nil || payload.RelocatingShards == nil ||
+		payload.InitializingShards == nil || payload.UnassignedShards == nil || payload.PendingTasks == nil || payload.ActiveShardsPercent == nil ||
 		(payload.Status != HealthGreen && payload.Status != HealthYellow && payload.Status != HealthRed) ||
-		payload.Nodes < 0 || payload.DataNodes < 0 || payload.DataNodes > payload.Nodes ||
-		payload.ActivePrimaryShards < 0 || payload.ActiveShards < 0 || payload.RelocatingShards < 0 ||
-		payload.InitializingShards < 0 || payload.UnassignedShards < 0 || payload.PendingTasks < 0 ||
-		payload.ActiveShardsPercent < 0 || payload.ActiveShardsPercent > 100 {
+		*payload.Nodes < 0 || *payload.DataNodes < 0 || *payload.DataNodes > *payload.Nodes ||
+		*payload.ActivePrimaryShards < 0 || *payload.ActiveShards < 0 || *payload.RelocatingShards < 0 ||
+		*payload.InitializingShards < 0 || *payload.UnassignedShards < 0 || *payload.PendingTasks < 0 ||
+		*payload.ActiveShardsPercent < 0 || *payload.ActiveShardsPercent > 100 {
 		return HealthReport{}, malformedFailure(OperationHealth, ErrMalformedResponse)
 	}
 	return HealthReport{
 		Status:   payload.Status,
-		Ready:    !payload.TimedOut && payload.Status != HealthRed && payload.DataNodes > 0 && payload.ActivePrimaryShards > 0 && payload.InitializingShards == 0,
-		TimedOut: payload.TimedOut, Nodes: payload.Nodes, DataNodes: payload.DataNodes,
-		ActivePrimaryShards: payload.ActivePrimaryShards, ActiveShards: payload.ActiveShards,
-		RelocatingShards: payload.RelocatingShards, InitializingShards: payload.InitializingShards,
-		UnassignedShards: payload.UnassignedShards, PendingTasks: payload.PendingTasks,
-		ActiveShardsPercent: payload.ActiveShardsPercent,
+		Ready:    !*payload.TimedOut && payload.Status != HealthRed && *payload.DataNodes > 0 && *payload.ActivePrimaryShards > 0 && *payload.InitializingShards == 0,
+		TimedOut: *payload.TimedOut, Nodes: *payload.Nodes, DataNodes: *payload.DataNodes,
+		ActivePrimaryShards: *payload.ActivePrimaryShards, ActiveShards: *payload.ActiveShards,
+		RelocatingShards: *payload.RelocatingShards, InitializingShards: *payload.InitializingShards,
+		UnassignedShards: *payload.UnassignedShards, PendingTasks: *payload.PendingTasks,
+		ActiveShardsPercent: *payload.ActiveShardsPercent,
 	}, nil
 }
 
