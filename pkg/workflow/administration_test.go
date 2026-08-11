@@ -109,6 +109,7 @@ func TestInstanceAdministrationValuesRejectInvalidAdapterData(t *testing.T) {
 	}
 	invalidQueries := []workflow.InstanceListQuerySpec{
 		{},
+		{Selection: workflow.ListAllInstances},
 		{Selection: workflow.InstanceListSelection(255), Limit: 1},
 		{Selection: workflow.ListAllInstances, Limit: workflow.MaxInstanceListItems + 1},
 	}

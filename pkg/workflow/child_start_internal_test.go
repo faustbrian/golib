@@ -36,7 +36,7 @@ func TestChildStartValuesRejectInvalidAndOwnInput(t *testing.T) {
 		ParentInstanceID: "parent-1", ParentDefinition: parent.Reference(),
 		StepName: "child", ChildID: "child-1", ChildDefinition: child.Reference(),
 		Attempt: 1, MaxAttempts: 2, IdempotencyKey: "child-key",
-		StartedAt: now, Deadline: now.Add(time.Minute), Input: input, InputLimit: 8,
+		StartedAt: now, Deadline: now.Add(time.Minute), Input: input, InputLimit: uint32(len(input)),
 		TenantID: "tenant-1", CorrelationID: "correlation-1",
 	}
 	request, err := NewChildStartRequest(valid)
