@@ -150,7 +150,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/cloudevents/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 46. Current scoped evidence verifies the stable CloudEvents core, normative JSON event and batch formats, HTTP and Kafka bindings, supported tracing and partitioning extensions, Golib ecosystem conversions, conformance and independent SDK interoperability, hardening requirements, and every mandatory CloudEvents module gate; requeue only when that evidence becomes stale or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies RFC 9162 behavior, persistence and proof boundaries, hostile-input hardening, independent interoperability, exact coverage and mutation, fuzzing, performance, and every mandatory module gate; requeue only when affected content or requirements change. |
-| `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `implemented-unverified` | Subsequent implementation, interoperability, persistence, and hardening work exists; refresh only affected evidence. |
+| `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies Ethereum-compatible state transitions, proofs, persistence and recovery, hostile-input hardening, independent client interoperability, exact coverage and mutation, fuzzing, performance, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `in-progress` | Current uncommitted work affects this package; its owner must update status and evidence when the active campaign reaches a stable boundary. |
 
 ### Resilience primitives evidence
@@ -701,6 +701,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; no external services. |
 | Observed | 2026-08-11T03:52:30Z |
 | Gaps | NilAway completed successfully in advisory mode with no diagnostics; no mandatory gap remains within the scoped Merkle tree goal contract. |
+
+### Merkle Patricia trie evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Ethereum execution-layer modified Merkle Patricia trie roots, updates, deletions, proofs and proof sets, range proofs, iteration, persistence, pruning, rebuild and recovery, hostile encodings and storage, client interoperability, concurrency, fuzzing, and equivalent-work performance. |
+| Status | `implemented-unverified` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/merkle-patricia-trie` against an immutable package snapshot. |
+| Result | Passed every mandatory module gate with exact 2237/2237 root, 806/806 filesystem, 136/136 RLP, and 204/204 memory statements; killed 1148/1148 root, 348/348 filesystem, 119/119 RLP, and 74/74 memory viable mutants with zero live, uncovered, timed-out, nonviable, or skipped mutants; race, 21 10,000-execution fuzz targets, Ethereum fixtures, EthereumJS and Geth interoperability, API, documentation, security, supply-chain, and benchmark gates passed. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run; no persistent external service. |
+| Observed | 2026-08-11T05:48:36Z |
+| Gaps | NilAway remains advisory and reported potential nil-flow diagnostics in trie, proof, iteration, range-proof, store, and test paths; no mandatory gate gap remains within the scoped goal contract. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
