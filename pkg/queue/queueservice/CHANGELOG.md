@@ -28,6 +28,8 @@ versioning once released.
   intake loop owns deliveries and settlement.
 - Stabilize durable recovery verification by keeping replacement-worker test
   leases beyond the active handler and settlement window.
+- Reconcile the completed lifecycle hardening campaign with its content-bound
+  verification record and repository execution inventory.
 
 ### Added
 
