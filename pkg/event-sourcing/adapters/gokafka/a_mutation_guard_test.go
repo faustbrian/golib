@@ -31,20 +31,19 @@ func TestRecordCodecBoundaryContracts(t *testing.T) {
 		t.Fatalf("topic overflow error = %v", err)
 	}
 
-	headers := []kafka.Header{{Key: "application-header", Value: []byte("ignored")}}
-	for _, key := range []string{
-		HeaderMessageID,
-		HeaderAggregateType,
-		HeaderAggregateID,
-		HeaderStreamVersion,
-		HeaderEventName,
-		HeaderEventSchemaVersion,
-		HeaderContentType,
-		HeaderRecordedAt,
-		HeaderApplicationMetadata,
-		HeaderDeliveryMode,
-	} {
-		headers = append(headers, kafka.Header{Key: key, Value: []byte("value")})
+	headers := []kafka.Header{
+		{Key: "application-header", Value: []byte("ignored")},
+		{Key: HeaderWireVersion, Value: []byte(wireVersionV1)},
+		{Key: HeaderMessageID, Value: []byte("value")},
+		{Key: HeaderAggregateType, Value: []byte("value")},
+		{Key: HeaderAggregateID, Value: []byte("value")},
+		{Key: HeaderStreamVersion, Value: []byte("value")},
+		{Key: HeaderEventName, Value: []byte("value")},
+		{Key: HeaderEventSchemaVersion, Value: []byte("value")},
+		{Key: HeaderContentType, Value: []byte("value")},
+		{Key: HeaderRecordedAt, Value: []byte("value")},
+		{Key: HeaderApplicationMetadata, Value: []byte("value")},
+		{Key: HeaderDeliveryMode, Value: []byte("value")},
 	}
 	parsedHeaders, err := parseHeaders(headers)
 	if err != nil {

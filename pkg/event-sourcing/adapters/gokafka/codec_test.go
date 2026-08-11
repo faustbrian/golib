@@ -61,7 +61,12 @@ func TestRecordCodecRoundTripsCompleteDelivery(t *testing.T) {
 	if string(record.Value) != `{"amount":9007199254740993}` {
 		t.Fatalf("value = %q", record.Value)
 	}
+	wantTimestamp := message.RecordedAt().Truncate(time.Millisecond)
+	if !record.Timestamp.Equal(wantTimestamp) {
+		t.Fatalf("timestamp = %s, want %s", record.Timestamp, wantTimestamp)
+	}
 	expectedHeaders := []kafka.Header{
+		{Key: HeaderWireVersion, Value: []byte("1")},
 		{Key: HeaderMessageID, Value: []byte("msg-42")},
 		{Key: HeaderAggregateType, Value: []byte("account")},
 		{Key: HeaderAggregateID, Value: []byte("account-42")},
@@ -95,10 +100,11 @@ func TestRecordCodecRoundTripsCompleteDelivery(t *testing.T) {
 	}
 
 	decoded, err := codec.Decode(kafka.ConsumedMessage{
-		Topic:   record.Topic,
-		Key:     record.Key,
-		Value:   record.Value,
-		Headers: record.Headers,
+		Topic:     record.Topic,
+		Key:       record.Key,
+		Value:     record.Value,
+		Headers:   record.Headers,
+		Timestamp: record.Timestamp,
 	})
 	if err != nil {
 		t.Fatalf("decode record: %v", err)

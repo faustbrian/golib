@@ -10,6 +10,14 @@ and this project adheres to
 
 ### Changed
 
+- Introduce canonical wire version 1 with an ordered `es.wire_version` header
+  and a Kafka create-time timestamp bound to the event recorded time at
+  millisecond precision. Unversioned, reordered, empty-reserved-header, and
+  timestamp-mismatched records now remain unsettled; existing topics must be
+  drained or migrated through a separately owned legacy reader before cutover.
+  Dead-letter publication preserves that timestamp so quarantined version-1
+  records remain decodable.
+
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

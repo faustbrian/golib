@@ -14,6 +14,8 @@ import (
 )
 
 const (
+	// HeaderWireVersion identifies the canonical event-sourcing Kafka mapping.
+	HeaderWireVersion = "es.wire_version"
 	// HeaderMessageID identifies the event message.
 	HeaderMessageID = "es.message_id"
 	// HeaderAggregateType identifies the stable aggregate type.
@@ -47,6 +49,25 @@ const (
 
 	maxAllowedTopics = 64
 	reservedPrefix   = "es."
+	wireVersionV1    = "1"
+
+	canonicalHeaderSequence = "\x00" +
+		HeaderWireVersion + "\x00" +
+		HeaderMessageID + "\x00" +
+		HeaderAggregateType + "\x00" +
+		HeaderAggregateID + "\x00" +
+		HeaderStreamVersion + "\x00" +
+		HeaderEventName + "\x00" +
+		HeaderEventSchemaVersion + "\x00" +
+		HeaderContentType + "\x00" +
+		HeaderRecordedAt + "\x00" +
+		HeaderCorrelationID + "\x00" +
+		HeaderCausationID + "\x00" +
+		HeaderTenant + "\x00" +
+		HeaderPartition + "\x00" +
+		HeaderGlobalPosition + "\x00" +
+		HeaderApplicationMetadata + "\x00" +
+		HeaderDeliveryMode + "\x00"
 )
 
 var (
@@ -194,6 +215,11 @@ func (codec *RecordCodec) Encode(
 	}
 
 	message := delivery.Message()
+	recordedAt := message.RecordedAt()
+	recordedAtValue := recordedAt.Format(time.RFC3339Nano)
+	if _, err := canonicalTime(recordedAtValue); err != nil {
+		return kafka.Message{}, recordFailure(ErrRecordInvalid, err)
+	}
 	topic, err := resolveTopic(codec.resolver, message)
 	if err != nil {
 		return kafka.Message{}, recordFailure(ErrRecordInvalid, err)
@@ -205,6 +231,7 @@ func (codec *RecordCodec) Encode(
 	metadata, _ := json.Marshal(message.Metadata())
 	event := message.Event()
 	headers := []kafka.Header{
+		header(HeaderWireVersion, wireVersionV1),
 		header(HeaderMessageID, message.ID().String()),
 		header(HeaderAggregateType, message.Stream().AggregateType()),
 		header(HeaderAggregateID, message.Stream().AggregateID()),
@@ -214,7 +241,7 @@ func (codec *RecordCodec) Encode(
 		header(HeaderContentType, event.ContentType()),
 		header(
 			HeaderRecordedAt,
-			message.RecordedAt().Format(time.RFC3339Nano),
+			recordedAtValue,
 		),
 	}
 	if id, exists := message.CorrelationID(); exists {
@@ -245,10 +272,11 @@ func (codec *RecordCodec) Encode(
 	)
 
 	record := kafka.Message{
-		Topic:   topic,
-		Key:     []byte(message.Stream().AggregateID()),
-		Value:   event.Payload(),
-		Headers: headers,
+		Topic:     topic,
+		Key:       []byte(message.Stream().AggregateID()),
+		Value:     event.Payload(),
+		Headers:   headers,
+		Timestamp: recordedAt.Truncate(time.Millisecond),
 	}
 	if err := validateRecord(
 		record.Topic,
@@ -313,6 +341,11 @@ func (codec *RecordCodec) Decode(
 	recordedAt, err := canonicalTime(headers[HeaderRecordedAt])
 	if err != nil {
 		return eventsourcing.Delivery{}, err
+	}
+	if record.TimestampType != kafka.TimestampCreateTime ||
+		record.Timestamp.IsZero() ||
+		!record.Timestamp.Equal(recordedAt.Truncate(time.Millisecond)) {
+		return eventsourcing.Delivery{}, ErrRecordCorrupt
 	}
 	metadata, err := canonicalMetadata(
 		[]byte(headers[HeaderApplicationMetadata]),
@@ -394,19 +427,23 @@ func headerUint64(key string, value uint64) kafka.Header {
 
 func parseHeaders(input []kafka.Header) (map[string]string, error) {
 	headers := make(map[string]string, len(input))
+	lastReservedOrder := -1
 	for _, item := range input {
 		if !strings.HasPrefix(item.Key, reservedPrefix) {
 			continue
 		}
-		if !knownHeader(item.Key) {
+		if strings.ContainsRune(item.Key, '\x00') {
 			return nil, ErrRecordCorrupt
 		}
-		if _, duplicate := headers[item.Key]; duplicate {
+		order := canonicalHeaderOrder(item.Key)
+		if order < 0 || order <= lastReservedOrder || len(item.Value) == 0 {
 			return nil, ErrRecordCorrupt
 		}
 		headers[item.Key] = string(item.Value)
+		lastReservedOrder = order
 	}
 	for _, required := range []string{
+		HeaderWireVersion,
 		HeaderMessageID,
 		HeaderAggregateType,
 		HeaderAggregateID,
@@ -422,31 +459,15 @@ func parseHeaders(input []kafka.Header) (map[string]string, error) {
 			return nil, ErrRecordCorrupt
 		}
 	}
+	if headers[HeaderWireVersion] != wireVersionV1 {
+		return nil, ErrRecordCorrupt
+	}
 
 	return headers, nil
 }
 
-func knownHeader(key string) bool {
-	switch key {
-	case HeaderMessageID,
-		HeaderAggregateType,
-		HeaderAggregateID,
-		HeaderStreamVersion,
-		HeaderEventName,
-		HeaderEventSchemaVersion,
-		HeaderContentType,
-		HeaderRecordedAt,
-		HeaderCorrelationID,
-		HeaderCausationID,
-		HeaderTenant,
-		HeaderPartition,
-		HeaderGlobalPosition,
-		HeaderApplicationMetadata,
-		HeaderDeliveryMode:
-		return true
-	default:
-		return false
-	}
+func canonicalHeaderOrder(key string) int {
+	return strings.Index(canonicalHeaderSequence, "\x00"+key+"\x00")
 }
 
 func requiredUint64(headers map[string]string, key string) (uint64, error) {

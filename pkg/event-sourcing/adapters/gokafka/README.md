@@ -33,22 +33,76 @@ The topic resolver output must match one constructor-validated allowlist entry.
 The aggregate-root ID is the default Kafka key, preserving per-aggregate order
 within one topic. The event payload is the record value.
 
-Ordered `es.*` headers carry:
+Wire version 1 uses the following canonical mapping. Reserved headers MUST
+appear in this relative order; optional headers are omitted when absent.
+Non-reserved transport headers may appear anywhere and do not affect the
+reserved-header order.
 
-- message ID;
-- aggregate type and ID;
-- stream version;
-- event name and schema version;
-- content type and recorded time;
-- optional correlation, causation, tenant, partition, and global position;
-- canonical JSON application metadata; and
-- explicit `live` or `replay` delivery mode.
+| Kafka field | Event-sourcing value |
+| --- | --- |
+| Topic | Allowlisted resolver result |
+| Key | Aggregate ID bytes |
+| Value | Encoded event payload |
+| Timestamp | Producer create time equal to recorded time truncated to milliseconds |
+| `es.wire_version` | `1` |
+| `es.message_id` | Message ID |
+| `es.aggregate_type` | Aggregate type |
+| `es.aggregate_id` | Aggregate ID |
+| `es.stream_version` | Canonical positive decimal stream version |
+| `es.event_name` | Persisted event name |
+| `es.event_schema_version` | Canonical positive decimal schema version |
+| `es.content_type` | Canonical event media type |
+| `es.recorded_at` | Canonical UTC RFC 3339 timestamp at microsecond precision |
+| `es.correlation_id` | Optional correlation ID |
+| `es.causation_id` | Optional causation ID |
+| `es.tenant` | Optional tenant |
+| `es.partition` | Optional application partition |
+| `es.global_position` | Optional canonical positive decimal global position |
+| `es.metadata` | Canonical JSON object with string values |
+| `es.delivery_mode` | `live` or `replay` |
 
-Decode rejects duplicate or unknown `es.*` headers, missing identities,
-noncanonical numbers, timestamps, or metadata, mismatched aggregate keys,
-disallowed topics, and values outside the configured bounds. Non-reserved
-headers are ignored so an optional telemetry adapter can propagate trace
-context without changing the event wire identity.
+Decode accepts only wire version 1 and rejects reordered, duplicate, unknown,
+empty, or missing reserved headers; noncanonical numbers, timestamps, or
+metadata; a non-create-time Kafka timestamp or one that does not match the
+millisecond-truncated recorded time; mismatched aggregate keys; disallowed
+topics; and values outside the configured bounds. Non-reserved headers are
+ignored so an optional telemetry adapter can propagate trace context without
+changing the event wire identity.
+
+Canonical unsigned integers use base 10 with no sign or leading zero and must
+be greater than zero. `es.recorded_at` is UTC with `Z`, uses the RFC 3339 date
+and time separators and a four-digit year, and omits the fractional part when
+it is zero; otherwise it carries one through six fractional digits with
+trailing zeros removed. An event time outside that grammar is rejected before
+topic resolution or publication.
+
+`es.metadata` is a UTF-8 JSON object with at most 64 entries. Keys are non-empty
+ASCII tokens of at most 128 bytes using letters, digits, `.`, `_`, `:`, or `-`;
+the `es.` prefix is reserved case-insensitively. Values are valid UTF-8 strings
+of at most 4 KiB, may be empty, and contain no Unicode control characters. The
+combined unencoded key and value bytes must not exceed 64 KiB.
+
+Keys are ordered lexicographically by their UTF-8 bytes. The JSON encoding has
+no insignificant whitespace, uses the short JSON escapes for quote and
+backslash, escapes `<`, `>`, `&`, U+2028, and U+2029 as lowercase `\u`
+sequences, and otherwise emits valid non-ASCII characters as UTF-8. Empty
+metadata is `{}`; `null`, duplicate keys, non-string values, alternate escaping,
+and any byte-different representation are noncanonical.
+
+## Compatibility
+
+Wire version 1 is the only supported record format. The mapping is independent
+of franz-go and can be produced or consumed by another Kafka client when it
+preserves byte values, reserved-header order, create-time timestamps, and all
+canonical encodings above. Brokers configured to replace producer create time
+with log-append time are incompatible because the decoder verifies the Kafka
+timestamp against `es.recorded_at`.
+
+Unknown versions and pre-version records fail closed as `ErrRecordCorrupt` and
+remain unsettled. Adding an optional application header outside the `es.*`
+namespace is compatible. Changing a reserved field, its order, or its encoding
+requires a new wire version and an explicit migration; version 1 will never be
+silently reinterpreted.
 
 ## Ownership and limits
 
@@ -166,8 +220,8 @@ handler, err := gokafka.NewRecordHandler(
 
 `FailureHandled` permits settlement only after the policy returns successfully
 under an active context. The first-party policy synchronously publishes an
-owned copy of the original key, value, and headers to one validated fixed
-topic. It appends ordered `esdlq.source_topic`,
+owned copy of the original key, value, headers, and Kafka timestamp to one
+validated fixed topic. It appends ordered `esdlq.source_topic`,
 `esdlq.source_partition`, `esdlq.source_offset`, and
 `esdlq.source_time` headers without serializing the failure cause. A source
 record already at the destination or carrying any `esdlq.*` source header is
@@ -214,6 +268,96 @@ Replay mode survives the wire round trip. Applications must keep replay
 records away from process managers and external side effects unless a
 separately authorized replay operation opts in.
 
+## API reference
+
+- `RecordCodec`, `RecordCodecConfig`, `TopicResolver`, `TopicResolverFunc`,
+  `FixedTopic`, and `DefaultRecordLimits` own canonical conversion and routing.
+- `Dispatcher`, `NewDispatcher`, `AllowReplay`, and
+  `ContinueOnPublishError` provide synchronous direct publication.
+- `RecordHandler`, `NewRecordHandler`, `AllowReplayHandling`, and
+  `WithFailurePolicy` provide the consumer boundary.
+- `FailurePolicy`, `FailurePolicyFunc`, `FailureRetry`, and `FailureHandled`
+  make poison disposition explicit.
+- `DeadLetterPolicy`, `DeadLetterPolicyConfig`, and `NewDeadLetterPolicy`
+  provide synchronous first-party quarantine.
+- `RecordError`, `DispatchError`, `HandlerError`, and `DeadLetterError` expose
+  stable categories and bounded progress or source positions without payloads.
+- Exported `Header*` constants identify the versioned event and dead-letter
+  headers. Callers must not add their own values in the reserved `es.*` or
+  `esdlq.*` namespaces.
+
+Use `go doc github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka`
+for the complete exported signatures and error categories.
+
+## Adoption
+
+1. Allocate versioned primary and dead-letter topics with compatible record,
+   retention, timestamp, and replication policy.
+2. Configure the same topic allowlist and `kafka.MessageLimits` for the codec,
+   producer, handler, and dead-letter policy.
+3. Use aggregate IDs as keys and keep all events for one aggregate on one
+   topic when per-aggregate ordering is required.
+4. Make event consumers and dead-letter storage idempotent by message ID before
+   enabling retries or offset settlement.
+5. Set bounded producer, handler, commit, rebalance, and shutdown deadlines.
+6. Keep replay publication and handling disabled until a separately reviewed
+   replay workflow opts in.
+7. Exercise the real-broker integration path with the deployment's broker
+   timestamp policy and security configuration before rollout.
+
+## Security notes
+
+Topic resolvers, producers, consumers, and failure policies are application
+trust boundaries. Keep their deadlines bounded, use TLS and an appropriate
+SASL mechanism through the `kafka` module, and authorize both primary and
+dead-letter topics with least privilege. Error values intentionally omit
+payloads, headers, metadata, callback diagnostics, panic values, and
+credentials. Applications must apply the same redaction rule to custom policy
+causes and telemetry. Limits are denial-of-service boundaries and must not be
+raised beyond broker policy without a resource review.
+
+## FAQ
+
+### Does the adapter provide exactly-once effects?
+
+No. Producer acknowledgement can be ambiguous, handling and offset commit are
+separate operations, and dead-letter publication is non-atomic with source
+settlement. Durable side effects must be idempotent.
+
+### Are duplicate messages removed?
+
+No. The message ID is preserved so application storage can detect duplicates,
+but the adapter never suppresses delivery.
+
+### Is ordering global?
+
+No. The deterministic aggregate key preserves Kafka partition order for one
+aggregate within one topic. It does not order different aggregates, topics, or
+independent dispatch calls.
+
+### What happens to an invalid or poison record?
+
+It remains unsettled by default. A configured policy may return
+`FailureHandled` only after durable synchronous quarantine succeeds; otherwise
+the handler fails closed for retry.
+
+### Can replay records use the normal consumer?
+
+Only with explicit `AllowReplayHandling`. Publication separately requires
+`AllowReplay`; neither option removes the `replay` wire marker.
+
+## Migrations
+
+The version-1 mapping adds `es.wire_version`, requires canonical reserved-header
+order, and binds the Kafka create-time timestamp to `es.recorded_at` at
+millisecond precision. Unversioned records are intentionally not accepted.
+
+For an existing unversioned topic, deploy on a new versioned topic: stop old
+publication, drain the old consumer group with the old codec, deploy version-1
+consumers, then switch producers. If overlap is required, run a separately
+owned legacy reader that validates and republishes old records as version 1;
+do not loosen the version-1 decoder or rewrite retained records in place.
+
 ## Runnable examples
 
 The package examples compile complete direct-dispatch and consumer-group
@@ -224,9 +368,12 @@ before use. See [`example_test.go`](example_test.go).
 
 ## Development
 
-Run `make check` from this module. With Docker available, `make integration`
-verifies synchronous Zstandard dispatch, complete envelope reconstruction,
-per-aggregate order, consumer handling, dead-letter publication and recovery,
-replay rejection without settlement, explicit replay opt-in and recovery, and
-committed offsets against the digest-pinned Confluent Local 7.5.0 fixture using
-franz-go v1.21.5.
+From the repository root, run
+`./scripts/run-modules.sh check --jobs 1 --modules pkg/event-sourcing/adapters/gokafka`
+for the complete CI-equivalent contract. The module-local `make check` is a
+quick development loop and is not release evidence. With Docker available,
+`make integration` verifies synchronous Zstandard dispatch, complete envelope
+reconstruction, per-aggregate order, consumer handling, dead-letter publication
+and recovery, replay rejection without settlement, explicit replay opt-in and
+recovery, and committed offsets against the digest-pinned Confluent Local 7.5.0
+fixture using franz-go v1.21.5.

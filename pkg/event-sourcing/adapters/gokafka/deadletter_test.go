@@ -57,7 +57,8 @@ func TestDeadLetterPolicyPublishesOwnedSourceRecord(t *testing.T) {
 	published := publisher.messages[0]
 	if published.Topic != "accounts.events.dead-letter" ||
 		!slices.Equal(published.Key, originalKey) ||
-		!slices.Equal(published.Value, originalValue) {
+		!slices.Equal(published.Value, originalValue) ||
+		!published.Timestamp.Equal(record.Timestamp) {
 		t.Fatalf("published record = %#v", published)
 	}
 	if len(published.Headers) != len(record.Headers)+4 {

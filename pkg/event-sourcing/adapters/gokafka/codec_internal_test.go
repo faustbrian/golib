@@ -196,6 +196,40 @@ func TestRecordCodecEncodeRejectsInvalidRoutingAndBounds(t *testing.T) {
 	}
 }
 
+func TestRecordCodecEncodeRejectsUnrepresentableRecordedTime(t *testing.T) {
+	t.Parallel()
+
+	base := testMessage(t)
+	pending, err := eventsourcing.NewPendingMessage(
+		eventsourcing.PendingMessageInput{
+			ID:         base.ID().String(),
+			Stream:     base.Stream(),
+			Event:      base.Event(),
+			Metadata:   base.Metadata(),
+			RecordedAt: time.Date(10_000, time.January, 1, 0, 0, 0, 0, time.UTC),
+		},
+	)
+	if err != nil {
+		t.Fatalf("construct pending message: %v", err)
+	}
+	message, err := eventsourcing.NewMessage(eventsourcing.MessageInput{
+		Pending:       pending,
+		StreamVersion: base.StreamVersion(),
+	})
+	if err != nil {
+		t.Fatalf("construct message: %v", err)
+	}
+	delivery, err := eventsourcing.NewDelivery(message, eventsourcing.DeliveryLive)
+	if err != nil {
+		t.Fatalf("construct delivery: %v", err)
+	}
+
+	_, err = testRecordCodec(t).Encode(delivery)
+	if !errors.Is(err, ErrRecordInvalid) {
+		t.Fatalf("error = %v, want ErrRecordInvalid", err)
+	}
+}
+
 func TestRecordCodecDecodeRejectsCorruptRecords(t *testing.T) {
 	t.Parallel()
 
@@ -257,14 +291,36 @@ func TestRecordCodecDecodeRejectsCorruptRecords(t *testing.T) {
 				Value: []byte("x"),
 			})
 		},
-		"duplicate reserved header": func(message *kafka.ConsumedMessage) {
-			message.Headers = append(
+		"composite reserved header": func(message *kafka.ConsumedMessage) {
+			for index := range message.Headers {
+				if message.Headers[index].Key == HeaderCorrelationID {
+					message.Headers[index].Key = HeaderCorrelationID +
+						"\x00" + HeaderCausationID
+
+					break
+				}
+			}
+			deleteHeader(message, HeaderCausationID)
+		},
+		"adjacent duplicate reserved header": func(message *kafka.ConsumedMessage) {
+			message.Headers = slices.Insert(
 				message.Headers,
+				2,
 				kafka.Header{
 					Key:   HeaderMessageID,
 					Value: []byte("duplicate"),
 				},
 			)
+		},
+		"reserved headers out of order": func(message *kafka.ConsumedMessage) {
+			message.Headers[0], message.Headers[1] =
+				message.Headers[1], message.Headers[0]
+		},
+		"unknown wire version": func(message *kafka.ConsumedMessage) {
+			setHeader(message, "es.wire_version", "2")
+		},
+		"empty optional reserved header": func(message *kafka.ConsumedMessage) {
+			setHeader(message, HeaderCorrelationID, "")
 		},
 		"missing required header": func(message *kafka.ConsumedMessage) {
 			deleteHeader(message, HeaderEventName)
@@ -287,6 +343,15 @@ func TestRecordCodecDecodeRejectsCorruptRecords(t *testing.T) {
 				HeaderRecordedAt,
 				"2026-07-25T12:11:12.123456+02:00",
 			)
+		},
+		"missing Kafka timestamp": func(message *kafka.ConsumedMessage) {
+			message.Timestamp = time.Time{}
+		},
+		"Kafka timestamp mismatch": func(message *kafka.ConsumedMessage) {
+			message.Timestamp = message.Timestamp.Add(time.Millisecond)
+		},
+		"Kafka log-append timestamp": func(message *kafka.ConsumedMessage) {
+			message.TimestampType = kafka.TimestampLogAppendTime
 		},
 		"metadata JSON": func(message *kafka.ConsumedMessage) {
 			setHeader(message, HeaderApplicationMetadata, `{"source":`)
@@ -458,9 +523,6 @@ func TestRecordHelpersClassifyErrors(t *testing.T) {
 	); !errors.Is(got, ErrRecordInvalid) {
 		t.Fatalf("same cause = %v", got)
 	}
-	if knownHeader("traceparent") {
-		t.Fatal("trace header was classified as reserved")
-	}
 	if validTopic("", 249) ||
 		validTopic("events", 5) ||
 		validTopic("bad topic", 249) ||
@@ -514,10 +576,11 @@ func consumedRecord(record kafka.Message) kafka.ConsumedMessage {
 	}
 
 	return kafka.ConsumedMessage{
-		Topic:   record.Topic,
-		Key:     slices.Clone(record.Key),
-		Value:   slices.Clone(record.Value),
-		Headers: headers,
+		Topic:     record.Topic,
+		Key:       slices.Clone(record.Key),
+		Value:     slices.Clone(record.Value),
+		Headers:   headers,
+		Timestamp: record.Timestamp,
 	}
 }
 

@@ -191,10 +191,11 @@ func deadLetterMessage(
 	headers = append(headers, positionHeaders[:]...)
 
 	return kafka.Message{
-		Topic:   topic,
-		Key:     slices.Clone(record.Key),
-		Value:   slices.Clone(record.Value),
-		Headers: headers,
+		Topic:     topic,
+		Key:       slices.Clone(record.Key),
+		Value:     slices.Clone(record.Value),
+		Headers:   headers,
+		Timestamp: record.Timestamp,
 	}
 }
 
