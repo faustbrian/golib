@@ -3,7 +3,7 @@
 This audit records the starting point and current disposition of the
 production-policy redesign. A passing check against the draft is not evidence
 that the draft has the right contract. Status describes executable behavior in
-the current tree through 2026-08-10, not intended behavior.
+the current tree through 2026-08-11, not intended behavior.
 
 ## Current implementation inventory
 
@@ -24,9 +24,10 @@ The content-matched root checkpoints prove exact statement coverage for all
 5,248 root statements and all 85 `adapters/golog` statements. The final
 mutation campaign killed all 3,093 root mutants and all 50 `adapters/golog`
 mutants with zero lived, uncovered, timed-out, non-viable, or skipped mutants
-and exact 100% test efficacy and mutator coverage. Frozen-tree evidence for
-every reverse dependency and direct Amazon MSK execution remain separate
-release requirements.
+and exact 100% test efficacy and mutator coverage. Every mandatory checkpoint
+for all nine manifest-derived reverse dependencies also matches its complete
+current input fingerprint. Direct Amazon MSK execution remains a separate
+release requirement.
 
 Minimum-version evidence separately pins the official Apache Kafka 3.7.2 image
 by multi-platform digest, asserts the running version, and executes the producer
@@ -64,7 +65,7 @@ The repository manifest records nine owned reverse dependencies:
 Every breaking pre-v1 correction must compile and pass every affected adapter,
 benchmark, service-composition, and real-broker contract in the same coherent
 change. Kafka package tests alone cannot establish completion. Final release
-evidence must account for all nine manifest-derived consumers rather than a
+evidence accounts for all nine manifest-derived consumers rather than a
 hand-maintained subset.
 
 ## Baseline evidence
