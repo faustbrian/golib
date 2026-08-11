@@ -172,6 +172,13 @@ All notable changes to this module are documented here.
   batches without an unbounded wait; multi-process Apache Kafka evidence now
   proves two-partition cancel and drain rebalance settlement
 
+### Changed
+
+- clarify that MSK IAM idempotent production needs cluster-level authorization
+  plus the AWS-required transactional-ID resource access, and that IAM
+  transaction termination requires Kafka 3.8 or later because earlier broker
+  versions do not expose `WriteTxnMarkers` through IAM access control
+
 ### Fixed
 
 - distinguish the directly tested Kafka 3.7.2 client-compatibility floor from

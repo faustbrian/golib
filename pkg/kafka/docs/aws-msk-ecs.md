@@ -102,7 +102,7 @@ Review permissions by role:
 
 | Client role | Resource decisions |
 | --- | --- |
-| producer | connect to the exact cluster; describe and write only allowed topics |
+| producer | connect to the exact cluster; describe and write only allowed topics; grant the cluster-level idempotent-write action and the transactional-ID resources required by AWS's IAM implementation |
 | consumer | connect; describe/read allowed topics; describe/alter only its group identities |
 | transactional producer/processor | producer/consumer permissions plus describe/alter only its transactional-ID identities |
 | inspector | only the cluster, topic, group, and configuration describe actions required by enabled probes |
@@ -114,6 +114,23 @@ not replace IAM authorization.
 The exact action set depends on the enabled Kafka APIs and MSK resource model;
 derive and review it from AWS's current IAM action and resource documentation
 for the target cluster. Keep infrastructure policy tests outside this module.
+
+Do not infer idempotent-production authorization from topic-level write access.
+AWS documents `kafka-cluster:WriteDataIdempotently` as a cluster-level action
+and requires access to transactional-ID resources for its IAM implementation.
+Granting `WriteData` to every topic has different consequences from limiting it
+to selected topics, so validate both the allowed and denied topic boundaries
+with the final policy.
+
+IAM transaction support is also broker-version-sensitive. AWS documents
+`WriteTxnMarkers` support through IAM access control only for Kafka 3.8 or
+later. On earlier broker versions, IAM cannot authorize the internal action
+needed to terminate transactions; use SCRAM or mTLS with appropriate Kafka
+ACLs instead. `AlterTransactionalId` permission alone does not make an IAM
+transaction profile viable. A direct compatibility run must therefore reject
+or mark transactions unsupported for IAM-authenticated brokers earlier than
+3.8 rather than treating a successful token or ordinary produce as transaction
+evidence.
 
 ## ECS deployment lifecycle
 
@@ -194,6 +211,7 @@ Primary AWS references:
 
 - [How IAM access control for Amazon MSK works](https://docs.aws.amazon.com/msk/latest/developerguide/how-to-use-iam-access-control.html)
 - [Configure clients for IAM access control](https://docs.aws.amazon.com/msk/latest/developerguide/configure-clients-for-iam-access-control.html)
+- [IAM action and resource semantics](https://docs.aws.amazon.com/msk/latest/developerguide/kafka-actions.html)
 - [Create IAM authorization policies](https://docs.aws.amazon.com/msk/latest/developerguide/create-iam-access-control-policies.html)
 - [AWS SDK credential provider chain](https://docs.aws.amazon.com/sdkref/latest/guide/standardized-credentials.html)
 - [Container credential provider](https://docs.aws.amazon.com/sdkref/latest/guide/feature-container-credentials.html)
