@@ -1,14 +1,14 @@
 # Repository hardening report
 
-Audit date: 2026-08-02
+Audit date: 2026-08-11
 
 ## Scope and status
 
 This report covers the normalization and strict hardening of the complete
 `github.com/faustbrian/golib` multi-module repository. The authoritative
-catalog currently contains 119 modules, of which 94 are independently
-releasable, and 656 Go packages, of which 522 are production packages. Exact
-statement coverage applies to the 520 production packages with executable
+catalog currently contains 134 modules, of which 107 are independently
+releasable, and 684 Go packages, of which 548 are production packages. Exact
+statement coverage applies to the 546 production packages with executable
 statements; declaration-only production packages remain cataloged but have no
 statement denominator.
 
@@ -105,6 +105,16 @@ report is not a substitute for the final matrix. Before release this section
 will be replaced with exact package-attributable outcomes and completion
 timestamps from the final tree.
 
+The 2026-08-11 root audit validated all 134 module records, all 684 package
+records, and cohesion policy for all 107 releasable modules. Root tooling tests
+and authoritative workflow lint passed. The aggregate repository check remains
+red only at specification governance: Kafka specialist modules still lack
+their final specification metadata and decision registers, while the active
+OpenSearch hardening scope must add security, compatibility, and wire
+consequences to `OPENSEARCH-DEC-023`. These are unresolved release boundaries,
+not reasons to discard current package-attributable evidence or restart
+unaffected campaigns.
+
 ## Specification and interoperability evidence
 
 Specification-bearing modules declare their normative sources, pinned corpora,
@@ -137,7 +147,7 @@ gate.
 
 ## Release readiness
 
-Release readiness is currently **not established**. It requires all 94
+Release readiness is currently **not established**. It requires all 107
 releasable modules to have current dependency-ordered `v1.0.0` dry-run and
 clean-consumer proof, all root and package gates to pass from the final tree, a
 clean worktree, and the final GitHub Actions matrix plus required summary and

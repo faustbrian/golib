@@ -65,10 +65,10 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 
 | Order | Phase | Status | Execution unit | Depends on |
 | ---: | --- | --- | --- | --- |
-| 1 | Decisions | `pending-reexecution` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
+| 1 | Decisions | `implemented-unverified` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
 | 2 | Architecture | `implemented-unverified` | `.ai/GOAL_RESILIENCE.md` | 1 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/GOAL_HARDEN.md` | 13, 19 |
-| 50 | Ecosystem cohesion | `pending` | `.ai/GOAL_COHESION.md` | 3-49 |
+| 50 | Ecosystem cohesion | `implemented-unverified` | `.ai/GOAL_COHESION.md` | 3-49 |
 | 51 | Resilience audit | `pending` | `.ai/GOAL_RESILIENCE_HARDEN.md` | 3-50 |
 | 52 | Repository audit | `pending-reexecution` | `.ai/GOAL_COMPATIBILITY.md` | 3-51 |
 | 53 | Repository audit | `pending-reexecution` | `.ai/GOAL_SECURITY.md` | 3-52 |
@@ -860,6 +860,32 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; Python standard-library interoperability fixture; no external services. |
 | Observed | 2026-08-11T19:12:40Z |
 | Gaps | NilAway remains advisory and reported pre-existing constructor-result diagnostics; no mandatory affected gate remains unresolved. |
+
+### Repository specification-governance audit
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_SPECIFICATION_DECISIONS.md` |
+| Scope | Catalog-driven specification metadata, provenance, conformance corpus and gate declarations, and required decision-register fields for all currently declared specification-backed modules. |
+| Status | `pending-reexecution` to `implemented-unverified` |
+| Evidence | `make repository-check`, including successful inventory and cohesion validation before the specification-governance failure. |
+| Result | The audit completed and failed closed on the remaining Kafka telemetry and MSK IAM metadata, corpus, conformance-gate, and decision-register gaps, plus missing security, compatibility, and wire consequences in OpenSearch decision `OPENSEARCH-DEC-023`. Root tooling tests and workflow lint passed separately after the specification gate stopped the aggregate command. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded runs. |
+| Observed | 2026-08-11T19:21:02Z |
+| Gaps | The named Kafka and OpenSearch specialist-owned findings must pass the same root specification-governance check before this goal can become `verified`; unaffected package evidence remains current. |
+
+### Ecosystem cohesion audit
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_COHESION.md` |
+| Scope | Machine-readable family, lifecycle, construction, dependency, naming, and integration policy for all 107 releasable modules, together with the public design language and durable cohesion audit. |
+| Status | `pending` to `implemented-unverified` |
+| Evidence | The root `cohesion` gate within `make repository-check`, current `modules.json` and `packages.json`, `docs/design-language.md`, and `docs/cohesion-audit.md`. |
+| Result | Machine validation passed for all 107 releasable modules and the consumer-facing design language, taxonomy, catalogs, and audit are present. Final verification remains coupled to unresolved specialist-owned adapter naming and specification-governance findings rather than requiring unaffected package campaigns to restart. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run. |
+| Observed | 2026-08-11T19:21:02Z |
+| Gaps | Complete and revalidate the currently active Kafka and OpenSearch specialist scopes, then rerun the root cohesion and specification checks against their affected content. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
