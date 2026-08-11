@@ -67,7 +67,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | ---: | --- | --- | --- | --- |
 | 1 | Decisions | `pending-reexecution` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
 | 2 | Architecture | `pending` | `.ai/GOAL_RESILIENCE.md` | 1 |
-| 20 | Security | `pending-reexecution` | `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18 |
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md` | 18, 24, 25 |
@@ -112,6 +111,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/http-client/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 13. Current scoped evidence verifies the outbound HTTP policy stack, bounded resilience composition, lifecycle and protocol hardening, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/fault-injection/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 14. Current scoped evidence verifies deterministic fault planning and execution, bounded injected failures, lifecycle and concurrency hardening, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/secret-envelope/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 19. Current scoped evidence verifies bounded envelope cryptography, versioned keyring and AWS KMS adapters, hostile-input and allocation hardening, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 20. Current scoped evidence verifies AWS Secrets Manager storage semantics, bounded provider behavior, hostile-input and lifecycle hardening, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 22. Current scoped evidence verifies OpenID Connect discovery and ID-token policy, bounded synchronized metadata and JWKS rotation, caller-owned nonce validation, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 23. Current scoped evidence verifies authentication-material redaction, result isolation, bounded completion and retention, provider lifecycle, concurrency, fuzzing, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -214,6 +214,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned isolated repositories and disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run. |
 | Observed | 2026-08-11T02:16:31Z |
 | Gaps | NilAway reports four advisory AES-GCM nil-flow diagnostics; conformance and interoperability are cataloged as not applicable. No mandatory gate gap remains in the scoped goals. |
+
+### AWS Secrets Manager adapter hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | AWS Secrets Manager value storage and retrieval, version creation, staged version semantics, bounded request and response handling, typed and redacted failures, cancellation, concurrency, fuzzing, API stability, documentation, and performance. |
+| Status | `pending-reexecution` to `verified`. |
+| Evidence | Isolated `./scripts/run-modules.sh check --jobs 1 --modules pkg/secret-store/adapters/awssecretsmanager` with task-owned disposable Go build and module caches. |
+| Result | Every mandatory gate passed, including exact `124/124` statement coverage, `122/122` viable mutants, race, two 10,000-execution fuzz targets, API, documentation, security, supply-chain, and benchmark gates. |
+| Environment | Go 1.26.5 on darwin/arm64 with a task-owned isolated repository and disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run. |
+| Observed | 2026-08-11T02:32:04Z |
+| Gaps | Conformance and interoperability are cataloged as not applicable. NilAway passed without diagnostics and no mandatory gate gap remains. |
 
 ### PostgreSQL event store hardening evidence
 
