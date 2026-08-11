@@ -137,9 +137,14 @@ append_repository_files() {
 append_module_files() {
     local directory="$1"
     local include_documentation=0
+    local include_secret_policy=0
     case "${gate}" in
-        docs|secrets)
+        docs)
             include_documentation=1
+            ;;
+        secrets)
+            include_documentation=1
+            include_secret_policy=1
             ;;
     esac
     : >"${nested_directories}"
@@ -155,6 +160,7 @@ append_module_files() {
     git -C "${root}" ls-files -co --exclude-standard -- "${directory}" |
         awk \
             -v include_documentation="${include_documentation}" \
+            -v include_secret_policy="${include_secret_policy}" \
             -v module_directory="${directory}" '
             FILENAME != "-" {
                 nested[++count] = $0
@@ -172,8 +178,13 @@ append_module_files() {
                 is_named_documentation = relative ~ /(^|\/)(readme|changelog|contributing|security|code_of_conduct|support)\.(md|markdown)$/
                 is_generated_documentation = relative == "llms.txt" || relative == "llms-full.txt"
                 is_repository_catalog = relative == "modules.json" || relative == "packages.json"
+                is_secret_policy = relative == ".gitleaks.toml"
                 skip_documentation = !include_documentation && (is_generated_documentation || (is_markdown && (in_documentation || (!in_test_data && is_named_documentation))))
+                skip_secret_policy = !include_secret_policy && is_secret_policy
                 if (is_repository_catalog) {
+                    next
+                }
+                if (skip_secret_policy) {
                     next
                 }
                 for (position = 1; position <= count; position++) {
@@ -339,7 +350,6 @@ verification_digest() {
     local repository_paths=(
         .github/workflows/ci.yml
         .go-version
-        .gitleaks.toml
         Makefile
         go.mod
         go.sum
@@ -382,6 +392,9 @@ verification_digest() {
     done < <(LC_ALL=C sort -u "${directories}")
     append_verification_tool_files
     case "${gate}" in
+        secrets)
+            repository_paths+=(.gitleaks.toml)
+            ;;
         benchmark|workspace-test)
             repository_paths+=(go.work)
             ;;

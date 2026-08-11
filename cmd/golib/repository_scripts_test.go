@@ -2093,6 +2093,8 @@ go 1.26.5
 	writeTestFile(t, workspace, "go 1.26.5\n")
 	agentPolicy := filepath.Join(root, "AGENTS.md")
 	writeTestFile(t, agentPolicy, "# Agent policy\n")
+	gitleaksConfig := filepath.Join(root, ".gitleaks.toml")
+	writeTestFile(t, gitleaksConfig, "[allowlist]\npaths = []\n")
 	writeTestFile(
 		t,
 		filepath.Join(root, "pkg", "example", "example.go"),
@@ -2188,6 +2190,30 @@ KEYCLOAK_IMAGE=keycloak:first
 	fuzzBefore := digest("fuzz")
 	docsBefore := digest("docs")
 	secretsBefore := digest("secrets")
+	writeTestFile(t, gitleaksConfig, "[allowlist]\npaths = [\"fixture\"]\n")
+	for _, gate := range []struct {
+		name string
+		want string
+	}{
+		{name: "test", want: testBefore},
+		{name: "lint", want: lintBefore},
+		{name: "benchmark", want: benchmarkBefore},
+		{name: "fuzz", want: fuzzBefore},
+		{name: "docs", want: docsBefore},
+	} {
+		if current := digest(gate.name); current != gate.want {
+			t.Fatalf(
+				"secret policy changed %s gate inputs: %s != %s",
+				gate.name,
+				current,
+				gate.want,
+			)
+		}
+	}
+	if current := digest("secrets"); current == secretsBefore {
+		t.Fatal("secret policy did not change secrets digest")
+	}
+	writeTestFile(t, gitleaksConfig, "[allowlist]\npaths = []\n")
 	writeTestFile(t, agentPolicy, "# Revised agent policy\n")
 	for _, gate := range []struct {
 		name string
@@ -2504,6 +2530,74 @@ KEYCLOAK_IMAGE=keycloak:second
 			sourceDigest,
 			snapshotDigest,
 		)
+	}
+}
+
+func TestGateInputDigestScopesRootSecretPolicyToSecrets(t *testing.T) {
+	repositoryRoot := testRepositoryRoot(t)
+	root := t.TempDir()
+	for _, directory := range []string{
+		filepath.Join(root, ".golib"),
+		filepath.Join(root, "scripts"),
+	} {
+		if err := os.MkdirAll(directory, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, filepath.Join(root, "modules.json"), `{
+  "modules": [{
+    "directory": ".",
+    "module_path": "example.test/root",
+    "owned_dependencies": [],
+    "required_services": [],
+    "gates": {"security": true},
+    "packages": []
+  }]
+}
+`)
+	writeTestFile(t, filepath.Join(root, "packages.json"), `{"packages":[]}`)
+	writeTestFile(t, filepath.Join(root, "go.mod"), "module example.test/root\n\ngo 1.26.5\n")
+	writeTestFile(t, filepath.Join(root, ".golib", "versions.env"), "GITLEAKS_VERSION=v1.0.0\n")
+	writeTestFile(t, filepath.Join(root, "scripts", "check-module.sh"), "check module\n")
+	gitleaksConfig := filepath.Join(root, ".gitleaks.toml")
+	writeTestFile(t, gitleaksConfig, "[allowlist]\npaths = []\n")
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = root
+	if result, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, result)
+	}
+	add := exec.Command("git", "add", ".")
+	add.Dir = root
+	if result, err := add.CombinedOutput(); err != nil {
+		t.Fatalf("stage fixture repository: %v\n%s", err, result)
+	}
+
+	digest := func(gate string) string {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+			gate,
+			".",
+		)
+		command.Dir = root
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", root)
+		result, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("digest %s: %v\n%s", gate, err, result)
+		}
+
+		return strings.TrimSpace(string(result))
+	}
+
+	formatBefore := digest("format-check")
+	secretsBefore := digest("secrets")
+	writeTestFile(t, gitleaksConfig, "[allowlist]\npaths = [\"fixture\"]\n")
+	if current := digest("format-check"); current != formatBefore {
+		t.Fatalf("secret policy changed root format inputs: %s != %s", current, formatBefore)
+	}
+	if current := digest("secrets"); current == secretsBefore {
+		t.Fatal("secret policy did not change root secrets digest")
 	}
 }
 

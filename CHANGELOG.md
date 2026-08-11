@@ -19,6 +19,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Scope `.gitleaks.toml` to secret-scan fingerprints so unrelated secret-policy
+  edits do not invalidate format, test, race, coverage, mutation, or other
+  content-identical gate evidence.
 - Reject specification decision registers that omit their unresolved-decision
   inventory or leave it open outside a stable release-blocking decision entry.
 - Require superseded specification decisions to reference a different existing
