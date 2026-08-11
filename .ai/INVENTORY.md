@@ -176,11 +176,11 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Goal | `.ai/GOAL_RESILIENCE.md` |
 | Scope | Repository-wide ownership, composition, amplification, Kubernetes lifecycle, observability, failure, and shutdown contracts across the verified resilience modules and their integration harnesses. |
 | Status | `pending` to `implemented-unverified` |
-| Evidence | The repository resilience guide and entry-point links; individually verified resilience modules and integration harnesses recorded in this inventory; and immutable root-gate evidence for format, tidy, safety, vet, tests, lint, Staticcheck, vulnerability, licenses, SBOM, NilAway, and documentation. The root test contract passed after separating snapshot startup and cleanup timeouts. |
+| Evidence | The repository resilience guide and entry-point links; individually verified resilience modules and integration harnesses recorded in this inventory; and immutable root-gate evidence for format, tidy, safety, vet, tests, lint, Staticcheck, vulnerability, secrets, licenses, SBOM, NilAway, and documentation. The root test contract passed after separating snapshot startup and cleanup timeouts. |
 | Result | The architecture deliverables and every independently owned resilience package are implemented and verified. All currently runnable root gates above pass. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
 | Observed | 2026-08-11T14:42:39Z |
-| Gaps | Aggregate specification-decision validation still fails in active Kafka and Search specialist scope. Root secret scanning still reports two findings in active identity-platform planning documents. These scoped failures prevent `verified` status but do not invalidate completed resilience package evidence. |
+| Gaps | Aggregate specification-decision validation still fails in active Kafka and Search specialist scope. This scoped failure prevents `verified` status but does not invalidate completed resilience package evidence. |
 
 ### Queue worker balancing evidence
 
