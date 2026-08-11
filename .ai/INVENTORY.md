@@ -72,7 +72,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md` | 18, 24, 25 |
 | 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 29 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/{GOAL.md,GOAL_HARDEN.md}` | 24-26, 28 |
-| 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | 27, 28 |
+| 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md` | 27, 28 |
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
 | 47 | Durable orchestration | `pending` | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 27-35, 43, 44, 46 |
 | 48 | Search | `pending` | `pkg/search/.ai/GOAL_HARDEN.md` | 3-18, 29-32, 43 |
@@ -115,6 +115,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 22. Current scoped evidence verifies OpenID Connect discovery and ID-token policy, bounded synchronized metadata and JWKS rotation, caller-owned nonce validation, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 23. Current scoped evidence verifies authentication-material redaction, result isolation, bounded completion and retention, provider lifecycle, concurrency, fuzzing, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/kafka/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 25 has current scoped evidence for completed payload-free observation translation, deny-by-default identities, exact span and metric contracts, explicit bounded W3C Trace Context propagation through Apache Kafka 4.3.1, provider lifecycle behavior, documentation, exact statement and mutation coverage, and every mandatory module gate; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 34 has current scoped evidence for canonical bounded queue envelopes, stable event and ordering identity, explicit enqueue ambiguity, post-consumer settlement, durable redelivery and dead-letter behavior, documentation, exact statement and mutation coverage, and every mandatory scoped module gate; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 31. Current scoped evidence verifies canonical synchronous publication, explicit acceptance ambiguity, stable duplicate identity, durable Redis and Valkey relay windows, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 32. Current scoped evidence verifies payload-safe propagation and telemetry, exact relay publication and settlement semantics, bounded cooperative-provider lifecycle, concurrency and retention safety, convention mapping, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
@@ -241,6 +242,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Observed | 2026-08-10 |
 | Gaps | None within the scoped PostgreSQL event-store hardening contract. NilAway remains advisory with its test-only diagnostics visible, and the SBOM gate retains its non-failing isolated-snapshot main-module-version warning. |
 | Navigation | Forward-only base `64bd8dcd`; reconciliation `effaab2e`; transaction serialization `8db9248b` and `3e63573d`; resource, plan, migration, allocator, commit, deployment, corruption, redaction, and backend-death hardening through `1f5e5a05`; graceful replacement `3b544826`. |
+
+### Event sourcing queue adapter evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md` |
+| Scope | Canonical bounded delivery envelopes; complete event, aggregate, correlation, causation, tenant, metadata, timestamp, schema, and payload identity; stable queue operational identity; explicit enqueue ambiguity; ordered synchronous publication; post-consumer settlement; durable redelivery and dead-letter behavior; ownership isolation; documentation and module quality gates. |
+| Status | `pending-reexecution` to `verified`; `pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md` remains pending. |
+| Evidence | Current isolated module test, integration, race, exact coverage, mutation, fuzz, analyzer, API, documentation, security, supply-chain, and benchmark gates, plus focused red-green regressions for queue metadata ownership, outer size bounds, non-finite retry factors, unencodable enqueue timestamps, and terminal-redelivery race behavior. |
+| Result | Passed every mandatory scoped module gate with exact 262/262 statement coverage and 102/102 viable mutants killed with 100% efficacy and mutator coverage; durable Valkey Streams settlement, failure reclamation, retry exhaustion and dead-letter metadata, race, 10,000 fuzz executions, API, documentation, security, supply-chain, and benchmark gates passed. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded run and digest-pinned Valkey Streams 9.1.0 integration. |
+| Observed | 2026-08-11 |
+| Gaps | The aggregate root wrapper is unavailable because unrelated concurrent work currently changes `go.work` and leaves `modules.json` stale; direct scoped module evidence is complete. The separate hardening campaign remains pending. |
 
 ### HTTP message signatures evidence
 

@@ -25,3 +25,12 @@ and this project adheres to
   in-memory worker while retaining backend-specific guarantee boundaries.
 - Prove complete delivery retention and post-handler acknowledgement through
   digest-pinned Valkey Streams 9.1.0 after the producer worker is closed.
+- Expose whether the stopping delivery was not attempted or has unknown queue
+  acceptance so retry decisions retain duplicate risk.
+
+### Fixed
+
+- Derive stable event identity for queue failure and dead-letter records,
+  preflight the complete first-party queue message bound, reject typed-nil
+  queues and unencodable job policy, and copy correlation and trace-context
+  metadata across ownership boundaries.

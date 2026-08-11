@@ -3,6 +3,8 @@ package goqueue
 import (
 	"context"
 	"errors"
+	"reflect"
+	"strconv"
 
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
 	"github.com/faustbrian/golib/pkg/queue/core"
@@ -67,14 +69,28 @@ type Dispatcher struct {
 
 var _ eventsourcing.Dispatcher = (*Dispatcher)(nil)
 
+// Acceptance reports what is known about the delivery associated with a
+// DispatchError. Earlier deliveries counted by Enqueued returned success.
+type Acceptance uint8
+
+const (
+	// AcceptanceNotAttempted means the adapter did not call Queue for the
+	// delivery because cancellation, replay policy, or encoding stopped it.
+	AcceptanceNotAttempted Acceptance = iota
+	// AcceptanceUnknown means Queue returned an error or panicked, so retrying
+	// can duplicate a delivery that the backend accepted before failing.
+	AcceptanceUnknown
+)
+
 // DispatchError reports exact batch progress without exposing envelope,
 // application, backend, or panic diagnostics.
 type DispatchError struct {
-	cause     error
-	enqueued  int
-	failed    int
-	attempted int
-	total     int
+	cause      error
+	acceptance Acceptance
+	enqueued   int
+	failed     int
+	attempted  int
+	total      int
 }
 
 // Error implements error with a stable redacted diagnostic.
@@ -85,6 +101,11 @@ func (*DispatchError) Error() string {
 // Unwrap preserves the stable category and underlying cause.
 func (err *DispatchError) Unwrap() []error {
 	return []error{ErrDispatchFailed, err.cause}
+}
+
+// Acceptance returns what is known about the delivery that stopped dispatch.
+func (err *DispatchError) Acceptance() Acceptance {
+	return err.acceptance
 }
 
 // Enqueued returns the number of queue calls that succeeded.
@@ -122,7 +143,7 @@ func newDispatcher(
 	config DispatcherConfig,
 	allowReplay bool,
 ) (*Dispatcher, error) {
-	if config.Queue == nil {
+	if nilQueue(config.Queue) {
 		return nil, ErrQueueRequired
 	}
 	if config.Codec == nil {
@@ -132,6 +153,9 @@ func newDispatcher(
 	probe := job.NewMessage(queueEnvelope(nil), option)
 	if err := probe.Validate(); err != nil {
 		return nil, errors.Join(ErrInvalidJobOption, err)
+	}
+	if err := validateJobEncoding(probe); err != nil {
+		return nil, err
 	}
 	return &Dispatcher{
 		queue:       config.Queue,
@@ -150,7 +174,7 @@ func (dispatcher *Dispatcher) Dispatch(
 	if ctx == nil {
 		return ErrContextRequired
 	}
-	if dispatcher == nil || dispatcher.queue == nil {
+	if dispatcher == nil || nilQueue(dispatcher.queue) {
 		return ErrQueueRequired
 	}
 	if dispatcher.codec == nil {
@@ -166,6 +190,7 @@ func (dispatcher *Dispatcher) Dispatch(
 				index,
 				0,
 				index,
+				AcceptanceNotAttempted,
 				err,
 			)
 		}
@@ -176,6 +201,7 @@ func (dispatcher *Dispatcher) Dispatch(
 				index,
 				1,
 				index+1,
+				AcceptanceNotAttempted,
 				ErrReplayDenied,
 			)
 		}
@@ -186,24 +212,84 @@ func (dispatcher *Dispatcher) Dispatch(
 				index,
 				1,
 				index+1,
+				AcceptanceNotAttempted,
 				err,
+			)
+		}
+		option := deliveryJobOption(dispatcher.job, delivery)
+		queued := job.NewMessage(queueEnvelope(encoded), option)
+		if len(queued.Bytes()) > job.DefaultMaxMessageBytes {
+			return queueDispatchFailure(
+				len(deliveries),
+				index,
+				1,
+				index+1,
+				AcceptanceNotAttempted,
+				ErrEnvelopeTooLarge,
 			)
 		}
 		if err := callQueue(
 			dispatcher.queue,
 			queueEnvelope(encoded),
-			cloneJobOption(dispatcher.job),
+			option,
 		); err != nil {
 			return queueDispatchFailure(
 				len(deliveries),
 				index,
 				1,
 				index+1,
+				AcceptanceUnknown,
 				err,
 			)
 		}
 	}
 	return nil
+}
+
+func validateJobEncoding(message job.Message) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = ErrInvalidJobOption
+		}
+	}()
+	message.Bytes()
+	return nil
+}
+
+func nilQueue(queue Queue) bool {
+	if queue == nil {
+		return true
+	}
+	value := reflect.ValueOf(queue)
+	switch value.Kind() {
+	case reflect.Chan, reflect.Func, reflect.Interface, reflect.Map,
+		reflect.Pointer, reflect.Slice:
+		return value.IsNil()
+	default:
+		return false
+	}
+}
+
+func deliveryJobOption(
+	source job.AllowOption,
+	delivery eventsourcing.Delivery,
+) job.AllowOption {
+	option := cloneJobOption(source)
+	if option.Metadata == nil {
+		option.Metadata = &job.Metadata{}
+	}
+	message := delivery.Message()
+	event := message.Event()
+	tenant, _ := message.Tenant()
+	option.Metadata.OriginalID = message.ID().String()
+	option.Metadata.PayloadSchemaVersion = strconv.FormatUint(
+		uint64(event.Version()),
+		10,
+	)
+	option.Metadata.ContentType = event.ContentType()
+	option.Metadata.JobType = event.Name().String()
+	option.Metadata.TenantID = tenant
+	return option
 }
 
 type queueEnvelope []byte
@@ -230,14 +316,16 @@ func queueDispatchFailure(
 	enqueued int,
 	failed int,
 	attempted int,
+	acceptance Acceptance,
 	cause error,
 ) error {
 	return &DispatchError{
-		cause:     cause,
-		enqueued:  enqueued,
-		failed:    failed,
-		attempted: attempted,
-		total:     total,
+		cause:      cause,
+		acceptance: acceptance,
+		enqueued:   enqueued,
+		failed:     failed,
+		attempted:  attempted,
+		total:      total,
 	}
 }
 
@@ -272,6 +360,18 @@ func cloneJobMetadata(source *job.Metadata) *job.Metadata {
 		metadata.Tags = make(map[string]string, len(source.Tags))
 		for key, value := range source.Tags {
 			metadata.Tags[key] = value
+		}
+	}
+	if source.Correlation != nil {
+		metadata.Correlation = make(map[string]string, len(source.Correlation))
+		for key, value := range source.Correlation {
+			metadata.Correlation[key] = value
+		}
+	}
+	if source.TraceContext != nil {
+		metadata.TraceContext = make(map[string]string, len(source.TraceContext))
+		for key, value := range source.TraceContext {
+			metadata.TraceContext[key] = value
 		}
 	}
 	return &metadata

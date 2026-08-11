@@ -350,6 +350,59 @@ func minimalQueueDelivery(t testing.TB) eventsourcing.Delivery {
 	return delivery
 }
 
+func queueDeliveryWithPayload(
+	t testing.TB,
+	payloadBytes int,
+) eventsourcing.Delivery {
+	return queueDeliveryWithPayloadAndTenant(t, payloadBytes, "")
+}
+
+func queueDeliveryWithPayloadAndTenant(
+	t testing.TB,
+	payloadBytes int,
+	tenant string,
+) eventsourcing.Delivery {
+	t.Helper()
+	stream, err := eventsourcing.NewStreamID("account", "42")
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, err := eventsourcing.NewEncodedEvent(eventsourcing.EncodedEventInput{
+		Name:        "account.opened",
+		Version:     1,
+		ContentType: "application/octet-stream",
+		Payload:     make([]byte, payloadBytes),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	pending, err := eventsourcing.NewPendingMessage(eventsourcing.PendingMessageInput{
+		ID:         "message-large",
+		Stream:     stream,
+		Event:      event,
+		Tenant:     tenant,
+		RecordedAt: time.Date(2026, 7, 25, 12, 34, 56, 0, time.UTC),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	message, err := eventsourcing.NewMessage(eventsourcing.MessageInput{
+		Pending:       pending,
+		StreamVersion: 1,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	delivery, err := eventsourcing.NewDelivery(
+		message,
+		eventsourcing.DeliveryLive,
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return delivery
+}
+
 func wireEnvelopeFromDelivery(t testing.TB) wireEnvelope {
 	t.Helper()
 	delivery := queueDelivery(t, eventsourcing.DeliveryLive)

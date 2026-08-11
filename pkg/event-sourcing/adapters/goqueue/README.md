@@ -1,66 +1,237 @@
 # Event sourcing queue adapter
 
-`goqueue` is the independently versioned adapter between event-sourcing
-deliveries and compatible backends in `github.com/faustbrian/golib/pkg/queue`.
-The event-sourcing core does not import queue.
+`goqueue` maps complete event-sourcing deliveries to the first-party
+`github.com/faustbrian/golib/pkg/queue` contract. The event-sourcing core does
+not import queue, and this adapter owns no worker, broker connection, retry
+clock, dead-letter store, or business-idempotency state.
 
-The adapter maps complete persisted deliveries to canonical JSON, enqueues
-them synchronously in input order, and decodes queue tasks for explicit
-delivery consumers.
+The adapter provides a bounded canonical payload, synchronous publication in
+input order, explicit enqueue ambiguity, and queue-owned settlement. It does
+not claim exactly-once delivery or broker-neutral durability and ordering.
 
-The integration suite proves successful and failed event handling through the
-repository queue and its in-memory worker. It also proves that pinned Valkey
-Streams 9.1.0 retains a complete event delivery after the producer worker is
-closed, then delivers and acknowledges it through a separately constructed
-consumer group and worker. Durability, retry, and topology guarantees remain
-the responsibility of each selected queue backend and its own conformance
-evidence.
+## Quick start
 
-## Dispatch and handling
+```go
+codec, err := goqueue.NewCodec(goqueue.CodecConfig{})
+if err != nil {
+	return err
+}
 
-`NewDispatcher` constructs the safe live-only publisher. It stops on the first
-encoding or queue error and reports exact attempted, enqueued, failed, and
-total counts through `DispatchError`. `NewReplayDispatcher` is the separately
-named opt-in for replay publication.
+handler, err := goqueue.NewTaskHandler(codec, applyDelivery)
+if err != nil {
+	return err
+}
 
-`NewTaskHandler` decodes live tasks and calls an
+workerQueue := queue.NewPool(
+	1,
+	queue.WithFn(handler.Handle),
+	queue.WithLogger(queue.NewEmptyLogger()),
+)
+workerQueue.Start()
+defer workerQueue.Release()
+
+dispatcher, err := goqueue.NewDispatcher(goqueue.DispatcherConfig{
+	Queue: workerQueue,
+	Codec: codec,
+	Job: job.AllowOption{
+		Metadata: &job.Metadata{
+			RetryPolicy: "projection-v1",
+			HandlerType: "account-projector",
+		},
+	},
+})
+if err != nil {
+	return err
+}
+
+return dispatcher.Dispatch(ctx, deliveries)
+```
+
+The application constructs, starts, stops, and observes `workerQueue`. The
+consumer must durably deduplicate `message_id` before non-idempotent side
+effects when duplicates matter.
+
+## API
+
+### Codec
+
+`NewCodec(CodecConfig)` constructs an immutable concurrency-safe codec. A zero
+`MaxEnvelopeBytes` selects `queue/job.DefaultMaxMessageBytes`; a smaller
+positive value may be used. `Encode` and `Decode` copy payload and metadata
+across ownership boundaries.
+
+`Decode` accepts only the exact canonical encoding emitted by this version.
+Malformed JSON, unknown or duplicate fields, reordered fields, non-canonical
+escapes, invalid values, unsupported format or delivery mode, trailing data,
+and oversized input fail before application handling.
+
+### Dispatcher
+
+`NewDispatcher` publishes live deliveries. `NewReplayDispatcher` is the
+separately named replay opt-in. `Dispatch` checks cancellation before each
+queue call, publishes synchronously in input order, and stops on the first
+failure. Construction rejects invalid or unencodable queue job policy,
+including non-finite retry factors even when retries are disabled.
+
+`DispatchError` reports definite progress:
+
+- `Enqueued` counts queue calls that returned success;
+- `Attempted`, `Failed`, and `Total` describe batch progress;
+- `AcceptanceNotAttempted` means the stopping delivery never reached `Queue`;
+- `AcceptanceUnknown` means `Queue` returned an error or panicked and may have
+  accepted the delivery before that outcome became observable.
+
+Retrying an `AcceptanceUnknown` delivery can create a duplicate. The adapter
+does not convert ambiguity into a false non-delivery claim.
+
+The first-party producer interface has no context parameter. Cancellation can
+stop the next enqueue, but cannot interrupt a `Queue` call already in progress.
+Applications must select and configure a backend whose enqueue operation has
+an appropriate bounded implementation.
+
+### Task handler
+
+`NewTaskHandler` decodes live tasks and synchronously invokes an
 `eventsourcing.ConsumerFunc`. `NewReplayTaskHandler` is the separately named
-replay entry point. Both are synchronous, contain callback panics, and return
-redacted errors. They never call `Ack`, `Nack`, or `NackFailure`; the owning
-queue settles the task only after the handler result is known.
+replay opt-in. Decode errors, denied replay, consumer errors, cancellation,
+and contained panics are returned to the owning queue.
 
-The compatible queue producer has no `context.Context` parameter. Dispatch
-checks cancellation before every enqueue, but cancellation cannot interrupt a
-backend `Queue` call already in progress. Queue acceptance does not mean a
-consumer processed the event.
+The handler never calls `Ack`, `Nack`, or `NackFailure`. A nil result permits
+the queue to acknowledge only after decode and consumer completion. Any error
+leaves retry, redelivery, or terminal settlement to the selected queue policy.
 
 ## Wire format
 
-`Codec` emits `golib.event-sourcing.queue.v1`. It includes message and stream
-identity, event name and schema version, content type, encoded payload,
-metadata, recorded time, correlation and causation IDs, tenant and partition
-values, optional global position, and live or replay mode.
+The UTF-8 JSON object uses a fixed field order and the format identifier
+`golib.event-sourcing.queue.v1`.
 
-The default one-mebibyte bound matches `queue/job.DefaultMaxMessageBytes`.
-Applications may choose a smaller positive bound. A valid core message can
-still exceed a backend's queue envelope limit because the envelope adds stable
-identity fields and base64 encoding; encoding then fails explicitly with
-`ErrEnvelopeTooLarge`.
+| Field | Meaning |
+| --- | --- |
+| `format` | Exact wire-format version. |
+| `delivery_mode` | `live` or explicitly enabled `replay`. |
+| `message_id` | Stable event-delivery and consumer-idempotency identity. |
+| `aggregate_type`, `aggregate_id` | Stable stream identity and ordering key material. |
+| `stream_version` | Version within the aggregate stream. |
+| `event_name`, `event_schema_version` | Event identity and payload schema. |
+| `content_type`, `payload` | Payload media type and canonical base64 bytes. |
+| `metadata` | Sorted copied event metadata. |
+| `recorded_at` | Canonical UTC RFC 3339 timestamp at microsecond precision. |
+| `correlation_id`, `causation_id` | Optional message relationships. |
+| `tenant`, `partition` | Optional routing and isolation identities. |
+| `global_position` | Optional global event-store position. |
 
-Decoding accepts only the exact canonical encoding emitted by this version.
-Unknown, duplicate, reordered, non-canonical, malformed, or oversized input
-fails without partially constructing a delivery. The codec starts no
-goroutines and is safe for concurrent use.
+The stable logical ordering identifier is the aggregate stream
+(`aggregate_type`, `aggregate_id`); `partition` is preserved when the event
+store supplied it. These identifiers do not configure a broker partition or
+create a cross-worker ordering guarantee.
 
-## Guarantees
+Before enqueue, the dispatcher also verifies that the complete first-party
+`job.Message` wrapper fits `job.DefaultMaxMessageBytes`. An inner wire envelope
+can fit the codec limit while its JSON/base64 queue wrapper does not; that case
+fails as `ErrEnvelopeTooLarge` with `AcceptanceNotAttempted`.
 
-The adapter does not implement retries, acknowledgement, rejection, or
-settlement. Queue backend durability and delivery guarantees remain observable
-backend-specific behavior. It does not claim exactly-once delivery.
+## Queue metadata, retries, and dead letters
+
+For each delivery the dispatcher derives queue operational metadata used by
+first-party failure and dead-letter records:
+
+- `OriginalID` from `message_id`;
+- `PayloadSchemaVersion`, `ContentType`, and `JobType` from the event;
+- `TenantID` from the optional tenant.
+
+Those identity fields are adapter-owned and replace conflicting static values
+in `DispatcherConfig.Job.Metadata`. Caller-owned `RetryPolicy`, `HandlerType`,
+tags, trace identity, correlation carriers, producer version, retry count,
+backoff values, jitter, and timeout are defensively copied and passed to the
+queue. The queue interprets them; this adapter does not schedule a retry or
+dead-letter a task.
+
+Retry attempts reuse the same canonical event envelope. The adapter never
+wraps a failed task inside another event envelope and therefore does not create
+recursive retry loops. Backend-specific dead-letter envelopes and attempt
+counters remain queue-owned. Business idempotency remains application-owned.
+
+## Guarantees and limitations
+
+- Publication is synchronous and stops on the first observable failure.
+- A successful queue call is not proof of durable persistence or consumer
+  completion unless the selected backend documents that behavior.
+- At-least-once handling allows duplicates after worker crashes, settlement
+  failures, visibility/lease expiry, and ambiguous enqueue outcomes.
+- Input order is the order of queue calls only. Durable order depends on the
+  backend, partitioning, consumer concurrency, retries, and dead-letter replay.
+- The adapter starts no goroutines and owns no queue lifecycle.
+- Replay is denied by default to avoid accidental external side effects.
+
+## Adoption
+
+1. Choose a queue backend and verify its durability, capacity, retry,
+   settlement, and dead-letter behavior for the deployment topology.
+2. Create one codec limit that fits both the event payload policy and backend
+   message limit.
+3. Configure queue retry/dead-letter policy outside the adapter and use
+   `DispatcherConfig.Job.Metadata` only for bounded operational identity.
+4. Make the consumer transactionally or durably idempotent by `message_id`.
+5. Isolate replay dispatchers and replay handlers from normal side effects.
+6. Operate worker startup, drain, shutdown, metrics, and dead-letter recovery in
+   the application.
+
+## Compatibility and migration
+
+`golib.event-sourcing.queue.v1` is exact: readers reject changed field order,
+unknown fields, and unsupported versions. Deploy readers that understand a new
+format before writers emit it. Do not rewrite queued v1 bytes during a rolling
+deployment.
+
+Migrating from an application-defined queue payload requires draining or
+retaining its old reader while new publishers emit v1. Preserve the old
+idempotency record until every old and v1 duplicate window has closed. A future
+breaking wire change will use a new format identifier and migration guidance.
+
+| Component | Compatibility boundary |
+| --- | --- |
+| Go | Version declared by this module's `go.mod`. |
+| Event sourcing | Exact sibling module dependency in `go.mod`. |
+| Queue | Exact sibling module dependency and `QueuedMessage`/`TaskMessage` seams. |
+| Durable backend | Backend-specific; Valkey Streams is exercised by integration. |
+
+## Security
+
+Codec and handler errors are redacted and never include hostile input, event
+identity, payload, metadata, or backend diagnostics. Message size, metadata,
+identity, and timestamp limits are enforced before application handling.
+Applications remain responsible for payload authorization, tenant isolation,
+encryption, secret redaction in consumer errors, and dead-letter access.
+
+## FAQ
+
+### Does this provide exactly-once delivery?
+
+No. It provides stable identity for durable consumer deduplication and retains
+at-least-once duplicate windows explicitly.
+
+### Does input order mean durable aggregate order?
+
+No. Input order is only synchronous call order. Configure backend partitioning
+and consumer concurrency using the preserved stream identity and backend
+capabilities.
+
+### Should a queue error be retried?
+
+It may be, but `AcceptanceUnknown` means retrying can duplicate an accepted
+message. Apply the backend's error policy and deduplicate by `message_id`.
+
+### Who owns retry and dead-letter timing?
+
+The queue backend and application. This adapter only preserves bounded job
+policy and operational metadata across the mapping boundary.
+
+### Can replay use the normal dispatcher or handler?
+
+No. Use the separately named replay constructors and isolate their side
+effects.
 
 ## Development
 
-Run `make check`.
-
-Run `make integration` with a Docker-compatible container runtime to exercise
-the digest-pinned durable Valkey Streams boundary.
+Run `make check` for the complete module contract. Run `make integration` with
+a Docker-compatible runtime for digest-pinned durable Valkey Streams evidence.

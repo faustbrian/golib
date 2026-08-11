@@ -3,6 +3,8 @@ package goqueue
 import (
 	"context"
 	"errors"
+	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -48,6 +50,15 @@ func TestDispatcherEnqueuesLiveDeliveriesInOrder(t *testing.T) {
 	if queue.timeouts[0] != time.Second || queue.timeouts[1] != time.Second {
 		t.Fatalf("queue timeouts = %v", queue.timeouts)
 	}
+	if queue.options[0].Metadata == nil ||
+		queue.options[0].Metadata.OriginalID != "message-1" ||
+		queue.options[0].Metadata.PayloadSchemaVersion != "1" ||
+		queue.options[0].Metadata.ContentType != "application/json" ||
+		queue.options[0].Metadata.JobType != "account.opened" ||
+		queue.options[1].Metadata == nil ||
+		queue.options[1].Metadata.TenantID != "tenant-1" {
+		t.Fatalf("queue metadata = %#v", queue.options)
+	}
 }
 
 func TestDispatcherRejectsReplayUnlessExplicit(t *testing.T) {
@@ -63,6 +74,11 @@ func TestDispatcherRejectsReplayUnlessExplicit(t *testing.T) {
 	replay := queueDelivery(t, eventsourcing.DeliveryReplay)
 	err = dispatcher.Dispatch(context.Background(), []eventsourcing.Delivery{replay})
 	assertQueueDispatchError(t, err, ErrReplayDenied, 0, 1, 1, 1)
+	var dispatchErr *DispatchError
+	if !errors.As(err, &dispatchErr) ||
+		dispatchErr.Acceptance() != AcceptanceNotAttempted {
+		t.Fatalf("Dispatch(replay) acceptance = %#v", err)
+	}
 	if len(queue.deliveries) != 0 {
 		t.Fatal("replay was queued")
 	}
@@ -110,6 +126,11 @@ func TestDispatcherReportsPartialFailureAndContainsQueuePanic(t *testing.T) {
 				want = ErrQueuePanic
 			}
 			assertQueueDispatchError(t, dispatchErr, want, 1, 1, 2, 2)
+			var outcome *DispatchError
+			if !errors.As(dispatchErr, &outcome) ||
+				outcome.Acceptance() != AcceptanceUnknown {
+				t.Fatalf("Dispatch() acceptance = %#v", dispatchErr)
+			}
 			if dispatchErr.Error() != ErrDispatchFailed.Error() {
 				t.Fatalf("Dispatch() disclosed diagnostics: %v", dispatchErr)
 			}
@@ -135,6 +156,17 @@ func TestDispatcherValidatesStateContextAndCancellation(t *testing.T) {
 				t.Fatal("NewDispatcher() error = nil")
 			}
 		})
+	}
+	var typedNilQueue *queueStub
+	if _, err := NewDispatcher(
+		DispatcherConfig{Queue: typedNilQueue, Codec: codec},
+	); !errors.Is(err, ErrQueueRequired) {
+		t.Fatalf("NewDispatcher(typed nil) error = %v", err)
+	}
+	if _, err := NewDispatcher(
+		DispatcherConfig{Queue: queueValue{}, Codec: codec},
+	); err != nil {
+		t.Fatalf("NewDispatcher(value queue) error = %v", err)
 	}
 
 	dispatcher, err := NewDispatcher(valid)
@@ -187,6 +219,44 @@ func TestDispatcherValidatesStateContextAndCancellation(t *testing.T) {
 	assertQueueDispatchError(t, err, context.Canceled, 1, 0, 1, 2)
 }
 
+func TestDispatcherRejectsUnencodableJobOptions(t *testing.T) {
+	codec, err := NewCodec(CodecConfig{})
+	if err != nil {
+		t.Fatalf("NewCodec() error = %v", err)
+	}
+	outOfRangeTime := time.Date(10_000, time.January, 1, 0, 0, 0, 0, time.UTC)
+	for name, option := range map[string]job.AllowOption{
+		"nan": {
+			RetryCount: job.Int64(0), RetryFactor: job.Float64(math.NaN()),
+		},
+		"positive infinity": {
+			RetryCount: job.Int64(0), RetryFactor: job.Float64(math.Inf(1)),
+		},
+		"negative infinity": {
+			RetryCount: job.Int64(0), RetryFactor: job.Float64(math.Inf(-1)),
+		},
+		"out of range enqueue time": {
+			Metadata: &job.Metadata{EnqueuedAt: &outOfRangeTime},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			defer func() {
+				if recovered := recover(); recovered != nil {
+					t.Fatalf("NewDispatcher() panic = %v", recovered)
+				}
+			}()
+			_, constructErr := NewDispatcher(DispatcherConfig{
+				Queue: &queueStub{},
+				Codec: codec,
+				Job:   option,
+			})
+			if !errors.Is(constructErr, ErrInvalidJobOption) {
+				t.Fatalf("NewDispatcher() error = %v", constructErr)
+			}
+		})
+	}
+}
+
 func TestDispatcherOwnsCompleteJobOption(t *testing.T) {
 	codec, err := NewCodec(CodecConfig{})
 	if err != nil {
@@ -201,10 +271,13 @@ func TestDispatcherOwnsCompleteJobOption(t *testing.T) {
 	timeout := 3 * time.Second
 	enqueuedAt := time.Date(2026, 7, 25, 1, 2, 3, 0, time.UTC)
 	metadata := &job.Metadata{
-		OriginalID:  "original",
-		EnqueuedAt:  &enqueuedAt,
-		Tags:        map[string]string{"scope": "events"},
-		HandlerType: "projector",
+		OriginalID:   "spoofed-original",
+		EnqueuedAt:   &enqueuedAt,
+		Tags:         map[string]string{"scope": "events"},
+		Correlation:  map[string]string{"request_id": "request-1"},
+		TraceContext: map[string]string{"traceparent": "trace-1"},
+		RetryPolicy:  "projector-retry-v1",
+		HandlerType:  "projector",
 	}
 	option := job.AllowOption{
 		RetryCount:  &retryCount,
@@ -233,6 +306,8 @@ func TestDispatcherOwnsCompleteJobOption(t *testing.T) {
 	enqueuedAt = time.Time{}
 	metadata.OriginalID = "changed"
 	metadata.Tags["scope"] = "changed"
+	metadata.Correlation["request_id"] = "changed"
+	metadata.TraceContext["traceparent"] = "changed"
 
 	if err := dispatcher.Dispatch(
 		context.Background(),
@@ -248,11 +323,91 @@ func TestDispatcherOwnsCompleteJobOption(t *testing.T) {
 		*got.RetryMax != 2*time.Second ||
 		!*got.Jitter ||
 		*got.Timeout != 3*time.Second ||
-		got.Metadata.OriginalID != "original" ||
+		got.Metadata.OriginalID != "message-1" ||
+		got.Metadata.PayloadSchemaVersion != "1" ||
+		got.Metadata.ContentType != "application/json" ||
+		got.Metadata.JobType != "account.opened" ||
+		got.Metadata.RetryPolicy != "projector-retry-v1" ||
+		got.Metadata.HandlerType != "projector" ||
 		got.Metadata.EnqueuedAt.IsZero() ||
-		got.Metadata.Tags["scope"] != "events" {
+		got.Metadata.Tags["scope"] != "events" ||
+		got.Metadata.Correlation["request_id"] != "request-1" ||
+		got.Metadata.TraceContext["traceparent"] != "trace-1" {
 		t.Fatalf("queued option = %#v", got)
 	}
+}
+
+func TestDispatcherRejectsMessageThatExceedsFirstPartyQueueLimit(t *testing.T) {
+	codec, err := NewCodec(CodecConfig{})
+	if err != nil {
+		t.Fatalf("NewCodec() error = %v", err)
+	}
+	delivery := queueDeliveryWithPayload(t, 600_000)
+	if _, err := codec.Encode(delivery); err != nil {
+		t.Fatalf("Encode() error = %v", err)
+	}
+	queue := &queueStub{}
+	dispatcher, err := NewDispatcher(
+		DispatcherConfig{Queue: queue, Codec: codec},
+	)
+	if err != nil {
+		t.Fatalf("NewDispatcher() error = %v", err)
+	}
+
+	err = dispatcher.Dispatch(
+		context.Background(),
+		[]eventsourcing.Delivery{delivery},
+	)
+	assertQueueDispatchError(t, err, ErrEnvelopeTooLarge, 0, 1, 1, 1)
+	var dispatchErr *DispatchError
+	if !errors.As(err, &dispatchErr) ||
+		dispatchErr.Acceptance() != AcceptanceNotAttempted ||
+		len(queue.deliveries) != 0 {
+		t.Fatalf("Dispatch() oversized outcome = %#v", err)
+	}
+
+	exact := exactQueueLimitDelivery(t, codec)
+	if err := dispatcher.Dispatch(
+		context.Background(),
+		[]eventsourcing.Delivery{exact},
+	); err != nil {
+		t.Fatalf("Dispatch(exact limit) error = %v", err)
+	}
+	if len(queue.deliveries) != 1 {
+		t.Fatalf("exact-limit deliveries = %d", len(queue.deliveries))
+	}
+}
+
+func exactQueueLimitDelivery(t testing.TB, codec *Codec) eventsourcing.Delivery {
+	t.Helper()
+	for paddingBytes := 1; paddingBytes <= 16; paddingBytes++ {
+		low, high := 500_000, 700_000
+		for low <= high {
+			payloadBytes := low + (high-low)/2
+			delivery := queueDeliveryWithPayloadAndTenant(
+				t,
+				payloadBytes,
+				strings.Repeat("x", paddingBytes),
+			)
+			encoded, err := codec.Encode(delivery)
+			if err != nil {
+				t.Fatalf("Encode(exact limit candidate) error = %v", err)
+			}
+			option := deliveryJobOption(job.AllowOption{}, delivery)
+			queued := job.NewMessage(queueEnvelope(encoded), option)
+			size := len(queued.Bytes())
+			switch {
+			case size == job.DefaultMaxMessageBytes:
+				return delivery
+			case size < job.DefaultMaxMessageBytes:
+				low = payloadBytes + 1
+			default:
+				high = payloadBytes - 1
+			}
+		}
+	}
+	t.Fatal("no canonical delivery reaches the exact first-party queue limit")
+	return eventsourcing.Delivery{}
 }
 
 type queueStub struct {
@@ -263,6 +418,12 @@ type queueStub struct {
 	panicValue any
 	afterQueue func()
 	options    []job.AllowOption
+}
+
+type queueValue struct{}
+
+func (queueValue) Queue(core.QueuedMessage, ...job.AllowOption) error {
+	return nil
 }
 
 func (queue *queueStub) Queue(
