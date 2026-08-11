@@ -74,7 +74,8 @@ but must run and may not regress silently.
 The root [CI workflow](.github/workflows/ci.yml) invokes the same scripts as
 local development. Package-local workflows are intentionally unsupported.
 Full policies are documented in [quality](docs/quality.md),
-[CI](docs/ci.md), and [security](SECURITY.md).
+[CI](docs/ci.md), [performance engineering](docs/performance.md), and
+[security](SECURITY.md).
 
 ## Versioning
 

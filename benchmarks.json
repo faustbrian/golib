@@ -1,0 +1,2331 @@
+{
+  "schema_version": 1,
+  "repository": "github.com/faustbrian/golib",
+  "go_version": "1.26.5",
+  "modules": [
+    {
+      "directory": ".",
+      "module_path": "github.com/faustbrian/golib",
+      "kind": "internal tool",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [
+        ".ai/GOAL_BENCHMARKS.md",
+        ".ai/GOAL_PERFORMANCE.md",
+        "docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/adaptive-throttle",
+      "module_path": "github.com/faustbrian/golib/pkg/adaptive-throttle",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/adaptive-throttle/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/adaptive-throttle/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/analysis",
+      "module_path": "github.com/faustbrian/golib/pkg/analysis",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/analysis/analysis/report_benchmark_test.go",
+        "pkg/analysis/analysistestkit/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/analysis/testdata/coverage",
+      "module_path": "example.com/analysis-coverage",
+      "kind": "fixture",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/api-query",
+      "module_path": "github.com/faustbrian/golib/pkg/api-query",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/api-query/benchmark_test.go",
+        "pkg/api-query/cursor/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/api-query/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/audit",
+      "module_path": "github.com/faustbrian/golib/pkg/audit",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/audit/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/audit/postgres",
+      "module_path": "github.com/faustbrian/golib/pkg/audit/postgres",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/audit/postgres/benchmark_test.go",
+        "pkg/audit/postgres/integration_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/authentication",
+      "module_path": "github.com/faustbrian/golib/pkg/authentication",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/authentication/apikey/static_benchmark_test.go",
+        "pkg/authentication/authhttp/extractor_benchmark_test.go",
+        "pkg/authentication/basic/static_benchmark_test.go",
+        "pkg/authentication/bearer/static_benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/authentication/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/authentication/authotel",
+      "module_path": "github.com/faustbrian/golib/pkg/authentication/authotel",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/authentication/authotel/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/authentication/jwt",
+      "module_path": "github.com/faustbrian/golib/pkg/authentication/jwt",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/authentication/jwt/validator_benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/authentication/oidc",
+      "module_path": "github.com/faustbrian/golib/pkg/authentication/oidc",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/authentication/oidc/validator_benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/authorization",
+      "module_path": "github.com/faustbrian/golib/pkg/authorization",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/authorization/abac/benchmark_test.go",
+        "pkg/authorization/acl/benchmark_test.go",
+        "pkg/authorization/benchmark_test.go",
+        "pkg/authorization/policy/benchmark_test.go",
+        "pkg/authorization/rbac/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/authorization/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/authorization/integration/contracts",
+      "module_path": "github.com/faustbrian/golib/pkg/authorization/integration/contracts",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/barcode",
+      "module_path": "github.com/faustbrian/golib/pkg/barcode",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/barcode/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/bulkhead",
+      "module_path": "github.com/faustbrian/golib/pkg/bulkhead",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/bulkhead/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/bulkhead/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [
+        "pkg/bulkhead/benchmarks/comparison"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/bulkhead/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/golib/pkg/bulkhead/benchmarks/comparison",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/bulkhead/benchmarks/comparison/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/bulkhead/benchmarks/comparison/README.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/bulkhead/integration/resilience",
+      "module_path": "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/cache",
+      "module_path": "github.com/faustbrian/golib/pkg/cache",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/cache/benchmark_test.go",
+        "pkg/cache/observability/otel/otel_test.go"
+      ],
+      "documentation": [
+        "pkg/cache/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "redis",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/calendar",
+      "module_path": "github.com/faustbrian/golib/pkg/calendar",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/calendar/benchmark_test.go",
+        "pkg/calendar/business/benchmark_test.go",
+        "pkg/calendar/postgres/benchmark_test.go",
+        "pkg/calendar/timezone/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/calendar/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/capability",
+      "module_path": "github.com/faustbrian/golib/pkg/capability",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/capability/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/circuit-breaker",
+      "module_path": "github.com/faustbrian/golib/pkg/circuit-breaker",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/circuit-breaker/benchmark_test.go",
+        "pkg/circuit-breaker/window/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/circuit-breaker/integration/consumers",
+      "module_path": "github.com/faustbrian/golib/pkg/circuit-breaker/integration/consumers",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/cli",
+      "module_path": "github.com/faustbrian/golib/pkg/cli",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/cli/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/cli/docs/benchmarks/2026-07-22-darwin-arm64.md",
+        "pkg/cli/docs/performance.md"
+      ],
+      "baseline_artifacts": [
+        "pkg/cli/docs/benchmarks/raw/2026-07-22-darwin-arm64.txt"
+      ],
+      "harness_modules": [
+        "pkg/cli/benchmarks"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/cli/benchmarks",
+      "module_path": "github.com/faustbrian/golib/pkg/cli/benchmarks",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/cli/benchmarks/compare_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/clock",
+      "module_path": "github.com/faustbrian/golib/pkg/clock",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/clock/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/clock/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/cloudevents",
+      "module_path": "github.com/faustbrian/golib/pkg/cloudevents",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/cloudevents/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/cloudevents/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/cloudevents/adapters/golib",
+      "module_path": "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/cloudevents/adapters/golib/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/cloudevents/adapters/golib/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/concurrency-limit",
+      "module_path": "github.com/faustbrian/golib/pkg/concurrency-limit",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/concurrency-limit/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/concurrency-limit/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [
+        "pkg/concurrency-limit/benchmarks/comparison"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/concurrency-limit/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/concurrency-limit/benchmarks/comparison/comparison_test.go"
+      ],
+      "documentation": [
+        "pkg/concurrency-limit/benchmarks/comparison/PROVENANCE.md",
+        "pkg/concurrency-limit/benchmarks/comparison/README.md",
+        "pkg/concurrency-limit/benchmarks/comparison/THIRD_PARTY_LICENSES.md",
+        "pkg/concurrency-limit/benchmarks/comparison/results/README.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/concurrency-limit/integration/resilience",
+      "module_path": "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/config",
+      "module_path": "github.com/faustbrian/golib/pkg/config",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/config/benchmarks_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/config/adapters/awssecretsmanager",
+      "module_path": "github.com/faustbrian/golib/pkg/config/adapters/awssecretsmanager",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/config/adapters/awssecretsmanager/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/correlation",
+      "module_path": "github.com/faustbrian/golib/pkg/correlation",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/correlation/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/correlation/integration/siblings",
+      "module_path": "github.com/faustbrian/golib/pkg/correlation/integration/siblings",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/ecma-regexp",
+      "module_path": "github.com/faustbrian/golib/pkg/ecma-regexp",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/ecma-regexp/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/ecma-regexp/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/event-sourcing",
+      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/event-sourcing/memory/performance_benchmark_test.go",
+        "pkg/event-sourcing/message_benchmark_test.go",
+        "pkg/event-sourcing/performance_benchmark_test.go",
+        "pkg/event-sourcing/projection/performance_benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/event-sourcing/benchmarks/README.md",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/README.md",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/README.md",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/README.md",
+        "pkg/event-sourcing/benchmarks/results/2026-07-27-m4-max-competitor-reconstitution/README.md",
+        "pkg/event-sourcing/docs/performance.md"
+      ],
+      "baseline_artifacts": [
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/README.md",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/checksums.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/competitors.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/competitors.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/core.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/core.block.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/core.cpu.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/core.gc.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/core.mem.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/core.mutex.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/core.profile.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/core.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/environment.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/fingerprint-after.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/fingerprint-before.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/outbox.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/outbox.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/postgres.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/postgres.block.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/postgres.cpu.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/postgres.gc.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/postgres.mem.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/postgres.mutex.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/postgres.profile.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-complete/postgres.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/README.md",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/checksums.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/competitors.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/competitors.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/core.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/core.block.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/core.cpu.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/core.gc.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/core.mem.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/core.mutex.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/core.profile.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/core.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/environment.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/fingerprint-after.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/fingerprint-before.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/outbox.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/outbox.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/postgres.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/postgres.block.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/postgres.cpu.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/postgres.gc.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/postgres.mem.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/postgres.mutex.pprof",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/postgres.profile.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18-final/postgres.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/README.md",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/checksums.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/competitors.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/competitors.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/core.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/core.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/environment.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/fingerprint-after.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/fingerprint-before.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/outbox.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/outbox.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/postgres.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-26-m4-max-postgres-18/postgres.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-27-m4-max-competitor-reconstitution/README.md",
+        "pkg/event-sourcing/benchmarks/results/2026-07-27-m4-max-competitor-reconstitution/checksums.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-27-m4-max-competitor-reconstitution/competitors.benchstat.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-27-m4-max-competitor-reconstitution/competitors.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-27-m4-max-competitor-reconstitution/environment.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-27-m4-max-competitor-reconstitution/fingerprint-after.txt",
+        "pkg/event-sourcing/benchmarks/results/2026-07-27-m4-max-competitor-reconstitution/fingerprint-before.txt"
+      ],
+      "harness_modules": [
+        "pkg/event-sourcing/benchmarks/competitors"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/event-sourcing/adapters/gokafka",
+      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/event-sourcing/adapters/gokafka/benchmark_test.go",
+        "pkg/event-sourcing/adapters/gokafka/integration_benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/event-sourcing/adapters/gotelemetry",
+      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/event-sourcing/adapters/gotelemetry/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/event-sourcing/adapters/outbox",
+      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/event-sourcing/adapters/outbox/benchmark_test.go",
+        "pkg/event-sourcing/adapters/outbox/outbox_overhead_benchmark_integration_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/event-sourcing/adapters/queue",
+      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/event-sourcing/adapters/queue/benchmark_test.go",
+        "pkg/event-sourcing/adapters/queue/durable_integration_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/event-sourcing/benchmarks/competitors",
+      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/event-sourcing/benchmarks/competitors/compare_test.go"
+      ],
+      "documentation": [
+        "pkg/event-sourcing/benchmarks/competitors/README.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/event-sourcing/postgres",
+      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/postgres",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/event-sourcing/postgres/append_benchmark_integration_test.go",
+        "pkg/event-sourcing/postgres/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/external-sort",
+      "module_path": "github.com/faustbrian/golib/pkg/external-sort",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/external-sort/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/external-sort/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/fault-injection",
+      "module_path": "github.com/faustbrian/golib/pkg/fault-injection",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/fault-injection/hardening_test.go"
+      ],
+      "documentation": [
+        "pkg/fault-injection/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [
+        "pkg/fault-injection/benchmarks/comparison"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/fault-injection/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/golib/pkg/fault-injection/benchmarks/comparison",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/fault-injection/benchmarks/comparison/comparison_test.go"
+      ],
+      "documentation": [
+        "pkg/fault-injection/benchmarks/comparison/README.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/fault-injection/integration/resilience",
+      "module_path": "github.com/faustbrian/golib/pkg/fault-injection/integration/resilience",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/feature-flags",
+      "module_path": "github.com/faustbrian/golib/pkg/feature-flags",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/feature-flags/quality_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/filesystem",
+      "module_path": "github.com/faustbrian/golib/pkg/filesystem",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/filesystem/local/local_benchmark_test.go",
+        "pkg/filesystem/memory/memory_fuzz_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/geo",
+      "module_path": "github.com/faustbrian/golib/pkg/geo",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/geo/adapter/gogeom/benchmark_test.go",
+        "pkg/geo/geodesy/benchmark_test.go",
+        "pkg/geo/geometry_benchmark_test.go",
+        "pkg/geo/postgis/benchmark_test.go",
+        "pkg/geo/wkb/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/geo/docs/security-and-performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/hedge",
+      "module_path": "github.com/faustbrian/golib/pkg/hedge",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/hedge/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/hedge/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/http-client",
+      "module_path": "github.com/faustbrian/golib/pkg/http-client",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/http-client/benchmark_test.go",
+        "pkg/http-client/hardening_benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/http-client/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/http-middleware",
+      "module_path": "github.com/faustbrian/golib/pkg/http-middleware",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/http-middleware/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/http-middleware/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/http-middleware/integration/siblings",
+      "module_path": "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/http-signature",
+      "module_path": "github.com/faustbrian/golib/pkg/http-signature",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/http-signature/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/http-signature/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [
+        "pkg/http-signature/benchmarks/comparison"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/http-signature/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/golib/pkg/http-signature/benchmarks/comparison",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/http-signature/benchmarks/comparison/comparison_test.go"
+      ],
+      "documentation": [
+        "pkg/http-signature/benchmarks/comparison/README.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/http-signature/differential/shared-corpus",
+      "module_path": "github.com/faustbrian/golib/pkg/http-signature/differential/shared-corpus",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/idempotency",
+      "module_path": "github.com/faustbrian/golib/pkg/idempotency",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/idempotency/memory/benchmark_test.go",
+        "pkg/idempotency/postgres/benchmark_test.go",
+        "pkg/idempotency/valkey/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/idempotency/docs/benchmark-baselines.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/idempotency/compatibility/ecosystem",
+      "module_path": "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/identifier",
+      "module_path": "github.com/faustbrian/golib/pkg/identifier",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/identifier/benchmark_hardening_test.go",
+        "pkg/identifier/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/identifier/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/international",
+      "module_path": "github.com/faustbrian/golib/pkg/international",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/international/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/json-schema",
+      "module_path": "github.com/faustbrian/golib/pkg/json-schema",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/json-schema/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/json-schema/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [
+        "pkg/json-schema/benchmarks/comparison"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/json-schema/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/golib/pkg/json-schema/benchmarks/comparison",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/json-schema/benchmarks/comparison/comparison_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/jsonapi",
+      "module_path": "github.com/faustbrian/golib/pkg/jsonapi",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/jsonapi/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/jsonapi/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/jsonrpc",
+      "module_path": "github.com/faustbrian/golib/pkg/jsonrpc",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/jsonrpc/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/jsonrpc/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/kafka",
+      "module_path": "github.com/faustbrian/golib/pkg/kafka",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/kafka/adapters/golog/benchmark_test.go",
+        "pkg/kafka/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/kafka/docs/performance-results/2026-07-30/README.md",
+        "pkg/kafka/docs/performance-results/2026-07-31/README.md",
+        "pkg/kafka/docs/performance-results/2026-08-03/README.md",
+        "pkg/kafka/docs/performance-results/2026-08-09/README.md",
+        "pkg/kafka/docs/performance-results/2026-08-10/README.md",
+        "pkg/kafka/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [
+        "pkg/kafka/benchmarks/clients"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/kafka/adapters/gotelemetry",
+      "module_path": "github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/kafka/adapters/gotelemetry/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/kafka/adapters/mskiam",
+      "module_path": "github.com/faustbrian/golib/pkg/kafka/adapters/mskiam",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/kafka/adapters/mskiam/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/kafka/benchmarks/clients",
+      "module_path": "github.com/faustbrian/golib/pkg/kafka/benchmarks/clients",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/kafka/benchmarks/clients/consumer_benchmark_test.go",
+        "pkg/kafka/benchmarks/clients/consumer_cross_partition_benchmark_test.go",
+        "pkg/kafka/benchmarks/clients/inspection_benchmark_test.go",
+        "pkg/kafka/benchmarks/clients/producer_benchmark_test.go",
+        "pkg/kafka/benchmarks/clients/producer_multi_partition_benchmark_test.go",
+        "pkg/kafka/benchmarks/clients/rebalance_benchmark_test.go",
+        "pkg/kafka/benchmarks/clients/replay_benchmark_test.go",
+        "pkg/kafka/benchmarks/clients/resource_benchmark_test.go",
+        "pkg/kafka/benchmarks/clients/tls_benchmark_test.go",
+        "pkg/kafka/benchmarks/clients/transaction_processor_benchmark_test.go",
+        "pkg/kafka/benchmarks/clients/transaction_producer_benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/kafka/benchmarks/clients/README.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/kafka/kafkaservice",
+      "module_path": "github.com/faustbrian/golib/pkg/kafka/kafkaservice",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/kafka/kafkaservice/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/keyphrase",
+      "module_path": "github.com/faustbrian/golib/pkg/keyphrase",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/keyphrase/benchmark_test.go",
+        "pkg/keyphrase/bip39/benchmark_test.go",
+        "pkg/keyphrase/passphrase/benchmark_test.go",
+        "pkg/keyphrase/password/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/knapsack",
+      "module_path": "github.com/faustbrian/golib/pkg/knapsack",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/knapsack/solver/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/knapsack/docs/benchmarks.md",
+        "pkg/knapsack/docs/benchmarks/2026-08-02-darwin-arm64.md",
+        "pkg/knapsack/docs/benchmarks/2026-08-08-darwin-arm64.md"
+      ],
+      "baseline_artifacts": [
+        "pkg/knapsack/docs/benchmarks/raw/2026-07-21-darwin-arm64.txt",
+        "pkg/knapsack/docs/benchmarks/raw/2026-08-02-boxpacker-runtime.json",
+        "pkg/knapsack/docs/benchmarks/raw/2026-08-02-darwin-arm64-rss.tsv",
+        "pkg/knapsack/docs/benchmarks/raw/2026-08-02-darwin-arm64.txt",
+        "pkg/knapsack/docs/benchmarks/raw/2026-08-08-boxpacker-runtime.json",
+        "pkg/knapsack/docs/benchmarks/raw/2026-08-08-darwin-arm64-rss.tsv",
+        "pkg/knapsack/docs/benchmarks/raw/2026-08-08-darwin-arm64.txt"
+      ],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/knapsack/integration/references",
+      "module_path": "github.com/faustbrian/golib/pkg/knapsack/integration/references",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/knapsack/objective/gomoney",
+      "module_path": "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/knapsack/objective/gomoney/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/lease",
+      "module_path": "github.com/faustbrian/golib/pkg/lease",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/lease/benchmark_test.go",
+        "pkg/lease/postgres/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/lease/docs/benchmark-baseline.md",
+        "pkg/lease/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/localized",
+      "module_path": "github.com/faustbrian/golib/pkg/localized",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/localized/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/localized/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/log",
+      "module_path": "github.com/faustbrian/golib/pkg/log",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/log/pipeline_benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/math",
+      "module_path": "github.com/faustbrian/golib/pkg/math",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/math/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/math/docs/benchmark-baseline.md",
+        "pkg/math/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/measurement",
+      "module_path": "github.com/faustbrian/golib/pkg/measurement",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/measurement/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/measurement/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/merkle-patricia-trie",
+      "module_path": "github.com/faustbrian/golib/pkg/merkle-patricia-trie",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/merkle-patricia-trie/_interop/benchmark_test.go",
+        "pkg/merkle-patricia-trie/benchmark_extended_test.go",
+        "pkg/merkle-patricia-trie/benchmark_test.go",
+        "pkg/merkle-patricia-trie/filesystem/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/merkle-patricia-trie/benchmarks/MANIFEST.md",
+        "pkg/merkle-patricia-trie/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [
+        "pkg/merkle-patricia-trie/benchmarks/raw/2026-07-29-filesystem-benchstat.txt",
+        "pkg/merkle-patricia-trie/benchmarks/raw/2026-07-29-filesystem.txt",
+        "pkg/merkle-patricia-trie/benchmarks/raw/2026-07-29-geth-comparison-benchstat.txt",
+        "pkg/merkle-patricia-trie/benchmarks/raw/2026-07-29-geth-comparison.txt",
+        "pkg/merkle-patricia-trie/benchmarks/raw/2026-07-29-local-benchstat.txt",
+        "pkg/merkle-patricia-trie/benchmarks/raw/2026-07-29-local.txt",
+        "pkg/merkle-patricia-trie/benchmarks/raw/2026-07-29-memory.txt",
+        "pkg/merkle-patricia-trie/benchmarks/raw/2026-07-29-parallel-benchstat.txt",
+        "pkg/merkle-patricia-trie/benchmarks/raw/2026-07-29-parallel.txt"
+      ],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/merkle-tree",
+      "module_path": "github.com/faustbrian/golib/pkg/merkle-tree",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/merkle-tree/benchmark_test.go",
+        "pkg/merkle-tree/comparison_benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/merkle-tree/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [
+        "pkg/merkle-tree/docs/benchmarks/raw/2026-07-29-darwin-arm64.tsv"
+      ],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/migrations",
+      "module_path": "github.com/faustbrian/golib/pkg/migrations",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/migrations/planner_benchmark_test.go",
+        "pkg/migrations/postgres/schema_benchmark_test.go",
+        "pkg/migrations/source_benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/migrations/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/money",
+      "module_path": "github.com/faustbrian/golib/pkg/money",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/money/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/money/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/openapi",
+      "module_path": "github.com/faustbrian/golib/pkg/openapi",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/openapi/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/openapi/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/openapi/interoperability",
+      "module_path": "github.com/faustbrian/golib/pkg/openapi/interoperability",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/opening-hours",
+      "module_path": "github.com/faustbrian/golib/pkg/opening-hours",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/opening-hours/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/opening-hours/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/openrpc",
+      "module_path": "github.com/faustbrian/golib/pkg/openrpc",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/openrpc/benchmarks_test.go"
+      ],
+      "documentation": [
+        "pkg/openrpc/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/outbox",
+      "module_path": "github.com/faustbrian/golib/pkg/outbox",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/outbox/envelope_fuzz_test.go",
+        "pkg/outbox/postgres/benchmark_integration_test.go",
+        "pkg/outbox/postgres/writer_fuzz_test.go",
+        "pkg/outbox/relay/relay_fuzz_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/outbox/adapters/gokafka",
+      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/outbox/adapters/gokafka/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/outbox/adapters/otel",
+      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/outbox/adapters/otel/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/outbox/adapters/queue",
+      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/outbox/adapters/queue/publisher_fuzz_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "redis",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/password",
+      "module_path": "github.com/faustbrian/golib/pkg/password",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/password/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/password/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/postgres",
+      "module_path": "github.com/faustbrian/golib/pkg/postgres",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/postgres/benchmark_test.go",
+        "pkg/postgres/integration_benchmark_test.go",
+        "pkg/postgres/otelpostgres/observer_test.go"
+      ],
+      "documentation": [
+        "pkg/postgres/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/postgres/examples/migrations",
+      "module_path": "github.com/faustbrian/golib/pkg/postgres/examples/migrations",
+      "kind": "example",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/prompts",
+      "module_path": "github.com/faustbrian/golib/pkg/prompts",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/prompts/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/prompts/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [
+        "pkg/prompts/benchmarks/comparison"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/prompts/benchmarks/comparison",
+      "module_path": "github.com/faustbrian/golib/pkg/prompts/benchmarks/comparison",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/prompts/benchmarks/comparison/comparison_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/queue",
+      "module_path": "github.com/faustbrian/golib/pkg/queue",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/queue/benchmark_test.go",
+        "pkg/queue/job/benchmark_test.go",
+        "pkg/queue/rabbitmq/benchmark_test.go",
+        "pkg/queue/redisdb/benchmark_test.go",
+        "pkg/queue/redisstream/benchmark_test.go",
+        "pkg/queue/ring_test.go",
+        "pkg/queue/valkeystream/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/queue/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "nats",
+        "nsq",
+        "rabbitmq",
+        "redis",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/queue-control-plane",
+      "module_path": "github.com/faustbrian/golib/pkg/queue-control-plane",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/queue-control-plane/apihttp/queues_benchmark_test.go",
+        "pkg/queue-control-plane/apihttp/records_benchmark_test.go",
+        "pkg/queue-control-plane/apihttp/transport_benchmark_test.go",
+        "pkg/queue-control-plane/dataplane/dispatcher_benchmark_test.go",
+        "pkg/queue-control-plane/fleet/registry_benchmark_test.go",
+        "pkg/queue-control-plane/history/audit_benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/queue-control-plane/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "redis",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/queue/queueservice",
+      "module_path": "github.com/faustbrian/golib/pkg/queue/queueservice",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/queue/queueservice/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "nats",
+        "nsq",
+        "rabbitmq",
+        "redis",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/rate-limit",
+      "module_path": "github.com/faustbrian/golib/pkg/rate-limit",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/rate-limit/benchmark_test.go",
+        "pkg/rate-limit/memory/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/rate-limit/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/resilience",
+      "module_path": "github.com/faustbrian/golib/pkg/resilience",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/resilience/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/resilience/docs/benchmarks/2026-08-02-darwin-arm64.md",
+        "pkg/resilience/docs/performance.md"
+      ],
+      "baseline_artifacts": [
+        "pkg/resilience/docs/benchmarks/raw/2026-08-02-darwin-arm64-benchstat.txt",
+        "pkg/resilience/docs/benchmarks/raw/2026-08-02-darwin-arm64.txt"
+      ],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/retry",
+      "module_path": "github.com/faustbrian/golib/pkg/retry",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/retry/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/router",
+      "module_path": "github.com/faustbrian/golib/pkg/router",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/router/fuzz_test.go"
+      ],
+      "documentation": [
+        "pkg/router/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/rule-engine",
+      "module_path": "github.com/faustbrian/golib/pkg/rule-engine",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/rule-engine/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/rule-engine/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [
+        "pkg/rule-engine/benchmarks/competitors"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/rule-engine/adapters/math",
+      "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/math",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/rule-engine/adapters/math/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/rule-engine/adapters/measurement",
+      "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/rule-engine/adapters/measurement/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/rule-engine/adapters/temporal",
+      "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/rule-engine/adapters/temporal/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/rule-engine/benchmarks/competitors",
+      "module_path": "github.com/faustbrian/golib/pkg/rule-engine/benchmarks/competitors",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/rule-engine/benchmarks/competitors/competitors_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/scheduler",
+      "module_path": "github.com/faustbrian/golib/pkg/scheduler",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/scheduler/benchmark_test.go",
+        "pkg/scheduler/queue/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/scheduler/docs/benchmark-baseline.md",
+        "pkg/scheduler/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/schema-registry",
+      "module_path": "github.com/faustbrian/golib/pkg/schema-registry",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/schema-registry/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/schema-registry/providers/confluent",
+      "module_path": "github.com/faustbrian/golib/pkg/schema-registry/providers/confluent",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/schema-registry/providers/confluent/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/schema-registry/providers/glue",
+      "module_path": "github.com/faustbrian/golib/pkg/schema-registry/providers/glue",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/schema-registry/providers/glue/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/search",
+      "module_path": "github.com/faustbrian/golib/pkg/search",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/search/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/search/adapters/opensearch",
+      "module_path": "github.com/faustbrian/golib/pkg/search/adapters/opensearch",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/search/adapters/opensearch/benchmark_integration_test.go",
+        "pkg/search/adapters/opensearch/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "opensearch"
+      ]
+    },
+    {
+      "directory": "pkg/secret-envelope",
+      "module_path": "github.com/faustbrian/golib/pkg/secret-envelope",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/secret-envelope/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/secret-store/adapters/awssecretsmanager",
+      "module_path": "github.com/faustbrian/golib/pkg/secret-store/adapters/awssecretsmanager",
+      "kind": "adapter",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/secret-store/adapters/awssecretsmanager/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/semaphore",
+      "module_path": "github.com/faustbrian/golib/pkg/semaphore",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/semaphore/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/semaphore/docs/benchmarks/2026-08-02-darwin-arm64.md",
+        "pkg/semaphore/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/sequencer",
+      "module_path": "github.com/faustbrian/golib/pkg/sequencer",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/sequencer/benchmark_test.go",
+        "pkg/sequencer/postgres/benchmark_integration_test.go"
+      ],
+      "documentation": [
+        "pkg/sequencer/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/service",
+      "module_path": "github.com/faustbrian/golib/pkg/service",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/service/healthhttp/benchmark_test.go",
+        "pkg/service/integration/benchmark_test.go",
+        "pkg/service/lifecycle_benchmark_test.go",
+        "pkg/service/serverhttp/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/service/docs/performance.md",
+        "pkg/service/docs/platform/performance-budgets.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [
+        "pkg/service/benchmarks/platform"
+      ],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/service/benchmarks/platform",
+      "module_path": "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
+      "kind": "benchmark harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/service/benchmarks/platform/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/service/benchmarks/platform/CHANGELOG.md",
+        "pkg/service/benchmarks/platform/README.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/service/compatibility",
+      "module_path": "github.com/faustbrian/golib/pkg/service/compatibility",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/service/integration/adoption",
+      "module_path": "github.com/faustbrian/golib/pkg/service/integration/adoption",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [
+        "pkg/service/integration/adoption/workloads_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/settings",
+      "module_path": "github.com/faustbrian/golib/pkg/settings",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/settings/memory/benchmark_test.go",
+        "pkg/settings/runtime_benchmark_test.go",
+        "pkg/settings/valkey/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/settings/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
+      "directory": "pkg/state-machine",
+      "module_path": "github.com/faustbrian/golib/pkg/state-machine",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/state-machine/benchmark_test.go",
+        "pkg/state-machine/memory/benchmark_test.go",
+        "pkg/state-machine/postgres/store_integration_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/tabular",
+      "module_path": "github.com/faustbrian/golib/pkg/tabular",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/tabular/archive_test.go",
+        "pkg/tabular/delimited_test.go",
+        "pkg/tabular/fixedwidth_test.go",
+        "pkg/tabular/large_benchmark_test.go",
+        "pkg/tabular/spreadsheet_xls_test.go",
+        "pkg/tabular/spreadsheet_xlsx_test.go"
+      ],
+      "documentation": [
+        "pkg/tabular/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/telemetry",
+      "module_path": "github.com/faustbrian/golib/pkg/telemetry",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/telemetry/instrumentation/nethttp/http_benchmark_test.go",
+        "pkg/telemetry/runtime_benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/telemetry/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/temporal",
+      "module_path": "github.com/faustbrian/golib/pkg/temporal",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/temporal/instant/fuzz_test.go",
+        "pkg/temporal/instant/property_test.go",
+        "pkg/temporal/notation/fuzz_test.go",
+        "pkg/temporal/timeofday/property_test.go"
+      ],
+      "documentation": [
+        "pkg/temporal/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/tenancy",
+      "module_path": "github.com/faustbrian/golib/pkg/tenancy",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/tenancy/property_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql"
+      ]
+    },
+    {
+      "directory": "pkg/validation",
+      "module_path": "github.com/faustbrian/golib/pkg/validation",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/validation/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/validation/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/verkle-tree",
+      "module_path": "github.com/faustbrian/golib/pkg/verkle-tree",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/verkle-tree/internal/authstate/claims_benchmark_test.go",
+        "pkg/verkle-tree/internal/authstate/proof_engine_benchmark_test.go",
+        "pkg/verkle-tree/internal/authstate/proof_material_benchmark_test.go",
+        "pkg/verkle-tree/internal/authstate/snapshot_benchmark_test.go",
+        "pkg/verkle-tree/internal/authstate/stateless_update_benchmark_test.go",
+        "pkg/verkle-tree/internal/authstate/stateless_witness_benchmark_test.go",
+        "pkg/verkle-tree/internal/authstate/tree_proof_benchmark_test.go",
+        "pkg/verkle-tree/internal/authstate/tree_proof_encoding_benchmark_test.go",
+        "pkg/verkle-tree/internal/backend/aggregate_opening_benchmark_test.go",
+        "pkg/verkle-tree/internal/backend/encoding_benchmark_test.go",
+        "pkg/verkle-tree/internal/backend/opening_proof_benchmark_test.go",
+        "pkg/verkle-tree/internal/backend/root_container_benchmark_test.go",
+        "pkg/verkle-tree/internal/committedtree/tree_benchmark_test.go",
+        "pkg/verkle-tree/public_benchmark_test.go",
+        "pkg/verkle-tree/snapshot_encoding_test.go",
+        "pkg/verkle-tree/storage_audit_benchmark_test.go",
+        "pkg/verkle-tree/storage_maintenance_benchmark_test.go",
+        "pkg/verkle-tree/storage_read_benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/verkle-tree/docs/benchmarks.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/webhook",
+      "module_path": "github.com/faustbrian/golib/pkg/webhook",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/webhook/benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/wire",
+      "module_path": "github.com/faustbrian/golib/pkg/wire",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/wire/adversarial_benchmark_test.go",
+        "pkg/wire/bsonwire/bsonwire_test.go",
+        "pkg/wire/cborwire/cborwire_test.go",
+        "pkg/wire/jsonwire/jsonwire_test.go",
+        "pkg/wire/msgpackwire/msgpackwire_test.go",
+        "pkg/wire/soap/soap_test.go",
+        "pkg/wire/tomlwire/tomlwire_test.go",
+        "pkg/wire/xmlwire/xmlwire_test.go",
+        "pkg/wire/yamlwire/yamlwire_test.go"
+      ],
+      "documentation": [
+        "pkg/wire/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/workflow",
+      "module_path": "github.com/faustbrian/golib/pkg/workflow",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/workflow/performance_benchmark_test.go"
+      ],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/wsdl",
+      "module_path": "github.com/faustbrian/golib/pkg/wsdl",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/wsdl/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/wsdl/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    },
+    {
+      "directory": "pkg/xsd",
+      "module_path": "github.com/faustbrian/golib/pkg/xsd",
+      "kind": "public library",
+      "releasable": true,
+      "benchmark_required": true,
+      "benchmark_files": [
+        "pkg/xsd/benchmark_test.go"
+      ],
+      "documentation": [
+        "pkg/xsd/docs/benchmark-baseline.md",
+        "pkg/xsd/docs/performance.md"
+      ],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": []
+    }
+  ]
+}

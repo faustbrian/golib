@@ -74,7 +74,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 53 | Repository audit | `implemented-unverified` | `.ai/GOAL_SECURITY.md` | 3-52 |
 | 54 | Repository audit | `implemented-unverified` | `.ai/GOAL_SUPPLY_CHAIN.md` | 3-53 |
 | 55 | Repository audit | `implemented-unverified` | `.ai/GOAL_BENCHMARKS.md` | 3-54 |
-| 56 | Repository audit | `pending-reexecution` | `.ai/GOAL_PERFORMANCE.md` | 55 |
+| 56 | Repository audit | `implemented-unverified` | `.ai/GOAL_PERFORMANCE.md` | 55 |
 | 57 | Repository audit | `pending-reexecution` | `.ai/GOAL_CODE_DOCUMENTATION.md` | 3-56 |
 | 58 | Repository audit | `pending-reexecution` | `.ai/GOAL_DOCUMENTATION.md` | 50, 57 |
 | 59 | Repository audit | `pending-reexecution` | `.ai/GOAL_POLISH.md` | 3-58 |
@@ -934,10 +934,23 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Scope | Catalog-selected benchmark execution for all 107 modules that require the benchmark gate, together with an audit of repository-level comparison methodology, harnesses, results, and reporting. |
 | Status | `pending-reexecution` to `implemented-unverified` |
 | Evidence | Existing content-bound benchmark checkpoints for 50 modules and `./scripts/run-modules.sh benchmark --jobs 8 --modules <57-missing-modules>` for the previously missing modules. |
-| Result | All 107 benchmark-required modules now have passing benchmark evidence; no required module is missing or failed. The repository contains package-native benchmarks, dedicated comparison modules, and package-level performance documentation, but it does not yet provide the complete reviewed competitor/capability matrix, generated benchmark catalog, controlled-runner results, or statistical regression framework required by the goal. |
+| Result | All 107 benchmark-required modules have passing benchmark evidence with no required module missing or failed. The generated `benchmarks.json` and `docs/benchmark-catalog.md` inventory all 134 modules and confirm that every required module has benchmark functions or an owned comparison harness. The repository performance guide now defines execution metadata, workload separation, comparison classes, fairness, resource limits, regression decisions, and publication requirements. |
 | Environment | Go 1.26.5 on darwin/arm64 with gate-managed provider services and task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run. |
 | Observed | 2026-08-11T20:42:26Z |
-| Gaps | Final verification requires honest equivalent-work dispositions for every releasable package, a machine-readable benchmark catalog and linked methodology, pinned fixtures and competitor versions, raw reproducible results with statistical analysis, controlled-runner execution, explicit regression budgets, and resolution of the stale `docs/hardening-report.md` claim that a root `benchmarks.json` already exists. Passing package benchmark gates alone does not prove those repository-wide deliverables. |
+| Gaps | Final verification still requires reviewed equivalent-work dispositions for every releasable package, pinned fixtures and competitor versions, complete raw reproducible results with statistical analysis, controlled-runner execution, explicit regression budgets, and measured-gap acceptance or remediation decisions. The catalog currently records performance or benchmark documentation for 61 of 107 required modules, retained baselines for 6, and dedicated comparison harnesses for 11; passing package benchmark gates alone does not prove the remaining repository-wide deliverables. |
+
+### Repository performance audit
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_PERFORMANCE.md` |
+| Scope | Performance-sensitive package inventory, executable benchmark assets, reproducible methodology, resource-bound expectations, regression policy, comparative evidence, and per-module readiness across all 134 modules. |
+| Status | `pending-reexecution` to `implemented-unverified` |
+| Evidence | `benchmarks.json`, `docs/benchmark-catalog.md`, `docs/performance.md`, all 107 passing required benchmark checkpoints, focused root tooling tests, `go vet ./cmd/golib`, and `go run ./cmd/golib validate`. |
+| Result | Every benchmark-required module has an executable benchmark source or owned harness, the benchmark inventory and documentation are generated and stale-checked, and the public methodology now prohibits synthetic wins that weaken behavior. Root tooling tests, vet, manifest validation, format, tidy, safety, lint, Staticcheck, vulnerability, secrets, licenses, SBOM, documentation, and goal traceability passed for the implementation. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
+| Observed | 2026-08-11T21:00:09Z |
+| Gaps | Final performance verification requires representative small, large, adversarial, concurrent, cancellation, failure, retry, cache-miss, and degraded-dependency workloads where applicable; explicit resource-limit matrices and measured budgets; retained baselines and statistics on controlled runners; and per-module performance verdicts. The aggregate root check completed every applicable gate body successfully but rejected its final format checkpoint after concurrent root planning changes altered the shared execution unit; affected root evidence must be revalidated after that content stabilizes, without restarting package benchmark campaigns. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,

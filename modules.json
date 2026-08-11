@@ -68,7 +68,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -102,7 +103,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -136,7 +138,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -172,7 +175,8 @@
             "docs/architecture.md",
             "docs/cohesion-audit.md",
             "docs/design-language.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -206,7 +210,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -240,7 +245,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -274,7 +280,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -308,7 +315,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -342,7 +350,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -376,7 +385,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -410,7 +420,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -444,7 +455,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -478,7 +490,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -513,6 +526,7 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
+            "docs/performance.md",
             "docs/releases.md"
           ],
           "verification_gates": [
@@ -548,6 +562,7 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
+            "docs/performance.md",
             "docs/resilience.md"
           ],
           "verification_gates": [
@@ -583,6 +598,7 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
+            "docs/performance.md",
             "docs/resilience.md"
           ],
           "verification_gates": [
@@ -617,7 +633,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",
@@ -652,6 +669,7 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
+            "docs/performance.md",
             "docs/specification-governance.md"
           ],
           "verification_gates": [
@@ -686,7 +704,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/performance.md"
           ],
           "verification_gates": [
             "format-check",

@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Add a generated benchmark asset catalog and repository performance guide so
+  benchmark sources, harnesses, baselines, services, fairness rules, and
+  regression expectations are explicit and stale inventories fail validation.
 - Harden identity-platform orchestration with pinned goal semantics across
   lifecycle moves, commit/tree-bound preflight identity, durable exact worker
   assignment attestations, and lossless ordinary abandonment evidence.
