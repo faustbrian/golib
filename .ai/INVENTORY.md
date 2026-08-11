@@ -76,7 +76,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 55 | Repository audit | `implemented-unverified` | `.ai/GOAL_BENCHMARKS.md` | 3-54 |
 | 56 | Repository audit | `implemented-unverified` | `.ai/GOAL_PERFORMANCE.md` | 55 |
 | 57 | Repository audit | `implemented-unverified` | `.ai/GOAL_CODE_DOCUMENTATION.md` | 3-56 |
-| 58 | Repository audit | `pending-reexecution` | `.ai/GOAL_DOCUMENTATION.md` | 50, 57 |
+| 58 | Repository audit | `implemented-unverified` | `.ai/GOAL_DOCUMENTATION.md` | 50, 57 |
 | 59 | Repository audit | `pending-reexecution` | `.ai/GOAL_POLISH.md` | 3-58 |
 | 60 | Repository audit | `pending-reexecution` | `.ai/GOAL_MONOREPO_REMEDIATION.md` | 3-59 |
 | 61 | Repository audit | `pending-reexecution` | `.ai/GOAL_HARDEN.md` | 3-60 |
@@ -964,6 +964,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
 | Observed | 2026-08-11T21:10:28Z |
 | Gaps | The inventory establishes scope but does not complete the documentation pass. Every recorded package and declaration gap must be resolved in dependency-aware module batches; existing comments still require technical review for truth, contracts, invariants, security, concurrency, persistence, protocol decisions, performance rationale, duplication, and stale claims; examples and rendered `go doc` output require review; generated gaps must be fixed through generators; and objective checks must become an enforced local and CI gate only after the baseline reaches zero. |
+
+### Repository documentation-portal audit
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_DOCUMENTATION.md` |
+| Scope | Root documentation entry points, package and protocol selection, supported compositions, integration ownership, lifecycle status, independent-module versioning, terminology, generated catalogs, and links to engineering and delivery policy. |
+| Status | `pending-reexecution` to `implemented-unverified` |
+| Evidence | `docs/index.md`, `docs/packages.md`, `docs/choosing-packages.md`, `docs/api-protocols.md`, `docs/recommended-stacks.md`, `docs/integration-map.md`, `docs/status.md`, `docs/versioning.md`, `docs/glossary.md`, updated root README navigation, generated manifests, root validation, and local-link resolution across the new navigation set. |
+| Result | The repository now has a canonical audience-oriented entry point, task-first package selection, nuanced JSON-RPC/JSON:API/OpenAPI/webhook guidance, explicit stack construction and shutdown rules, adapter ownership direction, truthful pre-release status, independent-module versioning, and shared terminology. Generated package, benchmark, dependency, evidence, and source-documentation inventories are linked from the same navigation system. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after bounded manifest and validation runs. |
+| Observed | 2026-08-11T21:17:39Z |
+| Gaps | Final documentation verification still requires complete runnable recipe modules, structured Laravel and standalone migration guides, Kubernetes and local operations guides, fair comparison pages, a central limitations register, package README consistency and root backlinks for all releasable modules, compiled snippets, deterministic external-link and orphan-page checks, terminology and stale-claim enforcement, adoption walkthroughs for every target audience, and final rendered-document review. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,

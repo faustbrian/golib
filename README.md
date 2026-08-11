@@ -37,7 +37,9 @@ The [package catalog](docs/package-catalog.md) groups independently releasable
 libraries and adapters by the problem they solve. The exhaustive
 [engineering inventory](docs/engineering-inventory.md) also records internal
 tools, fixtures, examples, interoperability harnesses, and benchmarks. See
-[package selection](docs/package-selection.md) for combinations and tradeoffs.
+[the documentation index](docs/index.md), [choosing packages](docs/choosing-packages.md),
+and [recommended stacks](docs/recommended-stacks.md) for audience paths,
+combinations, and tradeoffs.
 
 ## Workspace
 

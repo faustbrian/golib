@@ -13,6 +13,9 @@ documented in each module's changelog.
 - Add a generated AST-based source documentation inventory that attributes
   missing package comments, exported API comments, malformed comments,
   generated-source gaps, and policy markers to each module.
+- Add the root documentation entry point, package and protocol decision guides,
+  recommended compositions, integration ownership map, status, versioning, and
+  shared terminology.
 - Harden identity-platform orchestration with pinned goal semantics across
   lifecycle moves, commit/tree-bound preflight identity, durable exact worker
   assignment attestations, and lossless ordinary abandonment evidence.
