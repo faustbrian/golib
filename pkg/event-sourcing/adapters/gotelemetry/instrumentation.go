@@ -17,6 +17,10 @@ import (
 
 const instrumentationName = "github.com/faustbrian/golib/pkg/event-sourcing"
 
+var errTelemetryProviderFailure = errors.New(
+	"event-sourcing/gotelemetry: telemetry provider failed",
+)
+
 var (
 	// ErrRuntimeRequired reports a missing or incomplete telemetry runtime.
 	ErrRuntimeRequired = errors.New(
@@ -78,7 +82,13 @@ type Instrumentation struct {
 }
 
 // New constructs instrumentation from explicit standard providers.
-func New(runtime Runtime) (*Instrumentation, error) {
+func New(runtime Runtime) (instrumentation *Instrumentation, operationErr error) {
+	defer func() {
+		if recover() != nil {
+			instrumentation = nil
+			operationErr = instrumentFailure(errTelemetryProviderFailure)
+		}
+	}()
 	if runtime == nil {
 		return nil, ErrRuntimeRequired
 	}
@@ -138,13 +148,19 @@ func New(runtime Runtime) (*Instrumentation, error) {
 	}
 
 	return &Instrumentation{
-		propagator:         propagator,
-		tracer:             tracerProvider.Tracer(instrumentationName),
-		operations:         operations,
-		duration:           duration,
-		deliveries:         deliveries,
-		projectionMessages: projectionMessages,
-		projectionLag:      projectionLag,
+		propagator: propagator,
+		tracer: isolatedTracer{
+			Tracer: tracerProvider.Tracer(instrumentationName),
+		},
+		operations: isolatedInt64Counter{Int64Counter: operations},
+		duration: isolatedFloat64Histogram{
+			Float64Histogram: duration,
+		},
+		deliveries: isolatedInt64Counter{Int64Counter: deliveries},
+		projectionMessages: isolatedInt64Counter{
+			Int64Counter: projectionMessages,
+		},
+		projectionLag: isolatedInt64Histogram{Int64Histogram: projectionLag},
 	}, nil
 }
 

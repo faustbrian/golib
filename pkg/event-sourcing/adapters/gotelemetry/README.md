@@ -101,7 +101,12 @@ retry, recover, dispatch, persist, publish, or settle messages.
 Kafka producer and `gokafka.Dispatcher`. It deep-copies caller-owned record
 storage, removes old propagation fields, injects the current context, validates
 the complete result against explicit `kafka.MessageLimits`, and only then
-publishes. A zero propagation config selects `kafka.DefaultMessageLimits`.
+publishes. Invalid source records are rejected before copying. If propagation
+injection panics or emits invalid propagation, its output is discarded and the
+bounded source record is published without declared propagation fields. A
+propagator that cannot declare its fields is rejected as invalid configuration
+before wrapper creation. A zero propagation config selects
+`kafka.DefaultMessageLimits`.
 
 `WrapKafkaHandler` implements `kafka.Handler`. It copies bounded headers and
 extracts a remote parent only when declared propagation fields are
@@ -114,6 +119,8 @@ Offset settlement remains owned by `kafka.Consumer`.
 span stays open until its returned iterator terminates with an error, panics,
 or is closed. Callers retain the core requirement to close every iterator.
 The wrapper starts no cleanup goroutine and does not hide leaked iterators.
+Every downstream return pair is preserved, including a nil iterator with a nil
+error; that pair completes the read observation immediately.
 
 `WrapSnapshotStore` implements `eventsourcing.SnapshotStore`. Load spans report
 bounded `hit`, `miss`, `error`, or `panic` outcomes. Save spans treat
@@ -234,6 +241,14 @@ Delivery counters describe submitted inputs and the enclosing operation
 outcome, not a claim that every item in a failed batch completed. These finite
 values are the complete metric-cardinality policy.
 
+## Semantic conventions
+
+The adapter uses module-owned event-sourcing conventions, schema version 1.
+It does not claim an upstream OpenTelemetry semantic-convention schema URL or
+version. The span, metric, and attribute tables above are the complete schema;
+changes to their names or meanings are compatibility changes recorded in this
+module's changelog.
+
 ## Privacy and security
 
 The adapter never records aggregate IDs, message IDs, correlation or causation
@@ -291,6 +306,15 @@ values retain `kafka.ConsumedMessage`'s handler-call lifetime. The application
 owns provider flush and shutdown. Instrumented message iterators retain the
 underlying iterator's single-caller ownership and must be closed.
 
+OpenTelemetry runtime panics during span creation, span completion, metric
+recording, and Kafka injection or extraction are isolated from wrapped calls.
+A failed observation is dropped; downstream values, errors, and panic values
+remain the operation result. The adapter does not start timeout goroutines and
+therefore cannot preempt a provider that blocks inside the synchronous
+OpenTelemetry API.
+Applications must configure bounded, non-blocking SDK processors and exporters;
+their flush and shutdown remain caller-owned.
+
 ## Adoption
 
 Use this adapter when traces and low-cardinality operational metrics are needed
@@ -316,8 +340,24 @@ explicit runtime and manage its lifecycle in the application.
 acknowledgements, retries, duplicates, and offset settlement retain the
 underlying Kafka contracts.
 
+## Compatibility and migration
+
+The module is pre-v1 and follows the repository's directory-prefixed semantic
+versions. It depends only on the narrow public event-sourcing and Kafka
+contracts and standard OpenTelemetry provider interfaces. Provider and exporter
+lifecycle remains outside the adapter.
+
+Existing users do not need to migrate wire data: trace headers are separate
+from event envelopes and event identity. After upgrading, invalid or panicking
+propagator output is dropped instead of failing an otherwise bounded publish,
+and store wrappers preserve a downstream nil iterator with a nil error. Remove
+any caller logic that depended on the deprecated `ErrMessageIteratorRequired`
+wrapper error.
+
 ## Development
 
-Run `make check`. It covers formatting, vet, unit tests, race detection, exact
-100% production statement coverage, allocation-reporting benchmarks, and
-documentation presence.
+From the repository root, run
+`make check MODULES=pkg/event-sourcing/adapters/gotelemetry` for the canonical
+module contract. The goal evidence also requires the module-scoped race, fuzz,
+security, API, documentation, benchmark, exact statement-coverage, and exact
+viable-mutation gates declared in `modules.json`.

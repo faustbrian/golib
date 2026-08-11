@@ -370,12 +370,13 @@ func TestStoreInstrumentationValidatesDependenciesAndContexts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WrapEventStore() error = %v", err)
 	}
-	if _, err := nilIteratorStore.ReadStream(
+	iterator, err = nilIteratorStore.ReadStream(
 		context.Background(),
 		eventsourcing.StreamID{},
 		eventsourcing.ReadStreamOptions{},
-	); !errors.Is(err, ErrMessageIteratorRequired) {
-		t.Fatalf("nil iterator error = %v", err)
+	)
+	if iterator != nil || err != nil {
+		t.Fatalf("nil iterator result = (%#v, %v)", iterator, err)
 	}
 }
 
@@ -405,11 +406,12 @@ func TestGlobalReaderInstrumentationPreservesFailuresAndContexts(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WrapGlobalReader() error = %v", err)
 	}
-	if _, err := reader.ReadGlobal(
+	iterator, err := reader.ReadGlobal(
 		context.Background(),
 		eventsourcing.ReadGlobalOptions{},
-	); !errors.Is(err, ErrMessageIteratorRequired) {
-		t.Fatalf("nil iterator error = %v", err)
+	)
+	if iterator != nil || err != nil {
+		t.Fatalf("nil iterator result = (%#v, %v)", iterator, err)
 	}
 
 	reader, err = instrumentation.WrapGlobalReader(&telemetryGlobalReader{

@@ -10,6 +10,12 @@ and this project adheres to
 
 ### Changed
 
+- Isolate OpenTelemetry runtime and propagation panics from wrapped operations,
+  discard invalid propagation output without failing bounded publication, and
+  preserve downstream nil-iterator return pairs exactly.
+- Document the module-owned semantic-convention schema, compatibility,
+  migration, provider-failure boundary, and canonical repository gate.
+
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

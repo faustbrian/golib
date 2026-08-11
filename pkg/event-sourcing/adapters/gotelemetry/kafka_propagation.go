@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/faustbrian/golib/pkg/kafka"
+	"go.opentelemetry.io/otel/propagation"
 )
 
 var (
@@ -121,7 +122,12 @@ func (instrumentation *Instrumentation) kafkaPropagation(
 	if err := limits.Validate(); err != nil {
 		return nil, kafka.MessageLimits{}, ErrInvalidKafkaPropagation
 	}
-	propagationFields := instrumentation.propagator.Fields()
+	propagationFields, fieldsAvailable := kafkaPropagationFields(
+		instrumentation.propagator,
+	)
+	if !fieldsAvailable {
+		return nil, kafka.MessageLimits{}, ErrInvalidKafkaPropagation
+	}
 	if len(propagationFields) > limits.MaxHeaders {
 		return nil, kafka.MessageLimits{}, ErrInvalidKafkaPropagation
 	}
@@ -137,6 +143,18 @@ func (instrumentation *Instrumentation) kafkaPropagation(
 	}
 
 	return fields, limits, nil
+}
+
+func kafkaPropagationFields(
+	propagator interface{ Fields() []string },
+) (fields []string, available bool) {
+	defer func() {
+		if recover() != nil {
+			fields = nil
+			available = false
+		}
+	}()
+	return propagator.Fields(), true
 }
 
 type kafkaPublisher struct {
@@ -162,10 +180,14 @@ func (publisher kafkaPublisher) Publish(
 		fields:  publisher.fields,
 		limits:  publisher.limits,
 	}
-	publisher.instrumentation.propagator.Inject(ctx, carrier)
+	injected := injectKafkaContext(
+		publisher.instrumentation.propagator,
+		ctx,
+		carrier,
+	)
 	owned.Headers = carrier.headers
-	if carrier.rejected || !validKafkaMessage(owned, publisher.limits) {
-		return kafkaPropagationFailure(kafka.ErrInvalidMessageLimits)
+	if !injected || carrier.rejected || !validKafkaMessage(owned, publisher.limits) {
+		owned = cloneKafkaMessage(message, publisher.fields)
 	}
 
 	return publisher.next.Publish(ctx, owned)
@@ -192,13 +214,50 @@ func (handler kafkaHandler) Handle(
 		handler.limits,
 	) {
 		owned = cloneConsumedHeaders(message)
-		ctx = handler.instrumentation.propagator.Extract(
+		ctx = extractKafkaContext(
+			handler.instrumentation.propagator,
 			ctx,
 			kafkaExtractCarrier{headers: owned.Headers, fields: handler.fields},
 		)
 	}
 
 	return handler.next.Handle(ctx, owned)
+}
+
+func injectKafkaContext(
+	propagator interface {
+		Inject(context.Context, propagation.TextMapCarrier)
+	},
+	ctx context.Context,
+	carrier propagation.TextMapCarrier,
+) (injected bool) {
+	defer func() {
+		if recover() != nil {
+			injected = false
+		}
+	}()
+	propagator.Inject(ctx, carrier)
+	return true
+}
+
+func extractKafkaContext(
+	propagator interface {
+		Extract(context.Context, propagation.TextMapCarrier) context.Context
+	},
+	ctx context.Context,
+	carrier propagation.TextMapCarrier,
+) (extracted context.Context) {
+	extracted = ctx
+	defer func() {
+		if recover() != nil {
+			extracted = ctx
+		}
+	}()
+	extracted = propagator.Extract(ctx, carrier)
+	if extracted == nil {
+		return ctx
+	}
+	return extracted
 }
 
 type kafkaInjectCarrier struct {

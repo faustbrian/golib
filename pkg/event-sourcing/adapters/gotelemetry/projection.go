@@ -211,7 +211,9 @@ func (instrumentation *Instrumentation) RecordProjectionLag(
 		attribute.String("event_sourcing.projection.name", name),
 		attribute.Int64("event_sourcing.projection.lag", int64(lag)),
 	}
-	trace.SpanFromContext(ctx).SetAttributes(attributes...)
+	isolateTelemetry(func() {
+		trace.SpanFromContext(ctx).SetAttributes(attributes...)
+	})
 	instrumentation.projectionLag.Record(
 		ctx,
 		int64(lag),

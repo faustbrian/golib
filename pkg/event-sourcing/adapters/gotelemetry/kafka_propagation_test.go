@@ -315,7 +315,7 @@ func TestKafkaPropagationRejectsRuntimeAndUnsafeDeclaredFields(t *testing.T) {
 	}
 }
 
-func TestKafkaPublisherRejectsPropagatorOutputBeyondBounds(t *testing.T) {
+func TestKafkaPublisherIsolatesPropagatorOutputBeyondBounds(t *testing.T) {
 	tests := map[string]struct {
 		propagator propagation.TextMapPropagator
 		message    kafka.Message
@@ -348,17 +348,108 @@ func TestKafkaPublisherRejectsPropagatorOutputBeyondBounds(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			instrumentation := newKafkaTestInstrumentation(t, test.propagator)
+			next := &recordingKafkaPublisher{}
 			publisher, err := instrumentation.WrapKafkaPublisher(
-				&recordingKafkaPublisher{},
+				next,
 				KafkaPropagationConfig{Limits: tinyKafkaLimits()},
 			)
 			if err != nil {
 				t.Fatalf("WrapKafkaPublisher() error = %v", err)
 			}
-			if err := publisher.Publish(context.Background(), test.message); !errors.Is(err, ErrKafkaPropagationRejected) {
+			if err := publisher.Publish(context.Background(), test.message); err != nil {
 				t.Fatalf("Publish() error = %v", err)
 			}
+			if len(next.message.Headers) != len(test.message.Headers) {
+				t.Fatalf("published headers = %#v", next.message.Headers)
+			}
+			if kafkaHeaderValue(next.message.Headers, "traceparent") != "" ||
+				kafkaHeaderValue(next.message.Headers, "unexpected") != "" {
+				t.Fatalf("published propagation = %#v", next.message.Headers)
+			}
 		})
+	}
+}
+
+func TestKafkaPropagationIsolatesPropagatorPanics(t *testing.T) {
+	fieldsInstrumentation := newKafkaTestInstrumentation(
+		t,
+		panickingPropagator{panicFields: true},
+	)
+	_, err := fieldsInstrumentation.WrapKafkaPublisher(
+		&recordingKafkaPublisher{},
+		KafkaPropagationConfig{Limits: tinyKafkaLimits()},
+	)
+	if !errors.Is(err, ErrInvalidKafkaPropagation) {
+		t.Fatalf("WrapKafkaPublisher() error = %v", err)
+	}
+
+	message := kafka.Message{Topic: "events", Value: []byte("payload")}
+	panicInstrumentation := newKafkaTestInstrumentation(
+		t,
+		panickingPropagator{
+			fields:       []string{"traceparent"},
+			panicInject:  true,
+			panicExtract: true,
+		},
+	)
+	injectNext := &recordingKafkaPublisher{}
+	publisher, err := panicInstrumentation.WrapKafkaPublisher(
+		injectNext,
+		KafkaPropagationConfig{Limits: tinyKafkaLimits()},
+	)
+	if err != nil {
+		t.Fatalf("WrapKafkaPublisher() error = %v", err)
+	}
+	if err := publisher.Publish(context.Background(), message); err != nil {
+		t.Fatalf("Publish() error = %v", err)
+	}
+	if kafkaHeaderValue(injectNext.message.Headers, "traceparent") != "" {
+		t.Fatalf("published partial propagation = %#v", injectNext.message.Headers)
+	}
+
+	handled := false
+	handler, err := panicInstrumentation.WrapKafkaHandler(
+		kafka.HandlerFunc(func(context.Context, kafka.ConsumedMessage) error {
+			handled = true
+			return nil
+		}),
+		KafkaPropagationConfig{Limits: tinyKafkaLimits()},
+	)
+	if err != nil {
+		t.Fatalf("WrapKafkaHandler() error = %v", err)
+	}
+	if err := handler.Handle(context.Background(), kafka.ConsumedMessage{
+		Headers: []kafka.Header{{Key: "traceparent", Value: []byte("value")}},
+	}); err != nil || !handled {
+		t.Fatalf("Handle() = handled %t, error %v", handled, err)
+	}
+
+	nilExtractInstrumentation := newKafkaTestInstrumentation(
+		t,
+		panickingPropagator{
+			fields:     []string{"traceparent"},
+			nilExtract: true,
+		},
+	)
+	type propagationContextKey struct{}
+	contextKey := propagationContextKey{}
+	originalContext := context.WithValue(context.Background(), contextKey, "preserved")
+	nilExtractHandler, err := nilExtractInstrumentation.WrapKafkaHandler(
+		kafka.HandlerFunc(func(ctx context.Context, _ kafka.ConsumedMessage) error {
+			if ctx == nil || ctx.Value(contextKey) != "preserved" {
+				return errors.New("original context was not preserved")
+			}
+			return nil
+		}),
+		KafkaPropagationConfig{Limits: tinyKafkaLimits()},
+	)
+	if err != nil {
+		t.Fatalf("WrapKafkaHandler(nil extract) error = %v", err)
+	}
+	if err := nilExtractHandler.Handle(originalContext, kafka.ConsumedMessage{
+		Headers: []kafka.Header{{Key: "traceparent", Value: []byte("value")}},
+	}); err != nil {
+		t.Fatalf("Handle(nil extract) error = %v", err)
 	}
 }
 
@@ -522,6 +613,44 @@ func (hostilePropagator) Extract(
 
 func (hostilePropagator) Fields() []string {
 	return []string{"es.event_name"}
+}
+
+type panickingPropagator struct {
+	fields       []string
+	panicFields  bool
+	panicInject  bool
+	panicExtract bool
+	nilExtract   bool
+}
+
+func (propagator panickingPropagator) Inject(
+	_ context.Context,
+	carrier propagation.TextMapCarrier,
+) {
+	if propagator.panicInject {
+		carrier.Set("traceparent", "partial")
+		panic("propagator inject")
+	}
+}
+
+func (propagator panickingPropagator) Extract(
+	ctx context.Context,
+	_ propagation.TextMapCarrier,
+) context.Context {
+	if propagator.panicExtract {
+		panic("propagator extract")
+	}
+	if propagator.nilExtract {
+		return nil
+	}
+	return ctx
+}
+
+func (propagator panickingPropagator) Fields() []string {
+	if propagator.panicFields {
+		panic("propagator fields")
+	}
+	return propagator.fields
 }
 
 type fieldPropagator struct {

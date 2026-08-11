@@ -21,7 +21,122 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	"go.opentelemetry.io/otel/trace"
+	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
+
+func TestInstrumentationIsolatesRuntimePanics(t *testing.T) {
+	t.Parallel()
+
+	baseTracer := tracenoop.NewTracerProvider().Tracer("test")
+	baseMeter := metricnoop.NewMeterProvider().Meter("test")
+	startInstrumentation, err := New(testRuntime{
+		tracer: panickingTracerProvider{
+			TracerProvider: tracenoop.NewTracerProvider(),
+			tracer:         panickingTracer{Tracer: baseTracer, panicStart: true},
+		},
+		meter:      metricnoop.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		t.Fatalf("construct start instrumentation: %v", err)
+	}
+	called := 0
+	dispatcher, err := startInstrumentation.WrapDispatcher(
+		dispatcherFunc(func(context.Context, []eventsourcing.Delivery) error {
+			called++
+			return nil
+		}),
+	)
+	if err != nil {
+		t.Fatalf("wrap start dispatcher: %v", err)
+	}
+	parentRecorder := tracetest.NewSpanRecorder()
+	parentProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSpanProcessor(parentRecorder),
+	)
+	parentContext, parent := parentProvider.Tracer("parent").Start(
+		context.Background(),
+		"caller-owned",
+	)
+	if err := dispatcher.Dispatch(parentContext, nil); err != nil || called != 1 {
+		t.Fatalf("dispatch after start panic = called %d, error %v", called, err)
+	}
+	if !parent.IsRecording() || len(parentRecorder.Ended()) != 0 {
+		t.Fatal("start panic completed the caller-owned parent span")
+	}
+	parent.End()
+	if len(parentRecorder.Ended()) != 1 {
+		t.Fatal("caller could not complete its parent span")
+	}
+
+	want := errors.New("downstream failure")
+	completionInstrumentation, err := New(testRuntime{
+		tracer: panickingTracerProvider{
+			TracerProvider: tracenoop.NewTracerProvider(),
+			tracer: panickingTracer{
+				Tracer: baseTracer,
+				span:   panickingSpan{Span: trace.SpanFromContext(context.Background())},
+			},
+		},
+		meter: panickingMeterProvider{
+			MeterProvider: metricnoop.NewMeterProvider(),
+			meter:         panickingMeter{Meter: baseMeter},
+		},
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		t.Fatalf("construct completion instrumentation: %v", err)
+	}
+	dispatcher, err = completionInstrumentation.WrapDispatcher(
+		dispatcherFunc(func(ctx context.Context, _ []eventsourcing.Delivery) error {
+			span := trace.SpanFromContext(ctx)
+			span.AddEvent("event")
+			span.AddLink(trace.Link{})
+			if span.IsRecording() {
+				return errors.New("hostile span reported recording")
+			}
+			span.RecordError(want)
+			if span.SpanContext().IsValid() {
+				return errors.New("hostile span context was retained")
+			}
+			span.SetName("renamed")
+			if span.TracerProvider() == nil {
+				return errors.New("fallback tracer provider is nil")
+			}
+			return want
+		}),
+	)
+	if err != nil {
+		t.Fatalf("wrap completion dispatcher: %v", err)
+	}
+	if err := dispatcher.Dispatch(context.Background(), nil); !errors.Is(err, want) {
+		t.Fatalf("dispatch error = %v, want downstream failure", err)
+	}
+	hostileContext := trace.ContextWithSpan(
+		context.Background(),
+		panickingSpan{Span: trace.SpanFromContext(context.Background())},
+	)
+	if err := completionInstrumentation.RecordProjectionLag(
+		hostileContext,
+		"projection",
+		0,
+		1,
+	); err != nil {
+		t.Fatalf("record projection lag after span panic: %v", err)
+	}
+}
+
+func TestInstrumentationRedactsConstructionPanics(t *testing.T) {
+	t.Parallel()
+
+	instrumentation, err := New(panickingRuntime{})
+	if instrumentation != nil || !errors.Is(err, ErrInstrumentCreation) {
+		t.Fatalf("New() = (%#v, %v)", instrumentation, err)
+	}
+	if strings.Contains(err.Error(), "runtime panic") {
+		t.Fatalf("construction error disclosed panic: %v", err)
+	}
+}
 
 func TestInstrumentationTracesAndMeasuresDispatchAndConsumption(t *testing.T) {
 	t.Parallel()
@@ -483,6 +598,20 @@ type testRuntime struct {
 	propagator propagation.TextMapPropagator
 }
 
+type panickingRuntime struct{}
+
+func (panickingRuntime) TracerProvider() trace.TracerProvider {
+	panic("runtime panic")
+}
+
+func (panickingRuntime) MeterProvider() metric.MeterProvider {
+	return metricnoop.NewMeterProvider()
+}
+
+func (panickingRuntime) Propagator() propagation.TextMapPropagator {
+	return propagation.TraceContext{}
+}
+
 func nilContext() context.Context {
 	return nil
 }
@@ -504,6 +633,144 @@ type recordingDispatcher struct {
 	panicValue any
 	count      int
 	span       trace.SpanContext
+}
+
+type dispatcherFunc func(context.Context, []eventsourcing.Delivery) error
+
+func (dispatch dispatcherFunc) Dispatch(
+	ctx context.Context,
+	deliveries []eventsourcing.Delivery,
+) error {
+	return dispatch(ctx, deliveries)
+}
+
+type panickingTracerProvider struct {
+	trace.TracerProvider
+	tracer trace.Tracer
+}
+
+func (provider panickingTracerProvider) Tracer(
+	string,
+	...trace.TracerOption,
+) trace.Tracer {
+	return provider.tracer
+}
+
+type panickingTracer struct {
+	trace.Tracer
+	span       trace.Span
+	panicStart bool
+}
+
+func (tracer panickingTracer) Start(
+	ctx context.Context,
+	_ string,
+	_ ...trace.SpanStartOption,
+) (context.Context, trace.Span) {
+	if tracer.panicStart {
+		panic("telemetry start")
+	}
+	return trace.ContextWithSpan(ctx, tracer.span), tracer.span
+}
+
+type panickingSpan struct {
+	trace.Span
+}
+
+func (panickingSpan) End(...trace.SpanEndOption) {
+	panic("telemetry end")
+}
+
+func (panickingSpan) AddEvent(string, ...trace.EventOption) {
+	panic("telemetry event")
+}
+
+func (panickingSpan) AddLink(trace.Link) {
+	panic("telemetry link")
+}
+
+func (panickingSpan) IsRecording() bool {
+	panic("telemetry recording")
+}
+
+func (panickingSpan) RecordError(error, ...trace.EventOption) {
+	panic("telemetry record error")
+}
+
+func (panickingSpan) SpanContext() trace.SpanContext {
+	panic("telemetry span context")
+}
+
+func (panickingSpan) SetStatus(codes.Code, string) {
+	panic("telemetry status")
+}
+
+func (panickingSpan) SetAttributes(...attribute.KeyValue) {
+	panic("telemetry attributes")
+}
+
+func (panickingSpan) SetName(string) {
+	panic("telemetry name")
+}
+
+func (panickingSpan) TracerProvider() trace.TracerProvider {
+	panic("telemetry tracer provider")
+}
+
+type panickingMeterProvider struct {
+	metric.MeterProvider
+	meter metric.Meter
+}
+
+func (provider panickingMeterProvider) Meter(
+	string,
+	...metric.MeterOption,
+) metric.Meter {
+	return provider.meter
+}
+
+type panickingMeter struct {
+	metric.Meter
+}
+
+func (meter panickingMeter) Int64Counter(
+	name string,
+	options ...metric.Int64CounterOption,
+) (metric.Int64Counter, error) {
+	base, err := meter.Meter.Int64Counter(name, options...)
+	return panickingInt64Counter{Int64Counter: base}, err
+}
+
+func (meter panickingMeter) Float64Histogram(
+	name string,
+	options ...metric.Float64HistogramOption,
+) (metric.Float64Histogram, error) {
+	base, err := meter.Meter.Float64Histogram(name, options...)
+	return panickingFloat64Histogram{Float64Histogram: base}, err
+}
+
+type panickingInt64Counter struct {
+	metric.Int64Counter
+}
+
+func (panickingInt64Counter) Add(
+	context.Context,
+	int64,
+	...metric.AddOption,
+) {
+	panic("telemetry counter")
+}
+
+type panickingFloat64Histogram struct {
+	metric.Float64Histogram
+}
+
+func (panickingFloat64Histogram) Record(
+	context.Context,
+	float64,
+	...metric.RecordOption,
+) {
+	panic("telemetry histogram")
 }
 
 type concurrentDispatcher struct {

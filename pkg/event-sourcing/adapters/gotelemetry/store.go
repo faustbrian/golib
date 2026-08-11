@@ -22,6 +22,8 @@ var (
 	)
 	// ErrMessageIteratorRequired reports a store returning no iterator and no
 	// error.
+	//
+	// Deprecated: wrappers preserve a downstream nil iterator and nil error.
 	ErrMessageIteratorRequired = errors.New(
 		"event-sourcing/gotelemetry: message iterator is required",
 	)
@@ -137,8 +139,17 @@ func (store eventStore) ReadStream(
 		return nil, operationErr
 	}
 	if iterator == nil {
-		operationErr = ErrMessageIteratorRequired
-		return nil, operationErr
+		finishStoreOperation(
+			store.instrumentation,
+			ctx,
+			span,
+			"read_stream",
+			started,
+			0,
+			nil,
+			nil,
+		)
+		return nil, nil
 	}
 	return &storeIterator{
 		instrumentation: store.instrumentation,
@@ -204,8 +215,17 @@ func (reader globalReader) ReadGlobal(
 		return nil, operationErr
 	}
 	if iterator == nil {
-		operationErr = ErrMessageIteratorRequired
-		return nil, operationErr
+		finishStoreOperation(
+			reader.instrumentation,
+			ctx,
+			span,
+			"read_global",
+			started,
+			0,
+			nil,
+			nil,
+		)
+		return nil, nil
 	}
 	return &storeIterator{
 		instrumentation: reader.instrumentation,
