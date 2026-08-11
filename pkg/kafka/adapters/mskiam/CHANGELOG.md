@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   cancellation, timeout, expiry, and malformed-output categories.
 - Expand API, adoption, tradeoff, and FAQ guidance and enforce those surfaces
   in the documentation gate.
+- Clarify the cluster-level IAM permissions needed for idempotent production
+  and the Kafka 3.8 minimum for transaction termination through IAM access
+  control.
 
 ### Added
 

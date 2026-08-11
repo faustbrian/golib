@@ -142,9 +142,15 @@ does not grant Kafka access. Use least-privilege `kafka-cluster` permissions
 scoped to the exact cluster, topic, group, and transactional-ID resources:
 
 - producers require connect, topic description, and write permissions;
+  idempotent production with topic-scoped writes additionally requires the
+  cluster-level `kafka-cluster:WriteDataIdempotently` action and access to the
+  transactional-ID resources required by AWS's IAM implementation;
 - consumers additionally require group description/alteration and read
   permissions;
-- transactions require transactional-ID description and alteration; and
+- transactions require transactional-ID description and alteration, and IAM
+  transaction termination requires Kafka 3.8 or later because earlier broker
+  versions do not expose the internal `WriteTxnMarkers` action through IAM;
+  use SCRAM or mTLS with appropriate Kafka ACLs on earlier versions; and
 - inspection may require dynamic cluster or topic configuration description.
 
 Do not grant `kafka-cluster:*` merely to make authentication pass. Apache Kafka
@@ -170,6 +176,7 @@ Primary references:
 
 - [Configure clients for IAM access control](https://docs.aws.amazon.com/msk/latest/developerguide/configure-clients-for-iam-access-control.html)
 - [IAM access control](https://docs.aws.amazon.com/msk/latest/developerguide/iam-access-control.html)
+- [IAM action and resource semantics](https://docs.aws.amazon.com/msk/latest/developerguide/kafka-actions.html)
 - [AWS SDK credential providers](https://docs.aws.amazon.com/sdkref/latest/guide/standardized-credentials.html)
 - [AWS MSK IAM SASL Signer for Go](https://github.com/aws/aws-msk-iam-sasl-signer-go)
 
