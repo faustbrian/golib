@@ -723,12 +723,12 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Field | Record |
 | --- | --- |
 | Goal | `pkg/sequencer/.ai/GOAL_HARDEN.md` |
-| Scope | Deterministic operation graphs, durable PostgreSQL and memory ledgers, state transitions, replica claims, fencing and leases, crash and failover recovery, retry budgets, local transaction truthfulness, asynchronous queue settlement, unknown-outcome reconciliation, administrative reset and resume, compensation, migration deployment, hostile persisted inputs, and scaling behavior. |
+| Scope | Deterministic operation graphs, durable PostgreSQL and memory ledgers, state transitions, replica claims, fencing and leases, crash and synchronous-standby failover recovery, retry budgets, local transaction truthfulness, asynchronous queue settlement, unknown-outcome reconciliation, administrative reset and resume, generation-bound compensation, migration deployment, hostile persisted inputs, and scaling behavior. |
 | Status | `verified` |
-| Evidence | Sequencer-only gate evidence keyed by current input fingerprints, including unit and PostgreSQL integration, race, exact coverage, fuzz, mutation, API, documentation, safety, interoperability, and benchmark gates. |
-| Result | Every mandatory sequencer gate passed. Production statement coverage is exactly 1682/1682 across all ten packages; all 1132 viable mutants were killed with 100% efficacy and mutant coverage; nine fuzz targets passed 10,000 executions each; PostgreSQL 18 integration and race coverage, crash and replica-failover suites, queue, lease, idempotency, retry, transaction, reconciliation, migration, and equivalent-work benchmark suites passed. |
-| Environment | Go 1.26.5 on darwin/arm64 with a pinned PostgreSQL 18 container and task-owned disposable Go build caches. |
-| Observed | 2026-08-11T01:19:45Z |
+| Evidence | Sequencer-only gate evidence keyed by current input fingerprints, including unit and PostgreSQL integration, race, exact coverage, fuzz, mutation, API, documentation, safety, Kubernetes interoperability, and benchmark gates. |
+| Result | Every mandatory sequencer gate passed. Production statement coverage is exactly 1829/1829 across all ten packages; all 1193 viable mutants were killed with 100% efficacy and mutator coverage; nine fuzz targets passed 10,000 executions each; PostgreSQL 18 synchronous-primary promotion and reconnection, compensation-generation fencing, migration, queue redelivery, lifecycle, Kubernetes disruption, and equivalent-work benchmark suites passed. |
+| Environment | Go 1.26.5 on darwin/arm64 with PostgreSQL 18, Kind v0.31.0, Kubernetes v1.35.0, and task-owned disposable Go build caches and rehearsal resources. |
+| Observed | 2026-08-11T20:05:36Z |
 | Gaps | NilAway remains advisory under repository policy and conformance is cataloged as not applicable; no mandatory gate gap remains for this goal. |
 
 ### Exact temporal rule operator evidence
