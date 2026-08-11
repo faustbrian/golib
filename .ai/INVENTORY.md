@@ -67,7 +67,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | ---: | --- | --- | --- | --- |
 | 1 | Decisions | `pending-reexecution` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
 | 2 | Architecture | `pending` | `.ai/GOAL_RESILIENCE.md` | 1 |
-| 14 | Verification | `pending-reexecution` | `pkg/fault-injection/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-13 |
 | 19 | Security | `pending-reexecution` | `pkg/secret-envelope/.ai/{GOAL.md,GOAL_HARDEN.md}` | 1 |
 | 20 | Security | `pending-reexecution` | `pkg/secret-store/adapters/awssecretsmanager/.ai/{GOAL.md,GOAL_HARDEN.md}` | 19 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
@@ -112,6 +111,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/hedge/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 11. Current scoped evidence verifies bounded hedging, winner and loser lifecycle, hardening requirements, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/cache/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 12. Current scoped evidence verifies bounded cache resilience, Redis and Valkey behavior, lifecycle and observability hardening, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/http-client/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 13. Current scoped evidence verifies the outbound HTTP policy stack, bounded resilience composition, lifecycle and protocol hardening, and every mandatory module gate; requeue only when affected content or requirements change. |
+| `pkg/fault-injection/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 14. Current scoped evidence verifies deterministic fault planning and execution, bounded injected failures, lifecycle and concurrency hardening, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 22. Current scoped evidence verifies OpenID Connect discovery and ID-token policy, bounded synchronized metadata and JWKS rotation, caller-owned nonce validation, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 23. Current scoped evidence verifies authentication-material redaction, result isolation, bounded completion and retention, provider lifecycle, concurrency, fuzzing, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -185,6 +185,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run. |
 | Observed | 2026-08-11T00:51:22Z |
 | Gaps | NilAway diagnostics remain visible under the advisory-only repository policy; no mandatory gate gap remains in the scoped HTTP client goals. |
+
+### Fault injection hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/fault-injection/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Deterministic fault planning and selection; delayed, timed, IO, callback, panic, cancellation, and corruption injection; bounded execution and cleanup; concurrency, observability, API, documentation, hostile inputs, and performance. |
+| Status | `pending-reexecution` to `verified`. |
+| Evidence | Isolated `./scripts/run-modules.sh check --jobs 1 --modules pkg/fault-injection` with task-owned disposable Go build and module caches. |
+| Result | Every mandatory gate passed, including exact `625/625` statement coverage, `373/373` viable mutants, race and fuzz checks, API, documentation, security, supply-chain, and benchmark gates. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run. |
+| Observed | 2026-08-11T01:21:02Z |
+| Gaps | One NilAway potential nil-flow diagnostic remains visible under the advisory-only repository policy; no mandatory gate gap remains in the scoped fault-injection goals. |
 
 ### PostgreSQL event store hardening evidence
 
