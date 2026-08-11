@@ -14,14 +14,14 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/risk/.ai/GOAL.md`
 - Requires: `identity`
 - Consumes existing primitives: `rate-limit`, `audit`, `telemetry`, `identifier`
-- Unlocks after verification: `identity/risk/postgres`, `identity/risk/valkey`, `identity/risk/captcha`, `identity/risk/hibp`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`
+- Unlocks after verification: `identity/risk/postgres`, `identity/risk/valkey`, `identity/risk/captcha`, `identity/risk/hibp`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`, `identity/http`
 
 ## Start gate
 
-The agent MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
-until `../INVENTORY.md` marks `identity/risk` as `ready` and every unit listed in
-Requires is `verified`. The agent MUST claim only this unit and record its
-owner before any implementation edit.
+The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+until the coordinator has marked `identity/risk` `in-progress`, recorded this
+worker, and verified every unit listed in Requires. The worker MUST reject an
+assignment whose rendered prerequisites or scope differs from the inventory.
 
 ## Objective and observable completion
 

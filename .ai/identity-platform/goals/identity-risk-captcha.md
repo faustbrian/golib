@@ -14,14 +14,14 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/risk/captcha/.ai/GOAL.md`
 - Requires: `identity/risk`
 - Consumes existing primitives: `http-client`, `audit`, `telemetry`
-- Unlocks after verification: `identity/risk/captcha/recaptcha`, `identity/risk/captcha/turnstile`
+- Unlocks after verification: `identity/risk/captcha/recaptcha`, `identity/risk/captcha/turnstile`, `identity/risk/captcha/hcaptcha`, `identity/risk/captcha/captchafox`, `identity/http`
 
 ## Start gate
 
-The agent MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
-until `../INVENTORY.md` marks `identity/risk/captcha` as `ready` and every unit listed in
-Requires is `verified`. The agent MUST claim only this unit and record its
-owner before any implementation edit.
+The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+until the coordinator has marked `identity/risk/captcha` `in-progress`, recorded this
+worker, and verified every unit listed in Requires. The worker MUST reject an
+assignment whose rendered prerequisites or scope differs from the inventory.
 
 ## Objective and observable completion
 
@@ -31,19 +31,19 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns provider-neutral server-side CAPTCHA verification and normalized risk signals. It does not own browser widgets, provider account management, provider-specific fields, and deciding when a challenge is required. Those exclusions MUST remain
+This module owns provider-neutral server-side CAPTCHA verification and normalized risk signals shared by reCAPTCHA, Turnstile, hCaptcha and CaptchaFox adapters. It does not own browser widgets, provider account management, provider-specific fields, or deciding when a challenge is required. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Verifier, Request, Result, Failure, ProviderEvidence, hostname/action binding, clock, and redaction contracts. Public errors MUST be typed, stable,
+The design MUST define Verifier, Request, Result, Failure, ProviderEvidence, provider capability metadata, hostname/origin/action/site binding, optional score policy, clock, retry classification, and redaction contracts. It MUST represent unavailable provider fields without fabricating generic values. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
 
 ## Required behavior
 
-The implementation and tests MUST normalize success and failure; bind expected hostname and action; reject replay where providers expose identifiers; distinguish invalid token, provider outage, malformed response, and policy mismatch; never accept client claims without provider verification. Every state transition MUST
+The implementation and tests MUST normalize success and failure without discarding attributable provider evidence; bind configured hostname/origin, action and site; apply score only when supported; reject replay where providers expose identifiers; distinguish invalid token, provider outage, throttling, cancellation, malformed response, unsupported capability, ambiguous transport outcome and policy mismatch; and never accept client claims without provider verification. Fail-open, fail-closed and step-up choices belong to the consuming risk action, not an adapter default. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.

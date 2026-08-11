@@ -26,15 +26,21 @@ flowchart TD
   captcha[identity/risk/captcha]
   recaptcha[identity/risk/captcha/recaptcha]
   turnstile[identity/risk/captcha/turnstile]
+  hcaptcha[identity/risk/captcha/hcaptcha]
+  captchafox[identity/risk/captcha/captchafox]
   hibp[identity/risk/hibp]
   email[identity/email]
   password[identity/password]
+  username[identity/username]
   magiclink[identity/magiclink]
   otp[identity/otp]
   phone[identity/phone]
   anonymous[identity/anonymous]
   mfa[identity/mfa]
   oauth[identity/oauth]
+  oauth_providers[identity/oauth/providers]
+  oauth_onetap[identity/oauth/onetap]
+  oauth_proxy[identity/oauth/proxy]
   apikey[identity/apikey]
   impersonation[identity/impersonation]
   identity --> identity_pg[identity/postgres]
@@ -49,6 +55,8 @@ flowchart TD
   risk --> captcha
   captcha --> recaptcha
   captcha --> turnstile
+  captcha --> hcaptcha
+  captcha --> captchafox
   risk --> hibp
   identity --> email
   delivery --> email
@@ -56,6 +64,8 @@ flowchart TD
   session --> password
   risk --> password
   delivery --> password
+  identity --> username
+  password --> username
   email --> magiclink
   identity --> magiclink
   session --> magiclink
@@ -80,6 +90,10 @@ flowchart TD
   identity --> oauth
   session --> oauth
   risk --> oauth
+  oauth --> oauth_providers
+  oauth --> oauth_onetap
+  oauth_providers --> oauth_onetap
+  oauth --> oauth_proxy
   identity --> apikey
   identity --> impersonation
   session --> impersonation
@@ -110,6 +124,54 @@ flowchart TD
   oauth_server --> oauth_server_pg[oauth-server/postgres]
   identity_pg --> oauth_server_pg
   session_pg --> oauth_server_pg
+  identity --> i18n[identity/i18n]
+  identity --> identity_http[identity/http]
+  identity_pg --> identity_http
+  session --> identity_http
+  session_pg --> identity_http
+  session_valkey --> identity_http
+  delivery --> identity_http
+  risk --> identity_http
+  risk_pg --> identity_http
+  risk_valkey --> identity_http
+  captcha --> identity_http
+  recaptcha --> identity_http
+  turnstile --> identity_http
+  hcaptcha --> identity_http
+  captchafox --> identity_http
+  hibp --> identity_http
+  password --> identity_http
+  username --> identity_http
+  email --> identity_http
+  magiclink --> identity_http
+  otp --> identity_http
+  phone --> identity_http
+  anonymous --> identity_http
+  mfa --> identity_http
+  webauthn --> identity_http
+  passkey --> identity_http
+  oauth --> identity_http
+  oauth_providers --> identity_http
+  oauth_onetap --> identity_http
+  oauth_proxy --> identity_http
+  apikey --> identity_http
+  impersonation --> identity_http
+  organization --> identity_http
+  organization_pg --> identity_http
+  sso --> identity_http
+  sso_oidc --> identity_http
+  sso_oauth2 --> identity_http
+  sso_saml --> identity_http
+  sso_pg --> identity_http
+  scim --> identity_http
+  scim_pg --> identity_http
+  scim_org --> identity_http
+  oauth_server --> identity_http
+  oauth_server_oidc --> identity_http
+  oauth_server_device --> identity_http
+  oauth_server_pg --> identity_http
+  i18n --> identity_http
+  identity_http --> identitytest[identity/identitytest]
 ```
 
 The `Requires` field in `INVENTORY.md` is authoritative. The diagram is

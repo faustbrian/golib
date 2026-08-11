@@ -14,36 +14,36 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/oauth/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`
 - Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `http-client`, `capability`, `secret-envelope`, `audit`
-- Unlocks after verification: No program unit.
+- Unlocks after verification: `identity/oauth/providers`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity/http`
 
 ## Start gate
 
-The agent MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
-until `../INVENTORY.md` marks `identity/oauth` as `ready` and every unit listed in
-Requires is `verified`. The agent MUST claim only this unit and record its
-owner before any implementation edit.
+The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+until the coordinator has marked `identity/oauth` `in-progress`, recorded this
+worker, and verified every unit listed in Requires. The worker MUST reject an
+assignment whose rendered prerequisites or scope differs from the inventory.
 
 ## Objective and observable completion
 
-Build an independently releasable `pkg/identity/oauth` module that owns OAuth authorization-code and PKCE social-login orchestration, provider catalog, callback state, token exchange/refresh, account linking, and provider-token lifecycle. Completion
+Build an independently releasable `pkg/identity/oauth` module that owns generic OAuth/OIDC authorization-code and PKCE social-login orchestration, provider contracts, callback state, token exchange/refresh, account linking, and provider-token lifecycle. Completion
 requires executable proof of the behaviors below through its public API and,
 where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns OAuth authorization-code and PKCE social-login orchestration, provider catalog, callback state, token exchange/refresh, account linking, and provider-token lifecycle. It does not own enterprise SSO routing, OAuth authorization-server behavior, provider UI, and provider-specific SDK wrappers. Those exclusions MUST remain
+This module owns generic provider registration and OAuth/OIDC authorization-code and PKCE social-login orchestration, callback state, token exchange/refresh, account linking, and provider-token lifecycle. Built-in provider facts belong to `identity/oauth/providers`; Google One Tap belongs to `identity/oauth/onetap`; preview callback forwarding belongs to `identity/oauth/proxy`. It does not own enterprise SSO routing, OAuth authorization-server behavior, provider UI, or provider-specific SDK wrappers. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Provider, Catalog, AuthorizationRequest, StateProfile, PKCEPolicy, Callback, TokenSet, TokenVault, LinkPolicy, ClaimsMapper, SessionIssuer, and RefreshCoordinator contracts. Public errors MUST be typed, stable,
+The design MUST define Provider, ProviderRegistry, AuthorizationRequest, StateProfile, PKCEPolicy, Callback, TokenSet, TokenVault, LinkPolicy, ClaimsMapper, SessionIssuer, and RefreshCoordinator contracts. The generic provider contract MUST expose all endpoint, client-authentication, issuer/audience, scope, claims, refresh and revocation decisions needed by the separate built-in catalog without importing it. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
 
 ## Required behavior
 
-The implementation and tests MUST bind state, nonce, redirect, provider, and PKCE; validate ID tokens through existing validators; exchange once; encrypt refresh tokens; serialize refresh; link only with verified evidence; detect provider-account collisions; unlink without orphaning access; classify revoked grants and partial callbacks. Every state transition MUST
+The implementation and tests MUST register explicit generic provider configurations; bind state, nonce, redirect, provider, client and PKCE; validate ID tokens through existing validators; exchange once; encrypt refresh tokens; serialize refresh; link only with verified evidence; detect provider-account collisions; unlink without orphaning access; and classify revoked grants, unsupported provider capabilities, partial callbacks and unknown exchange/refresh outcomes. Provider-specific defaults MUST NOT erase a declared incompatibility or turn an unknown result into success. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.

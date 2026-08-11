@@ -14,14 +14,14 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/sso/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`, `organization`
 - Consumes existing primitives: `authentication`, `authorization`, `capability`, `secret-envelope`, `audit`, `workflow`
-- Unlocks after verification: `sso/oidc`, `sso/oauth2`, `sso/saml`, `sso/postgres`
+- Unlocks after verification: `sso/oidc`, `sso/oauth2`, `sso/saml`, `sso/postgres`, `identity/http`
 
 ## Start gate
 
-The agent MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
-until `../INVENTORY.md` marks `sso` as `ready` and every unit listed in
-Requires is `verified`. The agent MUST claim only this unit and record its
-owner before any implementation edit.
+The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+until the coordinator has marked `sso` `in-progress`, recorded this
+worker, and verified every unit listed in Requires. The worker MUST reject an
+assignment whose rendered prerequisites or scope differs from the inventory.
 
 ## Objective and observable completion
 

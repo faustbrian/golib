@@ -14,14 +14,14 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/delivery/.ai/GOAL.md`
 - Requires: None; this root execution unit may be claimed when its existing primitive audit is current.
 - Consumes existing primitives: `workflow`, `outbox`, `audit`, `telemetry`
-- Unlocks after verification: `identity/password`, `identity/email`, `identity/otp`, `identity/phone`
+- Unlocks after verification: `identity/password`, `identity/email`, `identity/otp`, `identity/phone`, `identity/http`
 
 ## Start gate
 
-The agent MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
-until `../INVENTORY.md` marks `identity/delivery` as `ready` and every unit listed in
-Requires is `verified`. The agent MUST claim only this unit and record its
-owner before any implementation edit.
+The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+until the coordinator has marked `identity/delivery` `in-progress`, recorded this
+worker, and verified every unit listed in Requires. The worker MUST reject an
+assignment whose rendered prerequisites or scope differs from the inventory.
 
 ## Objective and observable completion
 

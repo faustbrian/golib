@@ -11,11 +11,12 @@ These requirements apply to every goal in `goals/`.
 
 ## Start and ownership gates
 
-1. An agent MUST NOT begin a unit unless `INVENTORY.md` marks it `ready` and
-   every unit in its `Requires` field is `verified`.
-2. On starting, the agent MUST atomically change only its unit from `ready` to
-   `in-progress`, record its owner, and recheck the graph. A second owner MUST
-   NOT work the same unit concurrently.
+1. A worker MUST NOT begin a unit unless the coordinator has marked it
+   `in-progress`, recorded that worker, and verified every unit in its
+   `Requires` field.
+2. Only the coordinator MAY change inventory status, ownership, dependencies,
+   planning-goal locations, or shared repository manifests. Workers MUST NOT
+   edit coordinator-owned files.
 3. The agent MUST implement only the named canonical module. A new dependency,
    shared contract, or ownership transfer MUST be approved and recorded in the
    graph before implementation continues.
@@ -24,9 +25,15 @@ These requirements apply to every goal in `goals/`.
    imported or copied.
 5. `Unlocks` is informative. A dependant remains blocked until all of its own
    `Requires` units are `verified`.
-6. On scaffolding a module, the owner MUST move its planning goal to the
-   canonical `pkg/<module>/.ai/GOAL.md` path and update the inventory link.
-   The move MUST NOT weaken or silently rewrite the approved goal.
+6. After integrating a scaffolded module, the coordinator MUST move its
+   planning goal to the canonical `pkg/<module>/.ai/GOAL.md` path and update
+   the inventory link. The move MUST NOT weaken or silently rewrite the goal.
+7. Every worker MUST satisfy the parity rows and end-state requirements that
+   name its unit. A package goal is incomplete when those documents assign an
+   unproved behavior to it.
+8. Workers MUST limit writes to their canonical package directory. The
+   coordinator owns root registration, catalogs, orchestration state, and
+   final integrated verification.
 
 ## Module and API contract
 

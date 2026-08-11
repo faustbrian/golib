@@ -14,36 +14,36 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/session/.ai/GOAL.md`
 - Requires: `identity`
 - Consumes existing primitives: `authentication`, `authorization`, `identifier`, `audit`, `secret-envelope`
-- Unlocks after verification: `identity/session/postgres`, `identity/session/valkey`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`
+- Unlocks after verification: `identity/session/postgres`, `identity/session/valkey`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`, `identity/http`
 
 ## Start gate
 
-The agent MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
-until `../INVENTORY.md` marks `identity/session` as `ready` and every unit listed in
-Requires is `verified`. The agent MUST claim only this unit and record its
-owner before any implementation edit.
+The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+until the coordinator has marked `identity/session` `in-progress`, recorded this
+worker, and verified every unit listed in Requires. The worker MUST reject an
+assignment whose rendered prerequisites or scope differs from the inventory.
 
 ## Objective and observable completion
 
-Build an independently releasable `pkg/identity/session` module that owns session issuance, opaque cookies, persistence interfaces, freshness, rotation, revocation, devices, and administrative session control. Completion
+Build an independently releasable `pkg/identity/session` module that owns session issuance, opaque cookies, persistence interfaces, freshness, rotation, revocation, devices, multi-account client sessions, last-login-method state, and administrative session control. Completion
 requires executable proof of the behaviors below through its public API and,
 where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns session issuance, opaque cookies, persistence interfaces, freshness, rotation, revocation, devices, and administrative session control. It does not own credential verification, user repositories, UI, and OAuth authorization-server grants. Those exclusions MUST remain
+This module owns session issuance, opaque cookies, persistence interfaces, freshness, rotation, revocation, devices, multiple account sessions in one client, active-session selection, maximum-session enforcement, last-login-method state, and administrative session control. It does not own credential verification, user repositories, UI, and OAuth authorization-server grants. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Session, Token, Issuer, Store, CookiePolicy, FreshnessPolicy, Device, RotationResult, PrincipalResolver, and Revoker contracts. Public errors MUST be typed, stable,
+The design MUST define Session, Token, Issuer, Store, CookiePolicy, FreshnessPolicy, Device, RotationResult, PrincipalResolver, Revoker, SessionSet, ActiveSessionSelector, MaximumSessionsPolicy, and LastLoginMethodStore contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
 
 ## Required behavior
 
-The implementation and tests MUST issue only after authenticated proof; rotate without reuse windows; reject fixation and replay; enforce absolute and idle expiry; revoke one or all sessions; list and label devices; preserve public logout idempotency. Every state transition MUST
+The implementation and tests MUST issue only after authenticated proof; rotate without reuse windows; reject fixation and replay; enforce absolute and idle expiry; revoke one or all sessions; list and label devices; preserve public logout idempotency; hold multiple account sessions in one browser without cross-account cookie confusion; atomically select and switch the active account; enforce a configured maximum with deterministic eviction or denial; and preserve list/revoke semantics across active and inactive sessions. It MUST track, get, check and clear the last successful login method with explicit database, signed-cookie, cross-domain, consent, retention and deletion behavior. Failed attempts MUST NOT replace the last successful method, and privacy-disabled tracking MUST leave no residual state. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.

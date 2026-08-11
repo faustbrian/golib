@@ -14,14 +14,14 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/oauth-server/postgres/.ai/GOAL.md`
 - Requires: `oauth-server`, `identity/postgres`, `identity/session/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `secret-envelope`, `outbox`, `audit`
-- Unlocks after verification: No program unit.
+- Unlocks after verification: `identity/http`
 
 ## Start gate
 
-The agent MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
-until `../INVENTORY.md` marks `oauth-server/postgres` as `ready` and every unit listed in
-Requires is `verified`. The agent MUST claim only this unit and record its
-owner before any implementation edit.
+The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+until the coordinator has marked `oauth-server/postgres` `in-progress`, recorded this
+worker, and verified every unit listed in Requires. The worker MUST reject an
+assignment whose rendered prerequisites or scope differs from the inventory.
 
 ## Objective and observable completion
 

@@ -15,14 +15,14 @@ appear in all capitals, as shown here.
 - Requires: `identity/risk`
 - Consumes existing primitives: `http-client`, `password`, `audit`,
   `telemetry`
-- Unlocks after verification: No program unit.
+- Unlocks after verification: `identity/http`
 
 ## Start gate
 
-The agent MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
-until `../INVENTORY.md` marks `identity/risk/hibp` as `ready` and
-`identity/risk` is `verified`. The agent MUST claim only this unit and
-record its owner before any implementation edit.
+The worker MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+until the coordinator has marked `identity/risk/hibp` `in-progress`, recorded this
+worker, and verified every unit listed in Requires. The worker MUST reject an
+assignment whose rendered prerequisites or scope differs from the inventory.
 
 ## Objective and observable completion
 

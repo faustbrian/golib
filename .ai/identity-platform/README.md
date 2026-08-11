@@ -1,4 +1,4 @@
-# Identity Platform Execution Order
+# Identity Platform Orchestration Entry Point
 
 The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 **SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
@@ -7,117 +7,117 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 [RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
 appear in all capitals, as shown here.
 
-## How to use this program
+## Give one goal to one orchestrator
 
-This directory is the staging area for the identity-platform goals:
+Do not manually distribute the package goals. Give one coordinator agent this
+exact prompt:
 
-1. Read `PROGRAM.md` for product and ownership decisions.
-2. Read `COMMON_REQUIREMENTS.md` for requirements shared by every package.
-3. Use `INVENTORY.md` as the authoritative status and dependency record.
-4. Use `DEPENDENCIES.md` to inspect the complete dependency graph.
-5. Execute only a goal whose inventory status is `ready`.
+```text
+Execute /Users/brian/Developer/go-libraries/.ai/identity-platform/ORCHESTRATOR_GOAL.md
+to completion. Act only as coordinator. Use gpt-5.6-sol subagents with medium
+reasoning for package implementation, maximize safe DAG parallelism, commit
+coherent verified batches locally, do not push, and stop only at the completion
+or blocker conditions defined by the goal.
+```
 
-The waves below state the earliest valid execution order. Units within one
-wave MAY run in parallel, but a wave is not a blanket authorization to start
-all of its units. An agent MUST still wait until every unit named in its
-`Requires` field is `verified`, the coordinator has changed its status to
-`ready`, and one owner has claimed it.
+The coordinator reads `ORCHESTRATOR_GOAL.md`, renders `WORKER_PROMPT.md`, and
+creates one isolated worker for each eligible inventory unit. Humans MUST NOT
+copy individual goal files into ad-hoc prompts because that omits common,
+parity, integration, and dependency requirements.
 
-## Wave 0: independent roots
+## Authority and ownership
 
-These units have no dependency on another future identity-platform package and
-MAY begin immediately when their existing primitive audits are current:
+The coordinator alone owns `INVENTORY.md`, `DEPENDENCIES.md`, files directly
+under this directory, planning-goal moves, root manifests, integration, and
+final end-state proof. A worker owns only its assigned canonical package
+directory and package-local code, tests, fixtures, migrations, docs, examples,
+module files, and changelog. The coordinator MUST reject cross-package worker
+edits instead of resolving semantic ownership during a merge.
 
-1. `identity`
-2. `identity/delivery`
-3. `webauthn`
+Read order is: `ORCHESTRATOR_GOAL.md`, `PROGRAM.md`,
+`COMMON_REQUIREMENTS.md`, `END_STATE.md`, `BETTER_AUTH_PARITY.md`,
+`DEPENDENCIES.md`, `INVENTORY.md`, `WORKER_PROMPT.md`, then the assigned goal.
 
-They establish the user/account model, delivery contracts, and WebAuthn
-protocol layer. Starting them first allows the remaining product work to
-compose stable contracts instead of inventing local substitutes.
+## Computed execution waves
 
-## Wave 1: identity foundations
+These waves are the longest-path depths of the authoritative `Requires` DAG.
+Units in one wave MAY execute concurrently as soon as their own prerequisites
+are `verified`; a wave is not a barrier.
 
-These units MAY begin after `identity` is verified, with the additional
-prerequisites shown:
+### Wave 0
 
-1. `identity/postgres` after `identity`
-2. `identity/session` after `identity`
-3. `identity/risk` after `identity`
-4. `identity/email` after `identity` and `identity/delivery`
-5. `identity/apikey` after `identity`
-6. `organization` after `identity`
+- `identity`
+- `identity/delivery`
+- `webauthn`
 
-This wave establishes durable identities, sessions, auth-specific risk
-decisions, verified email lifecycle, managed API keys, and organization
-contracts. Dependants MUST use these public contracts rather than creating
-parallel identity or session models.
+### Wave 1
 
-## Wave 2: complete identity journeys and product cores
+- `identity/postgres`
+- `identity/session`
+- `identity/risk`
+- `identity/email`
+- `identity/apikey`
+- `identity/i18n`
+- `organization`
 
-Each unit below MAY begin as soon as all listed prerequisites are verified:
+### Wave 2
 
-1. `identity/session/postgres` after `identity/session` and
-   `identity/postgres`
-2. `identity/session/valkey` after `identity/session`
-3. `identity/risk/postgres` after `identity/risk` and `identity/postgres`
-4. `identity/risk/valkey` after `identity/risk`
-5. `identity/risk/captcha` after `identity/risk`
-6. `identity/risk/hibp` after `identity/risk`
-7. `identity/password` after `identity`, `identity/session`,
-   `identity/risk`, and `identity/delivery`
-8. `identity/magiclink` after `identity`, `identity/session`,
-   `identity/email`, and `identity/risk`
-9. `identity/otp` after `identity`, `identity/session`,
-   `identity/risk`, and `identity/delivery`
-10. `identity/anonymous` after `identity` and `identity/session`
-11. `passkey` after `identity`, `identity/session`, `identity/risk`,
-    and `webauthn`
-12. `identity/oauth` after `identity`, `identity/session`, and
-    `identity/risk`
-13. `identity/impersonation` after `identity`, `identity/session`, and
-    `identity/risk`
-14. `organization/postgres` after `organization` and `identity/postgres`
-15. `sso` after `identity`, `identity/session`, `identity/risk`, and
-    `organization`
-16. `scim` after `identity` and `organization`
-17. `oauth-server` after `identity`, `identity/session`, and
-    `identity/risk`
+- `identity/session/postgres`
+- `identity/session/valkey`
+- `identity/risk/postgres`
+- `identity/risk/valkey`
+- `identity/risk/captcha`
+- `identity/risk/hibp`
+- `identity/password`
+- `identity/magiclink`
+- `identity/otp`
+- `identity/anonymous`
+- `passkey`
+- `identity/oauth`
+- `identity/impersonation`
+- `organization/postgres`
+- `sso`
+- `scim`
+- `oauth-server`
 
-The units are peers within this wave; their numeric order is for readability,
-not an additional dependency. For example, HIBP and CAPTCHA adapters do not
-block password lifecycle work because `identity/password` consumes the
-provider-neutral risk contract rather than importing provider implementations.
+### Wave 3
 
-## Wave 3: protocol, provider, and persistence extensions
+- `identity/risk/captcha/recaptcha`
+- `identity/risk/captcha/turnstile`
+- `identity/risk/captcha/hcaptcha`
+- `identity/risk/captcha/captchafox`
+- `identity/username`
+- `identity/phone`
+- `identity/mfa`
+- `identity/oauth/providers`
+- `identity/oauth/proxy`
+- `sso/oidc`
+- `sso/oauth2`
+- `sso/saml`
+- `sso/postgres`
+- `scim/postgres`
+- `scim/organization`
+- `oauth-server/oidc`
+- `oauth-server/device`
+- `oauth-server/postgres`
 
-These leaf units MAY begin after their corresponding Wave 2 cores are verified:
+### Wave 4
 
-1. `identity/risk/captcha/recaptcha` after `identity/risk/captcha`
-2. `identity/risk/captcha/turnstile` after `identity/risk/captcha`
-3. `identity/phone` after `identity`, `identity/otp`, and
-   `identity/delivery`
-4. `identity/mfa` after `identity`, `identity/session`, `identity/otp`,
-   and `identity/risk`
-5. `sso/oidc` after `sso`
-6. `sso/oauth2` after `sso`
-7. `sso/saml` after `sso`
-8. `sso/postgres` after `sso` and `organization/postgres`
-9. `scim/postgres` after `scim` and `organization/postgres`
-10. `scim/organization` after `scim` and `organization`
-11. `oauth-server/oidc` after `oauth-server`
-12. `oauth-server/device` after `oauth-server`
-13. `oauth-server/postgres` after `oauth-server`, `identity/postgres`,
-    and `identity/session/postgres`
+- `identity/oauth/onetap`
 
-## Readiness rule
+### Wave 5
 
-The order is dependency-driven, not calendar-driven. A later-wave unit MAY
-start before every earlier-wave unit is complete when all of its own
-prerequisites are already `verified`. Conversely, an earlier-wave unit MUST
-NOT start while any of its prerequisites is merely `in-progress` or
-`implemented-unverified`.
+- `identity/http`
 
-When a module is first scaffolded, its planning goal MUST move unchanged from
-`goals/` to its canonical `pkg/<module>/.ai/GOAL.md` path and the inventory
-link MUST change in the same coherent batch.
+### Wave 6
+
+- `identity/identitytest`
+
+## Readiness and completion
+
+Only dependency-free units begin `ready`. The coordinator changes a proposed
+unit to `ready` only after all its prerequisites are integrated and `verified`.
+Implementation on a worker branch is not verification. Program completion
+requires all 48 units verified, every in-scope parity row proved, every
+`END_STATE.md` journey passing without undocumented application glue, and all
+final repository gates current.
