@@ -1,11 +1,10 @@
 # Goal: pkg/identity/apikey
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -58,13 +57,29 @@ involved.
   configurations, permissions/scopes and explicit authorization for every
   management operation. Ownership changes are forbidden; rotation creates a
   traceable successor.
+- Management and verification MUST compute effective current authority from
+  the key record plus the authoritative current owner, organization membership,
+  tenant status, policy, permission ceiling and revocation state. A permission
+  snapshot embedded in a key MUST only narrow current authority; it MUST NOT
+  preserve access removed after issuance, resurrect a disabled owner or grant
+  permissions newly added to a role beyond the immutable key grant. Dynamic
+  inheritance MAY only narrow that grant. The authority version and decision
+  inputs MUST be observable in a redacted typed result suitable for cache
+  invalidation and audit.
 - Multiple configuration profiles MUST define prefix, length, entropy,
   expiration, storage, rate/quota and verification policies. The configuration
   ID MUST be stored and used for verification rather than inferred from
   attacker-controlled key text.
+- Verification MUST resolve the stored configuration ID against an effective
+  configuration revision with explicit active, verify-only, deprecated and
+  disabled states. Issuance MUST use the current configured revision;
+  verification of older revisions MAY continue only under a bounded migration
+  policy. Missing or disabled revisions, weakened digest parameters and
+  incompatible policy changes MUST fail closed rather than falling back to a
+  similarly prefixed profile.
 - Database, secondary-storage with explicit fallback, and custom store
   profiles MUST declare consistency, revocation propagation and unknown-outcome
-  behavior. Fallback MUST not resurrect revoked or expired keys.
+  behavior. Fallback MUST NOT resurrect revoked or expired keys.
 - Fixed-window or token-bucket limits, remaining allowance, refill interval,
   refill amount and expiry MUST have atomic semantics under concurrency.
   Verification MUST return bounded safe quota metadata where configured.
@@ -74,6 +89,13 @@ involved.
   on read/write and excluded from unbounded telemetry labels.
 - API-key-derived sessions, when enabled, MUST preserve the key's owner,
   permissions, expiry and revocation and MUST never outlive or broaden the key.
+- Reveal-once results MUST distinguish committed-and-revealed,
+  committed-but-delivery-unknown, not-committed and commit-unknown outcomes.
+  Plaintext MUST NOT be durably recoverable or returned by get/list after the
+  issuance call completes. Idempotency MUST NOT mint multiple usable keys for
+  one request. When reveal delivery is lost or commit is unknown, recovery MUST
+  use a typed status inquiry followed by explicit revoke-and-reissue or
+  rotation; it MUST NOT re-reveal, reconstruct or log the original secret.
 
 ## Security and abuse requirements
 
@@ -93,6 +115,16 @@ State ownership, consistency, retention, deletion, migration, key rotation,
 clock skew, concurrent callers, shutdown, and recovery MUST be documented and
 tested where applicable. Unsupported protocol or deployment profiles MUST be
 stated rather than silently approximated.
+
+Operation authority MUST match [`API_OPERATIONS.md`](../API_OPERATIONS.md),
+issuance/rotation/reveal ambiguity MUST match
+[`TRANSACTION_CONTRACT.md`](../TRANSACTION_CONTRACT.md), and revocation,
+owner disablement and derived-session invalidation MUST match
+[`LIFECYCLE_CASCADES.md`](../LIFECYCLE_CASCADES.md). Configuration revisions,
+entropy, lifetimes, quotas and migration states MUST be represented by
+[`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
+Creation, update, rotation, revocation and authentication denial MUST emit the
+bounded records defined by [`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
 
 ## Acceptance evidence
 

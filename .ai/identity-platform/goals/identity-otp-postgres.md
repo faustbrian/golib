@@ -1,8 +1,10 @@
 # Goal: pkg/identity/otp/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -36,7 +38,7 @@ phone, reset or MFA transition.
 - Incorrect attempt, correct verification, check-without-consume and consume
   MUST serialize so concurrency cannot exceed attempts or produce two winners.
 - Purpose, identifier and tenant mismatches MUST have enumeration-safe public
-  behavior and MUST not decrement another challenge's counters.
+  behavior and MUST NOT decrement another challenge's counters.
 - Database time MUST own expiry/window boundaries. Cleanup MUST use bounded
   indexed batches and preserve evidence needed for replay/lockout windows.
 - Unknown issue/attempt/consume commits MUST be reconcilable by stable command
@@ -46,6 +48,15 @@ phone, reset or MFA transition.
   task-owned delivery integration.
 - Migrations MUST cover active challenges/counters, algorithm/key-version
   change, mixed binaries, interrupted cleanup and backup/restore.
+- Digest storage MUST use a keyed, versioned construction over the complete
+  tenant/purpose/subject/channel/challenge/code tuple; database exposure MUST
+  not permit offline enumeration of the configured small code space. Rotation
+  MUST support bounded active key versions without ambiguous lookup.
+- Issue, reserve, attempt, consume and owning-workflow finalization MUST expose
+  the participant and recovery semantics in
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`; a row marked consumed before
+  an uncommitted owning transition MUST remain recoverable rather than become a
+  lost credential.
 
 Exact coverage/mutation, race, query/lock benchmarks, clean-consumer,
 API/docs/changelog and supply-chain gates are REQUIRED. Any raw-code storage,

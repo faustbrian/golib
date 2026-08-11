@@ -1,11 +1,10 @@
 # Goal: pkg/identity/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -14,7 +13,7 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/postgres/.ai/GOAL.md`
 - Requires: `identity`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
-- Unlocks after verification: `identity/session/postgres`, `identity/risk/postgres`, `identity/password/postgres`, `identity/otp/postgres`, `identity/mfa/postgres`, `passkey/postgres`, `identity/oauth/postgres`, `identity/apikey/postgres`, `identity/impersonation/postgres`, `organization/postgres`, `oauth-server/postgres`, `identity/reference`
+- Unlocks after verification: `identity/session/postgres`, `identity/delivery/postgres`, `identity/risk/postgres`, `identity/password/postgres`, `identity/otp/postgres`, `identity/anonymous/postgres`, `identity/mfa/postgres`, `webauthn/postgres`, `passkey/postgres`, `identity/oauth/postgres`, `identity/apikey/postgres`, `identity/impersonation/postgres`, `organization/postgres`, `sso/postgres`, `scim/postgres`, `oauth-server/postgres`, `identity/reference`
 
 ## Start gate
 
@@ -60,9 +59,15 @@ involved.
   scalar/list types without lossy conversion, prevent undeclared-field writes,
   support indexed fields only by explicit migration, and redact sensitive
   values from diagnostics and evidence.
-- Hooks that run inside the unit of work MUST observe precisely documented
-  pre-commit state; post-commit hooks and outbox consumers MUST not be presented
-  as atomic with the transaction.
+- Only compile-time typed, bounded contributors declared before their first
+  write MAY enlist in the unit of work. Before hooks MUST run before the domain
+  transaction opens. After hooks MUST observe the attempted/committed outcome
+  only after terminalization has been attempted and the transaction has closed;
+  they MUST NOT run while any transaction remains open. Caller-supplied hook
+  callbacks have no unit-of-work role and MUST NOT execute under an open
+  transaction. Only the typed compile-time contributors defined by
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md` may enlist. After hooks and
+  outbox consumers MUST NOT be presented as atomic with the transaction.
 - List/search plans MUST remain index-backed for the documented filters and
   cursor ordering at production-shaped cardinality. Arbitrary attribute search
   is unsupported unless an explicit indexed field contract exists.
@@ -74,6 +79,24 @@ involved.
 - Reconciliation MUST classify missing outbox events, unknown commits,
   orphaned references and partially migrated attributes without fabricating a
   successful identity result.
+- Its transaction implementation MUST participate in the coordinator protocol
+  in `.ai/identity-platform/TRANSACTION_CONTRACT.md`, including stable command
+  identity, prepare/reserve/finalize semantics where required, rollback versus
+  unknown classification, durable recovery records and idempotent replay. A
+  local SQL transaction MUST NOT be described as atomic with another module's
+  database transaction merely because both use PostgreSQL.
+- Privacy export and destructive lifecycle storage operations MUST implement
+  the checkpoints, tombstones, retention/legal-hold exceptions and verified-
+  deletion evidence defined in `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
+  The public `identity` unit owns global-compromise semantics and its lifecycle
+  acknowledgement; this adapter MUST persist the global authority version,
+  cascade generation, and owner checkpoint in the same authoritative
+  transaction. It MUST NOT claim a second semantic acknowledgement.
+  Provider-link rows, account-link metadata, provider-subject uniqueness, and
+  the `lifecycle.dimension.social_link` authority version MUST remain owned here
+  and MUST NOT be duplicated by provider adapters. An enlisted provider adapter
+  MAY atomically contribute token-vault metadata, but the link row, uniqueness
+  decision and social-link version bump remain this participant's mutation.
 
 ## Security and abuse requirements
 

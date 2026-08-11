@@ -1,8 +1,10 @@
 # Goal: pkg/identity/oauth/providers
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -43,6 +45,27 @@ expiry and revocation behavior; avatar/name mapping; and documented quirks.
 Runtime client secrets, tenant-specific endpoints and requested scopes MUST be
 provided explicitly without mutating global profile state.
 
+The catalog MUST publish a machine-checkable provider matrix with one row per
+stable provider ID and columns for aliases; OAuth/OIDC mode; fixed and
+tenant-templated endpoints; discovery policy; issuer aliases; audience and
+authorized-party rules; default, optional and forbidden scopes; PKCE and nonce;
+client-authentication method; response modes; provider-required authorization
+and token parameters; ID-token, UserInfo and introspection availability and
+precedence; direct/native ID-token and access-token signin; signup and implicit
+link suitability; refresh-token issuance and rotation; expiry; revocation and
+unlink; and known incompatibilities. Every cell MUST be an explicit supported,
+unsupported, conditional or unknown decision; absence MUST NOT inherit a
+generic success default.
+
+Every profile mapping MUST identify the stable provider subject field, email
+field and verification rule, display name components, username or handle,
+avatar URL and size variants, tenant or organization fields, locale and any
+provider-specific raw field retained. It MUST declare required versus optional
+fields, types, normalization, null/empty handling and whether each field is
+authoritative, mutable, security-sensitive or display-only. Unknown claims
+MUST NOT flow into identity metadata without a bounded declared extension
+mapping.
+
 The package does not own browser redirects, state storage, account linking,
 token vaults, sessions, enterprise SSO, provider SDK wrappers, or silent
 provider guessing. A generic provider remains configurable through
@@ -71,6 +94,14 @@ contract fixtures and current documented sandbox/live interoperability for
 authorization, identity mapping and refresh/revocation features claimed.
 Unavailable provider features MUST be explicitly unsupported. One successful
 generic provider does not verify the catalog.
+
+Profile decisions and fixtures MUST track
+[`PROTOCOL_BASELINES.md`](../PROTOCOL_BASELINES.md), while deployer-supplied
+tenant endpoints, credentials, scopes and feature choices MUST use the exact
+schema and safe defaults in
+[`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
+Safe provider enumeration MUST implement the public operation and response
+boundary in [`API_OPERATIONS.md`](../API_OPERATIONS.md).
 
 Exact coverage/mutation, race, discovery/claims fuzz, benchmark,
 clean-consumer, API baseline, docs with a provider support matrix and update

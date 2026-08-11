@@ -1,8 +1,10 @@
 # Goal: pkg/identity/password/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -41,7 +43,7 @@ rollback, committed update and unknown commit without exposing hash material.
   update identity credential reference, outbox/audit state and configured
   session-revocation intent. Concurrent successful changes MUST have one winner.
 - Administrator set and recovery reset MUST remain distinguishable audited
-  commands and MUST not fabricate knowledge of the previous password.
+  commands and MUST NOT fabricate knowledge of the previous password.
 - Optional password-history storage MUST use non-reversible hashes with bounded
   count/retention and a reviewed verification-cost policy; it MUST be disabled
   by default unless the password goal requires it.
@@ -54,6 +56,12 @@ rollback, committed update and unknown commit without exposing hash material.
 - Real PostgreSQL tests MUST cover concurrent rehash/change/reset, disconnect
   before/after commit, deadlock/serialization retry classification, account
   deletion and session-revocation/outbox consistency.
+- The adapter MUST implement the password participant of
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`; password version change,
+  identity credential reference, capability finalization and required session-
+  invalidation/outbox state MUST be recoverable as one coordinated command,
+  without claiming a cross-module SQL transaction that the coordinator did not
+  establish.
 
 Exact coverage/mutation, race, production-shaped query/transaction benchmarks,
 clean-consumer, API/docs/changelog and supply-chain gates are REQUIRED. The unit

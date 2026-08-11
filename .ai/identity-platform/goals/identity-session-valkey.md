@@ -1,11 +1,10 @@
 # Goal: pkg/identity/session/valkey
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -62,10 +61,22 @@ involved.
 - Eviction, flush, failover, replication lag, MOVED/ASK, partial pipeline and
   script-cache loss MUST map to explicit unavailable or unknown outcomes.
 - Indexes for list/revoke-all MUST be bounded and cleaned with the primary key;
-  orphan repair MUST not resurrect revoked or expired sessions.
+  orphan repair MUST NOT resurrect revoked or expired sessions.
 - Real standalone and declared cluster-profile tests MUST cover clock/TTL
   boundaries, failover, hot keys, restart and concurrent rotation. A mock Redis
   protocol server is not interoperability proof.
+- Every supported profile MUST apply authoritative invalidation versions and
+  events from `.ai/identity-platform/LIFECYCLE_CASCADES.md`. Replication lag,
+  eviction or cache fallback MUST NOT resurrect a session after identity,
+  password, factor, tenant or global revocation; audit outcomes MUST use
+  `.ai/identity-platform/SECURITY_EVENTS.md`.
+- Persistent (`rememberMe`) and non-persistent sessions MUST retain identical
+  server-side revocation and version checks. The non-persistent profile MUST
+  not become an untracked bearer token, and its exact TTL/renewal behavior MUST
+  match `.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
+- Authentication time, method and assurance stored here MUST remain versioned
+  evidence. The adapter MUST NOT issue or upgrade reauthentication proof and
+  MUST reject atomic updates based on stale proof/session versions.
 
 ## Security and abuse requirements
 

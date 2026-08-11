@@ -1,24 +1,26 @@
 # Goal: pkg/identity/apikey/valkey
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
 - Unit: `identity/apikey/valkey`
 - Canonical module: `pkg/identity/apikey/valkey`
 - Canonical goal after scaffolding: `pkg/identity/apikey/valkey/.ai/GOAL.md`
-- Requires: `identity/apikey`, `identity/apikey/postgres`
+- Requires: `identity/apikey`
 - Consumes existing primitives: `audit`, `telemetry`
 - Unlocks after verification: `identity/reference`
 
 ## Start gate and objective
 
 The worker MUST satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md` and start only from the
-coordinator's committed assignment with all listed prerequisites verified. Build the
+coordinator's committed assignment with the listed prerequisite verified. Build the
 Valkey API-key store for declared authoritative and secondary-storage/cache
-profiles, including atomic quota/refill and safe PostgreSQL fallback behavior.
+profiles, including atomic quota/refill and safe injected-authority fallback.
 
 ## Ownership and public contract
 
@@ -39,6 +41,10 @@ authorization policy or PostgreSQL data.
   cache-aside behavior, maximum staleness, negative caching and invalidation on
   update/rotate/revoke/expiry. Fallback MUST never resurrect revoked material
   or broaden permissions.
+- Secondary mode MUST depend only on the public `identity/apikey.Store`
+  authority contract. This adapter MUST NOT import `identity/apikey/postgres`
+  or assume a PostgreSQL implementation; `identity/reference` owns the selected
+  PostgreSQL-plus-Valkey composition and cross-adapter evidence.
 - Verification, remaining/refill, rate limits and optional usage updates MUST
   be one atomic script/transaction within the supported topology and use
   server time with exact boundaries.
@@ -46,12 +52,14 @@ authorization policy or PostgreSQL data.
   fail unsupported cross-slot operations at construction.
 - Eviction, flush, failover, replication lag, MOVED/ASK, script-cache loss and
   partial pipeline outcomes MUST remain unavailable/unknown or trigger the
-  exact safe authoritative fallback; they MUST not become successful verify.
+  exact safe authoritative fallback; they MUST NOT become successful verify.
 - Indexes/list/delete-expired MUST be bounded and cleaned with primary records;
   reconciliation MUST remove stale entries without copying raw secrets.
-- Real Valkey standalone and declared cluster/failover tests plus integrated
-  PostgreSQL fallback tests MUST cover rotation/revocation races, quotas,
-  staleness, outage/recovery, hot keys and cleanup.
+- Real Valkey standalone and declared cluster/failover tests plus an independent
+  source-authority contract implementation MUST cover rotation/revocation
+  races, quotas, staleness, outage/recovery, hot keys and cleanup. The reference
+  integration suite MUST additionally prove PostgreSQL fallback through the
+  same public contract.
 
 Exact coverage/mutation, race, script/fuzz where applicable, hot-key/resource
 benchmarks, clean-consumer, API/docs/changelog and supply-chain gates are

@@ -1,11 +1,10 @@
 # Goal: pkg/sso/oidc
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -58,12 +57,21 @@ involved.
   without caller scope escalation.
 - Callback MUST validate issuer, audience/authorized party, signature/algorithm,
   times, nonce, state, PKCE and subject before optional bounded UserInfo merge.
-  UserInfo MUST not override verified claims contrary to explicit policy.
+  UserInfo MUST NOT override verified claims contrary to explicit policy.
+- Access and refresh tokens returned by exchange, refresh or UserInfo-capable
+  profiles MUST be handed directly to the SSO `EnterpriseTokenVault`; this
+  adapter MUST NOT retain recoverable tokens or expose them to mapping, hooks,
+  errors or audit. Refresh serialization, rotation/reuse, revocation and
+  unknown outcomes MUST use the vault contract.
+- Every successful login, including an existing linked subject, MUST return
+  verified claims plus provider/profile version to the SSO repeat-login sync
+  policy. The adapter MUST distinguish absent, null, unverified and authoritative
+  claims and MUST NOT itself preserve roles or membership from an earlier login.
 - Trusted origins and shared callback URLs MUST be exact allowlists. Mix-up,
   malicious discovery, issuer aliases, JWK rotation races and token-substitution
   cases MUST fail closed.
 - Logout, refresh and revocation capabilities MUST be declared per provider;
-  unsupported features MUST not be inferred from discovery omissions.
+  unsupported features MUST NOT be inferred from discovery omissions.
 - Official fixtures plus at least one independent enterprise IdP profile MUST
   prove discovery, login, JWK rotation and mapping; provider-specific deviations
   MUST remain attributable.

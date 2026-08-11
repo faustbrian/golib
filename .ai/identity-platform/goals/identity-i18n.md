@@ -1,8 +1,10 @@
 # Goal: pkg/identity/i18n
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -42,7 +44,7 @@ templates and incompatible placeholder sets across translations.
 Precedence MUST be explicit preference, authenticated stored preference,
 trusted cookie, bounded `Accept-Language`, then configured fallbacks. Matching
 MUST handle weights, wildcards, aliases and region fallback without locale
-explosion or attacker-controlled catalog lookup. Unsupported locales MUST not
+explosion or attacker-controlled catalog lookup. Unsupported locales MUST NOT
 be persisted as accepted. Interpolation MUST escape at the transport boundary
 and MUST never format secrets, raw provider diagnostics or enumeration state.
 
@@ -51,6 +53,20 @@ integrity, retention and deletion MUST be documented. Locale, message ID and
 bounded result may be telemetry dimensions only through controlled cardinality.
 Concurrent reads MUST be immutable or synchronized; catalog updates MUST be
 atomic and deterministic.
+
+Locale ownership MUST remain split explicitly: this module canonicalizes and
+matches locale preferences and renders a typed message into a transport-neutral
+value; identity owns a user's persisted preference, session may cache it, and
+HTTP owns trusted cookie/header extraction and response metadata. Persistence,
+export and deletion MUST follow `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
+
+Escaping MUST occur exactly once in the owner of the final output context.
+Catalog interpolation MUST preserve typed parameters and reject templates that
+place values in undeclared contexts; this module MUST NOT claim that generic
+HTML escaping makes URL, header, JSON, SMS or plain-text output safe. The
+delivery renderer owns message-channel context escaping, and `identity/http`
+owns HTTP/HTML/JSON context escaping, while machine error identity and original
+safe parameters remain unchanged.
 
 ## Acceptance and blockers
 

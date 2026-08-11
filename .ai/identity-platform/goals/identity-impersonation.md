@@ -1,11 +1,10 @@
 # Goal: pkg/identity/impersonation
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -53,8 +52,18 @@ involved.
 - Start MUST require a named authorization decision, recent non-impersonated
   authentication, target eligibility, non-empty bounded reason and optional
   approval/reference according to policy.
+- Actor authority MUST be evaluated from the actor's non-impersonated principal
+  against the requested target and scope at request, approval and activation
+  boundaries. Target-effective permissions MUST NOT satisfy actor-only
+  authority, and policy MUST define revalidation or revocation when actor
+  authority, freshness, role, tenant or organization membership changes.
+- Approval policy MUST declare when approval is required, eligible approvers,
+  separation-of-duties/self-approval rules, quorum, expiry and scope binding.
+  An approval MUST bind the exact actor, target, tenant, requested scope,
+  reason digest and policy version and MUST NOT be reusable after any of those
+  inputs change.
 - Ban/suspension, organization boundary, protected-account and actor-role rules
-  MUST be evaluated explicitly. Super-admin or service accounts MUST not be
+  MUST be evaluated explicitly. Super-admin or service accounts MUST NOT be
   impersonable merely because they exist.
 - The issued session MUST contain actor, target, grant ID, start/expiry, scope
   and immutable lineage and MUST be distinguishable by every downstream audit
@@ -65,8 +74,19 @@ involved.
 - Stop, expiry, actor disable, target disable, grant revoke and global session
   revoke MUST terminate access with documented propagation. Stop MUST restore
   only the original still-valid actor session, never mint a stronger one.
+- Grants MUST have one explicit state machine covering requested,
+  pending-approval, approved, active, stopped, expired, denied and revoked
+  states. Allowed actors, guards, idempotency and single-winner behavior MUST
+  be defined for every transition; denied, expired, stopped or revoked grants
+  MUST never return to an authority-bearing state.
+- Impersonation sessions MUST NOT use the stateless-session compatibility
+  profile or make a self-contained token the authority. Every use MUST perform
+  an authoritative online grant/version/revocation check; inability to perform
+  that check MUST fail closed. These requirements refine the administration and
+  session journeys in `.ai/identity-platform/END_STATE.md` and the impersonation
+  profile in `.ai/identity-platform/REFERENCE_PROFILE.md`.
 - List/search of grants and sessions MUST be administrator-authorized,
-  tenant-scoped, bounded and auditable. Reasons are sensitive and MUST not be
+  tenant-scoped, bounded and auditable. Reasons are sensitive and MUST NOT be
   exposed to the target unless policy explicitly says so.
 
 ## Security and abuse requirements

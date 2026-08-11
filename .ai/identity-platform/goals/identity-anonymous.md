@@ -1,20 +1,19 @@
 # Goal: pkg/identity/anonymous
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
 - Unit: `identity/anonymous`
 - Canonical module: `pkg/identity/anonymous`
 - Canonical goal after scaffolding: `pkg/identity/anonymous/.ai/GOAL.md`
-- Requires: `identity`, `identity/session`
+- Requires: `identity`, `identity/session`, `identity/risk`
 - Consumes existing primitives: `audit`, `identifier`
-- Unlocks after verification: `identity/http`
+- Unlocks after verification: `identity/anonymous/postgres`, `identity/http`
 
 ## Start gate
 
@@ -36,7 +35,9 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Issuer, AnonymousSubject, UpgradePolicy, MergePlan, Conflict, SessionTransition, and expiry contracts. Public errors MUST be typed, stable,
+The design MUST define Issuer, AnonymousSubject, UpgradePolicy, MergePlan,
+Conflict, SessionTransition, Store, UnitOfWork, UpgradeRecord, CleanupPolicy,
+and expiry contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -52,7 +53,9 @@ involved.
 
 - Anonymous creation MUST generate a non-addressable opaque identity with
   configured display-name and placeholder-email policy, minimal privileges,
-  bounded expiry and an explicit anonymous principal/session marker.
+  bounded expiry and an explicit anonymous principal/session marker. Creation
+  and upgrade MUST obtain an action-specific `identity/risk` decision before
+  committing identity or session state.
 - Placeholder identifiers MUST be reserved to the anonymous namespace and
   MUST never be delivered to or treated as verified real contact information.
 - Link/upgrade MUST require verified target credentials, consume the anonymous
@@ -62,9 +65,19 @@ involved.
   provider-account collision, concurrent upgrades, banned target and unknown
   commit. It MUST never force-link credentials based only on anonymous state.
 - `onLinkAccount`-style hooks MUST observe a committed mapping or a documented
-  pre-commit plan and be idempotent; hook failure MUST not duplicate transfer.
+  pre-commit plan and be idempotent; hook failure MUST NOT duplicate transfer.
+- An authenticated anonymous subject MUST be able to delete its own anonymous
+  identity through `identity.anonymous.delete` without presenting permanent-
+  account credentials. The operation MUST bind the exact anonymous session,
+  subject, tenant and version, revoke its session, dispose of anonymous-owned
+  merge/expiry state atomically or enter reconciliation, and MUST NOT delete a
+  linked permanent identity or bypass retention/legal-hold policy.
 - Delete-on-link, retain/anonymize and abandoned cleanup MUST be explicit,
   bounded and compatible with audit/legal-hold policy.
+- The core MUST persist only through its public Store/UnitOfWork contracts.
+  Anonymous transition identity, merge journal, expiry and cleanup state belong
+  to the anonymous adapter; ordinary user/account records remain owned by
+  `identity`, and bearer/session records remain owned by `identity/session`.
 
 ## Security and abuse requirements
 

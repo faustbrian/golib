@@ -1,11 +1,10 @@
 # Goal: pkg/oauth-server
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -13,7 +12,7 @@ appear in all capitals, as shown here.
 - Canonical module: `pkg/oauth-server`
 - Canonical goal after scaffolding: `pkg/oauth-server/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`
-- Consumes existing primitives: `authorization`, `authentication`, `capability`, `secret-envelope`, `audit`, `rate-limit`, `http-client`
+- Consumes existing primitives: `authorization`, `authentication`, `capability`, `capability/postgres`, `secret-envelope`, `audit`, `rate-limit`, `http-client`
 - Unlocks after verification: `oauth-server/oidc`, `oauth-server/device`, `oauth-server/postgres`, `identity/http`
 
 ## Start gate
@@ -41,6 +40,14 @@ redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
 
+Every endpoint contract MUST use typed request, success, interaction,
+continuation and protocol-error results. Redirectable errors MUST carry only a
+previously validated exact redirect target and bound state; errors discovered
+before redirect validation MUST be rendered locally and MUST NOT redirect.
+Public management operations and their actor/resource authorization MUST match
+[`API_OPERATIONS.md`](../API_OPERATIONS.md), and all grant and client mutations
+MUST implement [`TRANSACTION_CONTRACT.md`](../TRANSACTION_CONTRACT.md).
+
 ## Required behavior
 
 The implementation and tests MUST validate clients and exact redirects; require PKCE; issue single-use codes; bind issuer/client/redirect/subject/scope/nonce where applicable; rotate refresh tokens with family replay revocation; narrow scopes; revoke and introspect consistently; publish metadata; prevent mix-up and authorization-code injection. Every state transition MUST
@@ -52,8 +59,29 @@ involved.
 
 - Client management MUST include get public/private view, list, create, update,
   rotate secret with overlap policy, delete, trusted-client policy and dynamic
-  registration with registration access token, expiration and allowed scopes.
+  registration with an RFC 7591 initial access token, expiration and allowed
+  scopes. Enabling this reference profile selects RFC 7591 only. RFC 7592 is an
+  unselected future management profile, and its registration access tokens
+  MUST NOT be issued until exact owner-bound read/update/delete operations and
+  routes are separately selected.
   Public clients MUST never receive or require a client secret.
+- Dynamic registration MUST be disabled unless the typed
+  `oauth_server.dynamic_registration` profile is enabled. Its initial access
+  token MUST be expiring, audience/owner bound, single-use and digest-stored.
+  Requested scopes MUST be unique and contained in the exact
+  `oauth_server.dynamic_registration.allowed_scopes` subset of the canonical
+  `oauth_server.scopes` catalog; an unknown or out-of-policy scope rejects the
+  complete registration without creating a client.
+  Registration creates exactly one immutable tenant,
+  organization or platform owner. The reference profile MUST omit every RFC
+  7592 management endpoint, metadata value, URI, and token regardless of RFC
+  7591 enablement.
+- Every client MUST have an immutable owning tenant/organization or explicit
+  platform owner. Client read, list, update, secret rotation, deletion,
+  registration-token use, consent administration and trusted-client changes
+  MUST re-evaluate current owner authority and prevent cross-owner identifiers,
+  redirects, JWKS, sectors, resources or registration tokens from being
+  attached or observed.
 - Redirect URIs MUST use exact matching except specification-defined loopback
   port handling. Client metadata, authentication method, grant types, response
   types, audiences, organization policy and PKCE requirements MUST be validated
@@ -62,6 +90,13 @@ involved.
   selection, post-login continuation and consent-required outcomes as typed UI
   contracts; cached trusted-client consent MUST be narrow, expiring and
   revocable.
+- Post-login, account-selection and consent continuations MUST be opaque,
+  authenticated, bounded, expiring and one-time. They MUST bind issuer, client,
+  validated redirect URI, response type/mode, state, PKCE challenge/method,
+  nonce, resource/audience, requested scopes/claims, tenant, browser session
+  and completed interaction steps. Resumption MUST revalidate client status,
+  redirect registration, policy and subject authority and MUST reject altered,
+  stale, cross-client or replayed continuations.
 - Grants MUST include authorization code, refresh token and client credentials
   where policy permits. Unsupported implicit and resource-owner-password grants
   MUST be rejected and omitted from metadata.
@@ -71,8 +106,43 @@ involved.
   revocation and introspection for JWT and opaque profiles. Access-token
   audience/resource binding and API-server verification guidance MUST be
   executable, not documentation-only.
+- Authorization responses MUST include and validate the authorization-server
+  issuer identifier required by the selected security baseline. Authorization
+  codes and continuations MUST bind that issuer and the exact token endpoint
+  client so a response or code from another issuer/client cannot be accepted.
+  Tests MUST cover mix-up, malicious endpoint metadata, code substitution and
+  multi-issuer deployments.
+- Token, introspection and revocation endpoints MUST implement an explicit
+  client-authentication matrix covering public-client `none` with PKCE and each
+  advertised confidential method. Secret, assertion, key, audience, issuer,
+  subject, time, JWT-ID replay and certificate bindings MUST be validated as
+  applicable; credentials in multiple locations, method downgrade, methods not
+  registered to the client and methods not advertised in metadata MUST fail.
+- Resource indicators MUST be validated against client policy and carried into
+  consent, code, access-token audience and introspection. When protected
+  resource metadata is exposed, the contract MUST publish the exact resource
+  identifier, authorization servers, supported bearer locations and scope
+  semantics from registered configuration; it MUST NOT infer metadata from an
+  untrusted request host or claim ownership of resource-server authorization.
+  RFC 9728 metadata and access-token audience/resource validation MUST use the
+  same typed profile. The reference profile rejects path-bearing resource
+  identifiers and path-bearing issuers so the well-known route is unambiguous.
+  The metadata `resource`, authorization request resource/audience, code and
+  token audience, introspection result, and resource verifier MUST all use the
+  exact `oauth_server.protected_resource.resource` origin and MUST NOT derive it
+  from an inbound host.
+  Its `scopes_supported` value MUST equal
+  `oauth_server.protected_resource.supported_scopes`, which MUST remain a
+  sorted unique subset of `oauth_server.scopes` and match resource-verification
+  enforcement.
 - End-session behavior MUST validate client/post-logout redirect and session
   ownership and state without becoming open redirect or cross-client logout.
+- Core signing-key lifecycle MUST own private-key generation/import, storage,
+  algorithm policy, rotation, compromise and retirement. It MUST expose only a
+  signing capability and public-key projection to `oauth-server/oidc`; OIDC
+  owns JWKS/discovery representation. Protocol logout validation MUST return a
+  typed session-termination command, while `identity/session` remains the sole
+  owner of session revocation. No module MAY bypass those ownership boundaries.
 - Rate limits MUST be endpoint/client/subject aware and use the identity-risk
   contract. Login, consent, client CRUD and device verification remain
   explicitly authorized operations.
@@ -101,6 +171,17 @@ State ownership, consistency, retention, deletion, migration, key rotation,
 clock skew, concurrent callers, shutdown, and recovery MUST be documented and
 tested where applicable. Unsupported protocol or deployment profiles MUST be
 stated rather than silently approximated.
+
+OAuth behavior, client authentication, redirects, issuer identification,
+resource indicators and protected-resource metadata MUST conform to
+[`PROTOCOL_BASELINES.md`](../PROTOCOL_BASELINES.md). Grant/client/key deletion
+and revocation MUST conform to
+[`LIFECYCLE_CASCADES.md`](../LIFECYCLE_CASCADES.md), and advertised feature and
+lifetime defaults MUST be explicit in
+[`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
+Client, consent, authorization, code, refresh and revocation transitions MUST
+emit the bounded records defined by
+[`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
 
 ## Acceptance evidence
 

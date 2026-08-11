@@ -1,11 +1,10 @@
 # Goal: pkg/identity/risk/valkey
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -31,7 +30,10 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns ephemeral high-volume abuse counters and challenge state in Valkey. It does not own durable investigation history and risk policy. Those exclusions MUST remain
+This module is the sole mutation authority for short-lived attempt, velocity,
+concurrency and one-time challenge windows in Valkey. It does not own durable
+lockout state, durable investigation history, the evidence/decision journal or
+risk policy. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
@@ -51,24 +53,41 @@ involved.
 ## Package-specific acceptance checklist
 
 - Namespaces and keys MUST use bounded action/tenant/scoped subject digests and
-  explicit hash tags. Raw identifiers, IP addresses, tokens or provider
-  responses MUST not appear in keys or diagnostic values.
+  explicit hash tags. Each digest MUST be versioned, keyed and domain-separated
+  over canonical tenant, trusted operation, dimension kind and dimension value;
+  unkeyed hashes and cross-tenant reuse MUST be rejected. Raw identifiers, IP
+  addresses, tokens or provider responses MUST NOT appear in keys or diagnostic
+  values.
 - Atomic scripts/transactions MUST implement only declared window, velocity,
-  attempt, lockout and one-time challenge counters with exact TTL ownership and
-  server-time semantics.
-- IPv6 subnet aggregation and key-version rotation MUST not permit alternate-
-  representation or version-change limit bypass.
+  attempt, concurrency and one-time challenge counters with exact TTL ownership
+  and server-time semantics. They MUST NOT create, extend, clear or represent a
+  durable lockout.
+- The selected reference profile MUST use the full canonical RFC 5952 IPv6
+  address without subnet aggregation. Aggregated IPv6 keys MAY exist only in a
+  future, separately selected profile. Canonicalization and key-version
+  rotation MUST NOT permit alternate-representation or version-change bypass.
 - Standalone, replicated and cluster profiles MUST declare which multi-key
   decisions are atomic. Cross-slot configurations MUST fail construction rather
   than degrade to multiple non-atomic commands.
 - Eviction, flush, failover, replication lag, script-cache loss, MOVED/ASK and
   partial pipeline outcomes MUST map to core unavailable/unknown signals under
-  the action's explicit fail policy.
+  the operation-specific matrix in
+  `.ai/identity-platform/REFERENCE_CONFIGURATION.md`. Loss or reset MUST fail
+  closed for credential- or session-issuing operations and MUST NOT erase or
+  supersede PostgreSQL durable lockout state.
 - Hot-key amplification, key cardinality and value size MUST be bounded before
-  command execution; cleanup/expiry MUST not require unbounded scans.
+  command execution; cleanup/expiry MUST NOT require unbounded scans.
 - Real supported Valkey topology tests MUST cover exact boundaries, contention,
   restart/failover/eviction, cluster routing and recovery. Protocol fakes are
   deterministic unit evidence only.
+- Each mutation MUST bind the trusted operation, tenant, action, purpose,
+  subject dimensions, policy version and replay/idempotency identifier. A
+  `not-committed` result MAY be retried within that binding; a `committed`
+  result MUST consume the returned post-mutation state; and an `unknown` result
+  MUST be unavailable and MUST NOT be retried without proven idempotency.
+- Window exhaustion, replay, failover and reset events MUST use
+  `.ai/identity-platform/SECURITY_EVENTS.md`; expiry, tenant deletion and digest
+  rotation MUST follow `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 
 ## Security and abuse requirements
 

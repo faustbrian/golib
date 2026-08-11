@@ -1,11 +1,10 @@
 # Goal: pkg/identity
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -14,7 +13,7 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/.ai/GOAL.md`
 - Requires: None; this root execution unit may be claimed when its existing primitive audit is current.
 - Consumes existing primitives: `authentication`, `authorization`, `identifier`, `tenancy`, `audit`
-- Unlocks after verification: `identity/postgres`, `identity/session`, `identity/risk`, `identity/password`, `identity/username`, `identity/email`, `identity/magiclink`, `identity/otp`, `identity/phone`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/apikey`, `identity/impersonation`, `organization`, `sso`, `scim`, `oauth-server`, `identity/i18n`, `identity/http`
+- Unlocks after verification: `identity/postgres`, `identity/session`, `identity/risk`, `identity/password`, `identity/username`, `identity/email`, `identity/magiclink`, `identity/otp`, `identity/phone`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/apikey`, `identity/impersonation`, `organization`, `sso`, `scim`, `scim/organization`, `oauth-server`, `identity/i18n`, `identity/http`
 
 ## Start gate
 
@@ -48,6 +47,11 @@ define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
+The public identity contract MUST own the global-compromise authority
+transition, lifecycle event, cascade generation, and semantic acknowledgement.
+Composition packages may invoke that operation and selected storage adapters
+may persist it, but neither becomes a parallel semantic owner.
+
 ## Package-specific acceptance checklist
 
 - User lifecycle MUST include create, get, list/search with stable cursor,
@@ -74,6 +78,36 @@ involved.
 - Administrator create/update/delete and credential-reset consumers MUST be
   supported through explicit authorization inputs; this module MUST NOT infer
   administrator status from an authenticated principal.
+- Self-service profile update, privacy export and destructive lifecycle
+  commands MUST have distinct authorization, field-redaction, stable snapshot,
+  retention/legal-hold and idempotency contracts, exposed through the operation
+  shapes in `.ai/identity-platform/API_OPERATIONS.md`. A delete result MUST
+  become `completed` only after the owned identity state and every required
+  cascade checkpoint in `.ai/identity-platform/LIFECYCLE_CASCADES.md` is
+  confirmed; accepted or queued work MUST remain `pending`, and blocked or
+  outcome-unknown work MUST remain distinguishable.
+- Self-service deletion MUST consume the closed proof policy from
+  `.ai/identity-platform/REFERENCE_CONFIGURATION.md`: current password plus a
+  fresh session, fresh UV passkey, or a purpose/subject/session/version-bound
+  emailed capability according to account type. Proof verification, cascade
+  initiation, session revocation and terminal result MUST use the transaction
+  and unknown-outcome contracts; an old session or caller assertion that it is
+  fresh is insufficient.
+- Provider links are identity-owned account records keyed by tenant, provider,
+  issuer and provider subject. Provider modules may prove a subject and retain
+  provider credentials, but MUST NOT create an independent link authority;
+  link, relink and unlink MUST enforce explicit collision and final-access
+  policy through the identity command.
+- Identity status and identifier changes MUST emit the identity-owned authority
+  versions/events, while credential and factor owners emit their corresponding
+  dimensions and session modules own token discovery and revocation execution.
+  The authority, acknowledgement and fail-closed boundaries MUST follow
+  `.ai/identity-platform/LIFECYCLE_CASCADES.md`; their audit outcomes MUST use
+  `.ai/identity-platform/SECURITY_EVENTS.md`.
+- `UnitOfWork` MUST expose the participant semantics required by
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`; it MUST NOT imply that an
+  arbitrary caller transaction, provider callback or post-commit hook is
+  atomically enrolled without the documented coordinator contract.
 
 ## Security and abuse requirements
 

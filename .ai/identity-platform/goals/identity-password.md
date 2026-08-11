@@ -1,11 +1,10 @@
 # Goal: pkg/identity/password
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -13,7 +12,7 @@ appear in all capitals, as shown here.
 - Canonical module: `pkg/identity/password`
 - Canonical goal after scaffolding: `pkg/identity/password/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`
-- Consumes existing primitives: `password`, `capability`, `workflow`, `audit`, `rate-limit`
+- Consumes existing primitives: `password`, `capability`, `capability/postgres`, `workflow`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/password/postgres`, `identity/username`, `identity/http`
 
 ## Start gate
@@ -36,7 +35,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Service, RegistrationPolicy, SignInPolicy, ResetProfile, ChangeRequest, PasswordVerifier, SessionIssuer, Delivery, and enumeration-safe result contracts. Public errors MUST be typed, stable,
+The design MUST define Service, RegistrationPolicy, SignInPolicy, ResetProfile, ChangeRequest, PasswordVerifier, ReauthenticationProof, SessionIssuer, Delivery, and enumeration-safe result contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -58,7 +57,7 @@ involved.
   verification/risk/MFA policy, upgrade hashes atomically and return
   indistinguishable public failures.
 - Set-password for provider-only accounts MUST require recent authenticated
-  authorization or a verified reset capability and MUST not allow an OAuth
+  authorization or a verified reset capability and MUST NOT allow an OAuth
   subject alone to choose a password.
 - Change-password MUST verify the current password unless a stronger explicit
   recovery/admin contract applies, check risk/HIBP, prevent prohibited reuse,
@@ -69,9 +68,33 @@ involved.
 - Administrator set/reset MUST be a separate authorized operation with audit,
   forced-change/session policy and no ability to retrieve either old or new
   password.
-- Password bytes MUST not be normalized, trimmed, copied into immutable logs or
+- Password bytes MUST NOT be normalized, trimmed, copied into immutable logs or
   retained beyond verification/hashing. Hash parameters and upgrade policy MUST
   be bounded against denial of service.
+- Sensitive change/set operations MUST consume an explicit reauthentication
+  proof bound to subject, tenant, session/version, authentication method,
+  assurance, action and maximum age; a session timestamp or caller-supplied
+  `recent=true` flag is insufficient. Exact freshness defaults are owned by
+  `.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
+- Reset links MUST use read-only Validate followed by explicit user confirmation
+  and the Reserve/Apply/Finalize capability workflow in
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`. Validation by mail scanners
+  MUST NOT consume or authorize reset, and capability consumption, password
+  mutation and required session invalidation MUST have one recoverable outcome.
+- Registration, hash upgrade, change and reset compositions with identity,
+  delivery and session modules MUST use the same coordinator contract; callback
+  ordering MUST NOT be presented as cross-module atomicity.
+- Password verification MUST be able to issue a bounded, single-purpose
+  reauthentication proof without creating or extending a session. The proof
+  MUST bind tenant, subject, source session/version, method, assurance, action,
+  audience and expiry; issuance/validation MUST be rate-limited, replay-aware
+  and reject cross-purpose use as specified by
+  `.ai/identity-platform/API_OPERATIONS.md`.
+- Signup and signin MUST accept the session-owned persistent or non-persistent
+  remember policy and preserve it through risk/MFA continuation and
+  SessionIssuer input. Absence MUST use the explicit default in
+  `.ai/identity-platform/REFERENCE_CONFIGURATION.md`, never silently upgrade a
+  non-persistent choice.
 
 ## Security and abuse requirements
 

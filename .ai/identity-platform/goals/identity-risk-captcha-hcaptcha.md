@@ -1,8 +1,10 @@
 # Goal: pkg/identity/risk/captcha/hcaptcha
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -27,25 +29,46 @@ The module owns hCaptcha endpoint/configuration policy, form encoding, response
 parsing, hostname/action/score/credit/enterprise-data interpretation, error-code
 mapping, timeout and retry classification, and provider telemetry. It does not
 own challenge rendering, risk decisions, HTTP application handlers, generic
-rate limits, or another CAPTCHA provider.
+rate limits, fail-open/fail-closed policy, or another CAPTCHA provider.
 
 The public API MUST expose validated configuration, a bounded verifier, typed
 provider evidence, provider reason codes and stable redacted failures. Site
 secret, endpoint override, expected hostname/action, minimum score when the
-selected hCaptcha product returns one, remote-IP disclosure and fail policy
-MUST be explicit. Endpoint overrides MUST be opt-in and SSRF-safe.
+selected hCaptcha product returns one, remote-IP disclosure and provider-outcome
+classification MUST be explicit. Endpoint overrides MUST be opt-in and
+SSRF-safe.
+
+Configuration MUST select the hCaptcha Siteverify API using
+`POST https://api.hcaptcha.com/siteverify` with form fields `secret`,
+`response`, optional `remoteip`, and optional expected `sitekey`. It MUST name
+the exact Publisher/Pro or Enterprise product tier, configured site key and
+canonical hostname set. Score, `score_reason` and other Enterprise fields MUST
+be accepted only for an explicitly selected and evidenced tier; `credit` MUST
+remain optional/deprecated evidence; and the Publisher/Pro profile MUST
+represent score fields as unavailable. Configuration MUST reject action binding
+unless the pinned selected-tier contract documents a returned action field.
+The reference selection MUST consume the exact API, version, tier, site key,
+hostname/origin allowlists, expected-action support, and remote-IP disclosure
+fields from `REFERENCE_CONFIGURATION.md`; it MUST NOT infer provider defaults.
 
 ## Required behavior and security
 
 The adapter MUST submit each response token at most once per verification
 attempt, apply a bounded context, encode parameters exactly as documented,
 reject empty/oversized tokens and malformed/oversized JSON, and validate every
-configured hostname/action/sitekey invariant before returning success. It MUST
+configured hostname/sitekey and supported action invariant before returning
+success. It MUST
 preserve hCaptcha error codes as safe classifications while treating unknown
 codes conservatively. Provider failure, throttling, timeout, cancellation and
 ambiguous transport outcomes MUST remain distinct from a solved challenge and
-from a valid negative decision; only the consuming risk policy may select
-fail-open, fail-closed or step-up behavior.
+from a valid negative decision. The adapter MUST return normalized evidence
+containing the API/profile/tier, configured and returned site-key status,
+`success`, `challenge_ts`, `hostname`, `credit`, `error-codes`, and availability
+and values for `score`, `score_reason` and any documented action field. Absent
+optional/deprecated fields MUST remain unavailable evidence. It MUST
+NOT decide allow, deny, throttle, step-up, or provider-failure policy;
+unavailable/unknown handling MUST come from
+`.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
 
 Tokens and secrets MUST never enter URLs, logs, errors, traces, metrics,
 fixtures or snapshots. Retries MUST NOT occur after an ambiguous accepted
@@ -54,6 +77,14 @@ bytes, nesting, strings, errors and enterprise fields MUST be bounded before
 allocation. Hostname canonicalization, IDNs, ports, suffix confusion, action
 substitution, token replay, duplicated fields and clock skew MUST have
 deterministic denial tests.
+
+Each request and evidence result MUST bind the trusted operation, tenant,
+action, purpose, subject scope, challenge, selected tier/site key and replay
+identifier. Token or evidence replay under another binding MUST fail. CAPTCHA
+verification, rejection, replay, provider-unavailable and binding-mismatch
+events MUST use `.ai/identity-platform/SECURITY_EVENTS.md`; challenge expiry,
+tenant/site disablement and secret rotation MUST follow
+`.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 
 ## Acceptance and blockers
 

@@ -1,11 +1,10 @@
 # Goal: pkg/sso/saml
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -53,22 +52,53 @@ involved.
 - Registration MUST support bounded IdP metadata import and explicit fields,
   SP entity ID/ACS metadata export, certificate rotation and exact IdP/SP
   identity. Metadata URL retrieval MUST satisfy SSRF/TLS/size policy.
-- SP-initiated redirect/post bindings and IdP-initiated SSO MUST be separate
-  profiles. IdP-initiated login MUST have stricter unsolicited-response,
-  organization-routing and replay policy and MUST not pretend to validate a
-  nonexistent request ID.
+- SP-initiated login MUST send AuthnRequest only with HTTP-Redirect and receive
+  Response only with HTTP-POST at the exact configured SP ACS. IdP-initiated
+  HTTP-POST Response MUST use a distinct configured route and metadata ACS;
+  the two routes MUST NOT alias. IdP-initiated login MUST be disabled by default; an enabled
+  provider MUST have an explicit unsolicited-response allowlist, current
+  organization domain proof, fixed destination, short acceptance window and
+  replay policy, and MUST NOT pretend to validate a nonexistent request ID.
+- SP metadata MUST advertise the exact SP-initiated ACS as default and the
+  separate IdP-initiated ACS only when enabled. Response Destination and
+  SubjectConfirmation Recipient MUST match the selected configured URL
+  byte-for-byte; only SP-initiated responses require the outstanding request ID
+  in `InResponseTo`. RelayState for either route MUST use the complete
+  `tx.capability.*` issue/validate/reserve/apply/finalize/recover protocol.
 - Signed AuthnRequests MUST be configurable with supported algorithms and key
-  rotation. Unsigned requests/responses/assertions MUST be accepted only under
-  an explicit pinned policy compatible with the provider.
+  rotation. Every outbound HTTP-Redirect AuthnRequest and LogoutRequest MUST
+  use the configured `saml.redirect_signature_algorithm`, sign the exact
+  `SAMLRequest=value&RelayState=value&SigAlg=value` query sequence when
+  RelayState is present or `SAMLRequest=value&SigAlg=value` when absent, and
+  append `Signature` afterward. Missing, duplicated, unsupported, or mismatched
+  `SigAlg` MUST be rejected. Inbound responses and assertions MUST satisfy an explicit pinned
+  signature profile that identifies which object(s) must be signed and rejects
+  unsigned content by default. Any compatibility exception MUST be provider-
+  specific, must still authenticate the exact consumed assertion, and MUST NOT
+  weaken the reference profile's requirement for signed responses/assertions.
+- LogoutRequest initiation uses HTTP-Redirect; inbound LogoutRequest and
+  LogoutResponse use the one HTTP-POST SP SLO route. A signed LogoutResponse to
+  an inbound request uses HTTP-POST to the verified IdP response endpoint, and
+  SP metadata MUST NOT advertise an unregistered Redirect SLO endpoint.
 - Response validation MUST cover XML signature location/reference, issuer,
   audience, destination, recipient, subject confirmation, InResponseTo,
   NotBefore/NotOnOrAfter, session index and assertion/response replay.
+- XML processing MUST disable DTDs, external entities, XInclude and network/
+  filesystem resolution; reject duplicate IDs and ambiguous references; bind
+  signature verification to the exact assertion subsequently consumed; and
+  perform schema/profile validation without reserializing or reparsing trusted
+  subtrees. Wrapping, namespace confusion, transform abuse and multiple-
+  assertion selection MUST have deterministic hostile fixtures.
 - Algorithm allowlists MUST reject SHA-1 and other weak profiles by default;
   XML depth, nodes, attributes, text, decoded size, signatures, assertions and
   certificates MUST be bounded before expensive work.
 - Attribute/NameID mapping MUST identify the stable subject and distinguish
-  verified from asserted email/roles. Unknown attributes MUST not create
+  verified from asserted email/roles. Unknown attributes MUST NOT create
   privileges.
+- Every successful response, including repeat login for an existing NameID,
+  MUST return assertion provenance and explicit absent/null/authoritative
+  attribute semantics to the SSO repeat-login sync policy; the SAML adapter
+  MUST NOT independently retain stale role or membership authority.
 - Official SAML fixtures and independent IdP proof MUST include signed request,
   SP initiated, permitted IdP initiated, encrypted assertion if claimed,
   rollover, replay and clock-boundary cases.

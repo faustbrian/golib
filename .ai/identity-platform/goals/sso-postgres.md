@@ -1,18 +1,17 @@
 # Goal: pkg/sso/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
 - Unit: `sso/postgres`
 - Canonical module: `pkg/sso/postgres`
 - Canonical goal after scaffolding: `pkg/sso/postgres/.ai/GOAL.md`
-- Requires: `sso`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `organization/postgres`
+- Requires: `sso`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `identity/postgres`, `organization/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `secret-envelope`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 
@@ -40,7 +39,10 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define schema, configuration envelope context, provider versioning, domain uniqueness, login transaction consumption, mapping persistence, migrations, cleanup, and reconciliation contracts. Public errors MUST be typed, stable,
+The design MUST define schema, configuration envelope context, provider
+versioning, domain-proof references, domain uniqueness, login transaction
+consumption, enterprise token-vault storage, mapping/sync persistence,
+migrations, cleanup, and reconciliation contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -61,14 +63,28 @@ involved.
 - Recoverable credentials/keys MUST use `secret-envelope` with provider/
   tenant/organization/protocol context and rotation. Metadata/list operations
   MUST never return secret material.
+- Enterprise provider tokens MUST be envelope-encrypted with tenant/
+  organization/provider/subject/purpose/version context. The vault MUST
+  serialize refresh per grant, atomically rotate token generations, detect
+  stale/reused generations, retain only declared history and make
+  revoke/delete outcomes reconcilable without exposing token material.
 - Provider ID, issuer/entity ID, domain and organization-link uniqueness MUST
   have database-enforced scope and deterministic conflict/takeover behavior.
+- Routes MUST reference the organization-owned domain proof identity/version
+  rather than duplicate proof truth. Expiry, revocation or transfer MUST
+  atomically disable or version-invalidate affected routes and new login
+  transactions, including under ambiguous proof-update outcomes.
 - Login state/relay state, authorization codes where stored, SAML request/
   assertion IDs and provisioning commands MUST be digest-indexed, expiring and
   atomically single-use.
 - JIT identity/membership/provider-link updates and outbox state MUST be atomic
-  where they share PostgreSQL; external or separately owned store ambiguity
-  MUST enter reconciliation.
+  through the public `identity/postgres` enlistment carrier; the adapter MUST
+  NOT duplicate identity rows or carrier SQL. External or separately owned
+  store ambiguity MUST enter reconciliation.
+- Repeat-login sync MUST persist provider/profile and mapping-policy versions,
+  last applied assertion/claim version, authoritative-field decisions and
+  reconciliation state. Concurrent/replayed logins MUST converge without
+  restoring removed roles or overwriting application-owned fields.
 - Disable/delete/credential rotation/domain revocation MUST race safely with
   login and immediately prevent new transactions at a documented isolation
   point without corrupting in-flight evidence.

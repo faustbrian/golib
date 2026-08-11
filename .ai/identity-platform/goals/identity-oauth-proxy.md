@@ -1,8 +1,10 @@
 # Goal: pkg/identity/oauth/proxy
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -46,12 +48,33 @@ preview origin. Preview consumption MUST authenticate, decrypt, validate all
 bindings and consume the envelope once before invoking generic OAuth linking
 and session issuance in the preview environment.
 
+The production exchange boundary MUST define ownership of authorization codes,
+access tokens, refresh tokens and provider response bodies on every success,
+denial, timeout, cancellation and ambiguous outcome. Provider tokens MUST
+never enter the preview envelope or preview logs. The proxy MUST retain them
+only in bounded memory long enough to derive the minimum verified profile,
+close every response, zero or discard recoverable buffers where practicable,
+and invoke configured revocation when the provider supports it. A refresh token
+MUST NOT be persisted, forwarded or silently abandoned as an accepted success;
+if revocation or disposal outcome is unknown, the transaction MUST be recorded
+as reconciliation-required without exposing the credential.
+
 Production-side stores and hooks MUST prove that no user, account or session
 write can occur. SSRF, open redirect, DNS/IDN confusion, wildcard origin,
 state/envelope replay, environment substitution, key confusion, compression
 bombs and oversized provider errors MUST fail closed. Ambiguous token exchange
 MUST remain reconcilable and MUST NOT be blindly retried. Proxy secrets,
 authorization codes, tokens, profiles and envelopes MUST never be logged.
+
+Initiation, callback and preview-consumption authority MUST match
+[`API_OPERATIONS.md`](../API_OPERATIONS.md). State, exchange and envelope
+consumption MUST match [`TRANSACTION_CONTRACT.md`](../TRANSACTION_CONTRACT.md),
+token and envelope expiry/revocation MUST match
+[`LIFECYCLE_CASCADES.md`](../LIFECYCLE_CASCADES.md), and preview origins, keys,
+lifetimes and size limits MUST be explicit in
+[`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
+Every forwarded or denied proxy transaction MUST emit the bounded record
+defined by [`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
 
 ## Acceptance and blockers
 

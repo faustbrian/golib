@@ -1,11 +1,10 @@
 # Goal: pkg/identity/risk/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -31,12 +30,16 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns durable risk counters, decisions, evidence retention, and investigation queries. It does not own risk policy and external signals. Those exclusions MUST remain
+This module is the sole mutation authority for durable lockout state, durable
+risk counters, the decision/evidence journal, retention, and investigation
+queries. It does not own ephemeral attempt, velocity, concurrency or challenge
+windows, risk policy, or external signals. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define schema, atomic counter windows, decision journal, retention, indexed query, anonymization, and migration contracts. Public errors MUST be typed, stable,
+The design MUST define schema, durable risk counters, decision journal,
+retention, indexed query, anonymization, and migration contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -51,16 +54,24 @@ involved.
 ## Package-specific acceptance checklist
 
 - Schema/key dimensions MUST be derived from the core's bounded canonical
-  action/subject/signal identities and scoped digests. Raw passwords, tokens,
-  OTPs and unbounded request strings MUST never become columns, keys or labels.
-- Atomic operations MUST support fixed/sliding windows, velocity counters,
-  lockout state, evidence/decision journal and compare-and-set overrides exactly
-  for the profiles declared by core; unsupported algorithms MUST fail setup.
+  action/subject/signal identities and versioned keyed scoped digests. Each
+  digest MUST domain-separate canonical tenant, operation, dimension kind and
+  dimension value. Unkeyed hashes and cross-tenant digest reuse MUST be
+  rejected. Raw identifiers, network addresses, passwords, tokens, OTPs and
+  unbounded request strings MUST never become columns, keys or labels.
+- Atomic operations MUST support durable risk counters, lockout state,
+  evidence/decision journal and compare-and-set overrides exactly for the
+  profiles declared by core. Ephemeral fixed/sliding velocity windows remain
+  owned by `identity/risk/valkey`; unsupported durable algorithms MUST fail
+  setup.
 - Database time and isolation semantics MUST define every inclusive/exclusive
-  boundary. Concurrent increments/decisions MUST not undercount or extend a
+  boundary. Concurrent increments/decisions MUST NOT undercount or extend a
   lockout incorrectly.
-- IPv4/IPv6 and configured IPv6 subnet dimensions MUST be canonicalized before
-  digesting, with key rotation/retention that does not create bypass windows.
+- IPv4/IPv6 dimensions MUST be canonicalized before digesting. The selected
+  reference profile uses the full canonical RFC 5952 IPv6 address without
+  subnet aggregation; configured IPv6 subnet dimensions MAY exist only in a
+  future, separately selected profile. Key rotation/retention MUST NOT create
+  bypass windows.
 - Provider-signal evidence MUST retain safe attributable status including
   unavailable/ambiguous without storing challenge tokens or full HIBP data.
 - Cleanup/anonymization MUST use bounded indexed batches and preserve minimum
@@ -70,6 +81,19 @@ involved.
   partition/retention and production-shaped query plans.
 - Migrations and restore MUST preserve active windows/lockouts or document a
   deliberate security-safe reset; silent allowance reset is forbidden.
+- The adapter MUST reject configuration that assigns durable lockout mutation
+  authority to another store. Valkey loss or reset MUST NOT clear, shorten or
+  supersede a PostgreSQL lockout, and digest-key rotation MUST preserve active
+  lockouts and their investigation linkage.
+- Each mutation MUST bind the trusted operation, tenant, action, purpose,
+  subject dimensions, policy version and idempotency identifier. A
+  `not-committed` result MAY be retried within that binding, a `committed`
+  result MUST return the post-mutation snapshot, and an `unknown` result MUST
+  map to core unavailable without an unproved retry.
+- Lockout, override, reconciliation, expiry and anonymization events MUST use
+  `.ai/identity-platform/SECURITY_EVENTS.md`; retention, erasure, tenant
+  deletion, restore and key rotation MUST follow
+  `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 
 ## Security and abuse requirements
 

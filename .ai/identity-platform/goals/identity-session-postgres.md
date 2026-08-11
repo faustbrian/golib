@@ -1,11 +1,10 @@
 # Goal: pkg/identity/session/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -14,7 +13,7 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/session/postgres/.ai/GOAL.md`
 - Requires: `identity/session`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `audit`
-- Unlocks after verification: `identity/impersonation/postgres`, `oauth-server/postgres`, `identity/reference`
+- Unlocks after verification: `identity/impersonation/postgres`, `identity/reference`
 
 ## Start gate
 
@@ -67,6 +66,20 @@ involved.
 - Migration evidence MUST include live rows, old/new binary rotation,
   constraint rollout, version-counter backfill, query plans and restoration of
   a backup containing active and revoked sessions.
+- The adapter MUST consume authoritative user, credential, factor, tenant and
+  global invalidation versions/events according to
+  `.ai/identity-platform/LIFECYCLE_CASCADES.md`; local expiry or cache freshness
+  MUST NOT override a required revocation. Revocation audit outcomes MUST use
+  `.ai/identity-platform/SECURITY_EVENTS.md`.
+- Persistent (`rememberMe`) and non-persistent session records MUST be
+  distinguishable without weakening server-side revocation. Non-persistent
+  means no persistent browser credential, not an untracked or unversioned
+  server session; exact lifetime and renewal defaults belong to
+  `.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
+- Stored authentication time, method and assurance are evidence inputs only.
+  This adapter MUST NOT manufacture a reauthentication proof; it MUST preserve
+  the proof ID/version/freshness linkage defined by the session consumer and
+  reject stale version updates atomically.
 
 ## Security and abuse requirements
 

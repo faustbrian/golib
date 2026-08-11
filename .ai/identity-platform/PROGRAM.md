@@ -1,5 +1,11 @@
 # Identity Platform Program
 
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
+
 ## Objective
 
 Deliver a storage-neutral, independently releasable Go identity platform whose
@@ -45,12 +51,15 @@ register the module.
   composition. Concrete PostgreSQL, Valkey and provider adapters MUST NOT
   become mandatory dependencies of the reusable HTTP module.
 
-## Explicit exclusions
+## Exact out-of-scope and divergence categories
 
 Billing and payment plugins, SIWE, MCP authentication, agent authentication,
-lead tracking or analytics, JavaScript framework clients, and database engines
-beyond the selected PostgreSQL and Valkey profiles are excluded. Exclusion is
-not permission to leave an in-scope capability partial. Upstream changes after
+JavaScript framework clients, and database engines beyond the selected
+PostgreSQL and Valkey profiles are product exclusions. Lead tracking, CLI
+scaffolding, and community catalogs are non-capabilities; personal SCIM is an
+unselected deployment profile; database-less OAuth state/provider-token
+cookies are a security divergence. None authorizes adding those integrations.
+Product exclusion is not permission to leave an in-scope capability partial. Upstream changes after
 the pinned revision become a separately approved parity audit.
 
 ## Existing primitives
@@ -65,15 +74,47 @@ server issuance, grants, discovery, consent, and JWKS publication belong to
 
 ## Program completion contract
 
-Completion requires all 58 inventory units to be `verified`, every in-scope
+Completion requires all 61 inventory units to be `verified`, every in-scope
 row in `BETTER_AUTH_PARITY.md` to have executable proof, and every composed
 journey and cross-cutting property in `END_STATE.md` to pass against final
 inputs. No row may remain partial, depend on undocumented application glue, or
 be represented only by a primitive that lacks the required workflow.
 
-The configurable package contracts MUST compose under the exact defaults and
-bounds in `REFERENCE_PROFILE.md`. A package worker MUST NOT choose an
-incompatible local default merely because its isolated tests pass.
+The coordinator artifacts close the implementation choices that package goals
+consume. `API_OPERATIONS.md` owns the complete transport operation catalog;
+`UPSTREAM_DISPOSITIONS.md` owns the disposition of every pinned upstream
+surface; `UPSTREAM_SURFACE.json` pins the machine-verifiable source objects and
+every exact source-item -> disposition-row -> capability -> operation-ID edge,
+with operation owners resolving to registered goals; independent inventory
+digests or owner-has-some-operation checks are insufficient;
+`PROTOCOL_BASELINES.md` pins supported protocol revisions and profiles;
+`PROTOCOL_CONFORMANCE_MANIFEST.json` binds every selected source and
+conformance tool to its immutable revision, retrieved digest, license and
+consumers; `SECURITY_EVENTS.md` owns the interoperable audit taxonomy;
+`TRANSACTION_CONTRACT.md` owns cross-module atomicity, idempotency,
+compensation, and ambiguous-outcome rules; `LIFECYCLE_CASCADES.md` owns
+destructive and privilege-changing cascades; `LIFECYCLE_CONSUMERS.md` owns the
+versioned exact consumer set for every cascade; `REFERENCE_CONFIGURATION.md`
+owns exact deployable defaults; `CONFIGURATION_CATALOGS.json` owns the
+versioned provider/CAPTCHA instance IDs and checksums used for template
+expansion; and `PREFLIGHT_EVIDENCE.md` records the
+coordinator's versioned, attributable preflight result. Every artifact MUST be
+complete and structurally valid before the first worker assignment. Package
+goals MUST consume these decisions and MUST NOT reopen them independently.
+
+`validate.rb` proves only the current files' structural invariants. A static
+file validator cannot prove Git ancestry, commit reachability, prior ledger
+versions, exact generation increments, or whether a same-status row update
+changed only permitted fields. Before every coordinator state commit, the
+transition-check procedure in `ORCHESTRATOR_GOAL.md` MUST compare the proposed
+inventory and ledger to their exact Git parent and prove those historical
+properties. Passing `validate.rb` MUST NOT be reported as ancestry or
+transition-history proof.
+
+The configurable package contracts MUST compose under the topology in
+`REFERENCE_PROFILE.md` and the exact defaults and bounds in
+`REFERENCE_CONFIGURATION.md`. A package worker MUST NOT choose an incompatible
+local default merely because its isolated tests pass.
 
 The complete reference server MUST use standard `net/http`, PostgreSQL, and
 Valkey and MUST exercise provider integrations where the goals require them.

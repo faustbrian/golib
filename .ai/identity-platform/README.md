@@ -1,16 +1,14 @@
 # Identity Platform Orchestration Entry Point
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Give one goal to one orchestrator
 
-Do not manually distribute the package goals. Give one coordinator agent this
-exact prompt:
+Give exactly one coordinator agent exactly this prompt:
 
 ```text
 Execute /Users/brian/Developer/go-libraries/.ai/identity-platform/ORCHESTRATOR_GOAL.md
@@ -22,8 +20,9 @@ or blocker conditions defined by the goal.
 
 The coordinator reads `ORCHESTRATOR_GOAL.md`, renders `WORKER_PROMPT.md`, and
 creates one isolated worker for each eligible inventory unit. Humans MUST NOT
-copy individual goal files into ad-hoc prompts because that omits common,
-parity, integration, and dependency requirements.
+create, paste, or run per-package prompts. Individual goal files are inputs to
+the coordinator-rendered worker prompt, not independent entry points; using
+them directly omits common, parity, integration, and dependency requirements.
 
 ## Authority and ownership
 
@@ -35,10 +34,33 @@ directory and package-local code, tests, fixtures, migrations, docs, examples,
 module files, and changelog. The coordinator MUST reject cross-package worker
 edits instead of resolving semantic ownership during a merge.
 
-Read order is: `ORCHESTRATOR_GOAL.md`, `PROGRAM.md`,
-`COMMON_REQUIREMENTS.md`, `END_STATE.md`, `REFERENCE_PROFILE.md`,
-`BETTER_AUTH_PARITY.md`, `DEPENDENCIES.md`, `INVENTORY.md`,
-`EXECUTION_LEDGER.md`, `WORKER_PROMPT.md`, then the assigned goal.
+The coordinator's complete read order, matching `ORCHESTRATOR_GOAL.md`
+exactly, is:
+
+1. repository `AGENTS.md`;
+2. `README.md`;
+3. `PROGRAM.md`;
+4. `COMMON_REQUIREMENTS.md`;
+5. `END_STATE.md`;
+6. `REFERENCE_PROFILE.md`;
+7. `BETTER_AUTH_PARITY.md`;
+8. `API_OPERATIONS.md`;
+9. `UPSTREAM_DISPOSITIONS.md`;
+10. `UPSTREAM_SURFACE.json`;
+11. `PROTOCOL_BASELINES.md`;
+12. `PROTOCOL_CONFORMANCE_MANIFEST.json`;
+13. `SECURITY_EVENTS.md`;
+14. `TRANSACTION_CONTRACT.md`;
+15. `LIFECYCLE_CASCADES.md`;
+16. `LIFECYCLE_CONSUMERS.md`;
+17. `REFERENCE_CONFIGURATION.md`;
+18. `CONFIGURATION_CATALOGS.json`;
+19. `PREFLIGHT_EVIDENCE.md`;
+20. `DEPENDENCIES.md`;
+21. `INVENTORY.md`;
+22. `EXECUTION_LEDGER.md`;
+23. `WORKER_PROMPT.md`;
+24. the exact goal assigned to that worker.
 
 ## Computed execution waves
 
@@ -60,13 +82,12 @@ are `verified`; a wave is not a barrier.
 - `identity/email`
 - `identity/apikey`
 - `identity/i18n`
-- `organization`
-- `webauthn/postgres`
 
 ### Wave 2
 
 - `identity/session/postgres`
 - `identity/session/valkey`
+- `identity/delivery/postgres`
 - `identity/risk/postgres`
 - `identity/risk/valkey`
 - `identity/risk/captcha`
@@ -75,13 +96,13 @@ are `verified`; a wave is not a barrier.
 - `identity/magiclink`
 - `identity/otp`
 - `identity/anonymous`
+- `webauthn/postgres`
 - `passkey`
 - `identity/oauth`
 - `identity/apikey/postgres`
+- `identity/apikey/valkey`
 - `identity/impersonation`
-- `organization/postgres`
-- `sso`
-- `scim`
+- `organization`
 - `oauth-server`
 
 ### Wave 3
@@ -91,33 +112,37 @@ are `verified`; a wave is not a barrier.
 - `identity/risk/captcha/hcaptcha`
 - `identity/risk/captcha/captchafox`
 - `identity/password/postgres`
-- `identity/otp/postgres`
 - `identity/username`
+- `identity/otp/postgres`
 - `identity/phone`
+- `identity/anonymous/postgres`
 - `identity/mfa`
-- `identity/oauth/providers`
+- `passkey/postgres`
 - `identity/oauth/postgres`
+- `identity/oauth/providers`
 - `identity/oauth/proxy`
-- `identity/apikey/valkey`
 - `identity/impersonation/postgres`
-- `sso/oidc`
-- `sso/oauth2`
-- `sso/saml`
-- `scim/postgres`
-- `scim/organization`
+- `organization/postgres`
+- `sso`
+- `scim`
 - `oauth-server/oidc`
 - `oauth-server/device`
-- `passkey/postgres`
 
 ### Wave 4
 
-- `identity/oauth/onetap`
 - `identity/mfa/postgres`
-- `sso/postgres`
+- `identity/oauth/onetap`
+- `sso/domain-verification`
+- `sso/oidc`
+- `sso/oauth2`
+- `sso/saml`
+- `scim/organization`
 - `oauth-server/postgres`
 
 ### Wave 5
 
+- `sso/postgres`
+- `scim/postgres`
 - `identity/http`
 
 ### Wave 6
@@ -133,6 +158,6 @@ are `verified`; a wave is not a barrier.
 Only dependency-free units begin `ready`. The coordinator changes a proposed
 unit to `ready` only after all its prerequisites are integrated and `verified`.
 Implementation on a worker branch is not verification. Program completion
-requires all 58 units verified, every in-scope parity row proved, every
+requires all 61 units verified, every in-scope parity row proved, every
 `END_STATE.md` journey passing without undocumented application glue, and all
 final repository gates current.

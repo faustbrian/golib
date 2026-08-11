@@ -1,11 +1,10 @@
 # Goal: pkg/webauthn
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -51,11 +50,15 @@ involved.
 ## Package-specific acceptance checklist
 
 - Registration and assertion options/results MUST round-trip WebAuthn JSON
-  without lossy base64url, integer or extension conversion and MUST distinguish
-  browser transport DTOs from verified domain objects.
+  without lossy base64url, integer or selected typed-extension conversion and
+  MUST distinguish browser transport DTOs from verified domain objects.
 - RP ID/origin policy MUST handle HTTPS web origins, permitted loopback
   development, explicit native/app profiles if supported, subdomain scope and
   trusted proxy input without suffix or port confusion.
+  The reference development exception is typed and limited to exact
+  `http://localhost:<port>`; production fixes it off. Registrable-domain checks
+  MUST use the immutable Public Suffix List source/version/SHA-256 in
+  `PROTOCOL_CONFORMANCE_MANIFEST.json`.
 - Challenges MUST have cryptographic entropy, purpose/RP/user binding,
   expiration, digest-at-rest lookup and atomic single consumption under
   concurrent ceremonies.
@@ -65,6 +68,18 @@ involved.
 - Assertion MUST verify client data, authenticator data, flags, signature,
   allowed/discoverable credential rules, user handle and extensions before
   applying the counter/backup-state policy.
+- This module owns WebAuthn extension request construction, bounded parsing and
+  validation. It MUST expose only outputs selected by the shared typed
+  extension profile in the cryptographically verified result, with their
+  authority classification intact. Unknown or unselected extension inputs and
+  outputs MUST be discarded and MUST NOT be retained, surfaced, advertised, or
+  used in authorization. The minimum profile is limited to typed `credProps`
+  and `credProtect`; `crossOrigin` and `topOrigin` remain collected-client-data
+  members, backup eligibility/state remain authenticator-data flags, and `uvm`
+  and `appid` remain unsupported. Support for any additional Level 3 extension
+  requires the typed schema, strict size bound, authority classification,
+  retention purpose, fixtures and profile selection required by
+  `.ai/identity-platform/PROTOCOL_BASELINES.md`.
 - Attestation profiles MUST explicitly support none, self and named trust-store
   formats only when implemented; metadata retrieval/cache/rotation/revocation
   MUST be bounded and SSRF-safe.
@@ -74,6 +89,24 @@ involved.
 - Official WebAuthn/FIDO fixtures and at least one independent browser or
   authenticator implementation MUST prove registration/assertion, resident and
   non-resident credentials, extensions claimed, backup flags and counter cases.
+- Verification MUST implement the exact WebAuthn Level 3 processing order and
+  normative checks pinned by `.ai/identity-platform/PROTOCOL_BASELINES.md`,
+  including `clientDataJSON` byte hashing, ceremony type, challenge, exact
+  serialized origin, top-origin/cross-origin policy, RP ID hash, UP/UV/backup
+  flags, credential algorithm/key, signature, user-handle and extension-output
+  validation. Parsed-but-unverified fields MUST never become authorization
+  evidence.
+- Tenant selection MUST occur before RP configuration lookup. An RP ID may be
+  shared across tenants only under an explicit mapping that also binds tenant
+  into ceremony and identity mapping; credential IDs and user handles remain
+  unique across the complete RP namespace and tenant MUST NOT disambiguate
+  either. Host, forwarded headers or client-supplied RP ID MUST NOT select a
+  tenant or broaden allowed origins.
+- Verification success and challenge consumption MUST be represented as a
+  versioned result for atomic persistence by a Store participant. Registration
+  credential creation and assertion counter/backup update MUST follow
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`; the core MUST NOT report an
+  authentication success until the required state transition is finalized.
 
 ## Security and abuse requirements
 

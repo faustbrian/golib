@@ -1,18 +1,17 @@
 # Goal: pkg/scim/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
 - Unit: `scim/postgres`
 - Canonical module: `pkg/scim/postgres`
 - Canonical goal after scaffolding: `pkg/scim/postgres/.ai/GOAL.md`
-- Requires: `scim`, `organization/postgres`
+- Requires: `scim`, `scim/organization`, `identity/postgres`, `organization/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 
@@ -31,7 +30,10 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns durable SCIM resources, external IDs, versions, idempotency, filters, patches, bulk transactions, and change journal. It does not own SCIM parsing, organization mapping policy, and HTTP authentication. Those exclusions MUST remain
+This module owns durable SCIM protocol projections, external IDs, versions,
+idempotency, filters, patches, bulk transactions, and change journal. It does
+not own authoritative identity users, organization memberships/teams/roles,
+SCIM parsing, organization mapping policy, and HTTP authentication. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
@@ -43,7 +45,11 @@ limits, and extension points MUST have explicit semantics.
 
 ## Required behavior
 
-The implementation and tests MUST enforce tenant-scoped external ID uniqueness; compare versions atomically; translate only safe indexed filters; bound fallback evaluation; apply patches and outbox atomically; replay idempotently; preserve tombstones and retention; verify plans and mixed-binary migrations. Every state transition MUST
+The implementation and tests MUST enforce external-ID uniqueness by tenant,
+organization, provider connection, resource type and schema-exact `caseExact`
+comparison; compare versions atomically; translate safe indexed filters and
+bounded fallbacks; apply patches and outbox atomically; replay idempotently;
+preserve tombstones and retention; and verify plans and mixed-binary migrations. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
@@ -51,25 +57,57 @@ involved.
 ## Package-specific acceptance checklist
 
 - The schema MUST persist provider connections/ownership, digested bearer
-  tokens, mapping versions, Users/Groups projections, external IDs, ETags,
-  tombstones, reconciliation cursors and idempotency keys under tenant and
-  organization foreign keys.
+  tokens, mapping versions, bounded SCIM Users/Groups protocol projections,
+  external IDs, ETags, tombstones, reconciliation cursors and idempotency keys
+  under tenant and organization foreign keys. A projection MUST NOT become a
+  second authoritative identity, membership, team or role record.
 - Token creation/rotation MUST reveal once, store only lookup digest/prefix and
   atomically revoke prior material according to overlap policy. Unknown commits
-  MUST not cause the same secret to be reissued.
-- Uniqueness MUST honor SCIM schema `uniqueness` and `caseExact` semantics in
-  the correct ownership scope. Database collation MUST not silently alter the
-  protocol comparison contract.
+  MUST NOT cause the same secret to be reissued.
+- `externalId` uniqueness and lookup MUST use the exact key `(tenant_id,
+  organization_id, provider_connection_id, resource_type, external_id)` and
+  the resource schema's exact `caseExact` rule. Indexes and comparisons MUST
+  use protocol-defined bytes/folding explicitly; database collation and generic
+  identifier canonicalization MUST NOT alter or widen that tuple. Other schema
+  uniqueness constraints MUST likewise honor their declared scope and
+  `caseExact` semantics.
 - The filter planner MUST have an explicit supported AST-to-index mapping,
-  parameterize all values, reject or boundedly evaluate unsupported filters and
-  publish production-shaped query-plan budgets.
+  parameterize all values, use indexed plans or bounded fallback for every
+  schema-valid advertised filter/sort, reject only invalid grammar/path, and
+  honor schema type, `caseExact` and multi-valued primary/value selection.
+  Budget exhaustion MUST return a stable SCIM error without partial results or
+  an incorrect count. The adapter MUST publish production-shaped query-plan
+  budgets. List queries MUST provide exact
+  `totalResults`, 1-based offset/count behavior, one transaction snapshot and a
+  stable server-ID sort tie-break while enforcing `scim.page_default`,
+  `scim.page_max`, `scim.group_members` and admitted resource bounds from the
+  effective manifest.
 - Replace/PATCH/delete and projection/outbox/version updates MUST be one
-  transaction. If external/provider side effects follow, unknown outcomes MUST
-  enter reconciliation rather than rewriting local success.
-- Bulk operations MUST define transaction isolation between operations,
-  bulkId resolution, failOnErrors and bounded savepoint/resource use.
-- Cleanup MUST retain tombstones and idempotency/version evidence for the
-  declared replay window and remove only bounded expired data.
+  transaction. The adapter MUST compose `scim/organization` mapping with the
+  public `identity/postgres` and `organization/postgres` units of work so a
+  mapped local transition and its SCIM version/outbox are atomic where the
+  selected PostgreSQL profile supports it. Any cross-owner or external outcome
+  that cannot share that transaction MUST enter explicit reconciliation rather
+  than rewriting local success.
+- Bulk MUST implement the SCIM contract in
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`: atomically admit the scoped
+  idempotency mapping, parent and ordered independently random child commands;
+  persist each child's bulk ID, dependencies, fingerprint, order and result;
+  commit executing children independently; and deterministically rebuild parent
+  responses for every declared child from durable ordered checkpoints after
+  partial commit or restart. A positive `failOnErrors` value durably marks every
+  remaining not-started child skipped only after that many child results are
+  durably failed; zero or omission disables the cutoff. Unknown dependencies
+  remain blocked for reconciliation, and savepoints MUST NOT be represented as
+  durable checkpoints.
+- The adapter MUST implement the HTTP/SCIM idempotency mapping and command
+  ledger as one authority with each mutation. Matching key/fingerprint retries
+  recover the same command/result, mismatches conflict without mutation, and
+  pending or unknown mappings remain reserved. DELETE tombstones and original
+  results MUST support same-key/fingerprint replay according to
+  `scim.delete_tombstone_retention` and `scim.idempotency_retention`; different
+  keys receive normal precondition/not-found outcomes. Cleanup MUST remove only
+  bounded expired evidence and MUST NOT time-release unresolved mappings.
 - Migration and restore evidence MUST include active connections/tokens,
   custom mappings, large groups, mixed binaries and resumption of a partially
   completed reconciliation.

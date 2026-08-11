@@ -1,11 +1,10 @@
 # Goal: pkg/oauth-server/device
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -13,7 +12,7 @@ appear in all capitals, as shown here.
 - Canonical module: `pkg/oauth-server/device`
 - Canonical goal after scaffolding: `pkg/oauth-server/device/.ai/GOAL.md`
 - Requires: `oauth-server`
-- Consumes existing primitives: `capability`, `rate-limit`, `audit`
+- Consumes existing primitives: `capability`, `capability/postgres`, `rate-limit`, `audit`
 - Unlocks after verification: `oauth-server/postgres`, `identity/http`
 
 ## Start gate
@@ -41,6 +40,12 @@ redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
 
+The public contract MUST separate device authorization, user-code inspection,
+authenticated approval/denial and device polling. Each operation MUST expose
+the actor and authorization required by
+[`API_OPERATIONS.md`](../API_OPERATIONS.md), and MUST return typed protocol
+outcomes without revealing whether an arbitrary user code exists.
+
 ## Required behavior
 
 The implementation and tests MUST generate non-confusable user codes and high-entropy device codes; store digests; bind client and scope; throttle polling with slow_down; make approval/denial atomic; expire and consume once; avoid user-code enumeration; test RFC error transitions and independent clients. Every state transition MUST
@@ -53,21 +58,52 @@ involved.
 - Device authorization MUST validate client, grant permission and requested
   scopes before issuing codes and MUST publish verification URI and complete
   URI exactly according to the configured public base URL.
-- Device codes MUST have cryptographic entropy and digest-at-rest lookup; user
+- Device authorization MUST bind issuer, client, requested resource/audience,
+  scopes, tenant and the exact verification URI to one transaction. It MUST
+  issue `verification_uri_complete` only when the complete URI remains bounded
+  and does not leak a bearer-equivalent device code. Discovery MUST advertise
+  the endpoint only when the entire device profile is enabled.
+- Device codes MUST contain exactly 32 random bytes, use canonical
+  43-character unpadded base64url, and have digest-at-rest lookup through the
+  versioned domain-separated key configured by the reference profile; user
   codes MUST be non-confusable, bounded, rate-limited and collision-safe.
 - Optional pre-binding to a user MUST require explicit authenticated policy and
-  MUST not let a device choose an arbitrary subject.
+  MUST NOT let a device choose an arbitrary subject.
 - Polling MUST return authorization_pending, slow_down, access_denied,
   expired_token and success with exact interval escalation and no timing-based
   user-code enumeration.
+- Polling MUST authenticate the client according to its registered public or
+  confidential method, bind the device code to that client and token endpoint,
+  enforce one authoritative next-poll time atomically, and increase the
+  interval by exactly five seconds after every RFC 8628 `slow_down`. The
+  increment MUST NOT be configurable. Concurrent polls
+  MUST yield at most one success; cancellation, denial, expiry or consumption
+  MUST permanently win over later approval or exchange.
 - Verification UI contracts MUST support inspect, approve and deny with recent
   authentication, client/scope display and CSRF protection. Approval MUST bind
   the reviewing subject and consent version atomically.
+- Inspection MUST return only bounded client display metadata and requested
+  scopes/resources after canonical user-code lookup and rate limiting.
+  Approval MUST revalidate client status, scope/resource policy, current user
+  authority and recent authentication; it MUST NOT accept a subject supplied by
+  the device. Denial MUST be idempotent without disclosing whether a different
+  subject previously acted.
 - Custom code generators and client validators MUST meet entropy,
   canonicalization, authorization and redaction contracts or fail
   construction.
 - RFC 8628 fixtures plus an independent CLI/client MUST prove issuance,
   polling, slow-down, approval, denial, expiry, replay and cancellation.
+
+Issuance, polling, approval, denial and consumption MUST implement
+[`TRANSACTION_CONTRACT.md`](../TRANSACTION_CONTRACT.md). Protocol metadata,
+errors and polling behavior MUST conform to
+[`PROTOCOL_BASELINES.md`](../PROTOCOL_BASELINES.md); expiry, client deletion,
+subject disablement and consent revocation MUST follow
+[`LIFECYCLE_CASCADES.md`](../LIFECYCLE_CASCADES.md); and code entropy,
+lifetimes, interval and verification base URL MUST be explicit in
+[`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
+Approval, denial and security-relevant polling outcomes MUST emit the bounded
+records defined by [`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
 
 ## Security and abuse requirements
 

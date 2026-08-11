@@ -1,11 +1,10 @@
 # Goal: pkg/oauth-server/oidc
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -59,20 +58,43 @@ involved.
 - Public and pairwise subjects MUST be stable for the declared sector/client
   policy, unlinkable across sectors, key-rotation safe and non-reversible to a
   raw internal user ID.
+- Pairwise subjects MUST remain disabled without an exact registered sector
+  identifier and a versioned secret derivation key. Enabled derivation MUST use
+  the reference domain-separated HMAC-SHA-256 policy and key rotation MUST
+  preserve stable subjects through an explicit overlap/migration.
 - Prompt `none`, login, consent and select-account plus `max_age` MUST produce
   specification-correct success or interaction-required errors without
   silently creating a session or consent.
 - UserInfo MUST authenticate the access token, enforce audience/scope/subject,
   return only consented claims and never expose write-only or sensitive custom
   identity fields.
-- An authenticated-session JWT exchange profile MAY issue a short-lived token
-  without a full authorization redirect only when explicitly enabled. It MUST
-  require a fresh valid session, bind configured audience/scope/claims, prohibit
-  arbitrary subject/audience requests, use the same JWKS rotation and never
-  outlive the source session or configured maximum.
+- The module MUST implement an authenticated-session JWT exchange profile as a
+  supported public operation; deployments MAY disable issuance by policy, but
+  absence of the operation or executable proof blocks verification. It MUST
+  issue only a short-lived token without a full authorization redirect, require
+  a fresh valid session and explicit operation authorization, atomically bind
+  and consume any anti-replay proof, bind configured audience/resource, scope
+  and claims, prohibit arbitrary subject/audience requests, use the same
+  issuer/signing/JWKS rotation as OAuth grants, and never outlive the source
+  session or configured maximum. Session revocation, subject disablement and
+  signing-key compromise MUST produce the lifecycle behavior declared for this
+  exchange profile.
 - JWKS MUST publish only public verification material, unique `kid` values and
   supported algorithms. Rotation MUST preserve an overlap window, revoke
   compromised keys explicitly and never serve private members.
+- `oauth-server` owns private signing-key lifecycle and supplies a bounded
+  signing capability plus public projection. This module owns OIDC algorithm
+  selection within that policy, ID-token signing, JWKS serialization/cache
+  semantics and OIDC discovery. It MUST NOT persist or export private key
+  members. Rotation publication order MUST prevent a newly signed token from
+  referencing an unpublished key; retirement MUST preserve verification until
+  every valid token expires unless compromise policy explicitly revokes it.
+- OIDC logout MUST validate issuer, ID-token hint when required, client,
+  initiating session, post-logout redirect and state, then return a typed
+  termination result. `identity/session` alone owns session invalidation and
+  cookie clearing. Front-channel, back-channel or RP-initiated logout metadata
+  MUST be advertised only for implemented interoperable profiles; cross-client
+  or subject-wide logout MUST require explicit authority.
 - Independent relying-party evidence MUST verify discovery, JWKS, ID token,
   UserInfo, nonce, pairwise subject and rotation behavior; self-verification by
   the same signer/verifier is insufficient.
@@ -95,6 +117,16 @@ State ownership, consistency, retention, deletion, migration, key rotation,
 clock skew, concurrent callers, shutdown, and recovery MUST be documented and
 tested where applicable. Unsupported protocol or deployment profiles MUST be
 stated rather than silently approximated.
+
+OIDC validation, session exchange, JWKS and logout MUST conform to
+[`PROTOCOL_BASELINES.md`](../PROTOCOL_BASELINES.md); public operations MUST
+match [`API_OPERATIONS.md`](../API_OPERATIONS.md); session/key/logout cascades
+MUST match [`LIFECYCLE_CASCADES.md`](../LIFECYCLE_CASCADES.md); and algorithms,
+lifetimes, exchange enablement and logout profiles MUST be explicit in
+[`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
+Session exchange, key compromise and logout security events MUST use the field,
+redaction and delivery contract in
+[`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
 
 ## Acceptance evidence
 

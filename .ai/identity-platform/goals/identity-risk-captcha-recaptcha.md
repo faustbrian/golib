@@ -1,11 +1,10 @@
 # Goal: pkg/identity/risk/captcha/recaptcha
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -36,7 +35,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define configuration, secret ownership, siteverify request/response, score/action/hostname mapping, error-code mapping, timeout, and telemetry contracts. Public errors MUST be typed, stable,
+The design MUST define configuration, secret ownership, siteverify request/response, score/action/hostname mapping, error-code mapping, timeout, normalized provider evidence, and telemetry contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -51,15 +50,23 @@ involved.
 ## Package-specific acceptance checklist
 
 - Configuration MUST select and document supported reCAPTCHA v2 checkbox/
-  invisible and v3 score profiles; enterprise-only APIs MUST be unsupported
-  unless separately implemented and evidenced.
-- Verification MUST send secret/response and optional remote IP only according
-  to explicit privacy policy, enforce HTTPS endpoint policy and never put
-  secrets/tokens in URL logs or diagnostics.
+  invisible or v3 score profiles for the classic Siteverify API. The adapter
+  MUST use `POST https://www.google.com/recaptcha/api/siteverify` with form
+  fields `secret`, `response`, and optional `remoteip`. reCAPTCHA Enterprise
+  Assessment API and enterprise-only tiers MUST be rejected unless separately
+  implemented with their exact endpoint/version and evidence.
+- The reference selection MUST consume the exact API, version, tier, site key,
+  hostname/origin allowlists, expected action, and remote-IP disclosure fields
+  from `REFERENCE_CONFIGURATION.md`; it MUST NOT infer provider defaults.
+- Configuration MUST bind the selected profile, expected site key, canonical
+  hostname set, and exact expected `action` for v3. Because classic Siteverify
+  does not return a site key, the adapter MUST record the configured site key as
+  configuration evidence and MUST NOT claim provider-returned site-key proof.
+  It MUST never put secrets/tokens in URL logs or diagnostics.
 - Result mapping MUST validate success, challenge timestamp/skew, expected
   hostname, action for score profiles and configured score threshold while
   preserving documented error codes and unknown codes conservatively.
-- A v2 response without score/action MUST not fabricate them; a v3 policy MUST
+- A v2 response without score/action MUST NOT fabricate them; a v3 policy MUST
   fail if required action/score evidence is missing.
 - Duplicate/timeout-or-duplicate, invalid-input-secret, invalid-input-response,
   bad-request and provider/network/malformed outcomes MUST remain distinct for
@@ -67,6 +74,16 @@ involved.
 - Official test keys/fixtures plus documented current provider interoperability
   MUST cover each declared profile, hostname/action mismatch, expiry/replay,
   throttling, cancellation and redaction.
+- The adapter MUST return normalized evidence containing the classic API,
+  selected v2/v3 profile, `success`, `challenge_ts`, `hostname`, `error-codes`,
+  and v3 `score`/`action` availability and values. It MUST NOT decide allow,
+  deny, throttle, step-up, or provider-failure policy; unavailable/unknown
+  handling MUST come from `.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
+- Verification MUST bind the trusted operation, tenant, action, purpose,
+  subject scope, challenge, configured site/profile and replay identifier.
+  Token or evidence replay under another binding MUST fail. Security events and
+  lifecycle cascades MUST use `.ai/identity-platform/SECURITY_EVENTS.md` and
+  `.ai/identity-platform/LIFECYCLE_CASCADES.md` respectively.
 
 ## Security and abuse requirements
 

@@ -1,11 +1,10 @@
 # Goal: Orchestrate the Complete Identity Platform
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Invocation
 
@@ -54,11 +53,23 @@ Before scheduling a worker, the coordinator MUST read completely:
 5. `END_STATE.md`;
 6. `REFERENCE_PROFILE.md`;
 7. `BETTER_AUTH_PARITY.md`;
-8. `DEPENDENCIES.md`;
-9. `INVENTORY.md`;
-10. `EXECUTION_LEDGER.md`;
-11. `WORKER_PROMPT.md`;
-12. the exact goal assigned to that worker.
+8. `API_OPERATIONS.md`;
+9. `UPSTREAM_DISPOSITIONS.md`;
+10. `UPSTREAM_SURFACE.json`;
+11. `PROTOCOL_BASELINES.md`;
+12. `PROTOCOL_CONFORMANCE_MANIFEST.json`;
+13. `SECURITY_EVENTS.md`;
+14. `TRANSACTION_CONTRACT.md`;
+15. `LIFECYCLE_CASCADES.md`;
+16. `LIFECYCLE_CONSUMERS.md`;
+17. `REFERENCE_CONFIGURATION.md`;
+18. `CONFIGURATION_CATALOGS.json`;
+19. `PREFLIGHT_EVIDENCE.md`;
+20. `DEPENDENCIES.md`;
+21. `INVENTORY.md`;
+22. `EXECUTION_LEDGER.md`;
+23. `WORKER_PROMPT.md`;
+24. the exact goal assigned to that worker.
 
 The coordinator MUST treat `INVENTORY.md` as the authoritative state and
 dependency record. The parity and end-state documents add acceptance
@@ -99,7 +110,8 @@ The coordinator MUST use the repository branch and worktree skills.
    prerequisite revisions for rendering. This is the assignment-state commit.
 4. In an immediate ledger-only finalization commit, replace `pending` with the
    now-known assignment-state commit hash. Merge that finalization commit into
-   every worker branch, including dependency-free roots. The rendered
+   only this newly assigned unit's worker branch, including when the unit is a
+   dependency-free root. The rendered
    `assignment-commit` MUST be the assignment-state commit; the rendered
    `integration-commit` MUST be the finalization commit now at the worker
    baseline. A worker MUST NOT start before both commits exist or from an
@@ -107,9 +119,33 @@ The coordinator MUST use the repository branch and worktree skills.
 5. For dependent work, the assignment commit MUST also contain every verified
    prerequisite implementation and coordinator registration commit.
 6. Integrate a returned worker with `git merge --no-ff` from its named branch.
+   Before starting the merge, prove the integration worktree is clean and
+   record its exact `HEAD` as the abort target.
    The coordinator MUST NOT cherry-pick, squash or recreate the worker change.
-   A merge conflict in package-owned behavior MUST be returned to the worker;
-   only coordinator-owned mechanical files may be resolved by the coordinator.
+   On a package-owned conflict, the coordinator MUST record the conflicting
+   paths and merge heads without secret-bearing content, abort the integration
+   merge, and prove the integration worktree is clean at its pre-merge commit.
+   It MUST atomically transition the unit `in-progress -> blocked` with
+   `blocker:integration-conflict`. After the worker reports a clean coherent
+   checkpoint, the coordinator MUST append an `authorized` conflict-recovery
+   row to `PREFLIGHT_EVIDENCE.md` containing the unit, generation, exact current
+   integration commit as the resume commit's first-parent pre-resume baseline,
+   worker checkpoint, and sanitized conflict-evidence path;
+   in that same commit it MUST transition `blocked -> in-progress` for the
+   retained assignment. It MUST then give the same worker the exact resulting
+   resume/authorization commit. Before any package edit, the worker MUST prove
+   that commit's first parent is the row's integration baseline, prove the row's
+   checkpoint is reachable from its clean worker branch, and merge the exact
+   resume/authorization commit into that branch. The worker resolves only
+   assigned-package behavior and returns a new reviewed commit;
+   coordinator-owned conflicts are resolved only by the coordinator. The
+   coordinator then retries the non-fast-forward integration merge. Other safe work MAY advance the
+   integration branch during repair, but before retry the coordinator MUST
+   compare the new `HEAD` with the pinned recovery baseline. If any complete
+   input for the repaired unit changed, it MUST repeat baseline refresh and
+   invalidated evidence; otherwise it MAY retry against the advanced `HEAD`.
+   It MUST NOT leave the integration worktree in a conflicted state while
+   scheduling or integrating another unit.
 7. Never rebase a worker or integration branch.
 8. Never reuse a worktree for two concurrent workers.
 9. Never run package commands outside the assigned worker worktree.
@@ -140,11 +176,25 @@ prior commit hashes and evidence pointers MAY use the explicitly defined
 ledger-only finalization commit. The ledger MUST contain no credential, token,
 provider body or secret-shaped value.
 
+## Transition history validation
+
+Before every inventory state commit or ledger-only finalization, the
+coordinator MUST execute the complete first-parent transition-check procedure
+defined in `EXECUTION_LEDGER.md`. It MUST validate the proposed snapshot before
+commit and the actual commit immediately afterward. Static `validate.rb`
+success cannot prove prior-row versions, assignment generations, allowed
+same-status field changes, commit ancestry, or live worktree uniqueness and
+MUST NOT substitute for this history check. A failed or unavailable pre-commit
+or post-commit half blocks worker spawn, merge, gate execution, and the next
+state transition until corrected.
+
 ## Program preflight
 
 Before the first assignment, the coordinator MUST:
 
-1. run `validate.rb` and stop on any program-structure failure;
+1. run `validate.rb` for planning-tree structure, complete and commit
+   `PREFLIGHT_EVIDENCE.md`, then run `validate.rb --execution` and stop on any
+   strict pre-assignment failure;
 2. record the committed base revision and prove the identity-platform tree is
    unchanged from that revision;
 3. inventory required Go/tool versions, PostgreSQL and Valkey profiles,
@@ -155,6 +205,14 @@ Before the first assignment, the coordinator MUST:
 5. record which acceptance claims each unavailable dependency can block; and
 6. continue all independent local work even when an external evidence lane is
    unavailable.
+
+The coordinator MUST write these results to `PREFLIGHT_EVIDENCE.md`, including
+the committed base, integration workspace, tool/environment identities,
+primitive API and gate fingerprints, external claim classifications, and the
+task-owned resource registry. It MUST commit the completed preflight record on
+the integration branch before creating the first assignment-state commit.
+Chat, an uncommitted file, or a ledger `available` value is not durable
+preflight evidence.
 
 The coordinator MUST also derive the union of every goal's `Consumes existing
 primitives` entries, resolve each to its registered module/package, and verify
@@ -173,24 +231,34 @@ When a package worker returns a completed package-local commit, the coordinator
 MUST:
 
 1. independently inspect the complete package diff and evidence;
-2. verify the returned commit is reachable only from the assigned worker branch
-   and changes only the assigned module root after subtracting every other
-   inventory module root nested beneath it;
+2. verify the returned tip is reachable from the assigned worker branch, the
+   rendered integration baseline is its ancestor, and the complete baseline-to-
+   tip diff changes only the assigned module root after subtracting every other
+   inventory module root nested beneath it; inspect every worker-authored commit
+   in that range rather than assuming the tip is the only package commit;
 3. integrate the branch with the required non-fast-forward merge;
 4. move the planning goal to the unit's declared canonical goal path;
 5. register the module and packages in every root manifest;
 6. regenerate only required catalogs through repository tooling;
 7. record the already-known worker merge commit as the integration checkpoint,
-   mark the unit `implemented-unverified`, record the pre-gate input
-   fingerprint, and commit this recoverable state transition;
+   mark the unit `implemented-unverified`, clear its active inventory owner,
+   record the pre-gate input fingerprint, and commit this recoverable state
+   transition;
 8. run structural validation, the package gate and only input-invalidated
    reverse-dependant gates from the integration worktree;
-9. return every confirmed package-local defect to the same worker after
-   merging the latest integration checkpoint into that worker branch;
+9. for every confirmed package-local defect, commit an
+   `implemented-unverified -> in-progress` transition that restores the same
+   worker task as owner and retains its branch, worktree, assignment, and
+   generation; merge that exact transition commit into the clean worker branch,
+   re-render the repair prompt with the canonical goal path and current
+   baseline, and return the finding to that worker;
 10. mark the unit `verified` only after every final-input gate passes and
     commit that status/evidence transition; and
-11. remove the worker's task-owned worktree and disposable resources only
-    after its commits are integrated and recoverable.
+11. remove the worker's task-owned worktree and disposable resources only after
+    the unit is `verified` or the assignment is safely abandoned. An
+    `implemented-unverified` unit retains its clean repair worktree unless the
+    coordinator has proved it can recreate that exact branch, assignment, and
+    evidence state before repair.
 
 The worker's package-local checks are pre-integration evidence. Root manifest,
 catalog, `make check`, reverse-dependant and end-state gates are coordinator
@@ -205,10 +273,10 @@ The coordinator MUST repeat this loop until completion:
 2. For each `proposed` unit, check whether every `Requires` unit is
    `verified`.
 3. Re-evaluate every `blocked` unit. When its recorded blocker is resolved,
-   return a pre-integration unit to `ready`, or an integrated unit to
-   `in-progress` under its same assignment, in a committed transition.
-   Increment generation and clear active assignment fields only when the prior
-   assignment is proven safely abandoned.
+   return a unit retaining a recoverable assignment to `in-progress` under that
+   exact task, branch, worktree, and generation. Return it to `ready` only when
+   the prior assignment is proven safely abandoned; in that transition,
+   increment generation and clear active assignment fields.
 4. Mark every newly eligible unit `ready` and commit the complete newly ready
    frontier before assigning any of it. A unit MUST NOT jump directly from
    `proposed` to `in-progress` in durable history.
@@ -219,10 +287,12 @@ The coordinator MUST repeat this loop until completion:
 8. On worker return, classify the result:
    - package-local requirements complete and focused gates pass:
      integration review;
-   - implementation complete but evidence missing:
-     `implemented-unverified`;
-   - correct work cannot continue:
-     retain `blocked` only under repository blocked-status rules;
+   - implementation complete but evidence missing: integrate it through the
+     checkpoint sequence and retain `implemented-unverified` until the missing
+     evidence is proven;
+   - correct work cannot continue: use inventory `blocked` with an explicit
+     safe blocker while preserving any recoverable assignment; this inventory
+     state is distinct from marking the coordinator's system goal blocked;
    - confirmed defect:
      return the exact finding to the same worker.
 9. Integrate successful units one at a time using the checkpoint sequence.
@@ -248,16 +318,32 @@ unintegrated package work is being discarded. The coordinator MUST preserve
 completed evidence checkpoints across restarts and MUST invalidate only units
 whose complete gate-input fingerprint changed.
 
+An inventory `blocked` transition is program state, not an `update_goal` call.
+The coordinator MUST follow repository blocked-audit rules only when deciding
+whether its own persistent system goal may stop as blocked.
+
 When corrected work changes a verified unit's complete inputs, the coordinator
 MUST recompute transitive fingerprints and atomically demote every verified
 dependant whose complete fingerprint changed to `implemented-unverified`.
+Every unassigned `ready` transitive dependant whose start gate is no longer
+satisfied MUST return to `proposed` in that same commit, retaining its
+generation and empty assignment/evidence fields. This prerequisite-invalidation
+transition is not abandonment and MUST NOT increment generation.
 Active dependent workers on the changed baseline MUST pause and atomically
 transition to `blocked` with a safe stale-baseline blocker; their commits MUST
 NOT be integrated from the stale baseline. After the prerequisite is
-reverified, the coordinator MUST merge the new integration baseline into each
-paused worker branch, transition it back to `in-progress`, re-render its prompt
-with the same generation and current goal path, and require all invalidated
-acceptance evidence again. A conflict or
+reverified, the coordinator MUST perform the pause and baseline-refresh
+handshake in `WORKER_PROMPT.md`. It MUST NOT merge into a dirty worker
+worktree. Once the worker has a coherent clean checkpoint, the coordinator MUST
+commit `blocked -> in-progress` for the same assignment and an `authorized`
+recovery row that pins the resume commit's first-parent pre-resume integration
+baseline and the worker checkpoint. It MUST give the worker the exact resulting
+resume/authorization commit. Before any package edit, the worker MUST verify
+that commit and both ancestry relationships, merge that exact commit, re-render
+the prompt with the same generation and current goal path, and require all
+invalidated acceptance evidence again. If the worker cannot reach a coherent clean
+checkpoint without discarding work, it remains inventory `blocked` while other
+lanes continue. A conflict or
 incompatible public contract returns to the affected owner; it MUST NOT be
 resolved by accepting stale evidence.
 
@@ -266,8 +352,8 @@ resolved by accepting stale evidence.
 A worker return MUST include:
 
 - inventory unit and canonical module;
-- branch, worktree, assignment generation, assignment-state commit and worker
-  commit hash;
+- branch, worktree, assignment generation, assignment-state commit, current
+  worker-branch tip, and ordered worker-authored commit hashes;
 - exact package-local paths changed;
 - expected behavior and executable acceptance mapping;
 - focused red-green evidence for behavioral changes;
@@ -302,10 +388,13 @@ If upstream Better Auth changes during execution, the coordinator MUST NOT
 silently expand scope. It MUST finish the pinned baseline and record a new
 follow-up parity audit unless the user explicitly updates the baseline.
 
-Explicit exclusions remain exclusions. The coordinator MUST NOT implement
-billing/payment plugins, SIWE, MCP authentication, agent authentication,
-lead-tracking integrations, JavaScript framework clients, or additional
-database engines merely to increase a parity percentage.
+Product exclusions remain exclusions. Non-capability, client-surface,
+deployment-profile, and security-divergence dispositions MUST retain their
+exact category. The coordinator MUST NOT implement billing/payment plugins,
+SIWE, MCP authentication, agent authentication, lead-tracking integrations,
+CLI scaffolding, community catalogs, personal SCIM, database-less OAuth token
+cookies, JavaScript framework clients, or additional database engines merely
+to increase a parity percentage.
 
 ## End-state integration proof
 
@@ -322,6 +411,31 @@ The coordinator MUST run only input-invalidated package and reverse-dependant
 gates during development. At final completion it MUST run every affected
 release gate required by the repository and persist evidence under the
 repository evidence model.
+
+## Resource cleanup
+
+The coordinator MUST maintain the task-owned resource registry in
+`PREFLIGHT_EVIDENCE.md` throughout execution. After each assignment is
+integrated, abandoned, or proven unrecoverable, it MUST remove every worker
+worktree, disposable Go cache, temporary directory, process, container, image,
+volume, database payload, browser artifact, and provider fixture that is no
+longer required for an active recovery or attributable evidence record. It MUST
+resolve each exact target before removal and MUST NOT delete branches or
+user-owned resources without authority.
+
+Before a successful final report, the coordinator MUST remove every worker
+worktree and all remaining disposable resources and mark those registry entries
+removed. In the final coordinator commit it MUST mark the integration worktree
+`removal-pending-after-final-commit`, retain the local integration branch and
+durable evidence, then leave that worktree, remove it from a different safe
+repository location, and prove its path and registration are absent before
+reporting. This two-phase rule avoids claiming that the worktree containing the
+final commit was already removed.
+Before a blocked stop, it MUST perform the same sweep except for resources
+strictly required to resume a recorded assignment; every retained resource MUST
+name its unit, blocker, owner, exact path or safe resource ID, and cleanup
+trigger in the final report. An interruption MUST begin with the same registry
+reconciliation before new resources are created.
 
 ## Stop conditions
 

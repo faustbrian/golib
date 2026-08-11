@@ -1,8 +1,10 @@
 # Goal: pkg/identity/http
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -14,7 +16,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 - Unlocks after verification: `identity/reference`
 
 The full explicit prerequisite list in `INVENTORY.md` is authoritative and
-MUST be rendered into the worker assignment. This transport unit MUST not
+MUST be rendered into the worker assignment. This transport unit MUST NOT
 start while a listed feature or protocol contract is unverified. Concrete
 PostgreSQL, Valkey, HIBP and CAPTCHA adapters belong to
 `identity/reference` and MUST NOT become mandatory dependencies here.
@@ -56,6 +58,20 @@ and unsupported feature combinations MUST fail during construction.
 
 ## Complete endpoint surface
 
+The canonical operation inventory is
+`.ai/identity-platform/API_OPERATIONS.md`. This module MUST consume that file as
+input to its endpoint acceptance manifest and MUST implement every `both` or
+`protocol` row plus the route behavior of every `middleware` row; `direct`
+rows MUST remain direct-only. A required HTTP row is implemented only when its exact
+method/path, authentication and authorization modes, CSRF/origin policy,
+request/parser limits, idempotency contract, success and error envelopes,
+handler, rate policy and OpenAPI operation are present and behaviorally proved.
+The worker MUST NOT substitute this prose summary, a package export inventory,
+or generated OpenAPI for the canonical operation inventory.
+`identity.platform.bootstrap-administrator` is a direct-only offline reference
+composition operation. It MUST NOT have a handler, route, schema path or
+OpenAPI operation, even while bootstrap is enabled for operator invocation.
+
 Handlers and OpenAPI MUST cover identity/account lifecycle; email, password,
 username and verification; sessions, multi-account switching and last login
 method; magic links, OTP, phone and anonymous upgrade; MFA, WebAuthn and
@@ -89,7 +105,7 @@ omitted because an application could add a handler later.
   Popup result pages MUST NOT load third-party scripts.
 - Browser-extension and cross-domain deployments MUST use an explicit trusted
   origin/base-URL profile. Extension origins, reverse-proxy host rewriting and
-  shared-parent-domain cookies MUST not enable wildcard trust.
+  shared-parent-domain cookies MUST NOT enable wildcard trust.
 
 ## Endpoint acceptance manifest
 
@@ -100,6 +116,16 @@ OpenAPI operation ID. Construction and CI MUST fail when a parity operation is
 missing, duplicated, undocumented, registered without authorization policy or
 documented without a handler. The manifest is an API contract, not a
 source-text substitute for behavioral tests.
+
+Generation MUST preserve the canonical operation identifier from
+`API_OPERATIONS.md`, reject unknown or stale rows, and emit a deterministic
+coverage report containing every canonical row, including explicitly non-HTTP
+rows. CI MUST compare both directions: every required HTTP row has one handler
+and OpenAPI operation, and every registered handler/OpenAPI operation names one
+canonical row or a validated typed-extension operation. Conditional features
+MUST retain their rows and fail construction when enabled without the required
+dependency; disabling a feature MUST produce the specified unavailable or
+not-found behavior and MUST NOT silently remove unrelated routes.
 
 Typed extension modules MUST contribute bounded route/operation schemas,
 middleware and request/response hooks, authorization/CSRF/idempotency metadata,
@@ -115,22 +141,83 @@ content types, status codes, cache behavior and stable error codes MUST be
 specified. Cookie sessions MUST explicitly enforce `Secure`, `HttpOnly`,
 `SameSite`, domain/path, prefix, partition/cross-site and rotation semantics.
 State-changing cookie requests MUST have unbypassable CSRF binding. Bearer
-endpoints MUST not rely on cookie CSRF assumptions.
+endpoints MUST NOT rely on cookie CSRF assumptions.
+
+Login, signup, recovery, verification and account-link callbacks MUST apply the
+exact initiating origin, return target, state/nonce/PKCE and one-time
+continuation binding declared by their canonical row. Login CSRF MUST be
+prevented even before a user session exists: OAuth/OIDC/SAML, magic-link, OTP,
+One Tap, passkey/WebAuthn and native provider-signin starts and completions MUST
+bind the initiating browser transaction and reject unsolicited, swapped,
+replayed or cross-origin completions. Native provider signin MUST use the same
+bounded provider contract and account-collision/linking policy as redirect
+signin; accepting a provider token directly MUST NOT skip issuer, audience,
+nonce, authorized-party, proof-of-possession or replay validation required by
+that provider profile.
+
+Cookie emission and deletion MUST use one reviewed serializer that enforces the
+selected prefix, host/domain/path, `Secure`, `HttpOnly`, `SameSite`, partitioned
+and cross-site invariants on every success, rotation, transfer, logout and error
+path. Cookie-authenticated unsafe methods MUST require a session-bound token
+and exact trusted `Origin`, with a narrowly documented same-origin Referer
+fallback only when permitted; missing, opaque and `null` origins fail closed.
+Bearer authentication MUST be acquired only from the single strict
+`Authorization: Bearer` header grammar, reject duplicates, comma folding,
+empty/oversized/control-bearing credentials and proxy-injected authorization,
+ignore ambient cookies, and never accept bearer material from query strings,
+forms or redirects unless a protocol row explicitly owns a different
+single-use credential.
+
+Request parsing MUST reject ambiguous framing, conflicting length/transfer
+metadata, duplicate security-sensitive headers or JSON members, trailing JSON,
+invalid UTF-8, unsupported content encoding/media type/charset, excessive
+nesting/collections/parts/fields and decompressed-size expansion before domain
+or cryptographic work. JSON, form, multipart, SCIM, SAML, WebAuthn and callback
+parsers MUST each have explicit raw and decoded limits and deterministic error
+mapping; multipart temporary resources MUST be task-owned and removed on every
+path.
+
+Every mutating row MUST declare whether it is naturally idempotent,
+key-idempotent, single-use or non-replayable. Key-idempotent requests MUST bind
+a bounded key to tenant, authenticated principal, operation and canonical
+request digest; concurrent duplicates return the same committed result,
+mismatched reuse is rejected, unknown outcomes remain unknown, and expiry does
+not permit an unsafe replay. One-time credentials and protocol state MUST use
+their owning capability semantics rather than generic response caching.
 
 Client-initiated routes MUST apply the configured default or stricter
 endpoint/extension rate rule through the existing `rate-limit` primitive.
 Client identity MUST come only from the trusted-network-facts resolver,
-normalize IPv4-mapped IPv6 and aggregate IPv6 by configured prefix. Denial MUST
-return stable retry metadata. Direct in-process API calls MUST have an explicit
-rate policy rather than bypassing controls accidentally.
+normalize IPv4-mapped IPv6, and use the full canonical RFC 5952 IPv6 address
+without subnet aggregation in the selected reference profile. Aggregation MAY
+exist only in a future, separately selected profile. Denial MUST return stable
+retry metadata. Direct in-process API calls MUST have an explicit rate policy
+rather than bypassing controls accidentally.
 
 Trusted proxy, forwarded-header, host, scheme, origin, CORS and redirect policy
 MUST be fail-closed and resistant to spoofing, IDN confusion and open redirects.
 Security headers MUST account for OAuth popups/One Tap without globally
 weakening isolation. Middleware and hooks MUST have documented order,
-cancellation and error behavior and MUST not run under package locks or open
+cancellation and error behavior and MUST NOT run under package locks or open
 transactions. Authentication MUST remain distinct from authorization on every
 privileged route.
+
+CORS MUST be route- and credential-mode-specific: exact normalized origins,
+methods and headers only; no reflected or wildcard credentialed origins;
+preflight must not authenticate or mutate; denials expose no sensitive detail;
+and `Vary` and cache behavior must prevent cross-origin reuse. The trusted-
+network resolver MUST accept forwarded host/scheme/client facts only from
+configured proxy hops, parse one documented forwarding syntax, reject malformed
+or ambiguous chains, and never combine trusted and untrusted values. External
+base URL, issuer, callback and redirect construction MUST use that resolved
+value, not arbitrary request headers.
+
+The server and every provider/store call MUST derive bounded contexts. Public
+configuration MUST require positive header-read, read, write, idle, handler,
+shutdown and external-operation timeouts within reviewed bounds. Timeouts and
+cancellation MUST map to stable errors without continuing detached work,
+leaking a body/resource, committing an unreported transition or revealing
+whether an identifier exists.
 
 ## OpenAPI and lifecycle
 
@@ -139,10 +226,22 @@ request/response/error schema, security scheme, callback where representable,
 examples and feature metadata; every operation MUST map to exactly one handler.
 Schema validation and a generated-client smoke test are REQUIRED.
 
+The exact validated document and canonical-operation coverage report MUST be
+exportable through a deterministic side-effect-free public API and an explicit
+HTTP endpoint that is disabled by default or protected by deployment policy.
+Export MUST NOT include runtime secrets, internal hosts or provider
+credentials. Schema, handler and manifest input must share one immutable
+snapshot so concurrent extension composition cannot produce mismatched output.
+
 The composed handler/server MUST start and stop cleanly with explicit contexts,
 expose safe health/readiness hooks supplied by composition, and contain no
 hidden singleton state or development bypasses. Examples MUST inject public
 feature contracts through the same constructor and route set proven by tests.
+The transport MUST expose separate liveness and readiness probe handlers with
+fixed bounded responses, methods, cache denial and content types. Liveness is
+process-only; readiness delegates to the composed dependency/migration/key
+snapshot, returns unavailable before startup and during drain, and exposes no
+tenant, dependency address, migration detail, secret or provider response.
 
 ## Acceptance and blockers
 

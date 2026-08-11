@@ -1,20 +1,19 @@
 # Goal: pkg/scim/organization
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
 - Unit: `scim/organization`
 - Canonical module: `pkg/scim/organization`
 - Canonical goal after scaffolding: `pkg/scim/organization/.ai/GOAL.md`
-- Requires: `scim`, `organization`
-- Consumes existing primitives: `identity`, `authorization`, `audit`
-- Unlocks after verification: `identity/http`
+- Requires: `scim`, `identity`, `organization`
+- Consumes existing primitives: `authorization`, `audit`
+- Unlocks after verification: `scim/postgres`, `identity/http`
 
 ## Start gate
 
@@ -52,12 +51,16 @@ involved.
 
 - Connection ownership MUST bind tenant, organization and external provider;
   list/get/delete/token rotation MUST require organization administration and
-  MUST not expose another provider's mappings or secrets.
+  MUST NOT expose another provider's mappings or secrets.
 - User mapping MUST define externalId, userName, emails, active, names and
   enterprise/custom attributes; matching order and collision behavior MUST be
-  deterministic and MUST not take over a pre-existing account without policy.
+  deterministic and MUST NOT take over a pre-existing account without policy.
+  External-ID lookup MUST preserve the exact `(tenant, organization, provider
+  connection, resource type, externalId)` scope and schema `caseExact`
+  semantics supplied by `scim`; it MUST NOT independently normalize or widen
+  that lookup.
 - Group mapping MUST define organization membership, teams and optional role
-  bindings. Unmapped/unknown group display names MUST not become roles or
+  bindings. Unmapped/unknown group display names MUST NOT become roles or
   permissions automatically.
 - Create/replace/PATCH/deactivate/delete MUST map to explicit identity and
   membership state transitions with suspension/removal/delete policy and
@@ -65,9 +68,23 @@ involved.
 - Attribute mapping configuration MUST be typed, validated, versioned and
   migration-safe. Sensitive or write-only identity fields MUST never be
   exposed through SCIM.
+- The mapper contract MUST contain no readable or persistable password field.
+  The reference protocol profile MUST reject `password` at the `scim`
+  write-only credential decision seam before mapper invocation. A future
+  approved profile may route the write only to the public `identity/password`
+  contract; this package MUST never compare, log, retain or project the value
+  or implement credential storage.
 - Reconciliation MUST compare external projections, classify drift/conflict,
   resume from stable cursors, be idempotent and avoid overwriting concurrent
   local changes without an explicit source-of-truth policy.
+- Bulk mapping MUST consume the parent/child checkpoint contract from
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`: each admitted child maps as
+  its own idempotent command, committed results survive later child failures,
+  and resume/reconciliation MUST use the durable child status rather than
+  replaying already committed identity or organization transitions.
+- The mapper MUST use only public `identity` and `organization` contracts for
+  authoritative users, identifiers, memberships, teams and roles. It MUST NOT
+  define substitute user, membership, team or role repositories inside SCIM.
 
 ## Security and abuse requirements
 

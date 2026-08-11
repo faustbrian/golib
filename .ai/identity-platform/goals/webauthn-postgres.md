@@ -1,24 +1,26 @@
 # Goal: pkg/webauthn/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
 - Unit: `webauthn/postgres`
 - Canonical module: `pkg/webauthn/postgres`
 - Canonical goal after scaffolding: `pkg/webauthn/postgres/.ai/GOAL.md`
-- Requires: `webauthn`
+- Requires: `webauthn`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
 - Unlocks after verification: `identity/mfa/postgres`, `passkey/postgres`, `identity/reference`
 
 ## Start gate and objective
 
 The worker MUST satisfy `.ai/identity-platform/COMMON_REQUIREMENTS.md` and start only from the
-coordinator's committed assignment with `webauthn` verified. Build the generic
-PostgreSQL WebAuthn ceremony and credential store shared by passkeys and
-non-passkey MFA security keys.
+coordinator's committed assignment with every listed prerequisite verified.
+Build the generic PostgreSQL WebAuthn ceremony and credential store shared by
+passkeys and non-passkey MFA security keys.
 
 ## Ownership and public contract
 
@@ -39,7 +41,7 @@ rather than duplicate cryptographic records.
   explicit maximum lengths. Credential uniqueness MUST be scoped by RP and the
   declared multi-tenant policy and resist cross-RP lookup.
 - Ceremony creation MUST store only a scoped challenge digest plus bounded
-  policy/context, expiration and version; raw browser challenge tokens MUST not
+  policy/context, expiration and version; raw browser challenge tokens MUST NOT
   appear in diagnostics or durable evidence.
 - Registration MUST atomically consume the ceremony and insert one credential,
   rejecting duplicate credential/user-handle mappings with one winner.
@@ -47,9 +49,9 @@ rather than duplicate cryptographic records.
   update signature counter and backup state, and return typed stale/cloned/
   unknown outcomes without accepting the assertion itself.
 - Discoverable lookup MUST bind RP, credential and user handle in one bounded
-  operation and MUST not create an independent user-enumeration endpoint.
+  operation and MUST NOT create an independent user-enumeration endpoint.
 - Attestation/metadata references and transports/extensions MUST be bounded and
-  versioned; large raw attestation objects MUST not be retained unless a named
+  versioned; large raw attestation objects MUST NOT be retained unless a named
   audited policy requires them.
 - Cleanup MUST remove expired ceremonies in bounded indexed batches and retain
   active credentials. Credential deletion MUST use optimistic versioning and
@@ -57,6 +59,17 @@ rather than duplicate cryptographic records.
 - Real PostgreSQL tests MUST cover concurrent registration/assertion,
   counter/backup updates, disconnect/unknown commit, cross-RP isolation,
   populated migrations, mixed binaries, backup/restore and query plans.
+- Tenant and RP scope MUST be explicit on ceremonies, credentials, user handles
+  and mappings, but credential IDs and user handles MUST remain unique across
+  the complete RP namespace; tenant MUST NOT disambiguate either uniqueness
+  constraint. Deployment/Host input MUST NOT infer scope, and shared RP IDs
+  MUST follow `.ai/identity-platform/PROTOCOL_BASELINES.md` without cross-tenant
+  lookup or disclosure.
+- Ceremony consumption plus credential insert, or ceremony consumption plus
+  counter/backup/version update, MUST implement the WebAuthn participant in
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`. A verified cryptographic
+  result MUST NOT be returned as authenticated before finalization, and unknown
+  commits MUST reconcile by stable ceremony/command/version identity.
 
 Exact coverage/mutation, race, query/lock benchmarks, clean-consumer,
 API/docs/changelog and supply-chain gates are REQUIRED. Duplicate ownership,

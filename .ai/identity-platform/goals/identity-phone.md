@@ -1,11 +1,10 @@
 # Goal: pkg/identity/phone
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -65,8 +64,31 @@ involved.
   preserve a configured recovery method.
 - Number recycling/porting risk, metadata upgrades and previously valid numbers
   MUST have explicit re-verification and migration policy.
-- Sender and custom verifier callbacks MUST not be treated as proof until the
+- Sender and custom verifier callbacks MUST NOT be treated as proof until the
   owning OTP/identity transition commits and MUST preserve unknown outcomes.
+- Phone-based password recovery MUST be an explicit, separately configurable
+  recovery profile, disabled unless the deployment accepts the stated SIM-swap,
+  number-recycling and carrier risks. It MUST require a purpose-bound OTP plus
+  configured risk/step-up policy, MUST NOT equate a verified phone identifier
+  with unconditional recovery authority, and MUST preserve enumeration-safe
+  outcomes and session invalidation after reset.
+- Phone verification/change/recovery MUST compose OTP consumption, identity
+  mutation and session effects through
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`; exact enablement and risk
+  defaults belong to `.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
+- Recent authentication for number replacement/removal MUST be an explicit
+  proof bound to subject, tenant, session/version, action, assurance and maximum
+  age; a timestamp or caller-provided freshness flag is not proof.
+- Phone signup/signin and recovery continuations MUST preserve the explicit
+  persistent or non-persistent remember policy supplied to the owning OTP or
+  session flow. `session suppression` MUST remain distinct from non-persistent
+  session issuance, and neither may be silently upgraded by fallback or MFA.
+- Public signup/signin initiation MUST create or use the canonical single-use
+  pre-auth transaction and bind tenant, purpose, canonical number and resolved
+  `RememberPolicy`; later verification/signin MUST consume that exact binding.
+  Session-authenticated number-change challenges MUST NOT create or substitute
+  a public pre-auth transaction and instead bind the current subject, session
+  and identifier version.
 
 ## Security and abuse requirements
 

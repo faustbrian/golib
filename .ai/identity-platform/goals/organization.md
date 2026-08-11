@@ -1,20 +1,19 @@
 # Goal: pkg/organization
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
 - Unit: `organization`
 - Canonical module: `pkg/organization`
 - Canonical goal after scaffolding: `pkg/organization/.ai/GOAL.md`
-- Requires: `identity`, `identity/delivery`
-- Consumes existing primitives: `tenancy`, `authorization`, `identifier`, `audit`, `capability`
-- Unlocks after verification: `organization/postgres`, `sso`, `scim`, `scim/organization`, `identity/http`
+- Requires: `identity`, `identity/session`, `identity/delivery`
+- Consumes existing primitives: `tenancy`, `authorization`, `identifier`, `audit`, `capability`, `capability/postgres`
+- Unlocks after verification: `organization/postgres`, `sso`, `sso/domain-verification`, `scim`, `scim/organization`, `identity/http`
 
 ## Start gate
 
@@ -38,7 +37,8 @@ outside its public API and dependency graph.
 
 The design MUST define Organization, Member, Invitation, InvitationDelivery,
 Team, RoleBinding, DomainClaim, Repository, UnitOfWork, Policy, Hook, and Event
-contracts. Public errors MUST be typed, stable,
+contracts and consume `identity/session`'s active-organization selection
+contract rather than persisting user-global selection state. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -56,6 +56,11 @@ involved.
   availability without reservation guarantees, list for user, get full bounded
   view, update, archive/delete, set/get active organization and enforce
   configured per-user/per-tenant organization limits.
+- Active-organization selection MUST be owned by an exact authenticated session,
+  not by the user globally. Simultaneous sessions MUST select and clear
+  independently; every use MUST revalidate the session, tenant, membership and
+  organization lifecycle, and membership removal, archive or session revocation
+  MUST invalidate the affected selection without permitting stale authority.
 - Invitation operations MUST include send/resend with deduplication, get, list
   by organization, list by recipient, accept, reject, cancel and expire.
   Acceptance MUST bind the intended verified recipient and organization and
@@ -64,13 +69,24 @@ involved.
   an explicit transaction/outbox boundary. Results MUST distinguish not
   queued, queued, delivered, failed and unknown without rolling back a durable
   invitation merely because external delivery is ambiguous.
+- Invitation acceptance MUST use the shared `capability` contract with a
+  purpose-bound, recipient- and organization-bound, expiring, revocable and
+  atomically single-use capability. Resend MUST define whether it reuses or
+  supersedes the previous invitation capability; neither path may leave two
+  independently consumable grants, and bearer material MUST NOT be stored or
+  exposed through list/get/audit surfaces.
 - Member operations MUST include list/search, add by authorized administrator,
   remove, leave, update role, get active member/role and transfer ownership.
   The last owner and last recovery administrator invariants MUST survive races.
 - Static and dynamic access control MUST support roles, permission statements,
   custom permissions and organization-scoped role CRUD with maximum-role
   limits. Role deletion/update MUST define effects on existing bindings and
-  MUST not broaden permission through unknown statements.
+  MUST NOT broaden permission through unknown statements.
+- Role evaluation MUST define deterministic precedence for static roles,
+  organization custom roles, team-derived statements and explicit deny policy.
+  Authorization inputs MUST carry an organization policy version; role,
+  binding, team-membership and ownership changes MUST advance it and invalidate
+  cached or session-derived decisions so stale allows fail closed.
 - Team operations MUST include create, list, get/update/remove, active team,
   list user teams, list/add/remove members and team permission checks. Team
   membership MUST require compatible organization membership.
@@ -82,6 +98,14 @@ involved.
 - Domain claims MUST distinguish requested, challenge-issued, verified,
   expired, revoked and conflict states and MUST NOT route SSO until proof is
   current and uniquely owned.
+- Archive and delete MUST define a deterministic cascade for active selections,
+  invitations, memberships, teams, role bindings, domain claims and owned
+  integration links. Archive MUST deny new authority while preserving declared
+  recovery/audit access; hard deletion MUST respect audit, legal-hold, outbox
+  and externally owned SSO/SCIM cleanup boundaries from
+  `.ai/identity-platform/COMMON_REQUIREMENTS.md`. The composed lifecycle MUST
+  satisfy journeys 9--11 in `.ai/identity-platform/END_STATE.md` and the
+  organization/SSO rules in `.ai/identity-platform/REFERENCE_PROFILE.md`.
 
 ## Security and abuse requirements
 

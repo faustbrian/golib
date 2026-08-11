@@ -1,8 +1,10 @@
 # Goal: pkg/identity/identitytest
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -21,6 +23,15 @@ Build a test-only consumer toolkit for deterministic identity-platform tests,
 using public APIs and the complete HTTP surface without creating production
 authentication bypasses.
 
+The dependency on `identity/reference` is intentionally one-way. Reference
+package verification MUST finish first with its own public-contract
+pre-verification suite and MUST NOT import this module. This module's package
+suite then verifies helpers against the already verified reference public API.
+Only after both units are verified may the coordinator run the final
+`END_STATE.md` suite using these helpers against the reference application;
+that final suite is program-level evidence, not a package prerequisite, and
+MUST NOT create an import, build or verification cycle.
+
 ## Ownership and public contract
 
 The module owns test identity/account/organization/client factories, isolated
@@ -35,7 +46,7 @@ replace meaningful package integration.
 Every helper MUST accept `testing.TB` or an explicit lifecycle owner, register
 cleanup immediately, be safe for parallel tests or reject parallel use
 explicitly, and return public-domain objects/results. Factories MUST produce
-valid defaults with explicit overrides and MUST not rely on package internals.
+valid defaults with explicit overrides and MUST NOT rely on package internals.
 Generated credentials MUST be redacted and scoped to disposable resources.
 
 ## Required behavior and isolation
@@ -48,7 +59,16 @@ success/failure/ambiguity, advance time deterministically, and assert audit and
 cleanup outcomes. It MUST support table-driven and parallel scenarios without
 identifier, cookie, cache, clock or provider-fixture collisions.
 
-Privileged helpers MUST be unavailable to production construction and MUST not
+Scenario helpers MUST cover user/account deletion and anonymization with audit
+and legal-hold boundaries; fresh-session reauthentication; `rememberMe` cookie
+and expiry semantics; native provider-token signin; privacy export; SSO domain,
+JIT and directory-sync changes; one-time administrator bootstrap; and lifecycle
+cascades across sessions, credentials, linked accounts, organizations,
+invitations, teams, SSO/SCIM, API keys, grants, delivery, outbox/workflow and
+retained audit. Helpers MUST assert public outcomes plus permitted durable
+effects through owning read/query APIs, never through manual table mutation.
+
+Privileged helpers MUST be unavailable to production construction and MUST NOT
 register public routes, honor production credentials, disable authorization,
 weaken CSRF/origin policy, or compile into the reference server through blank
 imports. Test deterministic randomness MUST carry an unmistakable unsafe-for-

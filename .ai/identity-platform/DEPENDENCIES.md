@@ -1,15 +1,25 @@
 # Identity Platform Dependencies
 
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
+
 ## Status model
 
 `proposed` means scoped but not authorized. `ready` means all start gates
 are satisfied and one agent may claim the unit. `in-progress` has one owner.
-`implemented-unverified` has implementation but incomplete release evidence.
-Only `verified` satisfies a dependant. `blocked` records an explicit blocker.
+`implemented-unverified` has integrated implementation but incomplete or stale
+release evidence. Only `verified` satisfies a dependant. `blocked` is an
+inventory execution state with an explicit safe blocker identifier; it is not
+the coordinator agent's system goal status.
 
 ```text
 proposed -> ready -> in-progress -> implemented-unverified -> verified
-                  \-> blocked -> ready
+         <- ready (prerequisite invalidation; generation unchanged)
+                  \-> blocked -> in-progress (same paused assignment)
+                  \-> blocked -> ready (assignment abandoned, generation + 1)
                   \-> ready (abandoned assignment, generation + 1)
 implemented-unverified -> in-progress (same owner/branch repair)
 implemented-unverified -> blocked -> in-progress (same assignment repair)
@@ -17,18 +27,45 @@ verified -> implemented-unverified (changed complete inputs)
 ```
 
 A unit MUST NOT become `ready` unless all `Requires` units are `verified`.
+An unassigned `ready` unit MUST return to `proposed`, without changing its
+generation or empty assignment/evidence fields, in the same coordinator commit
+that invalidates any prerequisite. It becomes `ready` again only after every
+start gate is current.
+An initial `proposed` row MUST have generation `0`. A post-initial `proposed`
+row retains the current generation, which remains `0` before any assignment and
+may be greater than `0` after an assignment was abandoned. History validation
+MUST prove its only incoming edge was `ready -> proposed` prerequisite
+invalidation; no other status may return to `proposed`.
 It MUST return to `implemented-unverified` when changed complete inputs
 invalidate its evidence.
 An `in-progress` unit MAY return to `ready` only after the coordinator proves
 no unintegrated package work is discarded and increments its generation. A
-resolved pre-integration `blocked` unit MUST return to `ready` before
-reassignment. A blocked integrated unit returns to `in-progress` with its same
-assignment for repair. Repair of an integrated unit retains its assignment
-identity and uses `implemented-unverified -> in-progress`; a replacement owner
-requires a new generation. If a prerequisite loses verified status, every
-transitive dependant whose complete input fingerprint changes MUST be demoted
-and every active dependant on that stale baseline MUST transition to `blocked`
-and pause until refreshed.
+`blocked` unit that retains its ledger assignment MAY return directly to
+`in-progress` under that exact task, branch, worktree, and generation after its
+blocker is resolved. For conflict or stale-baseline recovery, that transition
+MUST be the coordinator resume/authorization commit. Its recovery row MUST pin
+the commit's first-parent pre-resume integration baseline and the worker's clean
+checkpoint; before any package edit the worker MUST merge that exact resume
+commit and verify both ancestry relationships. A `blocked` unit whose
+assignment is abandoned MUST return to `ready`, increment generation, clear
+active assignment fields, and receive a new assignment before work resumes.
+Repair of an integrated unit retains its
+recorded assignment identity and uses `implemented-unverified -> in-progress`;
+a replacement owner requires a new generation. If a prerequisite loses
+verified status, every transitive dependant whose complete input fingerprint
+changes MUST be demoted, every unassigned `ready` dependant MUST return to
+`proposed`, and every active dependant on that stale baseline MUST transition
+to inventory `blocked` and pause until refreshed.
+
+For `proposed`, `ready`, `implemented-unverified`, and `verified`, the inventory
+owner/blocker MUST be `—`. For `in-progress`, it MUST equal the recorded worker
+task. For `blocked`, it MUST be a whitespace-free `blocker:<safe-id>` and the
+ledger assignment fields determine whether the same assignment is retained.
+Using inventory `blocked` does not call `update_goal`, does not count as a
+system blocked turn, and does not authorize the coordinator to stop while other
+safe work remains. The coordinator MAY report its own system goal as blocked
+only under repository blocked-audit rules and the stop conditions in
+`ORCHESTRATOR_GOAL.md`.
 
 ## Dependency DAG
 
@@ -36,6 +73,7 @@ and pause until refreshed.
 flowchart TD
   session[identity/session]
   delivery[identity/delivery]
+  delivery_pg[identity/delivery/postgres]
   risk[identity/risk]
   captcha[identity/risk/captcha]
   recaptcha[identity/risk/captcha/recaptcha]
@@ -52,6 +90,7 @@ flowchart TD
   otp_pg[identity/otp/postgres]
   phone[identity/phone]
   anonymous[identity/anonymous]
+  anonymous_pg[identity/anonymous/postgres]
   mfa[identity/mfa]
   mfa_pg[identity/mfa/postgres]
   webauthn_pg[webauthn/postgres]
@@ -82,6 +121,8 @@ flowchart TD
   risk --> hibp
   identity --> email
   delivery --> email
+  delivery --> delivery_pg
+  identity_pg --> delivery_pg
   identity --> password
   session --> password
   risk --> password
@@ -105,6 +146,9 @@ flowchart TD
   delivery --> phone
   identity --> anonymous
   session --> anonymous
+  risk --> anonymous
+  anonymous --> anonymous_pg
+  identity_pg --> anonymous_pg
   otp --> mfa
   identity --> mfa
   session --> mfa
@@ -114,6 +158,7 @@ flowchart TD
   identity_pg --> mfa_pg
   webauthn_pg --> mfa_pg
   webauthn --> webauthn_pg
+  identity_pg --> webauthn_pg
   webauthn --> passkey
   identity --> passkey
   session --> passkey
@@ -134,7 +179,6 @@ flowchart TD
   apikey --> apikey_pg
   identity_pg --> apikey_pg
   apikey --> apikey_valkey
-  apikey_pg --> apikey_valkey
   identity --> impersonation
   session --> impersonation
   risk --> impersonation
@@ -142,6 +186,7 @@ flowchart TD
   identity_pg --> impersonation_pg
   session_pg --> impersonation_pg
   identity --> organization
+  session --> organization
   delivery --> organization
   organization --> organization_pg[organization/postgres]
   identity_pg --> organization_pg
@@ -157,12 +202,18 @@ flowchart TD
   sso_oauth2 --> sso_pg
   sso_saml --> sso_pg
   organization_pg --> sso_pg
+  identity_pg --> sso_pg
+  sso --> domain_verify[sso/domain-verification]
+  organization --> domain_verify
   organization --> scim
   identity --> scim
   scim --> scim_pg[scim/postgres]
   organization_pg --> scim_pg
+  identity_pg --> scim_pg
   scim --> scim_org[scim/organization]
   organization --> scim_org
+  identity --> scim_org
+  scim_org --> scim_pg
   identity --> oauth_server[oauth-server]
   session --> oauth_server
   risk --> oauth_server
@@ -171,7 +222,6 @@ flowchart TD
   oauth_server --> oauth_server_pg[oauth-server/postgres]
   oauth_server_device --> oauth_server_pg
   identity_pg --> oauth_server_pg
-  session_pg --> oauth_server_pg
   identity --> i18n[identity/i18n]
   identity --> identity_http[identity/http]
   session --> identity_http
@@ -199,6 +249,7 @@ flowchart TD
   sso_oidc --> identity_http
   sso_oauth2 --> identity_http
   sso_saml --> identity_http
+  domain_verify --> identity_http
   scim --> identity_http
   scim_org --> identity_http
   oauth_server --> identity_http
@@ -206,6 +257,9 @@ flowchart TD
   oauth_server_device --> identity_http
   i18n --> identity_http
   identity_http --> reference[identity/reference]
+  delivery_pg --> reference
+  anonymous_pg --> reference
+  domain_verify --> reference
   identity_pg --> reference
   session_pg --> reference
   session_valkey --> reference

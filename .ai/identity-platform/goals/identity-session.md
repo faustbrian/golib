@@ -1,11 +1,10 @@
 # Goal: pkg/identity/session
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -13,8 +12,8 @@ appear in all capitals, as shown here.
 - Canonical module: `pkg/identity/session`
 - Canonical goal after scaffolding: `pkg/identity/session/.ai/GOAL.md`
 - Requires: `identity`
-- Consumes existing primitives: `authentication`, `authorization`, `identifier`, `audit`, `secret-envelope`
-- Unlocks after verification: `identity/session/postgres`, `identity/session/valkey`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`, `identity/http`
+- Consumes existing primitives: `authentication`, `authorization`, `identifier`, `capability`, `capability/postgres`, `audit`, `secret-envelope`
+- Unlocks after verification: `identity/session/postgres`, `identity/session/valkey`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `organization`, `sso`, `oauth-server`, `identity/http`
 
 ## Start gate
 
@@ -36,14 +35,42 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Session, Token, Issuer, Store, CookiePolicy,
+The design MUST define Session, Token, SessionIssuer, RememberPolicy, Store, CookiePolicy,
 FreshnessPolicy, StorageProfile, StatelessCodec, SessionVersion, CookieCache,
 SessionEnricher, EnrichmentSchema, Device, RotationResult, PrincipalResolver,
 Revoker, SessionSet, ActiveSessionSelector, MaximumSessionsPolicy,
-LastLoginMethodStore, and SessionTransfer contracts. Public errors MUST be typed, stable,
+ActiveOrganizationSelection, OrganizationSelector, LastLoginMethodStore, and
+SessionTransfer contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
+
+`RememberPolicy` MUST be the single shared session-lifetime choice used by
+every session-issuing flow, including password, username, magic-link, phone,
+OTP, anonymous, passkey, OAuth, enterprise SSO and MFA. It MUST represent
+at least an explicit persistent-session choice and an explicit browser-session
+choice; an omitted choice MUST resolve through one documented configuration
+default before the first authentication continuation is issued. `SessionIssuer`
+MUST accept the resolved `RememberPolicy` with the final authenticated proof
+and MUST return the session plus transport metadata needed to apply the
+matching cookie policy. Downstream signin packages MUST use these public
+contracts rather than define package-local remember flags or session-issuance
+interfaces.
+
+`ActiveOrganizationSelection` and `OrganizationSelector` MUST store only the
+opaque selected organization ID, tenant and authority/version bindings on the
+exact session/browser-container state. They MUST support set/get/clear and
+version invalidation without importing `organization` or treating selection as
+authorization; `organization` owns membership/lifecycle validation on every
+switch and use.
+
+`SessionIssuer` MUST support a caller-supplied command identity and a
+transaction-aware issuance operation so a continuation owner can finalize its
+one-time proof and persist the resulting session in one authoritative commit.
+It MUST return `NotCommitted`, `Committed`, `Unknown`, `Conflict`, or
+`InProgress` consistently with `TRANSACTION_CONTRACT.md`; after `Unknown`, the
+caller MUST be able to recover the safe issuance result by command identity
+without minting a second session or changing `RememberPolicy`.
 
 ## Required behavior
 
@@ -69,10 +96,18 @@ involved.
 - Session operations MUST include get, list, update allowed metadata, revoke
   one, revoke other, revoke all, rotate, refresh/defer refresh, require
   freshness, and optional revoke-on-password-change behavior.
+- Every password, username, phone or OTP signin that can require MFA MUST place
+  the already-resolved `RememberPolicy` in the partial-auth continuation and
+  pass that unchanged to `SessionIssuer` after successful completion. MFA and
+  other continuation stages MUST NOT apply a new default, upgrade a browser
+  session to a persistent session, extend the selected lifetime, or issue a
+  full session before the continuation's authentication policy is complete.
+  Direct signins and continued signins MUST exercise the same `SessionIssuer`
+  contract and produce equivalent persistence semantics for the same policy.
 - A bearer transport profile MUST authenticate the same opaque session token
   from an `Authorization` scheme without cookie fallback, preserve all expiry,
   freshness, version and revocation checks, and expose transport metadata so
-  HTTP can apply the correct CSRF/cache policy. It MUST not turn a session into
+  HTTP can apply the correct CSRF/cache policy. It MUST NOT turn a session into
   a generally reusable OAuth access token.
 - Multi-account session sets MUST separate browser container identity from
   account sessions, prevent active-index substitution, define eviction at the
@@ -83,10 +118,19 @@ involved.
   or account-enumeration evidence.
 - Session transfer MUST require a fresh authenticated non-impersonated source
   session; issue a capability bound to session ID/version, tenant, exact target
-  audience/origin and expiry; store no raw token; consume once; recheck source
-  expiry/revocation/freshness; and return the same bounded session rather than
-  minting a stronger independent family. Cookie issuance versus response-only
-  use MUST be an explicit target policy.
+  audience/origin and expiry; store no raw token; and return the same bounded
+  session rather than minting a stronger independent family. Validation MUST
+  be read-only. The target transition MUST reserve the capability, recheck
+  source expiry/revocation/freshness, apply the transfer and finalize the
+  capability in the same shared unit of work, with recovery by command ID and
+  capability digest as specified by `TRANSACTION_CONTRACT.md`. Cookie issuance
+  versus response-only use MUST be an explicit target policy.
+- Session transfer MUST use `capability` for signed payload framing, issuer,
+  audience, resource, action, expiry, key rotation, revocation and `MaxUses=1`
+  reservation/finalization. Standalone consumption before or after the session
+  transition is forbidden. This module MUST own only the session-specific
+  authorization and state transition; it MUST NOT define a competing replay,
+  signature or capability-consumption store.
 - Session enrichment MUST declare output schema and source fields, run outside
   store locks, honor cancellation/deadline, bound latency/cardinality, define
   error fallback, and invalidate cache when any complete input changes.

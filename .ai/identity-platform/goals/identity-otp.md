@@ -1,11 +1,10 @@
 # Goal: pkg/identity/otp
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -13,7 +12,7 @@ appear in all capitals, as shown here.
 - Canonical module: `pkg/identity/otp`
 - Canonical goal after scaffolding: `pkg/identity/otp/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`
-- Consumes existing primitives: `capability`, `password`, `rate-limit`, `audit`
+- Consumes existing primitives: `capability`, `capability/postgres`, `password`, `rate-limit`, `audit`
 - Unlocks after verification: `identity/otp/postgres`, `identity/phone`, `identity/mfa`, `identity/http`
 
 ## Start gate
@@ -66,6 +65,19 @@ involved.
   workflow and issue sessions only after that workflow commits.
 - Delayed, duplicated, bounced and unknown delivery outcomes MUST have
   documented replacement and user-message behavior without logging codes.
+- OTP digests MUST be keyed (for example, a versioned HMAC) over the complete
+  tenant, purpose, subject/channel, challenge and code scope. A fast unkeyed
+  hash of the small code space is forbidden; key rotation, lookup migration and
+  retired-key behavior MUST be explicit without storing recoverable codes.
+- Any link or API wrapper around an OTP challenge MUST separate scanner-safe
+  read-only validation from explicit confirmation. Reserve/Apply/Finalize,
+  owning workflow mutation and session issuance/invalidation MUST follow
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md` and MUST NOT consume on GET,
+  preview or delivery-provider probing.
+- Signin challenges MUST bind and preserve the session-owned persistent or non-
+  persistent remember policy through risk/MFA continuation and SessionIssuer
+  input. Verification, resend or fallback MUST NOT upgrade persistence or
+  extend the selected session lifetime.
 
 ## Security and abuse requirements
 

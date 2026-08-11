@@ -1,11 +1,10 @@
 # Goal: pkg/sso/oauth2
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -56,14 +55,20 @@ involved.
 - Authorization/callback MUST bind provider, organization, tenant, state,
   redirect and PKCE and MUST reject mix-up, code substitution and callback
   replay under shared redirect URIs.
-- An access token alone MUST not be identity proof. The adapter MUST call the
+- An access token alone MUST NOT be identity proof. The adapter MUST call the
   configured authenticated identity endpoint and validate a stable provider
   subject and organization/domain evidence required by SSO policy.
 - Provider tokens MUST pass to the SSO token vault with redaction, encryption,
-  version and retention policy; refresh/revocation unknown outcomes MUST remain
-  attributable.
+  tenant/organization/provider/subject/purpose binding, version and retention
+  policy; the adapter MUST NOT retain an independent recoverable copy.
+  Serialized refresh, rotation/reuse, revocation and unknown outcomes MUST
+  remain attributable through the `EnterpriseTokenVault` contract.
+- Every successful identity-endpoint response, including repeat login for an
+  existing linked subject, MUST identify absent, null, verified and provider-
+  authoritative attributes and the provider-profile version for SSO sync. The
+  adapter MUST NOT preserve prior role or membership authority on its own.
 - Provider errors, HTTP redirects, bodies, JSON depth/size and custom field
-  mappings MUST be bounded before use and MUST not create roles from unknown
+  mappings MUST be bounded before use and MUST NOT create roles from unknown
   claims.
 - Each declared provider profile requires pinned documentation/fixtures and
   separate interoperability evidence; one generic OAuth server does not prove

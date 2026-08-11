@@ -1,0 +1,3291 @@
+{
+  "version": 1,
+  "units": {
+    "identity": {
+      "transaction": [
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.social_provider_disable",
+        "lifecycle.cascade.social_provider_unlink",
+        "lifecycle.dimension.global",
+        "lifecycle.events.identifier",
+        "lifecycle.events.identity",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.social_provider_disable",
+        "lifecycle.cascade.social_provider_unlink"
+      ],
+      "configuration": [
+        "ref.authentication.preauth_ttl",
+        "ref.identity.ban.expiry_action",
+        "ref.identity.delete.grace",
+        "ref.identity.delete.mode",
+        "ref.identity.delete.proof",
+        "ref.identity.identifier_reuse",
+        "ref.struct:ref.identity.delete.proof"
+      ],
+      "security_events": [
+        "identity.authentication",
+        "identity.identifier.add",
+        "identity.identifier.change",
+        "identity.identifier.remove",
+        "identity.identifier.request_verification",
+        "identity.identifier.verify",
+        "identity.privacy_export.cancel",
+        "identity.privacy_export.complete",
+        "identity.privacy_export.download",
+        "identity.privacy_export.request",
+        "identity.user.anonymize",
+        "identity.user.create",
+        "identity.user.delete",
+        "identity.user.restore",
+        "identity.user.suspend",
+        "identity.user.update"
+      ]
+    },
+    "identity/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.dimension.credential",
+        "lifecycle.dimension.global",
+        "lifecycle.dimension.identifier",
+        "lifecycle.dimension.social_link",
+        "lifecycle.dimension.tenant",
+        "lifecycle.dimension.user",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/session": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.session",
+        "lifecycle.artifact.session_enrichment",
+        "lifecycle.artifact.stateless_session",
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.factor_reset",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset",
+        "lifecycle.cascade.social_provider_disable",
+        "lifecycle.cascade.social_provider_unlink",
+        "lifecycle.cascade.team_change",
+        "lifecycle.cascade.team_delete",
+        "lifecycle.events.session",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.factor_reset",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset",
+        "lifecycle.cascade.social_provider_disable",
+        "lifecycle.cascade.social_provider_unlink",
+        "lifecycle.cascade.team_change",
+        "lifecycle.cascade.team_delete"
+      ],
+      "configuration": [
+        "ref.csrf.token_bytes",
+        "ref.secrets.csrf_key",
+        "ref.secrets.session_digest_key",
+        "ref.session.absolute_ttl",
+        "ref.session.cookie.domain",
+        "ref.session.cookie.http_only",
+        "ref.session.cookie.max_age",
+        "ref.session.cookie.max_bytes",
+        "ref.session.cookie.name",
+        "ref.session.cookie.partitioned",
+        "ref.session.cookie.path",
+        "ref.session.cookie.priority",
+        "ref.session.cookie.same_site",
+        "ref.session.cookie.secure",
+        "ref.session.cookie_cache.ttl",
+        "ref.session.fresh_for",
+        "ref.session.idle_ttl",
+        "ref.session.last_login_method_retention",
+        "ref.session.max_per_container",
+        "ref.session.refresh_after",
+        "ref.session.remember_default",
+        "ref.session.rotation_overlap",
+        "ref.session.stateless.ttl",
+        "ref.session.token_bytes",
+        "ref.session.transfer.ttl",
+        "ref.session.valkey.role",
+        "ref.struct:ref.session.cookie.max_age"
+      ],
+      "security_events": [
+        "identity.last_login_method.change",
+        "identity.last_login_method.clear",
+        "identity.oauth_server.end_session",
+        "identity.session.change_active_account",
+        "identity.session.consume_transfer",
+        "identity.session.create",
+        "identity.session.create_transfer",
+        "identity.session.expire",
+        "identity.session.refresh",
+        "identity.session.revoke",
+        "identity.session.revoke_all",
+        "identity.session.rotate"
+      ]
+    },
+    "identity/session/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.session",
+        "lifecycle.artifact.session_enrichment",
+        "lifecycle.dimension.session",
+        "lifecycle.dimension.session_family",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/session/valkey": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.cookie_cache",
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.factor_reset",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset",
+        "lifecycle.cascade.social_provider_disable",
+        "lifecycle.cascade.social_provider_unlink",
+        "lifecycle.cascade.team_change",
+        "lifecycle.cascade.team_delete",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.factor_reset",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset",
+        "lifecycle.cascade.social_provider_disable",
+        "lifecycle.cascade.social_provider_unlink",
+        "lifecycle.cascade.team_change",
+        "lifecycle.cascade.team_delete"
+      ],
+      "configuration": [
+        "ref.secrets.valkey_credential",
+        "ref.valkey.authentication.enabled",
+        "ref.valkey.command_retries",
+        "ref.valkey.enabled",
+        "ref.valkey.endpoint",
+        "ref.valkey.eviction",
+        "ref.valkey.operation_timeout",
+        "ref.valkey.pool_size",
+        "ref.valkey.tls.enabled",
+        "ref.valkey.tls.root_ca",
+        "ref.valkey.tls.server_name"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/delivery": {
+      "transaction": [
+        "tx.effect.cancel",
+        "tx.effect.cancel_confirmed",
+        "tx.effect.cancel_submitted",
+        "tx.effect.confirm",
+        "tx.effect.expire_planned",
+        "tx.effect.expire_unknown",
+        "tx.effect.reconcile",
+        "tx.effect.reject",
+        "tx.effect.resubmit",
+        "tx.effect.retry",
+        "tx.effect.retry_cancel",
+        "tx.effect.retry_exhaust",
+        "tx.effect.retry_expire",
+        "tx.effect.retry_reconcile",
+        "tx.effect.retry_wait",
+        "tx.effect.submit",
+        "tx.effect.supersede",
+        "tx.effect.unknown",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.delivery_effect",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.social_provider_disable",
+        "lifecycle.cascade.social_provider_unlink",
+        "lifecycle.dimension.delivery_policy",
+        "lifecycle.events.delivery",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.social_provider_disable",
+        "lifecycle.cascade.social_provider_unlink"
+      ],
+      "configuration": [
+        "ref.delivery.attempts",
+        "ref.delivery.backoff",
+        "ref.delivery.dead_letter",
+        "ref.delivery.dedupe_ttl",
+        "ref.delivery.enabled",
+        "ref.delivery.provider_retry",
+        "ref.delivery.queue",
+        "ref.delivery.sender",
+        "ref.delivery.sender_concurrency",
+        "ref.delivery.sender_timeout",
+        "ref.struct:ref.delivery.backoff",
+        "ref.struct:ref.delivery.dead_letter",
+        "ref.struct:ref.delivery.provider_retry",
+        "ref.struct:ref.delivery.queue"
+      ],
+      "security_events": [
+        "identity.delivery.attempt",
+        "identity.delivery.cancel",
+        "identity.delivery.confirm",
+        "identity.delivery.enqueue",
+        "identity.delivery.mark_unknown",
+        "identity.delivery.reconcile",
+        "identity.delivery.reject"
+      ]
+    },
+    "identity/delivery/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.effect.cancel",
+        "tx.effect.cancel_confirmed",
+        "tx.effect.cancel_submitted",
+        "tx.effect.confirm",
+        "tx.effect.expire_planned",
+        "tx.effect.expire_unknown",
+        "tx.effect.reconcile",
+        "tx.effect.reject",
+        "tx.effect.resubmit",
+        "tx.effect.retry",
+        "tx.effect.retry_cancel",
+        "tx.effect.retry_exhaust",
+        "tx.effect.retry_expire",
+        "tx.effect.retry_reconcile",
+        "tx.effect.retry_wait",
+        "tx.effect.submit",
+        "tx.effect.supersede",
+        "tx.effect.unknown",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.delivery_effect",
+        "lifecycle.dimension.delivery_policy",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.cleanup.batch",
+        "ref.cleanup.interval",
+        "ref.command.heartbeat",
+        "ref.command.pending_lease",
+        "ref.command.recovery_deadline",
+        "ref.command.result_retention",
+        "ref.delivery.attempts",
+        "ref.delivery.backoff",
+        "ref.delivery.dead_letter",
+        "ref.delivery.dedupe_ttl",
+        "ref.delivery.enabled",
+        "ref.delivery.queue",
+        "ref.delivery.sender",
+        "ref.delivery.sender_concurrency",
+        "ref.delivery.sender_timeout",
+        "ref.outbox.effect_pending_retention",
+        "ref.outbox.effect_terminal_retention",
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.reconciliation.batch",
+        "ref.reconciliation.interval",
+        "ref.struct:ref.delivery.backoff",
+        "ref.struct:ref.delivery.dead_letter",
+        "ref.struct:ref.delivery.queue",
+        "ref.struct:ref.postgres.command_retry",
+        "ref.worker.claim_ttl",
+        "ref.worker.concurrency",
+        "ref.worker.heartbeat"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/risk": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.risk_velocity",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.dimension.risk_policy",
+        "lifecycle.events.risk",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_suspend"
+      ],
+      "configuration": [
+        "ref.risk.authority",
+        "ref.risk.precedence",
+        "ref.risk.valkey.boot_epoch",
+        "ref.risk.valkey.recovery",
+        "ref.struct:ref.risk.authority",
+        "ref.struct:ref.risk.precedence"
+      ],
+      "security_events": [
+        "identity.risk.anonymize_evidence",
+        "identity.risk.create_override",
+        "identity.risk.decide",
+        "identity.risk.end_lockout",
+        "identity.risk.expire_evidence",
+        "identity.risk.query_provider",
+        "identity.risk.reconcile",
+        "identity.risk.revoke_override",
+        "identity.risk.start_lockout"
+      ]
+    },
+    "identity/risk/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.dimension.risk_policy",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/risk/valkey": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.risk_velocity",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.events.risk_valkey",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.risk.valkey.boot_epoch",
+        "ref.risk.valkey.recovery",
+        "ref.secrets.valkey_credential",
+        "ref.valkey.authentication.enabled",
+        "ref.valkey.command_retries",
+        "ref.valkey.enabled",
+        "ref.valkey.endpoint",
+        "ref.valkey.eviction",
+        "ref.valkey.operation_timeout",
+        "ref.valkey.pool_size",
+        "ref.valkey.tls.enabled",
+        "ref.valkey.tls.root_ca",
+        "ref.valkey.tls.server_name"
+      ],
+      "security_events": [
+        "identity.risk_valkey.exhaust_window",
+        "identity.risk_valkey.mark_unavailable",
+        "identity.risk_valkey.publish_epoch",
+        "identity.risk_valkey.replay"
+      ]
+    },
+    "identity/risk/captcha": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "lifecycle.events.captcha",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.captcha.<id>.secret",
+        "ref.captcha.<id>.site_key",
+        "ref.captcha.ambiguity",
+        "ref.captcha.captchafox.allowed_hostnames",
+        "ref.captcha.captchafox.allowed_origins",
+        "ref.captcha.captchafox.api",
+        "ref.captcha.captchafox.endpoint",
+        "ref.captcha.captchafox.expected_action",
+        "ref.captcha.captchafox.remote_ip_disclosure",
+        "ref.captcha.captchafox.tier",
+        "ref.captcha.captchafox.version",
+        "ref.captcha.catalog_version",
+        "ref.captcha.enabled",
+        "ref.captcha.evidence",
+        "ref.captcha.hcaptcha.allowed_hostnames",
+        "ref.captcha.hcaptcha.allowed_origins",
+        "ref.captcha.hcaptcha.api",
+        "ref.captcha.hcaptcha.endpoint",
+        "ref.captcha.hcaptcha.expected_action",
+        "ref.captcha.hcaptcha.remote_ip_disclosure",
+        "ref.captcha.hcaptcha.tier",
+        "ref.captcha.hcaptcha.version",
+        "ref.captcha.provider",
+        "ref.captcha.recaptcha.allowed_hostnames",
+        "ref.captcha.recaptcha.allowed_origins",
+        "ref.captcha.recaptcha.api",
+        "ref.captcha.recaptcha.endpoint",
+        "ref.captcha.recaptcha.expected_action",
+        "ref.captcha.recaptcha.remote_ip_disclosure",
+        "ref.captcha.recaptcha.tier",
+        "ref.captcha.recaptcha.version",
+        "ref.captcha.score_owner",
+        "ref.captcha.score_threshold",
+        "ref.captcha.timeout",
+        "ref.captcha.turnstile.allowed_hostnames",
+        "ref.captcha.turnstile.allowed_origins",
+        "ref.captcha.turnstile.api",
+        "ref.captcha.turnstile.endpoint",
+        "ref.captcha.turnstile.expected_action",
+        "ref.captcha.turnstile.remote_ip_disclosure",
+        "ref.captcha.turnstile.tier",
+        "ref.captcha.turnstile.version",
+        "ref.struct:ref.captcha.evidence"
+      ],
+      "security_events": [
+        "identity.captcha.detect_binding_mismatch",
+        "identity.captcha.detect_replay",
+        "identity.captcha.reject",
+        "identity.captcha.verify"
+      ]
+    },
+    "identity/risk/captcha/recaptcha": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.captcha.<id>.secret",
+        "ref.captcha.<id>.site_key",
+        "ref.captcha.recaptcha.allowed_hostnames",
+        "ref.captcha.recaptcha.allowed_origins",
+        "ref.captcha.recaptcha.api",
+        "ref.captcha.recaptcha.endpoint",
+        "ref.captcha.recaptcha.expected_action",
+        "ref.captcha.recaptcha.remote_ip_disclosure",
+        "ref.captcha.recaptcha.tier",
+        "ref.captcha.recaptcha.version",
+        "ref.captcha.timeout"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/risk/captcha/turnstile": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.captcha.<id>.secret",
+        "ref.captcha.<id>.site_key",
+        "ref.captcha.timeout",
+        "ref.captcha.turnstile.allowed_hostnames",
+        "ref.captcha.turnstile.allowed_origins",
+        "ref.captcha.turnstile.api",
+        "ref.captcha.turnstile.endpoint",
+        "ref.captcha.turnstile.expected_action",
+        "ref.captcha.turnstile.remote_ip_disclosure",
+        "ref.captcha.turnstile.tier",
+        "ref.captcha.turnstile.version"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/risk/captcha/hcaptcha": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.captcha.<id>.secret",
+        "ref.captcha.<id>.site_key",
+        "ref.captcha.hcaptcha.allowed_hostnames",
+        "ref.captcha.hcaptcha.allowed_origins",
+        "ref.captcha.hcaptcha.api",
+        "ref.captcha.hcaptcha.endpoint",
+        "ref.captcha.hcaptcha.expected_action",
+        "ref.captcha.hcaptcha.remote_ip_disclosure",
+        "ref.captcha.hcaptcha.tier",
+        "ref.captcha.hcaptcha.version",
+        "ref.captcha.timeout"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/risk/captcha/captchafox": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.captcha.<id>.secret",
+        "ref.captcha.<id>.site_key",
+        "ref.captcha.captchafox.allowed_hostnames",
+        "ref.captcha.captchafox.allowed_origins",
+        "ref.captcha.captchafox.api",
+        "ref.captcha.captchafox.endpoint",
+        "ref.captcha.captchafox.expected_action",
+        "ref.captcha.captchafox.remote_ip_disclosure",
+        "ref.captcha.captchafox.tier",
+        "ref.captcha.captchafox.version",
+        "ref.captcha.timeout"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/risk/hibp": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "lifecycle.events.hibp",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.hibp.add_padding",
+        "ref.hibp.cache.enabled",
+        "ref.hibp.cache.entries",
+        "ref.hibp.cache.eviction",
+        "ref.hibp.cache.singleflight",
+        "ref.hibp.cache.ttl",
+        "ref.hibp.enabled",
+        "ref.hibp.endpoint",
+        "ref.hibp.max_breach_count",
+        "ref.hibp.outbound_concurrency",
+        "ref.hibp.response_bytes",
+        "ref.hibp.timeout",
+        "ref.hibp.user_agent",
+        "ref.password.hibp.outage"
+      ],
+      "security_events": [
+        "identity.hibp.detect_match",
+        "identity.hibp.query_range",
+        "identity.hibp.reject_range"
+      ]
+    },
+    "identity/password": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset",
+        "lifecycle.events.password",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset"
+      ],
+      "configuration": [
+        "ref.password.hibp.outage",
+        "ref.password.max_bytes",
+        "ref.password.min_bytes",
+        "ref.password.primary_proof_ttl",
+        "ref.password.recovery_factor_policy",
+        "ref.password.reset_ttl",
+        "ref.secrets.otp_digest_key",
+        "ref.session.remember_default",
+        "ref.struct:ref.password.recovery_factor_policy"
+      ],
+      "security_events": [
+        "identity.password.change",
+        "identity.password.mark_compromised",
+        "identity.password.register",
+        "identity.password.rehash",
+        "identity.password.remove",
+        "identity.password.request_reset",
+        "identity.password.reset"
+      ]
+    },
+    "identity/password/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/username": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.identity.unicode_version",
+        "ref.identity.username.max_codepoints",
+        "ref.identity.username.min_codepoints",
+        "ref.identity.username.reserved_set",
+        "ref.identity.username.scripts"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/email": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove"
+      ],
+      "configuration": [
+        "ref.email.resend_interval",
+        "ref.email.verification_ttl",
+        "ref.identity.email.max_bytes"
+      ],
+      "security_events": [
+        "identity.identifier.request_verification",
+        "identity.identifier.verify"
+      ]
+    },
+    "identity/magiclink": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove"
+      ],
+      "configuration": [
+        "ref.magic_link.ttl"
+      ],
+      "security_events": [
+        "identity.magic_link.consume",
+        "identity.magic_link.request"
+      ]
+    },
+    "identity/otp": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete"
+      ],
+      "configuration": [
+        "ref.otp.attempts",
+        "ref.otp.code_alphabet",
+        "ref.otp.code_digits",
+        "ref.otp.digest",
+        "ref.otp.replacement",
+        "ref.otp.resend_interval",
+        "ref.otp.send_limit",
+        "ref.otp.ttl",
+        "ref.secrets.otp_digest_key"
+      ],
+      "security_events": [
+        "identity.otp.request",
+        "identity.otp.verify"
+      ]
+    },
+    "identity/otp/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/phone": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove"
+      ],
+      "configuration": [
+        "ref.authentication.preauth_ttl",
+        "ref.identity.phone_metadata",
+        "ref.phone.change_quarantine",
+        "ref.phone.recovery.enabled",
+        "ref.phone.recovery.policy",
+        "ref.session.remember_default",
+        "ref.struct:ref.phone.recovery"
+      ],
+      "security_events": [
+        "identity.identifier.change",
+        "identity.identifier.remove",
+        "identity.identifier.request_verification",
+        "identity.identifier.verify"
+      ]
+    },
+    "identity/anonymous": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise"
+      ],
+      "configuration": [
+        "none"
+      ],
+      "security_events": [
+        "identity.anonymous.create",
+        "identity.anonymous.expire",
+        "identity.anonymous.upgrade"
+      ]
+    },
+    "identity/anonymous/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/mfa": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.passkey",
+        "lifecycle.artifact.trusted_device",
+        "lifecycle.cascade.factor_reset",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset",
+        "lifecycle.events.factor",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.factor_reset",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset"
+      ],
+      "configuration": [
+        "ref.mfa.attempts",
+        "ref.mfa.challenge_ttl",
+        "ref.mfa.enrollment_ttl",
+        "ref.mfa.recovery_code_bytes",
+        "ref.mfa.recovery_codes",
+        "ref.mfa.totp.algorithm",
+        "ref.mfa.totp.digits",
+        "ref.mfa.totp.period",
+        "ref.mfa.totp.skew_steps",
+        "ref.trusted_device.rotate_after",
+        "ref.trusted_device.rotation_overlap",
+        "ref.trusted_device.ttl"
+      ],
+      "security_events": [
+        "identity.mfa.add_factor",
+        "identity.mfa.add_trusted_device",
+        "identity.mfa.regenerate_recovery",
+        "identity.mfa.remove_factor",
+        "identity.mfa.reset",
+        "identity.mfa.revoke_trusted_device",
+        "identity.mfa.rotate_trusted_device",
+        "identity.mfa.start_enrollment",
+        "identity.mfa.use_recovery",
+        "identity.mfa.verify_challenge"
+      ]
+    },
+    "identity/mfa/postgres": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.trusted_device",
+        "lifecycle.dimension.factor",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "webauthn": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.passkey",
+        "lifecycle.cascade.factor_reset",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.factor_reset",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete"
+      ],
+      "configuration": [
+        "ref.struct:ref.webauthn.profile",
+        "ref.webauthn.algorithms",
+        "ref.webauthn.attestation",
+        "ref.webauthn.attestation_object_max_bytes",
+        "ref.webauthn.authenticator_data_max_bytes",
+        "ref.webauthn.cbor_depth",
+        "ref.webauthn.cbor_items",
+        "ref.webauthn.challenge_bytes",
+        "ref.webauthn.challenge_ttl",
+        "ref.webauthn.client_data_json_max_bytes",
+        "ref.webauthn.credential_id_max_bytes",
+        "ref.webauthn.development_localhost_http",
+        "ref.webauthn.extensions",
+        "ref.webauthn.formats",
+        "ref.webauthn.origins",
+        "ref.webauthn.profile",
+        "ref.webauthn.public_suffix_snapshot",
+        "ref.webauthn.rp_id",
+        "ref.webauthn.rp_name",
+        "ref.webauthn.user_handle_bytes",
+        "ref.webauthn.user_handle_max_bytes"
+      ],
+      "security_events": [
+        "identity.passkey.remove_credential",
+        "identity.passkey.rename_credential",
+        "identity.webauthn.detect_suspected_clone",
+        "identity.webauthn.register_credential",
+        "identity.webauthn.verify_assertion"
+      ]
+    },
+    "webauthn/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.passkey",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "passkey": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.passkey",
+        "lifecycle.cascade.factor_reset",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.events.passkey",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.factor_reset",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete"
+      ],
+      "configuration": [
+        "ref.passkey.tenant_rp_scope",
+        "ref.passkey.user_verification"
+      ],
+      "security_events": [
+        "identity.passkey.remove_credential",
+        "identity.passkey.rename_credential"
+      ]
+    },
+    "passkey/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.passkey",
+        "lifecycle.dimension.passkey",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/oauth": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.effect.cancel",
+        "tx.effect.cancel_confirmed",
+        "tx.effect.cancel_submitted",
+        "tx.effect.confirm",
+        "tx.effect.expire_planned",
+        "tx.effect.expire_unknown",
+        "tx.effect.reconcile",
+        "tx.effect.reject",
+        "tx.effect.resubmit",
+        "tx.effect.retry",
+        "tx.effect.retry_cancel",
+        "tx.effect.retry_exhaust",
+        "tx.effect.retry_expire",
+        "tx.effect.retry_reconcile",
+        "tx.effect.retry_wait",
+        "tx.effect.submit",
+        "tx.effect.supersede",
+        "tx.effect.unknown",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset",
+        "lifecycle.cascade.social_provider_disable",
+        "lifecycle.cascade.social_provider_unlink",
+        "lifecycle.events.social_provider",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset",
+        "lifecycle.cascade.social_provider_disable",
+        "lifecycle.cascade.social_provider_unlink"
+      ],
+      "configuration": [
+        "ref.oauth.clock_skew",
+        "ref.oauth.discovery_cache_ttl",
+        "ref.oauth.json_depth",
+        "ref.oauth.json_keys",
+        "ref.oauth.json_string_bytes",
+        "ref.oauth.jwks_unknown_kid_refreshes",
+        "ref.oauth.pkce.generated_verifier_bytes",
+        "ref.oauth.provider_timeout",
+        "ref.oauth.rp.audiences",
+        "ref.oauth.rp.id_token_algs",
+        "ref.oauth.rp.nonce_bytes",
+        "ref.oauth.rp.nonce_ttl",
+        "ref.oauth.rp.redirect_uris",
+        "ref.oauth.rp.state_bytes",
+        "ref.oauth.rp.state_ttl",
+        "ref.oauth.rp.transaction",
+        "ref.struct:ref.oauth.rp_transaction"
+      ],
+      "security_events": [
+        "identity.account.link",
+        "identity.account.unlink",
+        "identity.oauth.deliver_popup",
+        "identity.oauth.handle_callback",
+        "identity.oauth.link_account",
+        "identity.oauth.refresh_grant",
+        "identity.oauth.revoke_grant",
+        "identity.oauth.start_authorization",
+        "identity.oauth.unlink_account",
+        "identity.oauth.use_proxy",
+        "identity.oauth.verify_one_tap"
+      ]
+    },
+    "identity/oauth/postgres": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.effect.cancel",
+        "tx.effect.cancel_confirmed",
+        "tx.effect.cancel_submitted",
+        "tx.effect.confirm",
+        "tx.effect.expire_planned",
+        "tx.effect.expire_unknown",
+        "tx.effect.reconcile",
+        "tx.effect.reject",
+        "tx.effect.resubmit",
+        "tx.effect.retry",
+        "tx.effect.retry_cancel",
+        "tx.effect.retry_exhaust",
+        "tx.effect.retry_expire",
+        "tx.effect.retry_reconcile",
+        "tx.effect.retry_wait",
+        "tx.effect.submit",
+        "tx.effect.supersede",
+        "tx.effect.unknown",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.dimension.social_connection",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/oauth/providers": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.providers.<id>.authorization_endpoint",
+        "ref.providers.<id>.client_id",
+        "ref.providers.<id>.client_secret",
+        "ref.providers.<id>.confidential",
+        "ref.providers.<id>.discovery_enabled",
+        "ref.providers.<id>.enabled",
+        "ref.providers.<id>.issuer",
+        "ref.providers.<id>.jwks_uri",
+        "ref.providers.<id>.profile_endpoint",
+        "ref.providers.<id>.protocol",
+        "ref.providers.<id>.subject_pointer",
+        "ref.providers.<id>.token_endpoint",
+        "ref.providers.catalog_version"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/oauth/onetap": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "none"
+      ],
+      "security_events": [
+        "identity.oauth.verify_one_tap"
+      ]
+    },
+    "identity/oauth/proxy": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "none"
+      ],
+      "security_events": [
+        "identity.oauth.use_proxy"
+      ]
+    },
+    "identity/apikey": {
+      "transaction": [
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.api_key",
+        "lifecycle.artifact.api_key_cache",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.events.api_key",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore"
+      ],
+      "configuration": [
+        "ref.api_key.digest",
+        "ref.api_key.encoding",
+        "ref.api_key.expiry",
+        "ref.api_key.quota.capacity",
+        "ref.api_key.quota.debit",
+        "ref.api_key.quota.refill",
+        "ref.api_key.rotation_overlap",
+        "ref.api_key.valkey_cache_ttl",
+        "ref.secrets.api_key_digest_key",
+        "ref.struct:ref.api_key.encoding"
+      ],
+      "security_events": [
+        "identity.api_key.authenticate",
+        "identity.api_key.create",
+        "identity.api_key.revoke",
+        "identity.api_key.rotate",
+        "identity.api_key.update"
+      ]
+    },
+    "identity/apikey/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.api_key",
+        "lifecycle.dimension.api_key",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/apikey/valkey": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.api_key",
+        "lifecycle.artifact.api_key_cache",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore"
+      ],
+      "configuration": [
+        "ref.api_key.valkey_cache_ttl",
+        "ref.secrets.valkey_credential",
+        "ref.valkey.authentication.enabled",
+        "ref.valkey.command_retries",
+        "ref.valkey.enabled",
+        "ref.valkey.endpoint",
+        "ref.valkey.eviction",
+        "ref.valkey.operation_timeout",
+        "ref.valkey.pool_size",
+        "ref.valkey.tls.enabled",
+        "ref.valkey.tls.root_ca",
+        "ref.valkey.tls.server_name"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/impersonation": {
+      "transaction": [
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.impersonation",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend"
+      ],
+      "configuration": [
+        "ref.impersonation.approvals",
+        "ref.impersonation.ttl"
+      ],
+      "security_events": [
+        "identity.impersonation.approve",
+        "identity.impersonation.request",
+        "identity.impersonation.revoke",
+        "identity.impersonation.start",
+        "identity.impersonation.stop"
+      ]
+    },
+    "identity/impersonation/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.impersonation",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "organization": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.session_enrichment",
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.team_change",
+        "lifecycle.cascade.team_delete",
+        "lifecycle.events.organization",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.team_change",
+        "lifecycle.cascade.team_delete"
+      ],
+      "configuration": [
+        "ref.organization.active_scope",
+        "ref.organization.delete.mode",
+        "ref.organization.invitation_ttl",
+        "ref.organization.max_members",
+        "ref.organization.max_pending_invitations",
+        "ref.organization.max_per_user",
+        "ref.organization.max_roles",
+        "ref.organization.max_teams",
+        "ref.organization.team_change_batch",
+        "ref.struct:ref.organization.active_scope"
+      ],
+      "security_events": [
+        "identity.organization.accept_invitation",
+        "identity.organization.add_member",
+        "identity.organization.add_team_member",
+        "identity.organization.archive",
+        "identity.organization.cancel_invitation",
+        "identity.organization.change_active",
+        "identity.organization.change_member_role",
+        "identity.organization.create",
+        "identity.organization.create_invitation",
+        "identity.organization.create_role",
+        "identity.organization.create_team",
+        "identity.organization.delete",
+        "identity.organization.delete_role",
+        "identity.organization.delete_team",
+        "identity.organization.reject_invitation",
+        "identity.organization.remove_member",
+        "identity.organization.remove_team_member",
+        "identity.organization.restore",
+        "identity.organization.revoke_domain",
+        "identity.organization.transfer_ownership",
+        "identity.organization.update",
+        "identity.organization.update_role",
+        "identity.organization.update_team",
+        "identity.organization.verify_domain"
+      ]
+    },
+    "organization/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.dimension.organization",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "sso": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.effect.cancel",
+        "tx.effect.cancel_confirmed",
+        "tx.effect.cancel_submitted",
+        "tx.effect.confirm",
+        "tx.effect.expire_planned",
+        "tx.effect.expire_unknown",
+        "tx.effect.reconcile",
+        "tx.effect.reject",
+        "tx.effect.resubmit",
+        "tx.effect.retry",
+        "tx.effect.retry_cancel",
+        "tx.effect.retry_exhaust",
+        "tx.effect.retry_expire",
+        "tx.effect.retry_reconcile",
+        "tx.effect.retry_wait",
+        "tx.effect.submit",
+        "tx.effect.supersede",
+        "tx.effect.unknown",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.events.enterprise_provider",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identifier_change",
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore"
+      ],
+      "configuration": [
+        "ref.sso.domain_proof.method",
+        "ref.sso.domain_proof.token_bytes",
+        "ref.sso.domain_proof.ttl",
+        "ref.sso.enabled",
+        "ref.sso.jit_repeat_sync"
+      ],
+      "security_events": [
+        "identity.sso.change_enforcement",
+        "identity.sso.delete_provider",
+        "identity.sso.disable_provider",
+        "identity.sso.enable_provider",
+        "identity.sso.login",
+        "identity.sso.provision_jit",
+        "identity.sso.register_provider",
+        "identity.sso.rotate_provider_credential",
+        "identity.sso.update_provider",
+        "identity.sso.use_break_glass"
+      ]
+    },
+    "sso/domain-verification": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.domain_revoke"
+      ],
+      "configuration": [
+        "ref.sso.domain_proof.method",
+        "ref.sso.domain_proof.token_bytes",
+        "ref.sso.domain_proof.ttl"
+      ],
+      "security_events": [
+        "identity.organization.revoke_domain",
+        "identity.organization.verify_domain"
+      ]
+    },
+    "sso/oidc": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "none"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "sso/oauth2": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "none"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "sso/saml": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.saml.assertions_per_response",
+        "ref.saml.attribute_mapping",
+        "ref.saml.attribute_value_bytes",
+        "ref.saml.attributes_per_element",
+        "ref.saml.attributes_total",
+        "ref.saml.base64_bytes",
+        "ref.saml.bindings",
+        "ref.saml.certificate_bytes",
+        "ref.saml.certificates_per_metadata_entity",
+        "ref.saml.clock_skew",
+        "ref.saml.decoded_bytes",
+        "ref.saml.depth",
+        "ref.saml.enabled",
+        "ref.saml.encrypted_assertions.enabled",
+        "ref.saml.id_uri_bytes",
+        "ref.saml.idp_certificates",
+        "ref.saml.idp_entity_id",
+        "ref.saml.idp_initiated",
+        "ref.saml.idp_metadata",
+        "ref.saml.idp_slo_url",
+        "ref.saml.idp_sso_url",
+        "ref.saml.inflate_ratio",
+        "ref.saml.nameid_formats",
+        "ref.saml.namespaces",
+        "ref.saml.nodes",
+        "ref.saml.redirect_deflate_bytes",
+        "ref.saml.redirect_signature_algorithm",
+        "ref.saml.replay_ttl",
+        "ref.saml.signatures",
+        "ref.saml.signatures_max",
+        "ref.saml.slo.enabled",
+        "ref.saml.sp_acs_url",
+        "ref.saml.sp_decryption_key",
+        "ref.saml.sp_entity_id",
+        "ref.saml.sp_idp_initiated_url",
+        "ref.saml.sp_signing_key",
+        "ref.saml.sp_slo_url",
+        "ref.saml.text_bytes",
+        "ref.saml.xml_bytes"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "sso/postgres": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.effect.cancel",
+        "tx.effect.cancel_confirmed",
+        "tx.effect.cancel_submitted",
+        "tx.effect.confirm",
+        "tx.effect.expire_planned",
+        "tx.effect.expire_unknown",
+        "tx.effect.reconcile",
+        "tx.effect.reject",
+        "tx.effect.resubmit",
+        "tx.effect.retry",
+        "tx.effect.retry_cancel",
+        "tx.effect.retry_exhaust",
+        "tx.effect.retry_expire",
+        "tx.effect.retry_reconcile",
+        "tx.effect.retry_wait",
+        "tx.effect.submit",
+        "tx.effect.supersede",
+        "tx.effect.unknown",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.dimension.enterprise_provider",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "scim": {
+      "transaction": [
+        "tx.effect.cancel",
+        "tx.effect.cancel_confirmed",
+        "tx.effect.cancel_submitted",
+        "tx.effect.confirm",
+        "tx.effect.expire_planned",
+        "tx.effect.expire_unknown",
+        "tx.effect.reconcile",
+        "tx.effect.reject",
+        "tx.effect.resubmit",
+        "tx.effect.retry",
+        "tx.effect.retry_cancel",
+        "tx.effect.retry_exhaust",
+        "tx.effect.retry_expire",
+        "tx.effect.retry_reconcile",
+        "tx.effect.retry_wait",
+        "tx.effect.submit",
+        "tx.effect.supersede",
+        "tx.effect.unknown",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore"
+      ],
+      "configuration": [
+        "ref.scim.bulk.bytes",
+        "ref.scim.bulk.enabled",
+        "ref.scim.bulk.fail_on_errors",
+        "ref.scim.bulk.operation_bytes",
+        "ref.scim.bulk.operations",
+        "ref.scim.bulk.response_bytes",
+        "ref.scim.delete_tombstone_retention",
+        "ref.scim.error_detail_bytes",
+        "ref.scim.external_id_scope",
+        "ref.scim.filter.depth",
+        "ref.scim.filter.nodes",
+        "ref.scim.filter_bytes",
+        "ref.scim.filter_tokens",
+        "ref.scim.group_members",
+        "ref.scim.idempotency_retention",
+        "ref.scim.if_match",
+        "ref.scim.page_default",
+        "ref.scim.page_max",
+        "ref.scim.patch.operations",
+        "ref.scim.path_bytes",
+        "ref.scim.resource_attributes",
+        "ref.scim.resource_depth",
+        "ref.scim.string_bytes",
+        "ref.scim.token_bytes",
+        "ref.scim.token_overlap",
+        "ref.scim.token_ttl"
+      ],
+      "security_events": [
+        "identity.scim.create_connection",
+        "identity.scim.create_resource",
+        "identity.scim.create_token",
+        "identity.scim.delete_connection",
+        "identity.scim.deprovision_resource",
+        "identity.scim.reconcile",
+        "identity.scim.revoke_token",
+        "identity.scim.rotate_token",
+        "identity.scim.update_connection",
+        "identity.scim.update_resource"
+      ]
+    },
+    "scim/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.effect.cancel",
+        "tx.effect.cancel_confirmed",
+        "tx.effect.cancel_submitted",
+        "tx.effect.confirm",
+        "tx.effect.expire_planned",
+        "tx.effect.expire_unknown",
+        "tx.effect.reconcile",
+        "tx.effect.reject",
+        "tx.effect.resubmit",
+        "tx.effect.retry",
+        "tx.effect.retry_cancel",
+        "tx.effect.retry_exhaust",
+        "tx.effect.retry_expire",
+        "tx.effect.retry_reconcile",
+        "tx.effect.retry_wait",
+        "tx.effect.submit",
+        "tx.effect.supersede",
+        "tx.effect.unknown",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "scim/organization": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.team_change",
+        "lifecycle.cascade.team_delete",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.domain_revoke",
+        "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.team_change",
+        "lifecycle.cascade.team_delete"
+      ],
+      "configuration": [
+        "none"
+      ],
+      "security_events": [
+        "identity.sso.apply_directory_sync",
+        "identity.sso.cancel_directory_sync",
+        "identity.sso.reconcile_directory_sync",
+        "identity.sso.start_directory_sync"
+      ]
+    },
+    "oauth-server": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.access_jwt",
+        "lifecycle.artifact.opaque_access",
+        "lifecycle.artifact.refresh",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset",
+        "lifecycle.events.oauth_server",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_restore",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
+        "lifecycle.cascade.password_compromise",
+        "lifecycle.cascade.password_reset"
+      ],
+      "configuration": [
+        "ref.oauth_server.access_format",
+        "ref.oauth_server.access_ttl",
+        "ref.oauth_server.audiences",
+        "ref.oauth_server.authorization_endpoint",
+        "ref.oauth_server.client_auth",
+        "ref.oauth_server.client_secret_bytes",
+        "ref.oauth_server.client_secret_overlap",
+        "ref.oauth_server.code_ttl",
+        "ref.oauth_server.device_lookup_limit",
+        "ref.oauth_server.device_poll",
+        "ref.oauth_server.device_slow_down_increment",
+        "ref.oauth_server.device_ttl",
+        "ref.oauth_server.device_user_code_alphabet",
+        "ref.oauth_server.device_user_code_length",
+        "ref.oauth_server.dynamic_registration",
+        "ref.oauth_server.dynamic_registration.allowed_auth_methods",
+        "ref.oauth_server.dynamic_registration.allowed_grant_types",
+        "ref.oauth_server.dynamic_registration.allowed_scopes",
+        "ref.oauth_server.dynamic_registration.initial_access_token_ttl",
+        "ref.oauth_server.dynamic_registration.metadata_bytes",
+        "ref.oauth_server.issuer",
+        "ref.oauth_server.issuer_path_policy",
+        "ref.oauth_server.jwks_endpoint",
+        "ref.oauth_server.protected_resource",
+        "ref.oauth_server.protected_resource.resource",
+        "ref.oauth_server.protected_resource.supported_scopes",
+        "ref.oauth_server.redirect_uris",
+        "ref.oauth_server.refresh_ttl",
+        "ref.oauth_server.scopes",
+        "ref.oauth_server.session_jwt_exchange",
+        "ref.oauth_server.session_jwt_ttl",
+        "ref.oauth_server.signing_rotation",
+        "ref.oauth_server.token_endpoint",
+        "ref.secrets.oauth_signing_provider",
+        "ref.struct:ref.oauth_server.dynamic_registration",
+        "ref.struct:ref.oauth_server.protected_resource"
+      ],
+      "security_events": [
+        "identity.oauth_server.add_signing_key",
+        "identity.oauth_server.approve_device",
+        "identity.oauth_server.authorize",
+        "identity.oauth_server.compromise_signing_key",
+        "identity.oauth_server.create_client",
+        "identity.oauth_server.delete_client",
+        "identity.oauth_server.deny_device",
+        "identity.oauth_server.detect_refresh_reuse",
+        "identity.oauth_server.end_session",
+        "identity.oauth_server.exchange_code",
+        "identity.oauth_server.exchange_session",
+        "identity.oauth_server.grant_consent",
+        "identity.oauth_server.poll_device",
+        "identity.oauth_server.retire_signing_key",
+        "identity.oauth_server.revoke_consent",
+        "identity.oauth_server.revoke_token",
+        "identity.oauth_server.rotate_client_secret",
+        "identity.oauth_server.rotate_refresh",
+        "identity.oauth_server.update_client"
+      ]
+    },
+    "oauth-server/oidc": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.access_jwt",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.oauth_server.oidc.backchannel_logout",
+        "ref.oauth_server.oidc.frontchannel_logout",
+        "ref.oauth_server.oidc.id_token_signing_alg",
+        "ref.oauth_server.oidc.pairwise_subject",
+        "ref.oauth_server.oidc.response_mode",
+        "ref.oauth_server.oidc.rp_initiated_logout",
+        "ref.struct:ref.oauth_server.pairwise_subject"
+      ],
+      "security_events": [
+        "identity.oauth_server.end_session",
+        "identity.oauth_server.exchange_session"
+      ]
+    },
+    "oauth-server/device": {
+      "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.oauth_server.device_code_bytes",
+        "ref.oauth_server.device_code_digest_key",
+        "ref.oauth_server.device_code_encoded_length",
+        "ref.oauth_server.device_lookup_limit",
+        "ref.oauth_server.device_poll",
+        "ref.oauth_server.device_slow_down_increment",
+        "ref.oauth_server.device_ttl",
+        "ref.oauth_server.device_user_code_alphabet",
+        "ref.oauth_server.device_user_code_length"
+      ],
+      "security_events": [
+        "identity.oauth_server.approve_device",
+        "identity.oauth_server.deny_device",
+        "identity.oauth_server.poll_device"
+      ]
+    },
+    "oauth-server/postgres": {
+      "transaction": [
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.access_jwt",
+        "lifecycle.artifact.opaque_access",
+        "lifecycle.artifact.refresh",
+        "lifecycle.dimension.grant",
+        "lifecycle.dimension.oauth_client",
+        "lifecycle.dimension.signing_compromise",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.struct:ref.postgres.command_retry"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/i18n": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.i18n.default",
+        "ref.i18n.locales"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/http": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.http.body_bytes",
+        "ref.http.client_ip.normalization",
+        "ref.http.cookies.max_count",
+        "ref.http.cookies.max_header_bytes",
+        "ref.http.cors.credentials",
+        "ref.http.cors.enabled",
+        "ref.http.cors.expose_headers",
+        "ref.http.cors.headers",
+        "ref.http.cors.max_age",
+        "ref.http.cors.methods",
+        "ref.http.cors.origins",
+        "ref.http.external_base_url",
+        "ref.http.external_connect_timeout",
+        "ref.http.external_retry",
+        "ref.http.external_tls_handshake_timeout",
+        "ref.http.external_total_timeout",
+        "ref.http.forwarded_max_hops",
+        "ref.http.forwarded_precedence",
+        "ref.http.header_bytes",
+        "ref.http.idempotency_key_bytes",
+        "ref.http.idempotency_retention",
+        "ref.http.idle_timeout",
+        "ref.http.json_depth",
+        "ref.http.json_elements",
+        "ref.http.provider_response_bytes",
+        "ref.http.rate.admin",
+        "ref.http.rate.algorithm",
+        "ref.http.rate.authority",
+        "ref.http.rate.default",
+        "ref.http.rate.mfa_verify",
+        "ref.http.rate.otp_send",
+        "ref.http.rate.otp_verify",
+        "ref.http.rate.reset_link_send",
+        "ref.http.rate.signin",
+        "ref.http.rate.signup",
+        "ref.http.read_header_timeout",
+        "ref.http.read_timeout",
+        "ref.http.shutdown_drain",
+        "ref.http.trusted_origins",
+        "ref.http.trusted_proxy_cidrs",
+        "ref.http.url_bytes",
+        "ref.http.write_timeout",
+        "ref.session.cookie.domain",
+        "ref.session.cookie.http_only",
+        "ref.session.cookie.max_age",
+        "ref.session.cookie.max_bytes",
+        "ref.session.cookie.name",
+        "ref.session.cookie.partitioned",
+        "ref.session.cookie.path",
+        "ref.session.cookie.priority",
+        "ref.session.cookie.same_site",
+        "ref.session.cookie.secure",
+        "ref.struct:ref.http.external_retry",
+        "ref.struct:ref.session.cookie.max_age",
+        "ref.tenant.host_suffix",
+        "ref.tenant.routing_mode"
+      ],
+      "security_events": [
+        "none"
+      ]
+    },
+    "identity/reference": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "lifecycle.artifact.authorization_cache",
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.dimension.authorization",
+        "lifecycle.dimension.global",
+        "lifecycle.foundation"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "ref.api_key.digest",
+        "ref.api_key.encoding",
+        "ref.api_key.expiry",
+        "ref.api_key.quota.capacity",
+        "ref.api_key.quota.debit",
+        "ref.api_key.quota.refill",
+        "ref.api_key.rotation_overlap",
+        "ref.api_key.valkey_cache_ttl",
+        "ref.audit.retention.policy",
+        "ref.audit.retention.protected",
+        "ref.audit.retention.standard",
+        "ref.audit.sink",
+        "ref.authentication.preauth_ttl",
+        "ref.capability.reservation_retention",
+        "ref.capability.terminal_retention",
+        "ref.capability.unknown_retention",
+        "ref.captcha.<id>.secret",
+        "ref.captcha.<id>.site_key",
+        "ref.captcha.ambiguity",
+        "ref.captcha.captchafox.allowed_hostnames",
+        "ref.captcha.captchafox.allowed_origins",
+        "ref.captcha.captchafox.api",
+        "ref.captcha.captchafox.endpoint",
+        "ref.captcha.captchafox.expected_action",
+        "ref.captcha.captchafox.remote_ip_disclosure",
+        "ref.captcha.captchafox.tier",
+        "ref.captcha.captchafox.version",
+        "ref.captcha.catalog_version",
+        "ref.captcha.enabled",
+        "ref.captcha.evidence",
+        "ref.captcha.hcaptcha.allowed_hostnames",
+        "ref.captcha.hcaptcha.allowed_origins",
+        "ref.captcha.hcaptcha.api",
+        "ref.captcha.hcaptcha.endpoint",
+        "ref.captcha.hcaptcha.expected_action",
+        "ref.captcha.hcaptcha.remote_ip_disclosure",
+        "ref.captcha.hcaptcha.tier",
+        "ref.captcha.hcaptcha.version",
+        "ref.captcha.provider",
+        "ref.captcha.recaptcha.allowed_hostnames",
+        "ref.captcha.recaptcha.allowed_origins",
+        "ref.captcha.recaptcha.api",
+        "ref.captcha.recaptcha.endpoint",
+        "ref.captcha.recaptcha.expected_action",
+        "ref.captcha.recaptcha.remote_ip_disclosure",
+        "ref.captcha.recaptcha.tier",
+        "ref.captcha.recaptcha.version",
+        "ref.captcha.score_owner",
+        "ref.captcha.score_threshold",
+        "ref.captcha.timeout",
+        "ref.captcha.turnstile.allowed_hostnames",
+        "ref.captcha.turnstile.allowed_origins",
+        "ref.captcha.turnstile.api",
+        "ref.captcha.turnstile.endpoint",
+        "ref.captcha.turnstile.expected_action",
+        "ref.captcha.turnstile.remote_ip_disclosure",
+        "ref.captcha.turnstile.tier",
+        "ref.captcha.turnstile.version",
+        "ref.cleanup.batch",
+        "ref.cleanup.interval",
+        "ref.command.heartbeat",
+        "ref.command.pending_lease",
+        "ref.command.recovery_deadline",
+        "ref.command.result_retention",
+        "ref.csrf.token_bytes",
+        "ref.delivery.attempts",
+        "ref.delivery.backoff",
+        "ref.delivery.dead_letter",
+        "ref.delivery.dedupe_ttl",
+        "ref.delivery.enabled",
+        "ref.delivery.provider_retry",
+        "ref.delivery.queue",
+        "ref.delivery.sender",
+        "ref.delivery.sender_concurrency",
+        "ref.delivery.sender_timeout",
+        "ref.email.resend_interval",
+        "ref.email.verification_ttl",
+        "ref.health.path",
+        "ref.health.success_status",
+        "ref.hibp.add_padding",
+        "ref.hibp.cache.enabled",
+        "ref.hibp.cache.entries",
+        "ref.hibp.cache.eviction",
+        "ref.hibp.cache.singleflight",
+        "ref.hibp.cache.ttl",
+        "ref.hibp.enabled",
+        "ref.hibp.endpoint",
+        "ref.hibp.max_breach_count",
+        "ref.hibp.outbound_concurrency",
+        "ref.hibp.response_bytes",
+        "ref.hibp.timeout",
+        "ref.hibp.user_agent",
+        "ref.http.body_bytes",
+        "ref.http.client_ip.normalization",
+        "ref.http.cookies.max_count",
+        "ref.http.cookies.max_header_bytes",
+        "ref.http.cors.credentials",
+        "ref.http.cors.enabled",
+        "ref.http.cors.expose_headers",
+        "ref.http.cors.headers",
+        "ref.http.cors.max_age",
+        "ref.http.cors.methods",
+        "ref.http.cors.origins",
+        "ref.http.external_base_url",
+        "ref.http.external_connect_timeout",
+        "ref.http.external_retry",
+        "ref.http.external_tls_handshake_timeout",
+        "ref.http.external_total_timeout",
+        "ref.http.forwarded_max_hops",
+        "ref.http.forwarded_precedence",
+        "ref.http.header_bytes",
+        "ref.http.idempotency_key_bytes",
+        "ref.http.idempotency_retention",
+        "ref.http.idle_timeout",
+        "ref.http.json_depth",
+        "ref.http.json_elements",
+        "ref.http.provider_response_bytes",
+        "ref.http.rate.admin",
+        "ref.http.rate.algorithm",
+        "ref.http.rate.authority",
+        "ref.http.rate.default",
+        "ref.http.rate.mfa_verify",
+        "ref.http.rate.otp_send",
+        "ref.http.rate.otp_verify",
+        "ref.http.rate.reset_link_send",
+        "ref.http.rate.signin",
+        "ref.http.rate.signup",
+        "ref.http.read_header_timeout",
+        "ref.http.read_timeout",
+        "ref.http.shutdown_drain",
+        "ref.http.trusted_origins",
+        "ref.http.trusted_proxy_cidrs",
+        "ref.http.url_bytes",
+        "ref.http.write_timeout",
+        "ref.i18n.default",
+        "ref.i18n.locales",
+        "ref.identity.ban.expiry_action",
+        "ref.identity.delete.grace",
+        "ref.identity.delete.mode",
+        "ref.identity.delete.proof",
+        "ref.identity.email.max_bytes",
+        "ref.identity.identifier_reuse",
+        "ref.identity.phone_metadata",
+        "ref.identity.unicode_version",
+        "ref.identity.username.max_codepoints",
+        "ref.identity.username.min_codepoints",
+        "ref.identity.username.reserved_set",
+        "ref.identity.username.scripts",
+        "ref.impersonation.approvals",
+        "ref.impersonation.ttl",
+        "ref.lifecycle.ack_retention",
+        "ref.lifecycle.cascade_deadline",
+        "ref.lifecycle.checkpoint_retention",
+        "ref.lifecycle.deletion_tombstone",
+        "ref.lifecycle.event_retention",
+        "ref.lifecycle.identifier_tombstone",
+        "ref.lifecycle.legal_hold",
+        "ref.lifecycle.retry_retention",
+        "ref.magic_link.ttl",
+        "ref.mfa.attempts",
+        "ref.mfa.challenge_ttl",
+        "ref.mfa.enrollment_ttl",
+        "ref.mfa.recovery_code_bytes",
+        "ref.mfa.recovery_codes",
+        "ref.mfa.totp.algorithm",
+        "ref.mfa.totp.digits",
+        "ref.mfa.totp.period",
+        "ref.mfa.totp.skew_steps",
+        "ref.migration.drift",
+        "ref.migration.lock_timeout",
+        "ref.migration.startup_mode",
+        "ref.oauth.clock_skew",
+        "ref.oauth.discovery_cache_ttl",
+        "ref.oauth.json_depth",
+        "ref.oauth.json_keys",
+        "ref.oauth.json_string_bytes",
+        "ref.oauth.jwks_unknown_kid_refreshes",
+        "ref.oauth.pkce.generated_verifier_bytes",
+        "ref.oauth.provider_timeout",
+        "ref.oauth.rp.audiences",
+        "ref.oauth.rp.id_token_algs",
+        "ref.oauth.rp.nonce_bytes",
+        "ref.oauth.rp.nonce_ttl",
+        "ref.oauth.rp.redirect_uris",
+        "ref.oauth.rp.state_bytes",
+        "ref.oauth.rp.state_ttl",
+        "ref.oauth.rp.transaction",
+        "ref.oauth_server.access_format",
+        "ref.oauth_server.access_ttl",
+        "ref.oauth_server.audiences",
+        "ref.oauth_server.authorization_endpoint",
+        "ref.oauth_server.client_auth",
+        "ref.oauth_server.client_secret_bytes",
+        "ref.oauth_server.client_secret_overlap",
+        "ref.oauth_server.code_ttl",
+        "ref.oauth_server.device_code_bytes",
+        "ref.oauth_server.device_code_digest_key",
+        "ref.oauth_server.device_code_encoded_length",
+        "ref.oauth_server.device_lookup_limit",
+        "ref.oauth_server.device_poll",
+        "ref.oauth_server.device_slow_down_increment",
+        "ref.oauth_server.device_ttl",
+        "ref.oauth_server.device_user_code_alphabet",
+        "ref.oauth_server.device_user_code_length",
+        "ref.oauth_server.dynamic_registration",
+        "ref.oauth_server.dynamic_registration.allowed_auth_methods",
+        "ref.oauth_server.dynamic_registration.allowed_grant_types",
+        "ref.oauth_server.dynamic_registration.allowed_scopes",
+        "ref.oauth_server.dynamic_registration.initial_access_token_ttl",
+        "ref.oauth_server.dynamic_registration.metadata_bytes",
+        "ref.oauth_server.issuer",
+        "ref.oauth_server.issuer_path_policy",
+        "ref.oauth_server.jwks_endpoint",
+        "ref.oauth_server.oidc.backchannel_logout",
+        "ref.oauth_server.oidc.frontchannel_logout",
+        "ref.oauth_server.oidc.id_token_signing_alg",
+        "ref.oauth_server.oidc.pairwise_subject",
+        "ref.oauth_server.oidc.response_mode",
+        "ref.oauth_server.oidc.rp_initiated_logout",
+        "ref.oauth_server.protected_resource",
+        "ref.oauth_server.protected_resource.resource",
+        "ref.oauth_server.protected_resource.supported_scopes",
+        "ref.oauth_server.redirect_uris",
+        "ref.oauth_server.refresh_ttl",
+        "ref.oauth_server.scopes",
+        "ref.oauth_server.session_jwt_exchange",
+        "ref.oauth_server.session_jwt_ttl",
+        "ref.oauth_server.signing_rotation",
+        "ref.oauth_server.token_endpoint",
+        "ref.openapi.path",
+        "ref.organization.active_scope",
+        "ref.organization.delete.mode",
+        "ref.organization.invitation_ttl",
+        "ref.organization.max_members",
+        "ref.organization.max_pending_invitations",
+        "ref.organization.max_per_user",
+        "ref.organization.max_roles",
+        "ref.organization.max_teams",
+        "ref.organization.team_change_batch",
+        "ref.otp.attempts",
+        "ref.otp.code_alphabet",
+        "ref.otp.code_digits",
+        "ref.otp.digest",
+        "ref.otp.replacement",
+        "ref.otp.resend_interval",
+        "ref.otp.send_limit",
+        "ref.otp.ttl",
+        "ref.outbox.effect_pending_retention",
+        "ref.outbox.effect_terminal_retention",
+        "ref.passkey.tenant_rp_scope",
+        "ref.passkey.user_verification",
+        "ref.password.hibp.outage",
+        "ref.password.max_bytes",
+        "ref.password.min_bytes",
+        "ref.password.primary_proof_ttl",
+        "ref.password.recovery_factor_policy",
+        "ref.password.reset_ttl",
+        "ref.phone.change_quarantine",
+        "ref.phone.recovery.enabled",
+        "ref.phone.recovery.policy",
+        "ref.platform.authority",
+        "ref.platform.bootstrap.capability_ttl",
+        "ref.platform.bootstrap.enabled",
+        "ref.platform.bootstrap.transport",
+        "ref.postgres.command_retries",
+        "ref.postgres.command_retry",
+        "ref.postgres.connect_timeout",
+        "ref.postgres.dsn",
+        "ref.postgres.lock_timeout",
+        "ref.postgres.pool_idle",
+        "ref.postgres.pool_open",
+        "ref.postgres.statement_timeout",
+        "ref.postgres.tls.mode",
+        "ref.postgres.tls.root_ca",
+        "ref.postgres.tls.server_name",
+        "ref.postgres.tx_timeout",
+        "ref.providers.<id>.authorization_endpoint",
+        "ref.providers.<id>.client_id",
+        "ref.providers.<id>.client_secret",
+        "ref.providers.<id>.confidential",
+        "ref.providers.<id>.discovery_enabled",
+        "ref.providers.<id>.enabled",
+        "ref.providers.<id>.issuer",
+        "ref.providers.<id>.jwks_uri",
+        "ref.providers.<id>.profile_endpoint",
+        "ref.providers.<id>.protocol",
+        "ref.providers.<id>.subject_pointer",
+        "ref.providers.<id>.token_endpoint",
+        "ref.providers.catalog_version",
+        "ref.readiness.failure_status",
+        "ref.readiness.path",
+        "ref.readiness.success_status",
+        "ref.reconciliation.batch",
+        "ref.reconciliation.interval",
+        "ref.risk.authority",
+        "ref.risk.precedence",
+        "ref.risk.valkey.boot_epoch",
+        "ref.risk.valkey.recovery",
+        "ref.runtime.mode",
+        "ref.saml.assertions_per_response",
+        "ref.saml.attribute_mapping",
+        "ref.saml.attribute_value_bytes",
+        "ref.saml.attributes_per_element",
+        "ref.saml.attributes_total",
+        "ref.saml.base64_bytes",
+        "ref.saml.bindings",
+        "ref.saml.certificate_bytes",
+        "ref.saml.certificates_per_metadata_entity",
+        "ref.saml.clock_skew",
+        "ref.saml.decoded_bytes",
+        "ref.saml.depth",
+        "ref.saml.enabled",
+        "ref.saml.encrypted_assertions.enabled",
+        "ref.saml.id_uri_bytes",
+        "ref.saml.idp_certificates",
+        "ref.saml.idp_entity_id",
+        "ref.saml.idp_initiated",
+        "ref.saml.idp_metadata",
+        "ref.saml.idp_slo_url",
+        "ref.saml.idp_sso_url",
+        "ref.saml.inflate_ratio",
+        "ref.saml.nameid_formats",
+        "ref.saml.namespaces",
+        "ref.saml.nodes",
+        "ref.saml.redirect_deflate_bytes",
+        "ref.saml.redirect_signature_algorithm",
+        "ref.saml.replay_ttl",
+        "ref.saml.signatures",
+        "ref.saml.signatures_max",
+        "ref.saml.slo.enabled",
+        "ref.saml.sp_acs_url",
+        "ref.saml.sp_decryption_key",
+        "ref.saml.sp_entity_id",
+        "ref.saml.sp_idp_initiated_url",
+        "ref.saml.sp_signing_key",
+        "ref.saml.sp_slo_url",
+        "ref.saml.text_bytes",
+        "ref.saml.xml_bytes",
+        "ref.scim.bulk.bytes",
+        "ref.scim.bulk.enabled",
+        "ref.scim.bulk.fail_on_errors",
+        "ref.scim.bulk.operation_bytes",
+        "ref.scim.bulk.operations",
+        "ref.scim.bulk.response_bytes",
+        "ref.scim.delete_tombstone_retention",
+        "ref.scim.error_detail_bytes",
+        "ref.scim.external_id_scope",
+        "ref.scim.filter.depth",
+        "ref.scim.filter.nodes",
+        "ref.scim.filter_bytes",
+        "ref.scim.filter_tokens",
+        "ref.scim.group_members",
+        "ref.scim.idempotency_retention",
+        "ref.scim.if_match",
+        "ref.scim.page_default",
+        "ref.scim.page_max",
+        "ref.scim.patch.operations",
+        "ref.scim.path_bytes",
+        "ref.scim.resource_attributes",
+        "ref.scim.resource_depth",
+        "ref.scim.string_bytes",
+        "ref.scim.token_bytes",
+        "ref.scim.token_overlap",
+        "ref.scim.token_ttl",
+        "ref.secrets.api_key_digest_key",
+        "ref.secrets.command_fingerprint_key",
+        "ref.secrets.csrf_key",
+        "ref.secrets.envelope_provider",
+        "ref.secrets.oauth_signing_provider",
+        "ref.secrets.otp_digest_key",
+        "ref.secrets.session_digest_key",
+        "ref.secrets.valkey_credential",
+        "ref.session.absolute_ttl",
+        "ref.session.cookie.domain",
+        "ref.session.cookie.http_only",
+        "ref.session.cookie.max_age",
+        "ref.session.cookie.max_bytes",
+        "ref.session.cookie.name",
+        "ref.session.cookie.partitioned",
+        "ref.session.cookie.path",
+        "ref.session.cookie.priority",
+        "ref.session.cookie.same_site",
+        "ref.session.cookie.secure",
+        "ref.session.cookie_cache.ttl",
+        "ref.session.fresh_for",
+        "ref.session.idle_ttl",
+        "ref.session.last_login_method_retention",
+        "ref.session.max_per_container",
+        "ref.session.refresh_after",
+        "ref.session.remember_default",
+        "ref.session.rotation_overlap",
+        "ref.session.stateless.ttl",
+        "ref.session.token_bytes",
+        "ref.session.transfer.ttl",
+        "ref.session.valkey.role",
+        "ref.sso.domain_proof.method",
+        "ref.sso.domain_proof.token_bytes",
+        "ref.sso.domain_proof.ttl",
+        "ref.sso.enabled",
+        "ref.sso.jit_repeat_sync",
+        "ref.struct:ref.api_key.encoding",
+        "ref.struct:ref.audit.retention_policy",
+        "ref.struct:ref.captcha.evidence",
+        "ref.struct:ref.delivery.backoff",
+        "ref.struct:ref.delivery.dead_letter",
+        "ref.struct:ref.delivery.provider_retry",
+        "ref.struct:ref.delivery.queue",
+        "ref.struct:ref.http.external_retry",
+        "ref.struct:ref.identity.delete.proof",
+        "ref.struct:ref.lifecycle.legal_hold",
+        "ref.struct:ref.oauth.rp_transaction",
+        "ref.struct:ref.oauth_server.dynamic_registration",
+        "ref.struct:ref.oauth_server.pairwise_subject",
+        "ref.struct:ref.oauth_server.protected_resource",
+        "ref.struct:ref.organization.active_scope",
+        "ref.struct:ref.password.recovery_factor_policy",
+        "ref.struct:ref.phone.recovery",
+        "ref.struct:ref.platform.authority",
+        "ref.struct:ref.postgres.command_retry",
+        "ref.struct:ref.risk.authority",
+        "ref.struct:ref.risk.precedence",
+        "ref.struct:ref.risk.valkey_recovery",
+        "ref.struct:ref.session.cookie.max_age",
+        "ref.struct:ref.webauthn.profile",
+        "ref.telemetry.flush_timeout",
+        "ref.telemetry.metric_label_limit",
+        "ref.tenant.host_suffix",
+        "ref.tenant.routing_mode",
+        "ref.trusted_device.rotate_after",
+        "ref.trusted_device.rotation_overlap",
+        "ref.trusted_device.ttl",
+        "ref.valkey.authentication.enabled",
+        "ref.valkey.command_retries",
+        "ref.valkey.enabled",
+        "ref.valkey.endpoint",
+        "ref.valkey.eviction",
+        "ref.valkey.operation_timeout",
+        "ref.valkey.pool_size",
+        "ref.valkey.tls.enabled",
+        "ref.valkey.tls.root_ca",
+        "ref.valkey.tls.server_name",
+        "ref.webauthn.algorithms",
+        "ref.webauthn.attestation",
+        "ref.webauthn.attestation_object_max_bytes",
+        "ref.webauthn.authenticator_data_max_bytes",
+        "ref.webauthn.cbor_depth",
+        "ref.webauthn.cbor_items",
+        "ref.webauthn.challenge_bytes",
+        "ref.webauthn.challenge_ttl",
+        "ref.webauthn.client_data_json_max_bytes",
+        "ref.webauthn.credential_id_max_bytes",
+        "ref.webauthn.development_localhost_http",
+        "ref.webauthn.extensions",
+        "ref.webauthn.formats",
+        "ref.webauthn.origins",
+        "ref.webauthn.profile",
+        "ref.webauthn.public_suffix_snapshot",
+        "ref.webauthn.rp_id",
+        "ref.webauthn.rp_name",
+        "ref.webauthn.user_handle_bytes",
+        "ref.webauthn.user_handle_max_bytes",
+        "ref.worker.claim_ttl",
+        "ref.worker.concurrency",
+        "ref.worker.heartbeat"
+      ],
+      "security_events": [
+        "identity.audit_retention.change_policy",
+        "identity.audit_retention.create_legal_hold",
+        "identity.audit_retention.delete_records",
+        "identity.audit_retention.release_legal_hold",
+        "identity.audit_retention.update_legal_hold",
+        "identity.platform.assign_role",
+        "identity.platform.bootstrap_administrator",
+        "identity.platform.compromise_global_authority",
+        "identity.platform.create_permission_statement",
+        "identity.platform.create_role",
+        "identity.platform.delete_permission_statement",
+        "identity.platform.delete_role",
+        "identity.platform.revoke_role",
+        "identity.platform.update_permission_statement",
+        "identity.platform.update_role"
+      ]
+    },
+    "identity/identitytest": {
+      "transaction": [
+        "none"
+      ],
+      "lifecycle": [
+        "none"
+      ],
+      "lifecycle_consumers": [
+        "none"
+      ],
+      "configuration": [
+        "none"
+      ],
+      "security_events": [
+        "none"
+      ]
+    }
+  }
+}

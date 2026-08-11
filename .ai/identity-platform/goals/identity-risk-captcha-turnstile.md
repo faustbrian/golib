@@ -1,11 +1,10 @@
 # Goal: pkg/identity/risk/captcha/turnstile
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -36,7 +35,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define configuration, secret ownership, idempotency key, remote IP policy, hostname/action/cdata mapping, error mapping, timeout, and telemetry contracts. Public errors MUST be typed, stable,
+The design MUST define configuration, secret ownership, idempotency key, remote IP policy, hostname/action/cdata mapping, error mapping, timeout, normalized provider evidence, and telemetry contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -50,13 +49,18 @@ involved.
 
 ## Package-specific acceptance checklist
 
-- Verification MUST use the documented siteverify endpoint with secret,
-  response, optional remote IP and caller-supplied idempotency key according to
-  explicit privacy/retry policy.
+- Verification MUST use `POST https://challenges.cloudflare.com/turnstile/v0/siteverify`
+  with `secret`, `response`, optional `remoteip`, and optional
+  `idempotency_key` according to explicit privacy/retry policy. Configuration
+  MUST select the supported Turnstile Siteverify v0 profile and widget/site key,
+  canonical hostname set, expected `action`, and optional expected `cdata`.
+- The reference selection MUST consume the exact API, version, tier, site key,
+  hostname/origin allowlists, expected action, and remote-IP disclosure fields
+  from `REFERENCE_CONFIGURATION.md`; it MUST NOT infer provider defaults.
 - Success MUST enforce configured hostname, action and optional cdata binding;
   challenge timestamp/skew and any declared metadata limits MUST be validated.
 - Idempotency keys MUST be unique/bounded and reused only for the same logical
-  verification; they MUST not allow a token to authorize a different action or
+  verification; they MUST NOT allow a token to authorize a different action or
   subject.
 - Missing optional fields MUST remain unavailable evidence rather than empty
   trusted values. Unknown error codes and malformed duplicate JSON fields MUST
@@ -66,6 +70,17 @@ involved.
 - Cloudflare test keys/official fixtures plus documented current provider
   interoperability MUST cover positive/negative, replay/expiry, hostname/
   action/cdata mismatch, idempotent retry, timeout, throttling and cancellation.
+- Normalized evidence MUST preserve the Siteverify v0 profile, configured site
+  key, `success`, `challenge_ts`, `hostname`, `action`, `cdata`, `error-codes`,
+  and documented `metadata` fields with explicit availability. The adapter MUST
+  NOT decide allow, deny, throttle, step-up, or provider-failure policy;
+  unavailable/unknown handling MUST come from
+  `.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
+- The idempotency key and evidence MUST bind the trusted operation, tenant,
+  action, purpose, subject scope, challenge, site key and token digest. Replay
+  under another binding MUST fail. Security events and lifecycle cascades MUST
+  use `.ai/identity-platform/SECURITY_EVENTS.md` and
+  `.ai/identity-platform/LIFECYCLE_CASCADES.md` respectively.
 
 ## Security and abuse requirements
 

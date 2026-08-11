@@ -1,11 +1,10 @@
 # Goal: pkg/identity/magiclink
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -13,7 +12,7 @@ appear in all capitals, as shown here.
 - Canonical module: `pkg/identity/magiclink`
 - Canonical goal after scaffolding: `pkg/identity/magiclink/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/email`, `identity/risk`
-- Consumes existing primitives: `capability`, `workflow`, `audit`, `rate-limit`
+- Consumes existing primitives: `capability`, `capability/postgres`, `workflow`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/http`
 
 ## Start gate
@@ -54,16 +53,21 @@ involved.
   resend/supersession, callback URL allowlist and enumeration-safe delivery.
 - The capability MUST bind canonical identifier, tenant, action, redirect,
   issue time, expiry, key/token version and maximum uses. Stored lookup/replay
-  state MUST not contain the raw link token.
+  state MUST NOT contain the raw link token.
+- Signing, parsing, time validation, key rotation, revocation and atomic
+  single-use consumption MUST use the public `capability` contracts and their
+  selected existing store adapter. This module MUST NOT create a second token
+  format, consumption table, replay cache or ambiguous fallback authority.
 - Verification/inspection MUST allow UI or link-scanner policy to inspect
   validity without consuming authentication exactly when configured; consume
-  MUST remain atomic and single-winner.
+  MUST remain atomic and single-winner through `capability`. Inspection MUST
+  NOT decrement, reserve or otherwise mutate the consumption record.
 - Callback MUST distinguish expired, superseded, already consumed, invalid,
   risk denied, signup disabled and unknown commit without revealing whether an
   account pre-existed.
 - Session issuance and optional identity creation MUST occur only after token
   consumption and identity transaction can be reconciled; a retry after
-  unknown commit MUST not create a second user or session family.
+  unknown commit MUST NOT create a second user or session family.
 - Redirects MUST be exact-bound/allowlisted and MUST never copy the bearer link
   into referrer-visible or third-party URLs.
 

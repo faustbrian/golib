@@ -1,11 +1,10 @@
 # Goal: pkg/identity/oauth
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -13,7 +12,7 @@ appear in all capitals, as shown here.
 - Canonical module: `pkg/identity/oauth`
 - Canonical goal after scaffolding: `pkg/identity/oauth/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`
-- Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `http-client`, `capability`, `secret-envelope`, `audit`
+- Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `http-client`, `capability`, `capability/postgres`, `secret-envelope`, `audit`
 - Unlocks after verification: `identity/oauth/postgres`, `identity/oauth/providers`, `identity/oauth/onetap`, `identity/oauth/proxy`, `identity/http`
 
 ## Start gate
@@ -41,6 +40,20 @@ redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
 
+The public API MUST expose distinct typed initiation, callback, direct-token,
+link and unlink commands. Successful signin and linking MUST return one typed
+identity result independent of transport; redirect and popup delivery MUST be
+typed wrappers around that result, not unvalidated caller-controlled URLs or
+stringly typed status maps. The command surface and authorization requirements
+MUST remain aligned with [`API_OPERATIONS.md`](../API_OPERATIONS.md), and every
+durable callback, link, unlink and token transition MUST implement
+[`TRANSACTION_CONTRACT.md`](../TRANSACTION_CONTRACT.md).
+Every signin initiation or direct-token request MUST accept
+`identity/session`'s `RememberPolicy`; authorization state, native nonce,
+popup/proxy handoff, MFA continuation and callback MUST bind and preserve it
+unchanged until session issuance. A callback MUST NOT infer persistence from
+ambient cookies or choose a new policy.
+
 ## Required behavior
 
 The implementation and tests MUST register explicit generic provider configurations; bind state, nonce, redirect, provider, client and PKCE; validate ID tokens through existing validators; exchange once; encrypt refresh tokens; serialize refresh; link only with verified evidence; detect provider-account collisions; unlink without orphaning access; and classify revoked grants, unsupported provider capabilities, partial callbacks and unknown exchange/refresh outcomes. Provider-specific defaults MUST NOT erase a declared incompatibility or turn an unknown result into success. Every state transition MUST
@@ -58,10 +71,38 @@ involved.
   additional scopes, provider prompt/response-mode options and bounded
   application data carried through authenticated state. Caller parameters MUST
   not override security-critical provider configuration.
+- The generic option model MUST distinguish provider identity, client ID and
+  secret source, authorization/token/UserInfo/JWKS/revocation endpoints,
+  issuer and audience rules, client-authentication method, default and optional
+  scopes, authorization and token parameters, PKCE and nonce policies,
+  response mode, prompt, access type, signup and implicit-signup policy,
+  ID-token and UserInfo precedence, claims mapping, refresh/revocation support,
+  token retention and timeouts. Each option MUST declare whether it is fixed by
+  the profile, safely caller-selectable, or forbidden; unknown fields and
+  conflicting duplicate parameters MUST fail construction.
 - Callback handling MUST distinguish provider denial, malformed callback,
   state/nonce/PKCE failure, code-exchange unknown outcome, identity-proof
   failure, disabled signup and account collision. A callback MUST be idempotent
   without making an authorization code reusable.
+- Callback state MUST be authenticated, confidential when it carries
+  application data, single-use, bounded and expiring. It MUST bind the
+  operation kind, provider and client, tenant, initiating subject for linking,
+  exact callback redirect, PKCE verifier commitment, nonce, response mode,
+  requested scopes, opener origin/channel where applicable and an opaque
+  continuation reference. Consumption and code-exchange ownership MUST be
+  atomic enough that concurrent or replayed callbacks cannot exchange twice;
+  an unknown exchange outcome MUST enter reconciliation instead of recreating
+  state or retrying the code.
+- Direct/native provider-token signin MUST accept only an explicitly configured
+  token kind and provider profile. ID tokens MUST receive full issuer,
+  signature, audience/authorized-party, time and nonce validation. Access
+  tokens MUST be resolved through the configured provider introspection or
+  UserInfo boundary and MUST NOT be treated as identity assertions by shape.
+  The result MUST bind the intended application client, provider account,
+  granted scopes and token expiry, apply the same signup/link/collision/session
+  policy as callback signin, and MUST NOT silently retain a refresh token or
+  broaden scopes. Provider credentials minted for an unapproved audience or
+  unverifiable native client MUST fail closed.
 - Providers without email MUST require an explicit stable subject mapping and
   collision-safe placeholder or email-optional identity policy. The module
   MUST NOT synthesize a globally trusted verified email by default.
@@ -69,6 +110,13 @@ involved.
   link and administrator policy; forced linking MUST be opt-in and audited.
   Unlink MUST preserve at least one allowed access path and classify provider
   revocation separately from local unlink.
+- Implicit linking MUST require fresh provider proof and a currently verified,
+  canonical identifier whose provider semantics authorize that use. It MUST
+  re-evaluate the local account's current verified identifier and tenant scope,
+  reject provider-account or identifier collisions, and require explicit
+  reauthentication or administrator recovery when there is any ambiguity.
+  An email match alone, an unverified email, mutable profile data, a stale
+  session, or caller-supplied subject MUST NOT take over or merge an account.
 - Access-token retrieval, provider account information and incremental-scope
   requests MUST enforce subject/account ownership and return raw token data only
   through a secret-bearing contract with redaction and lifetime rules.
@@ -98,6 +146,17 @@ State ownership, consistency, retention, deletion, migration, key rotation,
 clock skew, concurrent callers, shutdown, and recovery MUST be documented and
 tested where applicable. Unsupported protocol or deployment profiles MUST be
 stated rather than silently approximated.
+
+OAuth/OIDC validation and client-authentication profiles MUST conform to
+[`PROTOCOL_BASELINES.md`](../PROTOCOL_BASELINES.md). Grant unlink, subject
+deletion, provider revocation and retained-token cleanup MUST follow
+[`LIFECYCLE_CASCADES.md`](../LIFECYCLE_CASCADES.md). The supported reference
+defaults and every intentionally unsupported option MUST be represented as
+explicit configuration under
+[`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
+Security-relevant starts, denials, callbacks, links, refreshes and revocations
+MUST emit the bounded records defined by
+[`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
 
 ## Acceptance evidence
 

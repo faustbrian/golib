@@ -1,19 +1,18 @@
 # Goal: pkg/oauth-server/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
 - Unit: `oauth-server/postgres`
 - Canonical module: `pkg/oauth-server/postgres`
 - Canonical goal after scaffolding: `pkg/oauth-server/postgres/.ai/GOAL.md`
-- Requires: `oauth-server`, `oauth-server/device`, `identity/postgres`, `identity/session/postgres`
-- Consumes existing primitives: `postgres`, `migrations`, `secret-envelope`, `outbox`, `audit`
+- Requires: `oauth-server`, `oauth-server/device`, `identity/postgres`
+- Consumes existing primitives: `postgres`, `migrations`, `capability/postgres`, `secret-envelope`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 
 ## Start gate
@@ -57,13 +56,19 @@ involved.
   rotation lineage, exact redirect sets, dynamic-registration access tokens,
   grants/codes, opaque/JWT access metadata, refresh families, consent versions,
   device codes, user codes, key metadata and revocation state.
+- Subject, actor and source-session identifiers MUST remain opaque bounded
+  values validated by the core before persistence. This adapter MUST use only
+  the public `identity/postgres` enlistment carrier and MUST NOT import its
+  internals, copy its SQL, create foreign-key ownership over identity/session
+  records, or revalidate identity/session policy. The reference composition
+  owns runtime bindings through public core contracts.
 - Constraints MUST enforce client ID, redirect and token uniqueness, one-time
   code/device consumption, refresh-family state, consent scope version and
   registration-token ownership under concurrent requests.
 - Secret rotation MUST define reveal-once output, overlap/revoke timing and
   unknown-commit recovery. Raw client, access, refresh, registration and device
-  bearer values MUST not be stored when digest lookup suffices.
-- Authorization-code redemption and token issuance MUST not duplicate tokens
+  bearer values MUST NOT be stored when digest lookup suffices.
+- Authorization-code redemption and token issuance MUST NOT duplicate tokens
   after ambiguous commit. A reconciliation record MUST distinguish committed
   token metadata from an unknown secret value that cannot safely be re-shown.
 - Introspection/revocation indexes and expiry cleanup MUST be bounded and

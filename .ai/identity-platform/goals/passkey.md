@@ -1,11 +1,10 @@
 # Goal: pkg/passkey
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -57,14 +56,16 @@ involved.
   pre-auth subject, attestation/authenticator selection, resident-key and user-
   verification requirements and exclude existing credentials.
 - Pre-auth registration MUST use a short-lived risk-assessed transaction and
-  MUST not create a durable user/session until verified WebAuthn registration
+  MUST NOT create a durable user/session until verified WebAuthn registration
   and identity creation commit coherently.
 - Credential management MUST list safe metadata, add, rename from caller or
   authenticator hints, update labels and delete with recent authentication and
   last-recovery-method policy.
-- Extensions MUST be typed and allowlisted; unknown outputs MUST be retained
-  only as bounded non-authoritative evidence and MUST not alter identity or
-  authorization silently.
+- Passkey policy MAY consume only extension outputs that `webauthn` returns in
+  its cryptographically verified result under the selected typed profile.
+  Unknown or unselected extension outputs are unavailable to this module and
+  MUST NOT be retained, reconstructed, or used for identity, authorization,
+  discoverability, naming, backup, or risk decisions.
 - Discoverable assertion MUST resolve user handle and credential together and
   must not reveal whether either exists before cryptographic verification.
 - Synced passkey backup eligibility/state and signature-counter behavior MUST
@@ -73,6 +74,26 @@ involved.
 - Official fixtures plus real browser/platform and roaming authenticator
   profiles MUST prove passkey-first, usernameless, conditional UI where claimed,
   rename/delete and recovery behavior.
+- Passkey flows MUST consume a cryptographically verified, versioned WebAuthn
+  result satisfying the exact RP/origin/UV/backup/counter rules in
+  `.ai/identity-platform/PROTOCOL_BASELINES.md`. Passkey-first signup and step-
+  up MUST require UV; conditional UI, discoverability or backup eligibility
+  MUST NOT weaken tenant, RP, identity-status or risk checks.
+- Tenant and RP selection MUST be trusted configuration established before
+  ceremony creation. Opaque user handles and credential resolution MUST bind
+  tenant, RP and identity together; neither browser-supplied RP fields nor a
+  globally unique credential-ID assumption may cross that boundary.
+- Pre-auth signup, authenticated enrollment, assertion/session issuance and
+  deletion MUST use `.ai/identity-platform/TRANSACTION_CONTRACT.md` so ceremony
+  consumption, WebAuthn credential state, identity/passkey mapping and session
+  effects finalize together or have a recoverable outcome. Authentication MUST
+  not be exposed before finalization. Recent-auth deletion MUST use an explicit
+  reauthentication proof, not a boolean freshness assertion.
+- Authentication and signup inputs MUST carry the session-owned persistent or
+  non-persistent remember policy through every pre-auth/risk continuation into
+  the SessionIssuer. No continuation, default or conditional-UI path may
+  upgrade a non-persistent choice to a persistent credential or longer server
+  lifetime.
 
 ## Security and abuse requirements
 

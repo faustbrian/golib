@@ -1,11 +1,10 @@
 # Goal: pkg/identity/risk
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -14,7 +13,7 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/risk/.ai/GOAL.md`
 - Requires: `identity`
 - Consumes existing primitives: `rate-limit`, `audit`, `telemetry`, `identifier`
-- Unlocks after verification: `identity/risk/postgres`, `identity/risk/valkey`, `identity/risk/captcha`, `identity/risk/hibp`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`, `identity/http`
+- Unlocks after verification: `identity/risk/postgres`, `identity/risk/valkey`, `identity/risk/captcha`, `identity/risk/hibp`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`, `identity/http`
 
 ## Start gate
 
@@ -58,24 +57,63 @@ involved.
 - Signals MUST distinguish trusted server facts from spoofable request hints.
   The public contract MUST accept transport-neutral verified network facts;
   it MUST NOT import or depend on `identity/http`. The later HTTP composition
-  supplies facts derived only from its trusted-proxy policy. Risk processing
-  MUST canonicalize IPv4/IPv6, support explicit IPv6 subnet aggregation and
-  avoid storing raw addresses when a scoped digest suffices.
+  supplies facts derived only from its trusted-proxy policy. The selected
+  reference profile MUST canonicalize IPv4/IPv6 and use the full canonical RFC
+  5952 IPv6 address without subnet aggregation. Explicit IPv6 subnet
+  aggregation MAY exist only in a future, separately selected profile. Risk
+  processing MUST avoid storing raw addresses when a scoped digest suffices.
 - Policies MUST define windows, thresholds, subject dimensions, allow/deny/
   throttle/step-up result, retry-after, evidence lifetime, fail behavior and
-  override authorization. Unknown signal/provider outcomes MUST not become a
+  override authorization by consuming the operation-specific risk matrix in
+  `.ai/identity-platform/REFERENCE_CONFIGURATION.md`; implementations MUST NOT
+  duplicate its numeric defaults or silently substitute another profile.
+- Evaluation MUST use the exact precedence `deny > step-up > throttle > allow`.
+  It MUST evaluate every mandatory signal for the selected operation, but MAY
+  skip an expensive signal after an irreversible deny. A skipped signal MUST
+  be recorded as skipped, not unavailable or clean, and MUST NOT weaken the
+  deny decision.
+- Provider unavailable/unknown results MUST use the selected operation's exact
+  matrix outcome in `REFERENCE_CONFIGURATION.md`. In the reference profile,
+  HIBP unavailability for password create/change/reset and CAPTCHA ambiguity
+  for protected signup/signin/reset/credential change are deny; CAPTCHA
+  ambiguity for a low-risk read is step-up only when an independent configured
+  factor exists and otherwise deny. No unavailable result becomes allow or a
   clean assessment.
+- Counter mutation MUST occur exactly at the phase declared by the selected
+  operation profile. `not-committed` MAY be retried within its bounded replay
+  contract; `committed` MUST consume the returned post-mutation snapshot;
+  `unknown` MUST become an unavailable signal and MUST NOT be retried unless an
+  operation-scoped idempotency key proves the retry cannot double-mutate.
 - Counters and evidence MUST have controlled cardinality, per-tenant namespace,
   bounded fan-out and deterministic clock/window boundaries. Attackers MUST
   not create unlimited keys through arbitrary identifiers, headers or actions.
+- Stored keys MUST use a versioned keyed digest with domain separation over the
+  canonical tenant, operation, dimension kind and dimension value. Unkeyed
+  hashes, cross-tenant digest reuse and raw subject/network/provider values in
+  keys MUST be rejected. Rotation MUST preserve active-window and durable-
+  lockout continuity without creating a bypass.
 - Lockout MUST resist denial-of-service against known accounts, preserve a
   safe recovery route, and never expose account existence through response,
   timing or retry metadata.
+- Each configured state class MUST have exactly one mutation authority.
+  PostgreSQL MUST own durable lockout state and the evidence/decision journal;
+  Valkey MUST own only short-lived attempt, velocity, concurrency and challenge
+  windows. Core construction MUST reject overlapping ownership. Valkey loss,
+  eviction or reset MUST NOT clear, shorten or supersede a durable lockout.
 - CAPTCHA and HIBP are signals, not decisions. Their provider-specific evidence
   and unavailable/ambiguous outcomes MUST survive normalization for the action
   policy and audit trail.
 - Trusted administrative overrides MUST be narrow, expiring and audited; a
-  generic context flag MUST not bypass risk evaluation.
+  generic context flag MUST NOT bypass risk evaluation.
+- Every assessment and mutation MUST bind a trusted operation identifier,
+  tenant, action, purpose, subject dimensions, policy version and replay or
+  idempotency identifier as applicable. Caller-supplied labels MUST NOT be
+  treated as trusted operation identity, and replay under another binding MUST
+  fail before state mutation or provider evidence reuse.
+- Risk decisions and state changes MUST emit the applicable canonical events
+  from `.ai/identity-platform/SECURITY_EVENTS.md`; retention, subject erasure,
+  tenant deletion, key rotation and disablement MUST follow
+  `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 
 ## Security and abuse requirements
 

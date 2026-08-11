@@ -1,11 +1,10 @@
 # Goal: pkg/identity/email
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -13,7 +12,7 @@ appear in all capitals, as shown here.
 - Canonical module: `pkg/identity/email`
 - Canonical goal after scaffolding: `pkg/identity/email/.ai/GOAL.md`
 - Requires: `identity`, `identity/delivery`
-- Consumes existing primitives: `capability`, `workflow`, `audit`, `identifier`
+- Consumes existing primitives: `capability`, `capability/postgres`, `workflow`, `audit`, `identifier`
 - Unlocks after verification: `identity/magiclink`, `identity/http`
 
 ## Start gate
@@ -55,18 +54,34 @@ involved.
   provider-specific normalization is deliberately unsupported.
 - Verification request MUST support signup-triggered, require-before-signin and
   manual resend profiles, cooldown/attempt limits and an enumeration-safe
-  public result. Duplicate signup callbacks MUST not disclose account state.
+  public result. Duplicate signup callbacks MUST NOT disclose account state.
 - Verification callback MUST bind user, canonical address, purpose, tenant,
   redirect and token version; consume once; handle link scanners; and expose
   before-verification/after-success hooks with exact transaction semantics.
 - Auto-signin after verification MUST be explicit, risk-assessed and issue a
-  new session only after the address transition commits. It MUST not reuse a
+  new session only after the address transition commits. It MUST NOT reuse a
   stale pre-verification session proof.
 - Email change MUST define current-address confirmation, new-address proof,
   recent-authentication requirement, notification to old address, collision
   race, primary replacement and rollback/unknown delivery outcomes.
 - Removing an address MUST preserve required verified/recovery identifiers and
   revoke outstanding tokens for that address.
+- Verification and change links MUST implement scanner-safe read-only Validate
+  and explicit user confirmation. Validation MUST return only bounded public
+  metadata and MUST NOT consume, reserve, mutate identity or issue a session;
+  Reserve/Apply/Finalize and recovery semantics MUST follow
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`.
+- Address verification/change, capability finalization, identity mutation and
+  any session invalidation MUST produce one coordinated, reconcilable result.
+  Delivery acceptance is not proof of either capability consumption or address
+  ownership.
+- Recent authentication for address replacement/removal MUST be an explicit
+  proof bound to subject, tenant, session/version, action, assurance and maximum
+  age, not a caller boolean or session timestamp. Exact freshness defaults
+  belong to `.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
+- Any explicit auto-signin profile MUST accept and preserve the caller's
+  persistent or non-persistent remember policy through verification and risk/
+  MFA continuation; verification MUST NOT silently create a persistent session.
 
 ## Security and abuse requirements
 

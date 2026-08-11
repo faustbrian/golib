@@ -1,11 +1,10 @@
 # Goal: pkg/sso
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -13,8 +12,8 @@ appear in all capitals, as shown here.
 - Canonical module: `pkg/sso`
 - Canonical goal after scaffolding: `pkg/sso/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`, `organization`
-- Consumes existing primitives: `authentication`, `authorization`, `capability`, `secret-envelope`, `audit`, `workflow`
-- Unlocks after verification: `sso/oidc`, `sso/oauth2`, `sso/saml`, `sso/postgres`, `identity/http`
+- Consumes existing primitives: `authentication`, `authorization`, `capability`, `capability/postgres`, `secret-envelope`, `audit`, `workflow`
+- Unlocks after verification: `sso/domain-verification`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `sso/postgres`, `identity/http`
 
 ## Start gate
 
@@ -36,7 +35,10 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Provider, Protocol, DomainRoute, DiscoveryPolicy, AttributeMapping, JITPolicy, MembershipPolicy, EnforcementPolicy, LoginTransaction, SessionIssuer, Repository, and Hook contracts. Public errors MUST be typed, stable,
+The design MUST define Provider, Protocol, DomainRoute, DomainProof,
+DiscoveryPolicy, AttributeMapping, JITPolicy, MembershipPolicy,
+RepeatLoginPolicy, EnforcementPolicy, LoginTransaction, EnterpriseTokenVault,
+SessionIssuer, Repository, and Hook contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -56,23 +58,55 @@ involved.
   IDs MUST have collision rules.
 - Routing MUST support explicit provider ID, verified-domain discovery,
   configured default and deterministic multiple-provider conflict. Unverified
-  domains, arbitrary email suffixes and hostile discovery metadata MUST not
+  domains, arbitrary email suffixes and hostile discovery metadata MUST NOT
   select a provider.
+- Domain routing and organization linking MUST consume the current uniquely
+  owned `organization` DomainProof contract, including proof version and
+  expiry/revocation state. SSO MUST NOT maintain an independent truth for
+  domain ownership; proof expiry, revocation or transfer MUST invalidate routes
+  and block new transactions at a documented boundary.
 - Login transactions MUST bind protocol, provider, organization, tenant,
   redirect, state/relay state, initiator and expiry and MUST be atomically
   single-use across shared callback URLs.
+  OAuth/OIDC state and SAML RelayState MUST use every `tx.capability.*` role
+  selected for this goal; validation alone grants no authority, and durable
+  reserve/apply/finalize/recover semantics require `capability/postgres`.
 - JIT user provisioning MUST define required stable subject, verified email
   policy, collision/linking behavior, default attributes and rollback/unknown
   outcome. Organization provisioning MUST be idempotent and custom-role mapping
   MUST never create privilege outside configured statements.
+- Repeat login for an existing provider subject MUST run a versioned sync
+  policy for mapped identity attributes, membership and roles. It MUST define
+  authoritative versus application-owned fields, missing/null claims,
+  downgrades/removals, conflict handling and transactional/compensating
+  behavior; stale or unknown claims MUST NOT preserve or create privilege by
+  accident.
+- SSO initiation MUST accept `identity/session`'s `RememberPolicy`; OIDC,
+  OAuth2 and SAML state or relay state MUST bind it and callbacks MUST preserve
+  it unchanged through MFA, JIT and synchronization until session issuance.
+- Directory synchronization MUST expose start, bounded apply, status, cancel
+  and reconciliation contracts for provider-sourced user, group and role
+  deltas. Mapping versions, checkpoints, source-of-truth fields,
+  deprovisioning, local-override conflicts and outcome-unknown recovery MUST be
+  explicit; directory input MUST NOT bypass SCIM or organization authority.
+- `EnterpriseTokenVault` MUST own provider access/refresh token storage,
+  lookup, rotation, serialized refresh, revocation, retention and deletion.
+  Recoverable tokens MUST use `secret-envelope` with tenant/organization/
+  provider/subject/purpose/version context; metadata, errors, hooks and audit
+  MUST remain token-free. Protocol adapters MUST pass tokens only through this
+  contract and MUST NOT persist them independently.
 - SSO enforcement MUST define enrollment, grace, bypass/recovery administrators,
-  provider outage, disabled provider and break-glass audit behavior. It MUST not
+  provider outage, disabled provider and break-glass audit behavior. It MUST NOT
   permanently lock all administrators out.
 - Self-service provider administration MUST expose only organization-owned
   providers and safe metadata; secrets, certificates/private keys and raw IdP
   errors MUST remain redacted.
 - Hooks MUST cover provider and provisioning lifecycle with explicit
-  transaction/compensation behavior and MUST not reinterpret protocol proof.
+  transaction/compensation behavior and MUST NOT reinterpret protocol proof.
+- The composed behavior MUST satisfy enterprise-federation journey 10 in
+  `.ai/identity-platform/END_STATE.md` and the domain routing, deny-by-default
+  JIT mapping and token handling rules in
+  `.ai/identity-platform/REFERENCE_PROFILE.md`.
 
 ## Security and abuse requirements
 

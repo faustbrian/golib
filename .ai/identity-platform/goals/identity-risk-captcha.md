@@ -1,11 +1,10 @@
 # Goal: pkg/identity/risk/captcha
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -31,7 +30,12 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns provider-neutral server-side CAPTCHA verification and normalized risk signals shared by reCAPTCHA, Turnstile, hCaptcha and CaptchaFox adapters. It does not own browser widgets, provider account management, provider-specific fields, or deciding when a challenge is required. Those exclusions MUST remain
+This module owns provider-neutral server-side CAPTCHA verification and
+normalized evidence shared by reCAPTCHA, Turnstile, hCaptcha and CaptchaFox
+adapters. It does not own browser widgets, provider account management,
+provider-specific wire fields, risk decisions, fail-open/fail-closed choices,
+or deciding when a challenge is required. Provider-specific fields MAY survive
+only in a bounded, typed evidence envelope. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
@@ -43,10 +47,31 @@ limits, and extension points MUST have explicit semantics.
 
 ## Required behavior
 
-The implementation and tests MUST normalize success and failure without discarding attributable provider evidence; bind configured hostname/origin, action and site; apply score only when supported; reject replay where providers expose identifiers; distinguish invalid token, provider outage, throttling, cancellation, malformed response, unsupported capability, ambiguous transport outcome and policy mismatch; and never accept client claims without provider verification. Fail-open, fail-closed and step-up choices belong to the consuming risk action, not an adapter default. Every state transition MUST
+The implementation and tests MUST normalize success and failure without discarding attributable provider evidence; bind configured hostname/origin, action and site; apply score only when supported; reject replay where providers expose identifiers; distinguish invalid token, provider outage, throttling, cancellation, malformed response, unsupported capability, ambiguous transport outcome and policy mismatch; and never accept client claims without provider verification. Every adapter MUST return normalized evidence and MUST NOT return allow, deny, throttle or step-up. The consuming operation MUST apply `.ai/identity-platform/REFERENCE_CONFIGURATION.md`: protected signup/signin/reset/credential-change ambiguity is deny; low-risk read ambiguity is step-up only when an independent configured factor exists and otherwise deny; no unavailable or unknown result becomes allow. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
+
+## Package-specific acceptance checklist
+
+- Configuration MUST select an exact provider, API/version and product tier and
+  MUST declare the site key, allowed canonical hostname/origin set, expected
+  action when supported, and whether remote client address disclosure is
+  permitted. Construction MUST fail when a required binding is absent or a
+  configured field is unavailable for that profile.
+- A verification request MUST bind a trusted operation identifier, tenant,
+  action, purpose, subject scope, challenge identifier, provider/profile/site
+  key and replay/idempotency identifier. Tokens and evidence MUST NOT be reused
+  under a different binding. Caller-supplied action, host or origin labels MUST
+  NOT replace trusted server configuration.
+- Normalized evidence MUST retain provider, API/version, tier, site binding,
+  action/hostname/origin availability and match status, challenge timestamp,
+  score availability/value, provider reason codes and transport outcome. It
+  MUST distinguish absent from empty and MUST NOT fabricate unsupported fields.
+- Verification, rejection, replay, provider-unavailable and binding-mismatch
+  events MUST use `.ai/identity-platform/SECURITY_EVENTS.md`; challenge expiry,
+  tenant/site disablement and secret rotation MUST follow
+  `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 
 ## Security and abuse requirements
 

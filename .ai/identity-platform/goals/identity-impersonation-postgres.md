@@ -1,8 +1,10 @@
 # Goal: pkg/identity/impersonation/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -34,11 +36,19 @@ authoritative grant store.
 - Grant creation MUST atomically persist actor, target, tenant, reason,
   approval reference, bounded scope, issue/expiry time and policy version with
   the required outbox/audit linkage.
+- The schema MUST persist the domain state-machine state/version, immutable
+  request inputs, authority decision/policy version and approval records.
+  Approval uniqueness, eligible-approver separation and quorum MUST be
+  constraint- or lock-enforced under concurrent approval and activation.
 - Reasons and approval references MUST be length-bounded and access-controlled;
   administrator list/search MUST be tenant-scoped, stable-paginated and
   index-backed without making reason text an unrestricted search oracle.
 - Start, stop, expire, actor disable, target disable, explicit revoke and
   global session revoke MUST have versioned single-winner transitions.
+- Authority or approval invalidation MUST race safely with activation and use;
+  the authoritative state/version read used by impersonation-session validation
+  MUST run on every use and MUST NOT permit a stale allow after revoke, stop or
+  invalidation commits. Store outage during validation MUST fail closed.
 - Session references MUST preserve immutable actor/target/grant lineage and
   allow revocation propagation without storing raw session tokens.
 - Nested grants MUST be rejected by the domain contract and protected by
@@ -50,7 +60,9 @@ authoritative grant store.
 - Migrations MUST cover empty and populated stores, mixed binaries,
   interruption/resume, backup/restore and rollback boundaries.
 - Real PostgreSQL races MUST prove grant uniqueness, revoke-versus-use,
-  expiry, actor/target disable, list isolation and ambiguous disconnect cases.
+  approval-versus-policy change, quorum activation, expiry, actor/target
+  disable, online impersonation-session validation, list isolation and
+  ambiguous disconnect cases.
 - Query and lock benchmarks, exact coverage/mutation, race, clean-consumer,
   API/docs/changelog, vulnerability/secret/license/SBOM and provenance gates
   are REQUIRED.

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "providers": {
+    "version": "provider-catalog-v1",
+    "ids": [
+      "apple",
+      "atlassian",
+      "auth0",
+      "cognito",
+      "discord",
+      "dropbox",
+      "facebook",
+      "figma",
+      "github",
+      "gitlab",
+      "google",
+      "gumroad",
+      "hubspot",
+      "huggingface",
+      "kakao",
+      "keycloak",
+      "kick",
+      "line",
+      "linear",
+      "linkedin",
+      "microsoft",
+      "microsoft-entra-id",
+      "naver",
+      "notion",
+      "okta",
+      "patreon",
+      "paybin",
+      "paypal",
+      "polar",
+      "railway",
+      "reddit",
+      "roblox",
+      "salesforce",
+      "slack",
+      "spotify",
+      "tiktok",
+      "twitch",
+      "twitter",
+      "vercel",
+      "vk",
+      "wechat",
+      "yandex",
+      "zoom"
+    ],
+    "sha256": "fa484e1d5b1a0584622da649c1f691b32d34192cd374e9637bf7d04ee3cd9266"
+  },
+  "captcha": {
+    "version": "captcha-catalog-v1",
+    "ids": [
+      "captchafox",
+      "hcaptcha",
+      "recaptcha",
+      "turnstile"
+    ],
+    "sha256": "fd87b492fb9023b6eb4abb2bed0c00b6f9e0e187f6b98efc7f5bfb0688bc87d7"
+  }
+}

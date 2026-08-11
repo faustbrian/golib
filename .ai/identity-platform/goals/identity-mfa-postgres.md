@@ -1,8 +1,10 @@
 # Goal: pkg/identity/mfa/postgres
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -10,7 +12,7 @@ The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
 - Canonical module: `pkg/identity/mfa/postgres`
 - Canonical goal after scaffolding: `pkg/identity/mfa/postgres/.ai/GOAL.md`
 - Requires: `identity/mfa`, `identity/postgres`, `webauthn/postgres`
-- Consumes existing primitives: `postgres`, `migrations`, `secret-envelope`, `outbox`, `audit`
+- Consumes existing primitives: `postgres`, `migrations`, `capability/postgres`, `secret-envelope`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 
 ## Start gate and objective
@@ -25,9 +27,12 @@ device store required by MFA.
 The adapter owns factor/enrollment schema, encrypted TOTP secrets, factor
 versions, last accepted TOTP step, recovery-code digests, trusted-device
 digests/metadata, challenge attempt state, locking, cleanup, migration and
-  reconciliation. It stores only references to WebAuthn security-key
-  credentials owned by `webauthn/postgres`; it does not verify factors, decide
-  step-up, issue sessions or duplicate WebAuthn credential records.
+reconciliation. It owns the durable continuation state and its atomic completion
+as the `identity/mfa` store participant, while `capability/postgres` exclusively
+owns capability reservation, finalization and recovery rows. It stores only
+references to WebAuthn security-key credentials owned by `webauthn/postgres`;
+it does not verify factors, decide step-up, issue sessions or duplicate WebAuthn
+credential records.
 
 ## Required behavior and evidence
 
@@ -49,6 +54,32 @@ digests/metadata, challenge attempt state, locking, cleanup, migration and
   trusted devices and emit the required session-revocation/outbox effects.
 - Real PostgreSQL tests and migrations MUST cover all races, unknown commits,
   key rotation, populated rows, mixed binaries, cleanup and backup/restore.
+- The adapter MUST persist a versioned MFA continuation supplied or advanced by
+  the owning MFA service and bound to tenant, user, source session/pre-auth
+  transaction, required assurance, allowed methods, attempts, expiry and the
+  original persistent/non-persistent remember policy. It MUST implement only
+  the public continuation contract defined by `identity/mfa` and remain blocked
+  if that contract is absent. Continuations MUST be digest-protected, single-
+  completion and unusable as authenticated sessions before that service
+  finalizes them; the adapter MUST NOT alter remember policy.
+- Factor activation/replacement/removal, continuation completion, recovery-code
+  consumption, trusted-device issuance/revocation and required session effects
+  MUST implement `.ai/identity-platform/TRANSACTION_CONTRACT.md`; unknown
+  commits MUST be recoverable without replaying a factor or code.
+- Continuation completion MUST treat capability validation as read-only and MUST
+  use the enlisted `capability/postgres` participant to reserve the existing
+  proof before applying the MFA transition and invoking the transaction-aware
+  session issuer; it MUST finalize the capability and continuation in the same
+  authoritative unit-of-work commit. The adapter MUST NOT create a capability
+  row, consume one in a standalone transaction, or infer completion from a
+  pre-consumed proof.
+- Trusted devices MUST bind a random digest-stored credential to tenant, user,
+  device, factor/global compromise versions and the MFA-service policy for the
+  assurance it may satisfy. They MUST have explicit expiry, rotation and
+  individual/global revocation, MUST never bypass a method or action that
+  requires fresh user verification, and MUST follow authority invalidation in
+  `.ai/identity-platform/LIFECYCLE_CASCADES.md` with audit outcomes from
+  `.ai/identity-platform/SECURITY_EVENTS.md`.
 
 Exact coverage/mutation, race, query/lock benchmarks, clean-consumer,
 API/docs/changelog and supply-chain gates are REQUIRED. Recoverable plaintext,

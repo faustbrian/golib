@@ -1,11 +1,10 @@
 # Goal: pkg/identity/mfa
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -13,7 +12,7 @@ appear in all capitals, as shown here.
 - Canonical module: `pkg/identity/mfa`
 - Canonical goal after scaffolding: `pkg/identity/mfa/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/otp`, `identity/risk`, `webauthn`
-- Consumes existing primitives: `password`, `secret-envelope`, `audit`, `rate-limit`
+- Consumes existing primitives: `password`, `capability`, `capability/postgres`, `secret-envelope`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/mfa/postgres`, `identity/http`
 
 ## Start gate
@@ -36,10 +35,19 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Factor, Enrollment, TOTPProfile, SecurityKeyProfile, WebAuthnVerifier, Challenge, RecoverySet, TrustedDevice, StepUpPolicy, Store, and Service contracts. Public errors MUST be typed, stable,
+The design MUST define Factor, Enrollment, TOTPProfile, SecurityKeyProfile, WebAuthnVerifier, Challenge, PartialAuthContinuation, ContinuationState, ContinuationProof, RecoverySet, TrustedDevice, StepUpPolicy, Store, and Service contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
+
+`PartialAuthContinuation` MUST carry the primary-authentication proof identity,
+tenant, subject, allowed factor methods, authentication-policy version,
+resolved `identity/session.RememberPolicy`, exact purpose and audience, issued
+and expiry times, attempt budget, and an opaque one-time identifier. It MUST
+carry no reusable primary credential or full session token. `ContinuationState`
+MUST expose a closed state machine equivalent to `pending`, `challenged`,
+`completed`, `expired`, and `revoked`, with typed transitions and terminal-state
+errors; implementations MUST NOT infer states from nullable fields.
 
 ## Required behavior
 
@@ -61,9 +69,11 @@ involved.
   policy.
 - WebAuthn security-key factors MUST use verified non-discoverable or explicitly
   allowed discoverable assertions from `webauthn`, bind the credential to the
-  pending factor/user/RP and persist cryptographic state only through
-  `webauthn/postgres`. A passkey sign-in credential MUST not automatically
-  become an enrolled second factor.
+  pending factor/user/RP and persist cryptographic state only through the
+  public `webauthn.Store` and verified-result contracts. The core MUST NOT
+  import or require `webauthn/postgres`; concrete WebAuthn/MFA store composition
+  belongs to their adapters and `identity/reference`. A passkey sign-in
+  credential MUST NOT automatically become an enrolled second factor.
 - Recovery codes MUST be unbiased, shown once, digest-stored, atomically
   single-use, listable only as safe status/count and fully replaced on
   regeneration. Viewing plaintext codes after creation is forbidden.
@@ -72,6 +82,31 @@ involved.
   insufficient.
 - Challenge state MUST cap total attempts across factor methods and account for
   concurrency so switching methods cannot reset lockout.
+- A primary-authentication flow that requires MFA MUST return only a
+  `PartialAuthContinuation`; it MUST NOT call `identity/session.SessionIssuer`,
+  set an authenticated session cookie, or return a bearer session before the
+  required MFA policy completes. The continuation MUST be bound through
+  `capability` to one tenant, subject, purpose, audience/origin, policy version,
+  remember policy and `MaxUses=1`, and substitution of any bound value MUST
+  fail closed.
+- Continuation validation MUST be read-only. Factor verification MUST
+  atomically advance the stored continuation under the shared attempt budget;
+  successful policy completion MUST reserve its one-time capability, apply the
+  final MFA transition, invoke the transaction-aware
+  `identity/session.SessionIssuer` with the original authenticated proof and
+  unchanged `RememberPolicy`, and finalize the capability and continuation in
+  the same authoritative commit. Exactly one caller may commit that operation.
+  Concurrent, replayed, expired, revoked, already-completed, cross-purpose or
+  cross-audience attempts MUST NOT issue a session or reset the attempt budget.
+  Standalone capability consumption or session issuance outside that operation
+  is forbidden.
+- Continuation expiry MUST be absolute and bounded independently of OTP, TOTP
+  or WebAuthn challenge expiry. Expiry, exhaustion, primary-proof invalidation,
+  factor-policy change and administrator revocation MUST transition or render
+  the continuation terminal and require primary authentication to restart.
+  Recovery after an unknown durable outcome MUST determine whether completion
+  and session issuance committed before allowing another attempt; inability to
+  prove non-completion MUST fail closed.
 - Factor list, rename/remove, recovery and administrator reset MUST preserve at
   least one policy-compliant recovery path, revoke relevant sessions/trusted
   devices and emit immutable audit.

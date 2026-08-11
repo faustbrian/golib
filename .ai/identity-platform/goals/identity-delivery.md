@@ -1,11 +1,10 @@
 # Goal: pkg/identity/delivery
 
-The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
-**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
-**OPTIONAL** in this document are to be interpreted as described in BCP 14
-[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
-[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
-appear in all capitals, as shown here.
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+"SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+"OPTIONAL" in this document are to be interpreted as described in BCP 14
+[RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
+shown here.
 
 ## Execution metadata
 
@@ -14,7 +13,7 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/delivery/.ai/GOAL.md`
 - Requires: None; this root execution unit may be claimed when its existing primitive audit is current.
 - Consumes existing primitives: `workflow`, `outbox`, `audit`, `telemetry`
-- Unlocks after verification: `identity/password`, `identity/email`, `identity/otp`, `identity/phone`, `organization`, `identity/http`
+- Unlocks after verification: `identity/delivery/postgres`, `identity/password`, `identity/email`, `identity/otp`, `identity/phone`, `organization`, `identity/http`
 
 ## Start gate
 
@@ -25,13 +24,13 @@ assignment whose rendered prerequisites or scope differs from the inventory.
 
 ## Objective and observable completion
 
-Build an independently releasable `pkg/identity/delivery` module that owns provider-neutral identity message intents, templates, locale selection, enqueueing, deduplication, and delivery-result contracts. Completion
+Build an independently releasable `pkg/identity/delivery` module that owns provider-neutral identity message intents, templates, channel-template locale availability, enqueueing, deduplication, and delivery-result contracts. Completion
 requires executable proof of the behaviors below through its public API and,
 where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns provider-neutral identity message intents, templates, locale selection, enqueueing, deduplication, and delivery-result contracts. It does not own SMTP, SMS, push, vendor SDKs, marketing campaigns, and UI rendering. Those exclusions MUST remain
+This module owns provider-neutral identity message intents, templates, channel-template locale availability, enqueueing, deduplication, and delivery-result contracts. It does not own user locale negotiation, SMTP, SMS, push, vendor SDKs, marketing campaigns, and UI rendering. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
@@ -59,7 +58,13 @@ involved.
   enqueue.
 - Rendering MUST have deterministic locale fallback, context-aware escaping,
   plain-text behavior and no secret-bearing diagnostic output. Template updates
-  MUST not change already enqueued message semantics without versioning.
+  MUST NOT change already enqueued message semantics without versioning.
+- Delivery MUST consume a caller-supplied canonical locale and ordered fallback
+  chain through its transport-neutral message input; its own fallback is
+  limited to selecting an available versioned channel template from that
+  chain. It MUST NOT negotiate request, session, cookie or header locale, and
+  its renderer owns escaping only for the declared final message-channel
+  context.
 - Enqueue MUST return a stable intent/attempt ID, deduplicate by bounded
   idempotency scope and distinguish queued from delivered. Enumeration-safe
   workflows MUST be able to enqueue a no-op-equivalent result without exposing
@@ -71,6 +76,17 @@ involved.
   tracing and delivery-provider deletion boundaries MUST be explicit.
 - Test capture MUST use the public Sender/Queue contracts and be impossible to
   select accidentally in production configuration.
+- Durable enqueue, lease, retry, deduplication and outcome history require a
+  named durable queue adapter; the core MUST NOT imply process memory is a
+  production durability boundary. Adapter participation in a workflow follows
+  `.ai/identity-platform/TRANSACTION_CONTRACT.md`, including an outbox or
+  reserve/finalize handoff and explicit unknown outcomes.
+- `Sender` MUST remain the bounded application/provider seam promised by
+  `.ai/identity-platform/END_STATE.md`: it accepts an already rendered attempt
+  under a deadline and reports attributable outcomes, but does not own workflow
+  policy, capability consumption, recipient discovery, retries or durable
+  queue orchestration. Production configuration MUST reject a missing Sender
+  and the capture Sender.
 
 ## Security and abuse requirements
 
