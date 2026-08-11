@@ -15,13 +15,15 @@ AUTH_COUNT ?= 10
 AUTH_TIME ?= 10x
 AUTH_PATTERN ?= ^BenchmarkEquivalentAuthenticated(SynchronousProduce|ConnectProduceClose)$$
 
-.PHONY: analyze auth-benchmark auth-capture benchmark capture environment rebalance-benchmark rebalance-capture resource-benchmark resource-capture test tls-benchmark tls-capture verify
+.PHONY: analyze auth-benchmark auth-capture benchmark capture environment interoperability rebalance-benchmark rebalance-capture resource-benchmark resource-capture test tls-benchmark tls-capture verify
 
 test:
 	@$(GO) test ./...
 
 verify:
 	@$(GO) test -tags=integration -run '^Test(Equivalent(Producer(Batch)?|AsynchronousProducer|MultiPartitionProducer|Consumer|CrossPartitionConsumer|ConsumerRebalance|TLSProducer|AuthenticatedProducer|TransactionalProducer|ConsumeTransformProduce|Replay|Inspection|InspectionReconnect|InspectionIdleResource)Outcomes|Benchmark(MultiPartitionRecordBytes|ConsumerOperationBytes|ConsumerTopicReuse|CrossPartitionOperationBytes)|RunCrossPartitionHandlersConcurrency|TransactionalBenchmarkRecordBytes)$$' -count=1
+
+interoperability: verify
 
 benchmark:
 	@$(GO) test -tags=integration -run '^$$' -bench '$(BENCH_PATTERN)' \
