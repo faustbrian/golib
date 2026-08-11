@@ -71,6 +71,7 @@ func runQueryConformance(ctx context.Context, config ConformanceConfig) error {
 	documents := []fixtureDocument{
 		{id: "term-exact", version: 1, source: `{"scenario":"term","keyword":"exact"}`},
 		{id: "term-other", version: 1, source: `{"scenario":"term","keyword":"exact-suffix"}`},
+		{id: "term-array", version: 1, source: `{"scenario":"term-array","keyword":["other","exact"]}`},
 		{id: "exists-null", version: 1, source: `{"scenario":"exists","exists_value":null}`},
 		{id: "exists-empty", version: 1, source: `{"scenario":"exists","exists_value":[]}`},
 		{id: "exists-null-array", version: 1, source: `{"scenario":"exists","exists_value":[null]}`},
@@ -86,15 +87,24 @@ func runQueryConformance(ctx context.Context, config ConformanceConfig) error {
 			return err
 		}
 	}
+	allIDs := make([]string, len(documents))
+	for position, fixture := range documents {
+		allIDs[position] = fixture.id
+	}
+	slices.Sort(allIDs)
+	if err := expectIDs(ctx, config, config.TenantA, search.MatchAllQuery{}, 20, 0,
+		allIDs, "match all"); err != nil {
+		return err
+	}
 
 	if err := expectIDs(ctx, config, config.TenantA,
 		search.TermQuery{Field: "keyword", Value: search.StringValue("exact")}, 20, 0,
-		[]string{"term-exact"}, "exact term"); err != nil {
+		[]string{"term-array", "term-exact"}, "exact term"); err != nil {
 		return err
 	}
 	if err := expectIDs(ctx, config, config.TenantA,
 		search.PrefixQuery{Field: "keyword", Prefix: "exact"}, 20, 0,
-		[]string{"term-exact", "term-other"}, "keyword prefix"); err != nil {
+		[]string{"term-array", "term-exact", "term-other"}, "keyword prefix"); err != nil {
 		return err
 	}
 	if err := expectIDs(ctx, config, config.TenantA,
@@ -109,14 +119,32 @@ func runQueryConformance(ctx context.Context, config ConformanceConfig) error {
 		[]string{"bool-match"}, "should-only bool default"); err != nil {
 		return err
 	}
+	boolScenario := search.TermQuery{Field: "scenario", Value: search.StringValue("bool")}
+	wanted := search.TermQuery{Field: "keyword", Value: search.StringValue("wanted")}
+	other := search.TermQuery{Field: "keyword", Value: search.StringValue("other")}
+	for scenario, query := range map[string]search.Query{
+		"bool must":             search.BoolQuery{Must: []search.Query{boolScenario, wanted}},
+		"bool filter":           search.BoolQuery{Filter: []search.Query{boolScenario, wanted}},
+		"bool must-not":         search.BoolQuery{Must: []search.Query{boolScenario}, MustNot: []search.Query{other}},
+		"bool explicit minimum": search.BoolQuery{Should: []search.Query{boolScenario, wanted}, MinimumShouldMatch: 2},
+	} {
+		if err := expectIDs(ctx, config, config.TenantA, query, 20, 0, []string{"bool-match"}, scenario); err != nil {
+			return err
+		}
+	}
 	if err := expectIDs(ctx, config, config.TenantA,
 		search.TermQuery{Field: "scenario", Value: search.StringValue("page")}, 2, 0,
 		[]string{"page-a", "page-b"}, "first offset page"); err != nil {
 		return err
 	}
-	return expectIDs(ctx, config, config.TenantA,
+	if err := expectIDs(ctx, config, config.TenantA,
 		search.TermQuery{Field: "scenario", Value: search.StringValue("page")}, 2, 2,
-		[]string{"page-c"}, "second offset page")
+		[]string{"page-c"}, "second offset page"); err != nil {
+		return err
+	}
+	return expectIDsWithDirection(ctx, config, config.TenantA,
+		search.TermQuery{Field: "scenario", Value: search.StringValue("page")}, 3, 0,
+		search.Descending, []string{"page-c", "page-b", "page-a"}, "descending ID order")
 }
 
 func runTenantConformance(ctx context.Context, config ConformanceConfig) error {
@@ -145,19 +173,21 @@ func runTenantConformance(ctx context.Context, config ConformanceConfig) error {
 
 func runVersionConformance(ctx context.Context, config ConformanceConfig) error {
 	fixture := fixtureDocument{id: "version-delete", version: 1, source: `{"scenario":"version"}`}
-	if err := writeFixture(ctx, config, config.TenantA, fixture); err != nil {
-		return err
+	document, err := search.NewDocument(config.TenantA, config.LogicalIndex, fixture.id, fixture.version,
+		json.RawMessage(fixture.source), config.Limits)
+	if err != nil {
+		return fmt.Errorf("searchtest conformance: version document fixture: %w", err)
+	}
+	written, err := config.Adapter.Write(ctx, search.IndexDocument(document), config.Refresh)
+	if err != nil || written.State != search.OutcomeApplied {
+		return fmt.Errorf("searchtest conformance: write %s: outcome=%#v error=%v", fixture.id, written, err)
 	}
 	deleted, err := config.Adapter.Write(ctx,
 		search.DeleteDocument(config.TenantA, config.LogicalIndex, fixture.id, 3), config.Refresh)
 	if err != nil || deleted.State != search.OutcomeApplied {
 		return fmt.Errorf("searchtest conformance: delete before stale write: outcome=%#v error=%v", deleted, err)
 	}
-	document, err := search.NewDocument(config.TenantA, config.LogicalIndex, fixture.id, 2,
-		json.RawMessage(fixture.source), config.Limits)
-	if err != nil {
-		return fmt.Errorf("searchtest conformance: stale document fixture: %w", err)
-	}
+	document.Version = 2
 	stale, err := config.Adapter.Write(ctx, search.IndexDocument(document), config.Refresh)
 	if stale.State != search.OutcomeVersionConflict {
 		return fmt.Errorf("searchtest conformance: stale write after delete: outcome=%#v error=%v", stale, err)
@@ -166,24 +196,27 @@ func runVersionConformance(ctx context.Context, config ConformanceConfig) error 
 }
 
 func runBulkConformance(ctx context.Context, config ConformanceConfig) error {
-	if err := writeFixture(ctx, config, config.TenantA, fixtureDocument{
-		id: "bulk-conflict", version: 2, source: `{"scenario":"bulk"}`,
-	}); err != nil {
-		return err
+	fixtures := []fixtureDocument{
+		{id: "bulk-conflict", version: 2, source: `{"scenario":"bulk"}`},
+		{id: "bulk-applied", version: 1, source: `{"scenario":"bulk"}`},
+		{id: "bulk-conflict", version: 1, source: `{"scenario":"bulk"}`},
 	}
-	applied, err := search.NewDocument(config.TenantA, config.LogicalIndex, "bulk-applied", 1,
-		json.RawMessage(`{"scenario":"bulk"}`), config.Limits)
-	if err != nil {
-		return fmt.Errorf("searchtest conformance: bulk applied fixture: %w", err)
+	documents := make([]search.Document, len(fixtures))
+	for position, fixture := range fixtures {
+		document, err := search.NewDocument(config.TenantA, config.LogicalIndex, fixture.id, fixture.version,
+			json.RawMessage(fixture.source), config.Limits)
+		if err != nil {
+			return fmt.Errorf("searchtest conformance: bulk document fixture: %w", err)
+		}
+		documents[position] = document
 	}
-	conflict, err := search.NewDocument(config.TenantA, config.LogicalIndex, "bulk-conflict", 1,
-		json.RawMessage(`{"scenario":"bulk"}`), config.Limits)
-	if err != nil {
-		return fmt.Errorf("searchtest conformance: bulk conflict fixture: %w", err)
+	written, err := config.Adapter.Write(ctx, search.IndexDocument(documents[0]), config.Refresh)
+	if err != nil || written.State != search.OutcomeApplied {
+		return fmt.Errorf("searchtest conformance: write bulk-conflict: outcome=%#v error=%v", written, err)
 	}
 	operations := []search.WriteOperation{
-		search.IndexDocument(applied),
-		search.IndexDocument(conflict),
+		search.IndexDocument(documents[1]),
+		search.IndexDocument(documents[2]),
 		search.DeleteDocument(config.TenantA, config.LogicalIndex, "bulk-missing", 1),
 	}
 	result, err := config.Adapter.Bulk(ctx, search.BulkRequest{Operations: operations, Refresh: config.Refresh})
@@ -227,9 +260,15 @@ func writeFixture(ctx context.Context, config ConformanceConfig, tenant string, 
 func expectIDs(ctx context.Context, config ConformanceConfig, tenant string, query search.Query,
 	size, offset int, want []string, scenario string,
 ) error {
+	return expectIDsWithDirection(ctx, config, tenant, query, size, offset, search.Ascending, want, scenario)
+}
+
+func expectIDsWithDirection(ctx context.Context, config ConformanceConfig, tenant string, query search.Query,
+	size, offset int, direction search.SortDirection, want []string, scenario string,
+) error {
 	result, err := config.Adapter.Search(ctx, search.Request{
 		Tenant: tenant, Index: config.LogicalIndex, Query: query,
-		Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}},
+		Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: direction}},
 		Page: search.OffsetPage{Size: size, Offset: offset},
 	})
 	if err != nil {

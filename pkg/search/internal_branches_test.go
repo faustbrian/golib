@@ -72,7 +72,7 @@ func TestInternalMarkerAndFingerprintModels(t *testing.T) {
 func TestInternalQueryValidationBranches(t *testing.T) {
 	limits := DefaultLimits()
 	number, _ := NumberValue("1")
-	base := Request{Tenant: "tenant", Index: "index", Query: MatchAllQuery{}, Sort: []Sort{{Field: "_id", Direction: Ascending}}, Page: OffsetPage{Size: 1}}
+	base := Request{Tenant: "tenant", Index: "index", Query: MatchAllQuery{}, Sort: []Sort{{Field: DocumentIDSortField, Direction: Ascending}}, Page: OffsetPage{Size: 1}}
 	if err := base.Validate(AllCapabilities(), Limits{}); !errors.Is(err, ErrInvalidQuery) {
 		t.Fatalf("invalid limits error = %v", err)
 	}

@@ -12,6 +12,15 @@ version, within an application retry/time budget. Split overload retries and
 add jitter so partial failures do not amplify load. Unknown items require
 reconciliation. Conflicts usually mean a newer projection already won.
 
-For a rebuild, create a new physical index and replay the source of truth or
-durable event history. Verify it, cut the alias atomically, retain rollback,
-then delete the old index after the documented window.
+For a rebuild, atomically capture a transactionally consistent source snapshot
+identity and a commit-ordered durable outbox cursor in the authoritative store.
+Persist both before scanning. Create a new physical index, scan the immutable
+snapshot in stable key order, then replay only outbox commits after the captured
+cursor. Persist scan and replay checkpoints so interruption resumes the same
+snapshot instead of mixing time boundaries. Verify the complete definition,
+IDs, versions, and canonical source digests; reconcile to zero drift; hold the
+application write fence across a fresh verification and `CutoverAlias`; retain
+the rollback generation; and resolve any ambiguous alias/checkpoint outcome
+before proceeding. Delete the old index only after the retention/backup window,
+all old-version readers and PITs are drained, no alias references it, and a
+fresh zero-drift check passes.

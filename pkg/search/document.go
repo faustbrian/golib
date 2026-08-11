@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"unicode/utf8"
 )
 
 var (
@@ -36,19 +37,19 @@ type Document struct {
 
 // NewDocument validates and copies a bounded JSON object document.
 func NewDocument(tenant, index, id string, version uint64, source json.RawMessage, limits Limits) (Document, error) {
-	if tenant == "" {
+	if tenant == "" || !utf8.ValidString(tenant) {
 		return Document{}, ErrTenantRequired
 	}
 	if len(tenant) > limits.MaxTenantBytes {
 		return Document{}, ErrTenantTooLarge
 	}
-	if index == "" {
+	if index == "" || !utf8.ValidString(index) {
 		return Document{}, ErrIndexRequired
 	}
 	if len(index) > limits.MaxIndexBytes {
 		return Document{}, ErrIndexTooLarge
 	}
-	if id == "" {
+	if id == "" || !utf8.ValidString(id) {
 		return Document{}, ErrIDRequired
 	}
 	if len(id) > limits.MaxIDBytes {
@@ -85,14 +86,17 @@ func NewDocument(tenant, index, id string, version uint64, source json.RawMessag
 }
 
 func validateBoundedJSONObject(value json.RawMessage, maximumDepth int, remainingNodes *int) error {
+	if !utf8.Valid(value) {
+		return errMalformedJSONObject
+	}
 	decoder := json.NewDecoder(bytes.NewReader(value))
 	decoder.UseNumber()
 	opening, err := decoder.Token()
 	if err != nil {
 		return errMalformedJSONObject
 	}
-	delimiter, ok := opening.(json.Delim)
-	if !ok || delimiter != '{' {
+	delimiter, _ := opening.(json.Delim)
+	if delimiter != '{' {
 		return errMalformedJSONObject
 	}
 	if err := validateJSONContainer(decoder, delimiter, 1, maximumDepth, remainingNodes); err != nil {

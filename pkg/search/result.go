@@ -69,7 +69,8 @@ func NewResult(hits []Hit, total Total, aggregations, suggestions map[string]jso
 	}
 	copyHits := make([]Hit, len(hits))
 	for index, hit := range hits {
-		if hit.Index == "" || hit.ID == "" || hit.Version == 0 || hit.Score != nil && (math.IsNaN(*hit.Score) || math.IsInf(*hit.Score, 0)) {
+		if hit.Index == "" || hit.ID == "" || !utf8.ValidString(hit.Index) || !utf8.ValidString(hit.ID) ||
+			hit.Version == 0 || hit.Score != nil && (math.IsNaN(*hit.Score) || math.IsInf(*hit.Score, 0)) {
 			return Result{}, ErrInvalidResult
 		}
 		if len(hit.Source) > 0 && !json.Valid(hit.Source) {
@@ -106,7 +107,7 @@ func validDiagnostics(value Diagnostics) bool {
 	if value.Took < 0 || !validDiagnosticIdentifier(value.Backend, MaxFieldNameBytes, true) ||
 		!validDiagnosticIdentifier(value.RequestID, DefaultLimits().MaxIDBytes, false) ||
 		shards.Total < 0 || shards.Successful < 0 || shards.Skipped < 0 || shards.Failed < 0 ||
-		shards.Successful > shards.Total || shards.Skipped > shards.Total-shards.Successful ||
+		shards.Successful > shards.Total ||
 		shards.Failed != shards.Total-shards.Successful-shards.Skipped ||
 		(value.TimedOut || shards.Failed > 0 || len(value.Failures) > 0) && !value.Partial {
 		return false

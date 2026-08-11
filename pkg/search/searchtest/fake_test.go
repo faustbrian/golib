@@ -27,7 +27,7 @@ func TestFakeProvidesDeterministicTenantIsolatedContractBehavior(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	request := search.Request{Tenant: "tenant-a", Index: "events", Query: search.TermQuery{Field: "status", Value: search.StringValue("delivered")}, Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}}, Page: search.OffsetPage{Size: 10}}
+	request := search.Request{Tenant: "tenant-a", Index: "events", Query: search.TermQuery{Field: "status", Value: search.StringValue("delivered")}, Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}}, Page: search.OffsetPage{Size: 10}}
 	searchResult, err := fake.Search(t.Context(), request)
 	if err != nil {
 		t.Fatalf("Search() error = %v", err)
@@ -66,7 +66,7 @@ func TestFakeKeepsCompositeDocumentIdentitiesDistinct(t *testing.T) {
 			Tenant: document.Tenant,
 			Index:  document.Index,
 			Query:  search.MatchAllQuery{},
-			Sort:   []search.Sort{{Field: "_id", Direction: search.Ascending}},
+			Sort:   []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
 			Page:   search.OffsetPage{Size: 10},
 		})
 		if searchErr != nil {
@@ -106,7 +106,7 @@ func TestFakeEnforcesExternalVersionsAndReportsPerItemOutcomes(t *testing.T) {
 	if capabilities.FullText || capabilities.Cursor || !capabilities.Term || !capabilities.ExternalVersion {
 		t.Fatalf("Capabilities() = %#v", capabilities)
 	}
-	request := search.Request{Tenant: "tenant-a", Index: "events", Query: search.FullTextQuery{Fields: []string{"value"}, Text: "1"}, Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}}, Page: search.OffsetPage{Size: 1}}
+	request := search.Request{Tenant: "tenant-a", Index: "events", Query: search.FullTextQuery{Fields: []string{"value"}, Text: "1"}, Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}}, Page: search.OffsetPage{Size: 1}}
 	if _, err := fake.Search(t.Context(), request); !errors.Is(err, search.ErrUnsupported) {
 		t.Fatalf("Search() error = %v, want ErrUnsupported", err)
 	}
@@ -188,7 +188,7 @@ func TestFakeMatchesOpenSearchMinimumShouldMatchDefaults(t *testing.T) {
 				Tenant: "tenant-a",
 				Index:  "events",
 				Query:  test.query,
-				Sort:   []search.Sort{{Field: "_id", Direction: search.Ascending}},
+				Sort:   []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
 				Page:   search.OffsetPage{Size: 10},
 			})
 			if searchErr != nil {
@@ -231,7 +231,7 @@ func TestFakeExistsMatchesOpenSearchIndexedValueSemantics(t *testing.T) {
 		Tenant: "tenant-a",
 		Index:  "events",
 		Query:  search.ExistsQuery{Field: "value"},
-		Sort:   []search.Sort{{Field: "_id", Direction: search.Ascending}},
+		Sort:   []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
 		Page:   search.OffsetPage{Size: 10},
 	})
 	if err != nil {
@@ -245,6 +245,30 @@ func TestFakeExistsMatchesOpenSearchIndexedValueSemantics(t *testing.T) {
 	want := []string{"e-valued-array", "f-scalar"}
 	if !slices.Equal(got, want) {
 		t.Fatalf("Search() IDs = %v, want %v", got, want)
+	}
+}
+
+func TestFakePrefixRejectsArraysWithoutMatchingString(t *testing.T) {
+	t.Parallel()
+
+	limits := search.DefaultLimits()
+	fake, err := searchtest.NewFake(limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	document := mustDocument(t, "tenant-a", "events", "array", 1, `{"names":["alpha","beta"]}`, limits)
+	if _, err := fake.Write(t.Context(), search.IndexDocument(document), search.RefreshNone); err != nil {
+		t.Fatal(err)
+	}
+	result, err := fake.Search(t.Context(), search.Request{
+		Tenant: "tenant-a", Index: "events", Query: search.PrefixQuery{Field: "names", Prefix: "z"},
+		Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}}, Page: search.OffsetPage{Size: 10},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Hits()) != 0 {
+		t.Fatalf("prefix non-match returned %#v", result.Hits())
 	}
 }
 

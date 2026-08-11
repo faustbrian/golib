@@ -15,7 +15,7 @@ func TestRequestFingerprintIsDeterministicAndBindsBehavior(t *testing.T) {
 	request := search.Request{
 		Tenant: "tenant-a", Index: "events",
 		Query:        search.BoolQuery{Must: []search.Query{search.TermQuery{Field: "status", Value: search.StringValue("delivered")}}},
-		Sort:         []search.Sort{{Field: "created_at", Direction: search.Descending}, {Field: "_id", Direction: search.Ascending}},
+		Sort:         []search.Sort{{Field: "created_at", Direction: search.Descending}, {Field: search.DocumentIDSortField, Direction: search.Ascending}},
 		Page:         search.CursorPage{Size: 25, KeepAlive: time.Minute},
 		Aggregations: map[string]search.Aggregation{"carriers": search.TermsAggregation{Field: "carrier", Size: 10}},
 	}

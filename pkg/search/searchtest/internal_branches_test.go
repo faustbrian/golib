@@ -59,6 +59,22 @@ func TestInternalFakeConstructionCancellationAndWriteBranches(t *testing.T) {
 	}
 }
 
+func TestInternalFakeRejectsNewDeleteTombstoneAtCapacity(t *testing.T) {
+	limits := search.DefaultLimits()
+	limits.MaxPages, limits.MaxPageItems = 1, 1
+	fake, err := NewFake(limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := fake.Write(t.Context(), fakeBranchOperation(search.ActionIndex, "existing", 1, `{}`), search.RefreshNone); err != nil {
+		t.Fatal(err)
+	}
+	outcome, err := fake.Write(t.Context(), fakeBranchOperation(search.ActionDelete, "new-tombstone", 1, ""), search.RefreshNone)
+	if err != nil || outcome.State != search.OutcomeRejected || outcome.Code != "fake_capacity" {
+		t.Fatalf("capacity delete = %#v/%v", outcome, err)
+	}
+}
+
 func TestInternalFakeSearchAndMatchingBranches(t *testing.T) {
 	fake, _ := NewFake(search.DefaultLimits())
 	operations := []search.WriteOperation{
@@ -69,7 +85,7 @@ func TestInternalFakeSearchAndMatchingBranches(t *testing.T) {
 	if _, err := fake.Bulk(t.Context(), search.BulkRequest{Operations: operations, Refresh: search.RefreshNone}); err != nil {
 		t.Fatal(err)
 	}
-	base := search.Request{Tenant: "t", Index: "i", Query: search.MatchAllQuery{}, Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}}, Page: search.OffsetPage{Size: 10}}
+	base := search.Request{Tenant: "t", Index: "i", Query: search.MatchAllQuery{}, Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}}, Page: search.OffsetPage{Size: 10}}
 	for _, test := range []struct {
 		query search.Query
 		want  int

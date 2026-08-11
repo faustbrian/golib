@@ -89,6 +89,24 @@ func TestBulkRequestRejectsHostileDirectWriteOperationSources(t *testing.T) {
 	}
 }
 
+func TestBulkRequestRejectsInvalidUTF8IdentityAndSource(t *testing.T) {
+	t.Parallel()
+
+	invalid := string([]byte{0xff})
+	invalidSource := json.RawMessage([]byte{'{', '"', 'x', '"', ':', '"', 0xff, '"', '}'})
+	for _, operation := range []search.WriteOperation{
+		{Action: search.ActionDelete, Tenant: invalid, Index: "events", ID: "id", Version: 1},
+		{Action: search.ActionDelete, Tenant: "tenant", Index: invalid, ID: "id", Version: 1},
+		{Action: search.ActionDelete, Tenant: "tenant", Index: "events", ID: invalid, Version: 1},
+		{Action: search.ActionIndex, Tenant: "tenant", Index: "events", ID: "id", Version: 1, Source: invalidSource},
+	} {
+		request := search.BulkRequest{Operations: []search.WriteOperation{operation}, Refresh: search.RefreshNone}
+		if err := request.Validate(search.AllCapabilities(), search.DefaultLimits()); !errors.Is(err, search.ErrInvalidOperation) {
+			t.Fatalf("Validate(%#v) error = %v, want ErrInvalidOperation", operation, err)
+		}
+	}
+}
+
 func TestBulkResultRetainsEveryPartialAndUnknownOutcome(t *testing.T) {
 	t.Parallel()
 
@@ -111,6 +129,35 @@ func TestBulkResultRetainsEveryPartialAndUnknownOutcome(t *testing.T) {
 
 	if _, err := search.NewBulkResult([]search.ItemOutcome{{Position: 1, ID: "bad", State: search.OutcomeApplied}}); !errors.Is(err, search.ErrInvalidBulkResult) {
 		t.Fatalf("NewBulkResult() error = %v", err)
+	}
+}
+
+func TestBulkResultRejectsUnboundedOrInvalidDiagnostics(t *testing.T) {
+	t.Parallel()
+
+	valid := search.ItemOutcome{
+		Position: 0, ID: "event-1", Action: search.ActionIndex,
+		State: search.OutcomeRejected, Code: "mapping_error", Diagnostic: "redacted classification",
+	}
+	invalidUTF8 := string([]byte{0xff})
+	for name, mutate := range map[string]func(*search.ItemOutcome){
+		"invalid UTF-8 ID":   func(item *search.ItemOutcome) { item.ID = invalidUTF8 },
+		"oversized code":     func(item *search.ItemOutcome) { item.Code = strings.Repeat("c", search.MaxFieldNameBytes+1) },
+		"invalid UTF-8 code": func(item *search.ItemOutcome) { item.Code = invalidUTF8 },
+		"oversized diagnostic": func(item *search.ItemOutcome) {
+			item.Diagnostic = strings.Repeat("d", search.DefaultLimits().MaxSourceBytes+1)
+		},
+		"invalid UTF-8 diagnostic": func(item *search.ItemOutcome) {
+			item.Diagnostic = invalidUTF8
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			item := valid
+			mutate(&item)
+			if _, err := search.NewBulkResult([]search.ItemOutcome{item}); !errors.Is(err, search.ErrInvalidBulkResult) {
+				t.Fatalf("NewBulkResult() error = %v, want ErrInvalidBulkResult", err)
+			}
+		})
 	}
 }
 

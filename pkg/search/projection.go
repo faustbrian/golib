@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"unicode/utf8"
 )
 
 var ErrInvalidProjectionEvent = errors.New("search: invalid projection event")
@@ -27,7 +28,8 @@ type ProjectionEvent struct {
 }
 
 func NewProjectionEvent(tenant, index, id string, version uint64, kind ProjectionKind, source json.RawMessage, idempotencyKey string, limits Limits) (ProjectionEvent, error) {
-	if idempotencyKey == "" || len(idempotencyKey) > limits.MaxIDBytes {
+	if limits.Validate() != nil || idempotencyKey == "" || len(idempotencyKey) > limits.MaxIDBytes ||
+		!utf8.ValidString(tenant) || !utf8.ValidString(index) || !utf8.ValidString(id) || !utf8.ValidString(idempotencyKey) {
 		return ProjectionEvent{}, ErrInvalidProjectionEvent
 	}
 	switch kind {

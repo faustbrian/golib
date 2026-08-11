@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"unicode/utf8"
 )
 
 var (
@@ -106,7 +107,8 @@ func (r BulkRequest) Validate(capabilities Capabilities, limits Limits) error {
 
 func (o WriteOperation) validate(limits Limits) error {
 	if o.Tenant == "" || len(o.Tenant) > limits.MaxTenantBytes || o.Index == "" || len(o.Index) > limits.MaxIndexBytes ||
-		o.ID == "" || len(o.ID) > limits.MaxIDBytes || o.Version == 0 {
+		o.ID == "" || len(o.ID) > limits.MaxIDBytes || o.Version == 0 || !utf8.ValidString(o.Tenant) ||
+		!utf8.ValidString(o.Index) || !utf8.ValidString(o.ID) {
 		return ErrInvalidOperation
 	}
 	switch o.Action {
@@ -173,7 +175,9 @@ func NewBulkResult(items []ItemOutcome) (BulkResult, error) {
 	}
 	copyItems := append([]ItemOutcome(nil), items...)
 	for position, item := range copyItems {
-		if item.Position != position || item.ID == "" || !validAction(item.Action) || !validOutcome(item.State) {
+		if item.Position != position || item.ID == "" || !utf8.ValidString(item.ID) ||
+			!validAction(item.Action) || !validOutcome(item.State) ||
+			!validDiagnosticIdentifier(item.Code, MaxFieldNameBytes, false) || !validDiagnosticText(item.Diagnostic) {
 			return BulkResult{}, ErrInvalidBulkResult
 		}
 	}

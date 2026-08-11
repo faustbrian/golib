@@ -116,7 +116,7 @@ func (f *Fake) Search(ctx context.Context, request search.Request) (search.Resul
 	if err := request.Validate(fakeCapabilities(), f.limits); err != nil {
 		return search.Result{}, err
 	}
-	if len(request.Sort) != 1 || request.Sort[0].Field != "_id" {
+	if len(request.Sort) != 1 || request.Sort[0].Field != search.DocumentIDSortField {
 		return search.Result{}, search.ErrUnsupported
 	}
 	page := request.Page.(search.OffsetPage)
@@ -177,12 +177,10 @@ func matchesFields(query search.Query, fields map[string]any) (bool, error) {
 			return false, nil
 		}
 		expected, _ := json.Marshal(node.Value)
-		encoded, err := json.Marshal(actual)
-		return err == nil && bytes.Equal(encoded, expected), err
+		return matchesTermValue(actual, expected), nil
 	case search.PrefixQuery:
 		actual, exists := lookup(fields, node.Field)
-		text, ok := actual.(string)
-		return exists && ok && strings.HasPrefix(text, node.Prefix), nil
+		return exists && matchesPrefixValue(actual, node.Prefix), nil
 	case search.ExistsQuery:
 		actual, exists := lookup(fields, node.Field)
 		return exists && hasIndexedValue(actual), nil
@@ -223,6 +221,32 @@ func matchesFields(query search.Query, fields map[string]any) (bool, error) {
 	default:
 		return false, search.ErrUnsupported
 	}
+}
+
+func matchesTermValue(actual any, expected []byte) bool {
+	if values, array := actual.([]any); array {
+		for _, value := range values {
+			if matchesTermValue(value, expected) {
+				return true
+			}
+		}
+		return false
+	}
+	encoded, _ := json.Marshal(actual)
+	return bytes.Equal(encoded, expected)
+}
+
+func matchesPrefixValue(actual any, prefix string) bool {
+	if values, array := actual.([]any); array {
+		for _, value := range values {
+			if matchesPrefixValue(value, prefix) {
+				return true
+			}
+		}
+		return false
+	}
+	text, stringValue := actual.(string)
+	return stringValue && strings.HasPrefix(text, prefix)
 }
 
 func hasIndexedValue(value any) bool {

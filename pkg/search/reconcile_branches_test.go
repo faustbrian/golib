@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"math"
 	"strings"
 	"testing"
 )
@@ -36,6 +35,14 @@ func (r branchRepair) Write(context.Context, WriteOperation, RefreshPolicy) (Ite
 }
 func (r branchRepair) Bulk(context.Context, BulkRequest) (BulkResult, error) { return r.result, r.err }
 
+type branchDeletionGuard struct {
+	version uint64
+}
+
+func (guard branchDeletionGuard) ReserveDeletion(context.Context, ReconciliationDeletion) (uint64, error) {
+	return guard.version, nil
+}
+
 func validBranchRecord(t *testing.T, id string, version uint64) ReconciliationRecord {
 	t.Helper()
 	doc, err := NewDocument("t", "i", id, version, json.RawMessage(`{"id":"`+id+`"}`), DefaultLimits())
@@ -57,6 +64,12 @@ func TestInternalReconcilerValidationAndReaderFailures(t *testing.T) {
 		if _, err := NewReconciler(args.s, args.i, args.r, args.l); err == nil {
 			t.Fatal("invalid reconciler accepted")
 		}
+	}
+	if _, err := NewReconcilerWithDeletionGuard(reader, reader, repair, nil, limits); !errors.Is(err, ErrInvalidReconciler) {
+		t.Fatal("nil deletion guard accepted", err)
+	}
+	if _, err := NewReconcilerWithDeletionGuard(nil, reader, repair, branchDeletionGuard{version: 1}, limits); !errors.Is(err, ErrInvalidReconciler) {
+		t.Fatal("invalid guarded reconciler accepted", err)
 	}
 	source := &branchReader{pages: []ReconciliationPage{{Done: true}}}
 	index := &branchReader{pages: []ReconciliationPage{{Done: true}}}
@@ -98,24 +111,24 @@ func TestInternalReconcilerValidationAndReaderFailures(t *testing.T) {
 	malformed := []ReconciliationPage{{Done: false}, {Records: []ReconciliationRecord{{}}, Done: true}, {Records: []ReconciliationRecord{{ID: "id", Version: 1, Digest: "d", Document: &Document{Tenant: "wrong", Index: "i", ID: "id", Version: 1}}}, Done: true}, {Records: []ReconciliationRecord{validBranchRecord(t, "b", 1), validBranchRecord(t, "a", 1)}, Done: true}, {Records: []ReconciliationRecord{validBranchRecord(t, "a", 1), validBranchRecord(t, "a", 1)}, Done: true}}
 	for _, page := range malformed {
 		source = &branchReader{pages: []ReconciliationPage{page}}
-		_, err := readReconciliation(t.Context(), source, request, true)
+		_, err := readReconciliation(t.Context(), source, request, true, limits)
 		if !errors.Is(err, ErrMalformedReconciliation) {
 			t.Fatalf("page %#v error=%v", page, err)
 		}
 	}
 	progress := &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{validBranchRecord(t, "a", 1)}, Cursor: "same"}, {Records: []ReconciliationRecord{validBranchRecord(t, "b", 1)}, Cursor: "same"}}}
-	if _, err := readReconciliation(t.Context(), progress, request, true); !errors.Is(err, ErrMalformedReconciliation) {
+	if _, err := readReconciliation(t.Context(), progress, request, true, limits); !errors.Is(err, ErrMalformedReconciliation) {
 		t.Fatal(err)
 	}
 	tooMany := &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{validBranchRecord(t, "a", 1), validBranchRecord(t, "b", 1)}, Done: true}}}
 	limited := request
 	limited.PageSize = 2
 	limited.MaxRecords = 1
-	if _, err := readReconciliation(t.Context(), tooMany, limited, true); !errors.Is(err, ErrReconciliationLimit) {
+	if _, err := readReconciliation(t.Context(), tooMany, limited, true, limits); !errors.Is(err, ErrReconciliationLimit) {
 		t.Fatal(err)
 	}
 	single := &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{validBranchRecord(t, "a", 1)}, Done: true}}}
-	if records, err := readReconciliation(t.Context(), single, request, true); err != nil || len(records) != 1 {
+	if records, err := readReconciliation(t.Context(), single, request, true, limits); err != nil || len(records) != 1 {
 		t.Fatal(records, err)
 	}
 	twoPages := []ReconciliationPage{
@@ -124,19 +137,65 @@ func TestInternalReconcilerValidationAndReaderFailures(t *testing.T) {
 	}
 	exactTotal := request
 	exactTotal.MaxRecords = 2
-	if records, err := readReconciliation(t.Context(), &branchReader{pages: twoPages}, exactTotal, true); err != nil || len(records) != 2 {
+	if records, err := readReconciliation(t.Context(), &branchReader{pages: twoPages}, exactTotal, true, limits); err != nil || len(records) != 2 {
 		t.Fatal(records, err)
 	}
 	overTotal := request
 	overTotal.MaxRecords = 1
-	if _, err := readReconciliation(t.Context(), &branchReader{pages: twoPages}, overTotal, true); !errors.Is(err, ErrReconciliationLimit) {
+	if _, err := readReconciliation(t.Context(), &branchReader{pages: twoPages}, overTotal, true, limits); !errors.Is(err, ErrReconciliationLimit) {
 		t.Fatal(err)
 	}
 	duplicateRequest := request
 	duplicateRequest.PageSize = 2
 	duplicates := &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{validBranchRecord(t, "a", 1), validBranchRecord(t, "a", 1)}, Done: true}}}
-	if _, err := readReconciliation(t.Context(), duplicates, duplicateRequest, true); !errors.Is(err, ErrMalformedReconciliation) {
+	if _, err := readReconciliation(t.Context(), duplicates, duplicateRequest, true, limits); !errors.Is(err, ErrMalformedReconciliation) {
 		t.Fatal(err)
+	}
+}
+
+func TestReconciliationRecordBudgetUsesSharedExactRemainingBytes(t *testing.T) {
+	limits := DefaultLimits()
+	request := ReconciliationRequest{Tenant: "t", Index: "i", PageSize: 1, MaxRecords: 1}
+	record := IndexRecord("a", 1, "d")
+	reader := &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{record}, Done: true}}}
+	remaining := int64(257)
+	if _, err := readReconciliation(t.Context(), reader, request, false, limits, &remaining); !errors.Is(err, ErrReconciliationLimit) {
+		t.Fatalf("shared one-byte-short budget error = %v, want ErrReconciliationLimit", err)
+	}
+
+	for _, test := range []struct {
+		name      string
+		record    ReconciliationRecord
+		remaining int64
+		want      int64
+		accepted  bool
+	}{
+		{name: "fixed overhead short", record: record, remaining: 255, want: 255},
+		{name: "fixed overhead exact", record: ReconciliationRecord{}, remaining: 256, accepted: true},
+		{name: "index record short", record: record, remaining: 257, want: 257},
+		{name: "index record exact", record: record, remaining: 258, accepted: true},
+		{name: "index record surplus", record: record, remaining: 259, want: 1, accepted: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			remaining := test.remaining
+			if accepted := reserveReconciliationRecord(test.record, &remaining); accepted != test.accepted || remaining != test.want {
+				t.Fatalf("reserveReconciliationRecord() = %t, remaining %d; want %t/%d", accepted, remaining, test.accepted, test.want)
+			}
+		})
+	}
+
+	documentRecord := validBranchRecord(t, "a", 1)
+	required := int64(256 + len(documentRecord.ID) + len(documentRecord.Digest) +
+		len(documentRecord.Document.Tenant) + len(documentRecord.Document.Index) + len(documentRecord.Document.ID) + 2*len(documentRecord.Document.Source))
+	for _, delta := range []int64{-1, 0, 1} {
+		remaining := required + delta
+		accepted := reserveReconciliationRecord(documentRecord, &remaining)
+		if delta < 0 && accepted {
+			t.Fatal("one-byte-short source record budget accepted")
+		}
+		if delta >= 0 && (!accepted || remaining != delta) {
+			t.Fatalf("source record budget delta %d = %t/%d", delta, accepted, remaining)
+		}
 	}
 }
 
@@ -144,13 +203,13 @@ func TestInternalReconcilerRepairBranches(t *testing.T) {
 	limits := DefaultLimits()
 	request := ReconciliationRequest{Tenant: "t", Index: "i", PageSize: 10, MaxRecords: 20, Repair: true}
 	sourceRecords := []ReconciliationRecord{validBranchRecord(t, "a", 3), validBranchRecord(t, "c", 2), validBranchRecord(t, "d", 1)}
-	indexRecords := []ReconciliationRecord{IndexRecord("b", math.MaxUint64, "x"), IndexRecord("c", 1, "old"), IndexRecord("d", 2, "new")}
+	indexRecords := []ReconciliationRecord{IndexRecord("b", 5, "x"), IndexRecord("c", 1, "old"), IndexRecord("d", 2, "new")}
 	source := &branchReader{pages: []ReconciliationPage{{Records: sourceRecords, Done: true}}}
 	index := &branchReader{pages: []ReconciliationPage{{Records: indexRecords, Done: true}}}
-	applied, _ := NewBulkResult([]ItemOutcome{{Position: 0, ID: "a", Action: ActionIndex, State: OutcomeApplied}, {Position: 1, ID: "c", Action: ActionIndex, State: OutcomeApplied}})
-	reconciler, _ := NewReconciler(source, index, branchRepair{result: applied}, limits)
+	applied, _ := NewBulkResult([]ItemOutcome{{Position: 0, ID: "a", Action: ActionIndex, State: OutcomeApplied, Version: 3}, {Position: 1, ID: "b", Action: ActionDelete, State: OutcomeApplied, Version: 6}, {Position: 2, ID: "c", Action: ActionIndex, State: OutcomeApplied, Version: 2}})
+	reconciler, _ := NewReconcilerWithDeletionGuard(source, index, branchRepair{result: applied}, branchDeletionGuard{version: 6}, limits)
 	report, err := reconciler.Run(t.Context(), request)
-	if err != nil || report.Repaired != 2 || len(report.Drift) != 4 {
+	if err != nil || report.Repaired != 3 || len(report.Drift) != 4 {
 		t.Fatalf("report=%#v err=%v", report, err)
 	}
 
@@ -174,8 +233,15 @@ func TestInternalReconcilerRepairBranches(t *testing.T) {
 	}}, Done: true}}}
 	index = &branchReader{pages: []ReconciliationPage{{Done: true}}}
 	reconciler, _ = NewReconciler(source, index, branchRepair{}, limits)
-	if _, err := reconciler.Run(t.Context(), request); !errors.Is(err, ErrInvalidOperation) {
-		t.Fatalf("malformed repair document error = %v, want ErrInvalidOperation", err)
+	if _, err := reconciler.Run(t.Context(), request); !errors.Is(err, ErrMalformedReconciliation) {
+		t.Fatalf("malformed source document error = %v, want ErrMalformedReconciliation", err)
+	}
+	boundedBulk := limits
+	boundedBulk.MaxBulkBytes = 1
+	source, index = newReaders()
+	reconciler, _ = NewReconciler(source, index, branchRepair{}, boundedBulk)
+	if _, err := reconciler.Run(t.Context(), request); !errors.Is(err, ErrBulkLimit) {
+		t.Fatalf("bounded repair batch error = %v, want ErrBulkLimit", err)
 	}
 	request.Repair = false
 	source, index = newReaders()

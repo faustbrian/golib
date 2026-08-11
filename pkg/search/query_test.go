@@ -34,7 +34,7 @@ func TestRequestValidatesTypedCompositionBeforeExecution(t *testing.T) {
 		},
 		Sort: []search.Sort{
 			{Field: "population", Direction: search.Descending, Missing: search.MissingLast},
-			{Field: "_id", Direction: search.Ascending},
+			{Field: search.DocumentIDSortField, Direction: search.Ascending},
 		},
 		Page:       search.CursorPage{Size: 25, KeepAlive: time.Minute},
 		Projection: search.Projection{Includes: []string{"name", "country", "position"}},
@@ -62,7 +62,7 @@ func TestRawExtensionQueryIsBoundedAndCapabilityGated(t *testing.T) {
 			Adapter: "opensearch",
 			Payload: json.RawMessage(`{"wildcard":{"tracking_code":{"value":"JJ*"}}}`),
 		},
-		Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}},
+		Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
 		Page: search.CursorPage{Size: 10, KeepAlive: time.Minute},
 	}
 	if err := request.Validate(search.AllCapabilities(), search.DefaultLimits()); err != nil {
@@ -76,6 +76,20 @@ func TestRawExtensionQueryIsBoundedAndCapabilityGated(t *testing.T) {
 	}
 
 	limits := search.DefaultLimits()
+	depthLimits := limits
+	depthLimits.MaxJSONDepth = 2
+	request.Query = search.RawExtensionQuery{Adapter: "opensearch", Payload: json.RawMessage(`{"outer":{"too":{"deep":true}}}`)}
+	if err := request.Validate(search.AllCapabilities(), depthLimits); !errors.Is(err, search.ErrInvalidQuery) {
+		t.Fatalf("Validate(raw depth) error = %v, want ErrInvalidQuery", err)
+	}
+
+	nodeLimits := limits
+	nodeLimits.MaxJSONNodes = 2
+	request.Query = search.RawExtensionQuery{Adapter: "opensearch", Payload: json.RawMessage(`{"first":1,"second":2,"third":3}`)}
+	if err := request.Validate(search.AllCapabilities(), nodeLimits); !errors.Is(err, search.ErrInvalidQuery) {
+		t.Fatalf("Validate(raw nodes) error = %v, want ErrInvalidQuery", err)
+	}
+
 	for _, query := range []search.RawExtensionQuery{
 		{Payload: json.RawMessage(`{}`)},
 		{Adapter: strings.Repeat("x", search.MaxFieldNameBytes+1), Payload: json.RawMessage(`{}`)},
@@ -106,7 +120,7 @@ func TestRequestRejectsUnsupportedAndUnstablePagination(t *testing.T) {
 		t.Fatalf("Validate() error = %v, want ErrUnstableSort", err)
 	}
 
-	request.Sort = append(request.Sort, search.Sort{Field: "_id", Direction: search.Ascending})
+	request.Sort = append(request.Sort, search.Sort{Field: search.DocumentIDSortField, Direction: search.Ascending})
 	capabilities := search.AllCapabilities()
 	capabilities.Prefix = false
 	if err := request.Validate(capabilities, search.DefaultLimits()); !errors.Is(err, search.ErrUnsupported) {
@@ -117,6 +131,79 @@ func TestRequestRejectsUnsupportedAndUnstablePagination(t *testing.T) {
 	request.Page = search.CursorPage{Size: search.DefaultLimits().MaxPageItems + 1, KeepAlive: time.Minute}
 	if err := request.Validate(search.AllCapabilities(), search.DefaultLimits()); !errors.Is(err, search.ErrPageLimit) {
 		t.Fatalf("Validate() error = %v, want ErrPageLimit", err)
+	}
+}
+
+func TestRequestRejectsBackendSortEscapesAndInexactCursorDurations(t *testing.T) {
+	t.Parallel()
+
+	base := search.Request{
+		Tenant: "tenant", Index: "documents", Query: search.MatchAllQuery{},
+		Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
+		Page: search.CursorPage{Size: 1, KeepAlive: time.Second},
+	}
+	for _, field := range []string{"_id", "_index", "_score", "_doc", "_shard_doc"} {
+		request := base
+		request.Sort = []search.Sort{{Field: field, Direction: search.Ascending}}
+		if err := request.Validate(search.AllCapabilities(), search.DefaultLimits()); !errors.Is(err, search.ErrInvalidQuery) {
+			t.Fatalf("backend sort %q error = %v, want ErrInvalidQuery", field, err)
+		}
+	}
+	for _, keepAlive := range []time.Duration{time.Nanosecond, 1500 * time.Microsecond} {
+		request := base
+		request.Page = search.CursorPage{Size: 1, KeepAlive: keepAlive}
+		if err := request.Validate(search.AllCapabilities(), search.DefaultLimits()); !errors.Is(err, search.ErrPageLimit) {
+			t.Fatalf("keep-alive %s error = %v, want ErrPageLimit", keepAlive, err)
+		}
+	}
+	for _, keepAlive := range []time.Duration{time.Millisecond, 1500 * time.Millisecond} {
+		request := base
+		request.Page = search.CursorPage{Size: 1, KeepAlive: keepAlive}
+		if err := request.Validate(search.AllCapabilities(), search.DefaultLimits()); err != nil {
+			t.Fatalf("exact millisecond keep-alive %s rejected: %v", keepAlive, err)
+		}
+	}
+}
+
+func TestCursorPaginationUsesBackendNeutralDocumentIDSort(t *testing.T) {
+	t.Parallel()
+
+	request := search.Request{
+		Tenant: "tenant-a", Index: "events", Query: search.MatchAllQuery{},
+		Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
+		Page: search.CursorPage{Size: 1, KeepAlive: time.Minute},
+	}
+	if err := request.Validate(search.AllCapabilities(), search.DefaultLimits()); err != nil {
+		t.Fatalf("Validate(document ID sort) error = %v", err)
+	}
+
+	request.Sort[0].Field = "_id"
+	if err := request.Validate(search.AllCapabilities(), search.DefaultLimits()); !errors.Is(err, search.ErrInvalidQuery) {
+		t.Fatalf("Validate(OpenSearch metadata sort) error = %v, want ErrInvalidQuery", err)
+	}
+}
+
+func TestRequestRejectsInvalidUTF8WithoutBackendNormalization(t *testing.T) {
+	t.Parallel()
+
+	invalid := string([]byte{0xff})
+	base := search.Request{
+		Tenant: "tenant-a", Index: "events", Query: search.MatchAllQuery{},
+		Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
+		Page: search.CursorPage{Size: 1, KeepAlive: time.Minute},
+	}
+	tests := []search.Request{
+		{Tenant: invalid, Index: base.Index, Query: base.Query, Sort: base.Sort, Page: base.Page},
+		{Tenant: base.Tenant, Index: invalid, Query: base.Query, Sort: base.Sort, Page: base.Page},
+		{Tenant: base.Tenant, Index: base.Index, Query: search.TermQuery{Field: "field", Value: search.StringValue(invalid)}, Sort: base.Sort, Page: base.Page},
+		{Tenant: base.Tenant, Index: base.Index, Query: search.FullTextQuery{Fields: []string{"field"}, Text: invalid}, Sort: base.Sort, Page: base.Page},
+		{Tenant: base.Tenant, Index: base.Index, Query: search.PrefixQuery{Field: "field", Prefix: invalid}, Sort: base.Sort, Page: base.Page},
+		{Tenant: base.Tenant, Index: base.Index, Query: base.Query, Sort: base.Sort, Page: base.Page, Highlights: map[string]search.Highlight{"field": {FragmentSize: 1, MaxFragments: 1, PreTag: invalid}}},
+	}
+	for _, request := range tests {
+		if err := request.Validate(search.AllCapabilities(), search.DefaultLimits()); !errors.Is(err, search.ErrInvalidQuery) {
+			t.Fatalf("Validate(%#v) error = %v, want ErrInvalidQuery", request, err)
+		}
 	}
 }
 
@@ -141,7 +228,7 @@ func TestQueryValidationRejectsUnsafeFieldsAndRanges(t *testing.T) {
 			Tenant: "tenant-a",
 			Index:  "locations-read",
 			Query:  query,
-			Sort:   []search.Sort{{Field: "_id", Direction: search.Ascending}},
+			Sort:   []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
 			Page:   search.CursorPage{Size: 10, KeepAlive: time.Minute},
 		}
 		if err := request.Validate(search.AllCapabilities(), search.DefaultLimits()); !errors.Is(err, search.ErrInvalidQuery) {
@@ -160,7 +247,7 @@ func TestRequestRejectsUnboundedCursorTimeQueryBytesAndOffsetOverflow(t *testing
 	limits := search.DefaultLimits()
 	request := search.Request{
 		Tenant: "tenant-a", Index: "events", Query: search.MatchAllQuery{},
-		Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}},
+		Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
 		Page: search.CursorPage{Size: 1, KeepAlive: limits.MaxCursorDuration + time.Nanosecond},
 	}
 	if err := request.Validate(search.AllCapabilities(), limits); !errors.Is(err, search.ErrPageLimit) {
@@ -176,6 +263,34 @@ func TestRequestRejectsUnboundedCursorTimeQueryBytesAndOffsetOverflow(t *testing
 	request.Query = search.FullTextQuery{Fields: []string{"message"}, Text: strings.Repeat("x", limits.MaxQueryBytes)}
 	if err := request.Validate(search.AllCapabilities(), limits); !errors.Is(err, search.ErrInvalidQuery) {
 		t.Fatalf("oversized query error = %v, want ErrInvalidQuery", err)
+	}
+}
+
+func TestRequestChargesRangeBucketsToTheSharedQueryNodeBudget(t *testing.T) {
+	t.Parallel()
+
+	from := search.StringValue("a")
+	request := search.Request{
+		Tenant: "tenant-a", Index: "events", Query: search.MatchAllQuery{},
+		Page: search.OffsetPage{Size: 1},
+		Aggregations: map[string]search.Aggregation{"ranges": search.RangeAggregation{
+			Field: "name", Buckets: []search.RangeBucket{
+				{Key: "first", From: &from},
+				{Key: "second", From: &from},
+			},
+		}},
+	}
+	limits := search.DefaultLimits()
+	limits.MaxQueryClauses = 3
+	if err := request.Validate(search.AllCapabilities(), limits); !errors.Is(err, search.ErrInvalidQuery) {
+		t.Fatalf("Validate() error = %v, want ErrInvalidQuery", err)
+	}
+
+	ranges := request.Aggregations["ranges"].(search.RangeAggregation)
+	ranges.Buckets = ranges.Buckets[:1]
+	request.Aggregations["ranges"] = ranges
+	if err := request.Validate(search.AllCapabilities(), limits); err != nil {
+		t.Fatalf("Validate() exact node budget error = %v", err)
 	}
 }
 
@@ -283,7 +398,7 @@ func TestRequestRejectsInvalidLimits(t *testing.T) {
 		Tenant: "tenant-a",
 		Index:  "events",
 		Query:  search.MatchAllQuery{},
-		Sort:   []search.Sort{{Field: "_id", Direction: search.Ascending}},
+		Sort:   []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}},
 		Page:   search.OffsetPage{Size: 1},
 	}
 	if err := request.Validate(search.AllCapabilities(), search.Limits{}); !errors.Is(err, search.ErrInvalidQuery) {

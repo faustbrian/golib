@@ -16,6 +16,11 @@ Runbooks must cover overload, rejected writes, unknown outcomes, partial shard
 results, expired PITs, index blocks, migration pause/resume, alias rollback,
 drift repair, credential rotation, and full rebuild.
 
-Reconciliation rejects pages larger than requested and caps the complete scan
-at the configured page-count and page-item product. The in-memory contract fake
-uses the same product as an absolute document-capacity bound.
+Reconciliation rejects pages larger than requested, terminal pages that retain
+a cursor, oversized cursors, record identifiers, and opaque digests, and
+index-side records that carry unexpected document sources. It caps both reader
+page counts, the combined source/index record total, and the combined retained
+record/report/repair bytes before further reads. Source digests use canonical
+JSON, so insignificant object-key order and whitespace cannot create drift.
+The in-memory contract fake uses the same page-count and page-item product as an
+absolute document-capacity bound.

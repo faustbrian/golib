@@ -8,14 +8,20 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 )
 
 var (
 	ErrInvalidQuery = errors.New("search: invalid query")
 	ErrUnsupported  = errors.New("search: unsupported capability")
-	ErrUnstableSort = errors.New("search: cursor pagination requires a final _id sort")
+	ErrUnstableSort = errors.New("search: cursor pagination requires a final document ID sort")
 	ErrPageLimit    = errors.New("search: pagination limit exceeded")
 )
+
+// DocumentIDSortField is the backend-neutral virtual field for a document's
+// stable ID. Adapters must translate it to their native metadata field and
+// must not expose that backend spelling through the shared request contract.
+const DocumentIDSortField = "$document_id"
 
 // Capabilities declares adapter behavior. False means the adapter must reject
 // the feature before network execution rather than silently degrading it.
@@ -189,7 +195,7 @@ func (r Request) Validate(capabilities Capabilities, limits Limits) error {
 	if r.Query == nil {
 		return ErrInvalidQuery
 	}
-	if !requestInputsWithinBudget(r, limits) {
+	if !requestInputsWithinBudget(r, limits) || !requestInputsValidUTF8(r) {
 		return ErrInvalidQuery
 	}
 	clauses := 0
@@ -204,10 +210,11 @@ func (r Request) Validate(capabilities Capabilities, limits Limits) error {
 		if !capabilities.Cursor || !capabilities.PointInTime {
 			return unsupported("cursor and point-in-time")
 		}
-		if page.Size <= 0 || page.Size > limits.MaxPageItems || page.KeepAlive <= 0 || page.KeepAlive > limits.MaxCursorDuration {
+		if page.Size <= 0 || page.Size > limits.MaxPageItems || page.KeepAlive < time.Millisecond ||
+			page.KeepAlive > limits.MaxCursorDuration || page.KeepAlive%time.Millisecond != 0 {
 			return ErrPageLimit
 		}
-		if len(r.Sort) == 0 || r.Sort[len(r.Sort)-1].Field != "_id" {
+		if len(r.Sort) == 0 || r.Sort[len(r.Sort)-1].Field != DocumentIDSortField {
 			return ErrUnstableSort
 		}
 	case OffsetPage:
@@ -358,7 +365,8 @@ func validateQuery(query Query, capabilities Capabilities, limits Limits, depth 
 		if !validField(node.Adapter) || len(node.Payload) == 0 || len(node.Payload) > limits.MaxSourceBytes {
 			return ErrInvalidQuery
 		}
-		if _, err := canonicalJSONObject(node.Payload); err != nil {
+		remainingNodes := limits.MaxJSONNodes
+		if _, err := canonicalBoundedJSONObject(node.Payload, limits.MaxJSONDepth, &remainingNodes); err != nil {
 			return ErrInvalidQuery
 		}
 	default:
@@ -369,12 +377,21 @@ func validateQuery(query Query, capabilities Capabilities, limits Limits, depth 
 
 func validateSort(sorts []Sort) error {
 	for _, sort := range sorts {
-		if !validField(sort.Field) || sort.Direction != Ascending && sort.Direction != Descending ||
+		if !validField(sort.Field) || backendMetadataSort(sort.Field) || sort.Direction != Ascending && sort.Direction != Descending ||
 			sort.Missing != MissingDefault && sort.Missing != MissingFirst && sort.Missing != MissingLast {
 			return ErrInvalidQuery
 		}
 	}
 	return nil
+}
+
+func backendMetadataSort(field string) bool {
+	switch field {
+	case "_id", "_index", "_score", "_doc", "_shard_doc":
+		return true
+	default:
+		return false
+	}
 }
 
 func validAggregation(aggregation Aggregation, limits Limits) bool {
@@ -429,6 +446,116 @@ func validFullTextField(field string) bool {
 
 type requestInputBudget struct {
 	bytes, nodes, maxCollection int
+}
+
+func requestInputsValidUTF8(request Request) bool {
+	if !utf8.ValidString(request.Tenant) || !utf8.ValidString(request.Index) || !queryInputsValidUTF8(request.Query) {
+		return false
+	}
+	for _, sort := range request.Sort {
+		if !utf8.ValidString(sort.Field) {
+			return false
+		}
+	}
+	if page, ok := request.Page.(CursorPage); ok && !utf8.ValidString(page.Cursor) {
+		return false
+	}
+	for _, fields := range [][]string{request.Projection.Includes, request.Projection.Excludes} {
+		for _, field := range fields {
+			if !utf8.ValidString(field) {
+				return false
+			}
+		}
+	}
+	for field, highlight := range request.Highlights {
+		if !utf8.ValidString(field) || !utf8.ValidString(highlight.PreTag) || !utf8.ValidString(highlight.PostTag) {
+			return false
+		}
+	}
+	for name, aggregation := range request.Aggregations {
+		if !utf8.ValidString(name) || !aggregationInputsValidUTF8(aggregation) {
+			return false
+		}
+	}
+	for name, suggestion := range request.Suggestions {
+		value, ok := suggestion.(PrefixSuggestion)
+		if !ok || !utf8.ValidString(name) || !utf8.ValidString(value.Field) || !utf8.ValidString(value.Text) {
+			return false
+		}
+	}
+	return true
+}
+
+func queryInputsValidUTF8(query Query) bool {
+	switch value := query.(type) {
+	case MatchAllQuery:
+		return true
+	case BoolQuery:
+		for _, children := range [][]Query{value.Must, value.Should, value.Filter, value.MustNot} {
+			for _, child := range children {
+				if !queryInputsValidUTF8(child) {
+					return false
+				}
+			}
+		}
+		return true
+	case TermQuery:
+		return utf8.ValidString(value.Field) && validUTF8Value(value.Value)
+	case FullTextQuery:
+		if !utf8.ValidString(value.Text) || !utf8.ValidString(value.Analyzer) || !utf8.ValidString(value.Locale) {
+			return false
+		}
+		for _, field := range value.Fields {
+			if !utf8.ValidString(field) {
+				return false
+			}
+		}
+		return true
+	case PrefixQuery:
+		return utf8.ValidString(value.Field) && utf8.ValidString(value.Prefix)
+	case RangeQuery:
+		if !utf8.ValidString(value.Field) {
+			return false
+		}
+		for _, bound := range []*Value{value.GT, value.GTE, value.LT, value.LTE} {
+			if bound != nil && !validUTF8Value(*bound) {
+				return false
+			}
+		}
+		return true
+	case ExistsQuery:
+		return utf8.ValidString(value.Field)
+	case GeoDistanceQuery:
+		return utf8.ValidString(value.Field) && validUTF8Value(value.DistanceKM)
+	case RawExtensionQuery:
+		return utf8.ValidString(value.Adapter) && utf8.Valid(value.Payload)
+	default:
+		return false
+	}
+}
+
+func aggregationInputsValidUTF8(aggregation Aggregation) bool {
+	switch value := aggregation.(type) {
+	case TermsAggregation:
+		return utf8.ValidString(value.Field)
+	case RangeAggregation:
+		if !utf8.ValidString(value.Field) {
+			return false
+		}
+		for _, bucket := range value.Buckets {
+			if !utf8.ValidString(bucket.Key) {
+				return false
+			}
+			for _, bound := range []*Value{bucket.From, bucket.To} {
+				if bound != nil && !validUTF8Value(*bound) {
+					return false
+				}
+			}
+		}
+		return true
+	default:
+		return false
+	}
 }
 
 func requestInputsWithinBudget(request Request, limits Limits) bool {
@@ -600,6 +727,9 @@ func (b *requestInputBudget) value(value Value) bool {
 }
 
 func (b *requestInputBudget) aggregation(aggregation Aggregation) bool {
+	if !b.node() {
+		return false
+	}
 	switch value := aggregation.(type) {
 	case TermsAggregation:
 		return b.consume(len(value.Field))
@@ -608,6 +738,9 @@ func (b *requestInputBudget) aggregation(aggregation Aggregation) bool {
 			return false
 		}
 		for _, bucket := range value.Buckets {
+			if !b.node() {
+				return false
+			}
 			if !b.consume(len(bucket.Key)) {
 				return false
 			}

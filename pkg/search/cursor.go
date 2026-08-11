@@ -16,6 +16,8 @@ var (
 	ErrCursorBinding      = errors.New("search: cursor does not belong to this tenant, index, or query")
 	ErrIndexChanged       = errors.New("search: index definition changed during pagination")
 	ErrCursorExpired      = errors.New("search: cursor expired")
+	minimumCursorTime     = time.Unix(0, -1<<63)
+	maximumCursorTime     = time.Unix(0, 1<<63-1)
 )
 
 // CursorBinding prevents a cursor from being replayed across tenants, aliases,
@@ -58,6 +60,27 @@ type CursorCodec struct {
 	maxBytes int
 }
 
+// Deadline returns an absolute cursor expiry using the codec's clock. Adapters
+// use this instead of owning a second clock that could disagree with Decode.
+func (c *CursorCodec) Deadline(after time.Duration) (time.Time, error) {
+	now := c.now()
+	deadline := now.Add(after)
+	if deadline.Sub(now) != after || !deadline.After(now) || !cursorTimeRepresentable(deadline) {
+		return time.Time{}, ErrInvalidCursor
+	}
+	return deadline.UTC(), nil
+}
+
+// Remaining returns the positive lifetime until deadline using the same clock
+// that signs and verifies cursors.
+func (c *CursorCodec) Remaining(deadline time.Time) (time.Duration, error) {
+	now := c.now()
+	if !deadline.After(now) {
+		return 0, ErrCursorExpired
+	}
+	return deadline.Sub(now), nil
+}
+
 // NewCursorCodec constructs a bounded HMAC-SHA256 cursor codec.
 func NewCursorCodec(key []byte, now func() time.Time, maxBytes int) (*CursorCodec, error) {
 	if len(key) < sha256.Size || now == nil || maxBytes <= 0 {
@@ -71,7 +94,7 @@ func NewCursorCodec(key []byte, now func() time.Time, maxBytes int) (*CursorCode
 func (c *CursorCodec) Encode(binding CursorBinding, state CursorState) (string, error) {
 	if !validCursorBinding(binding) || state.PointInTime == "" || len(state.SortValues) == 0 ||
 		state.Page < 0 || state.Items < 0 || state.Bytes < 0 || !state.ExpiresAt.After(c.now()) ||
-		!cursorInputsWithinBudget(binding, state, c.maxBytes) {
+		!cursorTimeRepresentable(state.ExpiresAt) || !cursorInputsWithinBudget(binding, state, c.maxBytes) {
 		return "", ErrInvalidCursor
 	}
 	envelope := cursorEnvelope{
@@ -89,6 +112,10 @@ func (c *CursorCodec) Encode(binding CursorBinding, state CursorState) (string, 
 	}
 
 	return token, nil
+}
+
+func cursorTimeRepresentable(value time.Time) bool {
+	return !value.Before(minimumCursorTime) && !value.After(maximumCursorTime)
 }
 
 func cursorInputsWithinBudget(binding CursorBinding, state CursorState, maximum int) bool {
@@ -173,8 +200,8 @@ func (c *CursorCodec) Decode(token string, binding CursorBinding, limits Limits)
 		return CursorState{}, ErrPageLimit
 	}
 	if envelope.Page < 0 || envelope.Items < 0 || envelope.Bytes < 0 ||
-		envelope.Page > limits.MaxPages || envelope.Items > limits.MaxPages*limits.MaxPageItems ||
-		envelope.Bytes > limits.MaxResultBytes {
+		envelope.Page >= limits.MaxPages || envelope.Items >= limits.MaxPages*limits.MaxPageItems ||
+		envelope.Bytes >= limits.MaxResultBytes {
 		return CursorState{}, ErrPageLimit
 	}
 

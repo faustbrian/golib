@@ -56,6 +56,21 @@ func TestValueRejectsAmbiguousOrUnboundedInput(t *testing.T) {
 	}
 }
 
+func TestValueJSONRejectsInvalidUTF8WithoutReplacement(t *testing.T) {
+	t.Parallel()
+
+	invalid := string([]byte{0xff})
+	for _, value := range []search.Value{
+		search.StringValue(invalid),
+		search.ObjectValue(map[string]search.Value{invalid: search.StringValue("value")}),
+		search.ArrayValue([]search.Value{search.StringValue(invalid)}),
+	} {
+		if _, err := json.Marshal(value); err == nil {
+			t.Fatalf("Marshal(%v) accepted invalid UTF-8", value.Kind())
+		}
+	}
+}
+
 func mustNumber(t *testing.T, value string) search.Value {
 	t.Helper()
 

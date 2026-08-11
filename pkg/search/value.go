@@ -7,6 +7,7 @@ import (
 	"math"
 	"regexp"
 	"time"
+	"unicode/utf8"
 )
 
 const (
@@ -106,6 +107,9 @@ func (v Value) Kind() ValueKind { return v.kind }
 // MarshalJSON implements json.Marshaler without converting exact numbers to
 // float64.
 func (v Value) MarshalJSON() ([]byte, error) {
+	if !validUTF8Value(v) {
+		return nil, errors.New("search: value contains invalid UTF-8")
+	}
 	switch v.kind {
 	case KindNull:
 		return []byte("null"), nil
@@ -127,6 +131,23 @@ func (v Value) MarshalJSON() ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("search: unknown value kind %d", v.kind)
 	}
+}
+
+func validUTF8Value(value Value) bool {
+	if !utf8.ValidString(value.text) {
+		return false
+	}
+	for _, child := range value.array {
+		if !validUTF8Value(child) {
+			return false
+		}
+	}
+	for key, child := range value.object {
+		if !utf8.ValidString(key) || !validUTF8Value(child) {
+			return false
+		}
+	}
+	return true
 }
 
 func cloneFields(fields map[string]Value) map[string]Value {

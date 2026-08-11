@@ -22,7 +22,7 @@ request := search.Request{
     }},
     Sort: []search.Sort{
         {Field: "updated_at", Direction: search.Descending},
-        {Field: "_id", Direction: search.Ascending},
+        {Field: search.DocumentIDSortField, Direction: search.Ascending},
     },
     Page: search.CursorPage{Size: 50, KeepAlive: time.Minute},
 }

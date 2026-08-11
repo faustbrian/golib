@@ -78,6 +78,64 @@ func TestMutationContractExactScalarBoundaries(t *testing.T) {
 	}
 }
 
+func TestMutationContractJSONAndMigrationBoundaries(t *testing.T) {
+	limits := DefaultLimits()
+	zeroDepth := limits
+	zeroDepth.MaxJSONDepth = 0
+	if _, err := NewDocument("t", "i", "id", 1, json.RawMessage(`{}`), zeroDepth); !errors.Is(err, ErrInvalidLimits) {
+		t.Fatalf("zero document depth error = %v", err)
+	}
+	zeroNodes := limits
+	zeroNodes.MaxJSONNodes = 0
+	if _, err := NewIndexDefinition("index-v1", json.RawMessage(`{}`), json.RawMessage(`{}`), zeroNodes); !errors.Is(err, ErrInvalidLimits) {
+		t.Fatalf("zero schema nodes error = %v", err)
+	}
+	remaining := 1
+	if err := validateBoundedJSONObject(json.RawMessage(`"not-an-object"`), 1, &remaining); !errors.Is(err, errMalformedJSONObject) {
+		t.Fatalf("scalar object error = %v", err)
+	}
+
+	definition, err := NewIndexDefinition("events-v2", json.RawMessage(`{}`), json.RawMessage(`{}`), limits)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plan := MigrationPlan{
+		ID: strings.Repeat("m", limits.MaxIDBytes), Tenant: strings.Repeat("t", limits.MaxTenantBytes),
+		Alias: "events-read", SourceIndex: "events-v1", SourceFingerprint: definition.Fingerprint(),
+		Target: definition, MaxReindexSteps: limits.MaxPages,
+	}
+	if _, err := validateMigrationPlan(plan); err != nil {
+		t.Fatalf("exact migration limits rejected: %v", err)
+	}
+	if validDefinitionFingerprint(strings.Repeat("z", 64)) {
+		t.Fatal("non-hex definition fingerprint accepted")
+	}
+}
+
+func TestMutationContractDiagnosticBoundaries(t *testing.T) {
+	if !validDiagnosticIdentifier(strings.Repeat("b", MaxFieldNameBytes), MaxFieldNameBytes, true) {
+		t.Fatal("exact diagnostic identifier rejected")
+	}
+	if validDiagnosticIdentifier(strings.Repeat("b", MaxFieldNameBytes+1), MaxFieldNameBytes, true) {
+		t.Fatal("oversized diagnostic identifier accepted")
+	}
+	maximumText := DefaultLimits().MaxSourceBytes
+	if !validDiagnosticText(strings.Repeat("w", maximumText)) {
+		t.Fatal("exact diagnostic text rejected")
+	}
+	if validDiagnosticText(strings.Repeat("w", maximumText+1)) {
+		t.Fatal("oversized diagnostic text accepted")
+	}
+}
+
+func TestMutationContractBulkPositionAttribution(t *testing.T) {
+	request := BulkRequest{Operations: []WriteOperation{DeleteDocument("t", "i", "id", 1)}}
+	result := BulkResult{items: []ItemOutcome{{Position: 1, ID: "id", Action: ActionDelete, State: OutcomeApplied, Version: 1}}}
+	if err := result.ValidateRequest(request); !errors.Is(err, ErrInvalidBulkResult) {
+		t.Fatalf("mispositioned result error = %v", err)
+	}
+}
+
 func TestMutationContractCursorBoundaries(t *testing.T) {
 	now := time.Date(2026, 8, 9, 0, 0, 0, 0, time.UTC)
 	key := []byte(strings.Repeat("k", 32))
@@ -160,10 +218,10 @@ func TestMutationContractCursorBoundaries(t *testing.T) {
 	}
 
 	limits := DefaultLimits()
-	envelope := cursorEnvelope{Version: 1, Tenant: "t", Index: "i", QueryFingerprint: "q", IndexFingerprint: "f", PointInTime: "pit", SortValues: base.SortValues, Page: limits.MaxPages, Items: limits.MaxPages * limits.MaxPageItems, Bytes: limits.MaxResultBytes, ExpiresUnixNano: now.Add(limits.MaxCursorDuration).UnixNano()}
+	envelope := cursorEnvelope{Version: 1, Tenant: "t", Index: "i", QueryFingerprint: "q", IndexFingerprint: "f", PointInTime: "pit", SortValues: base.SortValues, Page: limits.MaxPages - 1, Items: limits.MaxPages*limits.MaxPageItems - 1, Bytes: limits.MaxResultBytes - 1, ExpiresUnixNano: now.Add(limits.MaxCursorDuration).UnixNano()}
 	exact := signedCursorForTest(codec, envelope)
 	decoded, err := codec.Decode(exact, binding, limits)
-	if err != nil || decoded.Page != limits.MaxPages || decoded.Items != limits.MaxPages*limits.MaxPageItems || decoded.Bytes != limits.MaxResultBytes {
+	if err != nil || decoded.Page != limits.MaxPages-1 || decoded.Items != limits.MaxPages*limits.MaxPageItems-1 || decoded.Bytes != limits.MaxResultBytes-1 {
 		t.Fatal(decoded, err)
 	}
 	zeroEnvelope := envelope
@@ -173,7 +231,7 @@ func TestMutationContractCursorBoundaries(t *testing.T) {
 	}
 	for _, mutate := range []func(*cursorEnvelope){
 		func(v *cursorEnvelope) { v.Page = -1 }, func(v *cursorEnvelope) { v.Items = -1 }, func(v *cursorEnvelope) { v.Bytes = -1 },
-		func(v *cursorEnvelope) { v.Page = limits.MaxPages + 1 }, func(v *cursorEnvelope) { v.Items = limits.MaxPages*limits.MaxPageItems + 1 }, func(v *cursorEnvelope) { v.Bytes = limits.MaxResultBytes + 1 },
+		func(v *cursorEnvelope) { v.Page = limits.MaxPages }, func(v *cursorEnvelope) { v.Items = limits.MaxPages * limits.MaxPageItems }, func(v *cursorEnvelope) { v.Bytes = limits.MaxResultBytes },
 		func(v *cursorEnvelope) {
 			v.ExpiresUnixNano = now.Add(limits.MaxCursorDuration + time.Nanosecond).UnixNano()
 		},
@@ -222,7 +280,7 @@ func nonCanonicalRawBase64(t *testing.T, value string) string {
 func TestMutationContractRequestBoundaries(t *testing.T) {
 	limits := DefaultLimits()
 	capabilities := AllCapabilities()
-	base := Request{Tenant: "t", Index: "i", Query: MatchAllQuery{}, Sort: []Sort{{Field: "_id", Direction: Ascending}}, Page: CursorPage{Size: 1, KeepAlive: time.Nanosecond}}
+	base := Request{Tenant: "t", Index: "i", Query: MatchAllQuery{}, Sort: []Sort{{Field: DocumentIDSortField, Direction: Ascending}}, Page: CursorPage{Size: 1, KeepAlive: time.Millisecond}}
 	valid := []Request{base}
 	tenantExact := base
 	tenantExact.Tenant = strings.Repeat("t", limits.MaxTenantBytes)
@@ -231,7 +289,7 @@ func TestMutationContractRequestBoundaries(t *testing.T) {
 	indexExact.Index = strings.Repeat("i", limits.MaxIndexBytes)
 	valid = append(valid, indexExact)
 	pageExact := base
-	pageExact.Page = CursorPage{Size: limits.MaxPageItems, KeepAlive: time.Nanosecond}
+	pageExact.Page = CursorPage{Size: limits.MaxPageItems, KeepAlive: time.Millisecond}
 	valid = append(valid, pageExact)
 	durationExact := base
 	durationExact.Page = CursorPage{Size: 1, KeepAlive: limits.MaxCursorDuration}
@@ -247,7 +305,7 @@ func TestMutationContractRequestBoundaries(t *testing.T) {
 			t.Fatalf("valid request %d: %v", i, err)
 		}
 	}
-	for _, page := range []any{CursorPage{Size: 0, KeepAlive: time.Nanosecond}, CursorPage{Size: limits.MaxPageItems + 1, KeepAlive: time.Nanosecond}, CursorPage{Size: 1}, CursorPage{Size: 1, KeepAlive: limits.MaxCursorDuration + time.Nanosecond}, OffsetPage{Size: 0}, OffsetPage{Size: limits.MaxPageItems + 1}, OffsetPage{Size: 1, Offset: -1}, OffsetPage{Size: 2, Offset: limits.MaxPages*limits.MaxPageItems - 1}, OffsetPage{Size: 2, Offset: int(^uint(0) >> 1)}} {
+	for _, page := range []any{CursorPage{Size: 0, KeepAlive: time.Millisecond}, CursorPage{Size: limits.MaxPageItems + 1, KeepAlive: time.Millisecond}, CursorPage{Size: 1}, CursorPage{Size: 1, KeepAlive: limits.MaxCursorDuration + time.Nanosecond}, CursorPage{Size: 1, KeepAlive: time.Millisecond + time.Nanosecond}, OffsetPage{Size: 0}, OffsetPage{Size: limits.MaxPageItems + 1}, OffsetPage{Size: 1, Offset: -1}, OffsetPage{Size: 2, Offset: limits.MaxPages*limits.MaxPageItems - 1}, OffsetPage{Size: 2, Offset: int(^uint(0) >> 1)}} {
 		request := base
 		request.Page = page
 		if err := request.Validate(capabilities, limits); !errors.Is(err, ErrPageLimit) {
@@ -328,7 +386,9 @@ func TestMutationContractRequestInputBudgetExactBoundaries(t *testing.T) {
 		sorts[index] = Sort{Field: "f", Direction: Ascending}
 		name := "item_" + strconv.Itoa(index)
 		highlights[name] = Highlight{FragmentSize: 1, MaxFragments: 1}
-		aggregations[name] = TermsAggregation{Field: "f", Size: 1}
+		if index < limits.MaxQueryClauses-1 { // The root query owns one shared node.
+			aggregations[name] = TermsAggregation{Field: "f", Size: 1}
+		}
 		suggestions[name] = PrefixSuggestion{Field: "f", Text: "x", Size: 1}
 	}
 	requests := []Request{
@@ -638,7 +698,7 @@ func TestMutationContractProjectionLifecycleAndFingerprints(t *testing.T) {
 	if _, err := validateMigrationPlan(plan); err != nil {
 		t.Fatal(err)
 	}
-	for _, mutate := range []func(*MigrationPlan){func(p *MigrationPlan) { p.ID = "" }, func(p *MigrationPlan) { p.Tenant = "" }, func(p *MigrationPlan) { p.Alias = "" }, func(p *MigrationPlan) { p.SourceIndex = "" }, func(p *MigrationPlan) { p.Target = IndexDefinition{} }, func(p *MigrationPlan) { p.MaxReindexSteps = 0 }, func(p *MigrationPlan) { p.SourceIndex = "UPPER" }, func(p *MigrationPlan) { p.Alias = "UPPER" }} {
+	for _, mutate := range []func(*MigrationPlan){func(p *MigrationPlan) { p.ID = "" }, func(p *MigrationPlan) { p.Tenant = "" }, func(p *MigrationPlan) { p.Alias = "" }, func(p *MigrationPlan) { p.SourceIndex = "" }, func(p *MigrationPlan) { p.SourceFingerprint = "" }, func(p *MigrationPlan) { p.Target = IndexDefinition{} }, func(p *MigrationPlan) { p.MaxReindexSteps = 0 }, func(p *MigrationPlan) { p.SourceIndex = "UPPER" }, func(p *MigrationPlan) { p.Alias = "UPPER" }} {
 		candidate := plan
 		mutate(&candidate)
 		if _, err := validateMigrationPlan(candidate); !errors.Is(err, ErrInvalidMigrationPlan) {
@@ -683,13 +743,13 @@ func TestMutationContractReconciliationBoundaries(t *testing.T) {
 		{{Records: []ReconciliationRecord{IndexRecord("a", 1, "d")}, Cursor: "same"}, {Records: []ReconciliationRecord{IndexRecord("b", 1, "d")}, Cursor: "same"}},
 	}
 	for _, pages := range malformedPages {
-		if _, err := readReconciliation(t.Context(), &branchReader{pages: pages}, request, false); !errors.Is(err, ErrMalformedReconciliation) {
+		if _, err := readReconciliation(t.Context(), &branchReader{pages: pages}, request, false, limits); !errors.Is(err, ErrMalformedReconciliation) {
 			t.Fatal(pages, err)
 		}
 	}
 	for _, record := range []ReconciliationRecord{{Version: 1, Digest: "d"}, {ID: "a", Digest: "d"}, {ID: "a", Version: 1}, {ID: "a", Version: 1, Digest: "d"}} {
 		requireDocument := record.ID == "a" && record.Version == 1 && record.Digest == "d"
-		if _, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{record}, Done: true}}}, request, requireDocument); !errors.Is(err, ErrMalformedReconciliation) {
+		if _, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{record}, Done: true}}}, request, requireDocument, limits); !errors.Is(err, ErrMalformedReconciliation) {
 			t.Fatal(record, err)
 		}
 	}
@@ -699,21 +759,40 @@ func TestMutationContractReconciliationBoundaries(t *testing.T) {
 		document := *record.Document
 		mutate(&document)
 		record.Document = &document
-		if _, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{record}, Done: true}}}, request, true); !errors.Is(err, ErrMalformedReconciliation) {
+		if _, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{record}, Done: true}}}, request, true, limits); !errors.Is(err, ErrMalformedReconciliation) {
 			t.Fatal(record, err)
 		}
 	}
 	exactRecords := []ReconciliationRecord{IndexRecord("a", 1, "d"), IndexRecord("b", 1, "d")}
-	if records, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: exactRecords, Done: true}}}, request, false); err != nil || len(records) != request.MaxRecords {
+	if records, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: exactRecords, Done: true}}}, request, false, limits); err != nil || len(records) != request.MaxRecords {
+		t.Fatal(records, err)
+	}
+	exactCursor := strings.Repeat("c", limits.MaxQueryBytes)
+	exactPages := &branchReader{pages: []ReconciliationPage{
+		{Records: []ReconciliationRecord{IndexRecord("a", 1, "d")}, Cursor: exactCursor},
+		{Records: []ReconciliationRecord{IndexRecord("b", 1, "d")}, Done: true},
+	}}
+	if records, err := readReconciliation(t.Context(), exactPages, request, false, limits); err != nil || len(records) != request.MaxRecords {
+		t.Fatal(records, err)
+	}
+	exactRecord := IndexRecord(strings.Repeat("i", limits.MaxIDBytes), 1, strings.Repeat("d", limits.MaxIDBytes))
+	if records, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: []ReconciliationRecord{exactRecord}, Done: true}}}, request, false, limits); err != nil || len(records) != 1 {
 		t.Fatal(records, err)
 	}
 	oneRecord := request
 	oneRecord.MaxRecords = 1
-	if _, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: exactRecords, Done: true}}}, oneRecord, false); !errors.Is(err, ErrReconciliationLimit) {
+	if _, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: exactRecords, Done: true}}}, oneRecord, false, limits); !errors.Is(err, ErrReconciliationLimit) {
+		t.Fatal(err)
+	}
+	overRemaining := &branchReader{pages: []ReconciliationPage{
+		{Records: []ReconciliationRecord{IndexRecord("a", 1, "d")}, Cursor: "next"},
+		{Records: []ReconciliationRecord{IndexRecord("b", 1, "d"), IndexRecord("c", 1, "d")}, Done: true},
+	}}
+	if _, err := readReconciliation(t.Context(), overRemaining, request, false, limits); !errors.Is(err, ErrReconciliationLimit) {
 		t.Fatal(err)
 	}
 	unsorted := []ReconciliationRecord{IndexRecord("b", 1, "d"), IndexRecord("a", 1, "d")}
-	if _, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: unsorted, Done: true}}}, request, false); !errors.Is(err, ErrMalformedReconciliation) {
+	if _, err := readReconciliation(t.Context(), &branchReader{pages: []ReconciliationPage{{Records: unsorted, Done: true}}}, request, false, limits); !errors.Is(err, ErrMalformedReconciliation) {
 		t.Fatal(err)
 	}
 }

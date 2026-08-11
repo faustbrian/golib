@@ -34,3 +34,25 @@ func TestProjectionEventProducesIdempotentExternallyVersionedOperations(t *testi
 		t.Fatalf("NewProjectionEvent() error = %v", err)
 	}
 }
+
+func TestProjectionEventRejectsInvalidUTF8Identities(t *testing.T) {
+	t.Parallel()
+
+	invalid := string([]byte{0xff})
+	for _, values := range [][4]string{
+		{invalid, "events", "event-1", "outbox-1"},
+		{"tenant-a", invalid, "event-1", "outbox-1"},
+		{"tenant-a", "events", invalid, "outbox-1"},
+		{"tenant-a", "events", "event-1", invalid},
+	} {
+		if _, err := search.NewProjectionEvent(values[0], values[1], values[2], 1,
+			search.ProjectionDelete, nil, values[3], search.DefaultLimits()); !errors.Is(err, search.ErrInvalidProjectionEvent) {
+			t.Fatalf("NewProjectionEvent(%q, %q, %q, %q) error = %v, want ErrInvalidProjectionEvent",
+				values[0], values[1], values[2], values[3], err)
+		}
+	}
+	if _, err := search.NewProjectionEvent("tenant-a", "events", "event-1", 1,
+		search.ProjectionDelete, nil, "outbox-1", search.Limits{}); !errors.Is(err, search.ErrInvalidProjectionEvent) {
+		t.Fatalf("NewProjectionEvent() invalid-limits error = %v, want ErrInvalidProjectionEvent", err)
+	}
+}

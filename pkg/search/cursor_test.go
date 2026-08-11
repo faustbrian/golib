@@ -133,3 +133,50 @@ func TestCursorDecodeRejectsUnboundedLimits(t *testing.T) {
 		t.Fatalf("Decode() error = %v, want ErrPageLimit", err)
 	}
 }
+
+func TestCursorCodecOwnsDeadlineAndRemainingLifetime(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2026, time.August, 11, 1, 0, 0, 0, time.FixedZone("test", 2*60*60))
+	codec, err := search.NewCursorCodec([]byte("0123456789abcdef0123456789abcdef"), func() time.Time { return now }, 4096)
+	if err != nil {
+		t.Fatal(err)
+	}
+	deadline, err := codec.Deadline(time.Minute)
+	if err != nil || !deadline.Equal(now.Add(time.Minute)) || deadline.Location() != time.UTC {
+		t.Fatalf("Deadline() = %s/%v", deadline, err)
+	}
+	if remaining, remainingErr := codec.Remaining(deadline); remainingErr != nil || remaining != time.Minute {
+		t.Fatalf("Remaining() = %s/%v", remaining, remainingErr)
+	}
+	if _, err := codec.Deadline(0); !errors.Is(err, search.ErrInvalidCursor) {
+		t.Fatalf("Deadline(0) error = %v, want ErrInvalidCursor", err)
+	}
+	if _, err := codec.Deadline(-time.Nanosecond); !errors.Is(err, search.ErrInvalidCursor) {
+		t.Fatalf("Deadline(negative) error = %v, want ErrInvalidCursor", err)
+	}
+	minimumRepresentable := time.Unix(0, -1<<63)
+	now = minimumRepresentable.Add(-time.Second)
+	if got, err := codec.Deadline(time.Second); err != nil || !got.Equal(minimumRepresentable) {
+		t.Fatalf("Deadline(minimum representable) = %s/%v", got, err)
+	}
+	const unixToInternal = int64(62135596800)
+	now = time.Unix((1<<63-1)-unixToInternal, 999999999)
+	if _, err := codec.Deadline(time.Nanosecond); !errors.Is(err, search.ErrInvalidCursor) {
+		t.Fatalf("Deadline(overflow) error = %v, want ErrInvalidCursor", err)
+	}
+	now = time.Unix(1<<63-1, 0)
+	if _, err := codec.Deadline(time.Millisecond); !errors.Is(err, search.ErrInvalidCursor) {
+		t.Fatalf("Deadline(unrepresentable UnixNano) error = %v, want ErrInvalidCursor", err)
+	}
+	now = time.Date(2026, time.August, 11, 1, 0, 0, 0, time.UTC)
+	if _, err := codec.Encode(search.CursorBinding{Tenant: "tenant", Index: "index", QueryFingerprint: "query", IndexFingerprint: "definition"}, search.CursorState{
+		PointInTime: "pit", SortValues: []json.RawMessage{json.RawMessage(`"id"`)}, ExpiresAt: time.Unix(1<<63-1, 0),
+	}); !errors.Is(err, search.ErrInvalidCursor) {
+		t.Fatalf("Encode(unrepresentable expiry) error = %v, want ErrInvalidCursor", err)
+	}
+	now = deadline
+	if _, err := codec.Remaining(deadline); !errors.Is(err, search.ErrCursorExpired) {
+		t.Fatalf("Remaining(expired) error = %v, want ErrCursorExpired", err)
+	}
+}

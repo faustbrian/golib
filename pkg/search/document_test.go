@@ -125,3 +125,23 @@ func TestDocumentValidationRejectsEveryUnsafeBoundary(t *testing.T) {
 		})
 	}
 }
+
+func TestDocumentRejectsInvalidUTF8IdentityAndSource(t *testing.T) {
+	t.Parallel()
+
+	invalid := string([]byte{0xff})
+	invalidSource := json.RawMessage([]byte{'{', '"', 'x', '"', ':', '"', 0xff, '"', '}'})
+	for _, test := range []struct {
+		tenant, index, id string
+		source            json.RawMessage
+	}{
+		{invalid, "events", "id", json.RawMessage(`{}`)},
+		{"tenant", invalid, "id", json.RawMessage(`{}`)},
+		{"tenant", "events", invalid, json.RawMessage(`{}`)},
+		{"tenant", "events", "id", invalidSource},
+	} {
+		if _, err := search.NewDocument(test.tenant, test.index, test.id, 1, test.source, search.DefaultLimits()); err == nil {
+			t.Fatalf("NewDocument(%q, %q, %q) accepted invalid UTF-8", test.tenant, test.index, test.id)
+		}
+	}
+}

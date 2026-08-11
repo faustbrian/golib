@@ -9,6 +9,7 @@ import (
 	"io"
 	"strings"
 	"unicode"
+	"unicode/utf8"
 )
 
 var (
@@ -128,7 +129,7 @@ func ensureJSONEOF(decoder *json.Decoder) error {
 }
 
 func validIndexName(name string) bool {
-	if name == "" || len(name) > 255 || name == "." || name == ".." || strings.HasPrefix(name, "_") || strings.HasPrefix(name, "-") || strings.HasPrefix(name, "+") {
+	if name == "" || !utf8.ValidString(name) || len(name) > 255 || name == "." || name == ".." || strings.HasPrefix(name, "_") || strings.HasPrefix(name, "-") || strings.HasPrefix(name, "+") {
 		return false
 	}
 	for _, character := range name {

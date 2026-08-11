@@ -89,6 +89,8 @@ func TestResultRejectsAmbiguousOrMalformedBackendValues(t *testing.T) {
 		{name: "empty aggregation name", hits: []search.Hit{validHit}, total: validTotal, aggregations: map[string]json.RawMessage{"": json.RawMessage(`{}`)}, diagnostics: validDiagnostics},
 		{name: "unsafe suggestion name", hits: []search.Hit{validHit}, total: validTotal, suggestions: map[string]json.RawMessage{"names\nraw": json.RawMessage(`{}`)}, diagnostics: validDiagnostics},
 		{name: "overlong aggregation name", hits: []search.Hit{validHit}, total: validTotal, aggregations: map[string]json.RawMessage{strings.Repeat("a", search.MaxFieldNameBytes+1): json.RawMessage(`{}`)}, diagnostics: validDiagnostics},
+		{name: "invalid UTF-8 hit index", hits: []search.Hit{{Index: string([]byte{0xff}), ID: "id", Version: 1}}, total: validTotal, diagnostics: validDiagnostics},
+		{name: "invalid UTF-8 hit ID", hits: []search.Hit{{Index: "idx", ID: string([]byte{0xff}), Version: 1}}, total: validTotal, diagnostics: validDiagnostics},
 	}
 	for _, test := range tests {
 		test := test

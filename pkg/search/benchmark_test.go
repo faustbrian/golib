@@ -9,7 +9,7 @@ import (
 )
 
 func BenchmarkRequestFingerprint(b *testing.B) {
-	request := search.Request{Tenant: "tenant-a", Index: "locations", Query: search.BoolQuery{Filter: []search.Query{search.TermQuery{Field: "country", Value: search.StringValue("FI")}, search.ExistsQuery{Field: "position"}}}, Sort: []search.Sort{{Field: "_id", Direction: search.Ascending}}, Page: search.CursorPage{Size: 50, KeepAlive: time.Minute}}
+	request := search.Request{Tenant: "tenant-a", Index: "locations", Query: search.BoolQuery{Filter: []search.Query{search.TermQuery{Field: "country", Value: search.StringValue("FI")}, search.ExistsQuery{Field: "position"}}}, Sort: []search.Sort{{Field: search.DocumentIDSortField, Direction: search.Ascending}}, Page: search.CursorPage{Size: 50, KeepAlive: time.Minute}}
 	b.ReportAllocs()
 	for b.Loop() {
 		if _, err := search.RequestFingerprint(request, search.DefaultLimits()); err != nil {

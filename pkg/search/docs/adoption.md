@@ -6,7 +6,8 @@ Project one document per tracking entity with the tracking ID as stable ID and
 the source sequence or revision as external version. Persist an outbox event in
 the same transaction as the tracking change. Typical requests combine full text
 over reference/carrier fields, exact tenant and status filters, timestamp
-ranges, highlights, status facets, and a stable `updated_at`, `_id` sort.
+ranges, highlights, status facets, and a stable `updated_at`,
+`search.DocumentIDSortField` sort.
 
 ## Location
 
