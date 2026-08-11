@@ -3,6 +3,7 @@ package goqueue
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
 	"github.com/faustbrian/golib/pkg/queue/core"
@@ -55,6 +56,12 @@ type HandlerError struct {
 // Error implements error with a stable redacted diagnostic.
 func (*HandlerError) Error() string {
 	return ErrTaskHandlingFailed.Error()
+}
+
+// Format keeps consumer and panic diagnostics redacted for every fmt
+// representation, including Go-syntax formatting.
+func (err *HandlerError) Format(state fmt.State, verb rune) {
+	formatRedactedError(state, verb, err.Error())
 }
 
 // Unwrap preserves the stable category and underlying cause.

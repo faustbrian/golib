@@ -3,6 +3,7 @@ package goqueue
 import (
 	"context"
 	"errors"
+	"fmt"
 	"reflect"
 	"strconv"
 
@@ -96,6 +97,12 @@ type DispatchError struct {
 // Error implements error with a stable redacted diagnostic.
 func (*DispatchError) Error() string {
 	return ErrDispatchFailed.Error()
+}
+
+// Format keeps backend and panic diagnostics redacted for every fmt
+// representation, including Go-syntax formatting.
+func (err *DispatchError) Format(state fmt.State, verb rune) {
+	formatRedactedError(state, verb, err.Error())
 }
 
 // Unwrap preserves the stable category and underlying cause.

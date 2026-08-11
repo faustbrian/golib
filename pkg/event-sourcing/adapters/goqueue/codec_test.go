@@ -52,6 +52,10 @@ func TestCodecRoundTripsAbsentOptionalFields(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Encode() error = %v", err)
 	}
+	const want = `{"format":"golib.event-sourcing.queue.v1","delivery_mode":"live","message_id":"message-1","aggregate_type":"account","aggregate_id":"42","stream_version":1,"event_name":"account.opened","event_schema_version":1,"content_type":"application/json","payload":"e30=","recorded_at":"2026-07-25T12:34:56Z"}`
+	if string(encoded) != want {
+		t.Fatalf("Encode() = %s", encoded)
+	}
 	decoded, err := codec.Decode(encoded)
 	if err != nil {
 		t.Fatalf("Decode() error = %v", err)
@@ -59,6 +63,35 @@ func TestCodecRoundTripsAbsentOptionalFields(t *testing.T) {
 	if !decoded.Message().Equal(delivery.Message()) ||
 		decoded.Mode() != eventsourcing.DeliveryLive {
 		t.Fatalf("Decode() = %#v", decoded)
+	}
+	for iteration := 0; iteration < 100; iteration++ {
+		reencoded, encodeErr := codec.Encode(decoded)
+		if encodeErr != nil || !bytes.Equal(reencoded, encoded) {
+			t.Fatalf("Encode(iteration %d) = %s, %v", iteration, reencoded, encodeErr)
+		}
+	}
+}
+
+func TestCodecRejectsEveryUnsupportedWireVersion(t *testing.T) {
+	t.Parallel()
+
+	codec, err := NewCodec(CodecConfig{})
+	if err != nil {
+		t.Fatalf("NewCodec() error = %v", err)
+	}
+	const current = `{"format":"golib.event-sourcing.queue.v1","delivery_mode":"live","message_id":"message-1","aggregate_type":"account","aggregate_id":"42","stream_version":1,"event_name":"account.opened","event_schema_version":1,"content_type":"application/json","payload":"e30=","recorded_at":"2026-07-25T12:34:56Z"}`
+	for _, version := range []string{
+		"golib.event-sourcing.queue.v0",
+		"golib.event-sourcing.queue.v2",
+		"golib.event-sourcing.queue.v999999999999999999999999",
+	} {
+		encoded := strings.Replace(current, envelopeFormat, version, 1)
+		if _, decodeErr := codec.Decode([]byte(encoded)); !errors.Is(
+			decodeErr,
+			ErrEnvelopeInvalid,
+		) {
+			t.Fatalf("Decode(%q) error = %v", version, decodeErr)
+		}
 	}
 }
 

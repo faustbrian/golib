@@ -71,7 +71,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18 |
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md` | 18, 24, 25 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 28 |
-| 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md` | 27, 28 |
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
 | 47 | Durable orchestration | `pending` | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 27-35, 43, 44, 46 |
 | 48 | Search | `pending` | `pkg/search/.ai/GOAL_HARDEN.md` | 3-18, 29-32, 43 |
@@ -115,7 +114,8 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 23. Current scoped evidence verifies authentication-material redaction, result isolation, bounded completion and retention, provider lifecycle, concurrency, fuzzing, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/kafka/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 25 has current scoped evidence for completed payload-free observation translation, deny-by-default identities, exact span and metric contracts, explicit bounded W3C Trace Context propagation through Apache Kafka 4.3.1, provider lifecycle behavior, documentation, exact statement and mutation coverage, and every mandatory module gate; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/event-sourcing/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 33 has current scoped evidence for the canonical versioned Kafka mapping, bounded hostile records, synchronous publication outcomes, owned decoding, at-least-once settlement, explicit retry and dead-letter boundaries, real-broker interoperability, documentation, exact statement and mutation coverage, and every mandatory module gate; its separate `GOAL_HARDEN.md` remains pending. |
-| `pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 34 has current scoped evidence for canonical bounded queue envelopes, stable event and ordering identity, explicit enqueue ambiguity, post-consumer settlement, durable redelivery and dead-letter behavior, documentation, exact statement and mutation coverage, and every mandatory scoped module gate; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 34 has current scoped evidence for canonical bounded queue envelopes, stable event and ordering identity, explicit enqueue ambiguity, post-consumer settlement, durable redelivery and dead-letter behavior, documentation, exact statement and mutation coverage, and every mandatory scoped module gate; its separate `GOAL_HARDEN.md` is verified below. |
+| `pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 34. Current scoped evidence verifies hostile wire handling, enqueue ambiguity, duplicate and process-death recovery windows, supported-backend ordering identities, lifecycle and race safety, diagnostic redaction, fuzzing, performance, exact statement and mutation coverage, and every mandatory scoped module gate; requeue only when affected inputs or requirements change. |
 | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 31. Current scoped evidence verifies canonical synchronous publication, explicit acceptance ambiguity, stable duplicate identity, durable Redis and Valkey relay windows, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 32. Current scoped evidence verifies payload-safe propagation and telemetry, exact relay publication and settlement semantics, bounded cooperative-provider lifecycle, concurrency and retention safety, convention mapping, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence. |
@@ -251,12 +251,25 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | --- | --- |
 | Goal | `pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md` |
 | Scope | Canonical bounded delivery envelopes; complete event, aggregate, correlation, causation, tenant, metadata, timestamp, schema, and payload identity; stable queue operational identity; explicit enqueue ambiguity; ordered synchronous publication; post-consumer settlement; durable redelivery and dead-letter behavior; ownership isolation; documentation and module quality gates. |
-| Status | `pending-reexecution` to `verified`; `pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md` remains pending. |
+| Status | `pending-reexecution` to `verified`; `pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md` is verified in the following record. |
 | Evidence | Current isolated module test, integration, race, exact coverage, mutation, fuzz, analyzer, API, documentation, security, supply-chain, and benchmark gates, plus focused red-green regressions for queue metadata ownership, outer size bounds, non-finite retry factors, unencodable enqueue timestamps, and terminal-redelivery race behavior. |
 | Result | Passed every mandatory scoped module gate with exact 262/262 statement coverage and 102/102 viable mutants killed with 100% efficacy and mutator coverage; durable Valkey Streams settlement, failure reclamation, retry exhaustion and dead-letter metadata, race, 10,000 fuzz executions, API, documentation, security, supply-chain, and benchmark gates passed. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded run and digest-pinned Valkey Streams 9.1.0 integration. |
 | Observed | 2026-08-11 |
-| Gaps | The aggregate root wrapper is unavailable because unrelated concurrent work currently changes `go.work` and leaves `modules.json` stale; direct scoped module evidence is complete. The separate hardening campaign remains pending. |
+| Gaps | The aggregate root wrapper is unavailable because unrelated concurrent work currently changes `go.work` and leaves `modules.json` stale; direct scoped module evidence is complete. The separate hardening campaign is verified in the following record. |
+
+### Event sourcing queue adapter hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md` |
+| Scope | Exact canonical wire compatibility; bounded hostile decode and retry metadata; explicit publication ambiguity; duplicate, redelivery, dead-letter, handler failure, shutdown, and worker process-death recovery; application-owned idempotency; Ring and Valkey ordering identities; shared codec, dispatcher, handler, cancellation, close, callback, and byte ownership races; diagnostic redaction; and separate adapter and durable broker performance. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | Current-tree canonical scoped module contract with a 10,000-execution fuzz budget, digest-pinned Valkey Streams 9.1.0 integration, the direct equivalent-settings durable Valkey benchmark, focused controlled-mutation regression proof, and independent final requirements and code review. |
+| Result | Passed exact 268/268 production statements; killed 103/103 viable mutants with 100.00% efficacy and mutator coverage; passed race, four 10,000-execution fuzz targets, NilAway, API, documentation, analyzers, vulnerability, secrets, licenses, SBOM, Ring and Valkey interoperability, process-death recovery, and broker-free and durable publication benchmarks. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded run and digest-pinned Valkey Streams 9.1.0 containers removed after integration and benchmarking. |
+| Observed | 2026-08-11 |
+| Gaps | Conformance is cataloged as not applicable. The supported interoperability matrix is deliberately limited to in-memory Ring and Valkey Streams 9.1.0; no stronger claim is made for other queue implementations. The aggregate repository wrapper was not run because unrelated concurrent work changes root manifests and workspace state; no scoped module gate remains unresolved. |
 
 ### HTTP message signatures evidence
 

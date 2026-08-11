@@ -27,6 +27,12 @@ and this project adheres to
   digest-pinned Valkey Streams 9.1.0 after the producer worker is closed.
 - Expose whether the stopping delivery was not attempted or has unknown queue
   acceptance so retry decisions retain duplicate risk.
+- Prove hostile wire classes, concurrent shared use, callback and byte
+  ownership, accepted-then-failed publication, duplicate retry, blocked
+  enqueue cancellation, and application-owned idempotency.
+- Add digest-pinned Valkey Streams process-death, disconnection, shutdown,
+  ordering-identity, and dead-letter failure recovery evidence, plus separate
+  adapter-overhead and durable-publication benchmarks.
 
 ### Fixed
 
@@ -34,3 +40,5 @@ and this project adheres to
   preflight the complete first-party queue message bound, reject typed-nil
   queues and unencodable job policy, and copy correlation and trace-context
   metadata across ownership boundaries.
+- Redact wrapped input, consumer, panic, backend, and credential diagnostics
+  from every common Go error format, including Go-syntax formatting.

@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 	"sort"
@@ -51,6 +52,12 @@ type EnvelopeError struct {
 // Error implements error with a stable redacted diagnostic.
 func (err *EnvelopeError) Error() string {
 	return err.category.Error()
+}
+
+// Format keeps wrapped input and parser diagnostics redacted for every fmt
+// representation, including Go-syntax formatting.
+func (err *EnvelopeError) Format(state fmt.State, verb rune) {
+	formatRedactedError(state, verb, err.Error())
 }
 
 // Unwrap preserves the stable category and original cause.

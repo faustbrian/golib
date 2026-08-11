@@ -183,6 +183,11 @@ unknown fields, and unsupported versions. Deploy readers that understand a new
 format before writers emit it. Do not rewrite queued v1 bytes during a rolling
 deployment.
 
+Version 1 is the first supported wire version, so there is no prior-version
+reader in this release. The frozen complete and minimal golden payloads cover
+both delivery modes and every present or absent optional field. Inputs labeled
+v0, v2, or any other version are rejected rather than guessed.
+
 Migrating from an application-defined queue payload requires draining or
 retaining its old reader while new publishers emit v1. Preserve the old
 idempotency record until every old and v1 duplicate window has closed. A future
@@ -195,6 +200,19 @@ breaking wire change will use a new format identifier and migration guidance.
 | Queue | Exact sibling module dependency and `QueuedMessage`/`TaskMessage` seams. |
 | Durable backend | Backend-specific; Valkey Streams is exercised by integration. |
 
+The adapter's hardening support matrix is deliberately narrower than the set of
+packages that happen to implement the queue interface:
+
+| Backend | Supported evidence | Ordering claim |
+| --- | --- | --- |
+| In-memory Ring | Complete encode, enqueue, handle, failure, and settlement contract. | One configured worker observes synchronous enqueue order; there is no durability claim. |
+| Valkey Streams 9.1.0 | Digest-pinned persistence, restart, process-death reclaim, dead-letter failure recovery, shutdown, and ordering-identity integration. | One stream, one consumer group, and one consumer preserve stream entry order without retries. |
+
+Redis Pub/Sub, Redis Streams, Core NATS, NSQ, and RabbitMQ may satisfy the
+public `Queue` seam, but this module does not claim backend-interoperability
+support for them until equivalent adapter-level hardening evidence exists.
+Their queue-package tests are not evidence for this event-sourcing mapping.
+
 ## Security
 
 Codec and handler errors are redacted and never include hostile input, event
@@ -202,6 +220,12 @@ identity, payload, metadata, or backend diagnostics. Message size, metadata,
 identity, and timestamp limits are enforced before application handling.
 Applications remain responsible for payload authorization, tenant isolation,
 encryption, secret redaction in consumer errors, and dead-letter access.
+
+All common `fmt` representations of `EnvelopeError`, `DispatchError`, and
+`HandlerError`, including `%#v`, emit only their stable category. `errors.Is`
+and `errors.As` still expose wrapped causes for deliberate programmatic
+classification; applications must not print those separately when they can
+contain consumer, broker, or credential diagnostics.
 
 ## FAQ
 
@@ -235,3 +259,5 @@ effects.
 
 Run `make check` for the complete module contract. Run `make integration` with
 a Docker-compatible runtime for digest-pinned durable Valkey Streams evidence.
+See [hardening evidence](docs/hardening.md) for duplicate windows, fault and
+fuzz coverage, backend claim boundaries, and benchmark methodology.
