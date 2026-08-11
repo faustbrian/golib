@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "reviewed_at": "2026-07-27",
+  "reviewed_at": "2026-08-11",
   "sources": [
     {
       "name": "AWS MSK IAM SASL Signer for Go",

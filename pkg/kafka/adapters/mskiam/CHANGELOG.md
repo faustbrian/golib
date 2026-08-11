@@ -11,6 +11,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
+- Validate signer output as the bounded AWS MSK presigned-URL format, reject
+  noncanonical AWS partition regions, and expose distinct redacted
+  cancellation, timeout, expiry, and malformed-output categories.
+- Expand API, adoption, tradeoff, and FAQ guidance and enforce those surfaces
+  in the documentation gate.
 
 ### Added
 

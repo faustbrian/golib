@@ -5,7 +5,9 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"net/url"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -17,13 +19,16 @@ import (
 )
 
 const (
-	defaultTokenTimeout = 5 * time.Second
-	minTokenTimeout     = 100 * time.Millisecond
-	maxTokenTimeout     = time.Minute
-	minTokenValidity    = 30 * time.Second
-	maxTokenLifetime    = 20 * time.Minute
-	maxRegionBytes      = 64
-	maxTokenBytes       = 1 << 20
+	defaultTokenTimeout  = 5 * time.Second
+	minTokenTimeout      = 100 * time.Millisecond
+	maxTokenTimeout      = time.Minute
+	minTokenValidity     = 30 * time.Second
+	maxTokenLifetime     = 20 * time.Minute
+	maxRegionBytes       = 64
+	maxTokenBytes        = 1 << 20
+	maxAccessKeyIDBytes  = 128
+	maxSecretKeyBytes    = 256
+	maxSessionTokenBytes = 16 << 10
 )
 
 var (
@@ -59,10 +64,36 @@ var (
 	ErrTokenProviderPanic = errors.New(
 		"kafka/mskiam: token provider panicked",
 	)
-	// ErrInvalidToken reports an empty, malformed, expired, or unexpectedly
-	// long-lived signer result.
+	// ErrTokenCanceled reports canceled token generation without exposing the
+	// credential provider or signer diagnostic.
+	ErrTokenCanceled = errors.New("kafka/mskiam: token generation canceled")
+	// ErrTokenTimeout reports that the bounded token deadline elapsed.
+	ErrTokenTimeout = errors.New("kafka/mskiam: token generation timed out")
+	// ErrInvalidToken is the compatibility category for rejected signer output.
 	ErrInvalidToken = errors.New("kafka/mskiam: signer returned an invalid token")
+	// ErrMalformedToken reports structurally invalid or unexpectedly
+	// long-lived signer output.
+	ErrMalformedToken error = &invalidTokenCategory{
+		message: "kafka/mskiam: signer returned malformed output",
+	}
+	// ErrTokenExpired reports a token whose effective validity is insufficient
+	// for a new authentication session.
+	ErrTokenExpired error = &invalidTokenCategory{
+		message: "kafka/mskiam: token is expired or expires too soon",
+	}
 )
+
+type invalidTokenCategory struct {
+	message string
+}
+
+func (category *invalidTokenCategory) Error() string {
+	return category.message
+}
+
+func (category *invalidTokenCategory) Is(target error) bool {
+	return target == ErrInvalidToken
+}
 
 // Config selects one AWS region, credential source, and bounded token
 // generation deadline. A nil CredentialsProvider selects the standard AWS SDK
@@ -118,7 +149,7 @@ func New(ctx context.Context, adapterConfig Config) (*Provider, error) {
 		return nil, err
 	}
 	if err := ctx.Err(); err != nil {
-		return nil, err
+		return nil, newContextError(err)
 	}
 	credentials := adapterConfig.CredentialsProvider
 	if credentials == nil {
@@ -177,7 +208,7 @@ func (provider *Provider) Token(
 		return kafka.OAuthBearerToken{}, ErrInvalidConfig
 	}
 	if err := ctx.Err(); err != nil {
-		return kafka.OAuthBearerToken{}, err
+		return kafka.OAuthBearerToken{}, newContextError(err)
 	}
 	defer func() {
 		if recover() != nil {
@@ -205,15 +236,20 @@ func (provider *Provider) Token(
 		return kafka.OAuthBearerToken{},
 			newProviderError(ErrTokenGeneration, generationErr)
 	}
+	if err := tokenCtx.Err(); err != nil {
+		return kafka.OAuthBearerToken{}, newContextError(err)
+	}
 	validatedAt := provider.now()
 	expiresAt := time.UnixMilli(expiresAtMilliseconds)
 	if credentials.CanExpire && credentials.Expires.Before(expiresAt) {
 		expiresAt = credentials.Expires
 	}
-	if !validToken(value) ||
-		!expiresAt.After(validatedAt.Add(minTokenValidity)) ||
-		expiresAt.After(validatedAt.Add(maxTokenLifetime)) {
-		return kafka.OAuthBearerToken{}, ErrInvalidToken
+	if !expiresAt.After(validatedAt.Add(minTokenValidity)) {
+		return kafka.OAuthBearerToken{}, ErrTokenExpired
+	}
+	if expiresAt.After(validatedAt.Add(maxTokenLifetime)) ||
+		!validToken(value, provider.region, expiresAtMilliseconds) {
+		return kafka.OAuthBearerToken{}, ErrMalformedToken
 	}
 
 	return kafka.OAuthBearerToken{
@@ -230,6 +266,9 @@ func (provider *Provider) retrieveCredentials(
 	if err != nil {
 		return aws.Credentials{},
 			newProviderError(ErrCredentialRetrieve, err)
+	}
+	if err := ctx.Err(); err != nil {
+		return aws.Credentials{}, newContextError(err)
 	}
 	if !validCredentials(credentials) {
 		return aws.Credentials{}, ErrInvalidCredentials
@@ -248,6 +287,9 @@ func (provider *Provider) retrieveCredentials(
 		return aws.Credentials{},
 			newProviderError(ErrCredentialRetrieve, err)
 	}
+	if err := ctx.Err(); err != nil {
+		return aws.Credentials{}, newContextError(err)
+	}
 	if !validCredentials(credentials) {
 		return aws.Credentials{}, ErrInvalidCredentials
 	}
@@ -261,7 +303,10 @@ func (provider *Provider) retrieveCredentials(
 
 func validCredentials(credentials aws.Credentials) bool {
 	return credentials.AccessKeyID != "" &&
+		len(credentials.AccessKeyID) <= maxAccessKeyIDBytes &&
 		credentials.SecretAccessKey != "" &&
+		len(credentials.SecretAccessKey) <= maxSecretKeyBytes &&
+		len(credentials.SessionToken) <= maxSessionTokenBytes &&
 		(!credentials.CanExpire || !credentials.Expires.IsZero())
 }
 
@@ -300,13 +345,20 @@ func (provider resolvedCredentialsProvider) Retrieve(
 // ProviderError preserves a stable category and safe context cancellation
 // identity while returning a redacted diagnostic.
 type ProviderError struct {
-	category error
-	cause    error
+	category        error
+	contextCategory error
+	cause           error
 }
 
 // Error implements error without exposing AWS provider or signer diagnostics.
 func (err *ProviderError) Error() string {
-	if err == nil || err.category == nil {
+	if err == nil {
+		return ErrTokenGeneration.Error()
+	}
+	if err.contextCategory != nil {
+		return err.contextCategory.Error()
+	}
+	if err.category == nil {
 		return ErrTokenGeneration.Error()
 	}
 
@@ -323,23 +375,50 @@ func (err *ProviderError) Unwrap() []error {
 	if err == nil || err.category == nil {
 		return []error{ErrTokenGeneration}
 	}
-	if err.cause == nil {
+	if err.contextCategory == nil {
+		if err.cause != nil {
+			return []error{err.category, err.cause}
+		}
+
 		return []error{err.category}
 	}
+	unwrapped := []error{err.category}
+	if err.contextCategory != err.category {
+		unwrapped = append(unwrapped, err.contextCategory)
+	}
+	if err.cause != nil {
+		unwrapped = append(unwrapped, err.cause)
+	}
 
-	return []error{err.category, err.cause}
+	return unwrapped
 }
 
 func newProviderError(category error, cause error) error {
 	var safeCause error
+	var contextCategory error
 	switch {
 	case errors.Is(cause, context.Canceled):
 		safeCause = context.Canceled
+		contextCategory = ErrTokenCanceled
 	case errors.Is(cause, context.DeadlineExceeded):
 		safeCause = context.DeadlineExceeded
+		contextCategory = ErrTokenTimeout
 	}
 
-	return &ProviderError{category: category, cause: safeCause}
+	return &ProviderError{
+		category:        category,
+		contextCategory: contextCategory,
+		cause:           safeCause,
+	}
+}
+
+func newContextError(cause error) error {
+	category := ErrTokenCanceled
+	if errors.Is(cause, context.DeadlineExceeded) {
+		category = ErrTokenTimeout
+	}
+
+	return &ProviderError{category: category, cause: cause}
 }
 
 func validRegion(region string) bool {
@@ -357,25 +436,36 @@ func validRegion(region string) bool {
 	}
 	segments := strings.Split(region, "-")
 	if len(segments) < 3 ||
-		len(segments[0]) != 2 ||
-		!lowercaseLetters(segments[0]) ||
 		!decimalDigits(segments[len(segments)-1]) ||
 		segments[len(segments)-1][0] == '0' {
 		return false
 	}
-	for _, segment := range segments[1 : len(segments)-1] {
-		if segment == "" {
-			return false
-		}
-		for _, current := range segment {
-			if (current < 'a' || current > 'z') &&
-				(current < '0' || current > '9') {
-				return false
-			}
-		}
+	prefixLength := awsRegionPrefixLength(segments)
+	if prefixLength == 0 || len(segments) != prefixLength+2 ||
+		!lowercaseLetters(segments[prefixLength]) {
+		return false
 	}
 
 	return true
+}
+
+func awsRegionPrefixLength(segments []string) int {
+	if len(segments) < 3 {
+		return 0
+	}
+	if len(segments) >= 4 {
+		prefix := segments[0] + "-" + segments[1]
+		switch prefix {
+		case "eusc-de", "eu-isoe", "us-gov", "us-iso", "us-isob", "us-isof":
+			return 2
+		}
+	}
+	switch segments[0] {
+	case "af", "ap", "ca", "cn", "eu", "il", "me", "mx", "sa", "us":
+		return 1
+	default:
+		return 0
+	}
 }
 
 func lowercaseLetters(value string) bool {
@@ -398,15 +488,180 @@ func decimalDigits(value string) bool {
 	return value != ""
 }
 
-func validToken(token string) bool {
-	if len(token) == 0 || len(token) > maxTokenBytes {
+func validToken(token string, region string, expiresAtMilliseconds int64) bool {
+	if len(token) == 0 {
 		return false
 	}
-	_, err := base64.RawURLEncoding.DecodeString(
-		strings.TrimRight(token, "="),
-	)
+	if len(token) > maxTokenBytes {
+		return false
+	}
+	decoded, err := base64.RawURLEncoding.DecodeString(token)
+	if err != nil {
+		return false
+	}
+	signedURL, err := url.ParseRequestURI(string(decoded))
+	if err != nil {
+		return false
+	}
+	if signedURL.Scheme != "https" {
+		return false
+	}
+	if signedURL.Host != "kafka."+region+".amazonaws.com" {
+		return false
+	}
+	if signedURL.Path != "/" {
+		return false
+	}
+	if signedURL.User != nil {
+		return false
+	}
+	query, err := url.ParseQuery(signedURL.RawQuery)
+	if err != nil {
+		return false
+	}
+	if !validQueryKeys(query) {
+		return false
+	}
+	if !exactQueryValue(query, "Action", "kafka-cluster:Connect") {
+		return false
+	}
+	if !exactQueryValue(query, "X-Amz-Algorithm", "AWS4-HMAC-SHA256") {
+		return false
+	}
+	if !exactQueryValue(query, "X-Amz-SignedHeaders", "host") {
+		return false
+	}
+	if !validUserAgent(query) {
+		return false
+	}
+	if !validSignature(query) {
+		return false
+	}
+	signedAt, err := time.Parse("20060102T150405Z", query.Get("X-Amz-Date"))
+	if err != nil {
+		return false
+	}
+	if len(query["X-Amz-Date"]) != 1 {
+		return false
+	}
+	if !validCredentialScope(query, region, signedAt) {
+		return false
+	}
+	expiresSeconds, err := strconv.ParseInt(query.Get("X-Amz-Expires"), 10, 64)
+	if err != nil {
+		return false
+	}
+	if len(query["X-Amz-Expires"]) != 1 {
+		return false
+	}
+	if expiresSeconds <= 0 {
+		return false
+	}
+	if expiresSeconds > int64(maxTokenLifetime/time.Second) {
+		return false
+	}
+	wantExpiry := signedAt.Add(time.Duration(expiresSeconds) * time.Second)
 
-	return err == nil
+	return wantExpiry.UnixMilli() == expiresAtMilliseconds
+}
+
+func validQueryKeys(query url.Values) bool {
+	if len(query) < 8 {
+		return false
+	}
+	if len(query) > 9 {
+		return false
+	}
+	for key := range query {
+		switch key {
+		case "Action", "User-Agent", "X-Amz-Algorithm", "X-Amz-Credential",
+			"X-Amz-Date", "X-Amz-Expires", "X-Amz-Signature",
+			"X-Amz-SignedHeaders":
+		case "X-Amz-Security-Token":
+			values := query[key]
+			if len(values) != 1 {
+				return false
+			}
+			if values[0] == "" {
+				return false
+			}
+		default:
+			return false
+		}
+	}
+
+	return true
+}
+
+func exactQueryValue(query url.Values, key string, value string) bool {
+	values, ok := query[key]
+	if !ok {
+		return false
+	}
+	if len(values) != 1 {
+		return false
+	}
+
+	return values[0] == value
+}
+
+func validUserAgent(query url.Values) bool {
+	values := query["User-Agent"]
+	if len(values) != 1 {
+		return false
+	}
+
+	return strings.HasPrefix(values[0], "aws-msk-iam-sasl-signer-go/")
+}
+
+func validSignature(query url.Values) bool {
+	values := query["X-Amz-Signature"]
+	if len(values) != 1 {
+		return false
+	}
+	if len(values[0]) != 64 {
+		return false
+	}
+	for _, current := range values[0] {
+		if (current < '0' || current > '9') &&
+			(current < 'a' || current > 'f') {
+			return false
+		}
+	}
+
+	return true
+}
+
+func validCredentialScope(
+	query url.Values,
+	region string,
+	signedAt time.Time,
+) bool {
+	values := query["X-Amz-Credential"]
+	if len(values) != 1 {
+		return false
+	}
+	parts := strings.Split(values[0], "/")
+	if len(parts) != 5 {
+		return false
+	}
+	if parts[0] == "" {
+		return false
+	}
+	if len(parts[0]) > 128 {
+		return false
+	}
+	if parts[1] != signedAt.UTC().Format("20060102") {
+		return false
+	}
+	if parts[2] != region {
+		return false
+	}
+	if parts[3] != "kafka-cluster" {
+		return false
+	}
+
+	return parts[4] == "aws4_request"
 }
 
 func nilInterface(value any) bool {

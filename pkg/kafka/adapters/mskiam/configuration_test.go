@@ -37,6 +37,12 @@ func TestConfigValidatesRegionProviderAndTimeoutBounds(t *testing.T) {
 		"eu-north-1",
 		"us-gov-east-1",
 		"us-iso-east-1",
+		"us-isob-east-1",
+		"us-isof-south-1",
+		"eu-isoe-west-1",
+		"eusc-de-east-1",
+		"il-central-1",
+		"mx-central-1",
 		"ap-southeast-7",
 	}
 	for _, region := range validRegions {
@@ -59,6 +65,8 @@ func TestConfigValidatesRegionProviderAndTimeoutBounds(t *testing.T) {
 		"eu-north",
 		"eu-north-zero",
 		"eu-north-0",
+		"az-a0z9-19",
+		"us-east2-1",
 		string([]byte{'e', 'u', '-', 0xff, '-', '1'}),
 		strings.Repeat("e", 65),
 	}
@@ -126,8 +134,20 @@ func TestNewValidatesBeforeLoadingCredentials(t *testing.T) {
 	cancel()
 	if _, err := mskiam.New(ctx, mskiam.Config{
 		Region: "eu-north-1",
-	}); !errors.Is(err, context.Canceled) {
+	}); !errors.Is(err, mskiam.ErrTokenCanceled) ||
+		!errors.Is(err, context.Canceled) {
 		t.Fatalf("canceled construction: %v", err)
+	}
+	deadlineCtx, deadlineCancel := context.WithDeadline(
+		context.Background(),
+		time.Unix(1, 0),
+	)
+	defer deadlineCancel()
+	if _, err := mskiam.New(deadlineCtx, mskiam.Config{
+		Region: "eu-north-1",
+	}); !errors.Is(err, mskiam.ErrTokenTimeout) ||
+		!errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("expired construction deadline: %v", err)
 	}
 }
 

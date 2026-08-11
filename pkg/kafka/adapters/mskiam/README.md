@@ -41,6 +41,34 @@ Use the `BootstrapBrokerStringSaslIam` value returned by Amazon MSK rather than
 constructing broker endpoints. The root Kafka module requires verified TLS for
 OAUTHBEARER and rejects a plaintext transport.
 
+## API reference
+
+- `Config` requires `Region`; `TokenTimeout` is optional and
+  `CredentialsProvider` selects an explicit caller-owned AWS SDK v2 provider.
+- `Config.Validate` checks region, timeout, and typed-nil provider bounds without
+  loading credentials.
+- `New` validates configuration, loads the default AWS credential chain when
+  needed, and returns a concurrency-safe `Provider`.
+- `Provider.Token` implements `kafka.OAuthBearerProvider` and creates one fresh,
+  owned token for each authentication session.
+- `ProviderError` exposes stable categories through `errors.Is` while discarding
+  arbitrary provider and signer diagnostics.
+
+See the compiled [package documentation](https://pkg.go.dev/github.com/faustbrian/golib/pkg/kafka/adapters/mskiam)
+for the complete exported API.
+
+## Adoption and tradeoffs
+
+Adopt this module when an AWS IAM identity must authenticate directly to an
+IAM-enabled MSK cluster through the root Kafka client. Keep generic OAuth token
+issuers and non-AWS Kafka clients outside this adapter.
+
+The default chain provides workload-identity rotation with minimal wiring. An
+explicit provider gives callers source selection and test control, but also
+makes its concurrency, cancellation, caching, and rotation behavior
+caller-owned. Token generation is deliberately per authentication session;
+there is no adapter token cache or proactive refresh goroutine.
+
 ## Credential selection and rotation
 
 When `CredentialsProvider` is nil, `New` uses
@@ -94,11 +122,13 @@ beyond the credential used to sign it.
 
 ## Failure and redaction
 
-Configuration, credential-chain loading, signer failure, provider panic, and
-invalid signer results have stable error categories. `ProviderError.Error` and
-`GoString` never render the AWS SDK or signer diagnostic. Arbitrary provider
-and signer causes are not retained in returned errors; cancellation and
-deadline identity remain available through `errors.Is`.
+Configuration, credential-chain loading, credential retrieval, signer failure,
+provider panic, cancellation, timeout, expiry, and malformed signer results
+have stable error categories. `ErrMalformedToken` and `ErrTokenExpired` retain
+`ErrInvalidToken` compatibility. `ProviderError.Error` and `GoString` never
+render the AWS SDK or signer diagnostic. Arbitrary provider and signer causes
+are not retained in returned errors; `context.Canceled` and
+`context.DeadlineExceeded` identity remain available through `errors.Is`.
 
 The adapter never logs. It does not enable the signer's process-wide
 `AwsDebugCreds` flag. Access keys, secret keys, session tokens, signed tokens,
@@ -143,6 +173,35 @@ Primary references:
 - [AWS SDK credential providers](https://docs.aws.amazon.com/sdkref/latest/guide/standardized-credentials.html)
 - [AWS MSK IAM SASL Signer for Go](https://github.com/aws/aws-msk-iam-sasl-signer-go)
 
+## FAQ
+
+### Does this adapter authorize Kafka operations?
+
+No. It creates the AWS-supported authentication token. IAM policies remain the
+authorization source, and the adapter never evaluates or grants permissions.
+
+### Does it implement SigV4 or SASL/OAUTHBEARER?
+
+No. AWS's signer owns signing and the root Kafka module owns SASL. This adapter
+only composes credentials, bounded token generation, validation, and expiry.
+
+### Should applications cache the returned token?
+
+No. Give the provider to `kafka.NewOAuthBearerAuthentication`; the Kafka client
+requests a fresh token for each authentication session and observes its
+effective expiry.
+
+### Can one provider be shared by producers and consumers?
+
+Yes, when the selected credentials provider is concurrency-safe. The retained
+AWS SDK default provider satisfies that requirement; explicit providers must
+satisfy it themselves.
+
+### Are MSK Provisioned and Serverless verified in CI?
+
+No. The signer and Kafka adapter seams are locally verified, but live
+Provisioned and Serverless clusters are both explicitly unverified.
+
 ## Verification
 
 ```sh
@@ -150,7 +209,8 @@ make check
 ```
 
 The local module contract covers formatting, vet, tests, race detection, exact
-statement coverage, fuzz smoke, an allocation-reporting benchmark, and
-documentation. Repository gates additionally enforce mutation, API
+statement coverage, fuzz smoke, signer interoperability, an
+allocation-reporting benchmark, and documentation. Repository gates
+additionally enforce mutation, API
 compatibility, vulnerability, secrets, licenses, SBOM, provenance, and
 clean-consumer checks.

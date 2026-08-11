@@ -44,6 +44,10 @@ docs:
 	test -s README.md
 	test -s CHANGELOG.md
 	test -s LICENSE
+	rg -q '^## API reference$$' README.md
+	rg -q '^## Adoption and tradeoffs$$' README.md
+	rg -q '^## FAQ$$' README.md
 	$(GO) doc .
+	$(GO) test -run '^Example$$' .
 
 check: format-check vet test race coverage fuzz benchmark docs
