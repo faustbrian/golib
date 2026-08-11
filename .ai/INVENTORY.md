@@ -67,8 +67,8 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | ---: | --- | --- | --- | --- |
 | 1 | Decisions | `pending-reexecution` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
 | 2 | Architecture | `pending` | `.ai/GOAL_RESILIENCE.md` | 1 |
-| 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
-| 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18 |
+| 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/GOAL_HARDEN.md` | 13, 19 |
+| 41 | Protocol | `pending` | `pkg/http-signature/.ai/GOAL.md` | 1, 13, 19 |
 | 48 | Search | `pending` | `pkg/search/.ai/GOAL_HARDEN.md` | 3-18, 29-32, 43 |
 | 50 | Ecosystem cohesion | `pending` | `.ai/GOAL_COHESION.md` | 3-49 |
 | 51 | Resilience audit | `pending` | `.ai/GOAL_RESILIENCE_HARDEN.md` | 3-50 |
@@ -108,7 +108,9 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/authentication/jwt/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 21. Current scoped evidence verifies strict JWT/JWS/JWK policy, bounded remote JWKS behavior, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/oidc/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 22. Current scoped evidence verifies OpenID Connect discovery and ID-token policy, bounded synchronized metadata and JWKS rotation, caller-owned nonce validation, interoperability, documentation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/authentication/authotel/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 23. Current scoped evidence verifies authentication-material redaction, result isolation, bounded completion and retention, provider lifecycle, concurrency, fuzzing, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/kafka/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 25 has current scoped evidence for completed payload-free observation translation, deny-by-default identities, exact span and metric contracts, explicit bounded W3C Trace Context propagation through Apache Kafka 4.3.1, provider lifecycle behavior, documentation, exact statement and mutation coverage, and every mandatory module gate; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/kafka/adapters/mskiam/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 24 has current scoped evidence for canonical AWS regions, bounded credential and token lifetimes, supported signer output, stable redacted failures, root Kafka TLS integration, workload-identity adoption, exact statement and mutation coverage, and every mandatory module gate; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/kafka/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 25 has current scoped evidence for completed payload-free observation translation, deny-by-default identities, exact span and metric contracts, explicit bounded W3C Trace Context propagation through Apache Kafka 4.3.1, provider lifecycle behavior, documentation, exact statement and mutation coverage, and every mandatory module gate; its separate `GOAL_HARDEN.md` is verified below. |
+| `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 25. Current scoped evidence verifies payload-free bounded telemetry, deliberate semantic-convention mappings, fixed metric cardinality, provider failure isolation, cooperative deadline behavior, lifecycle and race safety, Kafka propagation interoperability, fuzzing, performance, exact statement and mutation coverage, and every mandatory scoped package gate; requeue only when affected inputs or requirements change. |
 | `pkg/event-sourcing/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 33 has current scoped evidence for the canonical versioned Kafka mapping, bounded hostile records, synchronous publication outcomes, owned decoding, at-least-once settlement, explicit retry and dead-letter boundaries, real-broker interoperability, documentation, exact statement and mutation coverage, and every mandatory module gate; its separate `GOAL_HARDEN.md` is verified below. |
 | `pkg/event-sourcing/adapters/gokafka/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 33. Current scoped evidence verifies frozen wire compatibility, hostile decode and dead-letter boundaries, acknowledgement and offset ambiguity, duplicate and process-death recovery, cooperative rebalance ordering, broker restart, application-owned idempotency, diagnostic redaction, shared-instance race safety, fuzzing, performance, exact statement and mutation coverage, and every mandatory scoped module gate; requeue only when affected inputs or requirements change. |
 | `pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 34 has current scoped evidence for canonical bounded queue envelopes, stable event and ordering identity, explicit enqueue ambiguity, post-consumer settlement, durable redelivery and dead-letter behavior, documentation, exact statement and mutation coverage, and every mandatory scoped module gate; its separate `GOAL_HARDEN.md` is verified below. |
@@ -131,7 +133,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 39. Current scoped evidence verifies exact UTC encoding, bound-sensitive interval relations, persisted-input hardening, compatibility, concurrency, fuzzing, coverage, mutation, benchmarks, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/external-sort/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 40. Current scoped evidence verifies encrypted spill hardening and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 41. Current scoped evidence verifies RFC 9421 and RFC 9530 conformance, bounded signing and verification profiles, digest and replay behavior, HTTP integration, legacy isolation, interoperability, hardening requirements, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/http-signature/.ai/GOAL_HARDEN.md` | `verified` | Formerly grouped in pending order 41. Current scoped evidence verifies RFC 9421 and RFC 9530 conformance, bounded signing and verification profiles, digest and replay behavior, HTTP integration, legacy isolation, interoperability, hardening requirements, and every mandatory affected-module gate; its separate `GOAL.md` remains pending. |
 | `pkg/feature-flags/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 15. Current scoped evidence verifies bounded fleet bootstrap, refresh, invalidation, degraded evaluation, provider resilience composition, Kubernetes lifecycle behavior, and every mandatory feature-flags module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/sequencer/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 17. Current scoped evidence verifies leaderless fleet lifecycle, fenced renewal and takeover recovery, mixed-binary registry compatibility, bounded shared retry ownership, Kubernetes operational semantics, and every mandatory sequencer module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/sequencer/.ai/GOAL_HARDEN.md` | `verified` | Current scoped evidence verifies durable operation ordering, persistence, ownership and fencing, crash recovery, retries, transaction boundaries, asynchronous settlement, reconciliation, administrative controls, PostgreSQL migration safety, fuzzing, mutation, race behavior, and benchmarks; requeue only when that evidence becomes stale or requirements change. |
@@ -303,13 +305,13 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 
 | Field | Record |
 | --- | --- |
-| Goal | `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Goal | `pkg/http-signature/.ai/GOAL_HARDEN.md` |
 | Scope | RFC 9421 signatures, RFC 9530 digest fields, Structured Fields syntax and canonicalization, algorithms and key policy, replay prevention, request and response body ownership, `net/http` adapters, proxy context, compatibility isolation, and bounded failure semantics. |
-| Status | `pending` to `verified` |
-| Evidence | The package-local complete contract, package-scoped repository analyzer and supply-chain gates, checksum-pinned RFC/errata/IANA/NIST sources, RFC examples, two pinned independent Go peers, clean-consumer compilation, and equivalent-operation benchmarks. |
-| Result | Passed exact 1,839/1,839 root and 49/49 compatibility production statements; killed 1,114/1,114 root and 44/44 compatibility viable mutants with 100% efficacy and mutator coverage; passed race, leak, stress, soak, fault injection, four 10,000-execution fuzz targets, API, documentation, conformance, interoperability, benchmark, safety, vulnerability, secrets, licenses, and SBOM gates. |
-| Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE` removed after every bounded Go or mutation run and disposable pinned peer checkouts. |
-| Observed | 2026-08-10 |
+| Status | `pending` to `verified`; `pkg/http-signature/.ai/GOAL.md` remains pending as order 41. |
+| Evidence | The package-local complete contract, package-scoped repository analyzer and supply-chain gates, checksum-pinned RFC, errata, IANA, NIST, and HTTPWG sources, normative RFC examples and HTTPWG Structured Fields corpus, three pinned independent Go peers, clean-consumer compilation, and equivalent-operation benchmarks. |
+| Result | Passed exact 3,095/3,095 root and 85/85 compatibility production statements; killed 1,799/1,799 root and 51/51 compatibility viable mutants with 100% efficacy and mutator coverage; passed race, leak, stress, soak, fault injection, nine 10,000-execution fuzz targets, 1,526 HTTPWG parsing and 544 serialization cases, API, documentation, conformance, interoperability, benchmark, safety, vulnerability, secrets, licenses, and SBOM gates. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded Go or mutation run and disposable pinned peer checkouts. |
+| Observed | 2026-08-11 |
 | Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped HTTP signature contract. |
 | Navigation | Implementation `198c1f27`; repository registration `e00e8fe8`; conformance metadata `a9ef6a25`. |
 
@@ -417,18 +419,44 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Observed | 2026-08-10 |
 | Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped tenancy hardening contract. |
 
+### Amazon MSK IAM adapter evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/kafka/adapters/mskiam/.ai/GOAL.md` |
+| Scope | AWS SDK v2 default and caller-owned credential providers; canonical AWS regions; bounded retrieval, refresh, signing, token shape, lifetime and effective expiry; root Kafka TLS and outer credential deadlines; stable redacted failure categories; ECS, EKS, IAM, compatibility, API, adoption, FAQ, and security documentation. |
+| Status | `pending-reexecution` to `verified`; `pkg/kafka/adapters/mskiam/.ai/GOAL_HARDEN.md` remains pending. |
+| Evidence | The scoped module check against the final inputs through mutation execution, the content-bound mutation aggregate, the remaining direct scoped gates, and focused red-green regressions for region, signed-token, cancellation, timeout, expiry, malformed-output, and credential-bound behavior. |
+| Result | Passed every mandatory module gate with exact 253/253 statement coverage, 175/175 viable mutants killed with 100.00% efficacy and mutator coverage, race, two 10,000-execution fuzz targets, AWS signer interoperability, API, enforced documentation, security, supply-chain, and benchmark evidence. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded run. |
+| Observed | 2026-08-11 |
+| Gaps | The aggregate root wrapper is unavailable because unrelated concurrent work currently deletes `go.work` and leaves `modules.json` stale; direct scoped module evidence is complete. Live Amazon MSK Provisioned and Serverless interoperability remains explicitly unverified. The separate hardening campaign remains pending. |
+
 ### Kafka OpenTelemetry adapter evidence
 
 | Field | Record |
 | --- | --- |
 | Goal | `pkg/kafka/adapters/gotelemetry/.ai/GOAL.md` |
 | Scope | Completed payload-free Kafka observation translation; deny-by-default bounded identities; exact span, metric, timing, privacy, sampling, provider-lifecycle, and record-header propagation contracts; API, examples, FAQ, migration, and semantic-convention documentation. |
-| Status | `pending-reexecution` to `verified`; `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` remains pending. |
+| Status | `pending-reexecution` to `verified`; `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` is verified in the following record. |
 | Evidence | `./scripts/check-module.sh pkg/kafka/adapters/gotelemetry check` against the final scoped inputs, including fresh exact mutation and pinned real-broker interoperability runs. |
 | Result | Passed every mandatory module gate with exact 321/321 statement coverage, 135/135 viable mutants killed with 100.00% efficacy and mutant coverage, race, three 10,000-execution fuzz targets, security, API, enforced documentation, four-path observer benchmarks, and W3C Trace Context propagation through Apache Kafka 4.3.1. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run and a digest-pinned Apache Kafka 4.3.1 container removed after interoperability. |
 | Observed | 2026-08-11T02:18:07Z |
-| Gaps | The root `make check MODULES=pkg/kafka/adapters/gotelemetry` wrapper is blocked before package execution by the pre-existing stale `modules.json`; direct scoped module evidence is complete. The separate hardening campaign remains pending. |
+| Gaps | The root `make check MODULES=pkg/kafka/adapters/gotelemetry` wrapper is blocked before package execution by the pre-existing stale `modules.json`; direct scoped module evidence is complete. The separate hardening campaign is verified in the following record. |
+
+### Kafka OpenTelemetry adapter hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` |
+| Scope | Pinned OpenTelemetry messaging semantics; payload and identity privacy; bounded cardinality; provider panic and failure isolation; cooperative deadline, exporter-backpressure, sampling, cancellation, SDK-shutdown, race, retention, and goroutine behavior; unknown-observation failure; Kafka W3C propagation; fuzzing; and no-op, sampled-out, allowlist-hit, and recording performance. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | Current-tree package checks, fresh mutation from an empty artifact directory, pinned Apache Kafka 4.3.1 interoperability, package API and structural specification validation, analyzers, and security and supply-chain gates. |
+| Result | Passed exact 100% statement coverage; killed 145/145 viable mutants with 100.00% efficacy and mutator coverage; passed race, four 10,000-execution fuzz targets, real-broker propagation and deadline isolation, API, documentation, lint, Staticcheck, NilAway, vulnerability, secrets, licenses, SBOM, and all four required observer benchmark paths. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run and a digest-pinned Apache Kafka 4.3.1 container removed after interoperability. |
+| Observed | 2026-08-11 |
+| Gaps | Non-cooperative in-process providers cannot be forcibly bounded and require a process boundary, as documented. The aggregate repository wrapper is blocked by unrelated concurrent `modules.json` drift; isolated generation confirms no Kafka OpenTelemetry manifest change, and all scoped package evidence is complete. |
 
 ### Kafka service lifecycle adapter evidence
 

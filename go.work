@@ -55,6 +55,7 @@ use (
 	./pkg/http-middleware/integration/siblings
 	./pkg/http-signature
 	./pkg/http-signature/benchmarks/comparison
+	./pkg/http-signature/differential/shared-corpus
 	./pkg/idempotency
 	./pkg/idempotency/compatibility/ecosystem
 	./pkg/identifier
@@ -388,6 +389,10 @@ replace github.com/faustbrian/golib/pkg/capability v0.0.0 => ./pkg/capability
 replace github.com/faustbrian/golib/pkg/cloudevents v0.0.0 => ./pkg/cloudevents
 
 replace github.com/faustbrian/golib/pkg/http-signature v0.0.0 => ./pkg/http-signature
+
+replace github.com/faustbrian/golib/pkg/http-signature/benchmarks/comparison v0.0.0 => ./pkg/http-signature/benchmarks/comparison
+
+replace github.com/faustbrian/golib/pkg/http-signature/differential/shared-corpus v0.0.0 => ./pkg/http-signature/differential/shared-corpus
 
 replace github.com/faustbrian/golib/pkg/tenancy v0.0.0 => ./pkg/tenancy
 

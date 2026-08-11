@@ -2468,6 +2468,14 @@ expect_phone_contract_fixture_rejection!(
 ) do
   phone_contract_errors(**phone_contract_inputs.merge(configuration: enabled_by_default_phone_recovery))
 end
+duplicate_phone_enablement = phone_contract_inputs.fetch(:configuration).sub(
+  "`request_when_disabled = deny`", "`enabled = true`; `request_when_disabled = deny`"
+)
+expect_phone_contract_fixture_rejection!(
+  "disagreeing duplicate enablement", "phone recovery policy duplicates the atomic enablement authority"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(configuration: duplicate_phone_enablement))
+end
 %w[sim_swap number_recycling carrier].each do |signal|
   canonical_mapping = "#{signal} = negative_allow,positive_deny,unknown_deny,unavailable_deny"
   %w[positive unknown unavailable].each do |state|

@@ -132,6 +132,42 @@ EOF
             printf 'RABBITMQ_URL=amqp://guest:guest@127.0.0.1:%s/\n' \
                 "${port}" >>"${environment_file}"
             ;;
+        opensearch)
+            # shellcheck source=/dev/null
+            source "${root}/pkg/search/adapters/opensearch/scripts/opensearch-images.env"
+            container="golib-opensearch-${slug}"
+            opensearch_image="${opensearch_image_repository}@${opensearch_new_digest}"
+            docker run --detach --name "${container}" -p 127.0.0.1::9200 \
+                --cpus=1 --memory=1g --pids-limit=512 \
+                --ulimit nofile=1024:1024 \
+                -e discovery.type=single-node \
+                -e DISABLE_SECURITY_PLUGIN=true \
+                -e OPENSEARCH_JAVA_OPTS='-Xms512m -Xmx512m' \
+                "${opensearch_image}" >/dev/null
+            record "${container}"
+            port="$(published_port "${container}" 9200)"
+            ready=0
+            for _ in {1..120}; do
+                if curl --connect-timeout 2 --max-time 5 --fail --silent \
+                    "http://127.0.0.1:${port}/" >/dev/null; then
+                    ready=1
+                    break
+                fi
+                if [[ "$(docker inspect --format '{{.State.Running}}' "${container}" 2>/dev/null || true)" != "true" ]]; then
+                    break
+                fi
+                sleep 1
+            done
+            if [[ "${ready}" -ne 1 ]]; then
+                docker logs "${container}" >&2 || true
+                printf 'service did not become healthy: %s\n' "${container}" >&2
+                exit 1
+            fi
+            cat >>"${environment_file}" <<EOF
+OPENSEARCH_URL=http://127.0.0.1:${port}
+OPENSEARCH_EXPECTED_VERSION=${opensearch_new_version}
+EOF
+            ;;
         *)
             printf 'unsupported required service %s for %s\n' \
                 "${service}" "${module}" >&2

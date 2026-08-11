@@ -622,7 +622,7 @@ func classify(directory string) (string, bool) {
 		return "internal tool", false
 	case strings.Contains(directory, "/benchmarks"):
 		return "benchmark harness", false
-	case strings.Contains(directory, "/interoperability"), strings.Contains(directory, "/compatibility"), strings.Contains(directory, "/integration/"):
+	case strings.Contains(directory, "/interoperability"), strings.Contains(directory, "/differential/"), strings.Contains(directory, "/compatibility"), strings.Contains(directory, "/integration/"):
 		return "interoperability harness", false
 	case strings.Contains(directory, "/examples/"):
 		return "example", false
@@ -1063,6 +1063,9 @@ func tagPrefix(directory string, releasable bool) string {
 }
 
 func requiredServices(directory string) []string {
+	if directory == "pkg/search/adapters/opensearch" {
+		return []string{"opensearch"}
+	}
 	if directory == "pkg/outbox/adapters/goqueue" {
 		return []string{"redis", "valkey"}
 	}
@@ -1127,6 +1130,13 @@ func interoperabilityTools(directory string) []string {
 			"Keycloak 26.3.2 provider-issued ID token via immutable OCI image",
 		}
 	}
+	if directory == "pkg/http-signature" {
+		return []string{
+			"dadrus/httpsig at 0f24bf7dd9b76727af985d9a6f7ce87207a18387",
+			"shogo82148/go-sfv v0.3.3",
+			"yaronf/httpsign at de382d35c1add89cc09b9355161d61471fb7f632",
+		}
+	}
 	if directory == "pkg/kafka" {
 		return []string{
 			"Apache Kafka 3.7.2 and 4.3.1 KRaft fixtures",
@@ -1159,7 +1169,7 @@ func interoperabilityTools(directory string) []string {
 		return []string{"Python 3 standard-library HMAC-SHA-256 and HMAC-SHA-512 vectors"}
 	}
 	if directory == "pkg/search/adapters/opensearch" {
-		return []string{"OpenSearch 2.19.3", "OpenSearch 3.6.0", "opensearch-go/v4 v4.7.3"}
+		return []string{"OpenSearch 2.19.6", "OpenSearch 3.8.0", "opensearch-go/v4 v4.7.3"}
 	}
 	switch libraryName(directory) {
 	case "wsdl":
@@ -1248,6 +1258,17 @@ func specifications(directory string) []string {
 			"W3C Referrer Policy at cc435b05ca4a",
 		}
 	}
+	if directory == "pkg/http-signature" {
+		return []string{
+			"RFC 9421 HTTP Message Signatures",
+			"RFC 9530 Digest Fields",
+			"RFC 8941 Structured Field Values for HTTP",
+			"IANA HTTP Message Signature registries",
+			"IANA Hash Algorithms for HTTP Digest Fields registry",
+			"IANA HTTP Field Name registry",
+			"NIST CAVP FIPS 186-3 ECDSA test vectors",
+		}
+	}
 	if directory == "pkg/router" {
 		return []string{
 			"Go 1.26.5 net/http and net/url contracts",
@@ -1318,7 +1339,7 @@ func specifications(directory string) []string {
 		}
 	}
 	if directory == "pkg/search/adapters/opensearch" {
-		return []string{"OpenSearch REST API 2.19.3 and 3.6.0"}
+		return []string{"OpenSearch REST API 2.19.6 and 3.8.0"}
 	}
 	prefix := libraryName(directory)
 	switch prefix {
@@ -1422,6 +1443,16 @@ func conformanceCorpora(directory string) []string {
 			"Pinned normative-source matrix and specification decision evidence",
 		}
 	}
+	if directory == "pkg/http-signature" {
+		return []string{
+			"RFC 9421 Appendix B examples",
+			"RFC 9530 examples",
+			"NIST CAVP FIPS 186-3 ECDSA P-384 vectors",
+			"yaronf/httpsign RFC 9421 fixtures at de382d35c1add89cc09b9355161d61471fb7f632",
+			"dadrus/httpsig RFC 9421 fixtures at 0f24bf7dd9b76727af985d9a6f7ce87207a18387",
+			"Shared Structured Fields and signature-base differential corpus",
+		}
+	}
 	if directory == "pkg/router" {
 		return []string{
 			"Pinned normative-source matrix and ServeMux differential evidence",
@@ -1451,6 +1482,12 @@ func conformanceCorpora(directory string) []string {
 			"Pinned normative-source matrix and 26-decision protocol register",
 			"Independent Python HMAC-SHA-256 and HMAC-SHA-512 v1 vectors",
 			"Controlled body, replay, delivery, DNS, redirect, and SSRF matrices",
+		}
+	}
+	if directory == "pkg/search/adapters/opensearch" {
+		return []string{
+			"Pinned OpenSearch 2.19.6 and 3.8.0 source and REST API matrix",
+			"Real-backend shared semantics, lifecycle, failure, and upgrade evidence",
 		}
 	}
 	prefix := libraryName(directory)
@@ -1514,6 +1551,7 @@ func libraryName(directory string) string {
 
 func provenanceFiles(root, directory string) []string {
 	candidates := []string{
+		"spec/sources.lock.json",
 		"specification/manifest.json",
 		"specification/manifest.tsv",
 		"specification/provenance.json",

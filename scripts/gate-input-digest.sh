@@ -69,6 +69,10 @@ append_required_service_versions() {
             nats) variable=NATS_IMAGE ;;
             nsq) variable=NSQ_IMAGE ;;
             rabbitmq) variable=RABBITMQ_IMAGE ;;
+            opensearch)
+                append_file "${root}/pkg/search/adapters/opensearch/scripts/opensearch-images.env"
+                continue
+                ;;
             *)
                 printf 'unsupported required service %s for %s\n' \
                     "${service}" "${module}" >&2

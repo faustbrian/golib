@@ -545,7 +545,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/resilience.md"
           ],
           "verification_gates": [
             "format-check",
@@ -579,7 +580,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
-            "docs/hardening-report.md"
+            "docs/hardening-report.md",
+            "docs/resilience.md"
           ],
           "verification_gates": [
             "format-check",
@@ -6820,7 +6822,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`goqueue` is the independently versioned adapter between event-sourcing deliveries and compatible backends in `github.com/faustbrian/golib/pkg/queue`. The event-sourcing core does not import queue.",
+      "purpose": "`goqueue` maps complete event-sourcing deliveries to the first-party `github.com/faustbrian/golib/pkg/queue` contract. The event-sourcing core does not import queue, and this adapter owns no worker, broker connection, retry clock, dead-letter store, or business-idempotency state.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -6854,7 +6856,8 @@
           "requirements_sha256": "de210d254953e0d68865e2c252d61f16d5ea0d7cc243b442d10d5da35f38f5ce",
           "implementation_evidence": [
             "pkg/event-sourcing/adapters/goqueue/CHANGELOG.md",
-            "pkg/event-sourcing/adapters/goqueue/README.md"
+            "pkg/event-sourcing/adapters/goqueue/README.md",
+            "pkg/event-sourcing/adapters/goqueue/docs/hardening.md"
           ],
           "verification_gates": [
             "format-check",
@@ -6886,7 +6889,8 @@
           "requirements_sha256": "4c025a6d652317785babf76f26b5faa987b6e8672d68acb49d5b0743f53f85ee",
           "implementation_evidence": [
             "pkg/event-sourcing/adapters/goqueue/CHANGELOG.md",
-            "pkg/event-sourcing/adapters/goqueue/README.md"
+            "pkg/event-sourcing/adapters/goqueue/README.md",
+            "pkg/event-sourcing/adapters/goqueue/docs/hardening.md"
           ],
           "verification_gates": [
             "format-check",
@@ -9225,7 +9229,8 @@
       "tag_prefix": "pkg/http-signature/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/http-signature/benchmarks/comparison"
+        "github.com/faustbrian/golib/pkg/http-signature/benchmarks/comparison",
+        "github.com/faustbrian/golib/pkg/http-signature/differential/shared-corpus"
       ],
       "external_runtime_dependencies": [
         "github.com/dunglas/httpsfv",
@@ -9234,7 +9239,11 @@
       "required_services": [],
       "build_tags": [],
       "test_tags": [],
-      "interoperability_tools": [],
+      "interoperability_tools": [
+        "dadrus/httpsig at 0f24bf7dd9b76727af985d9a6f7ce87207a18387",
+        "shogo82148/go-sfv v0.3.3",
+        "yaronf/httpsign at de382d35c1add89cc09b9355161d61471fb7f632"
+      ],
       "specifications": [
         "RFC 9421 HTTP Message Signatures",
         "RFC 9530 Digest Fields",
@@ -9249,13 +9258,11 @@
         "RFC 9530 examples",
         "NIST CAVP FIPS 186-3 ECDSA P-384 vectors",
         "yaronf/httpsign RFC 9421 fixtures at de382d35c1add89cc09b9355161d61471fb7f632",
-        "dadrus/httpsig RFC 9421 fixtures at 0f24bf7dd9b76727af985d9a6f7ce87207a18387"
+        "dadrus/httpsig RFC 9421 fixtures at 0f24bf7dd9b76727af985d9a6f7ce87207a18387",
+        "Shared Structured Fields and signature-base differential corpus"
       ],
       "provenance": [
-        "pkg/http-signature/spec/sources.lock.json",
-        "pkg/http-signature/spec/normative-requirements.json",
-        "pkg/http-signature/spec/errata-decisions.md",
-        "pkg/http-signature/spec/interoperability.md"
+        "pkg/http-signature/spec/sources.lock.json"
       ],
       "goal_files": [
         "pkg/http-signature/.ai/GOAL.md",
@@ -9269,6 +9276,7 @@
           "implementation_evidence": [
             "pkg/http-signature/CHANGELOG.md",
             "pkg/http-signature/README.md",
+            "pkg/http-signature/docs/compatibility.md",
             "pkg/http-signature/docs/security.md"
           ],
           "verification_gates": [
@@ -9302,6 +9310,7 @@
           "implementation_evidence": [
             "pkg/http-signature/CHANGELOG.md",
             "pkg/http-signature/README.md",
+            "pkg/http-signature/docs/compatibility.md",
             "pkg/http-signature/docs/security.md"
           ],
           "verification_gates": [
@@ -9349,7 +9358,7 @@
       "module_path": "github.com/faustbrian/golib/pkg/http-signature/benchmarks/comparison",
       "go_version": "1.26.5",
       "packages": [],
-      "purpose": "This non-releasable module isolates the comparison dependency from the public HTTP Message Signatures module. It compares an equivalent HMAC-SHA256 request operation with the maintained `github.com/yaronf/httpsign` implementation at commit `de382d35c1add89cc09b9355161d61471fb7f632`.",
+      "purpose": "This non-releasable module isolates the comparison dependency from the public HTTP Message Signatures module. It compares an equivalent HMAC-SHA256 request operation with the maintained `github.com/yaronf/httpsign` implementation at commit `de382d35c1add89cc09b9355161d61471fb7f632` and `github.com/dadrus/httpsig` at commit `0f24bf7dd9b76727af985d9a6f7ce87207a18387`.",
       "lifecycle": "internal",
       "kind": "benchmark harness",
       "releasable": false,
@@ -9359,6 +9368,50 @@
       ],
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
+        "github.com/dadrus/httpsig",
+        "github.com/yaronf/httpsign"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/http-signature/differential/shared-corpus",
+      "module_path": "github.com/faustbrian/golib/pkg/http-signature/differential/shared-corpus",
+      "go_version": "1.26.5",
+      "packages": [],
+      "purpose": "This standalone module executes one checked-in corpus through this module and maintained independent Go implementations. It does not run peer self-tests.",
+      "lifecycle": "internal",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/http-signature"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/dadrus/httpsig",
+        "github.com/shogo82148/go-sfv",
         "github.com/yaronf/httpsign"
       ],
       "required_services": [],
@@ -10352,7 +10405,8 @@
         "github.com/faustbrian/golib/pkg/json-schema/benchmarks/comparison",
         "github.com/faustbrian/golib/pkg/openapi",
         "github.com/faustbrian/golib/pkg/openapi/interoperability",
-        "github.com/faustbrian/golib/pkg/schema-registry"
+        "github.com/faustbrian/golib/pkg/schema-registry",
+        "github.com/faustbrian/golib/pkg/schema-registry/providers/confluent"
       ],
       "external_runtime_dependencies": [
         "github.com/dlclark/regexp2/v2",
@@ -11348,7 +11402,8 @@
       "external_runtime_dependencies": [
         "github.com/aws/aws-msk-iam-sasl-signer-go",
         "github.com/aws/aws-sdk-go-v2",
-        "github.com/aws/aws-sdk-go-v2/config"
+        "github.com/aws/aws-sdk-go-v2/config",
+        "github.com/aws/smithy-go"
       ],
       "required_services": [],
       "build_tags": [],
@@ -19756,6 +19811,7 @@
       "version": "unreleased",
       "tag_prefix": "pkg/schema-registry/providers/confluent/v",
       "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/json-schema",
         "github.com/faustbrian/golib/pkg/schema-registry"
       ],
       "reverse_owned_dependencies": null,
@@ -19818,7 +19874,9 @@
       ],
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
+        "github.com/aws/aws-sdk-go-v2",
         "github.com/aws/aws-sdk-go-v2/config",
+        "github.com/aws/aws-sdk-go-v2/credentials",
         "github.com/aws/aws-sdk-go-v2/service/glue",
         "github.com/aws/smithy-go",
         "go.uber.org/goleak"
@@ -20020,21 +20078,28 @@
         "github.com/aws/aws-sdk-go-v2",
         "github.com/opensearch-project/opensearch-go/v4"
       ],
-      "required_services": [],
+      "required_services": [
+        "opensearch"
+      ],
       "build_tags": [],
       "test_tags": [
         "integration"
       ],
       "interoperability_tools": [
-        "OpenSearch 2.19.3",
-        "OpenSearch 3.6.0",
+        "OpenSearch 2.19.6",
+        "OpenSearch 3.8.0",
         "opensearch-go/v4 v4.7.3"
       ],
       "specifications": [
-        "OpenSearch REST API 2.19.3 and 3.6.0"
+        "OpenSearch REST API 2.19.6 and 3.8.0"
       ],
-      "conformance_corpora": [],
-      "provenance": [],
+      "conformance_corpora": [
+        "Pinned OpenSearch 2.19.6 and 3.8.0 source and REST API matrix",
+        "Real-backend shared semantics, lifecycle, failure, and upgrade evidence"
+      ],
+      "provenance": [
+        "pkg/search/adapters/opensearch/specification/manifest.tsv"
+      ],
       "goal_files": [
         "pkg/search/adapters/opensearch/.ai/GOAL.md",
         "pkg/search/adapters/opensearch/.ai/GOAL_HARDEN.md"
@@ -20689,6 +20754,8 @@
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
+        "github.com/moby/moby/api",
+        "github.com/testcontainers/testcontainers-go",
         "github.com/testcontainers/testcontainers-go/modules/postgres",
         "go.uber.org/goleak"
       ],
@@ -24095,6 +24162,8 @@
       ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
+        "github.com/moby/moby/api",
+        "github.com/testcontainers/testcontainers-go",
         "github.com/testcontainers/testcontainers-go/modules/postgres"
       ],
       "required_services": [],
@@ -24117,7 +24186,8 @@
           "requirements_sha256": "0ebe3b70536f945aac4023334357d2874290c53096b468462e3702855d75e9d5",
           "implementation_evidence": [
             "pkg/workflow/CHANGELOG.md",
-            "pkg/workflow/README.md"
+            "pkg/workflow/README.md",
+            "pkg/workflow/docs/architecture.md"
           ],
           "verification_gates": [
             "format-check",
@@ -24149,7 +24219,8 @@
           "requirements_sha256": "a1a345415899e59c7f8223db4fb44cc35491a735d2ae72339ee963e85c13db9d",
           "implementation_evidence": [
             "pkg/workflow/CHANGELOG.md",
-            "pkg/workflow/README.md"
+            "pkg/workflow/README.md",
+            "pkg/workflow/docs/architecture.md"
           ],
           "verification_gates": [
             "format-check",

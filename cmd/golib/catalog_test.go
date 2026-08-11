@@ -15,6 +15,15 @@ import (
 	"testing"
 )
 
+func TestClassifyDifferentialModuleAsInteroperabilityHarness(t *testing.T) {
+	t.Parallel()
+
+	kind, releasable := classify("pkg/http-signature/differential/shared-corpus")
+	if kind != "interoperability harness" || releasable {
+		t.Fatalf("classify() = (%q, %t), want (%q, false)", kind, releasable, "interoperability harness")
+	}
+}
+
 func TestClassifyPackage(t *testing.T) {
 	t.Parallel()
 	tests := []struct {
@@ -375,7 +384,7 @@ func TestInteroperabilityCatalogMetadata(t *testing.T) {
 		{directory: "pkg/ecma-regexp", want: []string{"Node.js", "Test262"}},
 		{directory: "pkg/wsdl", want: []string{"Java", "Apache Woden"}},
 		{directory: "pkg/xsd", want: []string{"Docker", "Eclipse Temurin 25 JAXP"}},
-		{directory: "pkg/search/adapters/opensearch", want: []string{"OpenSearch 2.19.3", "OpenSearch 3.6.0", "opensearch-go/v4 v4.7.3"}},
+		{directory: "pkg/search/adapters/opensearch", want: []string{"OpenSearch 2.19.6", "OpenSearch 3.8.0", "opensearch-go/v4 v4.7.3"}},
 		{directory: "pkg/jsonrpc", want: []string{}},
 	}
 	for _, test := range tests {
@@ -385,6 +394,57 @@ func TestInteroperabilityCatalogMetadata(t *testing.T) {
 		) {
 			t.Errorf("interoperabilityTools(%s) = %v", test.directory, got)
 		}
+	}
+}
+
+func TestHTTPSignatureInteroperabilityCatalogMetadata(t *testing.T) {
+	t.Parallel()
+
+	want := []string{
+		"dadrus/httpsig at 0f24bf7dd9b76727af985d9a6f7ce87207a18387",
+		"shogo82148/go-sfv v0.3.3",
+		"yaronf/httpsign at de382d35c1add89cc09b9355161d61471fb7f632",
+	}
+	if got := interoperabilityTools("pkg/http-signature"); !slices.Equal(got, want) {
+		t.Fatalf("interoperabilityTools(pkg/http-signature) = %v, want %v", got, want)
+	}
+}
+
+func TestHTTPSignatureSpecificationCatalogMetadata(t *testing.T) {
+	t.Parallel()
+
+	if got := specifications("pkg/http-signature"); !slices.Equal(got, []string{
+		"RFC 9421 HTTP Message Signatures",
+		"RFC 9530 Digest Fields",
+		"RFC 8941 Structured Field Values for HTTP",
+		"IANA HTTP Message Signature registries",
+		"IANA Hash Algorithms for HTTP Digest Fields registry",
+		"IANA HTTP Field Name registry",
+		"NIST CAVP FIPS 186-3 ECDSA test vectors",
+	}) {
+		t.Fatalf("specifications(pkg/http-signature) = %v", got)
+	}
+	if got := conformanceCorpora("pkg/http-signature"); !slices.Equal(got, []string{
+		"RFC 9421 Appendix B examples",
+		"RFC 9530 examples",
+		"NIST CAVP FIPS 186-3 ECDSA P-384 vectors",
+		"yaronf/httpsign RFC 9421 fixtures at de382d35c1add89cc09b9355161d61471fb7f632",
+		"dadrus/httpsig RFC 9421 fixtures at 0f24bf7dd9b76727af985d9a6f7ce87207a18387",
+		"Shared Structured Fields and signature-base differential corpus",
+	}) {
+		t.Fatalf("conformanceCorpora(pkg/http-signature) = %v", got)
+	}
+}
+
+func TestProvenanceFilesIncludesSpecificationSourceLocks(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "pkg/http-signature/spec/sources.lock.json"), "{}\n")
+
+	want := []string{"pkg/http-signature/spec/sources.lock.json"}
+	if got := provenanceFiles(root, "pkg/http-signature"); !slices.Equal(got, want) {
+		t.Fatalf("provenanceFiles() = %v, want %v", got, want)
 	}
 }
 
@@ -411,7 +471,7 @@ func TestOpenSearchSpecificationCatalogMetadata(t *testing.T) {
 	t.Parallel()
 	if got := specifications("pkg/search/adapters/opensearch"); !slices.Equal(
 		got,
-		[]string{"OpenSearch REST API 2.19.3 and 3.6.0"},
+		[]string{"OpenSearch REST API 2.19.6 and 3.8.0"},
 	) {
 		t.Fatalf("specifications(pkg/search/adapters/opensearch) = %v", got)
 	}
