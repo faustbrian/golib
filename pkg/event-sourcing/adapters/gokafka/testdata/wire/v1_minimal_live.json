@@ -1,0 +1,19 @@
+{
+  "topic": "accounts.events.v1",
+  "key": "account-minimal",
+  "value": "{}",
+  "timestamp": "2026-07-25T10:11:12Z",
+  "headers": [
+    {"key": "es.wire_version", "value": "1"},
+    {"key": "es.message_id", "value": "msg-minimal"},
+    {"key": "es.aggregate_type", "value": "account"},
+    {"key": "es.aggregate_id", "value": "account-minimal"},
+    {"key": "es.stream_version", "value": "1"},
+    {"key": "es.event_name", "value": "account.opened"},
+    {"key": "es.event_schema_version", "value": "1"},
+    {"key": "es.content_type", "value": "application/json"},
+    {"key": "es.recorded_at", "value": "2026-07-25T10:11:12Z"},
+    {"key": "es.metadata", "value": "{}"},
+    {"key": "es.delivery_mode", "value": "live"}
+  ]
+}

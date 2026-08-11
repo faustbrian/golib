@@ -20,7 +20,7 @@ const (
 )
 
 func cleanupKafkaContainer(
-	t *testing.T,
+	t testing.TB,
 	container kafkaContainerTerminator,
 ) {
 	t.Helper()

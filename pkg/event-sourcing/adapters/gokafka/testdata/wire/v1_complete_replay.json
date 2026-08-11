@@ -1,0 +1,24 @@
+{
+  "topic": "accounts.events.v1",
+  "key": "account-42",
+  "value": "{\"amount\":9007199254740993}",
+  "timestamp": "2026-07-25T10:11:12.123Z",
+  "headers": [
+    {"key": "es.wire_version", "value": "1"},
+    {"key": "es.message_id", "value": "msg-42"},
+    {"key": "es.aggregate_type", "value": "account"},
+    {"key": "es.aggregate_id", "value": "account-42"},
+    {"key": "es.stream_version", "value": "7"},
+    {"key": "es.event_name", "value": "account.credited"},
+    {"key": "es.event_schema_version", "value": "3"},
+    {"key": "es.content_type", "value": "application/json"},
+    {"key": "es.recorded_at", "value": "2026-07-25T10:11:12.123456Z"},
+    {"key": "es.correlation_id", "value": "correlation-42"},
+    {"key": "es.causation_id", "value": "causation-42"},
+    {"key": "es.tenant", "value": "tenant-a"},
+    {"key": "es.partition", "value": "region-eu"},
+    {"key": "es.global_position", "value": "19"},
+    {"key": "es.metadata", "value": "{\"region\":\"eu\",\"source\":\"test\"}"},
+    {"key": "es.delivery_mode", "value": "replay"}
+  ]
+}

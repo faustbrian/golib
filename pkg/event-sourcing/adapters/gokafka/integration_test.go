@@ -339,7 +339,7 @@ func proveReplaySettlementPolicy(
 	assertGroupCommitted(t, ctx, brokers, topic, groupID, 1)
 }
 
-func integrationDeliveries(t *testing.T) []eventsourcing.Delivery {
+func integrationDeliveries(t testing.TB) []eventsourcing.Delivery {
 	t.Helper()
 
 	stream, err := eventsourcing.NewStreamID("account", "account-42")
@@ -347,8 +347,8 @@ func integrationDeliveries(t *testing.T) []eventsourcing.Delivery {
 		t.Fatalf("construct stream: %v", err)
 	}
 	recordedAt := time.Date(2026, time.July, 25, 12, 0, 0, 0, time.UTC)
-	deliveries := make([]eventsourcing.Delivery, 0, 3)
-	for index := range 3 {
+	deliveries := make([]eventsourcing.Delivery, 0, 4)
+	for index := range 4 {
 		event, err := eventsourcing.NewEncodedEvent(
 			eventsourcing.EncodedEventInput{
 				Name:        "account.sequence-recorded",
@@ -401,10 +401,21 @@ func integrationDeliveries(t *testing.T) []eventsourcing.Delivery {
 }
 
 func createIntegrationTopic(
-	t *testing.T,
+	t testing.TB,
 	ctx context.Context,
 	brokers []string,
 	topic string,
+) {
+	t.Helper()
+	createIntegrationTopicWithPartitions(t, ctx, brokers, topic, 1)
+}
+
+func createIntegrationTopicWithPartitions(
+	t testing.TB,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	partitions int32,
 ) {
 	t.Helper()
 
@@ -415,7 +426,7 @@ func createIntegrationTopic(
 	defer client.Close()
 	responses, err := kadm.NewClient(client).CreateTopics(
 		ctx,
-		1,
+		partitions,
 		1,
 		nil,
 		topic,
