@@ -47,10 +47,12 @@ if err != nil {
 component := adapter.Component()
 ```
 
-The producer component rejects new work during stop, joins admitted publish and
-readiness callbacks, then invokes the transferred shutdown callback. Concurrent
-shutdown callers share one attempt; a failed attempt can be retried, and the
-first successful attempt makes later calls idempotent.
+The producer component rejects new work as soon as service drain closes
+admission, joins admitted publish and readiness callbacks, then invokes the
+transferred shutdown callback during stop. Consumer components apply the same
+admission fence before task cancellation. Concurrent shutdown callers share one
+attempt; a failed attempt can be retried, and the first successful attempt makes
+later calls idempotent.
 
 Startup is serialized with shutdown. A stop requested during a startup callback
 marks the adapter unavailable but does not invoke shutdown until that callback
@@ -63,6 +65,9 @@ handler, run, and shutdown boundaries and returned as secret-safe
 `CallbackPanicError` values. Panic values are never retained or formatted.
 Startup panic recovery still performs transferred-resource cleanup. A shutdown
 panic completes the failed attempt so a later bounded stop can retry.
+Ordinary callback failures are returned as secret-safe `CallbackError` values;
+`errors.Is` and `errors.As` still reach the original cause without placing its
+record, endpoint, credential, or provider text in lifecycle diagnostics.
 
 `NewConsumer` returns a plan containing one component, one supervised task,
 and an optional readiness check. Service task cancellation stops intake and
@@ -194,16 +199,20 @@ make check
 ```
 
 The module contract covers formatting, vet, unit tests, race detection, exact
-statement coverage, fuzz smoke, allocation-reporting benchmarks, and
-documentation. Repository gates additionally enforce mutation, API
-compatibility, security, vulnerability, licenses, SBOM, and clean-consumer
-checks.
+statement coverage, fuzz smoke, allocation-reporting publication and
+broker-independent shutdown benchmarks, and documentation. Repository gates
+additionally enforce mutation, API compatibility, security, vulnerability,
+licenses, SBOM, and clean-consumer checks.
 
 The separate interoperability lane starts the immutable-digest Apache Kafka
 4.3.1 fixture and exercises the concrete root producer and consumer through
-this adapter. It proves producer startup/readiness/publication/shutdown,
-consumer cancellation while a handler is admitted, handler completion before
-resource shutdown, settlement completed before cancellation, redelivery of the
-record whose handler finishes after cancellation, and rejection of publication
-after stop. This fixture does not replace the root module's multi-broker,
-rebalance, authentication, transaction, or fault-injection evidence.
+this adapter under the race detector. It proves producer
+startup/readiness/publication/shutdown, consumer cancellation while a handler
+is admitted, handler completion before resource shutdown, settlement completed
+before cancellation, redelivery of the record whose handler finishes after
+cancellation, and rejection of publication after stop. Additional broker-loss
+scenarios prove bounded partial-startup rollback and recovery, producer flush
+ambiguity followed by reconciliation and retryable shutdown, consumer commit
+timeout with redelivery, and overlapping-member rebalance while a slow handler
+is canceled during adapter shutdown. The single-node fixture does not replace
+the root module's multi-broker, transaction, or replication evidence.

@@ -85,6 +85,26 @@ func (err *CallbackPanicError) Error() string {
 // Unwrap exposes the stable panic classification.
 func (err *CallbackPanicError) Unwrap() error { return ErrCallbackPanic }
 
+// CallbackError preserves an application callback failure without formatting
+// its potentially sensitive cause.
+type CallbackError struct {
+	// Operation identifies the callback boundary.
+	Operation CallbackOperation
+	// Err is the original callback failure.
+	Err error
+}
+
+// Error returns a secret-safe callback failure diagnostic.
+func (err *CallbackError) Error() string {
+	return fmt.Sprintf(
+		"kafka service %s callback failed",
+		callbackOperationName(err.Operation),
+	)
+}
+
+// Unwrap preserves the callback cause for errors.Is and errors.As.
+func (err *CallbackError) Unwrap() error { return err.Err }
+
 // StartupError preserves validation and partial-cleanup failures without
 // formatting either potentially sensitive cause.
 type StartupError struct {
@@ -340,9 +360,10 @@ func (producer *Producer[R]) Resource() R { return producer.resource }
 // Component returns the producer's ordered service lifecycle component.
 func (producer *Producer[R]) Component() service.Component {
 	return service.Component{
-		Name:  producer.name,
-		Start: producer.start,
-		Stop:  producer.stop,
+		Name:           producer.name,
+		CloseAdmission: producer.closeAdmission,
+		Start:          producer.start,
+		Stop:           producer.stop,
 	}
 }
 
@@ -376,9 +397,10 @@ func (consumer *Consumer[R]) Resource() R { return consumer.resource }
 func (consumer *Consumer[R]) Plan() service.Plan {
 	plan := service.Plan{
 		Components: []service.Component{{
-			Name:  consumer.name,
-			Start: consumer.start,
-			Stop:  consumer.stop,
+			Name:           consumer.name,
+			CloseAdmission: consumer.closeAdmission,
+			Start:          consumer.start,
+			Stop:           consumer.stop,
 		}},
 		Tasks: []service.Task{{
 			Name: consumer.name,
@@ -441,6 +463,9 @@ func (producer *Producer[R]) Publish(
 		producer.resource,
 		owned,
 	)
+	if err != nil {
+		err = &CallbackError{Operation: CallbackPublish, Err: err}
+	}
 
 	return values, delivery, err
 }
@@ -497,7 +522,12 @@ func NewHandler(options HandlerOptions) (kafka.Handler, error) {
 			ctx = options.TracePropagator.Extract(ctx, &carrier)
 		}
 
-		return options.Handler.Handle(correlation.WithValues(ctx, values), record)
+		err = options.Handler.Handle(correlation.WithValues(ctx, values), record)
+		if err != nil {
+			return &CallbackError{Operation: CallbackHandler, Err: err}
+		}
+
+		return nil
 	}), nil
 }
 
@@ -576,6 +606,15 @@ func (consumer *Consumer[R]) checkReadiness(ctx context.Context) error {
 	return invokeCallback(CallbackReadiness, func() error {
 		return consumer.readiness(ctx, consumer.resource)
 	})
+}
+
+func (consumer *Consumer[R]) closeAdmission() error {
+	consumer.mu.Lock()
+	consumer.active = false
+	consumer.stopping = true
+	consumer.mu.Unlock()
+
+	return nil
 }
 
 func (consumer *Consumer[R]) stop(ctx context.Context) error {
@@ -717,11 +756,20 @@ func (producer *Producer[R]) beginUse() bool {
 	return true
 }
 
+func (producer *Producer[R]) closeAdmission() error {
+	producer.mu.Lock()
+	producer.active = false
+	producer.stopping = true
+	producer.mu.Unlock()
+
+	return nil
+}
+
 func (producer *Producer[R]) finishUse() {
 	producer.mu.Lock()
 	defer producer.mu.Unlock()
 	producer.inflight--
-	if producer.stopping && producer.inflight == 0 && producer.drained != nil {
+	if producer.inflight == 0 && producer.drained != nil {
 		close(producer.drained)
 		producer.drained = nil
 	}
@@ -742,7 +790,7 @@ func (consumer *Consumer[R]) finishUse() {
 	consumer.mu.Lock()
 	defer consumer.mu.Unlock()
 	consumer.inflight--
-	if consumer.stopping && consumer.inflight == 0 && consumer.drained != nil {
+	if consumer.inflight == 0 && consumer.drained != nil {
 		close(consumer.drained)
 		consumer.drained = nil
 	}
@@ -942,5 +990,10 @@ func invokeCallback(
 		}
 	}()
 
-	return callback()
+	err = callback()
+	if err != nil {
+		return &CallbackError{Operation: operation, Err: err}
+	}
+
+	return nil
 }

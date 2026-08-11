@@ -690,9 +690,16 @@ func TestProducerStartupFailureBeginsCleanupAndPreservesFailures(t *testing.T) {
 		t.Fatalf("Start() error = %v", err)
 	}
 	var startupErr *kafkaservice.StartupError
+	var validationCallback *kafkaservice.CallbackError
+	var cleanupCallback *kafkaservice.CallbackError
 	if !errors.As(err, &startupErr) ||
-		startupErr.Validation != validationErr ||
-		startupErr.Cleanup != cleanupErr ||
+		!errors.As(startupErr.Validation, &validationCallback) ||
+		validationCallback.Operation != kafkaservice.CallbackStartup ||
+		validationCallback.Err != validationErr ||
+		!errors.As(startupErr.Cleanup, &cleanupCallback) ||
+		cleanupCallback.Operation != kafkaservice.CallbackShutdown ||
+		cleanupCallback.Err != cleanupErr ||
+		err.Error() != "kafka service startup validation and cleanup failed" ||
 		strings.Contains(err.Error(), validationErr.Error()) ||
 		strings.Contains(err.Error(), cleanupErr.Error()) {
 		t.Fatalf("Start() classification = %#v, %v", startupErr, err)
@@ -730,6 +737,7 @@ func TestProducerStartupFailureWithoutOwnershipIsSecretSafe(t *testing.T) {
 	var startupErr *kafkaservice.StartupError
 	if !errors.Is(err, validationErr) || !errors.As(err, &startupErr) ||
 		startupErr.Cleanup != nil ||
+		err.Error() != "kafka service startup validation failed" ||
 		strings.Contains(err.Error(), validationErr.Error()) {
 		t.Fatalf("Start() error = %#v, %v", startupErr, err)
 	}

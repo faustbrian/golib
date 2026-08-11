@@ -58,3 +58,89 @@ func BenchmarkProducerPublish(b *testing.B) {
 		}
 	}
 }
+
+func BenchmarkLifecycleShutdown(b *testing.B) {
+	b.Run("producer", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			b.StopTimer()
+			producer, err := kafkaservice.NewProducer(
+				kafkaservice.ProducerOptions[struct{}]{
+					Name:        "benchmark-producer",
+					Resource:    struct{}{},
+					Correlation: benchmarkFactory(b),
+					Publish: func(
+						context.Context,
+						struct{},
+						kafka.ProducerRecord,
+					) (kafka.DeliveryResult, error) {
+						return kafka.DeliveryResult{}, nil
+					},
+					Shutdown: func(context.Context, struct{}) error { return nil },
+				},
+			)
+			if err != nil {
+				b.Fatalf("NewProducer() error = %v", err)
+			}
+			component := producer.Component()
+			if err = component.Start(context.Background()); err != nil {
+				b.Fatalf("Start() error = %v", err)
+			}
+			b.StartTimer()
+			if err = component.CloseAdmission(); err != nil {
+				b.Fatalf("CloseAdmission() error = %v", err)
+			}
+			if err = component.Stop(context.Background()); err != nil {
+				b.Fatalf("Stop() error = %v", err)
+			}
+		}
+	})
+
+	b.Run("consumer", func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			b.StopTimer()
+			consumer, err := kafkaservice.NewConsumer(
+				kafkaservice.ConsumerOptions[struct{}]{
+					Name:        "benchmark-consumer",
+					Resource:    struct{}{},
+					Correlation: benchmarkFactory(b),
+					Handler: kafka.HandlerFunc(func(
+						context.Context,
+						kafka.ConsumedMessage,
+					) error {
+						return nil
+					}),
+					Run: func(context.Context, struct{}, kafka.Handler) error {
+						return nil
+					},
+					Shutdown: func(context.Context, struct{}) error { return nil },
+				},
+			)
+			if err != nil {
+				b.Fatalf("NewConsumer() error = %v", err)
+			}
+			component := consumer.Plan().Components[0]
+			if err = component.Start(context.Background()); err != nil {
+				b.Fatalf("Start() error = %v", err)
+			}
+			b.StartTimer()
+			if err = component.CloseAdmission(); err != nil {
+				b.Fatalf("CloseAdmission() error = %v", err)
+			}
+			if err = component.Stop(context.Background()); err != nil {
+				b.Fatalf("Stop() error = %v", err)
+			}
+		}
+	})
+}
+
+func benchmarkFactory(b *testing.B) *correlation.Factory {
+	b.Helper()
+	factory, err := correlation.NewFactory(correlation.FactoryOptions{})
+	if err != nil {
+		b.Fatalf("NewFactory() error = %v", err)
+	}
+
+	return factory
+}
