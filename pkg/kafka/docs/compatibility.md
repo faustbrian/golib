@@ -17,9 +17,9 @@ contracts and does not change their wire or settlement semantics.
 | Go toolchain and module language | Go 1.26.5, `go 1.26.5` | `go version`, `go env`, and `go.mod` |
 | Host used for baseline | Darwin arm64, Apple M4 Max | Go environment and benchmark output |
 | Container runtime | Docker Desktop engine 29.6.2, API 1.55 | Benchmark environment capture on 2026-07-30 |
-| franz-go | v1.21.5, tag target `1ba5fd24f949a335dbc7caaef1d6037e132ef23e` | Go module proxy plus upstream tag; latest stable rechecked on 2026-08-10 |
-| kadm | v1.18.0, tag target `a7255a3f2bc7247e70a15b18080cc4e5cd1e42d6` | Go module proxy plus upstream tag; latest stable rechecked on 2026-08-09 |
-| Comparison clients | kafka-go v0.4.51; IBM/Sarama v1.60.1 | Go module proxy on 2026-07-30; isolated non-releasable benchmark module |
+| franz-go | v1.21.5, tag target `1ba5fd24f949a335dbc7caaef1d6037e132ef23e` | Go module proxy plus upstream tag; latest stable rechecked on 2026-08-11 |
+| kadm | v1.18.0, tag target `a7255a3f2bc7247e70a15b18080cc4e5cd1e42d6` | Go module proxy plus upstream tag; latest stable rechecked on 2026-08-11 |
+| Comparison clients | kafka-go v0.4.51; IBM/Sarama v1.60.1 | Upstream releases and Go module proxy rechecked on 2026-08-11; isolated non-releasable benchmark module |
 | testcontainers-go core and Kafka module | v0.43.0 | Go module proxy |
 | Testcontainers resource reaper | `testcontainers/ryuk:0.14.0`, digest `sha256:7c1a8a9a47c780ed0f983770a662f80deb115d95cce3e2daa3d12115b8cd28f0` | The integration entry point rejects an upstream tag change or configured registry substitution before container creation, resolves or pulls the immutable digest, binds testcontainers-go's required upstream tag to that exact image ID, starts the reaper, and rejects a running container whose image ID differs. This preserves upstream reaper recognition and cleanup without trusting the mutable tag. |
 | Existing broker fixture | Confluent Local 7.5.0 digest `sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd` | Source-pinned single-node integration test and benchmark harness both reject a runtime version other than `7.5.0-ccs` |
@@ -43,7 +43,7 @@ mTLS, PLAIN, SCRAM, and signed-JWT OAUTHBEARER paths. These fixtures do not
 establish the complete support matrix.
 
 Broker lifecycle support is a separate production prerequisite. As of
-2026-08-10, Apache Kafka lists 4.3.1, 4.2.1, and 4.1.2 as supported releases and
+2026-08-11, Apache Kafka lists 4.3.1, 4.2.1, and 4.1.2 as supported releases and
 lists 3.7.2 as archived. The 3.7.2 result therefore proves the package's tested
 client-compatibility floor; it does not imply ongoing broker security
 maintenance or make 3.7.2 a recommended production deployment. Operators must

@@ -174,6 +174,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Refresh the reviewed upstream client baseline while retaining franz-go
+  v1.21.5, kadm v1.18.0, kafka-go v0.4.51, and Sarama v1.60.1.
 - clarify that MSK IAM idempotent production needs cluster-level authorization
   plus the AWS-required transactional-ID resource access, and that IAM
   transaction termination requires Kafka 3.8 or later because earlier broker
