@@ -15589,7 +15589,9 @@
       ],
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [
+        "github.com/jackc/pgx/v5",
         "github.com/testcontainers/testcontainers-go/modules/kafka",
+        "github.com/testcontainers/testcontainers-go/modules/postgres",
         "github.com/twmb/franz-go",
         "github.com/twmb/franz-go/pkg/kadm"
       ],

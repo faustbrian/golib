@@ -70,7 +70,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18 |
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md` | 18, 24, 25 |
-| 30 | Outbox | `pending-reexecution` | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 29 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 28 |
 | 34 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md` | 27, 28 |
 | 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
@@ -119,7 +118,8 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 34 has current scoped evidence for canonical bounded queue envelopes, stable event and ordering identity, explicit enqueue ambiguity, post-consumer settlement, durable redelivery and dead-letter behavior, documentation, exact statement and mutation coverage, and every mandatory scoped module gate; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/outbox/adapters/goqueue/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 31. Current scoped evidence verifies canonical synchronous publication, explicit acceptance ambiguity, stable duplicate identity, durable Redis and Valkey relay windows, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 32. Current scoped evidence verifies payload-safe propagation and telemetry, exact relay publication and settlement semantics, bounded cooperative-provider lifecycle, concurrency and retention safety, convention mapping, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence. |
+| `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 30. Current scoped evidence verifies deterministic Kafka records, bounded hostile-envelope handling, safe relay classification, broker failure and acknowledgement ambiguity, executable process-death duplicate and reconciliation boundaries, keyed-partition ordering, diagnostic redaction, real-Kafka interoperability, exact coverage and mutation, and every catalog-selected scoped package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/queue/queueservice/.ai/GOAL.md` | `verified` | Former pending order 27. Current scoped evidence verifies the lifecycle adapter contract, exact coverage and mutation, API, documentation, safety, Redis and Valkey backend integration, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 27. Current scoped evidence verifies lifecycle transitions, bounded termination, duplicate windows, Redis and Valkey recovery, process and pod termination, scaling, exact coverage and mutation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/kafka/kafkaservice/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 26 has current scoped evidence for explicit producer and consumer lifecycle ownership, readiness, bounded drain and shutdown, panic-safe concurrency, Kafka error preservation, real-broker interoperability, documentation, exact coverage and mutation, and every mandatory module gate; its separate `GOAL_HARDEN.md` remains pending. |
@@ -504,7 +504,20 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Result | Passed every mandatory module gate, including real Kafka, race, 10,000 fuzz executions, 88/88 statements, 58/58 viable mutants, security, API, docs, and benchmarks. |
 | Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE`; digest-pinned Confluent Local 7.5.0 for Kafka interoperability. |
 | Observed | 2026-08-09T03:57:51Z |
-| Gaps | None within the scoped base-goal contract; `GOAL_HARDEN.md` remains a separate pending campaign. |
+| Gaps | None within the scoped base-goal contract. |
+
+### Outbox Kafka publisher hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` |
+| Scope | Golden Kafka records and size boundaries; malformed and hostile envelopes; broker restart, acknowledgement ambiguity, authorization, oversize, timeout, cancellation, throttling, shutdown, and callback panic; relay duplicate and durable reconciliation windows; keyed-partition ordering; diagnostic redaction; real-Kafka durability; mapping-only performance; exact coverage and mutation. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | Current focused unit, race, 10,000-execution fuzz, exact coverage, mutation, and mapping-benchmark runs; `go test -tags=integration ./... -count=1` against real Kafka and PostgreSQL; and every catalog-selected scoped package gate through `scripts/check-module.sh`. |
+| Result | Every catalog-selected scoped package gate passed, including digest-pinned real Kafka and PostgreSQL process-death recovery, race detection, 10,000 fuzz executions, exact 102/102 statement coverage, 60/60 viable mutants killed with zero lived, uncovered, timed-out, nonviable, or skipped mutants, security, API, documentation, supply-chain, and benchmark gates. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run, digest-pinned Confluent Local 7.5.0, and digest-pinned PostgreSQL 18.4. |
+| Observed | 2026-08-11 |
+| Gaps | NilAway remains advisory with no diagnostic. The root `make check MODULES=pkg/outbox/adapters/gokafka` wrapper remains blocked before package execution by a concurrently modified stale `modules.json`; scoped package evidence is complete. |
 
 ### Exact-money knapsack objective evidence
 
