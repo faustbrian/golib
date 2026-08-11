@@ -11,9 +11,10 @@ and releases use Semantic Versioning.
   workflow transitions with optional outbox envelopes and deduplicating
   inbound signals at the durable boundary required before caller
   acknowledgement.
-- PostgreSQL process-death, deadlock, restart, and consistent snapshot-restore
-  drills, plus exhaustive deterministic lifecycle model, bounded worker stress,
-  shutdown-join, and continue-as-new history-soak tests.
+- PostgreSQL process-death, deadlock, restart, consistent snapshot-restore, and
+  streaming-replica promotion drills, plus exhaustive deterministic lifecycle
+  model, bounded worker stress, shutdown-join, and continue-as-new history-soak
+  tests.
 - Architecture, operations, recovery, capacity, security, verification, FAQ,
   and compiling durable-orchestration adoption documentation.
 - Stable unresolved dead-letter inspection and idempotent, audited, fenced
