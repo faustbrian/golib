@@ -72,7 +72,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 51 | Resilience audit | `pending` | `.ai/GOAL_RESILIENCE_HARDEN.md` | 3-50 |
 | 52 | Repository audit | `implemented-unverified` | `.ai/GOAL_COMPATIBILITY.md` | 3-51 |
 | 53 | Repository audit | `implemented-unverified` | `.ai/GOAL_SECURITY.md` | 3-52 |
-| 54 | Repository audit | `pending-reexecution` | `.ai/GOAL_SUPPLY_CHAIN.md` | 3-53 |
+| 54 | Repository audit | `implemented-unverified` | `.ai/GOAL_SUPPLY_CHAIN.md` | 3-53 |
 | 55 | Repository audit | `pending-reexecution` | `.ai/GOAL_BENCHMARKS.md` | 3-54 |
 | 56 | Repository audit | `pending-reexecution` | `.ai/GOAL_PERFORMANCE.md` | 55 |
 | 57 | Repository audit | `pending-reexecution` | `.ai/GOAL_CODE_DOCUMENTATION.md` | 3-56 |
@@ -912,6 +912,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with pinned `govulncheck` and gitleaks versions and task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
 | Observed | 2026-08-11T20:19:36Z |
 | Gaps | Final verification still requires the root threat model, security matrix, residual-risk register, and a requirement-level audit of hostile-input, fuzz, race, resource-bound, workflow, disclosure, and security-tool evidence. `govulncheck` also reported unreachable vulnerabilities in some imported or required dependency graphs; those remain supply-chain review inputs even though no scanned code path was vulnerable. |
+
+### Repository supply-chain audit
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_SUPPLY_CHAIN.md` |
+| Scope | Catalog-selected license and deterministic CycloneDX SBOM generation for all 134 modules, together with the root workflow, release, tool-version, action-pin, and specification-provenance surfaces. |
+| Status | `pending-reexecution` to `implemented-unverified` |
+| Evidence | `./scripts/run-modules.sh licenses --jobs 8 --all`, `./scripts/run-modules.sh sbom --jobs 8 --all`, focused fixture completion for `pkg/analysis/testdata/coverage`, `.github/workflows/ci.yml`, `.golib/versions.env`, `docs/releases.md`, and the generated provenance catalog. |
+| Result | License verification and SBOM generation each recorded 132 passes and 2 cataloged not-applicable results with no missing or failed module. The single authoritative workflow uses read-only default permissions and full-commit action pins, repository tools and service images are centrally pinned, and independent module release planning and clean-consumer checks are implemented. |
+| Environment | Go 1.26.5 on darwin/arm64 with pinned `go-licenses` and `cyclonedx-gomod` versions and task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
+| Observed | 2026-08-11T20:35:07Z |
+| Gaps | Final verification still requires a complete dependency-governance review, one root dependency-update system, closure of the known specification-provenance findings, and release-time signing, attestations, checksums, and public-proxy proof. Unreleased SBOMs currently have no component version, and CycloneDX warned that it could not detect license metadata for some fixture modules and dependencies even though the independent license gate passed; those warnings require explicit resolution or documented disposition before release. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
