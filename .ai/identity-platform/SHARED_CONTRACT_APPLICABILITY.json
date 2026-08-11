@@ -489,7 +489,22 @@
     },
     "identity/risk": {
       "transaction": [
-        "none"
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.risk_evidence.issue",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
       ],
       "lifecycle": [
         "lifecycle.artifact.risk_velocity",
@@ -540,6 +555,12 @@
         "tx.command.first",
         "tx.command.live",
         "tx.foundation",
+        "tx.risk_evidence.apply",
+        "tx.risk_evidence.finalize",
+        "tx.risk_evidence.issue",
+        "tx.risk_evidence.recover",
+        "tx.risk_evidence.release",
+        "tx.risk_evidence.reserve",
         "tx.uow.begin",
         "tx.uow.commit",
         "tx.uow.contributor",
@@ -827,7 +848,12 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
-        "tx.foundation"
+        "tx.foundation",
+        "tx.otp.apply",
+        "tx.otp.finalize",
+        "tx.otp.recover",
+        "tx.otp.release",
+        "tx.otp.reserve"
       ],
       "lifecycle": [
         "lifecycle.cascade.global_compromise",
@@ -942,7 +968,12 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
-        "tx.foundation"
+        "tx.foundation",
+        "tx.otp.apply",
+        "tx.otp.finalize",
+        "tx.otp.recover",
+        "tx.otp.release",
+        "tx.otp.reserve"
       ],
       "lifecycle": [
         "lifecycle.cascade.global_compromise",
@@ -1002,7 +1033,15 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
-        "tx.foundation"
+        "tx.foundation",
+        "tx.otp.apply",
+        "tx.otp.attempt",
+        "tx.otp.check",
+        "tx.otp.finalize",
+        "tx.otp.issue",
+        "tx.otp.recover",
+        "tx.otp.release",
+        "tx.otp.reserve"
       ],
       "lifecycle": [
         "lifecycle.cascade.global_compromise",
@@ -1044,6 +1083,14 @@
         "tx.command.first",
         "tx.command.live",
         "tx.foundation",
+        "tx.otp.apply",
+        "tx.otp.attempt",
+        "tx.otp.check",
+        "tx.otp.finalize",
+        "tx.otp.issue",
+        "tx.otp.recover",
+        "tx.otp.release",
+        "tx.otp.reserve",
         "tx.uow.begin",
         "tx.uow.commit",
         "tx.uow.contributor",
@@ -1086,7 +1133,20 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
-        "tx.foundation"
+        "tx.foundation",
+        "tx.otp.apply",
+        "tx.otp.attempt",
+        "tx.otp.check",
+        "tx.otp.finalize",
+        "tx.otp.issue",
+        "tx.otp.recover",
+        "tx.otp.release",
+        "tx.otp.reserve",
+        "tx.risk_evidence.apply",
+        "tx.risk_evidence.finalize",
+        "tx.risk_evidence.recover",
+        "tx.risk_evidence.release",
+        "tx.risk_evidence.reserve"
       ],
       "lifecycle": [
         "lifecycle.cascade.global_compromise",
@@ -1105,14 +1165,19 @@
         "ref.phone.change_quarantine",
         "ref.phone.recovery.enabled",
         "ref.phone.recovery.policy",
+        "ref.risk.authority",
+        "ref.risk.precedence",
         "ref.session.remember_default",
-        "ref.struct:ref.phone.recovery"
+        "ref.struct:ref.phone.recovery",
+        "ref.struct:ref.risk.authority",
+        "ref.struct:ref.risk.precedence"
       ],
       "security_events": [
         "identity.identifier.change",
         "identity.identifier.remove",
         "identity.identifier.request_verification",
-        "identity.identifier.verify"
+        "identity.identifier.verify",
+        "identity.risk.decide"
       ]
     },
     "identity/anonymous": {
@@ -1192,7 +1257,15 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
-        "tx.foundation"
+        "tx.foundation",
+        "tx.otp.apply",
+        "tx.otp.attempt",
+        "tx.otp.check",
+        "tx.otp.finalize",
+        "tx.otp.issue",
+        "tx.otp.recover",
+        "tx.otp.release",
+        "tx.otp.reserve"
       ],
       "lifecycle": [
         "lifecycle.artifact.passkey",
@@ -2774,7 +2847,41 @@
     },
     "identity/reference": {
       "transaction": [
-        "none"
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.otp.apply",
+        "tx.otp.attempt",
+        "tx.otp.check",
+        "tx.otp.finalize",
+        "tx.otp.issue",
+        "tx.otp.recover",
+        "tx.otp.release",
+        "tx.otp.reserve",
+        "tx.risk_evidence.apply",
+        "tx.risk_evidence.finalize",
+        "tx.risk_evidence.issue",
+        "tx.risk_evidence.recover",
+        "tx.risk_evidence.release",
+        "tx.risk_evidence.reserve",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
       ],
       "lifecycle": [
         "lifecycle.artifact.authorization_cache",

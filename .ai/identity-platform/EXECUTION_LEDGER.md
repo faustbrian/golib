@@ -34,9 +34,11 @@ increment that version. Git history remains the transition journal.
 
 ## Transition history validation
 
-Static `validate.rb` snapshot validation cannot prove prior-row version
-increments, assignment-generation increments, commit reachability or ancestry,
-or the allowed field differences in a same-status metadata finalization. Before
+When supplied the prior inventory and ledger snapshots, `validate.rb` MUST
+prove every row's exact status edge, single-step transition-version increment,
+generation rule, and permitted field delta. Git reachability, first-parent
+commit identity, and live task state still require the coordinator's before/after
+commit procedure. Before
 every state or ledger-only commit, the coordinator MUST run a transition-check
 procedure against the integration branch's first-parent and proposed current
 states. That procedure MUST prove the status edge is allowed by
@@ -121,10 +123,99 @@ same-owner repair, integration, evidence recording, or verification. Every
 and empty assignment/evidence fields. Every
 ledger row update after `initial`, including a permitted same-status metadata
 finalization, MUST increment transition version by exactly one.
-Static validation accepts the resulting post-initial `proposed` row shape but
-does not authorize a status edge; the mandatory first-parent history procedure
-MUST reject every return to `proposed` except `ready -> proposed` prerequisite
-invalidation with retained generation and empty assignment/evidence fields.
+Prior/current ordinary validation authorizes only the edges in
+`DEPENDENCIES.md`; the coordinator-owned dependency-revision reset below is the
+only additional transition family.
+Same-status updates are limited to assignment-commit finalization for
+`in-progress`, a clean worker checkpoint or evidence disposition for `blocked`,
+and evidence-record finalization for `implemented-unverified` or `verified`.
+Every other same-status field change is forbidden.
+
+## Dependency revisions
+
+Only the coordinator MAY change an inventory `Requires` set. A worker MUST
+report the discovered dependency change and stop; it MUST NOT edit inventory,
+goals, or the dependency graph. Before accepting a revision, the coordinator
+MUST update and validate the affected goal metadata and complete Mermaid DAG,
+prove the graph is acyclic, and append one exact row below for every unit whose
+`Requires` set changes. Rows are append-only.
+
+The affected set is the changed unit plus its complete reverse-dependent
+closure across the union of the prior and current graphs. Every affected unit
+MUST be reset to `ready` only when all of its current prerequisites are
+`verified`, otherwise to `proposed`. Its owner, assignment, checkpoint,
+fingerprint, and external evidence MUST be cleared. If it had any prior
+assignment identity, its generation MUST increment exactly once; otherwise the
+generation is retained. Its transition version MUST increment exactly once.
+Every row outside that closure MUST remain byte-for-byte unchanged. The change
+digest binds the revision ID, unit, prior/current Requires lists, closure,
+reason, coordinator approver, and timestamp.
+
+`Previous Requires` and `Current Requires` MUST preserve the exact order used
+by the corresponding prior and current inventory rows; that inventory-list
+order is canonical and the digest is order-sensitive. `Affected reverse
+closure` MUST be lexically sorted and unique.
+
+An affected `in-progress` assignment MUST NOT be cleared by a dependency
+revision. The coordinator MUST first pause it in a separate committed
+`in-progress -> blocked` transition. Before the later dependency revision may
+clear a blocked assignment, the coordinator MUST append exactly one assignment
+disposition row below. That row MUST preserve its exact generation, task,
+branch, worktree, and assignment commit; bind every dependency revision whose
+closure contains the unit; and record either the clean worker checkpoint, the
+clean assignment baseline when no worker checkpoint exists, or an attributable
+safe-abandonment reason. Every disposition MUST reference canonical JSON
+evidence bound to its disposition/revision IDs, unit, generation, worker/task
+identity, worktree, assignment, preservation decision, coordinator approval,
+timestamp, and complete prior/current resource identities and states. It MUST
+enumerate every task-owned resource registered to that worker, including its
+exact worktree, with a final state of
+`retained-for-recovery` or `removed`. Retained worktrees MUST be clean at the
+recorded checkpoint or baseline; safe abandonment MUST remove every task-owned
+resource but MUST NOT authorize loss of dirty or unintegrated work. Every
+disposition MUST name a preserved commit: the worker checkpoint when present,
+otherwise the assignment baseline. Before any worker worktree is removed,
+including for safe abandonment, it MUST be clean and its exact HEAD MUST equal
+that preserved commit; disposition evidence MUST capture both facts. Safe
+abandonment MAY explain why clean committed work is no longer pursued, but it
+MUST NOT substitute for committing or otherwise preserving uncommitted work.
+Removed resources MUST retain their state-specific cleanup evidence in
+`PREFLIGHT_EVIDENCE.md`. The resource
+registry and disposition row together MUST prove that clearing ledger ownership
+does not lose unintegrated work or orphan registered resources. Disposition
+rows are append-only and prior rows MUST remain byte-for-byte unchanged.
+Each append-only row MUST record the SHA-256 digest of the canonical evidence
+file bytes; every later validation MUST recompute it, so historical resource
+identity, cleanup, authorization, and pre-removal proof cannot be rewritten.
+Prior/current transition validation MUST receive the previous committed
+`PREFLIGHT_EVIDENCE.md` snapshot as `--previous-execution-fixture` whenever an
+affected active assignment is cleared, so deleted or substituted registry rows
+cannot masquerade as cleanup.
+
+Disposition evidence MUST be canonical JSON with `schema_version: 1` and these
+ordered fields: `schema_version`, `disposition_id`, `revision_ids`, `unit`,
+`generation`, `worker_task`, `branch`, `worktree`, `assignment_commit`,
+`preservation`, `resources`, `authorized_by`, and `recorded_at`.
+`authorized_by` MUST be `coordinator`. `preservation` MUST be exactly either
+`{"kind":"clean-checkpoint","commit":"<commit>"}`,
+`{"kind":"clean-baseline","commit":"<commit>"}`, or
+`{"kind":"safe-abandonment","reason":"reason:<safe-id>","recoverable_commit":"<commit>"}`.
+Each resource
+object MUST use the ordered fields `resource_id`, `type`, `owner`, `target`,
+`previous_state`, `current_state`, `cleanup_evidence`, `pre_removal_clean`, and
+`pre_removal_head`; resource objects MUST be sorted by ID. The two pre-removal
+fields MUST be `null` for retained resources and MUST record `true` plus the
+exact preserved commit for every removed worker worktree.
+
+| Revision ID | Unit | Previous Requires | Current Requires | Affected reverse closure | Reason | Change digest | Approver | Recorded at |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+## Dependency assignment dispositions
+
+| Disposition ID | Revision IDs | Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Preservation proof | Preserved commit | Disposition evidence | Evidence digest | Resource dispositions | Recorded at |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+
+## Unit execution ledger
 
 | Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Worker commit | Integration checkpoint | Gate fingerprint | External evidence | Last transition |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |

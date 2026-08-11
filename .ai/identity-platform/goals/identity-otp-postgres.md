@@ -29,6 +29,11 @@ consumption transaction, cleanup and migrations. It does not generate or
 deliver codes, issue sessions, decide risk, or implement the owning email,
 phone, reset or MFA transition.
 
+The adapter owns the durable OTP participant state machine: `issued`,
+`reserved`, `finalized`, `released`, `expired`, `revoked`, and `exhausted`.
+Owning workflows decide their domain mutation, but no other store may reserve,
+finalize, release, recover, or erase the OTP replay record.
+
 ## Required behavior and evidence
 
 - Raw OTP codes MUST never be stored. Digest lookup MUST bind tenant, purpose,
@@ -57,6 +62,15 @@ phone, reset or MFA transition.
   `.ai/identity-platform/TRANSACTION_CONTRACT.md`; a row marked consumed before
   an uncommitted owning transition MUST remain recoverable rather than become a
   lost credential.
+- Purpose-bound reservation MUST run through the predeclared contributor in the
+  coordinator's single reservation transaction, with one winner and
+  same-command/fingerprint/generation idempotency. Takeover MUST CAS the exact
+  prior generation with every one-time participant; unknown completion remains
+  `reserved` until authoritative recovery. Apply/finalize MUST share the owning
+  workflow's domain commit; release requires proven non-commit and is terminal.
+- Cleanup MUST exclude unresolved reservations and retain a restricted terminal
+  digest/state tombstone through key retirement so expiry or payload erasure
+  cannot make a code reusable.
 
 Exact coverage/mutation, race, query/lock benchmarks, clean-consumer,
 API/docs/changelog and supply-chain gates are REQUIRED. Any raw-code storage,

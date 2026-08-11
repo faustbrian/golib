@@ -11,7 +11,7 @@ shown here.
 - Unit: `identity/phone`
 - Canonical module: `pkg/identity/phone`
 - Canonical goal after scaffolding: `pkg/identity/phone/.ai/GOAL.md`
-- Requires: `identity`, `identity/otp`, `identity/delivery`
+- Requires: `identity`, `identity/otp`, `identity/delivery`, `identity/risk`
 - Consumes existing primitives: `identifier`, `audit`, `workflow`
 - Unlocks after verification: `identity/http`
 
@@ -30,7 +30,7 @@ where applicable, real supported infrastructure or providers.
 
 ## Ownership boundary
 
-This module owns phone-number canonicalization, ownership verification, primary-number changes, and verified-number lifecycle. It does not own SMS transport, SIM-swap intelligence, TOTP, and telephony UI. Those exclusions MUST remain
+This module owns phone-number canonicalization, ownership verification, primary-number changes, and verified-number lifecycle. It does not own SMS transport, SIM-swap/carrier intelligence, TOTP, and telephony UI. It consumes only immutable `RiskEvidence` issued by `identity/risk`; caller-supplied carrier facts or decisions are forbidden. Those exclusions MUST remain
 outside its public API and dependency graph.
 
 ## Required public contract
@@ -51,7 +51,7 @@ involved.
 
 - Operations MUST include send verification OTP, verify, signup-on-verification
   when enabled, signin, update, remove and request password-reset OTP with
-  purpose separation and optional session suppression.
+  purpose separation. Phone operations do not expose session suppression.
 - Number parsing MUST use pinned metadata, require explicit default region when
   national input is allowed, produce E.164 canonical form, preserve bounded
   display form and reject extensions/short codes/ambiguous inputs unless a
@@ -68,21 +68,44 @@ involved.
   owning OTP/identity transition commits and MUST preserve unknown outcomes.
 - Phone-based password recovery MUST be an explicit, separately configurable
   recovery profile, disabled unless the deployment accepts the stated SIM-swap,
-  number-recycling and carrier risks. It MUST require a purpose-bound OTP plus
-  configured risk/step-up policy, MUST NOT equate a verified phone identifier
-  with unconditional recovery authority, and MUST preserve enumeration-safe
-  outcomes and session invalidation after reset.
+  number-recycling and carrier risks. It MUST require the canonical reset
+  capability, a purpose-bound phone OTP, one eligible independent factor, and
+  immutable `RiskEvidence` whose decision permits recovery. The evidence MUST
+  be issued by `identity/risk`, fresh, one-use, and bound to tenant, subject,
+  recovery operation/purpose, canonical number, pre-auth transaction, attempt
+  ID, and risk-policy version. Positive, unknown, unavailable, stale,
+  mismatched, replayed, or caller-supplied carrier evidence MUST deny. A
+  verified phone identifier is never unconditional recovery authority.
+  Outcomes remain enumeration-safe and a successful reset invalidates sessions.
 - Phone verification/change/recovery MUST compose OTP consumption, identity
   mutation and session effects through
   `.ai/identity-platform/TRANSACTION_CONTRACT.md`; exact enablement and risk
   defaults belong to `.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
+- Phone password-reset completion MUST use one coordinator command and unit of
+  work to reserve and finalize RiskEvidence with the purpose-bound OTP, reset
+  capability, password mutation, and session invalidation. This package MUST
+  expose contributor interfaces for those effects without importing or naming
+  concrete persistence adapters. Failure, retry, unknown commit, and recovery
+  MUST follow the shared participant state machines and MUST never consume only
+  a subset or permit another command to reuse evidence.
+- Phone password-reset initiation MUST use one coordinator command and unit of
+  work to reserve, apply, and finalize initiation-only RiskEvidence with
+  purpose-bound OTP challenge and canonical reset capability issuance. The
+  evidence purpose MUST be `phone-password-reset-initiate`; challenge,
+  capability, outbox/audit, and command-result writes MUST commit together with
+  its finalization. Same-command replay returns the recorded result, concurrent
+  commands have one reservation winner, takeover is generation-CAS fenced, and
+  rollback or unknown outcome MUST follow the shared release and recovery rules.
+  Completion MUST require purpose `phone-password-reset-complete`. Initiation
+  and completion MUST use separate purpose-bound RiskEvidence artifacts and MUST
+  NOT validate, reserve, replay, or substitute one for the other.
 - Recent authentication for number replacement/removal MUST be an explicit
   proof bound to subject, tenant, session/version, action, assurance and maximum
   age; a timestamp or caller-provided freshness flag is not proof.
-- Phone signup/signin and recovery continuations MUST preserve the explicit
-  persistent or non-persistent remember policy supplied to the owning OTP or
-  session flow. `session suppression` MUST remain distinct from non-persistent
-  session issuance, and neither may be silently upgraded by fallback or MFA.
+- Phone signup/signin continuations MUST preserve the explicit persistent or
+  non-persistent remember policy supplied to the owning OTP or session flow;
+  fallback or MFA MUST NOT upgrade it. Password-reset continuations issue no
+  session and therefore carry no remember or suppression choice.
 - Public signup/signin initiation MUST create or use the canonical single-use
   pre-auth transaction and bind tenant, purpose, canonical number and resolved
   `RememberPolicy`; later verification/signin MUST consume that exact binding.
@@ -91,6 +114,14 @@ involved.
   and identifier version.
 
 ## Security and abuse requirements
+
+- When handling `identity.phone.verify`, `identity.phone.signin`,
+  `identity.phone.update`, or `identity.phone.password-reset-complete`, this
+  workflow MUST reserve/apply/finalize the purpose-bound OTP through the
+  injected OTP transaction contributor in the same coordinator unit of work as its owning
+  mutation. Non-consuming initiation/removal operations MUST NOT enlist an OTP
+  participant. Release and recovery remain fail-closed on rollback or unknown
+  commit.
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
   cryptographic work.

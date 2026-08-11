@@ -91,6 +91,45 @@ all safe validation failures before starting listeners or migrations.
   migration contributors through the same validated composition path as
   built-in modules; no extension may mutate global registries.
 
+### RiskEvidence issuance composition
+
+The reference composition MUST wire `identity.risk.evaluate` through
+`identity/postgres`, `identity/risk/postgres`, `audit/postgres`, and
+`outbox/postgres` so an evidence-producing decision and `tx.risk_evidence.issue`
+commit with one command result before any reference is returned. The reference
+composition MUST invoke `identity.risk.evaluate` for both phone-reset phases and
+MUST return only its opaque reference and safe freshness/one-use metadata; raw
+signals, provider evidence, embedded evidence payloads, digests, signatures, journal
+identifiers, and persistence records MUST NOT cross into `identity/phone`.
+Denied, failed, unknown, and matching replay outcomes MUST preserve the core
+operation semantics without local reconstruction or a second issuance path.
+
+### Phone recovery initiation composition
+
+For `identity.phone.password-reset-request`, the reference composition MUST
+enlist `identity/postgres`, `identity/risk/postgres`, `identity/otp/postgres`,
+`capability/postgres`, `audit/postgres`, and `outbox/postgres` in one coordinator
+unit of work before the reservation transaction's first write. The reservation
+transaction MUST reserve only the command and initiation RiskEvidence; the
+domain commit MUST apply and finalize that evidence while issuing the OTP
+challenge and reset capability and recording audit/outbox and command-result
+state. Acceptance MUST prove one concurrent reservation winner, stable
+same-command replay without replacement issuance, exact-generation takeover,
+fail-closed unknown recovery, and no partial challenge, capability, audit,
+outbox, command-result, or RiskEvidence finalization.
+
+### Phone recovery completion composition
+
+For `identity.phone.password-reset-complete`, the reference composition MUST
+enlist `identity/risk/postgres`, `identity/otp/postgres`, `capability/postgres`,
+`identity/password/postgres`, and `identity/session/postgres` in one coordinator
+unit of work before the reservation transaction's first write. Acceptance MUST
+prove all five contributors reserve and finalize together, retry and recover
+the same command generation, and never permit a partial subset or a second
+command to reuse RiskEvidence, OTP, or reset capability.
+
+### Tenant and bootstrap composition
+
 The reference composition MUST own one tenant resolver used consistently by
 HTTP authentication, stores, authorization, idempotency, audit, delivery,
 workflow, provider routing and instrumentation. It MUST resolve only from an

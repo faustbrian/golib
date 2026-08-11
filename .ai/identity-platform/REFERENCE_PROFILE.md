@@ -199,8 +199,10 @@ protocol or security property whose selected baseline no longer proves it.
   recovery-sensitive quarantine unless an independent factor approves them.
 - Phone password recovery is disabled by default. Both request and completion
   deny unless `phone.recovery.enabled=true` is explicitly selected at startup.
-  When enabled, the canonical reset capability and an eligible independent
-  factor remain mandatory; recovery denies whenever a SIM-swap,
+  When enabled, the canonical reset capability, purpose-bound phone OTP, and an
+  eligible independent factor remain mandatory. Only fresh one-use immutable
+  `RiskEvidence` issued by `identity/risk` and bound to the exact recovery flow
+  may carry carrier decisions; caller-supplied facts deny. Recovery denies whenever a SIM-swap,
   number-recycling, or carrier signal is positive, unknown, or unavailable.
 
 ## WebAuthn and passkeys

@@ -74,6 +74,10 @@ involved.
   owning workflow mutation and session issuance/invalidation MUST follow
   `.ai/identity-platform/TRANSACTION_CONTRACT.md` and MUST NOT consume on GET,
   preview or delivery-provider probing.
+- Every consuming workflow MUST treat OTP precheck as non-authoritative and use
+  the durable issue/attempt/reserve/apply/finalize/release/recover protocol.
+  This unit owns purpose and attempt policy; `identity/otp/postgres` owns the
+  authoritative state transitions and replay record.
 - Signin challenges MUST bind and preserve the session-owned persistent or non-
   persistent remember policy through risk/MFA continuation and SessionIssuer
   input. Verification, resend or fallback MUST NOT upgrade persistence or

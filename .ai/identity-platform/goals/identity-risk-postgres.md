@@ -36,6 +36,12 @@ queries. It does not own ephemeral attempt, velocity, concurrency or challenge
 windows, risk policy, or external signals. Those exclusions MUST remain
 outside its public API and dependency graph.
 
+The adapter owns the durable one-use RiskEvidence journal and its `issued`,
+`reserved`, `finalized`, `released`, `expired`, and `revoked` transitions. The
+`identity/risk` service owns decision policy and bearer construction; no caller,
+workflow, cache, or other adapter may create, reserve, finalize, release, or
+recover the authoritative journal row.
+
 ## Required public contract
 
 The design MUST define schema, durable risk counters, decision journal,
@@ -74,8 +80,59 @@ involved.
   bypass windows.
 - Provider-signal evidence MUST retain safe attributable status including
   unavailable/ambiguous without storing challenge tokens or full HIBP data.
+- RiskEvidence issuance MUST atomically persist the exact-bound `issued` row
+  before exposing its opaque reference. Reservation MUST lock the keyed digest,
+  bind one command ID/fingerprint/generation, and give exactly one winner when
+  two commands race; validation or signature success without reservation grants
+  no recovery authority. Reservation MUST run only through this adapter's
+  predeclared contributor in the coordinator's single reservation transaction
+  with the exact participants declared by the operation profile: initiation
+  reserves only its command and RiskEvidence, while completion also reserves
+  the existing purpose-bound OTP and reset capability. A separate/private
+  RiskEvidence reservation transaction is forbidden.
+- Issue MUST enlist in the identity command unit of work and atomically persist
+  the exact `issued` row and committed command result before any opaque
+  reference is returned. A proved pre-commit failure MUST leave no issued row;
+  an ambiguous commit MUST return no reference and reconcile the same command
+  from primary authority. Matching committed replay MUST return the recorded
+  opaque reference without a second row or provider evaluation. Adapter results
+  MUST NOT expose raw facts, provider evidence, embedded evidence payloads, keyed digests,
+  signatures, journal identifiers, or persistence records.
+- The two phone-reset purposes MUST use distinct journal rows and keyed digests;
+  one purpose MUST NOT validate, reserve, replay, or substitute for the other.
+  Initiation reservation/apply/finalize MUST share the authoritative coordinator
+  unit of work whose domain commit issues the OTP challenge, reset capability,
+  outbox/audit records, and command result. Completion MUST use a separately
+  issued `phone-password-reset-complete` row.
+- Expired command-owner takeover MUST CAS the RiskEvidence reservation from the
+  exact prior generation to the new generation in the same coordinator
+  reservation transaction that transfers every other participant declared by
+  the operation profile. Same-command and
+  same-fingerprint matching is REQUIRED; stale, partial, missing, terminal, or
+  mismatched participant generations MUST fail closed without apply/finalize
+  authority.
+- Apply MUST recheck the reservation, expiry, exact phone-recovery binding,
+  policy/provider versions, decision, and authoritative counters inside the
+  coordinator transaction. Initiation finalize MUST commit with issuance of the
+  purpose-bound OTP challenge, reset capability, outbox/audit, and command
+  result. Completion finalize MUST commit with the existing purpose-bound OTP,
+  reset capability, password mutation, session invalidation, outbox/audit, and
+  command result. This adapter MUST use the shared transaction carrier and MUST
+  NOT open a private transaction for those steps.
+- Unknown completion MUST retain `reserved` and reconcile the owning command
+  before finalizing or releasing; expiry, lease loss, cleanup, or another
+  command MUST NOT make the evidence reusable. A retryable rollback may reuse
+  the reservation only under the same live command ownership. Release requires
+  proof of non-commit, is terminal, and forces newly issued evidence.
 - Cleanup/anonymization MUST use bounded indexed batches and preserve minimum
   evidence for active windows, incident audit and unknown-outcome reconciliation.
+  It MUST expire untouched issued rows by database time, retain unresolved
+  reservations, and wait through the later of original evidence expiry and
+  `command.result_retention` before payload/linkage crypto-shredding. The
+  restricted keyed terminal tombstone has no time-based deletion and MAY be
+  removed only after all referenced evidence-verification and keyed-digest key
+  versions are retired and proof shows every bearer fails cryptographic
+  validation before lookup.
 - Real PostgreSQL tests MUST cover contention/hot keys, isolation levels,
   deadlock/serialization, disconnect/commit ambiguity, clock boundaries,
   partition/retention and production-shaped query plans.

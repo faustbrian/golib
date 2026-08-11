@@ -238,6 +238,7 @@ EXPECTED_CONFORMANCE_TOOLS = [
     "consumers" => %w[sso/saml]
   }
 ].freeze
+EXPECTED_PROTOCOL_SOURCE_IDENTITY_SHA256 = "d945ed68a399629601f416d2eff382d11ced3a0095c1f3d467f2e69d4c5f77e9"
 EXPECTED_PROTOCOL_SOURCE_CONSUMERS = {
   "oauth-2.1-draft-15" => %w[identity/oauth identity/oauth/providers oauth-server sso/oauth2 sso/oidc],
   "rfc-2119" => :all_units,
@@ -344,6 +345,18 @@ AUDIT_RETENTION_JOURNEY_TRANSITIONS = {
     "eligible planned records -> deleted with protected receipt and checkpoint",
     "stale plan/policy/hold checkpoint, newly held record or ineligible record -> abort batch; records unchanged",
     "identity.audit_retention.delete_records"
+  ]
+}.freeze
+PHONE_RECOVERY_JOURNEY_TRANSITIONS = {
+  "identity.phone.password-reset-request" => [
+    "enabled recovery + pre-auth transaction + canonical number + recovery purpose + fresh one-use RiskEvidence -> purpose-bound phone OTP challenge and canonical reset capability; no session or remember choice",
+    "disabled recovery, missing/expired pre-auth transaction, raw caller carrier facts, or positive/unknown/unavailable risk decision -> enumeration-safe denial; no capability or OTP issued",
+    "identity.risk decides and issues exact-bound evidence -> identity.phone atomically reserves, applies and finalizes initiation-only RiskEvidence with OTP challenge and reset capability issuance; completion requires a separate completion-only artifact"
+  ],
+  "identity.phone.password-reset-complete" => [
+    "matching reset capability + reserved purpose-bound phone OTP + eligible independent factor + fresh one-use RiskEvidence -> credential reset and session revocation; no session or remember choice",
+    "stale/mismatched/replayed/in-progress RiskEvidence, wrong exact binding, missing/invalid OTP, or missing independent factor -> denial; credentials and sessions unchanged",
+    "identity.phone uses one coordinator unit of work to reserve identity.risk/postgres evidence, OTP and capability, then atomically finalize them with the password mutation, session invalidation and command result; unknown remains reserved for authoritative recovery"
   ]
 }.freeze
 AUDIT_RETENTION_API_CONTRACTS = {
@@ -481,6 +494,63 @@ def validate_administration_journey!(document)
     fail_check("end-state audit-retention event drifted for #{operation_id}") unless event_id == expected_event
   end
   rows + audit_rows
+end
+
+def phone_recovery_journey_errors(document)
+  errors = []
+  section = document[/^4\. \*\*Passwordless:\*\*(.*?)(?=^5\. \*\*)/m, 1].to_s
+  return ["end-state phone recovery journey is missing"] if section.empty?
+
+  normalized = section.gsub(/\s+/, " ")
+  required_composition = [
+    "reference `net/http` handlers and public service contracts",
+    "`identity/risk` -> `identity/phone` seam",
+    "fresh one-use immutable `RiskEvidence`",
+    "tenant, subject, recovery operation, recovery purpose, canonical number, pre-auth transaction, attempt ID and risk-policy version",
+    "Both operations issue no session and carry no remember choice"
+  ]
+  missing = required_composition.reject { |required| normalized.include?(required) }
+  errors << "end-state phone recovery journey lacks composed proof: #{missing.join(', ')}" unless missing.empty?
+
+  rows = section.lines.filter_map do |line|
+    stripped = line.strip
+    next unless stripped.start_with?("| `identity.phone.password-reset-")
+
+    cells = stripped.split("|").map(&:strip)
+    unless cells.length == 5
+      errors << "end-state phone recovery journey row has wrong column count: #{line.chomp}"
+      next
+    end
+    operation_id = cells[1][/\A`([^`]+)`\z/, 1]
+    [operation_id, cells[2], cells[3], cells[4]]
+  end
+  operation_ids = rows.map(&:first)
+  expected_ids = PHONE_RECOVERY_JOURNEY_TRANSITIONS.keys
+  errors << "end-state phone recovery operations drifted" unless operation_ids == expected_ids
+  errors << "end-state phone recovery operations contain duplicates" unless operation_ids.uniq == operation_ids
+  rows.each do |operation_id, success, rejection, seam|
+    next unless PHONE_RECOVERY_JOURNEY_TRANSITIONS.key?(operation_id)
+
+    expected_success, expected_rejection, expected_seam = PHONE_RECOVERY_JOURNEY_TRANSITIONS.fetch(operation_id)
+    errors << "end-state phone recovery success transition drifted for #{operation_id}" unless success == expected_success
+    errors << "end-state phone recovery rejection transition drifted for #{operation_id}" unless rejection == expected_rejection
+    errors << "end-state phone recovery seam transition drifted for #{operation_id}" unless seam == expected_seam
+  end
+  errors
+end
+
+def validate_phone_recovery_journey!(document)
+  errors = phone_recovery_journey_errors(document)
+  fail_check(errors.first) unless errors.empty?
+  PHONE_RECOVERY_JOURNEY_TRANSITIONS.keys
+end
+
+def expect_phone_recovery_journey_fixture_rejection!(label, expected_error)
+  errors = yield
+  fail_check("phone recovery journey negative fixture #{label} was accepted") if errors.empty?
+  unless errors.include?(expected_error)
+    fail_check("phone recovery journey negative fixture #{label} missed #{expected_error}: #{errors.join('; ')}")
+  end
 end
 
 def validate_audit_retention_authority!(documents)
@@ -760,6 +830,23 @@ def normative_rfc_errors(documents, source_ids)
   missing.empty? ? [] : ["normative RFC manifest closure drifted: #{missing.to_a.sort.join(', ')}"]
 end
 
+def protocol_source_identity_errors(source_identity, sources)
+  records = sources.map do |source|
+    id = source.fetch("id")
+    identity = source_identity.fetch(id)
+    {
+      "id" => id,
+      "title" => identity.fetch("title"),
+      "revision" => identity.fetch("revision"),
+      "url" => source.fetch("url"),
+      "sha256" => source.fetch("sha256"),
+      "license" => source.fetch("license")
+    }
+  end
+  digest = Digest::SHA256.hexdigest(JSON.generate(records))
+  digest == EXPECTED_PROTOCOL_SOURCE_IDENTITY_SHA256 ? [] : ["protocol source identity digest drifted"]
+end
+
 def protocol_source_consumer_errors(sources, known_units)
   errors = []
   expected_ids = EXPECTED_PROTOCOL_SOURCE_CONSUMERS.keys.to_set
@@ -967,7 +1054,7 @@ def contradiction_resolution_errors(api_operations:, security_events:, configura
   phone_reset = api_operations.lines.find do |line|
     line.start_with?("| `identity.phone.password-reset-complete` |")
   end.to_s
-  unless phone_reset.include?("reset capability plus independent factor") &&
+  unless phone_reset.include?("reset capability plus phone OTP plus independent factor") &&
          phone_reset.include?("canonical reset capability") &&
          phone_reset.include?("eligible independent factor") &&
          phone_reset.include?("phone/code/new-password alone is insufficient")
@@ -1055,13 +1142,16 @@ def expect_contradiction_resolution_fixture_rejection!(label, expected_error)
   end
 end
 
-def phone_contract_errors(configuration:, reference_profile:, api_operations:, phone_goal:, lifecycle_consumers:,
-                          security_events:, applicability:)
+def phone_contract_errors(configuration:, reference_profile:, api_operations:, phone_goal:, risk_goal:,
+                          lifecycle_consumers:, security_events:, applicability:, inventory:, dependencies:)
   errors = []
   recovery_policy = configuration_row(configuration, "struct:ref.phone.recovery")
   %w[
     request_when_disabled=deny complete_when_disabled=deny
-    proof=canonical_reset_capability_plus_eligible_independent_factor
+    proof=canonical_reset_capability_plus_purpose_bound_phone_otp_plus_eligible_independent_factor
+    risk_authority=identity/risk risk_evidence=immutable_one_use
+    risk_binding=tenant,subject,operation,purpose,canonical_number,preauth_transaction,attempt_id,policy_version
+    risk_ttl=2m caller_signals=forbidden
     sim_swap=negative_allow,positive_deny,unknown_deny,unavailable_deny
     number_recycling=negative_allow,positive_deny,unknown_deny,unavailable_deny
     carrier=negative_allow,positive_deny,unknown_deny,unavailable_deny carrier_signal=required
@@ -1113,12 +1203,67 @@ def phone_contract_errors(configuration:, reference_profile:, api_operations:, p
       errors << "phone password-reset #{suffix} is not denied unless explicitly enabled"
     end
   end
+  request_row = rows_by_id.fetch("identity.phone.password-reset-request", "")
+  unless request_row.include?("explicitly enabled public recovery plus pre-auth transaction") &&
+         request_row.include?("purpose-bound OTP challenge") &&
+         request_row.include?("RiskEvidence` reference issued by `identity/risk`") &&
+         request_row.include?("never raw carrier facts")
+    errors << "phone password-reset request lacks authoritative pre-auth risk-evidence contract"
+  end
+  complete_row = rows_by_id.fetch("identity.phone.password-reset-complete", "")
+  unless complete_row.include?("reset capability plus phone OTP plus independent factor") &&
+         complete_row.include?("purpose-bound phone OTP proof") &&
+         complete_row.include?("fresh one-use `RiskEvidence` issued by `identity/risk`") &&
+         complete_row.include?("Raw caller carrier facts") && complete_row.include?("deny")
+    errors << "phone password-reset completion lacks authoritative proof and risk-evidence contract"
+  end
 
   normalized_phone_goal = phone_goal.split.join(" ")
   unless normalized_phone_goal.include?("Public signup/signin initiation MUST create or use the canonical single-use pre-auth transaction") &&
          normalized_phone_goal.include?("tenant, purpose, canonical number and resolved `RememberPolicy`") &&
          normalized_phone_goal.include?("Session-authenticated number-change challenges MUST NOT create or substitute a public pre-auth transaction")
     errors << "identity/phone goal lacks exact pre-auth ownership and binding"
+  end
+  unless normalized_phone_goal.include?("canonical reset capability, a purpose-bound phone OTP, one eligible independent factor") &&
+         normalized_phone_goal.include?("immutable `RiskEvidence` whose decision permits recovery") &&
+         normalized_phone_goal.include?("issued by `identity/risk`, fresh, one-use")
+    errors << "identity/phone goal lacks canonical recovery proof and authoritative risk evidence"
+  end
+  unless normalized_phone_goal.include?("caller-supplied carrier evidence MUST deny")
+    errors << "identity/phone goal does not deny caller-supplied carrier evidence"
+  end
+  normalized_risk_goal = risk_goal.split.join(" ")
+  unless normalized_risk_goal.include?("sole authority that issues immutable `RiskEvidence`") &&
+         normalized_risk_goal.include?("MUST be atomically consumed at most once by `identity/risk`")
+    errors << "identity/risk goal lacks immutable one-use phone RiskEvidence ownership"
+  end
+  unless normalized_risk_goal.include?("selected `risk_ttl` (two minutes in the reference profile)") &&
+         normalized_risk_goal.include?("Stale, mismatched or replayed evidence MUST deny before credential mutation")
+    errors << "identity/risk goal lacks phone RiskEvidence freshness and replay rejection"
+  end
+  risk_binding_phrase = "MUST bind tenant, subject, recovery operation, recovery purpose, canonical number, pre-auth transaction, attempt ID and risk-policy version"
+  unless normalized_risk_goal.include?(risk_binding_phrase)
+    errors << "identity/risk goal lacks exact phone RiskEvidence binding"
+  end
+  unless normalized_risk_goal.include?("Positive, unknown or unavailable carrier-risk decisions MUST deny issuance") &&
+         normalized_risk_goal.include?("callers MUST NOT mint evidence or supply raw carrier facts or decisions as equivalent input")
+    errors << "identity/risk goal lacks authoritative fail-closed carrier decision issuance"
+  end
+  if normalized_phone_goal.include?("optional session suppression") || api_operations.include?("session_suppression")
+    errors << "identity/phone retains a session-suppression input"
+  end
+  unless normalized_phone_goal.include?("Phone operations do not expose session suppression") &&
+         verify_row.include?("No session-suppression option exists") &&
+         request_row.include?("no remember or session-suppression choice exists") &&
+         complete_row.include?("no remember or session-suppression choice exists")
+    errors << "identity/phone session-suppression removal is not closed across contracts"
+  end
+
+  inventory_phone_row = inventory.lines.find { |line| line.start_with?("| `identity/phone` |") }.to_s
+  unless inventory_phone_row.include?("`identity/risk`") &&
+         metadata_values(phone_goal, "Requires").include?("identity/risk") &&
+         dependencies.include?("risk --> phone")
+    errors << "identity/phone dependency on identity/risk is not closed across DAG contracts"
   end
 
   identifier_events = %w[
@@ -1154,9 +1299,13 @@ def phone_contract_errors(configuration:, reference_profile:, api_operations:, p
   errors << "identity/phone omits identifier lifecycle consumer checkpoints: #{missing_consumers.join(', ')}" unless missing_consumers.empty?
   missing_events = identifier_events - phone_applicability.fetch("security_events")
   errors << "identity/phone omits identifier security-event applicability: #{missing_events.join(', ')}" unless missing_events.empty?
+  unless phone_applicability.fetch("security_events").include?("identity.risk.decide")
+    errors << "identity/phone omits risk-decision security-event applicability: identity.risk.decide"
+  end
   required_configuration = %w[
     ref.authentication.preauth_ttl ref.phone.recovery.enabled ref.phone.recovery.policy
-    ref.session.remember_default ref.struct:ref.phone.recovery
+    ref.risk.authority ref.risk.precedence ref.session.remember_default
+    ref.struct:ref.phone.recovery ref.struct:ref.risk.authority ref.struct:ref.risk.precedence
   ]
   missing_configuration = required_configuration - phone_applicability.fetch("configuration")
   errors << "identity/phone omits phone recovery/pre-auth configuration applicability: #{missing_configuration.join(', ')}" unless missing_configuration.empty?
@@ -1198,6 +1347,318 @@ def expect_rfc_contradiction_fixture_rejection!(label, expected_error)
   unless errors.include?(expected_error)
     fail_check("RFC contradiction negative fixture #{label} missed #{expected_error}: #{errors.join('; ')}")
   end
+end
+
+def risk_evidence_contract_errors(transaction_contract:, api_operations:, risk_goal:, risk_postgres_goal:, phone_goal:, reference_goal:, end_state:, applicability:)
+  errors = []
+  normalized_transaction = transaction_contract.gsub(/\s+/, " ")
+  normalized_risk_goal = risk_goal.gsub(/\s+/, " ")
+  normalized_risk_postgres_goal = risk_postgres_goal.gsub(/\s+/, " ")
+  normalized_phone_goal = phone_goal.gsub(/\s+/, " ")
+  normalized_reference_goal = reference_goal.gsub(/\s+/, " ")
+  normalized_end_state = end_state.gsub(/\s+/, " ")
+
+  {
+    "RiskEvidence states are `issued`, `reserved`, `finalized`, `released`, `expired`, and `revoked`" =>
+      "RiskEvidence state set is not closed",
+    "Legal transitions are only `absent` to `issued`, `issued` to `reserved`, `issued` to `expired` or `revoked`, `reserved` to `finalized`, and `reserved` to `released` or `revoked`" =>
+      "RiskEvidence legal transitions are incomplete",
+    "A read-only precheck grants no authority; command acceptance requires `tx.risk_evidence.reserve`" =>
+      "RiskEvidence precheck can bypass durable reservation",
+    "Two commands MAY precheck the same item concurrently, but the PostgreSQL row lock and unique keyed digest MUST give exactly one command the `issued` to `reserved` transition; every different command receives the same non-enumerating replay denial" =>
+      "RiskEvidence concurrent reservation lacks one-winner denial",
+    "The phone-recovery completion command MUST enlist `identity/risk/postgres`, `identity/otp/postgres`, `capability/postgres`, `identity/password/postgres`, and `identity/session/postgres` in one unit of work before the reservation transaction's first write" =>
+      "phone recovery does not enlist every atomic participant",
+    "The completion reservation transaction MUST transition the RiskEvidence, purpose-bound OTP, and reset capability together or none of them" =>
+      "phone recovery reservation is not atomic across one-time participants",
+    "the later domain commit MUST finalize the RiskEvidence reservation, purpose-bound OTP, reset capability, password mutation, session invalidation, outbox/audit records, and command result, or commit none of them" =>
+      "phone recovery atomic finalization is incomplete",
+    "`tx.risk_evidence.reserve` MUST run only in the coordinator's single `tx.uow.reserve` transaction that atomically reserves the command and the exact one-time participants declared by the operation profile; it MUST NOT open a separate or private transaction" =>
+      "RiskEvidence reservation can escape the coordinator unit of work",
+    "When an expired `pending` command is taken over, this same transaction MUST first increment the command generation and then CAS-rebind every already-`reserved` one-time participant from the exact prior generation to the new generation under the same command ID and fingerprint" =>
+      "RiskEvidence takeover lacks guarded generation transfer",
+    "A missing, terminal, different-command, different-fingerprint, or non-prior-generation participant rolls back the entire takeover; the stale generation retains no apply/finalize authority" =>
+      "RiskEvidence takeover permits stale or partial authority",
+    "A retryable transaction rollback under the same live command reservation retains the RiskEvidence reservation for that command; a different command never takes it over" =>
+      "RiskEvidence retry ownership is undefined",
+    "An ambiguous commit MUST leave the item `reserved`, return `Unknown`, and use `tx.risk_evidence.recover`; expiry or lease timeout alone MUST NOT release it" =>
+      "RiskEvidence unknown outcome can reopen evidence",
+    "Only authoritative proof that the owning command did not commit MAY transition `reserved` to `released`, after which that evidence remains terminal and a retry requires newly issued evidence" =>
+      "RiskEvidence release can permit reuse",
+    "Cleanup MUST expire untouched `issued` rows in bounded database-time batches and retain every `reserved` row through authoritative recovery. Only after the later of original evidence expiry and the configured `command.result_retention` deadline MAY cleanup crypto-shred terminal payload/linkage; it MUST preserve a restricted tenant/purpose/keyed-digest/key-version/original-expiry/terminal-state tombstone with no time-based deletion. The tombstone MAY be deleted only after every evidence-verification and keyed-digest key version it references is retired and proof shows every bearer fails cryptographic validation before lookup" =>
+      "RiskEvidence cleanup can erase replay or recovery authority"
+  }.each do |required, error|
+    errors << error unless normalized_transaction.include?(required)
+  end
+
+  {
+    "Phone password-reset initiation MUST use one initiation command and coordinator unit of work to reserve, apply, and finalize initiation RiskEvidence" =>
+      "phone recovery initiation lacks authoritative RiskEvidence orchestration",
+    "The initiation reservation MUST accept only purpose `phone-password-reset-initiate`" =>
+      "phone recovery initiation lacks purpose-bound reservation",
+    "Phone reset initiation reserves only the command and initiation RiskEvidence, because its OTP challenge and capability do not exist until the domain commit" =>
+      "phone recovery initiation can reserve outputs before issuance",
+    "The initiation domain commit MUST apply and finalize that initiation RiskEvidence in the same commit that issues the purpose-bound OTP challenge, canonical reset capability, outbox/audit records, and command result, or commit none of them" =>
+      "phone recovery initiation can split RiskEvidence from challenge issuance",
+    "A same-command, same-fingerprint initiation replay MUST return the exact recorded challenge and capability result without issuing replacements" =>
+      "phone recovery initiation replay can drift",
+    "Two concurrent initiation commands MAY precheck the same evidence, but exactly one MAY reserve it; the loser receives the stable non-enumerating replay denial" =>
+      "phone recovery initiation lacks one-winner reservation",
+    "An expired initiation-command takeover MUST CAS-rebind the initiation RiskEvidence from the exact prior generation to the new generation before apply or finalize authority is granted" =>
+      "phone recovery initiation takeover lacks generation fencing",
+    "An initiation rollback MUST NOT release its RiskEvidence without authoritative proof that the command did not commit" =>
+      "phone recovery initiation rollback can release without proof",
+    "An ambiguous initiation outcome MUST remain `reserved` until authoritative recovery resolves the owning command" =>
+      "phone recovery initiation unknown outcome can reopen evidence",
+    "Initiation and completion MUST use separate RiskEvidence references, keyed digests, reservations, and terminal records with purposes `phone-password-reset-initiate` and `phone-password-reset-complete`, respectively" =>
+      "phone recovery phases do not require distinct RiskEvidence artifacts",
+    "Neither phase's RiskEvidence MAY validate, reserve, replay, or substitute for the other phase" =>
+      "phone recovery permits cross-phase RiskEvidence reuse",
+    "Cleanup and tombstones MUST independently preserve replay and recovery authority for both phone-reset RiskEvidence purposes" =>
+      "phone recovery phase retention is not distinct"
+  }.each do |required, error|
+    errors << error unless normalized_transaction.include?(required)
+  end
+
+  request_row = api_operations.lines.find { |line| line.start_with?("| `identity.phone.password-reset-request` |") }.to_s.gsub(/\s+/, " ")
+  complete_row = api_operations.lines.find { |line| line.start_with?("| `identity.phone.password-reset-complete` |") }.to_s.gsub(/\s+/, " ")
+  risk_evaluate_row = api_operations.lines.find { |line| line.start_with?("| `identity.risk.evaluate` |") }.to_s.gsub(/\s+/, " ")
+  if risk_evaluate_row.empty?
+    errors << "API operations omit canonical RiskEvidence issuance operation"
+  else
+    unless risk_evaluate_row.include?("phase `phone-reset-initiation` maps only to purpose `phone-password-reset-initiate`") &&
+           risk_evaluate_row.include?("phase `phone-reset-completion` maps only to purpose `phone-password-reset-complete`")
+      errors << "identity.risk.evaluate omits phase-specific RiskEvidence issuance"
+    end
+    unless risk_evaluate_row.include?("Issuance phase is exactly `none`, `phone-reset-initiation`, or `phone-reset-completion`") &&
+           risk_evaluate_row.include?("Purpose is derived exclusively from the two issuing phases") &&
+           risk_evaluate_row.include?("unknown/unsupported phases, a purpose with `none`, and any caller-supplied purpose are rejected before provider evaluation or state access")
+      errors << "identity.risk.evaluate issuance phase catalog is not closed"
+    end
+    unless risk_evaluate_row.include?("authoritative server-resolved carrier facts") &&
+           risk_evaluate_row.include?("tenant, subject, recovery operation, canonical number, pre-auth transaction, attempt ID, and risk-policy version")
+      errors << "identity.risk.evaluate omits authoritative issuance inputs"
+    end
+    unless risk_evaluate_row.include?("opaque RiskEvidence reference plus purpose, issued-at, expires-at, and one-use metadata") &&
+           risk_evaluate_row.include?("never raw signals, provider evidence, decision internals, embedded evidence payloads, digests, signatures, or journal identifiers")
+      errors << "identity.risk.evaluate can leak RiskEvidence internals"
+    end
+    unless risk_evaluate_row.include?("Denied returns no reference") && risk_evaluate_row.include?("Failed proves no issuance") &&
+           risk_evaluate_row.include?("Unknown returns no reference and requires same-command recovery") &&
+           risk_evaluate_row.include?("same command and fingerprint replay the exact recorded result without issuing another artifact")
+      errors << "identity.risk.evaluate issuance outcomes are not closed"
+    end
+  end
+  unless request_row.include?("`phone-password-reset-initiate`") && request_row.include?("initiation-only `RiskEvidence`") &&
+         request_row.include?("atomically finalized with OTP challenge and reset capability issuance")
+    errors << "API operations omit initiation-specific RiskEvidence atomicity"
+  end
+  unless complete_row.include?("`phone-password-reset-complete`") && complete_row.include?("separate completion-only RiskEvidence") &&
+         complete_row.include?("must not reuse the initiation artifact")
+    errors << "API operations permit cross-phase RiskEvidence reuse"
+  end
+
+  risk_postgres_ownership = "The adapter owns the durable one-use RiskEvidence journal and its `issued`, `reserved`, `finalized`, `released`, `expired`, and `revoked` transitions"
+  errors << "identity/risk/postgres lacks durable RiskEvidence ownership" unless normalized_risk_postgres_goal.include?(risk_postgres_ownership)
+  risk_postgres_recovery = "Unknown completion MUST retain `reserved` and reconcile the owning command before finalizing or releasing; expiry, lease loss, cleanup, or another command MUST NOT make the evidence reusable"
+  errors << "identity/risk/postgres lacks fail-closed RiskEvidence recovery" unless normalized_risk_postgres_goal.include?(risk_postgres_recovery)
+  risk_postgres_reservation = "Reservation MUST run only through this adapter's predeclared contributor in the coordinator's single reservation transaction with the exact participants declared by the operation profile: initiation reserves only its command and RiskEvidence, while completion also reserves the existing purpose-bound OTP and reset capability. A separate/private RiskEvidence reservation transaction is forbidden"
+  errors << "identity/risk/postgres permits private RiskEvidence reservation" unless normalized_risk_postgres_goal.include?(risk_postgres_reservation)
+  risk_postgres_takeover = "Expired command-owner takeover MUST CAS the RiskEvidence reservation from the exact prior generation to the new generation in the same coordinator reservation transaction that transfers every other participant declared by the operation profile"
+  errors << "identity/risk/postgres lacks guarded takeover generation transfer" unless normalized_risk_postgres_goal.include?(risk_postgres_takeover)
+  phone_atomicity = "Phone password-reset completion MUST use one coordinator command and unit of work to reserve and finalize RiskEvidence with the purpose-bound OTP, reset capability, password mutation, and session invalidation"
+  errors << "identity/phone lacks atomic RiskEvidence completion" unless normalized_phone_goal.include?(phone_atomicity)
+  phone_initiation_atomicity = "Phone password-reset initiation MUST use one coordinator command and unit of work to reserve, apply, and finalize initiation-only RiskEvidence with purpose-bound OTP challenge and canonical reset capability issuance"
+  errors << "identity/phone lacks atomic RiskEvidence initiation" unless normalized_phone_goal.include?(phone_initiation_atomicity)
+  phone_phase_distinction = "Initiation and completion MUST use separate purpose-bound RiskEvidence artifacts and MUST NOT validate, reserve, replay, or substitute one for the other"
+  errors << "identity/phone lacks phase-distinct RiskEvidence" unless normalized_phone_goal.include?(phone_phase_distinction)
+  contributor_boundary = "This package MUST expose contributor interfaces for those effects without importing or naming concrete persistence adapters"
+  errors << "identity/phone does not preserve its contributor-only ownership boundary" unless normalized_phone_goal.include?(contributor_boundary)
+  module_adapters = JSON.parse(File.read(File.join(REPOSITORY_ROOT, "modules.json"))).fetch("modules").map do |record|
+    record.fetch("directory").delete_prefix("pkg/")
+  end
+  package_prefix = "github.com/faustbrian/golib/pkg/"
+  package_adapters = JSON.parse(File.read(File.join(REPOSITORY_ROOT, "packages.json"))).fetch("packages").filter_map do |record|
+    import_path = record.fetch("import_path")
+    import_path.delete_prefix(package_prefix) if import_path.start_with?(package_prefix)
+  end
+  concrete_phone_adapters = (REFERENCE_ADAPTERS.to_a + module_adapters + package_adapters).uniq.select { |adapter| adapter.end_with?("/postgres", "/valkey") }
+  leaked_phone_adapters = concrete_phone_adapters.select { |adapter| normalized_phone_goal.include?("`#{adapter}`") }
+  errors << "identity/phone names reference-only concrete adapters: #{leaked_phone_adapters.join(', ')}" unless leaked_phone_adapters.empty?
+  reference_composition = "For `identity.phone.password-reset-complete`, the reference composition MUST enlist `identity/risk/postgres`, `identity/otp/postgres`, `capability/postgres`, `identity/password/postgres`, and `identity/session/postgres` in one coordinator unit of work before the reservation transaction's first write"
+  errors << "identity/reference lacks exact phone recovery composition" unless normalized_reference_goal.include?(reference_composition)
+  reference_acceptance = "Acceptance MUST prove all five contributors reserve and finalize together, retry and recover the same command generation, and never permit a partial subset or a second command to reuse RiskEvidence, OTP, or reset capability"
+  errors << "identity/reference lacks phone recovery composition acceptance" unless normalized_reference_goal.include?(reference_acceptance)
+  initiation_reference_composition = "For `identity.phone.password-reset-request`, the reference composition MUST enlist `identity/postgres`, `identity/risk/postgres`, `identity/otp/postgres`, `capability/postgres`, `audit/postgres`, and `outbox/postgres` in one coordinator unit of work before the reservation transaction's first write"
+  errors << "identity/reference lacks exact phone recovery initiation composition" unless normalized_reference_goal.include?(initiation_reference_composition)
+  initiation_reference_acceptance = "Acceptance MUST prove one concurrent reservation winner, stable same-command replay without replacement issuance, exact-generation takeover, fail-closed unknown recovery, and no partial challenge, capability, audit, outbox, command-result, or RiskEvidence finalization"
+  errors << "identity/reference lacks phone recovery initiation acceptance" unless normalized_reference_goal.include?(initiation_reference_acceptance)
+  initiation_composition_section = reference_goal[/^### Phone recovery initiation composition\n(.*?)(?=^### |^## |\z)/m, 1].to_s
+  initiation_participants = initiation_composition_section.scan(/`([^`]+)`/).flatten.select { |value| value.end_with?("/postgres") }.sort
+  expected_initiation_participants = %w[audit/postgres capability/postgres identity/otp/postgres identity/postgres identity/risk/postgres outbox/postgres]
+  errors << "identity/reference phone recovery initiation participant set is not exact" unless initiation_participants == expected_initiation_participants
+  phone_composition_section = reference_goal[/^### Phone recovery completion composition\n(.*?)(?=^### |^## |\z)/m, 1].to_s
+  concrete_participants = phone_composition_section.scan(/`([^`]+)`/).flatten.select { |value| value.end_with?("/postgres") }.sort
+  expected_participants = %w[capability/postgres identity/otp/postgres identity/password/postgres identity/risk/postgres identity/session/postgres]
+  errors << "identity/reference phone recovery participant set is not exact" unless concrete_participants == expected_participants
+  expected_reference_roles = %w[
+    tx.capability.apply tx.capability.finalize tx.capability.issue
+    tx.capability.recover tx.capability.reserve tx.capability.validate
+    tx.command.aborted tx.command.committed tx.command.conflict tx.command.expired
+    tx.command.first tx.command.live tx.foundation tx.otp.apply tx.otp.attempt
+    tx.otp.check tx.otp.finalize tx.otp.issue tx.otp.recover tx.otp.release
+    tx.otp.reserve tx.risk_evidence.apply tx.risk_evidence.finalize
+    tx.risk_evidence.issue tx.risk_evidence.recover tx.risk_evidence.release
+    tx.risk_evidence.reserve
+    tx.uow.begin tx.uow.commit tx.uow.contributor tx.uow.enlist tx.uow.locks
+    tx.uow.query tx.uow.reserve tx.uow.rollback
+  ]
+  reference_roles = applicability.fetch("identity/reference").fetch("transaction")
+  errors << "identity/reference phone recovery transaction applicability drifted" unless reference_roles == expected_reference_roles
+  end_state_atomicity = "identity.phone uses one coordinator unit of work to reserve identity.risk/postgres evidence, OTP and capability, then atomically finalize them with the password mutation, session invalidation and command result; unknown remains reserved for authoritative recovery"
+  errors << "END_STATE retains split RiskEvidence consumption" unless normalized_end_state.include?(end_state_atomicity)
+  end_state_initiation = "identity.phone atomically reserves, applies and finalizes initiation-only RiskEvidence with OTP challenge and reset capability issuance; completion requires a separate completion-only artifact"
+  errors << "END_STATE omits phase-distinct initiation atomicity" unless normalized_end_state.include?(end_state_initiation)
+  risk_issuance = "Issuance MUST persist the one-use record through `identity/risk/postgres`; an immutable bearer without that durable `issued` row is not valid RiskEvidence"
+  errors << "identity/risk permits non-durable RiskEvidence issuance" unless normalized_risk_goal.include?(risk_issuance)
+  canonical_risk_issuance = "`identity.risk.evaluate` is the canonical RiskEvidence issuance operation"
+  errors << "identity/risk lacks canonical RiskEvidence issuance ownership" unless normalized_risk_goal.include?(canonical_risk_issuance)
+  risk_issuance_outcomes = "Denied MUST return no reference; Failed MUST prove no issued row; Unknown MUST return no reference and recover the same command before any retry; same-command and same-fingerprint replay MUST return the exact recorded result without evaluating providers or issuing another artifact"
+  errors << "identity/risk lacks closed issuance outcomes" unless normalized_risk_goal.include?(risk_issuance_outcomes)
+  risk_phase_catalog = "The phase catalog MUST be exactly `none`, `phone-reset-initiation`, and `phone-reset-completion`; `none` is non-issuing"
+  errors << "identity/risk issuance phase catalog is not closed" unless normalized_risk_goal.include?(risk_phase_catalog)
+  risk_purpose_derivation = "Purpose MUST be derived exclusively from the issuing phase. Unknown/unsupported phases, a purpose with `none`, and every caller-supplied purpose MUST deny before provider evaluation or state access"
+  errors << "identity/risk permits caller-selected issuance purpose" unless normalized_risk_goal.include?(risk_purpose_derivation)
+  risk_issuance_secrecy = "The result MUST expose only an opaque RiskEvidence reference and safe purpose, issued-at, expires-at, and one-use metadata; raw signals, provider evidence, decision internals, embedded evidence payloads, keyed digests, signatures, and journal identifiers MUST NOT cross the public contract"
+  errors << "identity/risk permits RiskEvidence result leakage" unless normalized_risk_goal.include?(risk_issuance_secrecy)
+  risk_phase_distinction = "Phone reset initiation and completion MUST receive separate artifacts with purposes `phone-password-reset-initiate` and `phone-password-reset-complete`; their references, keyed digests, reservations, and terminal records MUST remain distinct"
+  errors << "identity/risk lacks phase-distinct RiskEvidence issuance" unless normalized_risk_goal.include?(risk_phase_distinction)
+  risk_postgres_issue_outcomes = "Issue MUST enlist in the identity command unit of work and atomically persist the exact `issued` row and committed command result before any opaque reference is returned"
+  errors << "identity/risk/postgres lacks authoritative issuance commit" unless normalized_risk_postgres_goal.include?(risk_postgres_issue_outcomes)
+  risk_postgres_phase_distinction = "The two phone-reset purposes MUST use distinct journal rows and keyed digests; one purpose MUST NOT validate, reserve, replay, or substitute for the other"
+  errors << "identity/risk/postgres lacks phase-distinct RiskEvidence persistence" unless normalized_risk_postgres_goal.include?(risk_postgres_phase_distinction)
+
+  required_risk_postgres_roles = %w[
+    tx.risk_evidence.apply tx.risk_evidence.finalize tx.risk_evidence.issue
+    tx.risk_evidence.recover tx.risk_evidence.release tx.risk_evidence.reserve
+  ]
+  risk_postgres_roles = applicability.fetch("identity/risk/postgres").fetch("transaction")
+  missing_risk_postgres_roles = required_risk_postgres_roles - risk_postgres_roles
+  unless missing_risk_postgres_roles.empty?
+    errors << "identity/risk/postgres omits RiskEvidence applicability: #{missing_risk_postgres_roles.join(', ')}"
+  end
+  required_phone_roles = required_risk_postgres_roles - ["tx.risk_evidence.issue"]
+  phone_roles = applicability.fetch("identity/phone").fetch("transaction")
+  missing_phone_roles = required_phone_roles - phone_roles
+  unless missing_phone_roles.empty?
+    errors << "identity/phone omits RiskEvidence applicability: #{missing_phone_roles.join(', ')}"
+  end
+  unless applicability.fetch("identity/risk").fetch("transaction").include?("tx.risk_evidence.issue")
+    errors << "identity/risk omits RiskEvidence issuance applicability"
+  end
+  expected_risk_issuance_roles = %w[
+    tx.command.aborted tx.command.committed tx.command.conflict tx.command.expired
+    tx.command.first tx.command.live tx.foundation tx.risk_evidence.issue
+    tx.uow.begin tx.uow.commit tx.uow.contributor tx.uow.enlist tx.uow.locks
+    tx.uow.query tx.uow.reserve tx.uow.rollback
+  ]
+  unless applicability.fetch("identity/risk").fetch("transaction") == expected_risk_issuance_roles
+    errors << "identity/risk issuance transaction applicability drifted"
+  end
+  transaction_issuance = "Evidence-producing `identity.risk.evaluate` MUST enlist `identity/risk/postgres` in the identity command unit of work and atomically commit `tx.risk_evidence.issue` with the command result before returning an opaque reference"
+  errors << "transaction contract omits canonical RiskEvidence issuance orchestration" unless normalized_transaction.include?(transaction_issuance)
+  reference_issuance = "The reference composition MUST invoke `identity.risk.evaluate` for both phone-reset phases and MUST return only its opaque reference and safe freshness/one-use metadata; raw signals, provider evidence, embedded evidence payloads, digests, signatures, journal identifiers, and persistence records MUST NOT cross into `identity/phone`"
+  errors << "identity/reference lacks non-leaking RiskEvidence issuance composition" unless normalized_reference_goal.include?(reference_issuance)
+  end_state_issuance = "`identity.risk.evaluate` is the sole issuance operation for both phone-reset phases, persists `tx.risk_evidence.issue` before returning, and exposes only an opaque reference with safe freshness and one-use metadata"
+  errors << "END_STATE omits canonical RiskEvidence issuance operation" unless normalized_end_state.include?(end_state_issuance)
+  errors
+end
+
+def expect_risk_evidence_fixture_rejection!(label, expected_error)
+  errors = yield
+  fail_check("RiskEvidence negative fixture #{label} was accepted") if errors.empty?
+  unless errors.include?(expected_error)
+    fail_check("RiskEvidence negative fixture #{label} missed #{expected_error}: #{errors.join('; ')}")
+  end
+end
+
+def otp_contract_errors(transaction_contract:, otp_goal:, otp_postgres_goal:, workflow_goals:, end_state:, applicability:)
+  errors = []
+  normalized_transaction = transaction_contract.gsub(/\s+/, " ")
+  {
+    "OTP participant states are `issued`, `reserved`, `finalized`, `released`, `expired`, `revoked`, and `exhausted`" =>
+      "OTP participant state set is not closed",
+    "Legal transitions are only `absent` to `issued`, `issued` to `issued` with one durable failed-attempt increment, `issued` to `reserved`, `issued` to `expired`, `revoked`, or `exhausted`, `reserved` to `finalized`, and `reserved` to `released` or `revoked`" =>
+      "OTP participant transitions are incomplete",
+    "The binding MUST include tenant, purpose, subject or channel target, challenge ID, workflow target, issued/expiry database time, attempt budget, keyed-code-digest version, and issuance fingerprint" =>
+      "OTP participant omits exact purpose binding",
+    "A replacement MAY transition an earlier `issued` row to `revoked` in the same issue transaction, but MUST NOT replace or revoke a `reserved` row without authoritative recovery of its owning command" =>
+      "OTP replacement can invalidate an active reservation",
+    "then bind consuming command ID, command fingerprint, reservation generation, and target versions" =>
+      "OTP reservation omits command generation binding",
+    "Two commands MAY perform a non-authoritative digest precheck, but exactly one command MAY transition the same `issued` row to `reserved`; every other command receives the same non-enumerating denial" =>
+      "OTP reservation lacks one-winner concurrency",
+    "The same command, fingerprint, and live generation replay the stable reservation without decrementing attempts or rerunning the workflow" =>
+      "OTP same-command replay is not idempotent",
+    "Expired-owner takeover MUST CAS-rebind the OTP reservation from the exact prior generation to the new command generation in the coordinator reservation transaction with every other reserved one-time participant" =>
+      "OTP takeover lacks generation CAS",
+    "`tx.otp.apply` MUST recheck reservation generation, purpose and all bound versions inside the domain transaction; `tx.otp.finalize` MUST transition `reserved` to `finalized` in the same commit as the owning mutation, session issuance or invalidation, outbox/audit, and command result" =>
+      "OTP apply/finalize is not atomic with its workflow",
+    "A retryable rollback retains `reserved` only for the same live command generation; authoritative non-commit MAY use `tx.otp.release`, which is terminal and requires a newly issued OTP" =>
+      "OTP rollback/release can permit replay",
+    "An ambiguous commit MUST leave OTP `reserved`, return `Unknown`, and use `tx.otp.recover`; timeout, lease loss, challenge expiry, or cleanup MUST NOT release it" =>
+      "OTP unknown recovery is not fail-closed",
+    "After the later of original OTP expiry and `command.result_retention`, cleanup MAY crypto-shred terminal payload/linkage but MUST retain a tenant/purpose/keyed-digest/key-version/original-expiry/terminal-state tombstone with no time-based deletion until every referenced digest key is retired and no code can validate before lookup" =>
+      "OTP terminal cleanup can reopen replay"
+  }.each { |required, error| errors << error unless normalized_transaction.include?(required) }
+
+  normalized_otp_goal = otp_goal.gsub(/\s+/, " ")
+  normalized_otp_postgres_goal = otp_postgres_goal.gsub(/\s+/, " ")
+  errors << "identity/otp lacks durable participant ownership" unless normalized_otp_goal.include?("Every consuming workflow MUST treat OTP precheck as non-authoritative and use the durable issue/attempt/reserve/apply/finalize/release/recover protocol")
+  errors << "identity/otp/postgres lacks exact durable OTP ownership" unless normalized_otp_postgres_goal.include?("The adapter owns the durable OTP participant state machine: `issued`, `reserved`, `finalized`, `released`, `expired`, `revoked`, and `exhausted`")
+  errors << "identity/otp/postgres lacks generation-safe unknown recovery" unless normalized_otp_postgres_goal.include?("Takeover MUST CAS the exact prior generation with every one-time participant; unknown completion remains `reserved` until authoritative recovery")
+
+  workflow_phrases = {
+    "identity/email" => "When handling `identity.otp.email-verify`, `identity.otp.email-change-confirm`, or the optional current-address OTP branch of `identity.otp.email-change-request`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through `identity/otp/postgres` in the same coordinator unit of work as its owning mutation. Non-OTP email operations MUST NOT enlist an OTP participant",
+    "identity/password" => "When handling `identity.otp.password-reset` or `identity.phone.password-reset-complete`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through `identity/otp/postgres` in the same coordinator unit of work as its owning mutation. Signup, signin, password change, and capability-only reset MUST NOT enlist an OTP participant",
+    "identity/phone" => "When handling `identity.phone.verify`, `identity.phone.signin`, `identity.phone.update`, or `identity.phone.password-reset-complete`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through the injected OTP transaction contributor in the same coordinator unit of work as its owning mutation. Non-consuming initiation/removal operations MUST NOT enlist an OTP participant",
+    "identity/mfa" => "When handling `identity.mfa.otp-verify`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through `identity/otp/postgres` in the same coordinator unit of work as its owning mutation. Other MFA methods and OTP-send initiation MUST NOT enlist an OTP consumption participant"
+  }
+  workflow_goals.each do |unit, goal|
+    errors << "#{unit} lacks scoped atomic OTP workflow ownership" unless goal.gsub(/\s+/, " ").include?(workflow_phrases.fetch(unit))
+  end
+  end_state_phrase = "Every OTP-consuming signin, email verification/change, password reset, phone recovery, and MFA completion MUST reserve and finalize its purpose-bound OTP through the same coordinator unit of work as the owning mutation and session effect"
+  errors << "END_STATE omits atomic OTP workflow closure" unless end_state.gsub(/\s+/, " ").include?(end_state_phrase)
+
+  full_roles = %w[
+    tx.otp.apply tx.otp.attempt tx.otp.check tx.otp.finalize tx.otp.issue
+    tx.otp.recover tx.otp.release tx.otp.reserve
+  ]
+  consume_roles = %w[tx.otp.apply tx.otp.finalize tx.otp.recover tx.otp.release tx.otp.reserve]
+  expected = {
+    "identity/otp" => full_roles,
+    "identity/otp/postgres" => full_roles,
+    "identity/phone" => full_roles,
+    "identity/reference" => full_roles,
+    "identity/mfa" => full_roles,
+    "identity/email" => consume_roles,
+    "identity/password" => consume_roles
+  }
+  expected.each do |unit, required_roles|
+    actual = applicability.fetch(unit).fetch("transaction").grep(/\Atx\.otp\./)
+    errors << "#{unit} OTP applicability drifted" unless actual == required_roles
+  end
+  unexpected = applicability.filter_map do |unit, entry|
+    unit if !expected.key?(unit) && entry.fetch("transaction").any? { |role| role.start_with?("tx.otp.") }
+  end
+  errors << "unexpected direct OTP workflow applicability: #{unexpected.join(',')}" unless unexpected.empty?
+  errors
+end
+
+def expect_otp_fixture_rejection!(label, expected_error)
+  errors = yield
+  fail_check("OTP negative fixture #{label} was accepted") if errors.empty?
+  fail_check("OTP negative fixture #{label} missed #{expected_error}: #{errors.join('; ')}") unless errors.include?(expected_error)
 end
 
 def canonical_inventory_digest(items)
@@ -1288,6 +1749,42 @@ def markdown_table(body, heading, expected_header)
   end
 end
 
+def markdown_table_raw_rows(body, heading, expected_header)
+  section = body[/^## #{Regexp.escape(heading)}\n(.*?)(?=^## |\z)/m, 1].to_s
+  lines = section.lines
+  header_index = lines.index { |line| line.chomp == expected_header }
+  fail_check("#{heading} table header drifted") unless header_index
+
+  lines[(header_index + 2)..].to_a.take_while { |line| line.start_with?("|") }
+end
+
+def markdown_table_append_only?(previous_body, current_body, heading, expected_header)
+  previous_rows = markdown_table_raw_rows(previous_body, heading, expected_header)
+  current_rows = markdown_table_raw_rows(current_body, heading, expected_header)
+  current_rows.first(previous_rows.length) == previous_rows
+end
+
+def parse_execution_ledger(body, expected_header)
+  markdown_table(body, "Unit execution ledger", expected_header).map do |cells|
+    fail_check("execution ledger row has wrong column count") unless cells.length == 11
+    unit, generation, task, branch, worktree, assignment, worker_commit, checkpoint, fingerprint, external, transition = cells
+    fail_check("execution ledger unit cell is invalid") unless unit.match?(/\A`[^`]+`\z/)
+    {
+      unit: plain_cell(unit), generation: generation, task: task, branch: branch,
+      worktree: worktree, assignment: assignment, worker_commit: worker_commit,
+      checkpoint: checkpoint, fingerprint: fingerprint, external: external,
+      transition: transition
+    }
+  end
+end
+
+raw_row_fixture_header = "| Value |"
+raw_row_fixture_previous = "## Raw row fixture\n#{raw_row_fixture_header}\n| --- |\n| `value` |\n"
+raw_row_fixture_reformatted = "## Raw row fixture\n#{raw_row_fixture_header}\n| --- |\n| value |\n"
+if markdown_table_append_only?(raw_row_fixture_previous, raw_row_fixture_reformatted, "Raw row fixture", raw_row_fixture_header)
+  fail_check("raw markdown row reformatting fixture was accepted")
+end
+
 def plain_cell(value)
   value.to_s.delete_prefix("`").delete_suffix("`")
 end
@@ -1297,6 +1794,701 @@ def rfc3339?(value)
   value.match?(/\A\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z\z/)
 rescue ArgumentError
   false
+end
+
+def transition_version(entry)
+  return 0 if entry[:transition] == "initial"
+
+  entry[:transition][/\Av(\d+) /, 1]&.to_i
+end
+
+def ledger_transition_errors(previous_row, previous_entry, row, entry)
+  return [] if previous_row == row && previous_entry == entry
+
+  errors = []
+  edge = [previous_row[:status], row[:status]]
+  allowed_edges = Set[
+    %w[proposed ready], %w[ready proposed], %w[ready in-progress],
+    %w[in-progress in-progress], %w[in-progress blocked], %w[in-progress ready],
+    %w[in-progress implemented-unverified], %w[blocked blocked], %w[blocked in-progress],
+    %w[blocked ready], %w[implemented-unverified implemented-unverified],
+    %w[implemented-unverified in-progress], %w[implemented-unverified blocked],
+    %w[implemented-unverified verified], %w[verified verified],
+    %w[verified implemented-unverified]
+  ]
+  errors << "forbidden status edge #{edge.join(' -> ')}" unless allowed_edges.include?(edge)
+
+  previous_version = transition_version(previous_entry)
+  current_version = transition_version(entry)
+  errors << "transition version did not increment exactly once" unless previous_version && current_version == previous_version + 1
+
+  stable_inventory = [:unit, :module, :requires]
+  stable_inventory << :goal unless edge == %w[in-progress implemented-unverified]
+  errors << "inventory identity changed outside its permitted edge" unless stable_inventory.all? { |field| previous_row[field] == row[field] }
+
+  fields = [:generation, :task, :branch, :worktree, :assignment, :worker_commit, :checkpoint, :fingerprint, :external]
+  changed = fields.select { |field| previous_entry[field] != entry[field] }.to_set
+  identity = Set[:task, :branch, :worktree, :assignment]
+  proof = Set[:worker_commit, :checkpoint, :fingerprint]
+  permitted = case edge
+              when %w[proposed ready], %w[ready proposed]
+                Set.new
+              when %w[ready in-progress]
+                identity
+              when %w[in-progress in-progress]
+                Set[:assignment]
+              when %w[in-progress blocked]
+                Set[:worker_commit]
+              when %w[implemented-unverified blocked]
+                Set.new
+              when %w[in-progress ready], %w[blocked ready]
+                Set[:generation] | identity | proof | Set[:external]
+              when %w[in-progress implemented-unverified]
+                proof | Set[:external]
+              when %w[blocked blocked]
+                Set[:worker_commit, :external]
+              when %w[blocked in-progress], %w[implemented-unverified in-progress]
+                Set.new
+              when %w[implemented-unverified implemented-unverified], %w[verified verified]
+                Set[:external]
+              when %w[implemented-unverified verified]
+                Set[:external]
+              when %w[verified implemented-unverified]
+                Set[:fingerprint, :external]
+              else
+                Set.new
+              end
+  errors << "transition changed forbidden ledger fields: #{(changed - permitted).to_a.sort.join(', ')}" unless changed.subset?(permitted)
+  same_status = previous_row[:status] == row[:status]
+  errors << "same-status finalization changed no permitted metadata" if same_status && changed.empty?
+
+  previous_generation = previous_entry[:generation].to_i
+  current_generation = entry[:generation].to_i
+  abandonment = [%w[in-progress ready], %w[blocked ready]].include?(edge)
+  expected_generation = abandonment ? previous_generation + 1 : previous_generation
+  errors << "generation change does not match assignment abandonment" unless current_generation == expected_generation
+
+  if edge == %w[in-progress in-progress]
+    errors << "same-status assignment finalization must replace pending with a commit" unless previous_entry[:assignment] == "pending" && entry[:assignment].match?(/\A[0-9a-f]{40}\z/) && changed == Set[:assignment]
+  end
+  if edge == %w[in-progress blocked] && changed.include?(:worker_commit)
+    errors << "blocked checkpoint finalization must add one worker commit" unless previous_entry[:worker_commit] == "—" && entry[:worker_commit].match?(/\A[0-9a-f]{40}\z/)
+  end
+  if abandonment
+    cleared = entry.values_at(:task, :branch, :worktree, :assignment, :worker_commit, :checkpoint, :fingerprint, :external).all? { |value| value == "—" }
+    errors << "abandoned assignment did not clear every assignment/evidence field" unless cleared
+  end
+  errors
+end
+
+def ledger_row_shape_errors(row, entry)
+  errors = []
+  assignment = entry.values_at(:task, :branch, :worktree, :assignment)
+  integrated = entry.values_at(:worker_commit, :checkpoint)
+  all_fields = entry.values_at(:task, :branch, :worktree, :assignment, :worker_commit, :checkpoint, :fingerprint, :external)
+  errors << "assignment commit format is invalid" unless entry[:assignment] == "pending" || entry[:assignment].match?(/\A(?:—|[0-9a-f]{40})\z/)
+  [:worker_commit, :checkpoint].each do |field|
+    errors << "#{field} format is invalid" unless entry[field].match?(/\A(?:—|[0-9a-f]{40})\z/)
+  end
+  errors << "worker task format is invalid" unless entry[:task] == "—" || entry[:task].match?(/\A[a-zA-Z0-9._\/-]+\z/)
+  errors << "worker branch format is invalid" unless entry[:branch] == "—" || entry[:branch].match?(%r{\A(?:feature|bugfix|hotfix|release|chore|refactor)/[a-zA-Z0-9._/-]+\z})
+  errors << "worker worktree format is invalid" unless entry[:worktree] == "—" || (entry[:worktree].start_with?("/") && entry[:worktree] != "/")
+  external_ok = entry[:external] == "—" || ["not-needed", "available"].include?(entry[:external]) || entry[:external].match?(/\Aunavailable:[a-zA-Z0-9._-]+\z/) || entry[:external].match?(%r{\A\.ai/[a-zA-Z0-9._/-]+\z})
+  errors << "external evidence disposition is invalid" unless external_ok
+  case row[:status]
+  when "proposed", "ready"
+    errors << "unassigned row retains owner" unless row[:owner] == "—"
+    errors << "unassigned row retains assignment or evidence" unless all_fields.all? { |value| value == "—" }
+  when "in-progress"
+    errors << "in-progress owner/task mismatch" unless row[:owner] == entry[:task] && row[:owner] != "—"
+    errors << "in-progress assignment is incomplete" if assignment.any? { |value| value == "—" }
+    if entry[:checkpoint] == "—"
+      errors << "pre-integration in-progress row has gate fingerprint" unless entry[:fingerprint] == "—"
+    else
+      errors << "integrated repair row is incomplete" if integrated.any? { |value| value == "—" }
+    end
+  when "blocked"
+    errors << "blocked owner is unsafe" unless row[:owner].match?(/\Ablocker:[a-zA-Z0-9._-]+\z/)
+    errors << "blocked assignment is incomplete" if assignment.any? { |value| value == "—" || value == "pending" }
+    if entry[:checkpoint] == "—"
+      errors << "pre-integration blocked row has gate fingerprint" unless entry[:fingerprint] == "—"
+    else
+      errors << "integrated blocked row lacks worker commit" if entry[:worker_commit] == "—"
+      errors << "integrated blocked gate fingerprint is invalid" unless entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
+    end
+  when "implemented-unverified", "verified"
+    errors << "integrated row retains owner" unless row[:owner] == "—"
+    errors << "integrated row is incomplete" if (assignment + integrated).any? { |value| value == "—" || value == "pending" }
+    errors << "integrated gate fingerprint is invalid" unless entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
+    errors << "integrated external evidence disposition is missing" if entry[:external] == "—"
+  end
+  errors
+end
+
+def dependency_reverse_closure(unit, previous_rows, current_rows)
+  reverse = Hash.new { |hash, key| hash[key] = Set.new }
+  (previous_rows + current_rows).each do |row|
+    row[:requires].each { |required| reverse[required] << row[:unit] }
+  end
+  closure = Set[unit]
+  queue = [unit]
+  until queue.empty?
+    reverse[queue.shift].each do |dependent|
+      next if closure.include?(dependent)
+      closure << dependent
+      queue << dependent
+    end
+  end
+  closure.to_a.sort
+end
+
+def dependency_revision_digest(revision)
+  payload = {
+    "revision_id" => revision[:revision_id], "unit" => revision[:unit],
+    "previous_requires" => revision[:previous_requires], "current_requires" => revision[:current_requires],
+    "affected_units" => revision[:affected_units], "reason" => revision[:reason],
+    "approver" => revision[:approver], "recorded_at" => revision[:recorded_at]
+  }
+  "sha256:#{Digest::SHA256.hexdigest(JSON.generate(payload))}"
+end
+
+def dependency_disposition_evidence_digest(record)
+  "sha256:#{Digest::SHA256.hexdigest(JSON.pretty_generate(record) + "\n")}"
+end
+
+def dependency_disposition_evidence_digest_errors(disposition)
+  return ["dependency assignment disposition evidence record is unavailable"] unless disposition[:evidence_record].is_a?(Hash)
+  return [] if disposition[:evidence_digest] == dependency_disposition_evidence_digest(disposition[:evidence_record])
+
+  ["dependency assignment disposition evidence digest drifted"]
+end
+
+def dependency_disposition_evidence_errors(disposition, previous_resources, resources)
+  errors = []
+  evidence = disposition[:evidence_record]
+  return ["dependency assignment disposition evidence record is unavailable"] unless evidence.is_a?(Hash)
+  errors.concat(dependency_disposition_evidence_digest_errors(disposition))
+
+  expected_keys = %w[
+    schema_version disposition_id revision_ids unit generation worker_task branch worktree
+    assignment_commit preservation resources authorized_by recorded_at
+  ]
+  errors << "dependency assignment disposition evidence schema drifted" unless evidence.keys == expected_keys
+  errors << "dependency assignment disposition evidence schema version drifted" unless evidence["schema_version"] == 1
+  {
+    "disposition_id" => disposition[:disposition_id], "revision_ids" => disposition[:revision_ids],
+    "unit" => disposition[:unit], "generation" => disposition[:generation].to_i,
+    "worker_task" => disposition[:task], "branch" => disposition[:branch],
+    "worktree" => disposition[:worktree], "assignment_commit" => disposition[:assignment],
+    "recorded_at" => disposition[:recorded_at]
+  }.each do |field, expected|
+    errors << "dependency assignment disposition evidence #{field} drifted" unless evidence[field] == expected
+  end
+  errors << "dependency assignment disposition evidence approver is not coordinator" unless evidence["authorized_by"] == "coordinator"
+
+  proof_match = disposition[:proof].match(/\Aclean-(checkpoint|baseline):([0-9a-f]{40})\z/)
+  expected_preservation = if proof_match
+                            {"kind" => "clean-#{proof_match[1]}", "commit" => disposition[:preserved_commit]}
+                          else
+                            reason = disposition[:proof][/\Asafe-abandonment:(reason:[a-zA-Z0-9._-]+)\z/, 1]
+                            {"kind" => "safe-abandonment", "reason" => reason,
+                             "recoverable_commit" => disposition[:preserved_commit]}
+                          end
+  errors << "dependency assignment disposition evidence preservation drifted" unless evidence["preservation"] == expected_preservation
+
+  previous_by_id = previous_resources.to_h { |resource| [resource[:id], resource] }
+  current_by_id = resources.to_h { |resource| [resource[:id], resource] }
+  evidence_resources = evidence["resources"]
+  unless evidence_resources.is_a?(Array) && evidence_resources.map { |resource| resource["resource_id"] } == previous_by_id.keys.sort
+    errors << "dependency assignment disposition evidence resource inventory drifted"
+    return errors
+  end
+  evidence_resources.each do |record|
+    expected_resource_keys = %w[
+      resource_id type owner target previous_state current_state cleanup_evidence
+      pre_removal_clean pre_removal_head
+    ]
+    errors << "dependency assignment disposition evidence resource schema drifted" unless record.keys == expected_resource_keys
+    previous_resource = previous_by_id[record["resource_id"]]
+    current_resource = current_by_id[record["resource_id"]]
+    next unless previous_resource && current_resource
+    {
+      "type" => previous_resource[:type], "owner" => previous_resource[:owner], "target" => previous_resource[:target],
+      "previous_state" => previous_resource[:state], "current_state" => current_resource[:state],
+      "cleanup_evidence" => current_resource[:evidence]
+    }.each do |field, expected|
+      errors << "dependency assignment disposition evidence resource #{record['resource_id']} #{field} drifted" unless record[field] == expected
+    end
+    if current_resource[:type] == "worktree" && current_resource[:state] == "removed"
+      errors << "removed dependency worktree lacks captured clean state" unless record["pre_removal_clean"] == true
+      errors << "removed dependency worktree captured the wrong HEAD" unless record["pre_removal_head"] == disposition[:preserved_commit]
+    elsif current_resource[:state] != "removed"
+      errors << "retained dependency resource has pre-removal evidence" unless record["pre_removal_clean"].nil? && record["pre_removal_head"].nil?
+    end
+  end
+  errors
+end
+
+def dependency_revision_transition_errors(previous_rows:, previous_entries:, rows:, entries:, revisions:, dispositions: [], resources: [], previous_resources: [])
+  errors = []
+  visiting = Set.new
+  visited = Set.new
+  visit = lambda do |unit|
+    return if visited.include?(unit)
+    if visiting.include?(unit)
+      errors << "dependency revision introduces a cycle at #{unit}"
+      return
+    end
+    visiting << unit
+    row = rows.find { |candidate| candidate[:unit] == unit }
+    row[:requires].each { |required| visit.call(required) }
+    visiting.delete(unit)
+    visited << unit
+  end
+  rows.each { |row| visit.call(row[:unit]) }
+  changed_units = rows.filter_map do |row|
+    previous = previous_rows.find { |candidate| candidate[:unit] == row[:unit] }
+    row[:unit] if previous[:requires] != row[:requires]
+  end.sort
+  revision_units = revisions.map { |revision| revision[:unit] }
+  errors << "dependency revision units do not match changed Requires rows" unless revision_units == changed_units && revision_units == revision_units.uniq.sort
+  affected = Set.new
+  revisions.each do |revision|
+    previous = previous_rows.find { |row| row[:unit] == revision[:unit] }
+    current = rows.find { |row| row[:unit] == revision[:unit] }
+    errors << "dependency revision ID is unsafe" unless revision[:revision_id].match?(/\A[a-zA-Z0-9._-]+\z/)
+    errors << "dependency revision reason is unsafe" unless revision[:reason].match?(/\Areason:[a-zA-Z0-9._-]+\z/)
+    errors << "dependency revision approver is not coordinator" unless revision[:approver] == "coordinator"
+    errors << "dependency revision timestamp is invalid" unless rfc3339?(revision[:recorded_at])
+    errors << "dependency revision previous Requires drifted" unless revision[:previous_requires] == previous[:requires]
+    errors << "dependency revision current Requires drifted" unless revision[:current_requires] == current[:requires]
+    expected_closure = dependency_reverse_closure(revision[:unit], previous_rows, rows)
+    errors << "dependency revision reverse closure drifted" unless revision[:affected_units] == expected_closure
+    errors << "dependency revision change digest drifted" unless revision[:change_digest] == dependency_revision_digest(revision)
+    affected.merge(expected_closure)
+  end
+  errors << "Requires changed without a dependency revision" if !changed_units.empty? && revisions.empty?
+  errors << "dependency revision recorded without a Requires change" if changed_units.empty? && !revisions.empty?
+
+  active_affected = previous_rows.select do |previous_row|
+    affected.include?(previous_row[:unit]) && ["in-progress", "blocked"].include?(previous_row[:status])
+  end
+  active_units = active_affected.map { |row| row[:unit] }.sort
+  disposition_units = dispositions.map { |disposition| disposition[:unit] }
+  errors << "dependency assignment dispositions do not exactly match affected active assignments" unless disposition_units.sort == active_units && disposition_units.uniq == disposition_units
+  active_affected.each do |previous_row|
+    previous_entry = previous_entries.find { |candidate| candidate[:unit] == previous_row[:unit] }
+    disposition = dispositions.find { |candidate| candidate[:unit] == previous_row[:unit] }
+    if previous_row[:status] == "in-progress"
+      errors << "affected active assignment #{previous_row[:unit]} must transition to blocked before dependency revision"
+      next
+    end
+    next unless disposition
+
+    relevant_revision_ids = revisions.select do |revision|
+      dependency_reverse_closure(revision[:unit], previous_rows, rows).include?(previous_row[:unit])
+    end.map { |revision| revision[:revision_id] }
+    errors << "dependency assignment disposition #{previous_row[:unit]} revision IDs drifted" unless disposition[:revision_ids] == relevant_revision_ids
+    {
+      generation: previous_entry[:generation], task: previous_entry[:task],
+      branch: previous_entry[:branch], worktree: previous_entry[:worktree],
+      assignment: previous_entry[:assignment]
+    }.each do |field, expected|
+      errors << "dependency assignment disposition #{previous_row[:unit]} #{field} drifted" unless disposition[field] == expected
+    end
+
+    proof_match = disposition[:proof].match(/\Aclean-(checkpoint|baseline):([0-9a-f]{40})\z/)
+    safe_abandonment = disposition[:proof].match?(/\Asafe-abandonment:reason:[a-zA-Z0-9._-]+\z/)
+    expected_preserved_commit = previous_entry[:worker_commit] == "—" ? previous_entry[:assignment] : previous_entry[:worker_commit]
+    errors << "dependency assignment disposition #{previous_row[:unit]} preserved commit drifted" unless disposition[:preserved_commit] == expected_preserved_commit
+    if proof_match
+      expected_proof = proof_match[1] == "checkpoint" ? previous_entry[:worker_commit] : previous_entry[:assignment]
+      errors << "dependency assignment disposition #{previous_row[:unit]} preservation proof drifted" unless proof_match[2] == expected_proof
+      if proof_match[1] == "baseline" && previous_entry[:worker_commit] != "—"
+        errors << "dependency assignment disposition #{previous_row[:unit]} ignored its worker checkpoint"
+      end
+    elsif !safe_abandonment
+      errors << "dependency assignment disposition #{previous_row[:unit]} lacks clean checkpoint/baseline or safe-abandonment proof"
+    end
+
+    previous_owned_resources = previous_resources.select { |resource| resource[:owner] == previous_entry[:task] }.sort_by { |resource| resource[:id] }
+    owned_resources = resources.select { |resource| resource[:owner] == previous_entry[:task] }.sort_by { |resource| resource[:id] }
+    errors << "dependency assignment disposition #{previous_row[:unit]} has no previously registered resources" if previous_owned_resources.empty?
+    errors << "dependency assignment disposition #{previous_row[:unit]} lost or added registered resources" unless owned_resources.map { |resource| resource[:id] } == previous_owned_resources.map { |resource| resource[:id] }
+    previous_owned_resources.each do |previous_resource|
+      resource = owned_resources.find { |candidate| candidate[:id] == previous_resource[:id] }
+      next unless resource
+      errors << "dependency assignment resource #{resource[:id]} identity drifted" unless resource.values_at(:id, :type, :owner, :target) == previous_resource.values_at(:id, :type, :owner, :target)
+      unless ["active", "retained-for-recovery"].include?(previous_resource[:state]) && ["retained-for-recovery", "removed"].include?(resource[:state])
+        errors << "dependency assignment resource #{resource[:id]} has an invalid preservation/removal transition"
+      end
+    end
+    expected_resource_states = owned_resources.to_h { |resource| [resource[:id], resource[:state]] }
+    errors << "dependency assignment disposition #{previous_row[:unit]} resource set or state drifted" unless disposition[:resource_states] == expected_resource_states
+    owned_resources.each do |resource|
+      unless ["retained-for-recovery", "removed"].include?(resource[:state])
+        errors << "dependency assignment resource #{resource[:id]} was neither preserved nor removed"
+      end
+    end
+    if safe_abandonment && owned_resources.any? { |resource| resource[:state] != "removed" }
+      errors << "safe-abandonment disposition retained a task-owned resource"
+    end
+    previous_worktree_resource = previous_owned_resources.find { |resource| resource[:type] == "worktree" && resource[:target] == previous_entry[:worktree] }
+    worktree_resource = owned_resources.find { |resource| previous_worktree_resource && resource[:id] == previous_worktree_resource[:id] }
+    errors << "dependency assignment disposition #{previous_row[:unit]} lacks its exact previously registered worktree" unless previous_worktree_resource
+    errors << "dependency assignment disposition #{previous_row[:unit]} lacks its exact current worktree disposition" unless worktree_resource
+    if worktree_resource && worktree_resource[:state] == "retained-for-recovery" && proof_match
+      errors << "retained dependency worktree #{previous_row[:unit]} is not clean" unless worktree_resource[:clean]
+      errors << "retained dependency worktree #{previous_row[:unit]} HEAD does not match preservation proof" unless worktree_resource[:head] == disposition[:preserved_commit]
+    end
+    dependency_disposition_evidence_errors(disposition, previous_owned_resources, owned_resources).each { |error| errors << error }
+  end
+
+  rows.each do |row|
+    previous_row = previous_rows.find { |candidate| candidate[:unit] == row[:unit] }
+    entry = entries.find { |candidate| candidate[:unit] == row[:unit] }
+    previous_entry = previous_entries.find { |candidate| candidate[:unit] == row[:unit] }
+    unless affected.include?(row[:unit])
+      errors << "unchanged row #{row[:unit]} changed during dependency revision" unless row == previous_row && entry == previous_entry
+      next
+    end
+    identity_fields = [:unit, :module, :goal]
+    errors << "affected row #{row[:unit]} changed inventory identity" unless identity_fields.all? { |field| row[field] == previous_row[field] }
+    unless changed_units.include?(row[:unit])
+      errors << "reverse dependant #{row[:unit]} changed Requires" unless row[:requires] == previous_row[:requires]
+    end
+    expected_status = row[:requires].all? { |required| rows.find { |candidate| candidate[:unit] == required }[:status] == "verified" } ? "ready" : "proposed"
+    errors << "affected row #{row[:unit]} was not demoted to #{expected_status}" unless row[:status] == expected_status && row[:owner] == "—"
+    cleared = entry.values_at(:task, :branch, :worktree, :assignment, :worker_commit, :checkpoint, :fingerprint, :external).all? { |value| value == "—" }
+    errors << "affected row #{row[:unit]} retained stale assignment or evidence" unless cleared
+    assigned_before = previous_entry[:task] != "—"
+    expected_generation = previous_entry[:generation].to_i + (assigned_before ? 1 : 0)
+    errors << "affected row #{row[:unit]} generation did not reflect assignment abandonment" unless entry[:generation].to_i == expected_generation
+    errors << "affected row #{row[:unit]} transition version did not increment exactly once" unless transition_version(entry) == transition_version(previous_entry) + 1
+  end
+  [errors, affected]
+end
+
+def dependency_disposition_evidence_fixture(disposition, previous_resources, resources)
+  proof_match = disposition[:proof].match(/\Aclean-(checkpoint|baseline):([0-9a-f]{40})\z/)
+  preservation = if proof_match
+                   {"kind" => "clean-#{proof_match[1]}", "commit" => disposition[:preserved_commit]}
+                 else
+                   {"kind" => "safe-abandonment", "reason" => disposition[:proof].delete_prefix("safe-abandonment:"),
+                    "recoverable_commit" => disposition[:preserved_commit]}
+                 end
+  current_by_id = resources.to_h { |resource| [resource[:id], resource] }
+  evidence_resources = previous_resources.sort_by { |resource| resource[:id] }.map do |previous_resource|
+    current_resource = current_by_id.fetch(previous_resource[:id])
+    removed_worktree = current_resource[:type] == "worktree" && current_resource[:state] == "removed"
+    {
+      "resource_id" => previous_resource[:id], "type" => previous_resource[:type],
+      "owner" => previous_resource[:owner], "target" => previous_resource[:target],
+      "previous_state" => previous_resource[:state], "current_state" => current_resource[:state],
+      "cleanup_evidence" => current_resource[:evidence],
+      "pre_removal_clean" => removed_worktree ? true : nil,
+      "pre_removal_head" => removed_worktree ? disposition[:preserved_commit] : nil
+    }
+  end
+  {
+    "schema_version" => 1, "disposition_id" => disposition[:disposition_id],
+    "revision_ids" => disposition[:revision_ids], "unit" => disposition[:unit],
+    "generation" => disposition[:generation].to_i, "worker_task" => disposition[:task],
+    "branch" => disposition[:branch], "worktree" => disposition[:worktree],
+    "assignment_commit" => disposition[:assignment], "preservation" => preservation,
+    "resources" => evidence_resources, "authorized_by" => "coordinator",
+    "recorded_at" => disposition[:recorded_at]
+  }
+end
+
+def dependency_revision_fixture(previous_requires, current_requires, approver: "coordinator", active: false, resource_state: "retained-for-recovery")
+  row = lambda do |unit, requires, status|
+    {unit: unit, module: "pkg/#{unit}", requires: requires, status: status, owner: "—", goal: "goals/#{unit}.md"}
+  end
+  entry = lambda do |unit|
+    {unit: unit, generation: "1", task: "worker-#{unit}", branch: "feature/#{unit}", worktree: "/fixture/#{unit}", assignment: "0" * 40,
+     worker_commit: "0" * 40, checkpoint: "0" * 40, fingerprint: "sha256:#{'0' * 64}", external: "not-needed",
+     transition: "v2 verified owner=— at=2026-08-11T00:00:00Z"}
+  end
+  previous_rows = [row.call("a", [], "verified"), row.call("b", previous_requires, active ? "blocked" : "verified"), row.call("c", ["b"], "verified"), row.call("d", [], "verified")]
+  previous_rows[1][:owner] = "blocker:dependency-review" if active
+  rows = [previous_rows[0].dup, row.call("b", current_requires, "ready"), row.call("c", ["b"], "proposed"), previous_rows[3].dup]
+  previous_entries = %w[a b c d].map { |unit| entry.call(unit) }
+  if active
+    previous_entries[1][:worker_commit] = "1" * 40
+    previous_entries[1][:transition] = "v2 blocked owner=blocker:dependency-review at=2026-08-11T00:00:00Z"
+  end
+  cleared = lambda do |unit, status|
+    {unit: unit, generation: "2", task: "—", branch: "—", worktree: "—", assignment: "—", worker_commit: "—", checkpoint: "—", fingerprint: "—", external: "—",
+     transition: "v3 #{status} owner=— at=2026-08-11T00:00:01Z"}
+  end
+  entries = [previous_entries[0].dup, cleared.call("b", "ready"), cleared.call("c", "proposed"), previous_entries[3].dup]
+  revision = {revision_id: "fixture-b", unit: "b", previous_requires: previous_requires, current_requires: current_requires,
+              affected_units: %w[b c], reason: "reason:fixture", change_digest: "", approver: approver,
+              recorded_at: "2026-08-11T00:00:01Z"}
+  revision[:change_digest] = dependency_revision_digest(revision)
+  resources = []
+  dispositions = []
+  if active
+    resources = [
+      {id: "worktree-b", type: "worktree", owner: "worker-b", target: "/fixture/b", state: resource_state,
+       evidence: resource_state == "removed" ? ".ai/evidence/worktree-b.md" : "not-yet-needed:worktree-b",
+       clean: resource_state == "retained-for-recovery", head: "1" * 40}
+    ]
+    dispositions = [
+      {disposition_id: "fixture-b-assignment", revision_ids: ["fixture-b"], unit: "b", generation: "1",
+       task: "worker-b", branch: "feature/b", worktree: "/fixture/b", assignment: "0" * 40,
+       proof: "clean-checkpoint:#{'1' * 40}", evidence_path: ".ai/evidence/fixture-b-disposition.json",
+       preserved_commit: "1" * 40,
+       evidence_digest: "",
+       resource_states: {"worktree-b" => resource_state},
+       recorded_at: "2026-08-11T00:00:01Z"}
+    ]
+  end
+  previous_resources = resources.map { |resource| resource.merge(state: "active", evidence: "not-yet-needed:#{resource[:id]}", clean: true, head: "1" * 40) }
+  if active
+    dispositions[0][:evidence_record] = dependency_disposition_evidence_fixture(dispositions[0], previous_resources, resources)
+    dispositions[0][:evidence_digest] = dependency_disposition_evidence_digest(dispositions[0][:evidence_record])
+  end
+  {previous_rows: previous_rows, previous_entries: previous_entries, rows: rows, entries: entries,
+   revisions: [revision], dispositions: dispositions, resources: resources, previous_resources: previous_resources}
+end
+
+{
+  "add" => dependency_revision_fixture(["a"], %w[a d]),
+  "remove" => dependency_revision_fixture(%w[a d], ["a"]),
+  "correction" => dependency_revision_fixture(["a"], ["d"])
+}.each do |label, fixture|
+  errors, = dependency_revision_transition_errors(**fixture)
+  fail_check("valid dependency #{label} fixture was rejected: #{errors.join('; ')}") unless errors.empty?
+end
+
+phone_units = %w[identity identity/otp identity/delivery identity/risk identity/phone]
+phone_previous_requires = %w[identity identity/otp identity/delivery]
+phone_current_requires = %w[identity identity/otp identity/delivery identity/risk]
+phone_row = lambda do |unit, requires, status|
+  {unit: unit, module: "pkg/#{unit}", requires: requires, status: status, owner: "—", goal: "goals/#{unit.tr('/', '-')}.md"}
+end
+phone_entry = lambda do |unit, generation, status, transition_version_number|
+  {unit: unit, generation: generation.to_s, task: status == "verified" ? "worker-#{unit.tr('/', '-')}" : "—",
+   branch: status == "verified" ? "feature/#{unit.tr('/', '-')}" : "—", worktree: status == "verified" ? "/fixture/#{unit}" : "—",
+   assignment: status == "verified" ? "0" * 40 : "—", worker_commit: status == "verified" ? "0" * 40 : "—",
+   checkpoint: status == "verified" ? "0" * 40 : "—", fingerprint: status == "verified" ? "sha256:#{'0' * 64}" : "—",
+   external: status == "verified" ? "not-needed" : "—",
+   transition: "v#{transition_version_number} #{status} owner=— at=2026-08-11T00:00:0#{transition_version_number - 1}Z"}
+end
+phone_previous_rows = phone_units.map { |unit| phone_row.call(unit, unit == "identity/phone" ? phone_previous_requires : [], "verified") }
+phone_rows = phone_units.map { |unit| phone_row.call(unit, unit == "identity/phone" ? phone_current_requires : [], unit == "identity/phone" ? "ready" : "verified") }
+phone_previous_entries = phone_units.map { |unit| phone_entry.call(unit, 1, "verified", 2) }
+phone_entries = phone_previous_entries.map(&:dup)
+phone_entries[-1] = phone_entry.call("identity/phone", 2, "ready", 3)
+phone_revision_row = {
+  revision_id: "fixture-identity-phone", unit: "identity/phone",
+  previous_requires: phone_previous_requires, current_requires: phone_current_requires,
+  affected_units: ["identity/phone"], reason: "reason:risk-composition", change_digest: "",
+  approver: "coordinator", recorded_at: "2026-08-11T00:00:01Z"
+}
+phone_revision_row[:change_digest] = dependency_revision_digest(phone_revision_row)
+phone_revision = {previous_rows: phone_previous_rows, previous_entries: phone_previous_entries,
+                  rows: phone_rows, entries: phone_entries, revisions: [phone_revision_row]}
+phone_errors, = dependency_revision_transition_errors(**phone_revision)
+fail_check("valid identity/phone dependency fixture was rejected: #{phone_errors.join('; ')}") unless phone_errors.empty?
+
+%w[retained-for-recovery removed].each do |resource_state|
+  active_fixture = dependency_revision_fixture(["a"], %w[a d], active: true, resource_state: resource_state)
+  active_errors, = dependency_revision_transition_errors(**active_fixture)
+  fail_check("valid active #{resource_state} dependency fixture was rejected: #{active_errors.join('; ')}") unless active_errors.empty?
+end
+clean_baseline_removal = dependency_revision_fixture(["a"], %w[a d], active: true, resource_state: "removed")
+clean_baseline_removal[:previous_entries][1].merge!(worker_commit: "—", checkpoint: "—", fingerprint: "—")
+clean_baseline_removal[:previous_resources][0][:head] = "0" * 40
+clean_baseline_removal[:dispositions][0].merge!(proof: "clean-baseline:#{'0' * 40}", preserved_commit: "0" * 40)
+clean_baseline_removal[:dispositions][0][:evidence_record] = dependency_disposition_evidence_fixture(
+  clean_baseline_removal[:dispositions][0], clean_baseline_removal[:previous_resources], clean_baseline_removal[:resources]
+)
+clean_baseline_removal[:dispositions][0][:evidence_digest] = dependency_disposition_evidence_digest(clean_baseline_removal[:dispositions][0][:evidence_record])
+clean_baseline_errors, = dependency_revision_transition_errors(**clean_baseline_removal)
+fail_check("valid clean-baseline removal fixture was rejected: #{clean_baseline_errors.join('; ')}") unless clean_baseline_errors.empty?
+recoverable_commit_removal = dependency_revision_fixture(["a"], %w[a d], active: true, resource_state: "removed")
+recoverable_commit_removal[:dispositions][0][:proof] = "safe-abandonment:reason:fixture-abandonment"
+recoverable_commit_removal[:dispositions][0][:evidence_record] = dependency_disposition_evidence_fixture(
+  recoverable_commit_removal[:dispositions][0], recoverable_commit_removal[:previous_resources], recoverable_commit_removal[:resources]
+)
+recoverable_commit_removal[:dispositions][0][:evidence_digest] = dependency_disposition_evidence_digest(recoverable_commit_removal[:dispositions][0][:evidence_record])
+recoverable_commit_errors, = dependency_revision_transition_errors(**recoverable_commit_removal)
+fail_check("valid recoverable-commit removal fixture was rejected: #{recoverable_commit_errors.join('; ')}") unless recoverable_commit_errors.empty?
+
+dependency_negative_base = dependency_revision_fixture(["a"], %w[a d])
+missing_demotion = Marshal.load(Marshal.dump(dependency_negative_base))
+missing_demotion[:rows][2][:status] = "verified"
+missing_demotion[:entries][2] = missing_demotion[:previous_entries][2].merge(transition: "v3 verified owner=— at=2026-08-11T00:00:01Z")
+fail_check("dependency missing-demotion fixture was accepted") if dependency_revision_transition_errors(**missing_demotion).first.empty?
+retained_assignment = Marshal.load(Marshal.dump(dependency_negative_base))
+retained_assignment[:entries][1] = retained_assignment[:previous_entries][1].merge(transition: "v3 ready owner=— at=2026-08-11T00:00:01Z")
+fail_check("dependency active-assignment fixture was accepted") if dependency_revision_transition_errors(**retained_assignment).first.empty?
+dirty_active = dependency_revision_fixture(["a"], %w[a d], active: true)
+dirty_active[:resources][0][:clean] = false
+dirty_active[:dispositions][0][:proof] = "—"
+fail_check("dependency dirty-active/no-proof fixture was accepted") if dependency_revision_transition_errors(**dirty_active).first.empty?
+retained_safe_abandonment = dependency_revision_fixture(["a"], %w[a d], active: true)
+retained_safe_abandonment[:resources][0][:clean] = false
+retained_safe_abandonment[:dispositions][0][:proof] = "safe-abandonment:reason:fixture-abandonment"
+retained_safe_abandonment[:dispositions][0][:evidence_record] = dependency_disposition_evidence_fixture(
+  retained_safe_abandonment[:dispositions][0], retained_safe_abandonment[:previous_resources], retained_safe_abandonment[:resources]
+)
+retained_safe_abandonment[:dispositions][0][:evidence_digest] = dependency_disposition_evidence_digest(retained_safe_abandonment[:dispositions][0][:evidence_record])
+fail_check("dependency retained safe-abandonment fixture was accepted") if dependency_revision_transition_errors(**retained_safe_abandonment).first.empty?
+unrelated_abandonment_evidence = Marshal.load(Marshal.dump(recoverable_commit_removal))
+unrelated_abandonment_evidence[:dispositions][0][:evidence_record]["unit"] = "c"
+fail_check("dependency unrelated abandonment-evidence fixture was accepted") if dependency_revision_transition_errors(**unrelated_abandonment_evidence).first.empty?
+historical_mutated_evidence = Marshal.load(Marshal.dump(recoverable_commit_removal))
+historical_mutated_evidence[:dispositions][0][:evidence_record]["resources"][0]["pre_removal_head"] = "f" * 40
+fail_check("dependency historical mutated-evidence fixture was accepted") if dependency_revision_transition_errors(**historical_mutated_evidence).first.empty?
+removed_without_clean_evidence = dependency_revision_fixture(["a"], %w[a d], active: true, resource_state: "removed")
+removed_without_clean_evidence[:dispositions][0][:evidence_record]["resources"][0]["pre_removal_clean"] = nil
+removed_without_clean_evidence[:dispositions][0][:evidence_record]["resources"][0]["pre_removal_head"] = nil
+removed_without_clean_evidence[:dispositions][0][:evidence_digest] = dependency_disposition_evidence_digest(removed_without_clean_evidence[:dispositions][0][:evidence_record])
+fail_check("dependency removed-without-clean-evidence fixture was accepted") if dependency_revision_transition_errors(**removed_without_clean_evidence).first.empty?
+dirty_abandonment = Marshal.load(Marshal.dump(recoverable_commit_removal))
+dirty_abandonment[:dispositions][0][:evidence_record]["resources"][0]["pre_removal_clean"] = false
+dirty_abandonment[:dispositions][0][:evidence_digest] = dependency_disposition_evidence_digest(dirty_abandonment[:dispositions][0][:evidence_record])
+fail_check("dependency dirty-abandonment fixture was accepted") if dependency_revision_transition_errors(**dirty_abandonment).first.empty?
+wrong_removed_head = Marshal.load(Marshal.dump(recoverable_commit_removal))
+wrong_removed_head[:dispositions][0][:evidence_record]["resources"][0]["pre_removal_head"] = "f" * 40
+wrong_removed_head[:dispositions][0][:evidence_digest] = dependency_disposition_evidence_digest(wrong_removed_head[:dispositions][0][:evidence_record])
+fail_check("dependency wrong-removed-HEAD fixture was accepted") if dependency_revision_transition_errors(**wrong_removed_head).first.empty?
+unpreserved_removal = Marshal.load(Marshal.dump(recoverable_commit_removal))
+unpreserved_removal[:dispositions][0][:preserved_commit] = "f" * 40
+unpreserved_removal[:dispositions][0][:evidence_record]["preservation"]["recoverable_commit"] = "f" * 40
+unpreserved_removal[:dispositions][0][:evidence_record]["resources"][0]["pre_removal_head"] = "f" * 40
+unpreserved_removal[:dispositions][0][:evidence_digest] = dependency_disposition_evidence_digest(unpreserved_removal[:dispositions][0][:evidence_record])
+fail_check("dependency unpreserved-work removal fixture was accepted") if dependency_revision_transition_errors(**unpreserved_removal).first.empty?
+unpaused_active = dependency_revision_fixture(["a"], %w[a d], active: true)
+unpaused_active[:previous_rows][1].merge!(status: "in-progress", owner: "worker-b")
+unpaused_active[:previous_entries][1][:transition] = "v2 in-progress owner=worker-b at=2026-08-11T00:00:00Z"
+fail_check("dependency unpaused-active fixture was accepted") if dependency_revision_transition_errors(**unpaused_active).first.empty?
+lost_resource = dependency_revision_fixture(["a"], %w[a d], active: true)
+lost_resource[:resources].clear
+fail_check("dependency lost-resource fixture was accepted") if dependency_revision_transition_errors(**lost_resource).first.empty?
+unregistered_worktree = dependency_revision_fixture(["a"], %w[a d], active: true)
+unregistered_worktree[:resources][0][:target] = "/fixture/other"
+fail_check("dependency unregistered-worktree fixture was accepted") if dependency_revision_transition_errors(**unregistered_worktree).first.empty?
+unauthorized_revision = dependency_revision_fixture(["a"], %w[a d], approver: "worker-b")
+fail_check("dependency unauthorized-worker fixture was accepted") if dependency_revision_transition_errors(**unauthorized_revision).first.empty?
+stale_evidence = Marshal.load(Marshal.dump(dependency_negative_base))
+stale_evidence[:entries][2][:external] = "not-needed"
+fail_check("dependency stale-evidence fixture was accepted") if dependency_revision_transition_errors(**stale_evidence).first.empty?
+cycle_revision = dependency_revision_fixture(["a"], ["c"])
+cycle_revision[:revisions][0][:current_requires] = ["c"]
+cycle_revision[:revisions][0][:change_digest] = dependency_revision_digest(cycle_revision[:revisions][0])
+fail_check("dependency cycle fixture was accepted") if dependency_revision_transition_errors(**cycle_revision).first.empty?
+
+ledger_fixture_row = {unit: "identity", module: "pkg/identity", requires: [], status: "ready", owner: "—", goal: "goals/identity.md"}
+ledger_fixture_entry = {generation: "0", task: "—", branch: "—", worktree: "—", assignment: "—", worker_commit: "—", checkpoint: "—", fingerprint: "—", external: "—", transition: "v1 ready owner=— at=2026-08-11T00:00:00Z"}
+progress_fixture_row = ledger_fixture_row.merge(status: "in-progress", owner: "fixture-worker")
+progress_fixture_entry = ledger_fixture_entry.merge(task: "fixture-worker", branch: "feature/fixture", worktree: "/fixture/worker", assignment: "0" * 40, transition: "v2 in-progress owner=fixture-worker at=2026-08-11T00:00:01Z")
+fail_check("valid ready-to-in-progress transition fixture was rejected") unless ledger_transition_errors(ledger_fixture_row, ledger_fixture_entry, progress_fixture_row, progress_fixture_entry).empty?
+verified_fixture_row = ledger_fixture_row.merge(status: "verified")
+verified_fixture_entry = progress_fixture_entry.merge(worker_commit: "0" * 40, checkpoint: "0" * 40, fingerprint: "sha256:#{'0' * 64}", external: "not-needed", transition: "v2 verified owner=— at=2026-08-11T00:00:01Z")
+fail_check("ready-to-verified transition negative fixture was accepted") if ledger_transition_errors(ledger_fixture_row, ledger_fixture_entry, verified_fixture_row, verified_fixture_entry).empty?
+blocked_fixture_row = progress_fixture_row.merge(status: "blocked", owner: "blocker:fixture")
+blocked_fixture_entry = progress_fixture_entry.merge(transition: "v2 blocked owner=blocker:fixture at=2026-08-11T00:00:01Z")
+nonincremented_blocked = blocked_fixture_entry.merge(transition: "v2 blocked owner=blocker:fixture at=2026-08-11T00:00:02Z")
+fail_check("nonincremented transition-version negative fixture was accepted") if ledger_transition_errors(progress_fixture_row, progress_fixture_entry, blocked_fixture_row, nonincremented_blocked).empty?
+
+def external_evidence_record_errors(record, profile:, claims:, consumers:, recorded_after:)
+  errors = []
+  errors << "record schema keys drifted" unless record.keys.sort == %w[profiles recorded_at schema_version]
+  errors << "schema version is not 1" unless record["schema_version"] == 1
+  recorded_at = record["recorded_at"].to_s
+  errors << "recorded_at is invalid" unless rfc3339?(recorded_at)
+  if rfc3339?(recorded_at)
+    errors << "record predates execution preflight" if Time.iso8601(recorded_at) < recorded_after
+    errors << "record timestamp is in the future" if Time.iso8601(recorded_at) > Time.now.utc
+  end
+  profiles = record["profiles"]
+  unless profiles.is_a?(Array)
+    errors << "profiles are missing"
+    return errors
+  end
+  entry = profiles.find { |candidate| candidate.is_a?(Hash) && candidate["profile_id"] == profile }
+  unless entry
+    errors << "profile #{profile} is missing"
+    return errors
+  end
+  errors << "profile schema keys drifted" unless entry.keys.sort == %w[claim_ids profile_id unit_results]
+  errors << "claim attribution drifted" unless entry["claim_ids"] == claims
+  results = entry["unit_results"]
+  unless results.is_a?(Array) && results.map { |result| result["unit"] } == consumers
+    errors << "unit attribution drifted"
+    return errors
+  end
+  results.each do |result|
+    expected_result_keys = %w[artifact_hashes complete_input_fingerprint execution_revision outcome tool_environment_identity unit]
+    errors << "#{result['unit']} result schema keys drifted" unless result.keys.sort == expected_result_keys
+    errors << "#{result['unit']} outcome is not pass" unless result["outcome"] == "pass"
+    errors << "#{result['unit']} execution revision is invalid" unless result["execution_revision"].to_s.match?(/\A[0-9a-f]{40}\z/)
+    errors << "#{result['unit']} input fingerprint is invalid" unless result["complete_input_fingerprint"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
+    identity = result["tool_environment_identity"]
+    errors << "#{result['unit']} tool/environment identity is missing" unless identity.is_a?(String) && !identity.empty? && !identity.match?(/[\r\n]/)
+    hashes = result["artifact_hashes"]
+    valid_hashes = hashes.is_a?(Hash) && !hashes.empty? && hashes.all? do |name, digest|
+      name.match?(/\A[a-zA-Z0-9._-]+\z/) && digest.match?(/\Asha256:[0-9a-f]{64}\z/)
+    end
+    errors << "#{result['unit']} artifact hashes are invalid" unless valid_hashes
+  end
+  errors
+end
+
+def orchestration_policy_errors(orchestrator, worker)
+  coordinator_section = orchestrator[/^## Coordinator-only role\n.*?(?=^## |\z)/m].to_s
+  dependency_revision_section = orchestrator[/^## Dependency revision ownership\n.*?(?=^## |\z)/m].to_s
+  worker_assignment = worker[/```text\n(.*?)```/m, 1].to_s
+  required_orchestrator = "The coordinator MUST orchestrate and MUST NOT implement package production code, package tests, package migrations, provider adapters, or package-local documentation."
+  required_worker = [
+    "You are the sole implementation owner for <canonical-module>.",
+    "Use model gpt-5.6-sol with medium reasoning. Do not spawn subagents.",
+    "modify only <canonical-module-directory>;",
+    "the canonical root does not grant ownership of another inventory unit nested beneath it",
+    "MUST NOT edit any inventory `Requires` set, dependency edge, or goal dependency metadata",
+    "do not edit another package, root manifests, root catalogs, global inventory, dependency graph, program documents, or another worktree;"
+  ]
+  errors = []
+  errors << "coordinator-only policy digest drifted" unless Digest::SHA256.hexdigest(coordinator_section) == "bc9277b2d53aee15339a6d53394a5197412233e9c4ce1b3a3b71ffbf0eec6140"
+  errors << "dependency-revision policy digest drifted" unless Digest::SHA256.hexdigest(dependency_revision_section) == "564cb53e19c5de9ee04cde3788fae20b812d7873a656ea8b086cbfb848ddea28"
+  errors << "worker assignment policy digest drifted" unless Digest::SHA256.hexdigest(worker_assignment) == "45bad0983f9e6bb433a56bb73c39e2e2d55875a129ad5b2f44df9a6db1816f39"
+  errors << "coordinator implementation prohibition drifted" unless orchestrator.gsub(/\s+/, " ").include?(required_orchestrator)
+  required_worker.each do |required|
+    errors << "worker ownership restriction drifted: #{required}" unless worker.gsub(/\s+/, " ").include?(required)
+  end
+  errors
+end
+
+external_record_fixture = {
+  "schema_version" => 1,
+  "recorded_at" => "2026-08-11T00:00:00Z",
+  "profiles" => [{
+    "profile_id" => "fixture-provider",
+    "claim_ids" => ["claim.one"],
+    "unit_results" => [{
+      "unit" => "identity", "outcome" => "pass", "execution_revision" => "0" * 40,
+      "complete_input_fingerprint" => "sha256:#{'0' * 64}",
+      "tool_environment_identity" => "fixture-v1",
+      "artifact_hashes" => {"response" => "sha256:#{'0' * 64}"}
+    }]
+  }]
+}
+external_fixture_args = {profile: "fixture-provider", claims: ["claim.one"], consumers: ["identity"], recorded_after: Time.iso8601("2026-08-11T00:00:00Z")}
+fail_check("valid external evidence fixture was rejected") unless external_evidence_record_errors(external_record_fixture, **external_fixture_args).empty?
+{
+  "claim attribution" => lambda { |record| record["profiles"][0]["claim_ids"] = ["claim.other"] },
+  "failed outcome" => lambda { |record| record["profiles"][0]["unit_results"][0]["outcome"] = "failed" },
+  "missing artifact digest" => lambda { |record| record["profiles"][0]["unit_results"][0]["artifact_hashes"] = {} },
+  "stale timestamp" => lambda { |record| record["recorded_at"] = "2026-08-10T23:59:59Z" }
+}.each do |label, mutate|
+  fixture = JSON.parse(JSON.generate(external_record_fixture))
+  mutate.call(fixture)
+  fail_check("external evidence negative fixture #{label} was accepted") if external_evidence_record_errors(fixture, **external_fixture_args).empty?
 end
 
 def repository_evidence_path?(value)
@@ -1364,8 +2556,10 @@ if end_state_fixture_index
   ARGV.delete_at(end_state_fixture_index)
   fail_check("unknown arguments: #{ARGV.join(' ')}") unless ARGV.empty?
   fail_check("--end-state-fixture requires a readable path") unless fixture_path && File.readable?(fixture_path)
-  rows = validate_administration_journey!(File.read(fixture_path))
-  puts "identity-platform end-state administration validation: #{rows.length} operations"
+  fixture = File.read(fixture_path)
+  rows = validate_administration_journey!(fixture)
+  phone_rows = validate_phone_recovery_journey!(fixture)
+  puts "identity-platform end-state validation: #{rows.length + phone_rows.length} operations"
   exit 0
 end
 
@@ -1381,17 +2575,92 @@ if fixture_index
 end
 
 execution_fixture_path = take_path_option!(ARGV, "--execution-fixture")
+previous_execution_fixture_path = take_path_option!(ARGV, "--previous-execution-fixture")
 inventory_fixture_path = take_path_option!(ARGV, "--inventory-fixture")
 ledger_fixture_path = take_path_option!(ARGV, "--ledger-fixture")
 previous_inventory_path = take_path_option!(ARGV, "--previous-inventory-fixture")
 previous_ledger_path = take_path_option!(ARGV, "--previous-ledger-fixture")
 fail_check("previous transition fixtures must be supplied together") unless previous_inventory_path.nil? == previous_ledger_path.nil?
+fail_check("previous execution fixture requires previous transition fixtures") if previous_execution_fixture_path && previous_inventory_path.nil?
 execution_mode = ARGV.delete("--execution") || execution_fixture_path
 fail_check("unknown arguments: #{ARGV.join(' ')}") unless ARGV.empty?
 validate_normative_markdown_notices!
-validate_administration_journey!(File.read(File.join(ROOT, "END_STATE.md")))
+end_state = File.read(File.join(ROOT, "END_STATE.md"))
+validate_administration_journey!(end_state)
+validate_phone_recovery_journey!(end_state)
+request_journey_row = end_state.lines.find do |line|
+  line.strip.start_with?("| `identity.phone.password-reset-request` |")
+end.to_s
+missing_request_journey = end_state.sub(request_journey_row, "")
+expect_phone_recovery_journey_fixture_rejection!(
+  "missing request operation", "end-state phone recovery operations drifted"
+) do
+  phone_recovery_journey_errors(missing_request_journey)
+end
+drifted_request_success = end_state.sub(
+  PHONE_RECOVERY_JOURNEY_TRANSITIONS.fetch("identity.phone.password-reset-request").first,
+  "recovery request succeeds"
+)
+expect_phone_recovery_journey_fixture_rejection!(
+  "request success transition",
+  "end-state phone recovery success transition drifted for identity.phone.password-reset-request"
+) do
+  phone_recovery_journey_errors(drifted_request_success)
+end
+drifted_complete_rejection = end_state.sub(
+  PHONE_RECOVERY_JOURNEY_TRANSITIONS.fetch("identity.phone.password-reset-complete")[1],
+  "invalid evidence is retried"
+)
+expect_phone_recovery_journey_fixture_rejection!(
+  "completion negative transition",
+  "end-state phone recovery rejection transition drifted for identity.phone.password-reset-complete"
+) do
+  phone_recovery_journey_errors(drifted_complete_rejection)
+end
+%w[request complete].each do |suffix|
+  operation_id = "identity.phone.password-reset-#{suffix}"
+  canonical_seam = PHONE_RECOVERY_JOURNEY_TRANSITIONS.fetch(operation_id)[2]
+  drifted_seam = end_state.sub(canonical_seam, "risk and phone are tested separately")
+  expect_phone_recovery_journey_fixture_rejection!(
+    "#{suffix} risk-phone seam",
+    "end-state phone recovery seam transition drifted for #{operation_id}"
+  ) do
+    phone_recovery_journey_errors(drifted_seam)
+  end
+end
+missing_journey_binding = end_state.sub(
+  "risk-policy\n   version",
+  "omitted binding"
+)
+expect_phone_recovery_journey_fixture_rejection!(
+  "incomplete exact binding",
+  "end-state phone recovery journey lacks composed proof: tenant, subject, recovery operation, recovery purpose, canonical number, pre-auth transaction, attempt ID and risk-policy version"
+) do
+  phone_recovery_journey_errors(missing_journey_binding)
+end
+missing_journey_session_closure = end_state.sub(
+  "Both operations issue\n   no session and carry no remember choice",
+  "operations may issue a session"
+)
+expect_phone_recovery_journey_fixture_rejection!(
+  "session and remember choice",
+  "end-state phone recovery journey lacks composed proof: Both operations issue no session and carry no remember choice"
+) do
+  phone_recovery_journey_errors(missing_journey_session_closure)
+end
 recovery_rows_for_validation = []
 worktree_resource_rows = []
+task_owned_resource_rows = []
+previous_task_owned_resource_rows = []
+external_lanes = []
+external_records = {}
+resource_registry_header = "| Resource ID | Type | Owning unit/task | Exact path or safe external ID | State | Cleanup trigger | Last reconciled at | Cleanup evidence or attestation |"
+parse_dependency_resource_snapshot = lambda do |body|
+  markdown_table(body, "Task-owned resource registry", resource_registry_header).map do |resource_id, type, owner, target, state, _cleanup_trigger, _reconciled_at, cleanup_evidence|
+    {id: plain_cell(resource_id), type: plain_cell(type), owner: plain_cell(owner), target: plain_cell(target),
+     state: plain_cell(state), evidence: plain_cell(cleanup_evidence), clean: nil, head: nil}
+  end
+end
 if execution_mode
   preflight_snapshot = File.read(execution_fixture_path || File.join(ROOT, "PREFLIGHT_EVIDENCE.md"))
   execution_sections = preflight_snapshot[/^## Execution identity\n.*?(?=^## Conflict-recovery baselines|\z)/m].to_s
@@ -1481,6 +2750,7 @@ end
 
 seen_goals = Set.new
 consumed_primitives = Set.new
+primitive_consumers = Hash.new { |hash, key| hash[key] = [] }
 reverse = Hash.new { |hash, key| hash[key] = [] }
 rows.each { |row| row[:requires].each { |dependency| reverse[dependency] << row[:unit] } }
 
@@ -1531,6 +2801,7 @@ rows.each do |row|
   unresolved_consumes = consumes.reject { |name| resolvable_consumables.include?(name) }
   fail_check("#{row[:unit]} consumes unregistered primitives: #{unresolved_consumes.join(', ')}") unless unresolved_consumes.empty?
   consumed_primitives.merge(consumes)
+  consumes.each { |primitive| primitive_consumers[primitive] << row[:unit] }
   fail_check("#{row[:unit]} retains ambiguous delegation language") if body.include?("where not delegated")
   fail_check("#{row[:unit]} goal lacks common-requirements start gate") unless body.include?("COMMON_REQUIREMENTS.md")
   fail_check("#{row[:unit]} goal has move-unsafe relative program references") if body.match?(%r{`\.\./(?:COMMON_REQUIREMENTS|INVENTORY)\.md`})
@@ -1765,20 +3036,52 @@ if execution_mode
   external_rows = markdown_table(
     preflight,
     "External evidence lanes",
-    "| Safe profile ID | Consuming units | Exact acceptance claims | Classification | Credential source metadata | Evidence path or blocker |"
+    "| Safe profile ID | Consuming units | Exact acceptance claim IDs | Classification | Credential source metadata | Evidence path or blocker | Evidence digest or blocker |"
   )
   fail_check("execution preflight has no external-evidence classifications") if external_rows.empty?
-  external_rows.each do |profile, consumers, claims, classification, credential_source, evidence|
+  external_rows.each do |profile, consumers, claims, classification, credential_source, evidence, evidence_digest|
     profile = plain_cell(profile)
     fail_check("external evidence profile ID is unsafe") unless profile.match?(/\A[a-zA-Z0-9._-]+\z/)
     consumer_units = consumers.scan(/`([^`]+)`/).flatten
+    claim_ids = claims.scan(/`([^`]+)`/).flatten
     fail_check("external evidence profile #{profile} has no consumers") if consumer_units.empty?
+    fail_check("external evidence profile #{profile} consumers are not sorted and unique") unless consumer_units == consumer_units.sort.uniq
     fail_check("external evidence profile #{profile} has unknown consumers") unless consumer_units.all? { |unit| known.include?(unit) }
-    fail_check("external evidence profile #{profile} lacks exact claims") if claims.empty? || plain_cell(claims) == "—"
-    fail_check("external evidence profile #{profile} has invalid classification") unless classifications.include?(plain_cell(classification))
-    fail_check("external evidence profile #{profile} lacks credential-source metadata") if credential_source.empty? || plain_cell(credential_source) == "—"
-    fail_check("external evidence profile #{profile} lacks evidence or blocker") if evidence.empty? || plain_cell(evidence) == "—"
-    fail_check("external evidence profile #{profile} has unsafe evidence or blocker") unless safe_preflight_evidence_or_blocker?(plain_cell(evidence))
+    fail_check("external evidence profile #{profile} lacks exact claim IDs") if claim_ids.empty?
+    fail_check("external evidence profile #{profile} claim IDs are not sorted and unique") unless claim_ids == claim_ids.sort.uniq
+    classification = plain_cell(classification)
+    credential_source = plain_cell(credential_source)
+    evidence = plain_cell(evidence)
+    evidence_digest = plain_cell(evidence_digest)
+    fail_check("external evidence profile #{profile} has invalid classification") unless classifications.include?(classification)
+    fail_check("external evidence profile #{profile} lacks safe credential-source metadata") unless credential_source.match?(/\A(?:none|[a-zA-Z0-9._-]+:[a-zA-Z0-9._-]+)\z/)
+    marker = classification == "unavailable" ? "blocker:#{profile}" : "not-yet-needed:#{profile}"
+    if repository_evidence_path?(evidence)
+      fail_check("external evidence profile #{profile} is unavailable but names a record") if classification == "unavailable"
+      digest = "sha256:#{Digest::SHA256.file(File.expand_path(evidence, REPOSITORY_ROOT)).hexdigest}"
+      fail_check("external evidence profile #{profile} record digest drifted") unless evidence_digest == digest
+      begin
+        external_records[evidence] = JSON.parse(File.read(File.expand_path(evidence, REPOSITORY_ROOT)))
+      rescue JSON::ParserError
+        fail_check("external evidence profile #{profile} record is not valid JSON")
+      end
+    else
+      fail_check("external evidence profile #{profile} has unsafe or mismatched blocker") unless evidence == marker
+      fail_check("external evidence profile #{profile} digest/blocker drifted") unless evidence_digest == marker
+    end
+    external_lanes << {profile: profile, consumers: consumer_units, claims: claim_ids, classification: classification, evidence: evidence}
+  end
+  external_profiles = external_lanes.map { |lane| lane[:profile] }
+  fail_check("execution preflight contains duplicate external profiles") unless external_profiles == external_profiles.uniq
+  preflight_recorded_at = Time.iso8601(plain_cell(identity_rows.fetch("Preflight recorded at (RFC3339)")))
+  external_lanes.select { |lane| external_records.key?(lane[:evidence]) }.each do |lane|
+    errors = external_evidence_record_errors(external_records.fetch(lane[:evidence]), profile: lane[:profile], claims: lane[:claims], consumers: lane[:consumers], recorded_after: preflight_recorded_at)
+    fail_check("external evidence profile #{lane[:profile]} record invalid: #{errors.join('; ')}") unless errors.empty?
+  end
+  external_records.each do |path, record|
+    expected_profiles = external_lanes.select { |lane| lane[:evidence] == path }.map { |lane| lane[:profile] }.sort
+    actual_profiles = record.fetch("profiles").map { |profile| profile["profile_id"] }
+    fail_check("external evidence bundle #{path} profile attribution drifted") unless actual_profiles == expected_profiles && actual_profiles == actual_profiles.uniq
   end
 
   primitive_rows = markdown_table(
@@ -1786,36 +3089,67 @@ if execution_mode
     "Existing primitive contracts",
     "| Primitive | Consuming units | Registered module/package | API input fingerprint | Gate fingerprint and result | Evidence path |"
   )
-  primitive_names = primitive_rows.map { |row| plain_cell(row[0]) }.to_set
-  fail_check("execution preflight primitive inventory drifted") unless primitive_names == consumed_primitives
+  primitive_name_list = primitive_rows.map { |row| plain_cell(row[0]) }
+  fail_check("execution preflight contains duplicate primitive rows") unless primitive_name_list == primitive_name_list.uniq
+  fail_check("execution preflight primitive inventory drifted") unless primitive_name_list.to_set == consumed_primitives
+  noncurrent_primitives_by_consumer = Hash.new { |hash, key| hash[key] = [] }
   primitive_rows.each do |primitive, consumers, registered, api_fingerprint, gate_result, evidence|
     name = plain_cell(primitive)
     consumer_units = consumers.scan(/`([^`]+)`/).flatten
     fail_check("primitive #{name} has no consumers") if consumer_units.empty?
+    fail_check("primitive #{name} consumers are not sorted and unique") unless consumer_units == consumer_units.sort.uniq
     fail_check("primitive #{name} has unknown consumers") unless consumer_units.all? { |unit| known.include?(unit) }
+    expected_consumers = primitive_consumers.fetch(name).sort
+    fail_check("primitive #{name} consumer inventory drifted: expected #{expected_consumers}, got #{consumer_units}") unless consumer_units == expected_consumers
     registered_name = plain_cell(registered).delete_prefix("pkg/")
+    fail_check("primitive #{name} registered module/package was substituted") unless registered_name == name
     fail_check("primitive #{name} is not registered") unless resolvable_consumables.include?(registered_name)
     fail_check("primitive #{name} API fingerprint is invalid") unless plain_cell(api_fingerprint).match?(/\Asha256:[0-9a-f]{64}\z/)
-    fail_check("primitive #{name} gate fingerprint/result is invalid") unless plain_cell(gate_result).match?(/\Asha256:[0-9a-f]{64} (?:pass|failed|blocked|stale)\z/)
+    gate_match = plain_cell(gate_result).match(/\Asha256:[0-9a-f]{64} (pass|failed|blocked|stale)\z/)
+    fail_check("primitive #{name} gate fingerprint/result is invalid") unless gate_match
     fail_check("primitive #{name} evidence path is unsafe or missing") unless repository_evidence_path?(plain_cell(evidence))
+    unless gate_match[1] == "pass"
+      consumer_units.each { |unit| noncurrent_primitives_by_consumer[unit] << name }
+    end
+  end
+  noncurrent_primitives_by_consumer.each do |unit, primitives|
+    inventory_row = rows.find { |row| row[:unit] == unit }
+    unless ["proposed", "blocked"].include?(inventory_row[:status])
+      fail_check("#{unit} has non-current primitive evidence while #{inventory_row[:status]}: #{primitives.sort}")
+    end
+    next if inventory_row[:status] == "proposed"
+
+    blocker_ids = primitives.map { |primitive| "blocker:primitive-#{primitive.tr('/', '-')}" }
+    unless blocker_ids.include?(inventory_row[:owner])
+      fail_check("#{unit} blocked primitive evidence lacks an exact blocker claim: expected one of #{blocker_ids.sort}")
+    end
   end
 
   resource_rows = markdown_table(
     preflight,
     "Task-owned resource registry",
-    "| Resource ID | Type | Owning unit/task | Exact path or safe external ID | State | Cleanup trigger | Last reconciled at |"
+    resource_registry_header
   )
   fail_check("execution preflight has no registered task-owned resources") if resource_rows.empty?
   resource_states = Set["active", "retained-for-recovery", "removal-pending-after-final-commit", "removed"]
-  resource_rows.each do |resource_id, type, owner, target, state, cleanup_trigger, reconciled_at|
+  local_resource_types = Set["go-cache", "temporary-directory", "browser-artifact"]
+  external_resource_types = Set["process", "container", "image", "volume", "database-payload", "provider-fixture"]
+  resource_types = local_resource_types | external_resource_types | Set["worktree"]
+  resource_rows.each do |resource_id, type, owner, target, state, cleanup_trigger, reconciled_at, cleanup_evidence|
     resource_id = plain_cell(resource_id)
     type = plain_cell(type)
     owner = plain_cell(owner)
     target = plain_cell(target)
     state = plain_cell(state)
+    cleanup_evidence = plain_cell(cleanup_evidence)
     fail_check("resource ID is unsafe") unless resource_id.match?(/\A[a-zA-Z0-9._-]+\z/)
     fail_check("resource #{resource_id} has incomplete ownership") if type.empty? || owner.empty?
+    fail_check("resource #{resource_id} has unsupported type #{type}") unless resource_types.include?(type)
     fail_check("resource #{resource_id} has invalid state") unless resource_states.include?(state)
+    local_target_exists = false
+    local_path_entry_exists = false
+    worktree_clean = nil
+    worktree_head = nil
     safe_target = if type == "worktree"
       fail_check("worktree resource #{resource_id} owner is unsafe") unless owner.match?(/\A[a-zA-Z0-9._\/-]+\z/)
       if state == "removed"
@@ -1825,8 +3159,12 @@ if execution_mode
         owner_ok = integration_target ? owner == "coordinator" : owner != "coordinator"
         removed_safe = target.start_with?("/") && target == clean_target && clean_target != clean_parent &&
           clean_target.start_with?(clean_parent + File::SEPARATOR) &&
-          !File.exist?(clean_target) && !registered_worktree_paths.include?(clean_target) && owner_ok
-        worktree_resource_rows << {target: target, owner: owner, state: state, integration: integration_target} if removed_safe
+          !File.exist?(clean_target) && !File.symlink?(clean_target) &&
+          !registered_worktree_paths.include?(clean_target) && owner_ok
+        if removed_safe
+          worktree_resource_rows << {id: resource_id, type: type, target: target, owner: owner, state: state,
+                                     evidence: cleanup_evidence, integration: integration_target, clean: nil, head: nil}
+        end
         removed_safe
       else
         identity = safe_task_worktree_identity(target, worktree_parent)
@@ -1839,34 +3177,89 @@ if execution_mode
                       else
                         owner != "coordinator" && safe_worktree_path?(target, worktree_parent)
                       end
-        worktree_resource_rows << {target: target, owner: owner, state: state, integration: integration_target} if identity && registered && exact && identity_ok
+        if identity && registered && exact && identity_ok
+          status_output, status_result = Open3.capture2("git", "-C", target, "status", "--porcelain")
+          head_output, head_result = Open3.capture2("git", "-C", target, "rev-parse", "HEAD")
+          worktree_clean = status_result.success? && status_output.empty?
+          worktree_head = head_output.strip if head_result.success? && head_output.strip.match?(/\A[0-9a-f]{40}\z/)
+          worktree_resource_rows << {id: resource_id, type: type, target: target, owner: owner, state: state,
+                                     evidence: cleanup_evidence, integration: integration_target,
+                                     clean: worktree_clean, head: worktree_head}
+        end
         identity && registered && exact && identity_ok
       end
-    elsif target.start_with?("/")
+    elsif local_resource_types.include?(type)
       clean_target = File.expand_path(target)
-      clean_parent = File.expand_path(worktree_parent)
+      clean_parent = File.realpath(worktree_parent)
+      canonical_local_target = if File.exist?(clean_target)
+                                 File.realpath(clean_target)
+                               else
+                                 clean_target
+                               end
       registered_worktree_target = if File.exist?(clean_target)
                                      registered_worktree_paths.include?(File.realpath(clean_target))
                                    else
                                      false
                                    end
-      !registered_worktree_target && clean_target != clean_parent &&
-        clean_target.start_with?(clean_parent + File::SEPARATOR)
+      local_target_exists = File.exist?(clean_target)
+      local_path_entry_exists = local_target_exists || File.symlink?(clean_target)
+      target.start_with?("/") && target == clean_target && canonical_local_target == clean_target && !registered_worktree_target &&
+        clean_target != clean_parent && clean_target.start_with?(clean_parent + File::SEPARATOR)
     else
-      target.match?(/\A[a-zA-Z0-9._:\/-]+\z/) && !target.split("/").include?("..")
+      !target.start_with?("/") && target.match?(/\A[a-zA-Z0-9._:\/-]+\z/) && !target.split("/").include?("..")
     end
     fail_check("resource #{resource_id} target is unsafe") unless safe_target
-    if type == "worktree" && state == "removal-pending-after-final-commit"
-      fail_check("only the integration worktree may be removal-pending") unless worktree_resource_rows.last&.fetch(:target) == target && worktree_resource_rows.last.fetch(:integration)
+    if state == "removal-pending-after-final-commit"
+      integration_pending = type == "worktree" && worktree_resource_rows.last&.fetch(:target) == target &&
+        worktree_resource_rows.last.fetch(:integration)
+      fail_check("only the integration worktree may be removal-pending") unless integration_pending
     end
     fail_check("resource #{resource_id} lacks cleanup trigger") if cleanup_trigger.empty? || plain_cell(cleanup_trigger) == "—"
     fail_check("resource #{resource_id} reconciliation timestamp is invalid") unless rfc3339?(plain_cell(reconciled_at))
+    if type == "worktree"
+      evidence_ok = if state == "removed"
+                      repository_evidence_path?(cleanup_evidence)
+                    else
+                      cleanup_evidence == "not-yet-needed:#{resource_id}"
+                    end
+      fail_check("worktree resource #{resource_id} lacks state-specific cleanup evidence") unless evidence_ok
+    elsif local_resource_types.include?(type)
+      existence_matches = state == "removed" ? !local_path_entry_exists : local_target_exists
+      fail_check("local resource #{resource_id} existence does not match #{state}") unless existence_matches
+      evidence_ok = if state == "removed"
+                      repository_evidence_path?(cleanup_evidence)
+                    else
+                      cleanup_evidence == "not-yet-needed:#{resource_id}"
+                    end
+      fail_check("local resource #{resource_id} lacks state-specific cleanup evidence") unless evidence_ok
+    else
+      attestation = "attestation:#{state}:#{target}"
+      unless cleanup_evidence == attestation || repository_evidence_path?(cleanup_evidence)
+        fail_check("external resource #{resource_id} lacks state-specific cleanup attestation")
+      end
+    end
+    task_owned_resource_rows << {
+      id: resource_id, type: type, owner: owner, state: state, target: target,
+      evidence: cleanup_evidence, clean: worktree_clean, head: worktree_head
+    }
   end
+  resource_ids = task_owned_resource_rows.map { |resource| resource[:id] }
+  fail_check("task-owned resource registry contains duplicate resource IDs") unless resource_ids.uniq == resource_ids
   live_worktree_targets = worktree_resource_rows.map { |resource| resource[:target] }
   fail_check("task-owned resource registry contains duplicate live worktrees") unless live_worktree_targets.uniq == live_worktree_targets
   integration_resources = worktree_resource_rows.select { |resource| resource[:integration] }
   unless integration_resources.length == 1 && integration_resources.first[:owner] == "coordinator" && integration_resources.first[:state] != "removed"
     fail_check("integration worktree requires exactly one live coordinator-owned worktree resource")
+  end
+  if rows.all? { |row| row[:status] == "verified" }
+    incomplete_cleanup = task_owned_resource_rows.reject do |resource|
+      resource[:state] == "removed" ||
+        (resource[:type] == "worktree" && resource[:target] == integration_worktree &&
+          resource[:state] == "removal-pending-after-final-commit")
+    end
+    unless incomplete_cleanup.empty?
+      fail_check("completed program retains active task-owned resources: #{incomplete_cleanup.map { |resource| resource[:id] }.sort}")
+    end
   end
 
   recovery_rows = markdown_table(
@@ -2398,7 +3791,7 @@ expect_contradiction_resolution_fixture_rejection!(
   contradiction_resolution_errors(**contradiction_inputs.merge(risk_valkey_goal: valkey_durable_lockout))
 end
 phone_only_reset = contradiction_inputs.fetch(:api_operations).sub(
-  "reset capability plus independent factor", "reset challenge"
+  "reset capability plus phone OTP plus independent factor", "reset challenge"
 )
 expect_contradiction_resolution_fixture_rejection!(
   "phone-only password reset", "phone password-reset completion lacks capability plus independent-factor authority"
@@ -2455,10 +3848,548 @@ phone_contract_inputs = {
   reference_profile: File.read(File.join(ROOT, "REFERENCE_PROFILE.md")),
   api_operations: artifacts.fetch("API_OPERATIONS.md"),
   phone_goal: File.read(File.join(ROOT, "goals/identity-phone.md")),
+  risk_goal: File.read(File.join(ROOT, "goals/identity-risk.md")),
   lifecycle_consumers: artifacts.fetch("LIFECYCLE_CONSUMERS.md"),
   security_events: artifacts.fetch("SECURITY_EVENTS.md"),
+  applicability: applicability,
+  inventory: File.read(File.join(ROOT, "INVENTORY.md")),
+  dependencies: File.read(File.join(ROOT, "DEPENDENCIES.md"))
+}
+risk_evidence_contract_inputs = {
+  transaction_contract: artifacts.fetch("TRANSACTION_CONTRACT.md"),
+  api_operations: artifacts.fetch("API_OPERATIONS.md"),
+  risk_goal: phone_contract_inputs.fetch(:risk_goal),
+  risk_postgres_goal: File.read(File.join(ROOT, "goals/identity-risk-postgres.md")),
+  phone_goal: phone_contract_inputs.fetch(:phone_goal),
+  reference_goal: File.read(File.join(ROOT, "goals/identity-reference.md")),
+  end_state: File.read(File.join(ROOT, "END_STATE.md")),
   applicability: applicability
 }
+risk_evidence_contract_errors(**risk_evidence_contract_inputs).each { |error| fail_check(error) }
+reference_without_phone_composition = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:reference_goal),
+  "For `identity.phone.password-reset-complete`, the reference composition MUST enlist `identity/risk/postgres`, `identity/otp/postgres`, `capability/postgres`, `identity/password/postgres`, and `identity/session/postgres` in one coordinator unit of work before the reservation transaction's first write"
+)
+expect_risk_evidence_fixture_rejection!("reference without concrete phone composition", "identity/reference lacks exact phone recovery composition") do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(reference_goal: reference_without_phone_composition))
+end
+reference_without_phone_initiation_composition = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:reference_goal),
+  "For `identity.phone.password-reset-request`, the reference composition MUST enlist `identity/postgres`, `identity/risk/postgres`, `identity/otp/postgres`, `capability/postgres`, `audit/postgres`, and `outbox/postgres` in one coordinator unit of work before the reservation transaction's first write"
+)
+expect_risk_evidence_fixture_rejection!(
+  "reference without concrete phone initiation composition",
+  "identity/reference lacks exact phone recovery initiation composition"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(reference_goal: reference_without_phone_initiation_composition))
+end
+reference_without_uow_reserve = JSON.parse(JSON.generate(applicability))
+reference_without_uow_reserve.fetch("identity/reference").fetch("transaction").delete("tx.uow.reserve")
+expect_risk_evidence_fixture_rejection!(
+  "reference coordinator without UoW reserve applicability",
+  "identity/reference phone recovery transaction applicability drifted"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(applicability: reference_without_uow_reserve))
+end
+phone_with_concrete_adapter = risk_evidence_contract_inputs.fetch(:phone_goal) + "\nThe package imports `identity/otp/postgres`.\n"
+expect_risk_evidence_fixture_rejection!("phone with concrete adapter", "identity/phone names reference-only concrete adapters: identity/otp/postgres") do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(phone_goal: phone_with_concrete_adapter))
+end
+phone_with_unrelated_concrete_adapter = risk_evidence_contract_inputs.fetch(:phone_goal) + "\nThe package imports `identity/postgres`.\n"
+expect_risk_evidence_fixture_rejection!("phone with unrelated concrete adapter", "identity/phone names reference-only concrete adapters: identity/postgres") do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(phone_goal: phone_with_unrelated_concrete_adapter))
+end
+reference_with_sixth_participant = risk_evidence_contract_inputs.fetch(:reference_goal).sub(
+  "`identity/password/postgres`, and `identity/session/postgres` in one coordinator",
+  "`identity/password/postgres`, `identity/session/postgres`, and `audit/postgres` in one coordinator"
+)
+expect_risk_evidence_fixture_rejection!("reference with sixth phone participant", "identity/reference phone recovery participant set is not exact") do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(reference_goal: reference_with_sixth_participant))
+end
+otp_contract_inputs = {
+  transaction_contract: artifacts.fetch("TRANSACTION_CONTRACT.md"),
+  otp_goal: File.read(File.join(ROOT, "goals/identity-otp.md")),
+  otp_postgres_goal: File.read(File.join(ROOT, "goals/identity-otp-postgres.md")),
+  workflow_goals: {
+    "identity/email" => File.read(File.join(ROOT, "goals/identity-email.md")),
+    "identity/password" => File.read(File.join(ROOT, "goals/identity-password.md")),
+    "identity/phone" => phone_contract_inputs.fetch(:phone_goal),
+    "identity/mfa" => File.read(File.join(ROOT, "goals/identity-mfa.md"))
+  },
+  end_state: risk_evidence_contract_inputs.fetch(:end_state),
+  applicability: applicability
+}
+otp_contract_errors(**otp_contract_inputs).each { |error| fail_check(error) }
+
+otp_contract_mutations = {
+  "missing purpose binding" => [
+    "The binding MUST include tenant, purpose, subject or channel target, challenge ID, workflow target, issued/expiry database time, attempt budget, keyed-code-digest version, and issuance fingerprint",
+    "OTP participant omits exact purpose binding"
+  ],
+  "replacement revokes active reservation" => [
+    "A replacement MAY transition an earlier `issued` row to `revoked` in the same issue transaction, but MUST NOT replace or revoke a `reserved` row without authoritative recovery of its owning command",
+    "OTP replacement can invalidate an active reservation"
+  ],
+  "reservation without generation binding" => [
+    "then bind consuming command ID, command fingerprint, reservation generation, and target versions",
+    "OTP reservation omits command generation binding"
+  ],
+  "two reservation winners" => [
+    "Two commands MAY perform a non-authoritative digest precheck, but exactly one command MAY transition the same `issued` row to `reserved`; every other command receives the same non-enumerating denial",
+    "OTP reservation lacks one-winner concurrency"
+  ],
+  "non-idempotent same-command replay" => [
+    "The same command, fingerprint, and live generation replay the stable reservation without decrementing attempts or rerunning the workflow",
+    "OTP same-command replay is not idempotent"
+  ],
+  "takeover without generation CAS" => [
+    "Expired-owner takeover MUST CAS-rebind the OTP reservation from the exact prior generation to the new command generation in the coordinator reservation transaction with every other reserved one-time participant",
+    "OTP takeover lacks generation CAS"
+  ],
+  "split apply finalize" => [
+    "`tx.otp.apply` MUST recheck reservation generation, purpose and all bound versions inside the domain transaction; `tx.otp.finalize` MUST transition `reserved` to `finalized` in the same commit as the owning mutation, session issuance or invalidation, outbox/audit, and command result",
+    "OTP apply/finalize is not atomic with its workflow"
+  ],
+  "reusable release" => [
+    "A retryable rollback retains `reserved` only for the same live command generation; authoritative non-commit MAY use `tx.otp.release`, which is terminal and requires a newly issued OTP",
+    "OTP rollback/release can permit replay"
+  ],
+  "unknown releases reservation" => [
+    "An ambiguous commit MUST leave OTP `reserved`, return `Unknown`, and use `tx.otp.recover`; timeout, lease loss, challenge expiry, or cleanup MUST NOT release it",
+    "OTP unknown recovery is not fail-closed"
+  ],
+  "cleanup without terminal tombstone" => [
+    "After the later of original OTP expiry and `command.result_retention`, cleanup MAY crypto-shred terminal payload/linkage but MUST retain a tenant/purpose/keyed-digest/key-version/original-expiry/terminal-state tombstone with no time-based deletion until every referenced digest key is retired and no code can validate before lookup",
+    "OTP terminal cleanup can reopen replay"
+  ]
+}
+otp_contract_mutations.each do |label, (removed, expected_error)|
+  mutated_contract = without_normalized_phrase(otp_contract_inputs.fetch(:transaction_contract), removed)
+  expect_otp_fixture_rejection!(label, expected_error) do
+    otp_contract_errors(**otp_contract_inputs.merge(transaction_contract: mutated_contract))
+  end
+end
+
+%w[identity/otp identity/otp/postgres identity/phone identity/mfa identity/email identity/password].each do |unit|
+  mutated_applicability = JSON.parse(JSON.generate(applicability))
+  mutated_applicability.fetch(unit).fetch("transaction").delete("tx.otp.reserve")
+  expect_otp_fixture_rejection!("#{unit} without reserve applicability", "#{unit} OTP applicability drifted") do
+    otp_contract_errors(**otp_contract_inputs.merge(applicability: mutated_applicability))
+  end
+end
+
+otp_contract_inputs.fetch(:workflow_goals).each do |unit, goal|
+  workflow_phrases = {
+    "identity/email" => "When handling `identity.otp.email-verify`, `identity.otp.email-change-confirm`, or the optional current-address OTP branch of `identity.otp.email-change-request`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through `identity/otp/postgres` in the same coordinator unit of work as its owning mutation. Non-OTP email operations MUST NOT enlist an OTP participant",
+    "identity/password" => "When handling `identity.otp.password-reset` or `identity.phone.password-reset-complete`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through `identity/otp/postgres` in the same coordinator unit of work as its owning mutation. Signup, signin, password change, and capability-only reset MUST NOT enlist an OTP participant",
+    "identity/phone" => "When handling `identity.phone.verify`, `identity.phone.signin`, `identity.phone.update`, or `identity.phone.password-reset-complete`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through the injected OTP transaction contributor in the same coordinator unit of work as its owning mutation. Non-consuming initiation/removal operations MUST NOT enlist an OTP participant",
+    "identity/mfa" => "When handling `identity.mfa.otp-verify`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through `identity/otp/postgres` in the same coordinator unit of work as its owning mutation. Other MFA methods and OTP-send initiation MUST NOT enlist an OTP consumption participant"
+  }
+  mutated_workflow_goals = otp_contract_inputs.fetch(:workflow_goals).dup
+  mutated_workflow_goals[unit] = without_normalized_phrase(
+    goal, workflow_phrases.fetch(unit)
+  )
+  expect_otp_fixture_rejection!("#{unit} goal without scoped atomic OTP ownership", "#{unit} lacks scoped atomic OTP workflow ownership") do
+    otp_contract_errors(**otp_contract_inputs.merge(workflow_goals: mutated_workflow_goals))
+  end
+end
+
+otp_goal_without_protocol = without_normalized_phrase(
+  otp_contract_inputs.fetch(:otp_goal),
+  "Every consuming workflow MUST treat OTP precheck as non-authoritative and use the durable issue/attempt/reserve/apply/finalize/release/recover protocol"
+)
+expect_otp_fixture_rejection!("OTP core without participant ownership", "identity/otp lacks durable participant ownership") do
+  otp_contract_errors(**otp_contract_inputs.merge(otp_goal: otp_goal_without_protocol))
+end
+
+otp_postgres_without_states = without_normalized_phrase(
+  otp_contract_inputs.fetch(:otp_postgres_goal),
+  "The adapter owns the durable OTP participant state machine: `issued`, `reserved`, `finalized`, `released`, `expired`, `revoked`, and `exhausted`"
+)
+expect_otp_fixture_rejection!("OTP store without closed states", "identity/otp/postgres lacks exact durable OTP ownership") do
+  otp_contract_errors(**otp_contract_inputs.merge(otp_postgres_goal: otp_postgres_without_states))
+end
+
+otp_end_state_without_atomicity = without_normalized_phrase(
+  otp_contract_inputs.fetch(:end_state),
+  "Every OTP-consuming signin, email verification/change, password reset, phone recovery, and MFA completion MUST reserve and finalize its purpose-bound OTP through the same coordinator unit of work as the owning mutation and session effect"
+)
+expect_otp_fixture_rejection!("END_STATE without OTP atomicity", "END_STATE omits atomic OTP workflow closure") do
+  otp_contract_errors(**otp_contract_inputs.merge(end_state: otp_end_state_without_atomicity))
+end
+
+risk_evidence_without_reservation_transition = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "Legal transitions are only `absent` to `issued`, `issued` to `reserved`, `issued` to `expired` or `revoked`, `reserved` to `finalized`, and `reserved` to `released` or `revoked`"
+)
+expect_risk_evidence_fixture_rejection!(
+  "state machine without reservation transition", "RiskEvidence legal transitions are incomplete"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: risk_evidence_without_reservation_transition))
+end
+
+concurrent_risk_evidence_reuse = risk_evidence_contract_inputs.fetch(:transaction_contract).sub(
+  "MUST give exactly one command the `issued` to `reserved` transition",
+  "MAY give both commands the `issued` to `reserved` transition"
+)
+expect_risk_evidence_fixture_rejection!(
+  "two concurrent reservation winners", "RiskEvidence concurrent reservation lacks one-winner denial"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: concurrent_risk_evidence_reuse))
+end
+
+split_recovery_participants = risk_evidence_contract_inputs.fetch(:transaction_contract).sub(
+  "`identity/otp/postgres`, `capability/postgres`, `identity/password/postgres`, and\n`identity/session/postgres`",
+  "`capability/postgres` and `identity/password/postgres`"
+)
+expect_risk_evidence_fixture_rejection!(
+  "phone recovery without OTP and session participants", "phone recovery does not enlist every atomic participant"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: split_recovery_participants))
+end
+
+split_one_time_reservation = risk_evidence_contract_inputs.fetch(:transaction_contract).sub(
+  "The completion reservation transaction MUST transition the\nRiskEvidence, purpose-bound OTP, and reset capability together or none of them",
+  "RiskEvidence MAY reserve before OTP and capability"
+)
+expect_risk_evidence_fixture_rejection!(
+  "split RiskEvidence OTP capability reservation",
+  "phone recovery reservation is not atomic across one-time participants"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: split_one_time_reservation))
+end
+
+split_risk_evidence_finalization = risk_evidence_contract_inputs.fetch(:transaction_contract).sub(
+  "password mutation, session invalidation, outbox/audit records, and\ncommand result",
+  "password mutation and command result"
+)
+expect_risk_evidence_fixture_rejection!(
+  "RiskEvidence finalized apart from session invalidation", "phone recovery atomic finalization is incomplete"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: split_risk_evidence_finalization))
+end
+
+out_of_uow_risk_evidence_reservation = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "`tx.risk_evidence.reserve` MUST run only in the coordinator's single `tx.uow.reserve` transaction that atomically reserves the command and the exact one-time participants declared by the operation profile; it MUST NOT open a separate or private transaction"
+)
+expect_risk_evidence_fixture_rejection!(
+  "out-of-UoW private RiskEvidence reservation",
+  "RiskEvidence reservation can escape the coordinator unit of work"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: out_of_uow_risk_evidence_reservation))
+end
+
+stale_generation_risk_evidence_takeover = risk_evidence_contract_inputs.fetch(:transaction_contract).sub(
+  "CAS-rebind\n   every already-`reserved` one-time participant from the exact prior generation\n   to the new generation under the same command ID and fingerprint",
+  "accept every reserved participant under any old generation"
+)
+expect_risk_evidence_fixture_rejection!(
+  "takeover accepts stale RiskEvidence generation",
+  "RiskEvidence takeover lacks guarded generation transfer"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: stale_generation_risk_evidence_takeover))
+end
+
+risk_evidence_released_on_unknown = risk_evidence_contract_inputs.fetch(:transaction_contract).sub(
+  "An ambiguous commit MUST leave the item `reserved`, return\n`Unknown`, and use `tx.risk_evidence.recover`; expiry or lease timeout alone\nMUST NOT release it",
+  "An ambiguous commit MAY release the item after expiry"
+)
+expect_risk_evidence_fixture_rejection!(
+  "unknown completion releases evidence", "RiskEvidence unknown outcome can reopen evidence"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: risk_evidence_released_on_unknown))
+end
+
+risk_evidence_reuse_after_release = risk_evidence_contract_inputs.fetch(:transaction_contract).sub(
+  "remains terminal and a retry requires newly issued evidence",
+  "returns to issued for retry"
+)
+expect_risk_evidence_fixture_rejection!(
+  "released evidence becomes reusable", "RiskEvidence release can permit reuse"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: risk_evidence_reuse_after_release))
+end
+
+risk_evidence_cleanup_without_tombstone = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "Cleanup MUST expire untouched `issued` rows in bounded database-time batches and retain every `reserved` row through authoritative recovery. Only after the later of original evidence expiry and the configured `command.result_retention` deadline MAY cleanup crypto-shred terminal payload/linkage; it MUST preserve a restricted tenant/purpose/keyed-digest/key-version/original-expiry/terminal-state tombstone with no time-based deletion. The tombstone MAY be deleted only after every evidence-verification and keyed-digest key version it references is retired and proof shows every bearer fails cryptographic validation before lookup"
+)
+expect_risk_evidence_fixture_rejection!(
+  "cleanup without replay tombstone", "RiskEvidence cleanup can erase replay or recovery authority"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: risk_evidence_cleanup_without_tombstone))
+end
+
+risk_postgres_without_reserve = JSON.parse(JSON.generate(applicability))
+risk_postgres_without_reserve.fetch("identity/risk/postgres").fetch("transaction").delete("tx.risk_evidence.reserve")
+expect_risk_evidence_fixture_rejection!(
+  "risk store without reserve applicability",
+  "identity/risk/postgres omits RiskEvidence applicability: tx.risk_evidence.reserve"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(applicability: risk_postgres_without_reserve))
+end
+
+phone_without_risk_finalize = JSON.parse(JSON.generate(applicability))
+phone_without_risk_finalize.fetch("identity/phone").fetch("transaction").delete("tx.risk_evidence.finalize")
+expect_risk_evidence_fixture_rejection!(
+  "phone workflow without RiskEvidence finalize applicability",
+  "identity/phone omits RiskEvidence applicability: tx.risk_evidence.finalize"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(applicability: phone_without_risk_finalize))
+end
+
+risk_without_durable_issue = JSON.parse(JSON.generate(applicability))
+risk_without_durable_issue.fetch("identity/risk").fetch("transaction").delete("tx.risk_evidence.issue")
+expect_risk_evidence_fixture_rejection!(
+  "risk producer without issuance applicability", "identity/risk omits RiskEvidence issuance applicability"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(applicability: risk_without_durable_issue))
+end
+
+split_end_state_risk_evidence = risk_evidence_contract_inputs.fetch(:end_state).sub(
+  "identity.phone uses one coordinator unit of work to reserve identity.risk/postgres evidence, OTP and capability, then atomically finalize them with the password mutation, session invalidation and command result; unknown remains reserved for authoritative recovery",
+  "identity.risk consumes the evidence before identity.phone commits the credential and revocation transaction"
+)
+expect_risk_evidence_fixture_rejection!(
+  "END_STATE split evidence consumption", "END_STATE retains split RiskEvidence consumption"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(end_state: split_end_state_risk_evidence))
+end
+
+risk_postgres_without_recovery = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:risk_postgres_goal),
+  "Unknown completion MUST retain `reserved` and reconcile the owning command before finalizing or releasing; expiry, lease loss, cleanup, or another command MUST NOT make the evidence reusable"
+)
+expect_risk_evidence_fixture_rejection!(
+  "risk store without fail-closed recovery", "identity/risk/postgres lacks fail-closed RiskEvidence recovery"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(risk_postgres_goal: risk_postgres_without_recovery))
+end
+
+phone_without_atomic_risk_evidence = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:phone_goal),
+  "Phone password-reset completion MUST use one coordinator command and unit of work to reserve and finalize RiskEvidence with the purpose-bound OTP, reset capability, password mutation, and session invalidation"
+)
+expect_risk_evidence_fixture_rejection!(
+  "phone goal with split RiskEvidence consumption", "identity/phone lacks atomic RiskEvidence completion"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(phone_goal: phone_without_atomic_risk_evidence))
+end
+
+initiation_without_orchestration = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "Phone password-reset initiation MUST use one initiation command and coordinator unit of work to reserve, apply, and finalize initiation RiskEvidence"
+)
+expect_risk_evidence_fixture_rejection!(
+  "initiation without reserve apply finalize",
+  "phone recovery initiation lacks authoritative RiskEvidence orchestration"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: initiation_without_orchestration))
+end
+
+initiation_split_from_issuance = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "The initiation domain commit MUST apply and finalize that initiation RiskEvidence in the same commit that issues the purpose-bound OTP challenge, canonical reset capability, outbox/audit records, and command result, or commit none of them"
+)
+expect_risk_evidence_fixture_rejection!(
+  "initiation finalized before challenge issuance",
+  "phone recovery initiation can split RiskEvidence from challenge issuance"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: initiation_split_from_issuance))
+end
+
+initiation_reserves_unissued_outputs = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "Phone reset initiation reserves only the command and initiation RiskEvidence, because its OTP challenge and capability do not exist until the domain commit"
+)
+expect_risk_evidence_fixture_rejection!(
+  "initiation reserves OTP and capability before issuance",
+  "phone recovery initiation can reserve outputs before issuance"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: initiation_reserves_unissued_outputs))
+end
+
+initiation_second_winner = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "Two concurrent initiation commands MAY precheck the same evidence, but exactly one MAY reserve it; the loser receives the stable non-enumerating replay denial"
+)
+expect_risk_evidence_fixture_rejection!(
+  "concurrent initiation second winner",
+  "phone recovery initiation lacks one-winner reservation"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: initiation_second_winner))
+end
+
+initiation_replay_drift = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "A same-command, same-fingerprint initiation replay MUST return the exact recorded challenge and capability result without issuing replacements"
+)
+expect_risk_evidence_fixture_rejection!("initiation replay drift", "phone recovery initiation replay can drift") do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: initiation_replay_drift))
+end
+
+initiation_stale_takeover = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "An expired initiation-command takeover MUST CAS-rebind the initiation RiskEvidence from the exact prior generation to the new generation before apply or finalize authority is granted"
+)
+expect_risk_evidence_fixture_rejection!(
+  "initiation stale-generation takeover",
+  "phone recovery initiation takeover lacks generation fencing"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: initiation_stale_takeover))
+end
+
+initiation_release_without_proof = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "An initiation rollback MUST NOT release its RiskEvidence without authoritative proof that the command did not commit"
+)
+expect_risk_evidence_fixture_rejection!(
+  "initiation rollback releases without proof",
+  "phone recovery initiation rollback can release without proof"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: initiation_release_without_proof))
+end
+
+initiation_unknown_reopens = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "An ambiguous initiation outcome MUST remain `reserved` until authoritative recovery resolves the owning command"
+)
+expect_risk_evidence_fixture_rejection!(
+  "initiation unknown outcome reopens evidence",
+  "phone recovery initiation unknown outcome can reopen evidence"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: initiation_unknown_reopens))
+end
+
+phase_reused_api_evidence = risk_evidence_contract_inputs.fetch(:api_operations).sub(
+  "This separate completion-only RiskEvidence must not reuse the initiation artifact",
+  "Completion reuses the initiation artifact"
+)
+expect_risk_evidence_fixture_rejection!(
+  "same artifact reused across phases",
+  "API operations permit cross-phase RiskEvidence reuse"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(api_operations: phase_reused_api_evidence))
+end
+
+initiation_without_phase_retention = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:transaction_contract),
+  "Cleanup and tombstones MUST independently preserve replay and recovery authority for both phone-reset RiskEvidence purposes"
+)
+expect_risk_evidence_fixture_rejection!(
+  "initiation tombstone retention omission",
+  "phone recovery phase retention is not distinct"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(transaction_contract: initiation_without_phase_retention))
+end
+
+end_state_without_initiation_atomicity = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:end_state),
+  "identity.phone atomically reserves, applies and finalizes initiation-only RiskEvidence with OTP challenge and reset capability issuance; completion requires a separate completion-only artifact"
+)
+expect_risk_evidence_fixture_rejection!(
+  "END_STATE without initiation atomicity",
+  "END_STATE omits phase-distinct initiation atomicity"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(end_state: end_state_without_initiation_atomicity))
+end
+
+phone_without_phase_distinction = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:phone_goal),
+  "Initiation and completion MUST use separate purpose-bound RiskEvidence artifacts and MUST NOT validate, reserve, replay, or substitute one for the other"
+)
+expect_risk_evidence_fixture_rejection!(
+  "phone goal without phase distinction",
+  "identity/phone lacks phase-distinct RiskEvidence"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(phone_goal: phone_without_phase_distinction))
+end
+
+risk_without_phase_distinction = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:risk_goal),
+  "Phone reset initiation and completion MUST receive separate artifacts with purposes `phone-password-reset-initiate` and `phone-password-reset-complete`; their references, keyed digests, reservations, and terminal records MUST remain distinct"
+)
+expect_risk_evidence_fixture_rejection!(
+  "risk goal without phase distinction",
+  "identity/risk lacks phase-distinct RiskEvidence issuance"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(risk_goal: risk_without_phase_distinction))
+end
+
+api_without_risk_evaluate = risk_evidence_contract_inputs.fetch(:api_operations).lines.reject do |line|
+  line.start_with?("| `identity.risk.evaluate` |")
+end.join
+expect_risk_evidence_fixture_rejection!(
+  "canonical issuance operation removed",
+  "API operations omit canonical RiskEvidence issuance operation"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(api_operations: api_without_risk_evaluate))
+end
+
+risk_evaluate_without_completion_phase = risk_evidence_contract_inputs.fetch(:api_operations).sub(
+  "phase `phone-reset-completion` maps only to purpose `phone-password-reset-complete`",
+  "completion phase is omitted"
+)
+expect_risk_evidence_fixture_rejection!(
+  "canonical issuance operation omits completion phase",
+  "identity.risk.evaluate omits phase-specific RiskEvidence issuance"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(api_operations: risk_evaluate_without_completion_phase))
+end
+
+risk_evaluate_with_generic_phase = risk_evidence_contract_inputs.fetch(:api_operations).sub(
+  "Issuance phase is exactly `none`, `phone-reset-initiation`, or `phone-reset-completion`",
+  "Issuance phase is `none`, `phone-reset-initiation`, `phone-reset-completion`, or `generic`"
+)
+expect_risk_evidence_fixture_rejection!(
+  "canonical issuance operation accepts generic phase",
+  "identity.risk.evaluate issuance phase catalog is not closed"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(api_operations: risk_evaluate_with_generic_phase))
+end
+
+risk_evaluate_accepts_caller_purpose = risk_evidence_contract_inputs.fetch(:api_operations).sub(
+  "unknown/unsupported phases, a purpose with `none`, and any caller-supplied purpose are rejected before provider evaluation or state access",
+  "callers may supply any issuance purpose"
+)
+expect_risk_evidence_fixture_rejection!(
+  "canonical issuance operation accepts caller purpose",
+  "identity.risk.evaluate issuance phase catalog is not closed"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(api_operations: risk_evaluate_accepts_caller_purpose))
+end
+
+risk_postgres_without_authoritative_issue = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:risk_postgres_goal),
+  "Issue MUST enlist in the identity command unit of work and atomically persist the exact `issued` row and committed command result before any opaque reference is returned"
+)
+expect_risk_evidence_fixture_rejection!(
+  "RiskEvidence issuance without durable commit",
+  "identity/risk/postgres lacks authoritative issuance commit"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(risk_postgres_goal: risk_postgres_without_authoritative_issue))
+end
+
+reference_with_risk_evidence_leakage = without_normalized_phrase(
+  risk_evidence_contract_inputs.fetch(:reference_goal),
+  "The reference composition MUST invoke `identity.risk.evaluate` for both phone-reset phases and MUST return only its opaque reference and safe freshness/one-use metadata; raw signals, provider evidence, embedded evidence payloads, digests, signatures, journal identifiers, and persistence records MUST NOT cross into `identity/phone`"
+)
+expect_risk_evidence_fixture_rejection!(
+  "reference leaks RiskEvidence internals",
+  "identity/reference lacks non-leaking RiskEvidence issuance composition"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(reference_goal: reference_with_risk_evidence_leakage))
+end
+
+reference_without_risk_issue = JSON.parse(JSON.generate(applicability))
+reference_without_risk_issue.fetch("identity/reference").fetch("transaction").delete("tx.risk_evidence.issue")
+expect_risk_evidence_fixture_rejection!(
+  "reference omits RiskEvidence issue applicability",
+  "identity/reference phone recovery transaction applicability drifted"
+) do
+  risk_evidence_contract_errors(**risk_evidence_contract_inputs.merge(applicability: reference_without_risk_issue))
+end
 phone_contract_errors(**phone_contract_inputs).each { |error| fail_check(error) }
 enabled_by_default_phone_recovery = phone_contract_inputs.fetch(:configuration).sub(
   "| `phone.recovery.enabled` | `false` |", "| `phone.recovery.enabled` | `true` |"
@@ -2475,6 +4406,76 @@ expect_phone_contract_fixture_rejection!(
   "disagreeing duplicate enablement", "phone recovery policy duplicates the atomic enablement authority"
 ) do
   phone_contract_errors(**phone_contract_inputs.merge(configuration: duplicate_phone_enablement))
+end
+missing_phone_otp_proof = phone_contract_inputs.fetch(:configuration).sub(
+  "canonical_reset_capability_plus_purpose_bound_phone_otp_plus_eligible_independent_factor",
+  "canonical_reset_capability_plus_eligible_independent_factor"
+)
+expect_phone_contract_fixture_rejection!(
+  "recovery proof without purpose-bound phone OTP",
+  "phone recovery policy omits proof=canonical_reset_capability_plus_purpose_bound_phone_otp_plus_eligible_independent_factor"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(configuration: missing_phone_otp_proof))
+end
+wrong_phone_risk_authority = phone_contract_inputs.fetch(:configuration).sub(
+  "`risk_authority = identity/risk`", "`risk_authority = caller`"
+)
+expect_phone_contract_fixture_rejection!(
+  "caller-owned recovery risk authority", "phone recovery policy omits risk_authority=identity/risk"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(configuration: wrong_phone_risk_authority))
+end
+caller_phone_signals_allowed = phone_contract_inputs.fetch(:configuration).sub(
+  "`caller_signals = forbidden`", "`caller_signals = allowed`"
+)
+expect_phone_contract_fixture_rejection!(
+  "caller-supplied recovery signals", "phone recovery policy omits caller_signals=forbidden"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(configuration: caller_phone_signals_allowed))
+end
+mutable_phone_risk_evidence = phone_contract_inputs.fetch(:risk_goal).sub(
+  "issues immutable `RiskEvidence`", "issues mutable `RiskEvidence`"
+)
+expect_phone_contract_fixture_rejection!(
+  "mutable producer RiskEvidence", "identity/risk goal lacks immutable one-use phone RiskEvidence ownership"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(risk_goal: mutable_phone_risk_evidence))
+end
+reusable_phone_risk_evidence = phone_contract_inputs.fetch(:risk_goal).sub(
+  "MUST be atomically consumed at most once by", "MAY be consumed multiple times by"
+)
+expect_phone_contract_fixture_rejection!(
+  "reusable producer RiskEvidence", "identity/risk goal lacks immutable one-use phone RiskEvidence ownership"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(risk_goal: reusable_phone_risk_evidence))
+end
+wrong_phone_risk_ttl = phone_contract_inputs.fetch(:risk_goal).sub(
+  "two minutes in the reference profile", "ten minutes in the reference profile"
+)
+expect_phone_contract_fixture_rejection!(
+  "drifted producer RiskEvidence TTL", "identity/risk goal lacks phone RiskEvidence freshness and replay rejection"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(risk_goal: wrong_phone_risk_ttl))
+end
+risk_goal_binding = <<~TEXT.strip
+  MUST bind tenant, subject, recovery
+    operation, recovery purpose, canonical number, pre-auth transaction, attempt
+    ID and risk-policy version
+TEXT
+%w[tenant subject operation purpose canonical_number preauth_transaction attempt_id policy_version].each do |binding|
+  binding_text = {
+    "canonical_number" => "canonical number",
+    "preauth_transaction" => "pre-auth transaction",
+    "attempt_id" => "attempt\n  ID",
+    "policy_version" => "risk-policy version"
+  }.fetch(binding, binding)
+  drifted_binding = risk_goal_binding.sub(binding_text, "omitted binding")
+  risk_goal_without_binding = phone_contract_inputs.fetch(:risk_goal).sub(risk_goal_binding, drifted_binding)
+  expect_phone_contract_fixture_rejection!(
+    "producer RiskEvidence without #{binding}", "identity/risk goal lacks exact phone RiskEvidence binding"
+  ) do
+    phone_contract_errors(**phone_contract_inputs.merge(risk_goal: risk_goal_without_binding))
+  end
 end
 %w[sim_swap number_recycling carrier].each do |signal|
   canonical_mapping = "#{signal} = negative_allow,positive_deny,unknown_deny,unavailable_deny"
@@ -2504,6 +4505,63 @@ expect_phone_contract_fixture_rejection!(
   "recovery request available while disabled", "phone password-reset request is not denied unless explicitly enabled"
 ) do
   phone_contract_errors(**phone_contract_inputs.merge(api_operations: enabled_only_recovery_request))
+end
+recovery_request_without_preauth = phone_contract_inputs.fetch(:api_operations).sub(
+  "explicitly enabled public recovery plus pre-auth transaction", "explicitly enabled public recovery"
+)
+expect_phone_contract_fixture_rejection!(
+  "recovery request without pre-auth binding",
+  "phone password-reset request lacks authoritative pre-auth risk-evidence contract"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(api_operations: recovery_request_without_preauth))
+end
+raw_phone_risk_inputs = phone_contract_inputs.fetch(:api_operations).sub(
+  "only an opaque fresh initiation-only `RiskEvidence` reference issued by `identity/risk` for purpose `phone-password-reset-initiate`, never raw carrier facts",
+  "raw carrier facts"
+)
+expect_phone_contract_fixture_rejection!(
+  "raw caller carrier inputs", "phone password-reset request lacks authoritative pre-auth risk-evidence contract"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(api_operations: raw_phone_risk_inputs))
+end
+missing_phone_risk_goal_dependency = phone_contract_inputs.fetch(:phone_goal).sub(
+  ", `identity/risk`", ""
+)
+expect_phone_contract_fixture_rejection!(
+  "goal without risk dependency", "identity/phone dependency on identity/risk is not closed across DAG contracts"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(phone_goal: missing_phone_risk_goal_dependency))
+end
+missing_phone_risk_diagram_edge = phone_contract_inputs.fetch(:dependencies).sub("  risk --> phone\n", "")
+expect_phone_contract_fixture_rejection!(
+  "diagram without risk dependency", "identity/phone dependency on identity/risk is not closed across DAG contracts"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(dependencies: missing_phone_risk_diagram_edge))
+end
+missing_phone_risk_event_applicability = JSON.parse(JSON.generate(applicability))
+missing_phone_risk_event_applicability.fetch("identity/phone").fetch("security_events").delete("identity.risk.decide")
+expect_phone_contract_fixture_rejection!(
+  "risk-decision event applicability gap",
+  "identity/phone omits risk-decision security-event applicability: identity.risk.decide"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(applicability: missing_phone_risk_event_applicability))
+end
+optional_phone_session_suppression = phone_contract_inputs.fetch(:phone_goal).sub(
+  "purpose separation. Phone operations do not expose session suppression.",
+  "purpose separation and optional session suppression."
+)
+expect_phone_contract_fixture_rejection!(
+  "optional session suppression", "identity/phone retains a session-suppression input"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(phone_goal: optional_phone_session_suppression))
+end
+phone_session_suppression_field = phone_contract_inputs.fetch(:api_operations).sub(
+  "Number/code and the same tenant", "session_suppression and number/code with the same tenant"
+)
+expect_phone_contract_fixture_rejection!(
+  "session suppression API field", "identity/phone retains a session-suppression input"
+) do
+  phone_contract_errors(**phone_contract_inputs.merge(api_operations: phone_session_suppression_field))
 end
 missing_phone_consumer = phone_contract_inputs.fetch(:lifecycle_consumers).sub(
   "`identity/email`, `identity/phone`, `identity/magiclink`",
@@ -2575,6 +4633,7 @@ sources.each do |source|
   fail_check("protocol source #{source['id']} lacks license") if source.fetch("license").empty?
   fail_check("protocol source #{source['id']} lacks consumers") unless source.fetch("consumers").is_a?(Array) && !source.fetch("consumers").empty?
 end
+protocol_source_identity_errors(source_identity, sources).each { |error| fail_check(error) }
 protocol_source_consumer_errors(sources, units.to_set).each { |error| fail_check(error) }
 conformance_tool_errors(conformance.fetch("tools"), units.to_set).each { |error| fail_check(error) }
 
@@ -2638,6 +4697,29 @@ source_consumer_fixture = JSON.parse(JSON.generate(sources))
 source_consumer_fixture.find { |source| source.fetch("id") == "rfc-7239" }.fetch("consumers") << "identity/risk"
 expect_protocol_fixture_rejection!("extra RFC source consumer", "protocol source rfc-7239 consumer set drifted") do
   protocol_source_consumer_errors(source_consumer_fixture, units.to_set)
+end
+source_identity_fixture = lambda do |label, &mutate|
+  fixture_identity = JSON.parse(JSON.generate(source_identity))
+  fixture_sources = JSON.parse(JSON.generate(sources))
+  mutate.call(fixture_identity, fixture_sources)
+  expect_protocol_fixture_rejection!(label, "protocol source identity digest drifted") do
+    protocol_source_identity_errors(fixture_identity, fixture_sources)
+  end
+end
+source_identity_fixture.call("substituted source URL") do |_identities, fixture_sources|
+  fixture_sources.fetch(0)["url"] = "https://example.invalid/substitute"
+end
+source_identity_fixture.call("substituted source revision") do |fixture_identity, fixture_sources|
+  fixture_identity.fetch(fixture_sources.fetch(0).fetch("id"))["revision"] = "substitute revision"
+end
+source_identity_fixture.call("substituted valid-shape source digest") do |_identities, fixture_sources|
+  fixture_sources.fetch(0)["sha256"] = "0" * 64
+end
+source_identity_fixture.call("substituted source license") do |_identities, fixture_sources|
+  fixture_sources.fetch(0)["license"] = "substitute license"
+end
+source_identity_fixture.call("substituted source title") do |fixture_identity, fixture_sources|
+  fixture_identity.fetch(fixture_sources.fetch(0).fetch("id"))["title"] = "substitute title"
 end
 
 semantic_inputs = {
@@ -2771,9 +4853,9 @@ preflight = artifacts.fetch("PREFLIGHT_EVIDENCE.md")
 [
   "| Field | Value |",
   "| Requirement/profile | Required by units or claims | Classification | Version/environment identity | Evidence path or blocking claim |",
-  "| Safe profile ID | Consuming units | Exact acceptance claims | Classification | Credential source metadata | Evidence path or blocker |",
+  "| Safe profile ID | Consuming units | Exact acceptance claim IDs | Classification | Credential source metadata | Evidence path or blocker | Evidence digest or blocker |",
   "| Primitive | Consuming units | Registered module/package | API input fingerprint | Gate fingerprint and result | Evidence path |",
-  "| Resource ID | Type | Owning unit/task | Exact path or safe external ID | State | Cleanup trigger | Last reconciled at |",
+  "| Resource ID | Type | Owning unit/task | Exact path or safe external ID | State | Cleanup trigger | Last reconciled at | Cleanup evidence or attestation |",
   "| Unit | Generation | Integration commit | Worker checkpoint | Conflict evidence path | Status | Recorded at |"
 ].each do |header|
   fail_check("preflight evidence schema missing: #{header}") unless preflight.lines.any? { |line| line.chomp == header }
@@ -3006,6 +5088,15 @@ end
   fail_check("orchestrator missing required operation: #{required}") unless orchestrator.include?(required)
 end
 worker = File.read(File.join(ROOT, "WORKER_PROMPT.md"))
+policy_errors = orchestration_policy_errors(orchestrator, worker)
+fail_check(policy_errors.join("; ")) unless policy_errors.empty?
+[
+  [orchestrator.sub("MUST NOT implement", "MAY implement"), worker],
+  [orchestrator, worker.sub("Do not spawn subagents.", "Subagents are permitted.")],
+  [orchestrator, worker.sub("modify only <canonical-module-directory>;", "modify the repository;")]
+].each_with_index do |(orchestrator_fixture, worker_fixture), index|
+  fail_check("orchestration policy negative fixture #{index + 1} was accepted") if orchestration_policy_errors(orchestrator_fixture, worker_fixture).empty?
+end
 worker_placeholders = worker.scan(/<([^>]+)>/).flatten.to_set
 unknown_placeholders = worker_placeholders - ALLOWED_WORKER_PLACEHOLDERS
 missing_placeholders = ALLOWED_WORKER_PLACEHOLDERS - worker_placeholders
@@ -3022,19 +5113,138 @@ reference_profile = File.read(File.join(ROOT, "REFERENCE_PROFILE.md"))
 end
 
 ledger = File.read(ledger_fixture_path || File.join(ROOT, "EXECUTION_LEDGER.md"))
-ledger_header = "| Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Worker commit | Integration checkpoint | Gate fingerprint | External evidence | Last transition |"
-fail_check("execution ledger table header drifted") unless ledger.lines.any? { |line| line.chomp == ledger_header }
-ledger_rows = ledger.lines.filter_map do |line|
-  next unless line.start_with?("| `")
-  cells = line.split("|").map(&:strip)
-  fail_check("execution ledger row has wrong column count: #{line.chomp}") unless cells.length == 13
-  {
-    unit: cells[1][/`([^`]+)`/, 1], generation: cells[2], task: cells[3],
-    branch: cells[4], worktree: cells[5], assignment: cells[6],
-    worker_commit: cells[7], checkpoint: cells[8], fingerprint: cells[9],
-    external: cells[10], transition: cells[11]
-  }
+dependency_revision_header = "| Revision ID | Unit | Previous Requires | Current Requires | Affected reverse closure | Reason | Change digest | Approver | Recorded at |"
+parse_dependency_revisions = lambda do |body|
+  markdown_table(body, "Dependency revisions", dependency_revision_header).map do |cells|
+    fail_check("dependency revision row has wrong column count") unless cells.length == 9
+    revision_id, unit, previous_requires, current_requires, affected_units, reason, change_digest, approver, recorded_at = cells
+    {
+      revision_id: plain_cell(revision_id), unit: plain_cell(unit),
+      previous_requires: previous_requires.scan(/`([^`]+)`/).flatten,
+      current_requires: current_requires.scan(/`([^`]+)`/).flatten,
+      affected_units: affected_units.scan(/`([^`]+)`/).flatten,
+      reason: plain_cell(reason), change_digest: plain_cell(change_digest),
+      approver: plain_cell(approver), recorded_at: plain_cell(recorded_at)
+    }
+  end
 end
+dependency_revisions = parse_dependency_revisions.call(ledger)
+revision_ids = dependency_revisions.map { |revision| revision[:revision_id] }
+fail_check("dependency revision IDs are not unique") unless revision_ids == revision_ids.uniq
+dependency_revisions.each do |revision|
+  fail_check("dependency revision ID is unsafe") unless revision[:revision_id].match?(/\A[a-zA-Z0-9._-]+\z/)
+  fail_check("dependency revision unit is unknown") unless known.include?(revision[:unit])
+  [:previous_requires, :current_requires].each do |field|
+    values = revision[field]
+    fail_check("dependency revision #{revision[:revision_id]} #{field} contains duplicates") unless values == values.uniq
+    fail_check("dependency revision #{revision[:revision_id]} #{field} contains unknown units") unless values.all? { |unit| known.include?(unit) }
+  end
+  fail_check("dependency revision #{revision[:revision_id]} affected_units is not sorted and unique") unless revision[:affected_units] == revision[:affected_units].sort.uniq
+  fail_check("dependency revision #{revision[:revision_id]} affected_units contains unknown units") unless revision[:affected_units].all? { |unit| known.include?(unit) }
+  fail_check("dependency revision #{revision[:revision_id]} omits its changed unit") unless revision[:affected_units].include?(revision[:unit])
+  fail_check("dependency revision #{revision[:revision_id]} reason is unsafe") unless revision[:reason].match?(/\Areason:[a-zA-Z0-9._-]+\z/)
+  fail_check("dependency revision #{revision[:revision_id]} approver is not coordinator") unless revision[:approver] == "coordinator"
+  fail_check("dependency revision #{revision[:revision_id]} timestamp is invalid") unless rfc3339?(revision[:recorded_at])
+  fail_check("dependency revision #{revision[:revision_id]} digest drifted") unless revision[:change_digest] == dependency_revision_digest(revision)
+end
+dependency_disposition_header = "| Disposition ID | Revision IDs | Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Preservation proof | Preserved commit | Disposition evidence | Evidence digest | Resource dispositions | Recorded at |"
+parse_dependency_dispositions = lambda do |body|
+  markdown_table(body, "Dependency assignment dispositions", dependency_disposition_header).map do |cells|
+    fail_check("dependency assignment disposition row has wrong column count") unless cells.length == 14
+    disposition_id, revision_ids_cell, unit, generation, task, branch, worktree, assignment, proof, preserved_commit, evidence_path, evidence_digest, resource_cell, recorded_at = cells
+    resource_pairs = resource_cell.scan(/`([^`]+)`/).flatten.map do |value|
+      match = value.match(/\A([a-zA-Z0-9._-]+)=(retained-for-recovery|removed)\z/)
+      fail_check("dependency assignment disposition resource is invalid") unless match
+      [match[1], match[2]]
+    end
+    fail_check("dependency assignment disposition resource IDs are not sorted and unique") unless resource_pairs.map(&:first) == resource_pairs.map(&:first).sort.uniq
+    {
+      disposition_id: plain_cell(disposition_id),
+      revision_ids: revision_ids_cell.scan(/`([^`]+)`/).flatten,
+      unit: plain_cell(unit), generation: plain_cell(generation), task: plain_cell(task),
+      branch: plain_cell(branch), worktree: plain_cell(worktree), assignment: plain_cell(assignment),
+      proof: plain_cell(proof), preserved_commit: plain_cell(preserved_commit), evidence_path: plain_cell(evidence_path),
+      evidence_digest: plain_cell(evidence_digest),
+      resource_states: resource_pairs.to_h, recorded_at: plain_cell(recorded_at)
+    }
+  end
+end
+dependency_dispositions = parse_dependency_dispositions.call(ledger)
+disposition_ids = dependency_dispositions.map { |disposition| disposition[:disposition_id] }
+fail_check("dependency assignment disposition IDs are not unique") unless disposition_ids == disposition_ids.uniq
+dependency_dispositions.each do |disposition|
+  fail_check("dependency assignment disposition ID is unsafe") unless disposition[:disposition_id].match?(/\A[a-zA-Z0-9._-]+\z/)
+  fail_check("dependency assignment disposition unit is unknown") unless known.include?(disposition[:unit])
+  fail_check("dependency assignment disposition generation is invalid") unless disposition[:generation].match?(/\A\d+\z/)
+  fail_check("dependency assignment disposition worker task is unsafe") unless disposition[:task].match?(/\A[a-zA-Z0-9._\/-]+\z/)
+  fail_check("dependency assignment disposition branch is unsafe") unless disposition[:branch].match?(%r{\A(?:feature|bugfix|hotfix|release|chore|refactor)/[a-zA-Z0-9._/-]+\z})
+  fail_check("dependency assignment disposition worktree is unsafe") unless disposition[:worktree].start_with?("/") && disposition[:worktree] != "/"
+  fail_check("dependency assignment disposition assignment commit is invalid") unless disposition[:assignment].match?(/\A[0-9a-f]{40}\z/)
+  fail_check("dependency assignment disposition preserved commit is invalid") unless disposition[:preserved_commit].match?(/\A[0-9a-f]{40}\z/)
+  fail_check("dependency assignment disposition evidence digest is invalid") unless disposition[:evidence_digest].match?(/\Asha256:[0-9a-f]{64}\z/)
+  fail_check("dependency assignment disposition revision IDs are empty or duplicated") unless disposition[:revision_ids].any? && disposition[:revision_ids] == disposition[:revision_ids].uniq
+  fail_check("dependency assignment disposition references an unknown revision") unless disposition[:revision_ids].all? { |revision_id| revision_ids.include?(revision_id) }
+  proof_format_valid = disposition[:proof].match?(/\A(?:clean-(?:checkpoint|baseline):[0-9a-f]{40}|safe-abandonment:reason:[a-zA-Z0-9._-]+)\z/)
+  fail_check("dependency assignment disposition preservation proof is invalid") unless proof_format_valid
+  fail_check("dependency assignment disposition evidence path is unsafe or missing") unless repository_evidence_path?(disposition[:evidence_path])
+  begin
+    evidence_source = File.read(File.expand_path(disposition[:evidence_path], REPOSITORY_ROOT))
+    disposition[:evidence_record] = JSON.parse(evidence_source)
+    fail_check("dependency assignment disposition evidence is not canonical JSON") unless evidence_source == JSON.pretty_generate(disposition[:evidence_record]) + "\n"
+    fail_check("dependency assignment disposition evidence digest drifted") unless disposition[:evidence_digest] == "sha256:#{Digest::SHA256.hexdigest(evidence_source)}"
+  rescue JSON::ParserError
+    fail_check("dependency assignment disposition evidence is invalid JSON")
+  end
+  evidence = disposition[:evidence_record]
+  evidence_identity = {
+    "disposition_id" => disposition[:disposition_id], "revision_ids" => disposition[:revision_ids],
+    "unit" => disposition[:unit], "generation" => disposition[:generation].to_i,
+    "worker_task" => disposition[:task], "branch" => disposition[:branch],
+    "worktree" => disposition[:worktree], "assignment_commit" => disposition[:assignment],
+    "authorized_by" => "coordinator", "recorded_at" => disposition[:recorded_at]
+  }
+  fail_check("dependency assignment disposition evidence schema version drifted") unless evidence["schema_version"] == 1
+  evidence_identity.each do |field, expected|
+    fail_check("dependency assignment disposition evidence #{field} drifted") unless evidence[field] == expected
+  end
+  evidence_resources = evidence["resources"]
+  fail_check("dependency assignment disposition evidence resources are invalid") unless evidence_resources.is_a?(Array)
+  evidence_resource_ids = evidence_resources.map { |resource| resource["resource_id"] }
+  fail_check("dependency assignment disposition evidence resource IDs are not sorted and unique") unless evidence_resource_ids == evidence_resource_ids.sort.uniq
+  evidence_resource_keys = %w[resource_id type owner target previous_state current_state cleanup_evidence pre_removal_clean pre_removal_head]
+  fail_check("dependency assignment disposition evidence resource schema drifted") unless evidence_resources.all? { |resource| resource.keys == evidence_resource_keys }
+  evidence_resource_states = evidence_resources.to_h { |resource| [resource["resource_id"], resource["current_state"]] }
+  fail_check("dependency assignment disposition evidence resource dispositions drifted") unless evidence_resource_states == disposition[:resource_states]
+  expected_preservation = if (clean_match = disposition[:proof].match(/\Aclean-(checkpoint|baseline):([0-9a-f]{40})\z/))
+                            fail_check("dependency assignment clean proof does not match preserved commit") unless clean_match[2] == disposition[:preserved_commit]
+                            {"kind" => "clean-#{clean_match[1]}", "commit" => disposition[:preserved_commit]}
+                          else
+                            {"kind" => "safe-abandonment", "reason" => disposition[:proof].delete_prefix("safe-abandonment:"),
+                             "recoverable_commit" => disposition[:preserved_commit]}
+                          end
+  fail_check("dependency assignment disposition evidence preservation drifted") unless evidence["preservation"] == expected_preservation
+  fail_check("dependency assignment preservation commit does not exist") unless git_commit_exists?(disposition[:preserved_commit])
+  fail_check("dependency assignment preservation commit excludes its assignment") unless git_ancestor?(disposition[:assignment], disposition[:preserved_commit])
+  fail_check("dependency assignment disposition timestamp is invalid") unless rfc3339?(disposition[:recorded_at])
+end
+ledger_header = "| Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Worker commit | Integration checkpoint | Gate fingerprint | External evidence | Last transition |"
+ledger_rows = parse_execution_ledger(ledger, ledger_header)
+ledger_parser_fixture = <<~MARKDOWN
+  ## Dependency revisions
+
+  | Revision ID | Unit | Previous Requires | Current Requires | Affected reverse closure | Reason | Change digest | Approver | Recorded at |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | `not-a-ledger-unit` | `identity` | — | `identity/phone` | `identity` | `reason:fixture` | `sha256:#{'0' * 64}` | `coordinator` | `2026-08-11T00:00:00Z` |
+
+  ## Unit execution ledger
+
+  #{ledger_header}
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | `identity` | 0 | — | — | — | — | — | — | — | — | initial |
+MARKDOWN
+ledger_parser_rows = parse_execution_ledger(ledger_parser_fixture, ledger_header)
+fail_check("execution ledger scoped-table positive fixture was rejected") unless ledger_parser_rows.map { |row| row[:unit] } == ["identity"]
+fail_check("execution ledger parser leaked a dependency revision row") if ledger_parser_rows.any? { |row| row[:unit] == "not-a-ledger-unit" }
 ledger_units = ledger_rows.map { |row| row[:unit] }
 fail_check("execution ledger units do not exactly match inventory") unless ledger_units == units
 fail_check("execution ledger contains duplicate units") unless ledger_units.uniq.length == ledger_units.length
@@ -3090,19 +5300,28 @@ if previous_inventory_path
     } if unit
   end
   previous_ledger = File.read(previous_ledger_path)
-  fail_check("previous execution ledger table header drifted") unless previous_ledger.lines.any? { |line| line.chomp == ledger_header }
-  previous_ledger_rows = previous_ledger.lines.filter_map do |line|
-    next unless line.start_with?("| `")
-    cells = line.split("|").map(&:strip)
-    fail_check("previous execution ledger row has wrong column count: #{line.chomp}") unless cells.length == 13
-    unit = cells[1]&.match(/\A`([^`]+)`\z/)&.[](1)
-    {
-      unit: unit, generation: cells[2], task: cells[3], branch: cells[4],
-      worktree: cells[5], assignment: cells[6], worker_commit: cells[7],
-      checkpoint: cells[8], fingerprint: cells[9], external: cells[10],
-      transition: cells[11]
-    } if unit
+  if previous_execution_fixture_path
+    previous_task_owned_resource_rows = parse_dependency_resource_snapshot.call(File.read(previous_execution_fixture_path))
+    previous_resource_ids = previous_task_owned_resource_rows.map { |resource| resource[:id] }
+    fail_check("previous task-owned resource registry contains duplicate resource IDs") unless previous_resource_ids == previous_resource_ids.uniq
   end
+  previous_dependency_revisions = parse_dependency_revisions.call(previous_ledger)
+  unless markdown_table_append_only?(previous_ledger, ledger, "Dependency revisions", dependency_revision_header)
+    fail_check("dependency revision history rows are not preserved exactly")
+  end
+  unless dependency_revisions.first(previous_dependency_revisions.length) == previous_dependency_revisions
+    fail_check("dependency revision history is not append-only")
+  end
+  new_dependency_revisions = dependency_revisions.drop(previous_dependency_revisions.length)
+  previous_dependency_dispositions = parse_dependency_dispositions.call(previous_ledger)
+  unless markdown_table_append_only?(previous_ledger, ledger, "Dependency assignment dispositions", dependency_disposition_header)
+    fail_check("dependency assignment disposition history rows are not preserved exactly")
+  end
+  unless dependency_dispositions.first(previous_dependency_dispositions.length) == previous_dependency_dispositions
+    fail_check("dependency assignment disposition history is not append-only")
+  end
+  new_dependency_dispositions = dependency_dispositions.drop(previous_dependency_dispositions.length)
+  previous_ledger_rows = parse_execution_ledger(previous_ledger, ledger_header)
   fail_check("previous transition fixture units do not match inventory") unless previous_inventory_rows.map { |row| row[:unit] } == units && previous_ledger_rows.map { |row| row[:unit] } == units
   previous_statuses = previous_inventory_rows.to_h { |row| [row[:unit], row[:status]] }
   previous_generations = previous_ledger_rows.to_h { |row| [row[:unit], row[:generation]] }
@@ -3122,9 +5341,43 @@ if previous_inventory_path
     fail_check("previous #{entry[:unit]} ledger transition version must be positive") unless match[1].to_i.positive?
     fail_check("previous #{entry[:unit]} ledger status drift") unless match[2] == inventory_row[:status]
     fail_check("previous #{entry[:unit]} ledger owner/blocker drift") unless match[3] == inventory_row[:owner]
+    ledger_row_shape_errors(inventory_row, entry).each { |error| fail_check("previous #{entry[:unit]} row invalid: #{error}") }
+  end
+
+  requires_changed = rows.any? do |row|
+    previous_inventory_rows.find { |candidate| candidate[:unit] == row[:unit] }[:requires] != row[:requires]
+  end
+  dependency_affected = Set.new
+  if requires_changed || new_dependency_revisions.any? || new_dependency_dispositions.any?
+    dependency_errors, dependency_affected = dependency_revision_transition_errors(
+      previous_rows: previous_inventory_rows, previous_entries: previous_ledger_rows,
+      rows: rows, entries: ledger_rows, revisions: new_dependency_revisions,
+      dispositions: new_dependency_dispositions, resources: task_owned_resource_rows,
+      previous_resources: previous_task_owned_resource_rows
+    )
+    fail_check("dependency revision invalid: #{dependency_errors.join('; ')}") unless dependency_errors.empty?
+    inventory_lines = inventory.lines.select { |line| line.start_with?("| `") }.to_h { |line| [line[/^\| `([^`]+)`/, 1], line] }
+    previous_inventory_lines = previous_inventory.lines.select { |line| line.start_with?("| `") }.to_h { |line| [line[/^\| `([^`]+)`/, 1], line] }
+    ledger_lines = markdown_table_raw_rows(ledger, "Unit execution ledger", ledger_header).to_h { |line| [line[/^\| `([^`]+)`/, 1], line] }
+    previous_ledger_lines = markdown_table_raw_rows(previous_ledger, "Unit execution ledger", ledger_header).to_h { |line| [line[/^\| `([^`]+)`/, 1], line] }
+    (units.to_set - dependency_affected).each do |unit|
+      fail_check("unchanged inventory row #{unit} was not preserved exactly") unless inventory_lines[unit] == previous_inventory_lines[unit]
+      fail_check("unchanged ledger row #{unit} was not preserved exactly") unless ledger_lines[unit] == previous_ledger_lines[unit]
+    end
+  end
+  rows.each do |row|
+    next if dependency_affected.include?(row[:unit])
+    previous_row = previous_inventory_rows.find { |candidate| candidate[:unit] == row[:unit] }
+    entry = ledger_rows.find { |candidate| candidate[:unit] == row[:unit] }
+    previous_entry = previous_ledger_rows.find { |candidate| candidate[:unit] == row[:unit] }
+    ledger_transition_errors(previous_row, previous_entry, row, entry).each do |error|
+      fail_check("#{row[:unit]} transition invalid: #{error}")
+    end
   end
 
   historical_proposed_entries.each do |entry|
+    next if dependency_affected.include?(entry[:unit])
+
     row = rows.find { |candidate| candidate[:unit] == entry[:unit] }
     previous_row = previous_inventory_rows.find { |candidate| candidate[:unit] == entry[:unit] }
     previous_entry = previous_ledger_rows.find { |candidate| candidate[:unit] == entry[:unit] }
@@ -3229,7 +5482,10 @@ ledger_rows.each do |entry|
   unless entry[:task] == "—"
     fail_check("#{entry[:unit]} worker task is unsafe") unless entry[:task].match?(/\A[a-zA-Z0-9._\/-]+\z/)
     fail_check("#{entry[:unit]} worker branch is not conventional") unless entry[:branch].match?(%r{\A(?:feature|bugfix|hotfix|release|chore|refactor)/[a-zA-Z0-9._/-]+\z})
-    unless safe_worktree_path?(entry[:worktree], task_owned_worktree_parent)
+    historical_removed_worktree = execution_mode && worktree_resource_rows.any? do |resource|
+      resource[:target] == entry[:worktree] && resource[:state] == "removed" && !resource[:integration]
+    end
+    unless safe_worktree_path?(entry[:worktree], task_owned_worktree_parent) || historical_removed_worktree
       fail_check("#{entry[:unit]} worker worktree is not beneath the safe task-owned preflight parent")
     end
   end
@@ -3241,8 +5497,22 @@ ledger_rows.each do |entry|
     fail_check("#{entry[:unit]} external evidence path is missing") unless File.file?(evidence_path)
   end
   if inventory_row[:status] == "verified"
-    fail_check("#{entry[:unit]} verified with unavailable external evidence") if entry[:external] == "—" || entry[:external].start_with?("unavailable:")
-    fail_check("#{entry[:unit]} verified external claim lacks attributable evidence path") if entry[:external] == "available"
+    required_lanes = external_lanes.select { |lane| lane[:consumers].include?(entry[:unit]) }
+    if required_lanes.empty?
+      fail_check("#{entry[:unit]} without external claims must record not-needed") unless entry[:external] == "not-needed"
+    else
+      fail_check("#{entry[:unit]} required external claims lack an attributable evidence record") unless repository_evidence_path?(entry[:external])
+      required_lanes.each do |lane|
+        fail_check("#{entry[:unit]} external evidence path does not match lane #{lane[:profile]}") unless lane[:evidence] == entry[:external]
+        fail_check("#{entry[:unit]} external lane #{lane[:profile]} is not available") unless lane[:classification] == "available"
+        record = external_records[entry[:external]]
+        fail_check("#{entry[:unit]} external evidence record is unavailable") unless record
+        profile_record = record.fetch("profiles").find { |candidate| candidate["profile_id"] == lane[:profile] }
+        result = profile_record.fetch("unit_results").find { |candidate| candidate["unit"] == entry[:unit] }
+        fail_check("#{entry[:unit]} external execution revision does not match integration checkpoint") unless result["execution_revision"] == entry[:checkpoint]
+        fail_check("#{entry[:unit]} external input fingerprint does not match gate fingerprint") unless result["complete_input_fingerprint"] == entry[:fingerprint]
+      end
+    end
   end
 end
 

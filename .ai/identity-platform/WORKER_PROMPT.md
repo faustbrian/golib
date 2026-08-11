@@ -78,6 +78,13 @@ Scope:
   documentation, examples, go.mod, go.sum, README.md, and CHANGELOG.md;
 - do not edit another package, root manifests, root catalogs, global
   inventory, dependency graph, program documents, or another worktree;
+- MUST NOT edit any inventory `Requires` set, dependency edge, or goal
+  dependency metadata; report the exact discovered change to the coordinator
+  and stop for a coordinator-owned dependency revision;
+- when stopped for a dependency revision, preserve all work in a coherent
+  checkpoint commit or confirm that HEAD remains the unchanged assignment
+  baseline, and return a clean worktree at that exact HEAD; MUST NOT authorize
+  safe abandonment or worktree removal while uncommitted work exists;
 - stop and report any required ownership or dependency change.
 
 Workflow:

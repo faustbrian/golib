@@ -13,7 +13,7 @@ shown here.
 - Canonical goal after scaffolding: `pkg/identity/risk/.ai/GOAL.md`
 - Requires: `identity`
 - Consumes existing primitives: `rate-limit`, `audit`, `telemetry`, `identifier`
-- Unlocks after verification: `identity/risk/postgres`, `identity/risk/valkey`, `identity/risk/captcha`, `identity/risk/hibp`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`, `identity/http`
+- Unlocks after verification: `identity/risk/postgres`, `identity/risk/valkey`, `identity/risk/captcha`, `identity/risk/hibp`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/phone`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`, `identity/http`
 
 ## Start gate
 
@@ -35,7 +35,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Action, Subject, Context, Signal, Assessment, Decision, Policy, Counter, Evidence, ChallengeRequirement, and Observer contracts. Public errors MUST be typed, stable,
+The design MUST define Action, Subject, Context, Signal, Assessment, Decision, Policy, Counter, Evidence, RiskEvidence, ChallengeRequirement, and Observer contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -103,6 +103,48 @@ involved.
 - CAPTCHA and HIBP are signals, not decisions. Their provider-specific evidence
   and unavailable/ambiguous outcomes MUST survive normalization for the action
   policy and audit trail.
+- For phone password recovery, `identity/risk` MUST be the sole authority that
+  issues immutable `RiskEvidence` after evaluating SIM-swap, number-recycling
+  and carrier signals. Each item MUST be fresh with the selected `risk_ttl`
+  (two minutes in the reference profile), MUST bind tenant, subject, recovery
+  operation, recovery purpose, canonical number, pre-auth transaction, attempt
+  ID and risk-policy version, and MUST be atomically consumed at most once by
+  `identity/risk`. Positive, unknown or unavailable carrier-risk decisions MUST
+  deny issuance. Stale, mismatched or replayed evidence MUST deny before
+  credential mutation; callers MUST NOT mint evidence or supply raw carrier
+  facts or decisions as equivalent input.
+- `identity.risk.evaluate` is the canonical RiskEvidence issuance operation.
+  It MUST accept a trusted issuance phase and authoritative server-resolved
+  facts plus the complete binding. The phase catalog MUST be exactly `none`,
+  `phone-reset-initiation`, and `phone-reset-completion`; `none` is non-issuing.
+  Phase `phone-reset-initiation` MUST map only
+  to purpose `phone-password-reset-initiate`; phase `phone-reset-completion`
+  MUST map only to purpose `phone-password-reset-complete`. Purpose MUST be
+  derived exclusively from the issuing phase. Unknown/unsupported phases, a
+  purpose with `none`, and every caller-supplied purpose MUST deny before
+  provider evaluation or state access. Callers MUST NOT
+  fabricate or override phase, purpose, facts, provider evidence, decisions, or
+  evidence results.
+- Evidence-producing evaluation MUST use a command ID/fingerprint and enlist
+  `identity/risk/postgres` through the shared unit of work. Denied MUST return no
+  reference; Failed MUST prove no issued row; Unknown MUST return no reference
+  and recover the same command before any retry; same-command and
+  same-fingerprint replay MUST return the exact recorded result without
+  evaluating providers or issuing another artifact.
+- The result MUST expose only an opaque RiskEvidence reference and safe purpose,
+  issued-at, expires-at, and one-use metadata; raw signals, provider evidence,
+  decision internals, embedded evidence payloads, keyed digests, signatures, and journal
+  identifiers MUST NOT cross the public contract.
+- Issuance MUST persist the one-use record through `identity/risk/postgres`; an
+  immutable bearer without that durable `issued` row is not valid RiskEvidence.
+  Core validation MAY perform a read-only precheck, but only the enlisted
+  durable reserve/apply/finalize protocol grants authority to the recovery
+  command.
+- Phone reset initiation and completion MUST receive separate artifacts with
+  purposes `phone-password-reset-initiate` and
+  `phone-password-reset-complete`; their references, keyed digests,
+  reservations, and terminal records MUST remain distinct. Evidence issued for
+  one phase MUST NOT validate, reserve, replay, or substitute for the other.
 - Trusted administrative overrides MUST be narrow, expiring and audited; a
   generic context flag MUST NOT bypass risk evaluation.
 - Every assessment and mutation MUST bind a trusted operation identifier,

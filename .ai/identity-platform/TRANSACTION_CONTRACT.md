@@ -156,25 +156,40 @@ and fail closed, not guess rollback.
 
 ## PostgreSQL unit of work
 
-1. **`tx.uow.reserve`:** `ReserveCommand(ctx, scope, command)` MUST complete the durable reservation
-   protocol above before `Begin`.
-2. **`tx.uow.begin`:** `Begin(ctx, reservation)` MUST open one bounded domain transaction, lock the
+1. **`tx.uow.enlist`:** `Enlist(owner, contributor)` MUST register every
+   compile-time typed command, RiskEvidence, capability, OTP, domain, session,
+   outbox, and effect contributor before the reservation transaction's first
+   write. Duplicate, undeclared, or late contributors fail.
+2. **`tx.uow.reserve`:** `ReserveCommand(ctx, scope, command, contributors)` MUST
+   open one short primary-authority transaction and atomically complete the
+   command reservation plus every declared RiskEvidence, capability, and OTP
+   reservation before `Begin`. It locks command row, tenant, then one-time keys
+   ordered as RiskEvidence, capability, and OTP; keys within a class sort
+   lexicographically. Any participant denial, error, or cancellation rolls back
+   every reservation write; a separate or private participant reservation is
+   forbidden. When an expired `pending` command is taken over, this same
+   transaction MUST first increment the command generation and then CAS-rebind
+   every already-`reserved` one-time participant from the exact prior generation
+   to the new generation under the same command ID and fingerprint. A missing,
+   terminal, different-command, different-fingerprint, or non-prior-generation
+   participant rolls back the entire takeover; the stale generation retains no
+   apply/finalize authority.
+3. **`tx.uow.begin`:** `Begin(ctx, reservation)` MUST open one bounded domain transaction, lock the
    reserved command row first, verify generation/lease/fingerprint, and use the
    primary database UTC clock.
-3. **`tx.uow.enlist`:** `Enlist(owner, contributor)` MUST register a compile-time typed contributor
-   before its first write. Duplicate, undeclared, or late contributors fail.
 4. **`tx.uow.contributor`:** Contributors MUST receive only transaction-scoped query/execute, command
    scope, database time, and outbox/effect writers. They MUST NOT commit,
    rollback, change isolation, open nested/private transactions, perform network
    I/O, or invoke unbounded or caller-controlled callbacks.
 5. **`tx.uow.locks`:** Before the first mutation, contributors MUST publish all lock keys. The unit
-   of work MUST acquire locks in this order: command row; tenant; primary
-   aggregate type/ID; secondary aggregate type/ID; credential/session/grant ID;
-   outbox sequence. Keys within a class sort lexicographically.
+   of work MUST reacquire locks in this order: command row; tenant; reserved
+   RiskEvidence, capability, then OTP rows; primary aggregate type/ID; secondary
+   aggregate type/ID; credential/session/grant ID; outbox sequence. Keys within
+   a class sort lexicographically.
 6. **`tx.uow.commit`:** `Commit(result)` MUST atomically write domain mutations, authority-version
-   bumps, lifecycle events, audit/outbox/effect records, enlisted capability
-   finalization, and `pending` to `committed`, guarded by owner generation,
-   before the single PostgreSQL commit.
+   bumps, lifecycle events, audit/outbox/effect records, enlisted RiskEvidence
+   and capability finalization, and `pending` to `committed`, guarded by owner
+   generation, before the single PostgreSQL commit.
    Once commit begins, any error, cancellation, or disconnect returns `Unknown`,
    performs no local rollback, retry, or reveal-once material issuance, and
    enters primary-authority query/reconciliation. Only a proved successful
@@ -208,6 +223,226 @@ immutable signed or keyed `RiskEvidence` binding tenant, subject, operation,
 signals, provider/configuration versions, decision, issued time, and expiry. The
 transaction MUST perform only local scope/version/age checks plus authoritative
 stored counter and policy checks. It MUST NOT invoke a risk/provider callback.
+
+Evidence-producing `identity.risk.evaluate` MUST enlist
+`identity/risk/postgres` in the identity command unit of work and atomically
+commit `tx.risk_evidence.issue` with the command result before returning an
+opaque reference. Issuance phase is a closed enum containing exactly `none`,
+`phone-reset-initiation`, and `phone-reset-completion`; `none` cannot issue.
+Phase `phone-reset-initiation` maps only to purpose
+`phone-password-reset-initiate`; phase `phone-reset-completion` maps only to
+purpose `phone-password-reset-complete`. Purpose MUST be derived exclusively
+from those two issuing phases. An unsupported phase, a purpose paired with
+`none`, or any caller-supplied purpose MUST fail before provider evaluation,
+command reservation, or state access. The command fingerprint MUST cover the
+phase, purpose, tenant, subject, recovery operation, canonical number,
+pre-auth transaction, attempt ID, risk-policy version, and authoritative
+server-resolved signal/provider inputs. Callers MUST NOT supply a decision,
+purpose override, raw provider evidence, or a fabricated evidence result.
+Denied and proved pre-commit failure return no reference. An ambiguous commit
+returns `Unknown` without a reference and requires primary-authority recovery
+of the same command; it MUST NOT rerun providers or mint a replacement. A
+matching committed replay returns the exact recorded opaque reference and safe
+purpose/issued-at/expires-at/one-use metadata. No raw signal, provider evidence,
+decision internals, embedded evidence payload, keyed digest, signature, journal identifier,
+or persistence record may cross the operation result.
+
+## One-use RiskEvidence protocol
+
+Phone password recovery and every future one-use RiskEvidence profile MUST use
+the durable journal owned by `identity/risk/postgres`. An immutable or signed
+bearer without its authoritative journal row grants no authority.
+
+Phone reset initiation and completion are separate one-use profiles.
+Initiation and completion MUST use separate RiskEvidence references, keyed
+digests, reservations, and terminal records with purposes
+`phone-password-reset-initiate` and `phone-password-reset-complete`,
+respectively. Neither phase's RiskEvidence MAY validate, reserve, replay, or
+substitute for the other phase. A caller therefore obtains fresh evidence for
+each phase even when both phases share the same tenant, subject, canonical
+number, pre-auth transaction, attempt, or policy version.
+
+1. **`tx.risk_evidence.issue`: Issue:** persist an `issued` row keyed by tenant,
+   purpose, and versioned keyed evidence digest. Bind subject, recovery
+   operation, canonical number digest, pre-auth transaction, attempt ID,
+   risk-policy and provider/configuration versions, decision, database-issued
+   time, expiry, evidence-verification key version, keyed-digest key version,
+   and proof fingerprint before returning the opaque reference.
+2. **`tx.risk_evidence.reserve`: Reserve:** verify the immutable evidence locally
+   and use the predeclared `identity/risk/postgres` reservation contributor to
+   lock the existing row and bind command ID, command fingerprint, reservation
+   generation, and target versions. `tx.risk_evidence.reserve` MUST run only in
+   the coordinator's single `tx.uow.reserve` transaction that atomically
+   reserves the command and the exact one-time participants declared by the
+   operation profile; it MUST NOT open a separate or private transaction. Phone
+   reset initiation reserves only the command and initiation RiskEvidence,
+   because its OTP challenge and capability do not exist until the domain
+   commit. Phone reset completion reserves the command, completion RiskEvidence,
+   existing capability, and existing OTP together. A read-only precheck grants no authority;
+   command acceptance
+   requires `tx.risk_evidence.reserve`. Reserve MUST NOT insert a missing row or
+   reserve a terminal row. The same command, fingerprint, and live generation
+   replay the stable reservation; a takeover generation obtains it only through
+   the guarded all-participant CAS in `tx.uow.reserve`. A stale generation and a
+   different command never obtain apply/finalize authority. Two commands MAY precheck
+   the same item concurrently, but the PostgreSQL row lock and unique keyed
+   digest MUST give exactly one command the `issued` to `reserved` transition;
+   every different command receives the same non-enumerating replay denial.
+3. **`tx.risk_evidence.apply`: Apply:** inside the domain transaction, lock the
+   reserved row and recheck command/generation ownership, database expiry,
+   exact binding, risk-policy/provider versions, decision, and current
+   authoritative counters. It MUST perform no provider or caller callback.
+4. **`tx.risk_evidence.finalize`: Finalize:** transition `reserved` to
+   `finalized` in the domain commit that records the recovery result.
+5. **`tx.risk_evidence.release`: Release:** only after authoritative proof that
+   the owning command did not commit, transition `reserved` to terminal
+   `released`; released evidence is never eligible for another reservation.
+6. **`tx.risk_evidence.recover`: Recover:** query the primary authority by the
+   same tenant, purpose, digest, and caller scope, reconcile the owning command,
+   and return only a stable redacted classification. It MUST NOT infer rollback
+   from timeout, disconnect, lease expiry, or evidence expiry.
+
+RiskEvidence states are `issued`, `reserved`, `finalized`, `released`, `expired`,
+and `revoked`. Legal transitions are only `absent` to `issued`, `issued` to
+`reserved`, `issued` to `expired` or `revoked`, `reserved` to `finalized`, and
+`reserved` to `released` or `revoked`. `finalized`, `released`,
+`expired`, and `revoked` are terminal and MUST NOT return to `issued` or
+`reserved`.
+
+The phone-recovery completion command MUST enlist `identity/risk/postgres`,
+`identity/otp/postgres`, `capability/postgres`, `identity/password/postgres`, and
+`identity/session/postgres` in one unit of work before the reservation
+transaction's first write. The completion reservation transaction MUST transition the
+RiskEvidence, purpose-bound OTP, and reset capability together or none of them;
+the later domain commit MUST finalize the RiskEvidence reservation, purpose-bound OTP, reset
+capability, password mutation, session invalidation, outbox/audit records, and
+command result, or commit none of them. A failure to reserve any participant
+MUST leave credential and session state unchanged and release another
+reservation only after authoritative proof that the command did not commit.
+
+Phone password-reset initiation MUST use one initiation command and coordinator
+unit of work to reserve, apply, and finalize initiation RiskEvidence. The
+initiation reservation MUST accept only purpose
+`phone-password-reset-initiate`; a completion-purpose artifact receives the
+same non-enumerating denial as any other binding mismatch. The initiation
+domain commit MUST apply and finalize that initiation RiskEvidence in the same
+commit that issues the purpose-bound OTP challenge, canonical reset capability,
+outbox/audit records, and command result, or commit none of them. No challenge,
+capability, or externally visible delivery effect may be published before that
+commit. A same-command, same-fingerprint initiation replay MUST return the exact
+recorded challenge and capability result without issuing replacements. Two
+concurrent initiation commands MAY precheck the same evidence, but exactly one
+MAY reserve it; the loser receives the stable non-enumerating replay denial.
+An expired initiation-command takeover MUST CAS-rebind the initiation
+RiskEvidence from the exact prior generation to the new generation before apply
+or finalize authority is granted. Retry rollback, release, ambiguous outcome,
+recovery, and terminal-state rules are the same rules defined above: rollback
+does not release without authoritative non-commit proof, and unknown remains
+reserved until authoritative recovery.
+An initiation rollback MUST NOT release its RiskEvidence without authoritative
+proof that the command did not commit. An ambiguous initiation outcome MUST
+remain `reserved` until authoritative recovery resolves the owning command.
+
+Phone password-reset completion MUST accept only purpose
+`phone-password-reset-complete`. Its RiskEvidence is a fresh completion-only
+artifact and is not the initiation artifact that authorized challenge and
+capability issuance.
+
+A retryable transaction rollback under the same live command reservation
+retains the RiskEvidence reservation for that command; a different command
+never takes it over. Expired-owner takeover MUST atomically transfer the command
+and every reservation declared by the operation profile to one new generation
+as defined by `tx.uow.reserve`: initiation transfers its RiskEvidence, while
+completion transfers RiskEvidence, capability, and OTP. Partial generation
+transfer is an unresolved `Unknown`, not authority to proceed. An ambiguous commit MUST leave the item `reserved`, return
+`Unknown`, and use `tx.risk_evidence.recover`; expiry or lease timeout alone
+MUST NOT release it. Only authoritative proof that the owning command did not
+commit MAY transition `reserved` to `released`, after which that evidence
+remains terminal and a retry requires newly issued evidence.
+
+Cleanup MUST expire untouched `issued` rows in bounded database-time batches
+and retain every `reserved` row through authoritative recovery. Only after the
+later of original evidence expiry and the configured `command.result_retention`
+deadline MAY cleanup crypto-shred terminal payload/linkage; it MUST preserve a
+restricted tenant/purpose/keyed-digest/key-version/original-expiry/terminal-state
+tombstone with no time-based deletion. The tombstone MAY be deleted only after
+every evidence-verification and keyed-digest key version it references is
+retired and proof shows every bearer fails cryptographic validation before
+lookup. Cleanup MUST NOT delete an unresolved command binding, weaken
+constant-work denial, or make a prior evidence reference eligible for reissue.
+Cleanup and tombstones MUST independently preserve replay and recovery authority
+for both phone-reset RiskEvidence purposes.
+
+## Durable OTP participant protocol
+
+Every OTP that authorizes an owning workflow mutation MUST use the authoritative
+`identity/otp/postgres` participant. OTP participant states are `issued`,
+`reserved`, `finalized`, `released`, `expired`, `revoked`, and `exhausted`.
+Legal transitions are only `absent` to `issued`, `issued` to `issued` with one
+durable failed-attempt increment, `issued` to `reserved`, `issued` to `expired`,
+`revoked`, or `exhausted`, `reserved` to `finalized`, and `reserved` to
+`released` or `revoked`. Every terminal state is ineligible for reservation.
+
+1. **`tx.otp.issue`: Issue:** persist `issued` before delivery. The binding MUST
+   include tenant, purpose, subject or channel target, challenge ID, workflow
+   target, issued/expiry database time, attempt budget, keyed-code-digest
+   version, and issuance fingerprint. Raw codes MUST never be stored. A
+   replacement MAY transition an earlier `issued` row to `revoked` in the same
+   issue transaction, but MUST NOT replace or revoke a `reserved` row without
+   authoritative recovery of its owning command.
+2. **`tx.otp.check`: Check:** a configured scanner-safe or user-initiated
+   precheck MAY compare the exact binding and digest under a separately bounded
+   attempt policy, but grants no authority and MUST NOT reserve or consume.
+3. **`tx.otp.attempt`: Attempt:** an incorrect submitted code MUST atomically
+   increment the one durable attempt counter under the issued-row lock; reaching
+   the budget transitions `issued` to terminal `exhausted`. Cross-purpose,
+   cross-subject, cross-channel, or unknown challenges receive the same
+   constant-work denial and MUST NOT mutate another row.
+4. **`tx.otp.reserve`: Reserve:** the predeclared `identity/otp/postgres`
+   contributor MUST lock the exact `issued` row and verify the code digest inside
+   the coordinator's single `tx.uow.reserve` transaction, then bind consuming
+   command ID, command fingerprint, reservation generation, and target versions.
+   Two commands MAY
+   perform a non-authoritative digest precheck, but exactly one command MAY
+   transition the same `issued` row to `reserved`; every other command receives
+   the same non-enumerating denial. The same command, fingerprint, and live
+   generation replay the stable reservation without decrementing attempts or
+   rerunning the workflow.
+5. **`tx.otp.apply`: Apply:** inside the domain transaction recheck reservation
+   generation, database expiry, purpose, subject/channel, challenge, workflow
+   target, attempt state, and digest-key version without another code compare.
+6. **`tx.otp.finalize`: Finalize:** transition `reserved` to `finalized` in the
+   same commit as the owning mutation, session issuance or invalidation,
+   outbox/audit records, other one-time finalizations, and command result.
+7. **`tx.otp.release`: Release:** only authoritative proof that the owning
+   command did not commit MAY transition `reserved` to terminal `released`; a
+   retry then requires a newly issued OTP.
+8. **`tx.otp.recover`: Recover:** query the primary authority and owning command
+   under the same tenant/purpose/challenge/caller authorization, return a stable
+   redacted classification, and never infer rollback from timeout or expiry.
+
+Expired-owner takeover MUST CAS-rebind the OTP reservation from the exact prior
+generation to the new command generation in the coordinator reservation
+transaction with every other reserved one-time participant. Any missing,
+terminal, mismatched-command/fingerprint, or non-prior-generation participant
+rolls back the complete takeover; the stale generation has no apply/finalize
+authority. `tx.otp.apply` MUST recheck reservation generation, purpose and all
+bound versions inside the domain transaction; `tx.otp.finalize` MUST transition
+`reserved` to `finalized` in the same commit as the owning mutation, session
+issuance or invalidation, outbox/audit, and command result.
+
+A retryable rollback retains `reserved` only for the same live command
+generation; authoritative non-commit MAY use `tx.otp.release`, which is terminal
+and requires a newly issued OTP. An ambiguous commit MUST leave OTP `reserved`,
+return `Unknown`, and use `tx.otp.recover`; timeout, lease loss, challenge expiry,
+or cleanup MUST NOT release it.
+
+After the later of original OTP expiry and `command.result_retention`, cleanup
+MAY crypto-shred terminal payload/linkage but MUST retain a
+tenant/purpose/keyed-digest/key-version/original-expiry/terminal-state tombstone
+with no time-based deletion until every referenced digest key is retired and no
+code can validate before lookup. Untouched `issued` rows expire in bounded
+database-time batches; unresolved `reserved` rows are excluded from cleanup.
 
 ## Outbox, encrypted delivery, and provider effects
 

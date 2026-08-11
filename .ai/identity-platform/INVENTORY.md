@@ -34,7 +34,7 @@ status rules in `DEPENDENCIES.md`. An agent MUST NOT claim a `proposed` unit.
 | `identity/magiclink` | `pkg/identity/magiclink` | `identity`<br>`identity/session`<br>`identity/email`<br>`identity/risk` | proposed | — | `goals/identity-magiclink.md` |
 | `identity/otp` | `pkg/identity/otp` | `identity`<br>`identity/session`<br>`identity/risk`<br>`identity/delivery` | proposed | — | `goals/identity-otp.md` |
 | `identity/otp/postgres` | `pkg/identity/otp/postgres` | `identity/otp`<br>`identity/postgres` | proposed | — | `goals/identity-otp-postgres.md` |
-| `identity/phone` | `pkg/identity/phone` | `identity`<br>`identity/otp`<br>`identity/delivery` | proposed | — | `goals/identity-phone.md` |
+| `identity/phone` | `pkg/identity/phone` | `identity`<br>`identity/otp`<br>`identity/delivery`<br>`identity/risk` | proposed | — | `goals/identity-phone.md` |
 | `identity/anonymous` | `pkg/identity/anonymous` | `identity`<br>`identity/session`<br>`identity/risk` | proposed | — | `goals/identity-anonymous.md` |
 | `identity/anonymous/postgres` | `pkg/identity/anonymous/postgres` | `identity/anonymous`<br>`identity/postgres` | proposed | — | `goals/identity-anonymous-postgres.md` |
 | `identity/mfa` | `pkg/identity/mfa` | `identity`<br>`identity/session`<br>`identity/otp`<br>`identity/risk`<br>`webauthn` | proposed | — | `goals/identity-mfa.md` |

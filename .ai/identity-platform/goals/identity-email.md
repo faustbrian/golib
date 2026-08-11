@@ -85,6 +85,14 @@ involved.
 
 ## Security and abuse requirements
 
+- When handling `identity.otp.email-verify`,
+  `identity.otp.email-change-confirm`, or the optional current-address OTP branch
+  of `identity.otp.email-change-request`, this workflow MUST
+  reserve/apply/finalize the purpose-bound OTP through `identity/otp/postgres` in
+  the same coordinator unit of work as its owning mutation. Non-OTP email
+  operations MUST NOT enlist an OTP participant. Release and recovery remain
+  fail-closed on rollback or unknown commit.
+
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
   cryptographic work.
 - Subject, tenant, organization, purpose, audience, action, and redirect scope

@@ -188,6 +188,30 @@ MUST NOT substitute for this history check. A failed or unavailable pre-commit
 or post-commit half blocks worker spawn, merge, gate execution, and the next
 state transition until corrected.
 
+## Dependency revision ownership
+
+Only the coordinator MAY approve and record dependency revisions. When a worker
+reports a missing, obsolete, or incorrect dependency, the coordinator MUST
+validate the proposed goals and complete DAG, reject cycles, append the exact
+`EXECUTION_LEDGER.md` dependency-revision record, and atomically reset the
+changed unit plus its full prior/current reverse-dependent closure under the
+generation, evidence invalidation, readiness, and unchanged-row rules defined
+there. Prior/current dependency lists MUST retain their exact inventory order.
+Before clearing an affected active assignment, the coordinator MUST first
+commit its transition to `blocked`, obtain a clean checkpoint/baseline or an
+attributable safe-abandonment proof, reconcile every registered worker resource,
+write the identity-bound canonical disposition evidence, and append the exact
+assignment-disposition row required by the ledger. A
+retained worktree MUST remain registered and clean at that proof commit; every
+safe-abandoned resource MUST be removed, and every removed worktree or other
+resource MUST have exact cleanup evidence plus any required captured
+pre-removal clean state. Before removing any worker worktree, including under
+safe abandonment, the coordinator MUST prove it is clean at the exact preserved
+worker checkpoint or assignment baseline. Safe abandonment MUST NOT authorize
+discarding dirty or unintegrated work. The
+coordinator MUST NOT authorize a worker to edit `Requires`, goal dependency
+metadata, or the dependency graph.
+
 ## Program preflight
 
 Before the first assignment, the coordinator MUST:

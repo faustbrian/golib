@@ -89,6 +89,38 @@ Its handlers MUST call public package contracts exactly as a consumer would.
 4. **Passwordless:** magic-link, email OTP, verified phone and phone OTP signin;
    anonymous-session creation, authenticated anonymous self-deletion without a
    permanent-account proof, and collision-safe upgrade to a permanent user.
+   The reference suite MUST exercise `identity.phone.password-reset-request`
+   and `identity.phone.password-reset-complete` through the reference `net/http`
+   handlers and public service contracts, including the `identity/risk` ->
+   `identity/phone` seam. It MUST obtain fresh one-use immutable `RiskEvidence`
+   from `identity/risk` bound to tenant, subject, recovery operation, recovery
+   purpose, canonical number, pre-auth transaction, attempt ID and risk-policy
+   version.
+   `identity.risk.evaluate` is the sole issuance operation for both phone-reset
+   phases, persists `tx.risk_evidence.issue` before returning, and exposes only
+   an opaque reference with safe freshness and one-use metadata. Denied and
+   proved failure return no reference; unknown requires same-command recovery;
+   matching replay returns the recorded result without re-evaluation or a new
+   artifact.
+   The same binding dimensions MUST cross request, risk decision, OTP,
+   capability and completion, but the phases MUST use separate one-use
+   RiskEvidence artifacts: purpose `phone-password-reset-initiate` for request
+   and purpose `phone-password-reset-complete` for completion. Their references,
+   digests, reservations and terminal records MUST remain distinct; neither may
+   validate, reserve, replay or substitute for the other. Both operations issue
+   no session and carry no remember choice.
+
+   | Operation | Successful state transition | Required rejection transition | Required composed seam |
+   | --- | --- | --- | --- |
+   | `identity.phone.password-reset-request` | enabled recovery + pre-auth transaction + canonical number + recovery purpose + fresh one-use RiskEvidence -> purpose-bound phone OTP challenge and canonical reset capability; no session or remember choice | disabled recovery, missing/expired pre-auth transaction, raw caller carrier facts, or positive/unknown/unavailable risk decision -> enumeration-safe denial; no capability or OTP issued | identity.risk decides and issues exact-bound evidence -> identity.phone atomically reserves, applies and finalizes initiation-only RiskEvidence with OTP challenge and reset capability issuance; completion requires a separate completion-only artifact |
+   | `identity.phone.password-reset-complete` | matching reset capability + reserved purpose-bound phone OTP + eligible independent factor + fresh one-use RiskEvidence -> credential reset and session revocation; no session or remember choice | stale/mismatched/replayed/in-progress RiskEvidence, wrong exact binding, missing/invalid OTP, or missing independent factor -> denial; credentials and sessions unchanged | identity.phone uses one coordinator unit of work to reserve identity.risk/postgres evidence, OTP and capability, then atomically finalize them with the password mutation, session invalidation and command result; unknown remains reserved for authoritative recovery |
+
+   Every OTP-consuming signin, email verification/change, password reset, phone
+   recovery, and MFA completion MUST reserve and finalize its purpose-bound OTP
+   through the same coordinator unit of work as the owning mutation and session
+   effect. Concurrent verification has one reservation winner; rollback,
+   takeover, unknown recovery, expiry, and cleanup MUST preserve terminal replay
+   denial through the durable `identity/otp/postgres` state machine.
 5. **MFA and WebAuthn:** enroll/challenge/remove TOTP, OTP, recovery codes,
    trusted devices and security keys; passkey-first signup, discoverable and
    usernameless signin, credential listing/renaming/removal, step-up and safe

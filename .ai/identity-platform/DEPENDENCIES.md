@@ -144,6 +144,7 @@ flowchart TD
   otp --> phone
   identity --> phone
   delivery --> phone
+  risk --> phone
   identity --> anonymous
   session --> anonymous
   risk --> anonymous
