@@ -29,6 +29,10 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Make evidence-gate locks atomic and recover legacy ownerless locks so an
+  interrupted runner cannot stall later verification indefinitely.
+- Isolate the snapshot lifecycle fixture from an inherited nested-run marker so
+  the canonical root check exercises its intended top-level process boundary.
 - Exclude catalog presentation metadata and root-only orchestration files from
   nested-module gate fingerprints, so unrelated repository catalog and Makefile
   changes no longer invalidate content-identical module evidence.

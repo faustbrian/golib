@@ -32,8 +32,10 @@ cleanup() {
     fi
     rm -f "${temporary_legacy_evidence}" "${temporary_legacy_log}"
     if [[ "${lock_acquired}" -eq 1 ]]; then
-        rm -f "${lock}/owner"
-        rmdir "${lock}" 2>/dev/null || true
+        owner="$(readlink "${lock}" 2>/dev/null || true)"
+        if [[ "${owner}" == "$$" ]]; then
+            rm -f "${lock}"
+        fi
     fi
 }
 
@@ -58,18 +60,36 @@ trap cleanup EXIT
 trap 'exit 130' HUP INT TERM
 mkdir -p "${artifact}"
 mkdir -p "${lock_root}"
-while ! mkdir "${lock}" 2>/dev/null; do
-    if [[ -f "${lock}/owner" ]]; then
+while ! ln -s "$$" "${lock}" 2>/dev/null; do
+    if [[ -L "${lock}" ]]; then
+        owner="$(readlink "${lock}" 2>/dev/null || true)"
+        if [[ "${owner}" =~ ^[0-9]+$ ]] && ! kill -0 "${owner}" 2>/dev/null; then
+            rm -f "${lock}"
+            continue
+        fi
+    elif [[ -d "${lock}" ]]; then
         owner="$(cat "${lock}/owner" 2>/dev/null || true)"
         if [[ "${owner}" =~ ^[0-9]+$ ]] && ! kill -0 "${owner}" 2>/dev/null; then
             rm -f "${lock}/owner"
             rmdir "${lock}" 2>/dev/null || true
             continue
         fi
+        if [[ -z "${owner}" ]] && rmdir "${lock}" 2>/dev/null; then
+            continue
+        fi
+    elif [[ -f "${lock}" ]]; then
+        owner="$(cat "${lock}" 2>/dev/null || true)"
+        if [[ "${owner}" =~ ^[0-9]+$ ]] && ! kill -0 "${owner}" 2>/dev/null; then
+            rm -f "${lock}"
+            continue
+        fi
+        if [[ -z "${owner}" ]]; then
+            rm -f "${lock}"
+            continue
+        fi
     fi
     sleep 0.05
 done
-printf '%s\n' "$$" >"${lock}/owner"
 lock_acquired=1
 
 input_digest="$("${root}/scripts/gate-input-digest.sh" "${gate}" "${module}")"

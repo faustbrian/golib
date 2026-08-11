@@ -3696,6 +3696,11 @@ printf 'pkg/example\n'
 		environmentWithValues(os.Environ(), "PATH", repository+string(os.PathListSeparator)+os.Getenv("PATH")),
 		"TEST_STATE", state,
 	)
+	command.Env = environmentWithValues(
+		command.Env,
+		"GOLIB_VERIFICATION_SNAPSHOT",
+		"0",
+	)
 	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	var output bytes.Buffer
 	command.Stdout = &output
@@ -3821,6 +3826,68 @@ printf 'gate passed\n'
 			firstOutput.String(),
 			secondOutput.String(),
 		)
+	}
+}
+
+func TestGateEvidenceRecoversOwnerlessLock(t *testing.T) {
+	t.Parallel()
+
+	repository := filepath.Join(t.TempDir(), "repository")
+	if err := os.MkdirAll(filepath.Join(repository, "scripts"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, filepath.Join(repository, "go.mod"), "module example.test/evidence\n\ngo 1.26.5\n")
+	writeFile(t, filepath.Join(repository, "scripts", "gate-input-digest.sh"), `#!/bin/sh
+set -eu
+printf 'stable-input\n'
+`)
+	writeFile(t, filepath.Join(repository, "scripts", "check-module.sh"), `#!/bin/sh
+set -eu
+printf 'gate passed\n'
+`)
+	for _, path := range []string{
+		"scripts/gate-input-digest.sh",
+		"scripts/check-module.sh",
+	} {
+		if err := os.Chmod(filepath.Join(repository, path), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	runGit := func(arguments ...string) {
+		t.Helper()
+		command := exec.Command("git", arguments...)
+		command.Dir = repository
+		if output, err := command.CombinedOutput(); err != nil {
+			t.Fatalf("git %s: %v\n%s", strings.Join(arguments, " "), err, output)
+		}
+	}
+	runGit("init", "--initial-branch=main")
+	runGit("config", "user.email", "golib@example.test")
+	runGit("config", "user.name", "golib")
+	runGit("add", "go.mod", "scripts")
+	runGit("commit", "-m", "initial")
+
+	lock := filepath.Join(repository, ".artifacts", "evidence", ".locks", "test.lock")
+	if err := os.MkdirAll(lock, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	command := exec.CommandContext(
+		ctx,
+		filepath.Join(testRepositoryRoot(t), "scripts", "run-gate-with-evidence.sh"),
+		".",
+		"test",
+	)
+	command.Dir = repository
+	command.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	command.Cancel = func() error {
+		return syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
+	}
+	command.WaitDelay = time.Second
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("recover ownerless evidence lock: %v\n%s", err, output)
 	}
 }
 
