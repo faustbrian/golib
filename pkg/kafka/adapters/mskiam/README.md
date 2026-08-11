@@ -67,7 +67,10 @@ The default chain provides workload-identity rotation with minimal wiring. An
 explicit provider gives callers source selection and test control, but also
 makes its concurrency, cancellation, caching, and rotation behavior
 caller-owned. Token generation is deliberately per authentication session;
-there is no adapter token cache or proactive refresh goroutine.
+there is no adapter token cache or proactive refresh goroutine. Concurrent
+near-expiry requests share one adapter-coordinated invalidation and refreshed
+credential result, including a redacted failure, so a shared cache is not
+refreshed by every caller in the same request cohort.
 
 ## Credential selection and rotation
 
@@ -108,9 +111,13 @@ with `aws.NewCredentialsCache` before construction.
   expiry and the AWS credential expiry.
 - Credentials with 30 seconds or less remaining validity are invalidated and
   retrieved once more when the provider exposes the AWS SDK cache invalidation
-  contract; otherwise token generation fails closed.
+  contract; concurrent callers share that refresh transition, and providers
+  without invalidation support fail closed.
 - Tokens with 30 seconds or less remaining validity, more than 20 minutes of
   lifetime, malformed URL-safe base64, or more than 1 MiB are rejected.
+- Signer timestamps outside a five-minute tolerance of the adapter clock are
+  rejected. This detects inconsistent signer output; it cannot prove the host
+  clock is synchronized with Amazon MSK.
 - Cancellation stops waiting only when the selected AWS credential provider
   and signer honor the supplied context; the supported AWS SDK path does.
 - The provider starts no goroutines. It performs no proactive refresh.
@@ -119,6 +126,20 @@ The signer currently issues 15-minute tokens. Credential lifetime and token
 lifetime are different: an AWS credential provider may refresh the underlying
 role credentials before signing, and the adapter never reports a token as valid
 beyond the credential used to sign it.
+
+### Token transition model
+
+| State | Success transition | Failure transition |
+| --- | --- | --- |
+| credential retrieval | validate credential fields and lifetime | redacted retrieval, invalid-credential, cancellation, timeout, or panic category |
+| near-expiry credential | coordinate one invalidation and refresh | fail closed when refresh is unsupported, invalid, canceled, or still near expiry |
+| signer call | receive token bytes and signer expiry | redacted signer, cancellation, timeout, or panic category |
+| validation | bind URL shape, region, timestamp, lifetime, and size | malformed or expired token category |
+| return | copy token bytes and cap expiry at credential expiry | no partial token is returned |
+
+Every transition is synchronous and context-bounded. The adapter creates only
+the per-call deadline timer, starts no goroutine, and leaves credential-provider
+ownership and shutdown with the caller.
 
 ## Failure and redaction
 
@@ -130,10 +151,13 @@ render the AWS SDK or signer diagnostic. Arbitrary provider and signer causes
 are not retained in returned errors; `context.Canceled` and
 `context.DeadlineExceeded` identity remain available through `errors.Is`.
 
-The adapter never logs. It does not enable the signer's process-wide
-`AwsDebugCreds` flag. Access keys, secret keys, session tokens, signed tokens,
-credential endpoints, and provider diagnostics must not be exported to logs,
-traces, metrics, panic output, or fixtures.
+The adapter never logs. It does not enable or mutate the signer's process-wide
+`AwsDebugCreds` flag, and token generation fails closed before the signer call
+when that flag is enabled. Applications must configure the flag before starting
+concurrent work and leave it disabled for the process lifetime; changing the
+upstream global concurrently is a data race. Access keys, secret keys, session
+tokens, signed tokens, credential endpoints, and provider diagnostics must not
+be exported to logs, traces, metrics, panic output, or fixtures.
 
 ## IAM authorization
 
@@ -168,9 +192,10 @@ This adapter pins:
 AWS documents non-Java IAM clients for MSK Kafka 2.7.1 and newer. That protocol
 floor is not an operational support claim. Local tests prove signing, root
 provider interoperability, default-chain selection, expiry, cancellation,
-rotation seams, panic containment, race safety, and redaction. No Amazon MSK
-Provisioned or Serverless cluster has yet been exercised by repository CI, so
-both remain **unverified**, not supported.
+environment/profile/ECS/EKS credential-source fixtures, pod-identity token
+rotation, workload replacement, refresh contention, panic containment, race
+safety, and redaction. No Amazon MSK Provisioned or Serverless cluster has yet
+been exercised by repository CI, so both remain **unverified**, not supported.
 
 Primary references:
 
@@ -195,8 +220,9 @@ only composes credentials, bounded token generation, validation, and expiry.
 ### Should applications cache the returned token?
 
 No. Give the provider to `kafka.NewOAuthBearerAuthentication`; the Kafka client
-requests a fresh token for each authentication session and observes its
-effective expiry.
+requests a fresh token for each authentication session. The current franz-go
+callback consumes the token value for that session; it does not schedule a
+proactive reconnect from `ExpiresAt`.
 
 ### Can one provider be shared by producers and consumers?
 
@@ -216,8 +242,7 @@ make check
 ```
 
 The local module contract covers formatting, vet, tests, race detection, exact
-statement coverage, fuzz smoke, signer interoperability, an
-allocation-reporting benchmark, and documentation. Repository gates
-additionally enforce mutation, API
-compatibility, vulnerability, secrets, licenses, SBOM, provenance, and
-clean-consumer checks.
+statement coverage, fuzz smoke, signer interoperability, allocation-reporting
+generation, contention, and external-retrieval benchmarks, and documentation.
+Repository gates additionally enforce mutation, API compatibility,
+vulnerability, secrets, licenses, SBOM, provenance, and clean-consumer checks.

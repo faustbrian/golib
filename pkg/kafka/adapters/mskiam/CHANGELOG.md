@@ -19,6 +19,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clarify the cluster-level IAM permissions needed for idempotent production
   and the Kafka 3.8 minimum for transaction termination through IAM access
   control.
+- Coordinate near-expiry credential invalidation across concurrent token
+  requests, share redacted refresh failures within the waiting cohort, and
+  reject signer timestamps outside the five-minute local-clock tolerance.
+- Fail closed before signing when the upstream process-wide credential debug
+  mode is enabled, preventing its extra STS request and identity logging.
 
 ### Added
 
@@ -32,5 +37,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   causes, and retain only stable categories plus context cancellation identity.
 - Document TLS, least-privilege IAM, ECS/EKS rotation, and the current
   unverified Amazon MSK compatibility boundary.
+- Exercise generated-canary environment, profile, ECS task-role, EKS pod and
+  web-identity sources, pod token rotation, workload replacement, AWS failure
+  redaction, refresh contention, and separate generation/retrieval benchmarks.
 
 [Unreleased]: https://github.com/faustbrian/golib/commits/main/pkg/kafka/adapters/mskiam

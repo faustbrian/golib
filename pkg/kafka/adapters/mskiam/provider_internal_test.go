@@ -80,6 +80,9 @@ func (provider *scriptedCredentialsProvider) Invalidate() {
 }
 
 func testProvider(now time.Time, generate tokenGenerator) *Provider {
+	refreshGate := make(chan struct{}, 1)
+	refreshGate <- struct{}{}
+
 	return &Provider{
 		region:      "eu-north-1",
 		credentials: inertCredentialsProvider{},
@@ -88,6 +91,7 @@ func testProvider(now time.Time, generate tokenGenerator) *Provider {
 		now: func() time.Time {
 			return now
 		},
+		refreshGate: refreshGate,
 	}
 }
 
@@ -378,12 +382,12 @@ func TestSignedTokenValidationRejectsEachMalformedField(t *testing.T) {
 			clone := *parsed
 			test.mutate(&clone)
 			token := base64.RawURLEncoding.EncodeToString([]byte(clone.String()))
-			if validToken(token, "eu-north-1", test.expiresAt.UnixMilli()) {
+			if validToken(token, "eu-north-1", test.expiresAt.UnixMilli(), now) {
 				t.Fatal("validToken() accepted malformed signer output")
 			}
 		})
 	}
-	if !validToken(valid, "eu-north-1", expiresAt.UnixMilli()) {
+	if !validToken(valid, "eu-north-1", expiresAt.UnixMilli(), now) {
 		t.Fatal("validToken() rejected canonical signer output")
 	}
 	maximumExpiry := *parsed
@@ -397,6 +401,7 @@ func TestSignedTokenValidationRejectsEachMalformedField(t *testing.T) {
 		maximumExpiryToken,
 		"eu-north-1",
 		now.Add(maxTokenLifetime).UnixMilli(),
+		now,
 	) {
 		t.Fatal("validToken() rejected the maximum token lifetime")
 	}
@@ -415,6 +420,7 @@ func TestSignedTokenValidationRejectsEachMalformedField(t *testing.T) {
 		maximumAccessKeyToken,
 		"eu-north-1",
 		expiresAt.UnixMilli(),
+		now,
 	) {
 		t.Fatal("validToken() rejected the maximum access-key length")
 	}
@@ -425,10 +431,15 @@ func TestSignedTokenValidationRejectsEachMalformedField(t *testing.T) {
 	securityToken := base64.RawURLEncoding.EncodeToString(
 		[]byte(withSecurityToken.String()),
 	)
-	if !validToken(securityToken, "eu-north-1", expiresAt.UnixMilli()) {
+	if !validToken(securityToken, "eu-north-1", expiresAt.UnixMilli(), now) {
 		t.Fatal("validToken() rejected a canonical session token")
 	}
-	if validToken(valid, "eu-north-1", expiresAt.Add(time.Second).UnixMilli()) {
+	if validToken(
+		valid,
+		"eu-north-1",
+		expiresAt.Add(time.Second).UnixMilli(),
+		now,
+	) {
 		t.Fatal("validToken() accepted mismatched signer expiry metadata")
 	}
 }

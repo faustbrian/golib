@@ -95,7 +95,7 @@ func TestTokenAcceptsExactEncodedSizeLimit(t *testing.T) {
 	signedURL.RawQuery = query.Encode()
 	token = base64.RawURLEncoding.EncodeToString([]byte(signedURL.String()))
 	if len(token) != maxTokenBytes ||
-		!validToken(token, "eu-north-1", expiresAt.UnixMilli()) {
+		!validToken(token, "eu-north-1", expiresAt.UnixMilli(), now) {
 		t.Fatalf(
 			"validToken() rejected exact encoded size limit: encoded=%d decoded=%d",
 			len(token), len(signedURL.String()),

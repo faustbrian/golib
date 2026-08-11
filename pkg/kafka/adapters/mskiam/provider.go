@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 	"unicode/utf8"
 
@@ -24,6 +25,7 @@ const (
 	maxTokenTimeout      = time.Minute
 	minTokenValidity     = 30 * time.Second
 	maxTokenLifetime     = 20 * time.Minute
+	maxSignerClockSkew   = 5 * time.Minute
 	maxRegionBytes       = 64
 	maxTokenBytes        = 1 << 20
 	maxAccessKeyIDBytes  = 128
@@ -137,6 +139,14 @@ type Provider struct {
 	timeout     time.Duration
 	generator   tokenGenerator
 	now         func() time.Time
+	refreshGate chan struct{}
+	refreshes   atomic.Uint64
+	lastRefresh credentialRefreshResult
+}
+
+type credentialRefreshResult struct {
+	credentials aws.Credentials
+	err         error
 }
 
 // New validates configuration before loading the default AWS credential chain.
@@ -167,13 +177,17 @@ func New(ctx context.Context, adapterConfig Config) (*Provider, error) {
 		timeout = defaultTokenTimeout
 	}
 
-	return &Provider{
+	provider := &Provider{
 		region:      adapterConfig.Region,
 		credentials: credentials,
 		timeout:     timeout,
 		generator:   awsTokenGenerator{},
 		now:         time.Now,
-	}, nil
+		refreshGate: make(chan struct{}, 1),
+	}
+	provider.refreshGate <- struct{}{}
+
+	return provider, nil
 }
 
 // String returns a stable redacted representation.
@@ -204,7 +218,8 @@ func (provider *Provider) Token(
 		provider.timeout < minTokenTimeout ||
 		provider.timeout > maxTokenTimeout ||
 		provider.generator == nil ||
-		provider.now == nil {
+		provider.now == nil ||
+		provider.refreshGate == nil {
 		return kafka.OAuthBearerToken{}, ErrInvalidConfig
 	}
 	if err := ctx.Err(); err != nil {
@@ -223,7 +238,12 @@ func (provider *Provider) Token(
 	tokenCtx, cancel := context.WithTimeout(ctx, provider.timeout)
 	defer cancel()
 	now := provider.now()
-	credentials, credentialErr := provider.retrieveCredentials(tokenCtx, now)
+	refreshGeneration := provider.refreshes.Load()
+	credentials, credentialErr := provider.retrieveCredentials(
+		tokenCtx,
+		now,
+		refreshGeneration,
+	)
 	if credentialErr != nil {
 		return kafka.OAuthBearerToken{}, credentialErr
 	}
@@ -248,7 +268,7 @@ func (provider *Provider) Token(
 		return kafka.OAuthBearerToken{}, ErrTokenExpired
 	}
 	if expiresAt.After(validatedAt.Add(maxTokenLifetime)) ||
-		!validToken(value, provider.region, expiresAtMilliseconds) {
+		!validToken(value, provider.region, expiresAtMilliseconds, validatedAt) {
 		return kafka.OAuthBearerToken{}, ErrMalformedToken
 	}
 
@@ -261,6 +281,7 @@ func (provider *Provider) Token(
 func (provider *Provider) retrieveCredentials(
 	ctx context.Context,
 	now time.Time,
+	refreshGeneration uint64,
 ) (aws.Credentials, error) {
 	credentials, err := provider.credentials.Retrieve(ctx)
 	if err != nil {
@@ -277,28 +298,74 @@ func (provider *Provider) retrieveCredentials(
 		credentials.Expires.After(now.Add(minTokenValidity)) {
 		return credentials, nil
 	}
+
+	return provider.refreshCredentials(ctx, now, refreshGeneration)
+}
+
+func (provider *Provider) refreshCredentials(
+	ctx context.Context,
+	now time.Time,
+	observedGeneration uint64,
+) (aws.Credentials, error) {
+	select {
+	case <-ctx.Done():
+		return aws.Credentials{}, newContextError(ctx.Err())
+	case <-provider.refreshGate:
+	}
+	defer func() { provider.refreshGate <- struct{}{} }()
+
+	if provider.refreshes.Load() != observedGeneration {
+		return provider.lastRefresh.credentials, provider.lastRefresh.err
+	}
+	result := provider.performCredentialRefresh(ctx, now)
+	if errors.Is(result.err, ErrTokenCanceled) ||
+		errors.Is(result.err, ErrTokenTimeout) {
+		return result.credentials, result.err
+	}
+	provider.lastRefresh = result
+	provider.refreshes.Add(1)
+
+	return result.credentials, result.err
+}
+
+func (provider *Provider) performCredentialRefresh(
+	ctx context.Context,
+	now time.Time,
+) (result credentialRefreshResult) {
+	defer func() {
+		if recover() != nil {
+			result = credentialRefreshResult{
+				err: newProviderError(
+					ErrTokenProviderPanic,
+					ErrTokenProviderPanic,
+				),
+			}
+		}
+	}()
+
 	invalidator, ok := provider.credentials.(interface{ Invalidate() })
 	if !ok {
-		return aws.Credentials{}, ErrExpiringCredentials
+		return credentialRefreshResult{err: ErrExpiringCredentials}
 	}
 	invalidator.Invalidate()
-	credentials, err = provider.credentials.Retrieve(ctx)
+	credentials, err := provider.credentials.Retrieve(ctx)
 	if err != nil {
-		return aws.Credentials{},
-			newProviderError(ErrCredentialRetrieve, err)
+		return credentialRefreshResult{
+			err: newProviderError(ErrCredentialRetrieve, err),
+		}
 	}
 	if err := ctx.Err(); err != nil {
-		return aws.Credentials{}, newContextError(err)
+		return credentialRefreshResult{err: newContextError(err)}
 	}
 	if !validCredentials(credentials) {
-		return aws.Credentials{}, ErrInvalidCredentials
+		return credentialRefreshResult{err: ErrInvalidCredentials}
 	}
 	if credentials.CanExpire &&
 		!credentials.Expires.After(now.Add(minTokenValidity)) {
-		return aws.Credentials{}, ErrExpiringCredentials
+		return credentialRefreshResult{err: ErrExpiringCredentials}
 	}
 
-	return credentials, nil
+	return credentialRefreshResult{credentials: credentials}
 }
 
 func validCredentials(credentials aws.Credentials) bool {
@@ -325,6 +392,10 @@ func (awsTokenGenerator) generate(
 	region string,
 	credentials aws.Credentials,
 ) (string, int64, error) {
+	if signer.AwsDebugCreds {
+		return "", 0, ErrTokenGeneration
+	}
+
 	return signer.GenerateAuthTokenFromCredentialsProvider(
 		ctx,
 		region,
@@ -488,7 +559,12 @@ func decimalDigits(value string) bool {
 	return value != ""
 }
 
-func validToken(token string, region string, expiresAtMilliseconds int64) bool {
+func validToken(
+	token string,
+	region string,
+	expiresAtMilliseconds int64,
+	validatedAt time.Time,
+) bool {
 	if len(token) == 0 {
 		return false
 	}
@@ -542,6 +618,11 @@ func validToken(token string, region string, expiresAtMilliseconds int64) bool {
 		return false
 	}
 	if len(query["X-Amz-Date"]) != 1 {
+		return false
+	}
+	validationSecond := validatedAt.Truncate(time.Second)
+	if signedAt.Before(validationSecond.Add(-maxSignerClockSkew)) ||
+		signedAt.After(validationSecond.Add(maxSignerClockSkew)) {
 		return false
 	}
 	if !validCredentialScope(query, region, signedAt) {
