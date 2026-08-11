@@ -139,7 +139,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/source-documentation-audit.md"
           ],
           "verification_gates": [
             "format-check",
@@ -246,7 +247,8 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
-            "docs/performance.md"
+            "docs/performance.md",
+            "docs/source-documentation-audit.md"
           ],
           "verification_gates": [
             "format-check",

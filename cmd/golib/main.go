@@ -191,6 +191,7 @@ func manifest(root string) {
 	writeJSON(filepath.Join(root, "packages.json"), packageCatalog{1, canonicalRoot, packages})
 	writeCatalogDocumentation(root, current)
 	writeBenchmarkCatalog(root, current)
+	writeSourceDocumentationCatalog(root, current)
 }
 
 func validate(root string) {
@@ -223,6 +224,7 @@ func validate(root string) {
 		fatal("packages.json is stale; run `make manifests`")
 	}
 	validateBenchmarkCatalog(root, wanted)
+	validateSourceDocumentationCatalog(root, wanted)
 	for path, expected := range catalogDocumentation(wanted) {
 		actual, readErr := os.ReadFile(filepath.Join(root, path))
 		if readErr != nil {

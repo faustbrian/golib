@@ -76,6 +76,9 @@ local development. Package-local workflows are intentionally unsupported.
 Full policies are documented in [quality](docs/quality.md),
 [CI](docs/ci.md), [performance engineering](docs/performance.md), and
 [security](SECURITY.md).
+The generated [source documentation audit](docs/source-documentation-audit.md)
+tracks objective package and exported API comment gaps without treating comment
+counts as a substitute for technical review.
 
 ## Versioning
 

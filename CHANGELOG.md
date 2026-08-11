@@ -10,6 +10,9 @@ documented in each module's changelog.
 - Add a generated benchmark asset catalog and repository performance guide so
   benchmark sources, harnesses, baselines, services, fairness rules, and
   regression expectations are explicit and stale inventories fail validation.
+- Add a generated AST-based source documentation inventory that attributes
+  missing package comments, exported API comments, malformed comments,
+  generated-source gaps, and policy markers to each module.
 - Harden identity-platform orchestration with pinned goal semantics across
   lifecycle moves, commit/tree-bound preflight identity, durable exact worker
   assignment attestations, and lossless ordinary abandonment evidence.

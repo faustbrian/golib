@@ -75,7 +75,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 54 | Repository audit | `implemented-unverified` | `.ai/GOAL_SUPPLY_CHAIN.md` | 3-53 |
 | 55 | Repository audit | `implemented-unverified` | `.ai/GOAL_BENCHMARKS.md` | 3-54 |
 | 56 | Repository audit | `implemented-unverified` | `.ai/GOAL_PERFORMANCE.md` | 55 |
-| 57 | Repository audit | `pending-reexecution` | `.ai/GOAL_CODE_DOCUMENTATION.md` | 3-56 |
+| 57 | Repository audit | `implemented-unverified` | `.ai/GOAL_CODE_DOCUMENTATION.md` | 3-56 |
 | 58 | Repository audit | `pending-reexecution` | `.ai/GOAL_DOCUMENTATION.md` | 50, 57 |
 | 59 | Repository audit | `pending-reexecution` | `.ai/GOAL_POLISH.md` | 3-58 |
 | 60 | Repository audit | `pending-reexecution` | `.ai/GOAL_MONOREPO_REMEDIATION.md` | 3-59 |
@@ -951,6 +951,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
 | Observed | 2026-08-11T21:00:09Z |
 | Gaps | Final performance verification requires representative small, large, adversarial, concurrent, cancellation, failure, retry, cache-miss, and degraded-dependency workloads where applicable; explicit resource-limit matrices and measured budgets; retained baselines and statistics on controlled runners; and per-module performance verdicts. The aggregate root check completed every applicable gate body successfully but rejected its final format checkpoint after concurrent root planning changes altered the shared execution unit; affected root evidence must be revalidated after that content stabilizes, without restarting package benchmark campaigns. |
+
+### Repository source-documentation audit
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_CODE_DOCUMENTATION.md` |
+| Scope | Every owned non-test Go source file across 134 modules, including canonical package comments, exported top-level declarations, exported struct fields and interface methods, generated-source boundaries, malformed declaration comments, and actionable comment markers. |
+| Status | `pending-reexecution` to `implemented-unverified` |
+| Evidence | Generated `code-documentation.json`, `docs/source-documentation-audit.md`, AST regression tests for package ownership, generated code, grouped declarations, and report output, plus root manifest regeneration. |
+| Result | The repository now has a deterministic, module-attributable inventory and stale-manifest check. It currently records 686 source package variants, 582 with one canonical package comment, 101 missing package comments, 3 duplicate package comments, 33,528 exported declarations, 19,132 with structurally valid comments, 14,391 missing non-generated comments, 4 malformed comments, and 1 generated declaration gap. Marker scanning found no policy markers requiring disposition. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
+| Observed | 2026-08-11T21:10:28Z |
+| Gaps | The inventory establishes scope but does not complete the documentation pass. Every recorded package and declaration gap must be resolved in dependency-aware module batches; existing comments still require technical review for truth, contracts, invariants, security, concurrency, persistence, protocol decisions, performance rationale, duplication, and stale claims; examples and rendered `go doc` output require review; generated gaps must be fixed through generators; and objective checks must become an enforced local and CI gate only after the baseline reaches zero. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
