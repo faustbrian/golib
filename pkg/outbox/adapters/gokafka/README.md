@@ -24,6 +24,7 @@ publisher, err := gokafka.New(producer)
 if err != nil {
 	return err
 }
+relayConfig.ClassifyError = gokafka.ClassifyError
 relay, err := outboxrelay.New(store, publisher, relayConfig)
 ```
 
@@ -94,6 +95,14 @@ backoff, request timeout, and delivery timeout on `kafka.ProducerConfig`, and
 configure durable retry/backoff on the outbox relay. Do not let both layers
 perform unbounded retries.
 
+Set `relay.Config.ClassifyError` to `gokafka.ClassifyError`. Locally rejected
+malformed envelopes and authorization, fencing, oversized-record, permanent,
+and producer-fatal categories are sent directly to the relay's dead-letter
+transition. Retryable, timeout, cancellation, shutdown, unknown, and ambiguous
+categories remain transient.
+Ambiguous outcomes are retried because Kafka may already contain the record;
+consumers must deduplicate the stable event identity.
+
 ## Failure and ambiguity recovery
 
 Producer errors are wrapped with `Unwrap`, so `errors.Is` and `errors.As` retain
@@ -136,6 +145,8 @@ identity.
   Kafka.
 - `Publish(context.Context, outbox.Envelope)` maps, validates, owns, and
   synchronously publishes one record.
+- `ClassifyError(error)` maps Kafka delivery categories to relay retry or
+  permanent-failure policy without inspecting diagnostic text.
 - `Health(context.Context)` forwards the producer health probe; it does not
   publish or prove end-to-end delivery.
 - `DefaultLimits`, `Limits`, and `WithLimits` bind outbox and Kafka bounds.

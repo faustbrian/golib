@@ -15,12 +15,12 @@ import (
 func FuzzPublisherEnvelopeMapping(f *testing.F) {
 	f.Add(
 		"event-1", "events", "aggregate-1", "event-1",
-		"traceparent", "trace-1", "application/json", uint16(1), []byte("{}"), false,
+		"z-trace", "trace-1", "a-name", "åpnet", "application/json", uint16(1), []byte("{}"), false,
 		uint8(kafka.ErrorRetryable), "broker restart",
 	)
-	f.Add("", "", "", "", "", "", "", uint16(0), []byte(nil), false, uint8(0), "")
-	f.Add("event-1", "events", "", "", "event-id", "forged", "", uint16(1), []byte("x"), false, uint8(kafka.ErrorAuthorization), "authorization")
-	f.Add("event-1", "events", "", "", "", "", "", uint16(1), []byte("x"), true, uint8(kafka.ErrorAmbiguous), "callback panic")
+	f.Add("", "", "", "", "", "", "", "", "", uint16(0), []byte(nil), false, uint8(0), "")
+	f.Add("event-1", "events", "", "", "event-id", "forged", "x", "y", "", uint16(1), []byte("x"), false, uint8(kafka.ErrorAuthorization), "authorization")
+	f.Add("事件-1", "événements", "鍵", "冪等", "β", "雪", "α", "🙂", "application/例+json", uint16(1), []byte("payload-雪"), true, uint8(kafka.ErrorAmbiguous), "callback panic")
 
 	f.Fuzz(func(
 		t *testing.T,
@@ -30,6 +30,8 @@ func FuzzPublisherEnvelopeMapping(f *testing.F) {
 		idempotencyKey string,
 		metadataKey string,
 		metadataValue string,
+		secondMetadataKey string,
+		secondMetadataValue string,
 		contentType string,
 		version uint16,
 		payload []byte,
@@ -37,12 +39,20 @@ func FuzzPublisherEnvelopeMapping(f *testing.F) {
 		producerCategory uint8,
 		producerResult string,
 	) {
-		if len(id)+len(topic)+len(orderingKey)+len(idempotencyKey)+
-			len(metadataKey)+len(metadataValue)+len(contentType)+len(payload)+
-			len(producerResult) > 1<<16 {
+		limits := gokafka.DefaultLimits().Envelope
+		if len(id) > limits.MaxIDBytes+1 || len(topic) > limits.MaxTopicBytes+1 ||
+			len(orderingKey) > limits.MaxOrderingKeyBytes+1 ||
+			len(idempotencyKey) > limits.MaxIdempotencyKeyBytes+1 ||
+			len(metadataKey)+len(metadataValue) > limits.MaxMetadataBytes+1 ||
+			len(secondMetadataKey)+len(secondMetadataValue) > limits.MaxMetadataBytes+1 ||
+			len(contentType) > limits.MaxMetadataBytes+1 ||
+			len(payload) > limits.MaxPayloadBytes+1 || len(producerResult) > 16<<10 {
 			return
 		}
-		metadata := map[string]string{metadataKey: metadataValue}
+		metadata := map[string]string{
+			metadataKey:       metadataValue,
+			secondMetadataKey: secondMetadataValue,
+		}
 		if contentType != "" {
 			metadata["es.content_type"] = contentType
 		}
@@ -103,11 +113,29 @@ func FuzzPublisherEnvelopeMapping(f *testing.F) {
 			}) {
 			t.Fatalf("mapping was not deterministic: %#v / %#v", first.message, second.message)
 		}
-		if len(payload) != 0 {
+		secondKey := slices.Clone(second.message.Key)
+		secondValue := slices.Clone(second.message.Value)
+		secondHeaders := make([]kafka.Header, len(second.message.Headers))
+		for index, header := range second.message.Headers {
+			secondHeaders[index] = kafka.Header{Key: header.Key, Value: slices.Clone(header.Value)}
+		}
+		if len(first.message.Key) != 0 {
+			first.message.Key[0] ^= 0xff
+		}
+		if len(first.message.Value) != 0 {
 			first.message.Value[0] ^= 0xff
-			if !slices.Equal(second.message.Value, payload) {
-				t.Fatal("one client mutation changed another mapped payload")
+		}
+		for index := range first.message.Headers {
+			if len(first.message.Headers[index].Value) != 0 {
+				first.message.Headers[index].Value[0] ^= 0xff
 			}
+		}
+		if !slices.Equal(second.message.Key, secondKey) ||
+			!slices.Equal(second.message.Value, secondValue) ||
+			!slices.EqualFunc(second.message.Headers, secondHeaders, func(left, right kafka.Header) bool {
+				return left.Key == right.Key && slices.Equal(left.Value, right.Value)
+			}) {
+			t.Fatal("one client mutation changed another mapped record")
 		}
 
 		category := kafka.ErrorCategory(producerCategory)

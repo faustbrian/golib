@@ -6,6 +6,10 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- expose `ClassifyError` for relay wiring so malformed envelopes and
+  authorization, fencing, oversized-record, permanent, and producer-fatal
+  failures dead-letter without exhausting transient retries; ambiguous and
+  unknown outcomes remain retryable and may duplicate an accepted record
 - redact arbitrary client publish and health error text while preserving error
   identity and Kafka delivery categories for programmatic recovery; callers
   that rendered wrapped client diagnostics must switch to structured category
@@ -33,6 +37,8 @@ All notable changes to this module are documented here.
   producer shutdown, callback panic, and concurrent publish/shutdown behavior
 - a relay interruption and durable reconciliation matrix covering every
   Kafka-acknowledgement and outbox-mark boundary
+- executable real Kafka and PostgreSQL process-death coverage before and after
+  Kafka acknowledgement and before and after the durable outbox mark
 - real-Kafka evidence for keyed order, deterministic mapping, broker
   acknowledgement, and duplicate publication after simulated outbox-mark loss
 - complete adoption, mapping, ordering, ambiguity recovery, Kafka configuration,

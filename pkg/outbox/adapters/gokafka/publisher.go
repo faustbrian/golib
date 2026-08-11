@@ -11,6 +11,7 @@ import (
 
 	"github.com/faustbrian/golib/pkg/kafka"
 	"github.com/faustbrian/golib/pkg/outbox"
+	"github.com/faustbrian/golib/pkg/outbox/relay"
 )
 
 var (
@@ -156,6 +157,28 @@ type publishError struct {
 func (err publishError) Error() string { return "outbox/gokafka: publish failed" }
 
 func (err publishError) Unwrap() error { return err.cause }
+
+// ClassifyError maps Kafka delivery categories to the outbox relay policy.
+// Definite input, authorization, ownership, and producer-fatal failures are
+// permanent. Unknown or ambiguous outcomes remain transient because retrying
+// may reconcile a lost acknowledgement but can duplicate an accepted record.
+func ClassifyError(err error) relay.ErrorClass {
+	if errors.Is(err, ErrInvalidEnvelope) {
+		return relay.ErrorPermanent
+	}
+	var categorized interface{ Category() kafka.ErrorCategory }
+	if !errors.As(err, &categorized) {
+		return relay.ErrorTransient
+	}
+
+	switch categorized.Category() {
+	case kafka.ErrorPermanent, kafka.ErrorAuthorization, kafka.ErrorFenced,
+		kafka.ErrorOversized, kafka.ErrorFatal:
+		return relay.ErrorPermanent
+	default:
+		return relay.ErrorTransient
+	}
+}
 
 type healthError struct {
 	cause error

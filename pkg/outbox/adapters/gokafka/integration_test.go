@@ -253,7 +253,10 @@ func createIntegrationTopic(t *testing.T, ctx context.Context, brokers []string,
 		t.Fatalf("construct Kafka administrator: %v", err)
 	}
 	defer client.Close()
-	responses, err := kadm.NewClient(client).CreateTopics(ctx, 1, 1, nil, topic)
+	minimumInSyncReplicas := "1"
+	responses, err := kadm.NewClient(client).CreateTopics(ctx, 1, 1, map[string]*string{
+		"min.insync.replicas": &minimumInSyncReplicas,
+	}, topic)
 	if err != nil {
 		t.Fatalf("create topic: %v", err)
 	}

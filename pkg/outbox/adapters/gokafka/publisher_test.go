@@ -13,6 +13,7 @@ import (
 	"github.com/faustbrian/golib/pkg/kafka"
 	"github.com/faustbrian/golib/pkg/outbox"
 	"github.com/faustbrian/golib/pkg/outbox/adapters/gokafka"
+	"github.com/faustbrian/golib/pkg/outbox/relay"
 )
 
 func TestPublisherMapsEnvelopeToKafkaMessage(t *testing.T) {
@@ -434,6 +435,58 @@ func TestPublisherPreservesDeliveryCategoriesWithoutIdentityDisclosure(t *testin
 				t.Fatalf("Publish() error disclosed envelope identity: %v", err)
 			}
 		})
+	}
+}
+
+func TestClassifyErrorMapsKafkaFailuresToRelayPolicy(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		err  error
+		want relay.ErrorClass
+	}{
+		{name: "success", want: relay.ErrorTransient},
+		{name: "foreign", err: errors.New("foreign"), want: relay.ErrorTransient},
+		{name: "unknown", err: categorizedError{}, want: relay.ErrorTransient},
+		{name: "retryable", err: categorizedError{category: kafka.ErrorRetryable}, want: relay.ErrorTransient},
+		{name: "timeout", err: categorizedError{category: kafka.ErrorTimeout}, want: relay.ErrorTransient},
+		{name: "canceled", err: categorizedError{category: kafka.ErrorCanceled}, want: relay.ErrorTransient},
+		{name: "shutdown", err: categorizedError{category: kafka.ErrorShutdown}, want: relay.ErrorTransient},
+		{name: "ambiguous", err: categorizedError{category: kafka.ErrorAmbiguous}, want: relay.ErrorTransient},
+		{name: "permanent", err: categorizedError{category: kafka.ErrorPermanent}, want: relay.ErrorPermanent},
+		{name: "authorization", err: categorizedError{category: kafka.ErrorAuthorization}, want: relay.ErrorPermanent},
+		{name: "fenced", err: categorizedError{category: kafka.ErrorFenced}, want: relay.ErrorPermanent},
+		{name: "oversized", err: categorizedError{category: kafka.ErrorOversized}, want: relay.ErrorPermanent},
+		{name: "fatal", err: categorizedError{category: kafka.ErrorFatal}, want: relay.ErrorPermanent},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := gokafka.ClassifyError(test.err); got != test.want {
+				t.Fatalf("ClassifyError() = %v, want %v", got, test.want)
+			}
+		})
+	}
+}
+
+func TestClassifyErrorTreatsRejectedEnvelopeAsPermanent(t *testing.T) {
+	t.Parallel()
+
+	client := &recordingClient{}
+	publisher, err := gokafka.New(client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	publishErr := publisher.Publish(t.Context(), outbox.Envelope{
+		Topic: "events", PayloadVersion: 1,
+	})
+	if !errors.Is(publishErr, gokafka.ErrInvalidEnvelope) || client.calls != 0 {
+		t.Fatalf("Publish() error/calls = %v/%d", publishErr, client.calls)
+	}
+	if got := gokafka.ClassifyError(publishErr); got != relay.ErrorPermanent {
+		t.Fatalf("ClassifyError() = %v, want %v", got, relay.ErrorPermanent)
 	}
 }
 
