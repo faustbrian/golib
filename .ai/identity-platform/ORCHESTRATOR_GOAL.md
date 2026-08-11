@@ -221,9 +221,9 @@ Before the first assignment, the coordinator MUST:
    strict pre-assignment failure;
 2. record the committed base revision and prove the identity-platform tree is
    unchanged from that revision;
-3. inventory required Go/tool versions, PostgreSQL and Valkey profiles,
-   mutation/fuzz/race tooling, browser/interoperability harnesses, and external
-   provider evidence requirements;
+3. inventory required Go and tool versions, PostgreSQL and Valkey profiles,
+   mutation, fuzz, and race tooling, browser and interoperability harnesses,
+   and external provider evidence requirements;
 4. classify every required credential or external environment as available,
    unavailable, or not yet needed without printing secret values;
 5. record which acceptance claims each unavailable dependency can block; and

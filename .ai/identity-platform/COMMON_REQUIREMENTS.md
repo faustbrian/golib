@@ -168,8 +168,9 @@ Each goal MUST produce:
 3. Race, fuzz, hostile-input, leak, and benchmark evidence where applicable.
 4. Pinned official fixtures and independent interoperability evidence for
    specification claims; untested profiles MUST be explicit.
-5. Public API baseline, clean-consumer proof, dependency/license review,
-   vulnerability/secret scanning, SBOM/provenance gates, and manifests.
+5. Public API baseline, clean-consumer proof, dependency and license review,
+   vulnerability scanning, secret scanning, SBOM and provenance gates, and
+   manifests.
 6. README quick start, API/adoption/security/operations/tradeoff/FAQ docs,
    compilable examples, and an Unreleased `CHANGELOG.md` entry.
 7. The narrow module gate and reverse-dependant gates whose complete input
