@@ -2,7 +2,10 @@ package authstate
 
 import (
 	"context"
+	"errors"
 	"testing"
+
+	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 )
 
 type markerBudgetContext struct {
@@ -55,5 +58,22 @@ func TestDerivePathMarkersCoalescesSuffixHalves(t *testing.T) {
 		markers[2].path[1] != 3 ||
 		!markers[2].identityAllowed {
 		t.Fatalf("high-half marker = %#v", markers[2])
+	}
+}
+
+func TestMatchExpectedCommitmentsRequiresEveryIdentityPermission(t *testing.T) {
+	path := []byte{0, 2}
+	denied := newPathMarker(path, pathMarkerSuffix, Stem{})
+	allowed := denied
+	allowed.identityAllowed = true
+	empty := mustPathCommitment(t, path, backend.EmptyVectorCommitment())
+
+	err := matchExpectedCommitments(
+		context.Background(),
+		[]pathMarker{denied, allowed},
+		[]PathCommitment{empty},
+	)
+	if !errors.Is(err, errInvalidTreeProof) {
+		t.Fatalf("mixed identity permission error = %v", err)
 	}
 }
