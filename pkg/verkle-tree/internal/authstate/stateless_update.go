@@ -803,12 +803,14 @@ func mergeStatelessExistingStem(
 			return nil, err
 		}
 		order := bytes.Compare(existing.stem[:], inserted[index].stem[:])
-		if order == 0 {
+		switch order {
+		case 0:
 			return nil, errInvalidStatelessUpdate
-		}
-		if !merged && order < 0 {
-			result = append(result, existing)
-			merged = true
+		case -1:
+			if !merged {
+				result = append(result, existing)
+				merged = true
+			}
 		}
 		result = append(result, inserted[index])
 	}

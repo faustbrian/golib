@@ -1791,6 +1791,14 @@ func TestStatelessInsertedTopologyInternalFailureBoundaries(t *testing.T) {
 	if err != nil || len(merged) != 2 || merged[1].stem != inserted.stem {
 		t.Fatalf("append existing stem result = %#v, error = %v", merged, err)
 	}
+	after := inserted
+	after.stem[0]++
+	merged, err = mergeStatelessExistingStem(
+		context.Background(), inserted, []statelessInsertedStem{after},
+	)
+	if err != nil || len(merged) != 2 || merged[0].stem != inserted.stem {
+		t.Fatalf("prepend existing stem result = %#v, error = %v", merged, err)
+	}
 
 	if _, err := updater.commitInsertedSubtree(
 		context.Background(), nil, 0, newBudget(),
