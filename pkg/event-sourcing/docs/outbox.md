@@ -2,7 +2,7 @@
 
 The core event store and outbox remain independently usable and releasable.
 Neither imports the other. The optional
-`github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox` nested module
+`github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox` nested module
 is the only component that depends on both public contracts.
 
 Use its `Stager` with an already caller-owned `pgx.Tx` when event rows and
@@ -13,7 +13,7 @@ publishes before commit, or enqueues records during replay.
 
 The complete API, envelope mapping, crash matrix, limits, recovery procedure,
 and examples are documented in the
-[gooutbox adapter guide](../adapters/gooutbox/README.md).
+[eventoutbox adapter guide](../adapters/outbox/README.md).
 Applications replacing either side should follow the
 [custom outbox boundary](custom-outbox.md) without coupling the two cores.
 

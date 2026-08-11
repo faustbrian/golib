@@ -25,12 +25,12 @@ module that forces every package on every consumer.
   - `github.com/faustbrian/golib/pkg/jsonapi`
   - `github.com/faustbrian/golib/pkg/queue`
   - `github.com/faustbrian/golib/pkg/authentication/jwt`
-  - `github.com/faustbrian/golib/pkg/outbox/adapters/goqueue`
+  - `github.com/faustbrian/golib/pkg/outbox/adapters/queue`
 - Releases MUST use module-directory-prefixed tags, for example:
   - `cache/v0.1.0`
   - `jsonapi/v1.0.0`
   - `authentication/jwt/v1.0.0`
-  - `outbox/adapters/goqueue/v1.0.0`
+  - `outbox/adapters/queue/v1.0.0`
 - The former standalone repositories have never had real consumers and do
   not require compatibility releases, redirects, mirrors, or staged consumer
   migration.

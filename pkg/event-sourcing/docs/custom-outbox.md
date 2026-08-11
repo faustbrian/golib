@@ -6,7 +6,7 @@ responsibility. The independently releasable
 PostgreSQL persistence, leasing, retry, dead letters, replay, pruning, and the
 bounded relay. It works without this library and does not import it.
 
-The optional `adapters/gooutbox` module is the bridge for applications that
+The optional `adapters/outbox` module is the bridge for applications that
 need both packages. It translates persisted event messages into public outbox
 envelopes and stages both rows through the same PostgreSQL transaction.
 
@@ -21,8 +21,8 @@ message-repository concern into explicit Go boundaries:
 | Same-transaction insertion | `outbox/postgres.Writer` with the caller's `pgx.Tx` |
 | Leasing and state transitions | `outbox/relay.Store` |
 | Broker acceptance | `outbox/relay.Publisher` |
-| Event-message conversion | optional `event-sourcing/adapters/gooutbox.EnvelopeCodec` |
-| Event plus outbox transaction | caller-owned `pgx.Tx` with optional `gooutbox.Stager` |
+| Event-message conversion | optional `event-sourcing/adapters/outbox.EnvelopeCodec` |
+| Event plus outbox transaction | caller-owned `pgx.Tx` with optional `eventoutbox.Stager` |
 
 Non-event-sourced applications use the outbox writer directly inside their
 application transaction. They do not need any event-sourcing package:

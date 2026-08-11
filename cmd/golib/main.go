@@ -1099,7 +1099,7 @@ func requiredServices(directory string) []string {
 	if directory == "pkg/search/adapters/opensearch" {
 		return []string{"opensearch"}
 	}
-	if directory == "pkg/outbox/adapters/goqueue" {
+	if directory == "pkg/outbox/adapters/queue" {
 		return []string{"redis", "valkey"}
 	}
 	if directory == "pkg/capability" {

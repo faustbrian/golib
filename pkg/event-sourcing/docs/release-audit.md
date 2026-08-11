@@ -13,7 +13,7 @@ content-addressed repository and module evidence for the exact release inputs.
 | ID | Severity | Finding | Disposition | Primary evidence |
 | --- | --- | --- | --- | --- |
 | ES-001 | High | A caller-owned transaction could be mistaken for a committed aggregate save | Resolved | Explicit save plans, transaction staging, commit confirmation, ambiguous-commit poisoning, and transaction lifecycle tests |
-| ES-002 | High | Event and outbox persistence could imply atomicity without sharing one transaction | Resolved | The `gooutbox` stager accepts one caller-owned PostgreSQL transaction; rollback, commit, ambiguity, duplicate, and replay-isolation tests cover the boundary |
+| ES-002 | High | Event and outbox persistence could imply atomicity without sharing one transaction | Resolved | The `eventoutbox` stager accepts one caller-owned PostgreSQL transaction; rollback, commit, ambiguity, duplicate, and replay-isolation tests cover the boundary |
 | ES-003 | High | Replay could accidentally invoke process managers or external publication | Resolved | Live and replay deliveries are distinct; process managers and external adapters reject replay unless a separately named operation opts in |
 | ES-004 | Medium | Payload serialization existed without a transport-neutral message-codec contract | Resolved | The core `MessageCodec` contract is separate from payload codecs and has ownership, validation, and round-trip tests |
 | ES-005 | Medium | Release-facing package, queue, and adapter status documents contradicted implemented behavior | Resolved | Contract tests reject incomplete matrix states, an advertised first-release generator, stale Kafka status, and stale durable-queue status |
@@ -63,8 +63,8 @@ modules:
 - `pkg/event-sourcing`;
 - `pkg/event-sourcing/postgres`;
 - `pkg/event-sourcing/adapters/gokafka`;
-- `pkg/event-sourcing/adapters/gooutbox`;
-- `pkg/event-sourcing/adapters/goqueue`; and
+- `pkg/event-sourcing/adapters/outbox`;
+- `pkg/event-sourcing/adapters/queue`; and
 - `pkg/event-sourcing/adapters/gotelemetry`.
 
 For the exact release inputs, `make inventory`, every affected module check,

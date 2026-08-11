@@ -6,8 +6,8 @@ release-note source for that module:
 - [core event sourcing](../CHANGELOG.md);
 - [PostgreSQL](../postgres/CHANGELOG.md);
 - [Kafka](../adapters/gokafka/CHANGELOG.md);
-- [queue](../adapters/goqueue/CHANGELOG.md);
-- [outbox](../adapters/gooutbox/CHANGELOG.md); and
+- [queue](../adapters/queue/CHANGELOG.md);
+- [outbox](../adapters/outbox/CHANGELOG.md); and
 - [OpenTelemetry](../adapters/gotelemetry/CHANGELOG.md).
 
 Until a first versioned release is published, these changelogs describe

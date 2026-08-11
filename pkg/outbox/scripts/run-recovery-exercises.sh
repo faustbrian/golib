@@ -11,7 +11,7 @@ OUTBOX_POSTGRES_VERSION="$postgres_version" \
 
 go test -race -count=1 ./relay
 
-cd "$root/adapters/goqueue"
+cd "$root/adapters/queue"
 GOWORK=off go test -race -count=1 ./...
 
 echo "recovery exercises passed for PostgreSQL $postgres_version"

@@ -14,9 +14,9 @@ if [[ "$core" != "100.0%" ]]; then
   exit 1
 fi
 
-cd "$root/adapters/goqueue"
-go test -coverprofile="$tmp/goqueue.out" ./...
-adapter="$(go tool cover -func="$tmp/goqueue.out" | awk '/^total:/ {print $3}')"
+cd "$root/adapters/queue"
+go test -coverprofile="$tmp/outboxqueue.out" ./...
+adapter="$(go tool cover -func="$tmp/outboxqueue.out" | awk '/^total:/ {print $3}')"
 if [[ "$adapter" != "100.0%" ]]; then
   echo "queue adapter production coverage is $adapter, want 100.0%" >&2
   exit 1
@@ -30,4 +30,4 @@ if [[ "$telemetry" != "100.0%" ]]; then
   exit 1
 fi
 
-echo "meaningful production coverage: core=$core goqueue=$adapter gotelemetry=$telemetry"
+echo "meaningful production coverage: core=$core outboxqueue=$adapter gotelemetry=$telemetry"

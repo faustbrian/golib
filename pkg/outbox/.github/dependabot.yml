@@ -10,7 +10,7 @@ updates:
         patterns: ["*"]
 
   - package-ecosystem: gomod
-    directory: /adapters/goqueue
+    directory: /adapters/queue
     schedule:
       interval: weekly
     groups:

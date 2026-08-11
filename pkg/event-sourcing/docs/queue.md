@@ -1,7 +1,7 @@
 # Compatible queue integration
 
 The independently versioned
-`github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue` module keeps
+`github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue` module keeps
 the repository queue dependency outside the event-sourcing core.
 
 The adapter preserves complete persisted delivery identity in the versioned
@@ -40,5 +40,5 @@ failed consumers, plus the named Valkey boundary above. Neither result
 transfers to another backend; each backend retains its own operational and
 delivery guarantees.
 
-See the [adapter guide](../adapters/goqueue/README.md) for the wire contract,
+See the [adapter guide](../adapters/queue/README.md) for the wire contract,
 bounds, guarantees, and current status.

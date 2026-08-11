@@ -13,7 +13,7 @@ contract, verification evidence, and directory-prefixed Git tag. Examples:
 ```text
 cache/v1.0.0
 authentication/jwt/v1.0.0
-outbox/adapters/goqueue/v1.0.0
+outbox/adapters/queue/v1.0.0
 ```
 
 Fixture, compatibility, integration, and example modules MUST be classified

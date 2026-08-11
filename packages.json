@@ -2021,34 +2021,34 @@
       "build_tags": []
     },
     {
-      "module_directory": "pkg/event-sourcing/adapters/gooutbox",
-      "directory": ".",
-      "name": "gooutbox",
-      "import_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox",
-      "kind": "public",
-      "production": true,
-      "executable": true,
-      "coverage_required": true,
-      "build_required": true,
-      "build_tags": []
-    },
-    {
-      "module_directory": "pkg/event-sourcing/adapters/goqueue",
-      "directory": ".",
-      "name": "goqueue",
-      "import_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue",
-      "kind": "public",
-      "production": true,
-      "executable": true,
-      "coverage_required": true,
-      "build_required": true,
-      "build_tags": []
-    },
-    {
       "module_directory": "pkg/event-sourcing/adapters/gotelemetry",
       "directory": ".",
       "name": "gotelemetry",
       "import_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/event-sourcing/adapters/outbox",
+      "directory": ".",
+      "name": "eventoutbox",
+      "import_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox",
+      "kind": "public",
+      "production": true,
+      "executable": true,
+      "coverage_required": true,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/event-sourcing/adapters/queue",
+      "directory": ".",
+      "name": "eventqueue",
+      "import_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue",
       "kind": "public",
       "production": true,
       "executable": true,
@@ -5119,10 +5119,10 @@
       "build_tags": []
     },
     {
-      "module_directory": "pkg/outbox/adapters/goqueue",
+      "module_directory": "pkg/outbox/adapters/gotelemetry",
       "directory": ".",
-      "name": "goqueue",
-      "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/goqueue",
+      "name": "gotelemetry",
+      "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry",
       "kind": "public",
       "production": true,
       "executable": true,
@@ -5131,10 +5131,10 @@
       "build_tags": []
     },
     {
-      "module_directory": "pkg/outbox/adapters/gotelemetry",
+      "module_directory": "pkg/outbox/adapters/queue",
       "directory": ".",
-      "name": "gotelemetry",
-      "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry",
+      "name": "outboxqueue",
+      "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
       "kind": "public",
       "production": true,
       "executable": true,

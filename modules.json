@@ -63,7 +63,7 @@
       "goal_evidence": [
         {
           "file": ".ai/GOAL.md",
-          "requirements_sha256": "e94a2108554413f6902f929115e6948b63ef0e6cd810063f95b476aa805b32f6",
+          "requirements_sha256": "a55e5a248df2a67e15da5cc7bbf104a1db539dd26e99f6420ea99d532aa863b5",
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
@@ -507,7 +507,7 @@
         },
         {
           "file": ".ai/GOAL_RELEASE.md",
-          "requirements_sha256": "3be68c9a21046cfb7d180168faf8449f47f8bf69a7eb70a8b7a583a798abf0b7",
+          "requirements_sha256": "ac87409d2741c7a6205e026290b61cc89a661255f6ca01b4a10f7a9307ce00aa",
           "implementation_evidence": [
             "CHANGELOG.md",
             "README.md",
@@ -6544,9 +6544,9 @@
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka",
-        "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox",
-        "github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue",
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
+        "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox",
+        "github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue",
         "github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors",
         "github.com/faustbrian/golib/pkg/event-sourcing/postgres"
       ],
@@ -6785,272 +6785,6 @@
       }
     },
     {
-      "directory": "pkg/event-sourcing/adapters/gooutbox",
-      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox",
-      "go_version": "1.26.5",
-      "packages": [
-        {
-          "module_directory": "pkg/event-sourcing/adapters/gooutbox",
-          "directory": ".",
-          "name": "gooutbox",
-          "import_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox",
-          "kind": "public",
-          "production": true,
-          "executable": true,
-          "coverage_required": true,
-          "build_required": true,
-          "build_tags": []
-        }
-      ],
-      "purpose": "`gooutbox` composes the public event-sourcing PostgreSQL writer and the public outbox PostgreSQL writer. Neither core imports the other. `Stager` writes event rows and one outbox envelope per event through a savepoint inside an existing caller-owned `pgx.Tx`. It releases that savepoint only after both batches stage and rolls it back after any error. The adapter never commits or publishes from the outer transaction and never claims exactly-once delivery.",
-      "lifecycle": "pre-v1",
-      "kind": "adapter",
-      "releasable": true,
-      "family": "persistence-and-durability",
-      "family_label": "Persistence And Durability",
-      "family_description": "Durable state, delivery, coordination, recovery, and operational lifecycle.",
-      "family_order": 4,
-      "version": "unreleased",
-      "tag_prefix": "pkg/event-sourcing/adapters/gooutbox/v",
-      "owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/event-sourcing",
-        "github.com/faustbrian/golib/pkg/event-sourcing/postgres",
-        "github.com/faustbrian/golib/pkg/outbox"
-      ],
-      "reverse_owned_dependencies": null,
-      "external_runtime_dependencies": [
-        "github.com/jackc/pgx/v5",
-        "github.com/moby/moby/api",
-        "github.com/testcontainers/testcontainers-go",
-        "github.com/testcontainers/testcontainers-go/modules/postgres"
-      ],
-      "required_services": [],
-      "build_tags": [],
-      "test_tags": [
-        "integration"
-      ],
-      "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
-      "goal_files": [
-        "pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md",
-        "pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md"
-      ],
-      "goal_status": "implementation-evidence-inventoried",
-      "goal_evidence": [
-        {
-          "file": "pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md",
-          "requirements_sha256": "dc4cd0e27c2111c10d8ddf952853661ed4837c8f067398e5af6a7302779ffcea",
-          "implementation_evidence": [
-            "pkg/event-sourcing/adapters/gooutbox/CHANGELOG.md",
-            "pkg/event-sourcing/adapters/gooutbox/README.md"
-          ],
-          "verification_gates": [
-            "format-check",
-            "tidy-check",
-            "safety",
-            "vet",
-            "test",
-            "race",
-            "coverage",
-            "lint",
-            "staticcheck",
-            "vulnerability",
-            "secrets",
-            "licenses",
-            "sbom",
-            "fuzz",
-            "mutation",
-            "nilaway",
-            "docs",
-            "api",
-            "conformance",
-            "interoperability",
-            "benchmark"
-          ],
-          "implementation_status": "implemented-requires-fresh-verification"
-        },
-        {
-          "file": "pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md",
-          "requirements_sha256": "6ad71d4626faae1318fde87c103db7c789812798c418806bb8e22166fd2cd22e",
-          "implementation_evidence": [
-            "pkg/event-sourcing/adapters/gooutbox/CHANGELOG.md",
-            "pkg/event-sourcing/adapters/gooutbox/README.md"
-          ],
-          "verification_gates": [
-            "format-check",
-            "tidy-check",
-            "safety",
-            "vet",
-            "test",
-            "race",
-            "coverage",
-            "lint",
-            "staticcheck",
-            "vulnerability",
-            "secrets",
-            "licenses",
-            "sbom",
-            "fuzz",
-            "mutation",
-            "nilaway",
-            "docs",
-            "api",
-            "conformance",
-            "interoperability",
-            "benchmark"
-          ],
-          "implementation_status": "implemented-requires-fresh-verification"
-        }
-      ],
-      "gates": {
-        "api_compatibility": true,
-        "benchmarks": true,
-        "conformance": false,
-        "coverage": true,
-        "documentation": true,
-        "fuzz": true,
-        "lint": true,
-        "mutation": true,
-        "race": true,
-        "security": true,
-        "tests": true
-      }
-    },
-    {
-      "directory": "pkg/event-sourcing/adapters/goqueue",
-      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue",
-      "go_version": "1.26.5",
-      "packages": [
-        {
-          "module_directory": "pkg/event-sourcing/adapters/goqueue",
-          "directory": ".",
-          "name": "goqueue",
-          "import_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue",
-          "kind": "public",
-          "production": true,
-          "executable": true,
-          "coverage_required": true,
-          "build_required": true,
-          "build_tags": []
-        }
-      ],
-      "purpose": "`goqueue` maps complete event-sourcing deliveries to the first-party `github.com/faustbrian/golib/pkg/queue` contract. The event-sourcing core does not import queue, and this adapter owns no worker, broker connection, retry clock, dead-letter store, or business-idempotency state.",
-      "lifecycle": "pre-v1",
-      "kind": "adapter",
-      "releasable": true,
-      "family": "persistence-and-durability",
-      "family_label": "Persistence And Durability",
-      "family_description": "Durable state, delivery, coordination, recovery, and operational lifecycle.",
-      "family_order": 4,
-      "version": "unreleased",
-      "tag_prefix": "pkg/event-sourcing/adapters/goqueue/v",
-      "owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/event-sourcing",
-        "github.com/faustbrian/golib/pkg/queue"
-      ],
-      "reverse_owned_dependencies": null,
-      "external_runtime_dependencies": [
-        "github.com/testcontainers/testcontainers-go"
-      ],
-      "required_services": [],
-      "build_tags": [],
-      "test_tags": [
-        "integration"
-      ],
-      "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
-      "goal_files": [
-        "pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md",
-        "pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md"
-      ],
-      "goal_status": "implementation-evidence-inventoried",
-      "goal_evidence": [
-        {
-          "file": "pkg/event-sourcing/adapters/goqueue/.ai/GOAL.md",
-          "requirements_sha256": "de210d254953e0d68865e2c252d61f16d5ea0d7cc243b442d10d5da35f38f5ce",
-          "implementation_evidence": [
-            "pkg/event-sourcing/adapters/goqueue/CHANGELOG.md",
-            "pkg/event-sourcing/adapters/goqueue/README.md",
-            "pkg/event-sourcing/adapters/goqueue/docs/hardening.md"
-          ],
-          "verification_gates": [
-            "format-check",
-            "tidy-check",
-            "safety",
-            "vet",
-            "test",
-            "race",
-            "coverage",
-            "lint",
-            "staticcheck",
-            "vulnerability",
-            "secrets",
-            "licenses",
-            "sbom",
-            "fuzz",
-            "mutation",
-            "nilaway",
-            "docs",
-            "api",
-            "conformance",
-            "interoperability",
-            "benchmark"
-          ],
-          "implementation_status": "implemented-requires-fresh-verification"
-        },
-        {
-          "file": "pkg/event-sourcing/adapters/goqueue/.ai/GOAL_HARDEN.md",
-          "requirements_sha256": "4c025a6d652317785babf76f26b5faa987b6e8672d68acb49d5b0743f53f85ee",
-          "implementation_evidence": [
-            "pkg/event-sourcing/adapters/goqueue/CHANGELOG.md",
-            "pkg/event-sourcing/adapters/goqueue/README.md",
-            "pkg/event-sourcing/adapters/goqueue/docs/hardening.md"
-          ],
-          "verification_gates": [
-            "format-check",
-            "tidy-check",
-            "safety",
-            "vet",
-            "test",
-            "race",
-            "coverage",
-            "lint",
-            "staticcheck",
-            "vulnerability",
-            "secrets",
-            "licenses",
-            "sbom",
-            "fuzz",
-            "mutation",
-            "nilaway",
-            "docs",
-            "api",
-            "conformance",
-            "interoperability",
-            "benchmark"
-          ],
-          "implementation_status": "implemented-requires-fresh-verification"
-        }
-      ],
-      "gates": {
-        "api_compatibility": true,
-        "benchmarks": true,
-        "conformance": false,
-        "coverage": true,
-        "documentation": true,
-        "fuzz": true,
-        "lint": true,
-        "mutation": true,
-        "race": true,
-        "security": true,
-        "tests": true
-      }
-    },
-    {
       "directory": "pkg/event-sourcing/adapters/gotelemetry",
       "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry",
       "go_version": "1.26.5",
@@ -7183,6 +6917,272 @@
       }
     },
     {
+      "directory": "pkg/event-sourcing/adapters/outbox",
+      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/event-sourcing/adapters/outbox",
+          "directory": ".",
+          "name": "eventoutbox",
+          "import_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`eventoutbox` composes the public event-sourcing PostgreSQL writer and the public outbox PostgreSQL writer. Neither core imports the other. `Stager` writes event rows and one outbox envelope per event through a savepoint inside an existing caller-owned `pgx.Tx`. It releases that savepoint only after both batches stage and rolls it back after any error. The adapter never commits or publishes from the outer transaction and never claims exactly-once delivery.",
+      "lifecycle": "pre-v1",
+      "kind": "adapter",
+      "releasable": true,
+      "family": "persistence-and-durability",
+      "family_label": "Persistence And Durability",
+      "family_description": "Durable state, delivery, coordination, recovery, and operational lifecycle.",
+      "family_order": 4,
+      "version": "unreleased",
+      "tag_prefix": "pkg/event-sourcing/adapters/outbox/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/event-sourcing",
+        "github.com/faustbrian/golib/pkg/event-sourcing/postgres",
+        "github.com/faustbrian/golib/pkg/outbox"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/jackc/pgx/v5",
+        "github.com/moby/moby/api",
+        "github.com/testcontainers/testcontainers-go",
+        "github.com/testcontainers/testcontainers-go/modules/postgres"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/event-sourcing/adapters/outbox/.ai/GOAL.md",
+        "pkg/event-sourcing/adapters/outbox/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/event-sourcing/adapters/outbox/.ai/GOAL.md",
+          "requirements_sha256": "3a3587a50b440836037c69f95f98ef9ea33f941e6e662efd194dfbb042cc92af",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/outbox/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/outbox/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/event-sourcing/adapters/outbox/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "6ad71d4626faae1318fde87c103db7c789812798c418806bb8e22166fd2cd22e",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/outbox/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/outbox/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/event-sourcing/adapters/queue",
+      "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/event-sourcing/adapters/queue",
+          "directory": ".",
+          "name": "eventqueue",
+          "import_path": "github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`eventqueue` maps complete event-sourcing deliveries to the first-party `github.com/faustbrian/golib/pkg/queue` contract. The event-sourcing core does not import queue, and this adapter owns no worker, broker connection, retry clock, dead-letter store, or business-idempotency state.",
+      "lifecycle": "pre-v1",
+      "kind": "adapter",
+      "releasable": true,
+      "family": "persistence-and-durability",
+      "family_label": "Persistence And Durability",
+      "family_description": "Durable state, delivery, coordination, recovery, and operational lifecycle.",
+      "family_order": 4,
+      "version": "unreleased",
+      "tag_prefix": "pkg/event-sourcing/adapters/queue/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/event-sourcing",
+        "github.com/faustbrian/golib/pkg/queue"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/testcontainers/testcontainers-go"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/event-sourcing/adapters/queue/.ai/GOAL.md",
+        "pkg/event-sourcing/adapters/queue/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/event-sourcing/adapters/queue/.ai/GOAL.md",
+          "requirements_sha256": "6bee7f52d4b43be2df6b23153374b298442bb4fa0bfb5e4f9f152b8d05a1a9c0",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/queue/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/queue/README.md",
+            "pkg/event-sourcing/adapters/queue/docs/hardening.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/event-sourcing/adapters/queue/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "4c025a6d652317785babf76f26b5faa987b6e8672d68acb49d5b0743f53f85ee",
+          "implementation_evidence": [
+            "pkg/event-sourcing/adapters/queue/CHANGELOG.md",
+            "pkg/event-sourcing/adapters/queue/README.md",
+            "pkg/event-sourcing/adapters/queue/docs/hardening.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/event-sourcing/benchmarks/competitors",
       "module_path": "github.com/faustbrian/golib/pkg/event-sourcing/benchmarks/competitors",
       "go_version": "1.26.5",
@@ -7258,7 +7258,7 @@
         "github.com/faustbrian/golib/pkg/event-sourcing"
       ],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox"
+        "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox"
       ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
@@ -15764,11 +15764,11 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
-        "github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox",
+        "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox",
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
         "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
-        "github.com/faustbrian/golib/pkg/outbox/adapters/goqueue",
         "github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry",
+        "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
         "github.com/faustbrian/golib/pkg/webhook"
       ],
       "external_runtime_dependencies": [
@@ -16017,140 +16017,6 @@
       }
     },
     {
-      "directory": "pkg/outbox/adapters/goqueue",
-      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/goqueue",
-      "go_version": "1.26.5",
-      "packages": [
-        {
-          "module_directory": "pkg/outbox/adapters/goqueue",
-          "directory": ".",
-          "name": "goqueue",
-          "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/goqueue",
-          "kind": "public",
-          "production": true,
-          "executable": true,
-          "coverage_required": true,
-          "build_required": true,
-          "build_tags": []
-        }
-      ],
-      "purpose": "`goqueue` is the canonical synchronous adapter from `outbox.Envelope` to the first-party `queue` contract. It maps one persisted envelope to one owned JSON task and returns only after the queue reports its enqueue result. It owns no worker, retry loop, dead-letter policy, scheduler, transaction, or queue lifecycle.",
-      "lifecycle": "pre-v1",
-      "kind": "adapter",
-      "releasable": true,
-      "family": "persistence-and-durability",
-      "family_label": "Persistence And Durability",
-      "family_description": "Durable state, delivery, coordination, recovery, and operational lifecycle.",
-      "family_order": 4,
-      "version": "unreleased",
-      "tag_prefix": "pkg/outbox/adapters/goqueue/v",
-      "owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/outbox",
-        "github.com/faustbrian/golib/pkg/queue"
-      ],
-      "reverse_owned_dependencies": null,
-      "external_runtime_dependencies": [
-        "github.com/jackc/pgx/v5",
-        "github.com/testcontainers/testcontainers-go/modules/postgres"
-      ],
-      "required_services": [
-        "redis",
-        "valkey"
-      ],
-      "build_tags": [],
-      "test_tags": [
-        "integration"
-      ],
-      "interoperability_tools": [],
-      "specifications": [],
-      "conformance_corpora": [],
-      "provenance": [],
-      "goal_files": [
-        "pkg/outbox/adapters/goqueue/.ai/GOAL.md",
-        "pkg/outbox/adapters/goqueue/.ai/GOAL_HARDEN.md"
-      ],
-      "goal_status": "implementation-evidence-inventoried",
-      "goal_evidence": [
-        {
-          "file": "pkg/outbox/adapters/goqueue/.ai/GOAL.md",
-          "requirements_sha256": "38365e426b33cd1f806deaa5c2c64da9ade566ec17d24dc697f04d6991128ce8",
-          "implementation_evidence": [
-            "pkg/outbox/adapters/goqueue/CHANGELOG.md",
-            "pkg/outbox/adapters/goqueue/README.md"
-          ],
-          "verification_gates": [
-            "format-check",
-            "tidy-check",
-            "safety",
-            "vet",
-            "test",
-            "race",
-            "coverage",
-            "lint",
-            "staticcheck",
-            "vulnerability",
-            "secrets",
-            "licenses",
-            "sbom",
-            "fuzz",
-            "mutation",
-            "nilaway",
-            "docs",
-            "api",
-            "conformance",
-            "interoperability",
-            "benchmark"
-          ],
-          "implementation_status": "implemented-requires-fresh-verification"
-        },
-        {
-          "file": "pkg/outbox/adapters/goqueue/.ai/GOAL_HARDEN.md",
-          "requirements_sha256": "307ff602816ecf36bc739474ca2e69f132f0647cecc9299da50cf1ed57eaa996",
-          "implementation_evidence": [
-            "pkg/outbox/adapters/goqueue/CHANGELOG.md",
-            "pkg/outbox/adapters/goqueue/README.md"
-          ],
-          "verification_gates": [
-            "format-check",
-            "tidy-check",
-            "safety",
-            "vet",
-            "test",
-            "race",
-            "coverage",
-            "lint",
-            "staticcheck",
-            "vulnerability",
-            "secrets",
-            "licenses",
-            "sbom",
-            "fuzz",
-            "mutation",
-            "nilaway",
-            "docs",
-            "api",
-            "conformance",
-            "interoperability",
-            "benchmark"
-          ],
-          "implementation_status": "implemented-requires-fresh-verification"
-        }
-      ],
-      "gates": {
-        "api_compatibility": true,
-        "benchmarks": true,
-        "conformance": false,
-        "coverage": true,
-        "documentation": true,
-        "fuzz": true,
-        "lint": true,
-        "mutation": true,
-        "race": true,
-        "security": true,
-        "tests": true
-      }
-    },
-    {
       "directory": "pkg/outbox/adapters/gotelemetry",
       "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry",
       "go_version": "1.26.5",
@@ -16242,6 +16108,140 @@
           "implementation_evidence": [
             "pkg/outbox/adapters/gotelemetry/CHANGELOG.md",
             "pkg/outbox/adapters/gotelemetry/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        }
+      ],
+      "gates": {
+        "api_compatibility": true,
+        "benchmarks": true,
+        "conformance": false,
+        "coverage": true,
+        "documentation": true,
+        "fuzz": true,
+        "lint": true,
+        "mutation": true,
+        "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/outbox/adapters/queue",
+      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/outbox/adapters/queue",
+          "directory": ".",
+          "name": "outboxqueue",
+          "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
+          "kind": "public",
+          "production": true,
+          "executable": true,
+          "coverage_required": true,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "`outboxqueue` is the canonical synchronous adapter from `outbox.Envelope` to the first-party `queue` contract. It maps one persisted envelope to one owned JSON task and returns only after the queue reports its enqueue result. It owns no worker, retry loop, dead-letter policy, scheduler, transaction, or queue lifecycle.",
+      "lifecycle": "pre-v1",
+      "kind": "adapter",
+      "releasable": true,
+      "family": "persistence-and-durability",
+      "family_label": "Persistence And Durability",
+      "family_description": "Durable state, delivery, coordination, recovery, and operational lifecycle.",
+      "family_order": 4,
+      "version": "unreleased",
+      "tag_prefix": "pkg/outbox/adapters/queue/v",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/outbox",
+        "github.com/faustbrian/golib/pkg/queue"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/jackc/pgx/v5",
+        "github.com/testcontainers/testcontainers-go/modules/postgres"
+      ],
+      "required_services": [
+        "redis",
+        "valkey"
+      ],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [
+        "pkg/outbox/adapters/queue/.ai/GOAL.md",
+        "pkg/outbox/adapters/queue/.ai/GOAL_HARDEN.md"
+      ],
+      "goal_status": "implementation-evidence-inventoried",
+      "goal_evidence": [
+        {
+          "file": "pkg/outbox/adapters/queue/.ai/GOAL.md",
+          "requirements_sha256": "7a7c173e6db6425f6788d0fbb66f2e8489d80075e1d11e22fbc8f140725091bd",
+          "implementation_evidence": [
+            "pkg/outbox/adapters/queue/CHANGELOG.md",
+            "pkg/outbox/adapters/queue/README.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/outbox/adapters/queue/.ai/GOAL_HARDEN.md",
+          "requirements_sha256": "307ff602816ecf36bc739474ca2e69f132f0647cecc9299da50cf1ed57eaa996",
+          "implementation_evidence": [
+            "pkg/outbox/adapters/queue/CHANGELOG.md",
+            "pkg/outbox/adapters/queue/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -17320,10 +17320,10 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/cloudevents/adapters/golib",
-        "github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue",
+        "github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue",
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
         "github.com/faustbrian/golib/pkg/lease",
-        "github.com/faustbrian/golib/pkg/outbox/adapters/goqueue",
+        "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
         "github.com/faustbrian/golib/pkg/queue-control-plane",
         "github.com/faustbrian/golib/pkg/queue/queueservice",
         "github.com/faustbrian/golib/pkg/scheduler",

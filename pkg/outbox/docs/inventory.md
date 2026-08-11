@@ -77,7 +77,7 @@ zero time and never changes a relay transition.
 
 | Module | Exported surface |
 |---|---|
-| `adapters/goqueue` | `Queue`; `Publisher`; `New`; `Publish`; `ErrQueueRequired` |
+| `adapters/queue` | `Queue`; `Publisher`; `New`; `Publish`; `ErrQueueRequired` |
 | `adapters/gotelemetry` | `Runtime`; `Publisher`; `Telemetry`; `New`; `Inject`; `Observe`; `RecordBacklog`; `WrapPublisher`; `ErrRuntimeRequired`; `ErrPublisherRequired` |
 
 Telemetry instruments `outbox.operations`, `outbox.operation.duration`,

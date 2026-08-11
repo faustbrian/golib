@@ -1,7 +1,7 @@
 # Compatibility Policy
 
 Before v1, exported APIs and schema may change and every change belongs in
-`CHANGELOG.md`. After v1, SemVer applies independently to core, `goqueue`, and
+`CHANGELOG.md`. After v1, SemVer applies independently to core, `outboxqueue`, and
 `gotelemetry`. Compatibility surfaces include canonical encoding, migrations,
 delivery semantics, errors, metrics, observer events, and publisher behavior.
 
@@ -18,14 +18,14 @@ delivery semantics, errors, metrics, observer events, and publisher behavior.
 | Publisher | Acceptance result | Context behavior | Retry interaction |
 |---|---|---|---|
 | Application implementation | `Publish` returns `nil` | Must honor cancellation according to its transport contract | Outbox classifies returned errors and caps its retry delay at one minute |
-| `goqueue.Publisher` | synchronous `Queue` returns `nil` | Rejects an already-canceled context; pinned `queue` has no context parameter, so an in-flight call cannot be interrupted | A queue error uses outbox retry policy; retries performed by a job worker after queue acceptance are downstream and do not cause outbox republish |
+| `outboxqueue.Publisher` | synchronous `Queue` returns `nil` | Rejects an already-canceled context; pinned `queue` has no context parameter, so an in-flight call cannot be interrupted | A queue error uses outbox retry policy; retries performed by a job worker after queue acceptance are downstream and do not cause outbox republish |
 | `gotelemetry` wrapper | delegates the wrapped publisher result unchanged | Extracts context and passes the relay context through | Adds no retry; generic span failure status does not classify the error |
 
 A malformed publisher response is structurally impossible: `Publisher`
 returns only `error`. `nil` means accepted and every non-nil value enters the
 bounded failure policy; no partial-success fields are interpreted.
 
-For `goqueue.Publisher`, cancellation after the synchronous queue call starts
+For `outboxqueue.Publisher`, cancellation after the synchronous queue call starts
 does not change a successful acceptance into an error. Doing so would cause the
 outbox to retry an envelope already accepted by `queue`. The call can delay
 relay shutdown until the upstream producer returns, so deployments must bound

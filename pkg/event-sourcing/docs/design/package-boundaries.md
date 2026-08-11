@@ -15,9 +15,9 @@ The table includes both implemented and remaining release boundaries.
 | `projection` | Global replay, checkpoints, projection runners, and replay control | Core only |
 | `processmanager` | Side-effect-safe planning contracts and explicit runners | Core only |
 | `postgres` nested module | PostgreSQL event, snapshot, and checkpoint stores plus migrations | Core, `pgx`, and public migration contracts |
-| `adapters/gooutbox` nested module | Same-transaction conversion between event messages and public outbox envelopes | Core and public outbox contracts |
+| `adapters/outbox` nested module | Same-transaction conversion between event messages and public outbox envelopes | Core and public outbox contracts |
 | `adapters/gokafka` nested module | Kafka-native producer and consumer semantics | Core and `franz-go` |
-| `adapters/goqueue` nested module | Adapters for queue backends that preserve the required event semantics | Core and public queue contracts |
+| `adapters/queue` nested module | Adapters for queue backends that preserve the required event semantics | Core and public queue contracts |
 | `adapters/gotelemetry` nested module | OpenTelemetry spans, metrics, and propagation | Core and public telemetry contracts |
 
 Subpackages will not be created merely to hold one interface. The root package
@@ -43,13 +43,13 @@ eventsourcing core <--- eventtest / snapshot / projection / processmanager
         |
         +--- postgres
         +--- adapters/gokafka
-        +--- adapters/goqueue
+        +--- adapters/queue
         +--- adapters/gotelemetry
-        +--- adapters/gooutbox ---> outbox public API
+        +--- adapters/outbox ---> outbox public API
 ```
 
 The event-sourcing core never imports an adapter. The event-sourcing and outbox
-cores never import one another. The optional `gooutbox` adapter is the only
+cores never import one another. The optional `eventoutbox` adapter is the only
 component that depends on both public contracts.
 
 ## Transaction boundary

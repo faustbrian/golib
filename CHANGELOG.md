@@ -140,6 +140,8 @@ documented in each module's changelog.
 
 ### Changed
 
+- Rename the unpublished event-sourcing outbox and queue adapters and the
+  outbox queue adapter to target-oriented module paths before v1.
 - Rename the unpublished rule-engine adapters to target-oriented `math`,
   `measurement`, and `temporal` module paths before their first public release.
 - Treat unavailable historical mutation identities as absent reuse candidates

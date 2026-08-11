@@ -48,11 +48,11 @@ descriptions, signatures, and wire interoperability.
 ### Persistence And Durability
 
 `audit`, `audit/postgres`, `cache`, `event-sourcing`,
-`event-sourcing/adapters/gokafka`, `event-sourcing/adapters/gooutbox`,
-`event-sourcing/adapters/goqueue`, `event-sourcing/adapters/gotelemetry`,
+`event-sourcing/adapters/gokafka`, `event-sourcing/adapters/outbox`,
+`event-sourcing/adapters/queue`, `event-sourcing/adapters/gotelemetry`,
 `event-sourcing/postgres`, `feature-flags`, `idempotency`, `lease`,
 `migrations`, `outbox`, `outbox/adapters/gokafka`,
-`outbox/adapters/goqueue`, `outbox/adapters/gotelemetry`, `postgres`, `queue`,
+`outbox/adapters/queue`, `outbox/adapters/gotelemetry`, `postgres`, `queue`,
 `queue-control-plane`, `queue/queueservice`, `scheduler`, `sequencer`,
 `settings`, `state-machine`, and `workflow` own durable state, delivery,
 coordination, recovery, and operational lifecycle.
@@ -142,20 +142,20 @@ structured errors remain preferred over a universal taxonomy type.
 
 ## Adapter Naming Findings
 
-The following unpublished paths conflict with the target-oriented adapter
-scheme and require atomic pre-v1 remediation after active specialist work has
-finished:
+The following unpublished paths were reviewed against the target-oriented
+adapter scheme. Unresolved items require atomic pre-v1 remediation after active
+specialist work has finished:
 
 | Current path | Intended target | Classification |
 | --- | --- | --- |
 | `event-sourcing/adapters/gokafka` | `event-sourcing/adapters/kafka` | Naming debt |
-| `event-sourcing/adapters/gooutbox` | `event-sourcing/adapters/outbox` | Naming debt |
-| `event-sourcing/adapters/goqueue` | `event-sourcing/adapters/queue` | Naming debt |
+| `event-sourcing/adapters/gooutbox` | `event-sourcing/adapters/outbox` | Resolved before v1; no published tag depended on the old path. |
+| `event-sourcing/adapters/goqueue` | `event-sourcing/adapters/queue` | Resolved before v1; no published tag depended on the old path. |
 | `event-sourcing/adapters/gotelemetry` | `event-sourcing/adapters/otel` or `telemetry` after dependency audit | Unresolved target |
 | `kafka/adapters/gotelemetry` | `kafka/adapters/otel` | Naming debt; specialist-owned scope |
 | `kafka/kafkaservice` | `kafka/adapters/service` | Layout debt; specialist-owned scope |
 | `outbox/adapters/gokafka` | `outbox/adapters/kafka` | Naming debt |
-| `outbox/adapters/goqueue` | `outbox/adapters/queue` | Naming debt |
+| `outbox/adapters/goqueue` | `outbox/adapters/queue` | Resolved before v1; no published tag depended on the old path. |
 | `outbox/adapters/gotelemetry` | `outbox/adapters/otel` | Naming debt |
 | `queue/queueservice` | `queue/adapters/service` | Layout debt |
 | `rule-engine/adapters/gomath` | `rule-engine/adapters/math` | Resolved before v1; no tags or Track, Postal, Location, Mono, or API consumers used the old path. |

@@ -21,9 +21,9 @@ Docker-compatible container runtime.
 | Verify a custom store and dispatcher | [`eventtest` conformance examples](../eventtest) | `(cd pkg/event-sourcing && go test ./eventtest -run '^(TestEventStoreConformanceAcceptsMemoryStore|TestSynchronousDispatcherConformanceAcceptsCoreDispatcher)$')` |
 | Persist and globally read PostgreSQL event streams | [`TestPostgreSQLEventStoreConformance`](../postgres/integration_test.go) and the global-reader and caller-owned-transaction scenarios in the same suite | `(cd pkg/event-sourcing/postgres && make integration)` |
 | Publish and settle Kafka event deliveries | [`TestEventDeliveriesRoundTripThroughKafka`](../adapters/gokafka/integration_test.go) | `(cd pkg/event-sourcing/adapters/gokafka && make integration)` |
-| Publish and settle a compatible durable queue | [`TestValkeyStreamRetainsAndSettlesCompleteDelivery`](../adapters/goqueue/durable_integration_test.go) | `(cd pkg/event-sourcing/adapters/goqueue && make integration)` |
-| Commit events and outbox envelopes atomically | [`TestStagerCommitsAndRollsBackEventsWithOutboxEnvelopes`](../adapters/gooutbox/stager_integration_test.go) | `(cd pkg/event-sourcing/adapters/gooutbox && make integration)` |
-| Relay committed outbox envelopes with durable retry | [`TestCallerCommittedRowsRelayWithDurableRetryAndReplayIsolation`](../adapters/gooutbox/stager_integration_test.go) | `(cd pkg/event-sourcing/adapters/gooutbox && make integration)` |
+| Publish and settle a compatible durable queue | [`TestValkeyStreamRetainsAndSettlesCompleteDelivery`](../adapters/queue/durable_integration_test.go) | `(cd pkg/event-sourcing/adapters/queue && make integration)` |
+| Commit events and outbox envelopes atomically | [`TestStagerCommitsAndRollsBackEventsWithOutboxEnvelopes`](../adapters/outbox/stager_integration_test.go) | `(cd pkg/event-sourcing/adapters/outbox && make integration)` |
+| Relay committed outbox envelopes with durable retry | [`TestCallerCommittedRowsRelayWithDurableRetryAndReplayIsolation`](../adapters/outbox/stager_integration_test.go) | `(cd pkg/event-sourcing/adapters/outbox && make integration)` |
 | Map an outbox envelope to a Kafka record | [`TestPublisherMapsEnvelopeToKafkaMessage`](../../outbox/adapters/gokafka/publisher_test.go) | `(cd pkg/outbox/adapters/gokafka && go test ./...)` |
 | Instrument dispatch and consumption without exposing data | [`TestInstrumentationTracesAndMeasuresDispatchAndConsumption`](../adapters/gotelemetry/instrumentation_test.go) | `(cd pkg/event-sourcing/adapters/gotelemetry && go test ./...)` |
 

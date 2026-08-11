@@ -253,7 +253,7 @@ func TestMutationScratchCreatesIsolatedPackageCaches(t *testing.T) {
 	command := mutationScratchCommand(t, root, artifact, `
 mutation_scratch_package_cache root
 root_cache="${active_build_cache}"
-mutation_scratch_package_cache adapters-goqueue
+mutation_scratch_package_cache adapters-queue
 adapter_cache="${active_build_cache}"
 test "${root_cache}" != "${adapter_cache}"
 test -d "${root_cache}"

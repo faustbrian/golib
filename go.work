@@ -37,8 +37,8 @@ use (
 	./pkg/ecma-regexp
 	./pkg/event-sourcing
 	./pkg/event-sourcing/adapters/gokafka
-	./pkg/event-sourcing/adapters/gooutbox
-	./pkg/event-sourcing/adapters/goqueue
+	./pkg/event-sourcing/adapters/outbox
+	./pkg/event-sourcing/adapters/queue
 	./pkg/event-sourcing/adapters/gotelemetry
 	./pkg/event-sourcing/benchmarks/competitors
 	./pkg/event-sourcing/postgres
@@ -88,7 +88,7 @@ use (
 	./pkg/openrpc
 	./pkg/outbox
 	./pkg/outbox/adapters/gokafka
-	./pkg/outbox/adapters/goqueue
+	./pkg/outbox/adapters/queue
 	./pkg/outbox/adapters/gotelemetry
 	./pkg/password
 	./pkg/postgres
@@ -196,9 +196,9 @@ replace github.com/faustbrian/golib/pkg/event-sourcing v0.0.0 => ./pkg/event-sou
 
 replace github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka v0.0.0 => ./pkg/event-sourcing/adapters/gokafka
 
-replace github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox v0.0.0 => ./pkg/event-sourcing/adapters/gooutbox
+replace github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox v0.0.0 => ./pkg/event-sourcing/adapters/outbox
 
-replace github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue v0.0.0 => ./pkg/event-sourcing/adapters/goqueue
+replace github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue v0.0.0 => ./pkg/event-sourcing/adapters/queue
 
 replace github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry v0.0.0 => ./pkg/event-sourcing/adapters/gotelemetry
 
@@ -278,7 +278,7 @@ replace github.com/faustbrian/golib/pkg/opening-hours v0.0.0 => ./pkg/opening-ho
 
 replace github.com/faustbrian/golib/pkg/openrpc v0.0.0 => ./pkg/openrpc
 
-replace github.com/faustbrian/golib/pkg/outbox/adapters/goqueue v0.0.0 => ./pkg/outbox/adapters/goqueue
+replace github.com/faustbrian/golib/pkg/outbox/adapters/queue v0.0.0 => ./pkg/outbox/adapters/queue
 
 replace github.com/faustbrian/golib/pkg/outbox/adapters/gokafka v0.0.0 => ./pkg/outbox/adapters/gokafka
 

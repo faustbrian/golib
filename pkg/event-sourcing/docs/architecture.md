@@ -89,9 +89,9 @@ The core synchronous dispatcher has explicit ordering, filtering, cancellation,
 panic, and partial-success semantics. Asynchronous delivery is not a hidden
 dispatcher mode:
 
-- `adapters/goqueue` preserves the compatible queue contract;
+- `adapters/queue` preserves the compatible queue contract;
 - `adapters/gokafka` exposes Kafka-native producer and consumer semantics; and
-- `adapters/gooutbox` stages event and outbox rows in one PostgreSQL
+- `adapters/outbox` stages event and outbox rows in one PostgreSQL
   transaction through public contracts.
 
 Direct PostgreSQL-to-Kafka dispatch is not atomic. Kafka idempotent production

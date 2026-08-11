@@ -13,8 +13,8 @@ Optional integrations are independently versioned modules:
 ```sh
 go get github.com/faustbrian/golib/pkg/event-sourcing/postgres
 go get github.com/faustbrian/golib/pkg/event-sourcing/adapters/gokafka
-go get github.com/faustbrian/golib/pkg/event-sourcing/adapters/gooutbox
-go get github.com/faustbrian/golib/pkg/event-sourcing/adapters/goqueue
+go get github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox
+go get github.com/faustbrian/golib/pkg/event-sourcing/adapters/queue
 go get github.com/faustbrian/golib/pkg/event-sourcing/adapters/gotelemetry
 ```
 
@@ -39,11 +39,11 @@ permanent `replace` directives or local paths to a releasable application.
 | --- | --- |
 | `postgres` | Adds `pgx`; owns PostgreSQL schemas, migrations, event storage, global reads, snapshots, and checkpoints |
 | `adapters/gokafka` | Adds the repository Kafka contract; preserves topics, partitions, keys, offsets, acknowledgements, groups, replay, and failure policy |
-| `adapters/gooutbox` | Depends on the public event-sourcing, outbox, and PostgreSQL contracts for caller-owned same-transaction staging |
-| `adapters/goqueue` | Depends on the compatible queue contract; backend-specific durability and settlement guarantees remain observable |
+| `adapters/outbox` | Depends on the public event-sourcing, outbox, and PostgreSQL contracts for caller-owned same-transaction staging |
+| `adapters/queue` | Depends on the compatible queue contract; backend-specific durability and settlement guarantees remain observable |
 | `adapters/gotelemetry` | Adds OpenTelemetry instrumentation and propagation without changing core behavior |
 
-Kafka is intentionally not routed through `goqueue`. The event-sourcing core
+Kafka is intentionally not routed through `eventqueue`. The event-sourcing core
 does not import any optional module. The outbox core and event-sourcing core do
 not import each other.
 

@@ -10,6 +10,14 @@ root="${GOLIB_ROOT:-$(git rev-parse --show-toplevel)}"
 gate="$1"
 module="$2"
 package="${3:-}"
+input_policy="${GOLIB_GATE_INPUT_POLICY:-current}"
+case "${input_policy}" in
+    current|legacy-api-baseline) ;;
+    *)
+        printf 'unsupported gate input policy: %s\n' "${input_policy}" >&2
+        exit 2
+        ;;
+esac
 if ! jq -e --arg directory "${module}" \
     '.modules[] | select(.directory == $directory)' \
     "${root}/modules.json" >/dev/null; then
@@ -136,13 +144,20 @@ append_repository_files() {
 
 append_module_files() {
     local directory="$1"
+    local include_api_baseline=0
     local include_documentation=0
     local include_secret_policy=0
     local include_tests=0
+    if [[ "${input_policy}" == "legacy-api-baseline" ]]; then
+        include_api_baseline=1
+    fi
     if [[ "${directory}" == "${module}" ]]; then
         include_tests=1
     fi
     case "${gate}" in
+        api|api-update)
+            include_api_baseline=1
+            ;;
         docs)
             include_documentation=1
             ;;
@@ -163,6 +178,7 @@ append_module_files() {
     ' "${root}/modules.json" >"${nested_directories}"
     git -C "${root}" ls-files -co --exclude-standard -- "${directory}" |
         awk \
+            -v include_api_baseline="${include_api_baseline}" \
             -v include_documentation="${include_documentation}" \
             -v include_secret_policy="${include_secret_policy}" \
             -v include_tests="${include_tests}" \
@@ -182,12 +198,16 @@ append_module_files() {
                 in_test_data = relative ~ /(^|\/)(testdata|fixtures|corpus)\//
                 is_named_documentation = relative ~ /(^|\/)(readme|changelog|contributing|security|code_of_conduct|support)\.(md|markdown)$/
                 is_generated_documentation = relative == "llms.txt" || relative == "llms-full.txt"
+                is_api_baseline = relative == "api/baseline.txt"
                 is_repository_catalog = relative == "modules.json" || relative == "packages.json"
                 is_secret_policy = relative == ".gitleaks.toml"
                 is_test_source = relative ~ /_test\.go$/
                 skip_documentation = !include_documentation && (is_generated_documentation || (is_markdown && (in_documentation || (!in_test_data && is_named_documentation))))
                 skip_secret_policy = !include_secret_policy && is_secret_policy
                 if (is_repository_catalog) {
+                    next
+                }
+                if (!include_api_baseline && is_api_baseline) {
                     next
                 }
                 if (skip_secret_policy) {
@@ -256,31 +276,47 @@ bounded_command_output() {
     return "${status}"
 }
 
-append_verification_environment() {
-    local docker_timeout docker_version
-    append_environment
-    append_value kernel "$(uname -srm)"
+append_legacy_docker_environment() {
+    local docker_timeout docker_value
     if ! jq -e --arg directory "${module}" '
         .modules[]
         | select(.directory == $directory)
         | select((.required_services // []) | length > 0)
     ' "${root}/modules.json" >/dev/null; then
         append_value docker not-required
-    elif command -v docker >/dev/null 2>&1; then
-        docker_timeout="${GOLIB_DOCKER_VERSION_TIMEOUT_SECONDS:-5}"
-        if [[ ! "${docker_timeout}" =~ ^[1-9][0-9]*$ ]]; then
-            printf 'invalid Docker version timeout: %s\n' "${docker_timeout}" >&2
-            exit 1
-        fi
-        docker_version="$({
-            bounded_command_output \
-                "${docker_timeout}" \
-                docker version --format '{{.Server.Version}}' ||
-                printf unavailable
-        })"
-        append_value docker "${docker_version}"
-    else
+        return
+    fi
+    if [[ -n "${GOLIB_LEGACY_DOCKER_VALUE:-}" ]]; then
+        append_value docker "${GOLIB_LEGACY_DOCKER_VALUE}"
+        return
+    fi
+    if ! command -v docker >/dev/null 2>&1; then
         append_value docker missing
+        return
+    fi
+    docker_timeout="${GOLIB_DOCKER_VERSION_TIMEOUT_SECONDS:-5}"
+    if [[ ! "${docker_timeout}" =~ ^[1-9][0-9]*$ ]]; then
+        printf 'invalid Docker version timeout: %s\n' "${docker_timeout}" >&2
+        exit 1
+    fi
+    docker_value="$({
+        bounded_command_output \
+            "${docker_timeout}" \
+            docker version --format '{{.Server.Version}}' ||
+            printf unavailable
+    })"
+    append_value docker "${docker_value}"
+}
+
+append_verification_environment() {
+    append_environment
+    append_value kernel "$(uname -srm)"
+    # Pinned service images define the runtime contract. Live daemon
+    # availability is orchestration state and must not invalidate evidence.
+    # The legacy policy reproduces the old identity solely for verified,
+    # one-time evidence migration.
+    if [[ "${input_policy}" == "legacy-api-baseline" ]]; then
+        append_legacy_docker_environment
     fi
     if command -v node >/dev/null 2>&1; then
         append_value node "$(node --version)"

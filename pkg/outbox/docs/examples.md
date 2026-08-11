@@ -10,7 +10,7 @@ to the pool break atomicity.
 ## queue
 
 ```go
-queuePublisher, err := goqueue.New(queue)
+queuePublisher, err := outboxqueue.New(queue)
 worker, err := relay.New(store, queuePublisher, relay.Config{Owner: hostname})
 ```
 

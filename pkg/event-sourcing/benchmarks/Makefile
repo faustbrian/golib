@@ -30,13 +30,13 @@ test:
 	$(GO) -C competitors test ./...
 	$(GO) test ../...
 	$(GO) -C ../postgres test ./...
-	$(GO) -C ../adapters/gooutbox test ./...
+	$(GO) -C ../adapters/outbox test ./...
 
 test-integration:
 	EVENT_SOURCING_POSTGRES_VERSION='$(POSTGRES_VERSION)' \
 		$(GO) -C ../postgres test -tags=integration -count=1 ./...
 	EVENT_SOURCING_OUTBOX_POSTGRES_VERSION='$(POSTGRES_VERSION)' \
-		$(GO) -C ../adapters/gooutbox test -tags=integration -count=1 ./...
+		$(GO) -C ../adapters/outbox test -tags=integration -count=1 ./...
 
 capture: capture-core capture-competitors capture-postgres capture-outbox \
 	capture-profiles
@@ -60,7 +60,7 @@ capture-postgres: require-output
 
 capture-outbox: require-output
 	EVENT_SOURCING_OUTBOX_POSTGRES_VERSION='$(POSTGRES_VERSION)' \
-		$(GO) -C ../adapters/gooutbox test -tags=integration -run '^$$' \
+		$(GO) -C ../adapters/outbox test -tags=integration -run '^$$' \
 		-bench '^BenchmarkPostgreSQLOutboxAppendOverhead$$' -benchmem \
 		-benchtime='$(BENCH_TIME)' -count='$(COUNT)' \
 		> '$(OUTBOX_RAW)'
@@ -132,7 +132,7 @@ environment: require-output
 		$(GO) -C ../postgres list -m \
 			github.com/jackc/pgx/v5 \
 			github.com/testcontainers/testcontainers-go/modules/postgres; \
-		$(GO) -C ../adapters/gooutbox list -m \
+		$(GO) -C ../adapters/outbox list -m \
 			github.com/faustbrian/golib/pkg/outbox \
 			github.com/jackc/pgx/v5; \
 	} > '$(OUTPUT_DIR)/environment.txt'
@@ -149,7 +149,7 @@ fingerprint:
 		'$(GATE_INPUT_DIGEST)' benchmark pkg/event-sourcing/postgres; \
 		printf 'outbox='; \
 		'$(GATE_INPUT_DIGEST)' benchmark \
-			pkg/event-sourcing/adapters/gooutbox; \
+			pkg/event-sourcing/adapters/outbox; \
 	} > '$(FINGERPRINT_OUTPUT)'
 
 verify-fingerprint:
