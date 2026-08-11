@@ -702,6 +702,33 @@ func TestFailFastStemDepthUsesNeighborAfterMultiSuffixStem(t *testing.T) {
 	}
 }
 
+func TestFailFastTreeProofSuffixHalfGroupingProgresses(t *testing.T) {
+	key := testKey(9, 128)
+	claims := mustClaimSet(t, []Claim{Membership(key, testValue(1))})
+	canonical, err := claims.Claims(context.Background())
+	if err != nil {
+		t.Fatalf("canonical claims: %v", err)
+	}
+	markers, err := derivePathMarkers(
+		&markerBudgetContext{
+			Context:          context.Background(),
+			successfulChecks: 8,
+		},
+		canonical,
+		[]StemPath{PresentStemPath(stemFromKey(key), 1)},
+		2,
+	)
+	if err != nil {
+		t.Fatalf("derive high-half marker: %v", err)
+	}
+	if len(markers) != 2 ||
+		markers[1].kind != pathMarkerSuffix ||
+		markers[1].path[1] != 3 ||
+		markers[1].identityAllowed {
+		t.Fatalf("high-half markers = %#v", markers)
+	}
+}
+
 func TestFailFastTreeProofMergeCopiesSortedValues(t *testing.T) {
 	values := []int{2, 1}
 	if err := sortTreeProofValues(
