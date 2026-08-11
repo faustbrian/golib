@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	ruleengine "github.com/faustbrian/golib/pkg/rule-engine"
-	ruleenginetemporal "github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal"
+	ruleenginetemporal "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal"
 )
 
 func TestPersistedEncodingCompatibilityFixtures(t *testing.T) {

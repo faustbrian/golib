@@ -1,6 +1,6 @@
 # Exact decimal operators for rule-engine
 
-`gomath` is the optional bridge between
+The `rule-engine/adapters/math` module is the optional bridge between
 [`math/decimal`](../../../math/decimal) and [`rule-engine`](../..). It encodes
 finite decimals as tagged string values and supplies deterministic equality and
 ordering operators. The core rule engine does not depend on the math module.

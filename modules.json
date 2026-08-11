@@ -3994,7 +3994,7 @@
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/opening-hours",
-        "github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal",
+        "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal",
         "github.com/faustbrian/golib/pkg/temporal"
       ],
       "external_runtime_dependencies": [
@@ -13451,8 +13451,8 @@
         "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
         "github.com/faustbrian/golib/pkg/measurement",
         "github.com/faustbrian/golib/pkg/money",
-        "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath",
-        "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement"
+        "github.com/faustbrian/golib/pkg/rule-engine/adapters/math",
+        "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement"
       ],
       "external_runtime_dependencies": [
         "github.com/cockroachdb/apd/v3",
@@ -13609,7 +13609,7 @@
         "github.com/faustbrian/golib/pkg/knapsack",
         "github.com/faustbrian/golib/pkg/knapsack/integration/references",
         "github.com/faustbrian/golib/pkg/knapsack/objective/gomoney",
-        "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement"
+        "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement"
       ],
       "external_runtime_dependencies": [],
       "required_services": [],
@@ -19064,9 +19064,9 @@
       "tag_prefix": "pkg/rule-engine/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath",
-        "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement",
-        "github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal",
+        "github.com/faustbrian/golib/pkg/rule-engine/adapters/math",
+        "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement",
+        "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal",
         "github.com/faustbrian/golib/pkg/rule-engine/benchmarks/competitors"
       ],
       "external_runtime_dependencies": [],
@@ -19169,15 +19169,15 @@
       }
     },
     {
-      "directory": "pkg/rule-engine/adapters/gomath",
-      "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath",
+      "directory": "pkg/rule-engine/adapters/math",
+      "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/math",
       "go_version": "1.26.5",
       "packages": [
         {
-          "module_directory": "pkg/rule-engine/adapters/gomath",
+          "module_directory": "pkg/rule-engine/adapters/math",
           "directory": ".",
           "name": "ruleenginemath",
-          "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath",
+          "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/math",
           "kind": "public",
           "production": true,
           "executable": true,
@@ -19186,7 +19186,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`gomath` is the optional bridge between [`math/decimal`](../../../math/decimal) and [`rule-engine`](../..). It encodes finite decimals as tagged string values and supplies deterministic equality and ordering operators. The core rule engine does not depend on the math module.",
+      "purpose": "The `rule-engine/adapters/math` module is the optional bridge between [`math/decimal`](../../../math/decimal) and [`rule-engine`](../..). It encodes finite decimals as tagged string values and supplies deterministic equality and ordering operators. The core rule engine does not depend on the math module.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -19195,7 +19195,7 @@
       "family_description": "Domain-specific immutable values, algorithms, parsers, proofs, and calculations.",
       "family_order": 8,
       "version": "unreleased",
-      "tag_prefix": "pkg/rule-engine/adapters/gomath/v",
+      "tag_prefix": "pkg/rule-engine/adapters/math/v",
       "owned_dependencies": [
         "github.com/faustbrian/golib/pkg/math",
         "github.com/faustbrian/golib/pkg/rule-engine"
@@ -19210,17 +19210,17 @@
       "conformance_corpora": [],
       "provenance": [],
       "goal_files": [
-        "pkg/rule-engine/adapters/gomath/.ai/GOAL.md",
-        "pkg/rule-engine/adapters/gomath/.ai/GOAL_HARDEN.md"
+        "pkg/rule-engine/adapters/math/.ai/GOAL.md",
+        "pkg/rule-engine/adapters/math/.ai/GOAL_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
         {
-          "file": "pkg/rule-engine/adapters/gomath/.ai/GOAL.md",
+          "file": "pkg/rule-engine/adapters/math/.ai/GOAL.md",
           "requirements_sha256": "220bc542fc10ba57bb678e29e066521608e86c0019c7e116456b73df3cc2cb6a",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gomath/CHANGELOG.md",
-            "pkg/rule-engine/adapters/gomath/README.md"
+            "pkg/rule-engine/adapters/math/CHANGELOG.md",
+            "pkg/rule-engine/adapters/math/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -19248,11 +19248,11 @@
           "implementation_status": "implemented-requires-fresh-verification"
         },
         {
-          "file": "pkg/rule-engine/adapters/gomath/.ai/GOAL_HARDEN.md",
+          "file": "pkg/rule-engine/adapters/math/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "16c00312d8f1e926984f2f61396b609371ab51f6beec1f56b7b1ac4771e6f139",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gomath/CHANGELOG.md",
-            "pkg/rule-engine/adapters/gomath/README.md"
+            "pkg/rule-engine/adapters/math/CHANGELOG.md",
+            "pkg/rule-engine/adapters/math/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -19295,15 +19295,15 @@
       }
     },
     {
-      "directory": "pkg/rule-engine/adapters/gomeasurement",
-      "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement",
+      "directory": "pkg/rule-engine/adapters/measurement",
+      "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement",
       "go_version": "1.26.5",
       "packages": [
         {
-          "module_directory": "pkg/rule-engine/adapters/gomeasurement",
+          "module_directory": "pkg/rule-engine/adapters/measurement",
           "directory": ".",
           "name": "ruleenginemeasurement",
-          "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement",
+          "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement",
           "kind": "public",
           "production": true,
           "executable": true,
@@ -19312,7 +19312,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`rule-engine/adapters/gomeasurement` is an optional bridge between immutable `measurement.Quantity` values and the rule engine's explicitly registered custom operators. It compares compatible dimensions with `measurement.ExactConversion()` and never supplies a unit or rounding policy.",
+      "purpose": "`rule-engine/adapters/measurement` is an optional bridge between immutable `measurement.Quantity` values and the rule engine's explicitly registered custom operators. It compares compatible dimensions with `measurement.ExactConversion()` and never supplies a unit or rounding policy.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -19321,7 +19321,7 @@
       "family_description": "Domain-specific immutable values, algorithms, parsers, proofs, and calculations.",
       "family_order": 8,
       "version": "unreleased",
-      "tag_prefix": "pkg/rule-engine/adapters/gomeasurement/v",
+      "tag_prefix": "pkg/rule-engine/adapters/measurement/v",
       "owned_dependencies": [
         "github.com/faustbrian/golib/pkg/math",
         "github.com/faustbrian/golib/pkg/measurement",
@@ -19337,20 +19337,20 @@
       "conformance_corpora": [],
       "provenance": [],
       "goal_files": [
-        "pkg/rule-engine/adapters/gomeasurement/.ai/GOAL.md",
-        "pkg/rule-engine/adapters/gomeasurement/.ai/GOAL_HARDEN.md"
+        "pkg/rule-engine/adapters/measurement/.ai/GOAL.md",
+        "pkg/rule-engine/adapters/measurement/.ai/GOAL_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
         {
-          "file": "pkg/rule-engine/adapters/gomeasurement/.ai/GOAL.md",
+          "file": "pkg/rule-engine/adapters/measurement/.ai/GOAL.md",
           "requirements_sha256": "dd36c8e75e9e5edfd142c8ea28002d5fae38ab97c26fba86ceb124122671068d",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gomeasurement/CHANGELOG.md",
-            "pkg/rule-engine/adapters/gomeasurement/README.md",
-            "pkg/rule-engine/adapters/gomeasurement/docs/api.md",
-            "pkg/rule-engine/adapters/gomeasurement/docs/compatibility.md",
-            "pkg/rule-engine/adapters/gomeasurement/docs/security.md"
+            "pkg/rule-engine/adapters/measurement/CHANGELOG.md",
+            "pkg/rule-engine/adapters/measurement/README.md",
+            "pkg/rule-engine/adapters/measurement/docs/api.md",
+            "pkg/rule-engine/adapters/measurement/docs/compatibility.md",
+            "pkg/rule-engine/adapters/measurement/docs/security.md"
           ],
           "verification_gates": [
             "format-check",
@@ -19378,14 +19378,14 @@
           "implementation_status": "implemented-requires-fresh-verification"
         },
         {
-          "file": "pkg/rule-engine/adapters/gomeasurement/.ai/GOAL_HARDEN.md",
+          "file": "pkg/rule-engine/adapters/measurement/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "f5f21f9821822563e6a80e4fd9c1652832272a5effa7baa0b0032ed7a5925a52",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gomeasurement/CHANGELOG.md",
-            "pkg/rule-engine/adapters/gomeasurement/README.md",
-            "pkg/rule-engine/adapters/gomeasurement/docs/api.md",
-            "pkg/rule-engine/adapters/gomeasurement/docs/compatibility.md",
-            "pkg/rule-engine/adapters/gomeasurement/docs/security.md"
+            "pkg/rule-engine/adapters/measurement/CHANGELOG.md",
+            "pkg/rule-engine/adapters/measurement/README.md",
+            "pkg/rule-engine/adapters/measurement/docs/api.md",
+            "pkg/rule-engine/adapters/measurement/docs/compatibility.md",
+            "pkg/rule-engine/adapters/measurement/docs/security.md"
           ],
           "verification_gates": [
             "format-check",
@@ -19428,15 +19428,15 @@
       }
     },
     {
-      "directory": "pkg/rule-engine/adapters/gotemporal",
-      "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal",
+      "directory": "pkg/rule-engine/adapters/temporal",
+      "module_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal",
       "go_version": "1.26.5",
       "packages": [
         {
-          "module_directory": "pkg/rule-engine/adapters/gotemporal",
+          "module_directory": "pkg/rule-engine/adapters/temporal",
           "directory": ".",
           "name": "ruleenginetemporal",
-          "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal",
+          "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal",
           "kind": "public",
           "production": true,
           "executable": true,
@@ -19445,7 +19445,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`gotemporal` is the optional bridge between exact `temporal/instant` periods and the deterministic custom-operator boundary in `rule-engine`. It encodes instants and periods as tagged strings so the core engine does not acquire a temporal dependency.",
+      "purpose": "The `rule-engine/adapters/temporal` module is the optional bridge between exact `temporal/instant` periods and the deterministic custom-operator boundary in `rule-engine`. It encodes instants and periods as tagged strings so the core engine does not acquire a temporal dependency.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -19454,7 +19454,7 @@
       "family_description": "Domain-specific immutable values, algorithms, parsers, proofs, and calculations.",
       "family_order": 8,
       "version": "unreleased",
-      "tag_prefix": "pkg/rule-engine/adapters/gotemporal/v",
+      "tag_prefix": "pkg/rule-engine/adapters/temporal/v",
       "owned_dependencies": [
         "github.com/faustbrian/golib/pkg/calendar",
         "github.com/faustbrian/golib/pkg/rule-engine",
@@ -19470,17 +19470,17 @@
       "conformance_corpora": [],
       "provenance": [],
       "goal_files": [
-        "pkg/rule-engine/adapters/gotemporal/.ai/GOAL.md",
-        "pkg/rule-engine/adapters/gotemporal/.ai/GOAL_HARDEN.md"
+        "pkg/rule-engine/adapters/temporal/.ai/GOAL.md",
+        "pkg/rule-engine/adapters/temporal/.ai/GOAL_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
         {
-          "file": "pkg/rule-engine/adapters/gotemporal/.ai/GOAL.md",
+          "file": "pkg/rule-engine/adapters/temporal/.ai/GOAL.md",
           "requirements_sha256": "25fa67e8e71e4a8f082cc3cf9a0a9470dd27e04c30e388e69377147caefbfb15",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gotemporal/CHANGELOG.md",
-            "pkg/rule-engine/adapters/gotemporal/README.md"
+            "pkg/rule-engine/adapters/temporal/CHANGELOG.md",
+            "pkg/rule-engine/adapters/temporal/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -19508,11 +19508,11 @@
           "implementation_status": "implemented-requires-fresh-verification"
         },
         {
-          "file": "pkg/rule-engine/adapters/gotemporal/.ai/GOAL_HARDEN.md",
+          "file": "pkg/rule-engine/adapters/temporal/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "3b716edb8cccb702a5952d6e575041bc91d54d3c30f77119e6b0145c25a00be3",
           "implementation_evidence": [
-            "pkg/rule-engine/adapters/gotemporal/CHANGELOG.md",
-            "pkg/rule-engine/adapters/gotemporal/README.md"
+            "pkg/rule-engine/adapters/temporal/CHANGELOG.md",
+            "pkg/rule-engine/adapters/temporal/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -23224,7 +23224,7 @@
       ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/opening-hours",
-        "github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal"
+        "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal"
       ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5"

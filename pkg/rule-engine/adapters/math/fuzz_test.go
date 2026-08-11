@@ -9,7 +9,7 @@ import (
 	gomath "github.com/faustbrian/golib/pkg/math"
 	"github.com/faustbrian/golib/pkg/math/decimal"
 	ruleengine "github.com/faustbrian/golib/pkg/rule-engine"
-	ruleenginemath "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath"
+	ruleenginemath "github.com/faustbrian/golib/pkg/rule-engine/adapters/math"
 )
 
 func FuzzDecimalTaggedValues(f *testing.F) {
@@ -172,7 +172,7 @@ func decimalFuzzDecimal(kind uint8, input string, limits gomath.Limits) (decimal
 }
 
 func decimalRelation(name ruleengine.OperatorName, comparison int) bool {
-	// This oracle receives only operators constructed by the gomath adapter.
+	// This oracle receives only operators constructed by the math adapter.
 	//nolint:exhaustive // Core operator names are intentionally outside its domain.
 	switch name {
 	case ruleenginemath.OpDecimalEqual:

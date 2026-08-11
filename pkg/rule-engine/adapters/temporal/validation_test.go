@@ -8,7 +8,7 @@ import (
 	"time"
 
 	ruleengine "github.com/faustbrian/golib/pkg/rule-engine"
-	ruleenginetemporal "github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal"
+	ruleenginetemporal "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal"
 	temporal "github.com/faustbrian/golib/pkg/temporal"
 )
 

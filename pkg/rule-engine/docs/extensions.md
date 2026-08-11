@@ -25,10 +25,10 @@ success.
 
 Exact optional domain adapters are isolated nested modules:
 
-- [`adapters/gomath`](../adapters/gomath) provides exact decimal ordering.
-- [`adapters/gotemporal`](../adapters/gotemporal) provides period relations
+- [`adapters/math`](../adapters/math) provides exact decimal ordering.
+- [`adapters/temporal`](../adapters/temporal) provides period relations
   and instant membership.
-- [`adapters/gomeasurement`](../adapters/gomeasurement) provides exact
+- [`adapters/measurement`](../adapters/measurement) provides exact
   compatible-unit quantity ordering.
 
 Each module uses tagged canonical string values plus namespaced typed

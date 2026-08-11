@@ -1,7 +1,8 @@
-# rule-engine/adapters/gotemporal
+# rule-engine/adapters/temporal
 
-`gotemporal` is the optional bridge between exact `temporal/instant` periods
-and the deterministic custom-operator boundary in `rule-engine`. It encodes
+The `rule-engine/adapters/temporal` module is the optional bridge between exact
+`temporal/instant` periods and the deterministic custom-operator boundary in
+`rule-engine`. It encodes
 instants and periods as tagged strings so the core engine does not acquire a
 temporal dependency.
 

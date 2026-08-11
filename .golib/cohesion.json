@@ -154,9 +154,9 @@
         "pkg/money",
         "pkg/opening-hours",
         "pkg/rule-engine",
-        "pkg/rule-engine/adapters/gomath",
-        "pkg/rule-engine/adapters/gomeasurement",
-        "pkg/rule-engine/adapters/gotemporal",
+        "pkg/rule-engine/adapters/math",
+        "pkg/rule-engine/adapters/measurement",
+        "pkg/rule-engine/adapters/temporal",
         "pkg/temporal",
         "pkg/verkle-tree"
       ]

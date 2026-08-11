@@ -82,8 +82,8 @@ I/O, data movement, provider boundaries, and derived search state.
 `barcode`, `calendar`, `ecma-regexp`, `geo`, `keyphrase`, `knapsack`,
 `knapsack/objective/gomoney`, `math`, `measurement`,
 `merkle-patricia-trie`, `merkle-tree`, `money`, `opening-hours`, `rule-engine`,
-`rule-engine/adapters/gomath`, `rule-engine/adapters/gomeasurement`,
-`rule-engine/adapters/gotemporal`, `temporal`, and `verkle-tree` own
+`rule-engine/adapters/math`, `rule-engine/adapters/measurement`,
+`rule-engine/adapters/temporal`, `temporal`, and `verkle-tree` own
 domain-specific immutable values, algorithms, parsers, proofs, and calculations.
 
 ### Tooling
@@ -158,9 +158,9 @@ finished:
 | `outbox/adapters/goqueue` | `outbox/adapters/queue` | Naming debt |
 | `outbox/adapters/gotelemetry` | `outbox/adapters/otel` | Naming debt |
 | `queue/queueservice` | `queue/adapters/service` | Layout debt |
-| `rule-engine/adapters/gomath` | `rule-engine/adapters/math` | Naming debt |
-| `rule-engine/adapters/gomeasurement` | `rule-engine/adapters/measurement` | Naming debt |
-| `rule-engine/adapters/gotemporal` | `rule-engine/adapters/temporal` | Naming debt |
+| `rule-engine/adapters/gomath` | `rule-engine/adapters/math` | Resolved before v1; no tags or Track, Postal, Location, Mono, or API consumers used the old path. |
+| `rule-engine/adapters/gomeasurement` | `rule-engine/adapters/measurement` | Resolved before v1; no tags or Track, Postal, Location, Mono, or API consumers used the old path. |
+| `rule-engine/adapters/gotemporal` | `rule-engine/adapters/temporal` | Resolved before v1; no tags or Track, Postal, Location, Mono, or API consumers used the old path. |
 | `authentication/authotel` | `authentication/adapters/otel` | Layout debt |
 
 `cloudevents/adapters/golib` is not target-oriented. It spans several Golib

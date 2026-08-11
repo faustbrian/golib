@@ -20,10 +20,10 @@ const EncodingV1Prefix = "golib.rule-engine.decimal/v1:"
 var (
 	// ErrInvalidTaggedValue reports a non-string value or an unknown or malformed
 	// decimal encoding tag. It never includes the rejected value.
-	ErrInvalidTaggedValue = errors.New("rule-engine gomath: invalid tagged value")
+	ErrInvalidTaggedValue = errors.New("rule-engine math adapter: invalid tagged value")
 	// ErrNonCanonicalDecimal reports a valid decimal payload that is not the
 	// canonical decimal.Decimal.String representation.
-	ErrNonCanonicalDecimal = errors.New("rule-engine gomath: noncanonical decimal")
+	ErrNonCanonicalDecimal = errors.New("rule-engine math adapter: noncanonical decimal")
 )
 
 // Decimal operator names identify the exact comparison applied to two tagged

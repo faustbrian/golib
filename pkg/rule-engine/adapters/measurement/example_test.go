@@ -6,7 +6,7 @@ import (
 
 	"github.com/faustbrian/golib/pkg/math/decimal"
 	measurement "github.com/faustbrian/golib/pkg/measurement"
-	ruleenginemeasurement "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement"
+	ruleenginemeasurement "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement"
 )
 
 func ExampleQuantity() {

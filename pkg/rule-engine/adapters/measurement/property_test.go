@@ -11,7 +11,7 @@ import (
 	"github.com/faustbrian/golib/pkg/math/decimal"
 	measurement "github.com/faustbrian/golib/pkg/measurement"
 	ruleengine "github.com/faustbrian/golib/pkg/rule-engine"
-	ruleenginemeasurement "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement"
+	ruleenginemeasurement "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement"
 )
 
 var dimensions = []measurement.Dimension{

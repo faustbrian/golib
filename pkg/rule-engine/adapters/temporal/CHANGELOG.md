@@ -20,6 +20,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Rename the unpublished module from `adapters/gotemporal` to
+  `adapters/temporal` so the path identifies its target without a redundant
+  language prefix.
 - Return encoding errors from `Instant` and `Period` so RFC 3339 values outside
   the supported four-digit year range cannot be persisted silently.
 - Evaluate equality, overlap, and containment as exact sets, preserving

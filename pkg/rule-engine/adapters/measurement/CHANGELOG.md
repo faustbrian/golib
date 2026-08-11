@@ -34,6 +34,9 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Rename the unpublished module from `adapters/gomeasurement` to
+  `adapters/measurement` so the path identifies its target without a redundant
+  language prefix.
 - Require owned sibling modules at local `v0.0.0`; clean external consumers
   pin each module to an exact main pseudo-version.
 

@@ -1,6 +1,6 @@
 # Exact measurement rule operators
 
-`rule-engine/adapters/gomeasurement` is an optional bridge between immutable
+`rule-engine/adapters/measurement` is an optional bridge between immutable
 `measurement.Quantity` values and the rule engine's explicitly registered
 custom operators. It compares compatible dimensions with
 `measurement.ExactConversion()` and never supplies a unit or rounding policy.
@@ -57,7 +57,7 @@ Release history is in [CHANGELOG.md](CHANGELOG.md).
 ## Development
 
 ```console
-make check MODULES=pkg/rule-engine/adapters/gomeasurement
+make check MODULES=pkg/rule-engine/adapters/measurement
 ```
 
 ## License

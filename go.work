@@ -103,9 +103,9 @@ use (
 	./pkg/retry
 	./pkg/router
 	./pkg/rule-engine
-	./pkg/rule-engine/adapters/gomath
-	./pkg/rule-engine/adapters/gomeasurement
-	./pkg/rule-engine/adapters/gotemporal
+	./pkg/rule-engine/adapters/math
+	./pkg/rule-engine/adapters/measurement
+	./pkg/rule-engine/adapters/temporal
 	./pkg/rule-engine/benchmarks/competitors
 	./pkg/scheduler
 	./pkg/schema-registry
@@ -306,11 +306,11 @@ replace github.com/faustbrian/golib/pkg/retry v0.0.0 => ./pkg/retry
 
 replace github.com/faustbrian/golib/pkg/router v0.0.0 => ./pkg/router
 
-replace github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath v0.0.0 => ./pkg/rule-engine/adapters/gomath
+replace github.com/faustbrian/golib/pkg/rule-engine/adapters/math v0.0.0 => ./pkg/rule-engine/adapters/math
 
-replace github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement v0.0.0 => ./pkg/rule-engine/adapters/gomeasurement
+replace github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement v0.0.0 => ./pkg/rule-engine/adapters/measurement
 
-replace github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal v0.0.0 => ./pkg/rule-engine/adapters/gotemporal
+replace github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal v0.0.0 => ./pkg/rule-engine/adapters/temporal
 
 replace github.com/faustbrian/golib/pkg/rule-engine/benchmarks/competitors v0.0.0 => ./pkg/rule-engine/benchmarks/competitors
 

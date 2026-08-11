@@ -1,4 +1,4 @@
-module github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement
+module github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement
 
 go 1.26.5
 

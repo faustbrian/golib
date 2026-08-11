@@ -9,7 +9,7 @@ import (
 
 	gomath "github.com/faustbrian/golib/pkg/math"
 	"github.com/faustbrian/golib/pkg/math/decimal"
-	ruleenginemath "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath"
+	ruleenginemath "github.com/faustbrian/golib/pkg/rule-engine/adapters/math"
 )
 
 func TestDecimalOperatorRelationalProperties(t *testing.T) {

@@ -140,6 +140,8 @@ documented in each module's changelog.
 
 ### Changed
 
+- Rename the unpublished rule-engine adapters to target-oriented `math`,
+  `measurement`, and `temporal` module paths before their first public release.
 - Treat unavailable historical mutation identities as absent reuse candidates
   instead of aborting current-input mutation verification; current identity
   calculation and mutation execution remain fail-closed.

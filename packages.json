@@ -6151,10 +6151,10 @@
       "build_tags": []
     },
     {
-      "module_directory": "pkg/rule-engine/adapters/gomath",
+      "module_directory": "pkg/rule-engine/adapters/math",
       "directory": ".",
       "name": "ruleenginemath",
-      "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath",
+      "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/math",
       "kind": "public",
       "production": true,
       "executable": true,
@@ -6163,10 +6163,10 @@
       "build_tags": []
     },
     {
-      "module_directory": "pkg/rule-engine/adapters/gomeasurement",
+      "module_directory": "pkg/rule-engine/adapters/measurement",
       "directory": ".",
       "name": "ruleenginemeasurement",
-      "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gomeasurement",
+      "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/measurement",
       "kind": "public",
       "production": true,
       "executable": true,
@@ -6175,10 +6175,10 @@
       "build_tags": []
     },
     {
-      "module_directory": "pkg/rule-engine/adapters/gotemporal",
+      "module_directory": "pkg/rule-engine/adapters/temporal",
       "directory": ".",
       "name": "ruleenginetemporal",
-      "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal",
+      "import_path": "github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal",
       "kind": "public",
       "production": true,
       "executable": true,

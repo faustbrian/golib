@@ -1,4 +1,4 @@
-module github.com/faustbrian/golib/pkg/rule-engine/adapters/gotemporal
+module github.com/faustbrian/golib/pkg/rule-engine/adapters/temporal
 
 go 1.26.5
 

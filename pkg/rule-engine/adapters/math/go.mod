@@ -1,4 +1,4 @@
-module github.com/faustbrian/golib/pkg/rule-engine/adapters/gomath
+module github.com/faustbrian/golib/pkg/rule-engine/adapters/math
 
 go 1.26.5
 
