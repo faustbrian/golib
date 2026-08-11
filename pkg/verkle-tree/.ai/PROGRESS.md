@@ -2,8 +2,8 @@
 
 ## Selected release target
 
-As of 2026-08-04, progress against the selected **profile-conformant pre-v1**
-release target is **95/100**.
+As of 2026-08-11, progress against the selected **profile-conformant pre-v1**
+release target is **100/100**.
 
 This is a delivery-planning score, not a cryptographic security rating. The
 allocation below is fixed and binary. An item earns all of its points only when
@@ -17,7 +17,7 @@ not a 27-point implementation jump. Production-backend audit, stable-v1 API
 guarantees, and Ethereum protocol readiness are not silently counted as done;
 they are outside this release target.
 
-## Earned: 95 points
+## Earned: 100 points
 
 | Item | Points | Exit criterion satisfied |
 | --- | ---: | --- |
@@ -32,15 +32,52 @@ they are outside this release target.
 | Test and hostile-input baseline | 8 | Production packages have exact statement coverage and the current boundary has race, fuzz, malformed-input, crash-lifecycle, static-analysis, vulnerability, secret, license, and SBOM evidence |
 | Pinned conformance and provenance evidence | 8 | Exact Go and Rust revisions, licenses, generators, checksums, and procedures are recorded; the compatibility matrix identifies every positive and negative differential claim without generalizing beyond its corpus |
 | Documentation, API audit, and benchmarks | 6 | Quick start, normative profile, conformance matrix, threat model, usage, storage, adoption, complete exported-API audit, benchmark method, caveats, and raw samples are published |
-| **Total earned** | **95** | |
+| Exact mutation gate | 2 | Every production package has exact 100% mutation coverage and efficacy; the final segmented `internal/authstate` campaign has no surviving or uncovered viable mutant |
+| Final pre-v1 release evidence | 3 | All 21 mandatory scoped module gates pass, and the local release dry-run proves module tidiness, tests, API compatibility, and clean-consumer resolution |
+| **Total earned** | **100** | |
 
-## Remaining: 5 points
+## Remaining: 0 points
 
-| Item | Points | Exact exit criterion |
-| --- | ---: | --- |
-| Exact mutation gate | 2 | The final pre-v1 tree passes the repository's exact mutation requirements; a running or stale-tree campaign earns zero |
-| Final pre-v1 release evidence | 3 | Fresh clean-consumer, reproducibility, conformance, security, API, documentation, benchmark-smoke, semantic-version, and release-metadata gates pass on the exact release tree |
-| **Total remaining** | **5** | |
+No selected pre-v1 delivery criterion remains open. Stable-v1, external-audit,
+production-suitability, and Ethereum-protocol claims remain separate future
+decisions and are not implied by this completion.
+
+## Completion report
+
+- **Profile and stability:** The implemented profile is the immutable
+  `verkletree-bandersnatch-ipa-256-v0` definition in
+  [`specification/bandersnatch-ipa-256-v0.md`](../specification/bandersnatch-ipa-256-v0.md).
+  The stable-v1 decision remains deliberately unfrozen as recorded in
+  [`specification/profile-freeze.md`](../specification/profile-freeze.md).
+- **Sources and provenance:** Exact authoritative revisions, licenses,
+  generator procedures, fixture checksums, and reproducibility classifications
+  are recorded in [`specification/sources.json`](../specification/sources.json).
+- **Independent agreement:** Exact Go and Rust roots, commitment encodings,
+  proofs, witnesses, transition roots, positive verification, and bounded
+  negative cases are enumerated in
+  [`docs/compatibility.md`](../docs/compatibility.md). The Rust absent-stem
+  incremental-update defect is excluded from the compatibility claim rather
+  than treated as a package blocker.
+- **Defects and compatibility:** The complete resolved-change record is in
+  [`CHANGELOG.md`](../CHANGELOG.md); the exported-surface result and migration
+  boundary are in [`docs/api-audit.md`](../docs/api-audit.md) and
+  [`docs/adoption.md`](../docs/adoption.md).
+- **Verification:** On Go 1.26.5, darwin/arm64, all 21 mandatory scoped gates
+  passed. Production code has exact 6348/6348 statement coverage. Mutation
+  checkpoints and the final segmented `internal/authstate` campaign report
+  100% coverage and efficacy with no surviving or uncovered viable mutant.
+  The bounded fuzz gate executed all 23 registered targets; race, storage
+  crash/recovery, security, API, documentation, interoperability, benchmark,
+  and clean-consumer gates passed. NilAway remains advisory and its diagnostics
+  are retained rather than represented as a mandatory clean result.
+- **Cryptographic and protocol limits:** Backend audit status, side-channel
+  scope, uncancellable dependency work, and maintenance risks remain explicit
+  in [`docs/backend-audit.md`](../docs/backend-audit.md) and
+  [`docs/threat-model.md`](../docs/threat-model.md). No Ethereum profile or
+  mainnet-readiness claim is made.
+- **Platforms:** The final local campaign covers darwin/arm64. Other supported
+  platforms remain the responsibility of repository CI and release automation;
+  this report does not claim an unobserved platform result.
 
 ## What conformance means
 
