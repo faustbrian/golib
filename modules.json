@@ -170,6 +170,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
+            "docs/cohesion-audit.md",
+            "docs/design-language.md",
             "docs/hardening-report.md"
           ],
           "verification_gates": [

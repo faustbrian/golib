@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Add the consumer-facing Golib design language and reviewed cohesion baseline,
+  including module families, construction and lifecycle conventions, adapter
+  naming findings, intentional package identifiers, and residual decisions.
 - Add a repository-wide specification decision validator, canonical governance
   contract, and pull request review section so specification-backed modules
   fail visibly on missing provenance, unresolved interpretations, or stale

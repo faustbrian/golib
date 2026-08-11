@@ -266,6 +266,54 @@ func TestGoalEvidenceTracksRequirementsImplementationAndCanonicalGates(t *testin
 	}
 }
 
+func TestGoalEvidenceIncludesExplicitDesignLanguage(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	goal := ".ai/GOAL_COHESION.md"
+	mustWriteFile(t, filepath.Join(root, goal), "# Cohesion Goal\n")
+	mustWriteFile(t, filepath.Join(root, "README.md"), "# Repository\n")
+	mustWriteFile(
+		t,
+		filepath.Join(root, "docs/design-language.md"),
+		"# Design Language\n",
+	)
+
+	records, err := goalEvidenceFor(root, ".", []string{goal}, []string{"docs"})
+	if err != nil {
+		t.Fatalf("goalEvidenceFor() error = %v", err)
+	}
+	want := []string{"README.md", "docs/design-language.md"}
+	if !slices.Equal(records[0].ImplementationEvidence, want) {
+		t.Fatalf(
+			"implementation evidence = %v, want %v",
+			records[0].ImplementationEvidence,
+			want,
+		)
+	}
+}
+
+func TestHardeningGoalEvidenceIgnoresAncestorNames(t *testing.T) {
+	t.Parallel()
+	root := t.TempDir()
+	goal := ".ai/GOAL_HARDEN.md"
+	mustWriteFile(t, filepath.Join(root, goal), "# Hardening Goal\n")
+	mustWriteFile(t, filepath.Join(root, "README.md"), "# Repository\n")
+	mustWriteFile(t, filepath.Join(root, "docs/unrelated.md"), "# Unrelated\n")
+
+	records, err := goalEvidenceFor(root, ".", []string{goal}, []string{"docs"})
+	if err != nil {
+		t.Fatalf("goalEvidenceFor() error = %v", err)
+	}
+	want := []string{"README.md"}
+	if !slices.Equal(records[0].ImplementationEvidence, want) {
+		t.Fatalf(
+			"implementation evidence = %v, want %v",
+			records[0].ImplementationEvidence,
+			want,
+		)
+	}
+}
+
 func TestCanonicalGatesRejectDuplicateAndEmptyContracts(t *testing.T) {
 	t.Parallel()
 	for name, contents := range map[string]string{

@@ -9,6 +9,11 @@ The repository favors standard-library contracts, visible control flow,
 bounded resource use, and strict compatibility over framework magic. Packages
 can be adopted independently; using one does not require adopting the rest.
 
+The [Golib design language](docs/design-language.md) defines the shared
+construction, lifecycle, ownership, error, security, and interoperability
+contract. The [cohesion baseline](docs/cohesion-audit.md) records the measured
+module families, current divergences, and pre-v1 remediation decisions.
+
 ## Choosing Packages
 
 - Use [`jsonrpc`](pkg/jsonrpc) for typed internal RPC and command-oriented

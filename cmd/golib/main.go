@@ -1679,6 +1679,17 @@ func implementationEvidence(root, directory, goal string) ([]string, error) {
 			add(candidate)
 		}
 	}
+	if filepath.Base(goal) == "GOAL_COHESION.md" {
+		for _, candidate := range []string{
+			"docs/cohesion-audit.md",
+			"docs/design-language.md",
+		} {
+			path := filepath.Join(root, directory, filepath.FromSlash(candidate))
+			if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() {
+				add(candidate)
+			}
+		}
+	}
 
 	goalName := strings.TrimSuffix(filepath.Base(goal), filepath.Ext(goal))
 	goalName = strings.TrimPrefix(goalName, "GOAL_")
@@ -1694,17 +1705,17 @@ func implementationEvidence(root, directory, goal string) ([]string, error) {
 			if entry.IsDir() || filepath.Ext(entry.Name()) != ".md" {
 				return nil
 			}
-			lower := strings.ToLower(filepath.ToSlash(path))
+			relative, relativeErr := filepath.Rel(
+				filepath.Join(root, directory),
+				path,
+			)
+			if relativeErr != nil {
+				return relativeErr
+			}
+			lower := strings.ToLower(filepath.ToSlash(relative))
 			for _, token := range tokens {
 				if token != "goal" && token != "harden" && token != "polish" &&
 					strings.Contains(lower, token) {
-					relative, relativeErr := filepath.Rel(
-						filepath.Join(root, directory),
-						path,
-					)
-					if relativeErr != nil {
-						return relativeErr
-					}
 					add(relative)
 					break
 				}
