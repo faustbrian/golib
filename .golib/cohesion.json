@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "families": [
+    {
+      "id": "foundations",
+      "label": "Foundations",
+      "description": "Common immutable values, deterministic seams, configuration, identity propagation, and input validation.",
+      "modules": [
+        "pkg/clock",
+        "pkg/config",
+        "pkg/config/adapters/awssecretsmanager",
+        "pkg/correlation",
+        "pkg/identifier",
+        "pkg/international",
+        "pkg/localized",
+        "pkg/tenancy",
+        "pkg/validation"
+      ]
+    },
+    {
+      "id": "service-edge",
+      "label": "Service Edge",
+      "description": "Request-edge policy, identity, access decisions, routing, middleware, and process lifecycle.",
+      "modules": [
+        "pkg/api-query",
+        "pkg/authentication",
+        "pkg/authentication/authotel",
+        "pkg/authentication/jwt",
+        "pkg/authentication/oidc",
+        "pkg/authorization",
+        "pkg/capability",
+        "pkg/http-middleware",
+        "pkg/password",
+        "pkg/router",
+        "pkg/service"
+      ]
+    },
+    {
+      "id": "protocols-and-descriptions",
+      "label": "Protocols And Descriptions",
+      "description": "Standards, envelopes, schemas, descriptions, signatures, and wire interoperability.",
+      "modules": [
+        "pkg/cloudevents",
+        "pkg/cloudevents/adapters/golib",
+        "pkg/http-signature",
+        "pkg/json-schema",
+        "pkg/jsonapi",
+        "pkg/jsonrpc",
+        "pkg/openapi",
+        "pkg/openrpc",
+        "pkg/schema-registry",
+        "pkg/schema-registry/providers/confluent",
+        "pkg/schema-registry/providers/glue",
+        "pkg/webhook",
+        "pkg/wire",
+        "pkg/wsdl",
+        "pkg/xsd"
+      ]
+    },
+    {
+      "id": "persistence-and-durability",
+      "label": "Persistence And Durability",
+      "description": "Durable state, delivery, coordination, recovery, and operational lifecycle.",
+      "modules": [
+        "pkg/audit",
+        "pkg/audit/postgres",
+        "pkg/cache",
+        "pkg/event-sourcing",
+        "pkg/event-sourcing/adapters/gokafka",
+        "pkg/event-sourcing/adapters/gooutbox",
+        "pkg/event-sourcing/adapters/goqueue",
+        "pkg/event-sourcing/adapters/gotelemetry",
+        "pkg/event-sourcing/postgres",
+        "pkg/feature-flags",
+        "pkg/idempotency",
+        "pkg/lease",
+        "pkg/migrations",
+        "pkg/outbox",
+        "pkg/outbox/adapters/gokafka",
+        "pkg/outbox/adapters/goqueue",
+        "pkg/outbox/adapters/gotelemetry",
+        "pkg/postgres",
+        "pkg/queue",
+        "pkg/queue-control-plane",
+        "pkg/queue/queueservice",
+        "pkg/scheduler",
+        "pkg/sequencer",
+        "pkg/settings",
+        "pkg/state-machine",
+        "pkg/workflow"
+      ]
+    },
+    {
+      "id": "resilience",
+      "label": "Resilience",
+      "description": "Explicit admission, isolation, retry, amplification, and failure policies.",
+      "modules": [
+        "pkg/adaptive-throttle",
+        "pkg/bulkhead",
+        "pkg/circuit-breaker",
+        "pkg/concurrency-limit",
+        "pkg/fault-injection",
+        "pkg/hedge",
+        "pkg/rate-limit",
+        "pkg/resilience",
+        "pkg/retry",
+        "pkg/semaphore"
+      ]
+    },
+    {
+      "id": "observability",
+      "label": "Observability",
+      "description": "Structured logging extensions and OpenTelemetry runtime lifecycle.",
+      "modules": [
+        "pkg/log",
+        "pkg/telemetry"
+      ]
+    },
+    {
+      "id": "integration-and-data-movement",
+      "label": "Integration And Data Movement",
+      "description": "Bounded external I/O, data movement, provider boundaries, and derived search state.",
+      "modules": [
+        "pkg/external-sort",
+        "pkg/filesystem",
+        "pkg/http-client",
+        "pkg/kafka",
+        "pkg/kafka/adapters/gotelemetry",
+        "pkg/kafka/adapters/mskiam",
+        "pkg/kafka/kafkaservice",
+        "pkg/search",
+        "pkg/search/adapters/opensearch",
+        "pkg/secret-envelope",
+        "pkg/secret-store/adapters/awssecretsmanager",
+        "pkg/tabular"
+      ]
+    },
+    {
+      "id": "domain-utilities",
+      "label": "Domain Utilities",
+      "description": "Domain-specific immutable values, algorithms, parsers, proofs, and calculations.",
+      "modules": [
+        "pkg/barcode",
+        "pkg/calendar",
+        "pkg/ecma-regexp",
+        "pkg/geo",
+        "pkg/keyphrase",
+        "pkg/knapsack",
+        "pkg/knapsack/objective/gomoney",
+        "pkg/math",
+        "pkg/measurement",
+        "pkg/merkle-patricia-trie",
+        "pkg/merkle-tree",
+        "pkg/money",
+        "pkg/opening-hours",
+        "pkg/rule-engine",
+        "pkg/rule-engine/adapters/gomath",
+        "pkg/rule-engine/adapters/gomeasurement",
+        "pkg/rule-engine/adapters/gotemporal",
+        "pkg/temporal",
+        "pkg/verkle-tree"
+      ]
+    },
+    {
+      "id": "tooling",
+      "label": "Tooling",
+      "description": "Static policy, command construction, and interactive terminal behavior.",
+      "modules": [
+        "pkg/analysis",
+        "pkg/cli",
+        "pkg/prompts"
+      ]
+    }
+  ]
+}

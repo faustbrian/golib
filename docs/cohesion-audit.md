@@ -197,10 +197,11 @@ subpackage map, construction, errors, concurrency, security, compatibility,
 performance, troubleshooting, and root backlinks without requiring irrelevant
 empty headings.
 
-The existing generated package catalog mixes consumer modules with engineering
-harness detail. Cohesion requires separate consumer and engineering views.
-Package-local workflow badges and old standalone repository links remain
-objective drift candidates for automated checks.
+At baseline, the generated package catalog mixed consumer modules with
+engineering harness detail. The catalog now has separate consumer and
+engineering views backed by exact family metadata. Package-local workflow
+badges and old standalone repository links remain objective drift candidates
+for automated checks.
 
 ## Decisions
 

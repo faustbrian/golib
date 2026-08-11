@@ -7,6 +7,11 @@ documented in each module's changelog.
 
 ### Added
 
+- Harden identity-platform orchestration with pinned goal semantics across
+  lifecycle moves, commit/tree-bound preflight identity, durable exact worker
+  assignment attestations, and lossless ordinary abandonment evidence.
+- Add validated family metadata for every releasable module and split the
+  generated consumer package catalog from the exhaustive engineering inventory.
 - Add the consumer-facing Golib design language and reviewed cohesion baseline,
   including module families, construction and lifecycle conventions, adapter
   naming findings, intentional package identifiers, and residual decisions.

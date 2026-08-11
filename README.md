@@ -33,10 +33,11 @@ module families, current divergences, and pre-v1 remediation decisions.
 - Use [`wire`](pkg/wire), [`tabular`](pkg/tabular), [`xsd`](pkg/xsd), and
   [`wsdl`](pkg/wsdl) for bounded serialization and document processing.
 
-The [complete package catalog](docs/package-catalog.md) records every module,
-adapter, harness, dependency edge, required service, specification, and gate.
-See [package selection](docs/package-selection.md) for combinations and
-tradeoffs.
+The [package catalog](docs/package-catalog.md) groups independently releasable
+libraries and adapters by the problem they solve. The exhaustive
+[engineering inventory](docs/engineering-inventory.md) also records internal
+tools, fixtures, examples, interoperability harnesses, and benchmarks. See
+[package selection](docs/package-selection.md) for combinations and tradeoffs.
 
 ## Workspace
 

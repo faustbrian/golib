@@ -314,6 +314,161 @@ func TestHardeningGoalEvidenceIgnoresAncestorNames(t *testing.T) {
 	}
 }
 
+func TestApplyCohesionFamiliesRequiresExactReleasableCoverage(t *testing.T) {
+	t.Parallel()
+	base := catalog{Modules: []module{
+		{Directory: ".", Releasable: false},
+		{Directory: "pkg/clock", Releasable: true},
+		{Directory: "pkg/retry", Releasable: true},
+	}}
+	valid := cohesionConfig{
+		SchemaVersion: 1,
+		Families: []cohesionFamily{
+			{
+				ID:          "foundations",
+				Label:       "Foundations",
+				Description: "Shared immutable values and deterministic seams.",
+				Modules:     []string{"pkg/clock"},
+			},
+			{
+				ID:          "resilience",
+				Label:       "Resilience",
+				Description: "Bounded failure and admission policies.",
+				Modules:     []string{"pkg/retry"},
+			},
+		},
+	}
+
+	tests := []struct {
+		name       string
+		mutate     func(*cohesionConfig)
+		wantError  bool
+		wantFamily map[string]string
+	}{
+		{
+			name: "valid",
+			wantFamily: map[string]string{
+				"pkg/clock": "foundations",
+				"pkg/retry": "resilience",
+			},
+		},
+		{
+			name:      "unsupported schema",
+			mutate:    func(current *cohesionConfig) { current.SchemaVersion = 2 },
+			wantError: true,
+		},
+		{
+			name: "missing module",
+			mutate: func(current *cohesionConfig) {
+				current.Families[1].Modules = nil
+			},
+			wantError: true,
+		},
+		{
+			name: "duplicate module",
+			mutate: func(current *cohesionConfig) {
+				current.Families[1].Modules = []string{"pkg/clock", "pkg/retry"}
+			},
+			wantError: true,
+		},
+		{
+			name: "unknown module",
+			mutate: func(current *cohesionConfig) {
+				current.Families[1].Modules = []string{"pkg/retry", "pkg/unknown"}
+			},
+			wantError: true,
+		},
+		{
+			name: "internal module",
+			mutate: func(current *cohesionConfig) {
+				current.Families[1].Modules = []string{".", "pkg/retry"}
+			},
+			wantError: true,
+		},
+		{
+			name: "invalid family",
+			mutate: func(current *cohesionConfig) {
+				current.Families[0].ID = "Foundations"
+			},
+			wantError: true,
+		},
+		{
+			name: "missing description",
+			mutate: func(current *cohesionConfig) {
+				current.Families[0].Description = ""
+			},
+			wantError: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			current := base
+			current.Modules = slices.Clone(base.Modules)
+			config := valid
+			config.Families = slices.Clone(valid.Families)
+			for index := range config.Families {
+				config.Families[index].Modules = slices.Clone(valid.Families[index].Modules)
+			}
+			if test.mutate != nil {
+				test.mutate(&config)
+			}
+			err := applyCohesionFamilies(&current, config)
+			if (err != nil) != test.wantError {
+				t.Fatalf("applyCohesionFamilies() error = %v, wantError %t", err, test.wantError)
+			}
+			if err != nil {
+				return
+			}
+			for _, item := range current.Modules {
+				if item.Releasable && item.Family != test.wantFamily[item.Directory] {
+					t.Errorf("module %s family = %q", item.Directory, item.Family)
+				}
+			}
+		})
+	}
+}
+
+func TestCatalogDocumentationSeparatesConsumerAndEngineeringViews(t *testing.T) {
+	t.Parallel()
+	current := catalog{Modules: []module{
+		{
+			Directory:         "pkg/clock",
+			Path:              "example.com/clock",
+			Kind:              "public library",
+			Lifecycle:         "pre-v1",
+			Purpose:           "Explicit time.",
+			Family:            "foundations",
+			FamilyLabel:       "Foundations",
+			FamilyDescription: "Shared immutable values and deterministic seams.",
+			FamilyOrder:       1,
+			Releasable:        true,
+		},
+		{
+			Directory:  "pkg/clock/benchmarks/competitors",
+			Path:       "example.com/clock-benchmarks",
+			Kind:       "benchmark harness",
+			Lifecycle:  "internal",
+			Purpose:    "Comparison harness.",
+			Releasable: false,
+		},
+	}}
+
+	documents := catalogDocumentation(current)
+	consumer := documents["docs/package-catalog.md"]
+	if !strings.Contains(consumer, "## Foundations") ||
+		!strings.Contains(consumer, "example.com/clock") ||
+		strings.Contains(consumer, "clock-benchmarks") {
+		t.Fatalf("consumer catalog does not isolate releasable modules:\n%s", consumer)
+	}
+	engineering := documents["docs/engineering-inventory.md"]
+	if !strings.Contains(engineering, "example.com/clock") ||
+		!strings.Contains(engineering, "clock-benchmarks") ||
+		!strings.Contains(engineering, "| benchmark harness | - | internal |") {
+		t.Fatalf("engineering inventory omits registered modules:\n%s", engineering)
+	}
+}
+
 func TestCanonicalGatesRejectDuplicateAndEmptyContracts(t *testing.T) {
 	t.Parallel()
 	for name, contents := range map[string]string{
