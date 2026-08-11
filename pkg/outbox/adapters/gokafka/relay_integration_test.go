@@ -382,6 +382,9 @@ func assertCrashRecords(
 		if string(record.Key) != "stream-1" {
 			t.Fatalf("Kafka crash record key = %q", record.Key)
 		}
+		if record.ProducerID < 0 || record.ProducerEpoch < 0 {
+			t.Fatal("Kafka crash record was not produced idempotently")
+		}
 		foundEventID := false
 		for _, header := range record.Headers {
 			if header.Key == "event-id" && string(header.Value) == eventID {
