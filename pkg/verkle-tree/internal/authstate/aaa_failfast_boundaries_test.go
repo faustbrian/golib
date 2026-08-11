@@ -342,6 +342,59 @@ func TestFailFastStatelessScratchAccountsForEveryComponent(t *testing.T) {
 	}
 }
 
+func TestFailFastStatelessAbsentDeleteDoesNotStopLaterStemUpdate(t *testing.T) {
+	later := testKey(0x40, 1)
+	differentExisting := testKey(0x20, 1)
+	differentExisting[1] = 1
+	for _, test := range []struct {
+		name     string
+		entries  []Entry
+		absent   Key
+		wantKind StemPathKind
+	}{
+		{
+			name:     "missing stem",
+			entries:  []Entry{{Key: later, Value: testValue(1)}},
+			absent:   testKey(0x20, 1),
+			wantKind: StemPathMissing,
+		},
+		{
+			name: "different stem",
+			entries: []Entry{
+				{Key: differentExisting, Value: testValue(2)},
+				{Key: later, Value: testValue(1)},
+			},
+			absent:   testKey(0x20, 2),
+			wantKind: StemPathDifferent,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			snapshot := newTestSnapshot(t, test.entries)
+			proof, updater := newStatelessTestProof(t, snapshot, []Key{test.absent, later})
+			if proof.stemPaths[0].kind != test.wantKind {
+				t.Fatalf("absent stem path kind = %d, want %d", proof.stemPaths[0].kind, test.wantKind)
+			}
+			updates := []Update{Delete(test.absent), Set(later, testValue(3))}
+			got, err := updater.Apply(
+				context.Background(), proof, updates,
+				testProofVerificationLimits(), testStatelessUpdateLimits(),
+			)
+			if err != nil {
+				t.Fatalf("apply absent delete before later update: %v", err)
+			}
+			wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+			if err != nil {
+				t.Fatalf("apply stateful comparison updates: %v", err)
+			}
+			want, err := wantSnapshot.RootContainer(context.Background())
+			if err != nil {
+				t.Fatalf("stateful comparison root: %v", err)
+			}
+			assertSameBackendRoot(t, got, want)
+		})
+	}
+}
+
 func TestFailFastUpdateProofClassifiesWholeStemTransitions(t *testing.T) {
 	first := testKey(5, 1)
 	second := testKey(5, 2)
