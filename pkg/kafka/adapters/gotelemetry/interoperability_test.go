@@ -11,11 +11,16 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/faustbrian/golib/pkg/kafka"
 	"github.com/faustbrian/golib/pkg/kafka/adapters/gotelemetry"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/metric"
+	metricnoop "go.opentelemetry.io/otel/metric/noop"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/trace"
 )
 
@@ -46,6 +51,50 @@ func TestTraceContextPropagationAcrossApacheKafka(t *testing.T) {
 		TraceFlags: trace.FlagsSampled,
 		TraceState: traceState,
 	})
+	processor := deadlineStartProcessor{blockedNames: map[string]struct{}{
+		"kafka producer.shutdown": {},
+		"kafka consumer.assigned": {},
+		"kafka consumer.shutdown": {},
+	}}
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSpanProcessor(processor),
+	)
+	t.Cleanup(func() {
+		shutdownCtx, shutdownCancel := context.WithTimeout(
+			context.Background(),
+			30*time.Second,
+		)
+		defer shutdownCancel()
+		_ = tracerProvider.Shutdown(shutdownCtx)
+	})
+	instrumentation, err := gotelemetry.New(gotelemetry.Config{
+		Runtime: interoperabilityRuntime{
+			tracerProvider: tracerProvider,
+			meterProvider: deadlineMeterProvider{
+				MeterProvider: metricnoop.NewMeterProvider(),
+				counterOperations: map[string]struct{}{
+					"producer.record": {},
+				},
+				histogramOperations: map[string]struct{}{
+					"consumer.poll": {},
+				},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("construct telemetry: %v", err)
+	}
+	failures := &interoperabilityFailures{}
+	observerPolicy := kafka.ObserverPolicy{
+		Observers: []kafka.ObserverFunc{instrumentation.Observer()},
+		FailureHandler: func(
+			_ context.Context,
+			failure kafka.ObservationFailure,
+		) {
+			failures.add(failure)
+		},
+		Timeout: 25 * time.Millisecond,
+	}
 	outbound, err := policy.Inject(
 		trace.ContextWithSpanContext(ctx, want),
 		kafka.ProducerRecord{
@@ -66,18 +115,28 @@ func TestTraceContextPropagationAcrossApacheKafka(t *testing.T) {
 		ClientID:      "golib-gotelemetry-integration-producer",
 		AllowedTopics: []string{topic},
 		Security:      kafka.DevelopmentPlaintextSecurity(),
+		Observers:     observerPolicy,
 	})
 	if err != nil {
 		t.Fatalf("construct producer: %v", err)
 	}
+	producerClosed := false
 	t.Cleanup(func() {
-		if closeErr := producer.Close(); closeErr != nil {
-			t.Errorf("close producer: %v", closeErr)
+		if !producerClosed {
+			if closeErr := producer.Close(); closeErr != nil {
+				t.Errorf("close producer: %v", closeErr)
+			}
 		}
 	})
 	if err := producer.Publish(ctx, outbound); err != nil {
 		t.Fatalf("publish propagated record: %v", err)
 	}
+	failures.requireTimeout(t, kafka.ObservationProduceRecord)
+	if err := producer.Close(); err != nil {
+		t.Fatalf("close producer: %v", err)
+	}
+	producerClosed = true
+	failures.requireTimeout(t, kafka.ObservationProducerShutdown)
 
 	consumer, err := kafka.NewConsumer(kafka.ConsumerConfig{
 		Brokers:        []string{broker},
@@ -87,13 +146,17 @@ func TestTraceContextPropagationAcrossApacheKafka(t *testing.T) {
 		ResetOffset:    kafka.OffsetEarliest,
 		MaxPollRecords: 1,
 		Security:       kafka.DevelopmentPlaintextSecurity(),
+		Observers:      observerPolicy,
 	})
 	if err != nil {
 		t.Fatalf("construct consumer: %v", err)
 	}
+	consumerClosed := false
 	t.Cleanup(func() {
-		if closeErr := consumer.Close(); closeErr != nil {
-			t.Errorf("close consumer: %v", closeErr)
+		if !consumerClosed {
+			if closeErr := consumer.Close(); closeErr != nil {
+				t.Errorf("close consumer: %v", closeErr)
+			}
 		}
 	})
 
@@ -139,6 +202,173 @@ func TestTraceContextPropagationAcrossApacheKafka(t *testing.T) {
 		if ctx.Err() != nil {
 			t.Fatalf("wait for propagated record: %v", ctx.Err())
 		}
+	}
+	failures.requireTimeout(t, kafka.ObservationConsumeAssigned)
+	failures.requireTimeout(t, kafka.ObservationConsumePoll)
+	if err := consumer.Close(); err != nil {
+		t.Fatalf("close consumer: %v", err)
+	}
+	consumerClosed = true
+	failures.requireTimeout(t, kafka.ObservationConsumerShutdown)
+}
+
+type interoperabilityRuntime struct {
+	tracerProvider trace.TracerProvider
+	meterProvider  metric.MeterProvider
+}
+
+func (runtime interoperabilityRuntime) TracerProvider() trace.TracerProvider {
+	return runtime.tracerProvider
+}
+
+func (runtime interoperabilityRuntime) MeterProvider() metric.MeterProvider {
+	return runtime.meterProvider
+}
+
+type deadlineStartProcessor struct {
+	blockedNames map[string]struct{}
+}
+
+func (processor deadlineStartProcessor) OnStart(
+	ctx context.Context,
+	span sdktrace.ReadWriteSpan,
+) {
+	if _, blocked := processor.blockedNames[span.Name()]; blocked {
+		<-ctx.Done()
+	}
+}
+
+func (deadlineStartProcessor) OnEnd(sdktrace.ReadOnlySpan) {}
+
+func (deadlineStartProcessor) Shutdown(context.Context) error { return nil }
+
+func (deadlineStartProcessor) ForceFlush(context.Context) error { return nil }
+
+type interoperabilityFailures struct {
+	mu       sync.Mutex
+	failures []kafka.ObservationFailure
+}
+
+func (failures *interoperabilityFailures) add(failure kafka.ObservationFailure) {
+	failures.mu.Lock()
+	defer failures.mu.Unlock()
+	failures.failures = append(failures.failures, failure)
+}
+
+func (failures *interoperabilityFailures) requireTimeout(
+	t *testing.T,
+	kind kafka.ObservationKind,
+) {
+	t.Helper()
+	failures.mu.Lock()
+	defer failures.mu.Unlock()
+	for _, failure := range failures.failures {
+		if failure.Kind == kind && failure.TimedOut &&
+			errors.Is(failure.Cause(), context.DeadlineExceeded) {
+			return
+		}
+	}
+	t.Fatalf("no observer timeout for %s in %#v", kind, failures.failures)
+}
+
+var _ sdktrace.SpanProcessor = deadlineStartProcessor{}
+
+type deadlineMeterProvider struct {
+	metric.MeterProvider
+	counterOperations   map[string]struct{}
+	histogramOperations map[string]struct{}
+}
+
+func (provider deadlineMeterProvider) Meter(
+	name string,
+	options ...metric.MeterOption,
+) metric.Meter {
+	return deadlineMeter{
+		Meter:               provider.MeterProvider.Meter(name, options...),
+		counterOperations:   provider.counterOperations,
+		histogramOperations: provider.histogramOperations,
+	}
+}
+
+type deadlineMeter struct {
+	metric.Meter
+	counterOperations   map[string]struct{}
+	histogramOperations map[string]struct{}
+}
+
+func (meter deadlineMeter) Int64Counter(
+	name string,
+	options ...metric.Int64CounterOption,
+) (metric.Int64Counter, error) {
+	counter, err := meter.Meter.Int64Counter(name, options...)
+	if err != nil || name != "kafka.client.operations" {
+		return counter, err
+	}
+
+	return deadlineCounter{
+		Int64Counter: counter,
+		operations:   meter.counterOperations,
+	}, nil
+}
+
+func (meter deadlineMeter) Float64Histogram(
+	name string,
+	options ...metric.Float64HistogramOption,
+) (metric.Float64Histogram, error) {
+	histogram, err := meter.Meter.Float64Histogram(name, options...)
+	if err != nil || name != "kafka.client.operation.duration" {
+		return histogram, err
+	}
+
+	return deadlineHistogram{
+		Float64Histogram: histogram,
+		operations:       meter.histogramOperations,
+	}, nil
+}
+
+type deadlineCounter struct {
+	metric.Int64Counter
+	operations map[string]struct{}
+}
+
+func (counter deadlineCounter) Add(
+	ctx context.Context,
+	value int64,
+	options ...metric.AddOption,
+) {
+	waitForMetricDeadline(ctx, metric.NewAddConfig(options).Attributes(), counter.operations)
+	counter.Int64Counter.Add(ctx, value, options...)
+}
+
+type deadlineHistogram struct {
+	metric.Float64Histogram
+	operations map[string]struct{}
+}
+
+func (histogram deadlineHistogram) Record(
+	ctx context.Context,
+	value float64,
+	options ...metric.RecordOption,
+) {
+	waitForMetricDeadline(
+		ctx,
+		metric.NewRecordConfig(options).Attributes(),
+		histogram.operations,
+	)
+	histogram.Float64Histogram.Record(ctx, value, options...)
+}
+
+func waitForMetricDeadline(
+	ctx context.Context,
+	attributes attribute.Set,
+	operations map[string]struct{},
+) {
+	operation, exists := attributes.Value("kafka.operation")
+	if !exists {
+		return
+	}
+	if _, blocked := operations[operation.AsString()]; blocked {
+		<-ctx.Done()
 	}
 }
 

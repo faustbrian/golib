@@ -20,7 +20,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-func TestObserverEmitsKafkaProducerSemanticConventions(t *testing.T) {
+func TestObserverEmitsTruthfulKafkaProducerCompletion(t *testing.T) {
 	t.Parallel()
 
 	spans := tracetest.NewSpanRecorder()
@@ -72,8 +72,8 @@ func TestObserverEmitsKafkaProducerSemanticConventions(t *testing.T) {
 		t.Fatalf("ended spans = %d, want 1", len(ended))
 	}
 	span := ended[0]
-	if span.Name() != "send orders" ||
-		span.SpanKind() != trace.SpanKindProducer ||
+	if span.Name() != "kafka producer.publish_completion" ||
+		span.SpanKind() != trace.SpanKindInternal ||
 		span.Parent().TraceID() != parent.SpanContext().TraceID() ||
 		!span.StartTime().Equal(startedAt) ||
 		!span.EndTime().Equal(startedAt.Add(25*time.Millisecond)) {
@@ -86,46 +86,25 @@ func TestObserverEmitsKafkaProducerSemanticConventions(t *testing.T) {
 		)
 	}
 	assertSpanAttributes(t, span.Attributes(), map[string]any{
-		"messaging.system":                   "kafka",
-		"messaging.operation.name":           "send",
-		"messaging.operation.type":           "send",
-		"messaging.client.id":                "checkout-producer",
-		"messaging.destination.name":         "orders",
-		"messaging.destination.partition.id": "3",
-		"messaging.kafka.offset":             int64(42),
+		"kafka.operation":    "producer.record",
+		"kafka.outcome":      "success",
+		"kafka.client.id":    "checkout-producer",
+		"kafka.topic":        "orders",
+		"kafka.partition":    int64(3),
+		"kafka.offset":       int64(42),
+		"kafka.record.count": int64(1),
+		"kafka.record.size":  int64(128),
 	})
 
 	var metrics metricdata.ResourceMetrics
 	if err := reader.Collect(context.Background(), &metrics); err != nil {
 		t.Fatalf("Collect() error = %v", err)
 	}
-	assertFloatHistogram(
-		t,
-		metrics,
-		"messaging.client.operation.duration",
-		0.025,
-		map[string]any{
-			"messaging.system":           "kafka",
-			"messaging.operation.name":   "send",
-			"messaging.client.id":        "checkout-producer",
-			"messaging.destination.name": "orders",
-		},
-	)
-	assertIntCounter(
-		t,
-		metrics,
-		"messaging.client.sent.messages",
-		1,
-		map[string]any{
-			"messaging.system":           "kafka",
-			"messaging.operation.name":   "send",
-			"messaging.client.id":        "checkout-producer",
-			"messaging.destination.name": "orders",
-		},
-	)
+	assertMetricAbsent(t, metrics, "messaging.client.operation.duration")
+	assertMetricAbsent(t, metrics, "messaging.client.sent.messages")
 }
 
-func TestObserverEmitsKafkaConsumerSemanticConventions(t *testing.T) {
+func TestObserverDoesNotClaimUnprovedKafkaConsumerProcessing(t *testing.T) {
 	t.Parallel()
 
 	spans := tracetest.NewSpanRecorder()
@@ -191,25 +170,28 @@ func TestObserverEmitsKafkaConsumerSemanticConventions(t *testing.T) {
 	if len(ended) != 2 {
 		t.Fatalf("ended spans = %d, want 2", len(ended))
 	}
-	if ended[0].Name() != "process orders" ||
-		ended[0].SpanKind() != trace.SpanKindConsumer {
+	if ended[0].Name() != "kafka consumer.batch_completion" ||
+		ended[0].SpanKind() != trace.SpanKindInternal {
 		t.Fatalf(
-			"process span = %q/%s",
+			"batch completion span = %q/%s",
 			ended[0].Name(),
 			ended[0].SpanKind(),
 		)
 	}
 	assertSpanAttributes(t, ended[0].Attributes(), map[string]any{
-		"messaging.system":                   "kafka",
-		"messaging.operation.name":           "process",
-		"messaging.operation.type":           "process",
-		"messaging.consumer.group.name":      "fulfillment",
-		"messaging.batch.message_count":      int64(3),
-		"messaging.destination.partition.id": "2",
-		"messaging.kafka.offset":             int64(44),
+		"kafka.operation":      "consumer.batch",
+		"kafka.outcome":        "success",
+		"kafka.client.id":      "orders-consumer",
+		"kafka.topic":          "orders",
+		"kafka.consumer.group": "fulfillment",
+		"kafka.record.count":   int64(3),
+		"kafka.partition":      int64(2),
 	})
-	if ended[1].Name() != "poll orders" ||
-		ended[1].SpanKind() != trace.SpanKindClient ||
+	if _, exists := attributeMap(ended[0].Attributes())["kafka.offset"]; exists {
+		t.Fatal("batch process span reports a single-record offset")
+	}
+	if ended[1].Name() != "kafka consumer.poll_cycle" ||
+		ended[1].SpanKind() != trace.SpanKindInternal ||
 		ended[1].Status().Code != codes.Error {
 		t.Fatalf(
 			"poll span = %q/%s/%s",
@@ -219,41 +201,23 @@ func TestObserverEmitsKafkaConsumerSemanticConventions(t *testing.T) {
 		)
 	}
 	assertSpanAttributes(t, ended[1].Attributes(), map[string]any{
-		"messaging.system":              "kafka",
-		"messaging.operation.name":      "poll",
-		"messaging.operation.type":      "receive",
-		"messaging.batch.message_count": int64(2),
-		"kafka.record.committed_count":  int64(1),
-		"kafka.observation.truncated":   true,
-		"error.type":                    "retryable",
+		"kafka.operation":              "consumer.poll",
+		"kafka.outcome":                "error",
+		"kafka.client.id":              "orders-consumer",
+		"kafka.topic":                  "orders",
+		"kafka.consumer.group":         "fulfillment",
+		"kafka.record.count":           int64(2),
+		"kafka.record.committed_count": int64(1),
+		"kafka.observation.truncated":  true,
+		"error.type":                   "retryable",
 	})
 
 	var metrics metricdata.ResourceMetrics
 	if err := reader.Collect(context.Background(), &metrics); err != nil {
 		t.Fatalf("Collect() error = %v", err)
 	}
-	assertFloatHistogram(
-		t,
-		metrics,
-		"messaging.process.duration",
-		0.04,
-		map[string]any{
-			"messaging.system":              "kafka",
-			"messaging.operation.name":      "process",
-			"messaging.consumer.group.name": "fulfillment",
-		},
-	)
-	assertFloatHistogram(
-		t,
-		metrics,
-		"messaging.client.operation.duration",
-		0.05,
-		map[string]any{
-			"messaging.system":         "kafka",
-			"messaging.operation.name": "poll",
-			"error.type":               "retryable",
-		},
-	)
+	assertMetricAbsent(t, metrics, "messaging.process.duration")
+	assertMetricAbsent(t, metrics, "messaging.client.operation.duration")
 	assertIntCounter(
 		t,
 		metrics,
@@ -262,8 +226,13 @@ func TestObserverEmitsKafkaConsumerSemanticConventions(t *testing.T) {
 		map[string]any{
 			"messaging.system":         "kafka",
 			"messaging.operation.name": "poll",
-			"error.type":               "retryable",
 		},
+	)
+	assertMetricAttributeAbsent(
+		t,
+		metrics,
+		"messaging.client.consumed.messages",
+		"error.type",
 	)
 }
 
@@ -471,12 +440,18 @@ func TestObserverEmitsInspectorSpansAndBoundedDiagnostics(t *testing.T) {
 		"kafka inspector.consumer_groups",
 		"kafka inspector.readiness",
 	}
+	wantKinds := []trace.SpanKind{
+		trace.SpanKindClient,
+		trace.SpanKindClient,
+		trace.SpanKindClient,
+		trace.SpanKindInternal,
+	}
 	if len(ended) != len(wantNames) {
 		t.Fatalf("ended spans = %d, want %d", len(ended), len(wantNames))
 	}
 	for index, span := range ended {
 		if span.Name() != wantNames[index] ||
-			span.SpanKind() != trace.SpanKindClient {
+			span.SpanKind() != wantKinds[index] {
 			t.Fatalf(
 				"inspector span %d = %q/%s",
 				index,
@@ -672,7 +647,7 @@ func TestObserverKeepsUnprocessedReplayOutcomesOutsideMessagingSemantics(
 	}
 	for index, span := range ended {
 		if span.Name() != "kafka replay.record" ||
-			span.SpanKind() != trace.SpanKindClient {
+			span.SpanKind() != trace.SpanKindInternal {
 			t.Fatalf(
 				"replay outcome %d span = %q/%s",
 				index,
@@ -1037,6 +1012,31 @@ func assertMetricAbsent(
 			}
 		}
 	}
+}
+
+func assertMetricAttributeAbsent(
+	t *testing.T,
+	metrics metricdata.ResourceMetrics,
+	name string,
+	key string,
+) {
+	t.Helper()
+
+	for _, scope := range metrics.ScopeMetrics {
+		for _, current := range scope.Metrics {
+			if current.Name != name {
+				continue
+			}
+			for _, set := range metricAttributeSets(t, current.Data) {
+				if _, exists := set.Value(attribute.Key(key)); exists {
+					t.Fatalf("%s contains attribute %q", name, key)
+				}
+			}
+
+			return
+		}
+	}
+	t.Fatalf("metric %q not found", name)
 }
 
 func attributesContain(got attribute.Set, want map[string]any) bool {

@@ -2,7 +2,7 @@ GO ?= go
 FUZZ_TIME ?= 10000x
 BENCH_TIME ?= 100ms
 
-.PHONY: benchmark check coverage docs format format-check fuzz interoperability race test vet
+.PHONY: benchmark check coverage docs format format-check fuzz interoperability race specification test vet
 
 format:
 	gofmt -w .
@@ -32,6 +32,8 @@ fuzz:
 		-fuzztime="$(FUZZ_TIME)"
 	$(GO) test . -run '^$$' -fuzz '^FuzzObserverValidation$$' \
 		-fuzztime="$(FUZZ_TIME)"
+	$(GO) test . -run '^$$' -fuzz '^FuzzHostileProviders$$' \
+		-fuzztime="$(FUZZ_TIME)"
 	$(GO) test . -run '^$$' -fuzz '^FuzzTraceContextPropagation$$' \
 		-fuzztime="$(FUZZ_TIME)"
 
@@ -48,4 +50,7 @@ docs:
 	test -s LICENSE
 	bash scripts/check-docs.sh
 
-check: format-check vet test race coverage fuzz benchmark docs
+specification:
+	bash scripts/check-specification.sh
+
+check: format-check vet test race coverage fuzz benchmark docs specification

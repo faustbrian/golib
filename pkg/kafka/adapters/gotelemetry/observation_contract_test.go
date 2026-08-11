@@ -25,38 +25,38 @@ func TestEveryObservationHasAnExactPublicSpanAndDurationContract(t *testing.T) {
 		messaging bool
 	}
 	contracts := []contract{
-		{kafka.ObservationProduceRecord, "send", trace.SpanKindProducer, true},
-		{kafka.ObservationProduceBatch, "send", trace.SpanKindProducer, true},
-		{kafka.ObservationProduceAsync, "send", trace.SpanKindProducer, true},
-		{kafka.ObservationConsumeRecord, "process", trace.SpanKindConsumer, true},
-		{kafka.ObservationConsumeBatch, "process", trace.SpanKindConsumer, true},
+		{kafka.ObservationProduceRecord, "kafka producer.publish_completion", trace.SpanKindInternal, false},
+		{kafka.ObservationProduceBatch, "kafka producer.publish_batch_completion", trace.SpanKindInternal, false},
+		{kafka.ObservationProduceAsync, "kafka producer.publish_async_completion", trace.SpanKindInternal, false},
+		{kafka.ObservationConsumeRecord, "kafka consumer.record_completion", trace.SpanKindInternal, false},
+		{kafka.ObservationConsumeBatch, "kafka consumer.batch_completion", trace.SpanKindInternal, false},
 		{kafka.ObservationConsumeCommit, "commit", trace.SpanKindClient, true},
-		{kafka.ObservationConsumePoll, "poll", trace.SpanKindClient, true},
+		{kafka.ObservationConsumePoll, "kafka consumer.poll_cycle", trace.SpanKindInternal, false},
 		{kafka.ObservationBrokerConnect, "kafka broker.connect", trace.SpanKindClient, false},
 		{kafka.ObservationBrokerRequest, "kafka broker.request", trace.SpanKindClient, false},
 		{kafka.ObservationBrokerThrottle, "kafka broker.throttle", trace.SpanKindInternal, false},
-		{kafka.ObservationBrokerDisconnect, "kafka broker.disconnect", trace.SpanKindClient, false},
+		{kafka.ObservationBrokerDisconnect, "kafka broker.disconnect", trace.SpanKindInternal, false},
 		{kafka.ObservationConsumeAssigned, "kafka consumer.assigned", trace.SpanKindInternal, false},
 		{kafka.ObservationConsumeRevoked, "kafka consumer.revoked", trace.SpanKindInternal, false},
 		{kafka.ObservationConsumeLost, "kafka consumer.lost", trace.SpanKindInternal, false},
 		{kafka.ObservationConsumeBlocked, "kafka consumer.rebalance_blocked", trace.SpanKindInternal, false},
 		{kafka.ObservationConsumeGroupError, "kafka consumer.group_error", trace.SpanKindInternal, false},
-		{kafka.ObservationTransactionBegin, "kafka transaction.begin", trace.SpanKindClient, false},
+		{kafka.ObservationTransactionBegin, "kafka transaction.begin", trace.SpanKindInternal, false},
 		{kafka.ObservationTransactionCommit, "kafka transaction.commit", trace.SpanKindClient, false},
 		{kafka.ObservationTransactionAbort, "kafka transaction.abort", trace.SpanKindClient, false},
 		{kafka.ObservationReplayPlan, "kafka replay.plan", trace.SpanKindClient, false},
 		{kafka.ObservationReplayRecord, "process", trace.SpanKindConsumer, true},
-		{kafka.ObservationReplayRun, "kafka replay.run", trace.SpanKindClient, false},
-		{kafka.ObservationReplayShutdown, "kafka replay.shutdown", trace.SpanKindClient, false},
+		{kafka.ObservationReplayRun, "kafka replay.run", trace.SpanKindInternal, false},
+		{kafka.ObservationReplayShutdown, "kafka replay.shutdown", trace.SpanKindInternal, false},
 		{kafka.ObservationInspectorCluster, "kafka inspector.cluster", trace.SpanKindClient, false},
 		{kafka.ObservationInspectorTopics, "kafka inspector.topics", trace.SpanKindClient, false},
 		{kafka.ObservationInspectorConsumerGroups, "kafka inspector.consumer_groups", trace.SpanKindClient, false},
 		{kafka.ObservationDependencyHealth, "kafka inspector.dependency_health", trace.SpanKindClient, false},
-		{kafka.ObservationReadiness, "kafka inspector.readiness", trace.SpanKindClient, false},
-		{kafka.ObservationInspectorShutdown, "kafka inspector.shutdown", trace.SpanKindClient, false},
-		{kafka.ObservationProducerShutdown, "kafka producer.shutdown", trace.SpanKindClient, false},
-		{kafka.ObservationConsumerShutdown, "kafka consumer.shutdown", trace.SpanKindClient, false},
-		{kafka.ObservationTransactionProcessorShutdown, "kafka transaction_processor.shutdown", trace.SpanKindClient, false},
+		{kafka.ObservationReadiness, "kafka inspector.readiness", trace.SpanKindInternal, false},
+		{kafka.ObservationInspectorShutdown, "kafka inspector.shutdown", trace.SpanKindInternal, false},
+		{kafka.ObservationProducerShutdown, "kafka producer.shutdown", trace.SpanKindInternal, false},
+		{kafka.ObservationConsumerShutdown, "kafka consumer.shutdown", trace.SpanKindInternal, false},
+		{kafka.ObservationTransactionProcessorShutdown, "kafka transaction_processor.shutdown", trace.SpanKindInternal, false},
 		{kafka.ObservationConsumeRetryScheduled, "kafka consumer.retry_scheduled", trace.SpanKindInternal, false},
 		{kafka.ObservationConsumeRebalanceWait, "kafka consumer.rebalance_wait", trace.SpanKindInternal, false},
 	}
@@ -142,14 +142,15 @@ func TestMetricNamesUnitsMonotonicityAndBucketsAreStable(t *testing.T) {
 	observations := []kafka.Observation{
 		validContractObservation(kafka.ObservationProduceRecord, 0),
 		validContractObservation(kafka.ObservationConsumePoll, 1),
-		validContractObservation(kafka.ObservationConsumeRecord, 2),
-		validContractObservation(kafka.ObservationBrokerRequest, 3),
-		validContractObservation(kafka.ObservationBrokerThrottle, 4),
+		validContractObservation(kafka.ObservationReplayRecord, 2),
+		validContractObservation(kafka.ObservationConsumeCommit, 3),
+		validContractObservation(kafka.ObservationBrokerRequest, 4),
+		validContractObservation(kafka.ObservationBrokerThrottle, 5),
 	}
-	observations[3].RequestBytes = 128
-	observations[3].ResponseBytes = 256
-	observations[3].QueueDuration = 2 * time.Millisecond
-	observations[4].ThrottleDuration = 3 * time.Millisecond
+	observations[4].RequestBytes = 128
+	observations[4].ResponseBytes = 256
+	observations[4].QueueDuration = 2 * time.Millisecond
+	observations[5].ThrottleDuration = 3 * time.Millisecond
 	for _, observation := range observations {
 		if err := instrumentation.Observer()(context.Background(), observation); err != nil {
 			t.Fatalf("Observer(%s) error = %v", observation.Kind, err)
@@ -161,21 +162,21 @@ func TestMetricNamesUnitsMonotonicityAndBucketsAreStable(t *testing.T) {
 		t.Fatalf("Collect() error = %v", err)
 	}
 	type descriptor struct {
-		unit      string
-		monotonic bool
-		bounds    []float64
-		intBounds []float64
+		description string
+		unit        string
+		monotonic   bool
+		bounds      []float64
+		intBounds   []float64
 	}
 	want := map[string]descriptor{
-		"messaging.client.operation.duration": {unit: "s", bounds: []float64{0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10}},
-		"messaging.process.duration":          {unit: "s", bounds: []float64{0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10}},
-		"messaging.client.sent.messages":      {unit: "{message}", monotonic: true},
-		"messaging.client.consumed.messages":  {unit: "{message}", monotonic: true},
-		"kafka.client.operations":             {unit: "{operation}", monotonic: true},
-		"kafka.client.operation.duration":     {unit: "s", bounds: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30}},
-		"kafka.client.request.size":           {unit: "By", intBounds: []float64{1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864}},
-		"kafka.client.request.queue.duration": {unit: "s", bounds: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5}},
-		"kafka.client.throttle.duration":      {unit: "s", bounds: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}},
+		"messaging.client.operation.duration": {description: "Duration of messaging operation initiated by a producer or consumer client.", unit: "s", bounds: []float64{0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10}},
+		"messaging.process.duration":          {description: "Duration of processing operation.", unit: "s", bounds: []float64{0.005, 0.01, 0.025, 0.05, 0.075, 0.1, 0.25, 0.5, 0.75, 1, 2.5, 5, 7.5, 10}},
+		"messaging.client.consumed.messages":  {description: "Number of messages that were delivered to the application.", unit: "{message}", monotonic: true},
+		"kafka.client.operations":             {description: "Completed Kafka policy operations by bounded operation and outcome.", unit: "{operation}", monotonic: true},
+		"kafka.client.operation.duration":     {description: "Duration of completed Kafka policy operations.", unit: "s", bounds: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30}},
+		"kafka.client.request.size":           {description: "Kafka protocol request or response size below TLS framing.", unit: "By", intBounds: []float64{1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216, 67108864}},
+		"kafka.client.request.queue.duration": {description: "Time a Kafka request waited in the client before network write.", unit: "s", bounds: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5}},
+		"kafka.client.throttle.duration":      {description: "Kafka broker-imposed throttle duration.", unit: "s", bounds: []float64{0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10}},
 	}
 	seen := make(map[string]struct{}, len(want))
 	for _, scope := range resource.ScopeMetrics {
@@ -185,6 +186,9 @@ func TestMetricNamesUnitsMonotonicityAndBucketsAreStable(t *testing.T) {
 				t.Fatalf("unexpected metric %q", current.Name)
 			}
 			seen[current.Name] = struct{}{}
+			if current.Description != descriptor.description {
+				t.Fatalf("%s description = %q, want %q", current.Name, current.Description, descriptor.description)
+			}
 			if current.Unit != descriptor.unit {
 				t.Fatalf("%s unit = %q, want %q", current.Name, current.Unit, descriptor.unit)
 			}

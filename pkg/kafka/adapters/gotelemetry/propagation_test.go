@@ -139,6 +139,17 @@ func TestTraceContextPropagationExtractsRemoteW3CContext(t *testing.T) {
 	if !reflect.DeepEqual(record, original) {
 		t.Fatalf("Extract() mutated borrowed record = %#v", record)
 	}
+	for index := range record.Headers {
+		for valueIndex := range record.Headers[index].Value {
+			record.Headers[index].Value[valueIndex] = 0
+		}
+	}
+	retainedContext := trace.SpanContextFromContext(extracted)
+	if retainedContext.TraceID() != spanContext.TraceID() ||
+		retainedContext.SpanID() != spanContext.SpanID() ||
+		retainedContext.TraceState().String() != spanContext.TraceState().String() {
+		t.Fatalf("extracted context retained borrowed header bytes: %#v", retainedContext)
+	}
 }
 
 func TestTraceContextPropagationRejectsInvalidOrAmbiguousFields(t *testing.T) {

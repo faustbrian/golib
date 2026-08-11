@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -122,10 +123,78 @@ func TestObserverCooperatesWithProviderBackpressureCancellation(t *testing.T) {
 	}
 }
 
+func TestBoundedBatchExporterQueueDoesNotBackpressureObserver(t *testing.T) {
+	t.Parallel()
+
+	exporter := &blockingSpanExporter{
+		entered: make(chan struct{}),
+		release: make(chan struct{}),
+	}
+	tracerProvider := sdktrace.NewTracerProvider(sdktrace.WithBatcher(
+		exporter,
+		sdktrace.WithMaxQueueSize(2),
+		sdktrace.WithMaxExportBatchSize(1),
+		sdktrace.WithBatchTimeout(time.Hour),
+	))
+	instrumentation, err := New(Config{Runtime: testRuntime{
+		tracerProvider: tracerProvider,
+		meterProvider:  metricnoop.NewMeterProvider(),
+	}})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	t.Cleanup(func() {
+		exporter.unblock()
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		_ = tracerProvider.Shutdown(shutdownCtx)
+	})
+	observer := instrumentation.Observer()
+	if err := observer(context.Background(), validLifecycleObservation()); err != nil {
+		t.Fatalf("prime Observer() error = %v", err)
+	}
+	select {
+	case <-exporter.entered:
+	case <-time.After(time.Second):
+		t.Fatal("batch exporter did not enter the blocked export")
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		for range 1_000 {
+			if err := observer(context.Background(), validLifecycleObservation()); err != nil {
+				done <- err
+
+				return
+			}
+		}
+		done <- nil
+	}()
+	select {
+	case err := <-done:
+		if err != nil {
+			t.Fatalf("Observer() under exporter backpressure = %v", err)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("bounded batch queue backpressured observer calls")
+	}
+
+	exporter.unblock()
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), time.Second)
+	defer cancel()
+	if err := tracerProvider.Shutdown(shutdownCtx); err != nil {
+		t.Fatalf("TracerProvider.Shutdown() error = %v", err)
+	}
+}
+
 func TestObserverAndConstructionRemainRaceSafeDuringProviderLifecycle(t *testing.T) {
 	t.Parallel()
 
-	tracerProvider := sdktrace.NewTracerProvider()
+	processor := newBarrierStartProcessor(64)
+	t.Cleanup(processor.unblock)
+	tracerProvider := sdktrace.NewTracerProvider(
+		sdktrace.WithSpanProcessor(processor),
+	)
 	meterProvider := sdkmetric.NewMeterProvider()
 	instrumentation, err := New(Config{Runtime: testRuntime{
 		tracerProvider: tracerProvider,
@@ -147,6 +216,11 @@ func TestObserverAndConstructionRemainRaceSafeDuringProviderLifecycle(t *testing
 			)
 		}()
 	}
+	select {
+	case <-processor.allEntered:
+	case <-time.After(time.Second):
+		t.Fatal("concurrent observer calls did not reach the forced overlap barrier")
+	}
 	group.Add(1)
 	go func() {
 		defer group.Done()
@@ -156,6 +230,12 @@ func TestObserverAndConstructionRemainRaceSafeDuringProviderLifecycle(t *testing
 		}
 		failures <- meterProvider.Shutdown(context.Background())
 	}()
+	select {
+	case <-processor.shutdownEntered:
+	case <-time.After(time.Second):
+		t.Fatal("span processor shutdown did not overlap observer starts")
+	}
+	processor.unblock()
 	group.Wait()
 	close(failures)
 	for failure := range failures {
@@ -225,3 +305,74 @@ func (*cancelableStartProcessor) Shutdown(context.Context) error { return nil }
 func (*cancelableStartProcessor) ForceFlush(context.Context) error { return nil }
 
 var _ sdktrace.SpanProcessor = (*cancelableStartProcessor)(nil)
+
+type blockingSpanExporter struct {
+	entered     chan struct{}
+	release     chan struct{}
+	once        sync.Once
+	releaseOnce sync.Once
+}
+
+func (exporter *blockingSpanExporter) ExportSpans(
+	_ context.Context,
+	_ []sdktrace.ReadOnlySpan,
+) error {
+	exporter.once.Do(func() { close(exporter.entered) })
+	<-exporter.release
+
+	return nil
+}
+
+func (*blockingSpanExporter) Shutdown(context.Context) error { return nil }
+
+func (exporter *blockingSpanExporter) unblock() {
+	exporter.releaseOnce.Do(func() { close(exporter.release) })
+}
+
+var _ sdktrace.SpanExporter = (*blockingSpanExporter)(nil)
+
+type barrierStartProcessor struct {
+	want            int64
+	entered         atomic.Int64
+	allEntered      chan struct{}
+	release         chan struct{}
+	shutdownEntered chan struct{}
+	allOnce         sync.Once
+	releaseOnce     sync.Once
+}
+
+func newBarrierStartProcessor(want int64) *barrierStartProcessor {
+	return &barrierStartProcessor{
+		want:            want,
+		allEntered:      make(chan struct{}),
+		release:         make(chan struct{}),
+		shutdownEntered: make(chan struct{}),
+	}
+}
+
+func (processor *barrierStartProcessor) OnStart(
+	context.Context,
+	sdktrace.ReadWriteSpan,
+) {
+	if processor.entered.Add(1) == processor.want {
+		processor.allOnce.Do(func() { close(processor.allEntered) })
+	}
+	<-processor.release
+}
+
+func (*barrierStartProcessor) OnEnd(sdktrace.ReadOnlySpan) {}
+
+func (processor *barrierStartProcessor) Shutdown(context.Context) error {
+	close(processor.shutdownEntered)
+	<-processor.release
+
+	return nil
+}
+
+func (*barrierStartProcessor) ForceFlush(context.Context) error { return nil }
+
+func (processor *barrierStartProcessor) unblock() {
+	processor.releaseOnce.Do(func() { close(processor.release) })
+}
+
+var _ sdktrace.SpanProcessor = (*barrierStartProcessor)(nil)

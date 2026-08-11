@@ -104,14 +104,21 @@ reviewed and documented as a user-visible adapter change; this pre-v1 adapter
 does not silently follow the latest website content.
 
 Version 1.44.0 defines separate create, producer-send, client-send, receive,
-process, and settle span models. The completion observer can implement the
-producer-send, receive, process, and settle shapes shown below. It cannot
-authoritatively emit `messaging.kafka.cluster.id`: root operation observations
-do not carry cluster metadata, and the adapter does not perform a hidden
-administrative lookup or trust a caller assertion. Cluster inspection remains
-available through the root inspector. The create/client-send distinction and
-creation-context links require instrumentation before publication and remain
-outside this completion-only observer seam.
+process, and settle span models. The completion observer can implement only the
+settle shape shown below. Produce completion does not prove that a
+record reached the broker-send attempt, expose the creation context injected
+before publication, or support the required creation-context link. The root
+poll observation covers polling, handlers, and settlement rather than
+receive-only timing and status. Record and batch observations can also be
+emitted before a handler starts, and failed observations do not distinguish
+pre-handler rejection from handler failure. Those observations therefore use
+adapter-owned spans and do not emit unproved standard send, receive, or process
+spans or durations.
+
+The adapter cannot authoritatively emit `messaging.kafka.cluster.id`: root
+operation observations do not carry cluster metadata, and the adapter does not
+perform a hidden administrative lookup or trust a caller assertion. Cluster
+inspection remains available through the root inspector.
 
 This is a policy-controlled mapping, not a claim that every recommended or
 conditionally required attribute is always present. In particular,
@@ -122,17 +129,17 @@ identity export.
 
 | Kafka observation | Span | Standard metric |
 | --- | --- | --- |
-| produce record | `send [topic]`, `PRODUCER` | `messaging.client.operation.duration`, `messaging.client.sent.messages` |
-| produce batch | `send [topic]`, `PRODUCER` | `messaging.client.operation.duration`, `messaging.client.sent.messages` |
-| produce async | `send [topic]`, `PRODUCER` | `messaging.client.operation.duration`, `messaging.client.sent.messages` |
-| consume poll | `poll [topic]`, `CLIENT` | `messaging.client.operation.duration`, `messaging.client.consumed.messages` |
-| consume record | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
-| consume batch | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
+| produce record | `kafka producer.publish_completion`, `INTERNAL` | adapter-owned policy metrics only |
+| produce batch | `kafka producer.publish_batch_completion`, `INTERNAL` | adapter-owned policy metrics only |
+| produce async | `kafka producer.publish_async_completion`, `INTERNAL` | adapter-owned policy metrics only |
+| consume poll | `kafka consumer.poll_cycle`, `INTERNAL` | `messaging.client.consumed.messages` plus adapter-owned policy metrics |
+| consume record | `kafka consumer.record_completion`, `INTERNAL` | adapter-owned policy metrics only |
+| consume batch | `kafka consumer.batch_completion`, `INTERNAL` | adapter-owned policy metrics only |
 | consume commit | `commit [topic]`, `CLIENT` | `messaging.client.operation.duration` |
 | broker connect | `kafka broker.connect`, `CLIENT` | adapter-owned policy metrics only |
 | broker request | `kafka broker.request`, `CLIENT` | adapter-owned policy and request metrics |
 | broker throttle | `kafka broker.throttle`, `INTERNAL` | adapter-owned policy and throttle metrics |
-| broker disconnect | `kafka broker.disconnect`, `CLIENT` | adapter-owned policy metrics only |
+| broker disconnect | `kafka broker.disconnect`, `INTERNAL` | adapter-owned policy metrics only |
 | consume assigned | `kafka consumer.assigned`, `INTERNAL` | adapter-owned policy metrics only |
 | consume revoked | `kafka consumer.revoked`, `INTERNAL` | adapter-owned policy metrics only |
 | consume lost | `kafka consumer.lost`, `INTERNAL` | adapter-owned policy metrics only |
@@ -140,27 +147,28 @@ identity export.
 | consume group error | `kafka consumer.group_error`, `INTERNAL` | adapter-owned policy metrics only |
 | consume retry scheduled | `kafka consumer.retry_scheduled`, `INTERNAL` | adapter-owned policy metrics only |
 | consume rebalance wait | `kafka consumer.rebalance_wait`, `INTERNAL` | adapter-owned policy metrics only |
-| transaction begin | `kafka transaction.begin`, `CLIENT` | adapter-owned policy metrics only |
+| transaction begin | `kafka transaction.begin`, `INTERNAL` | adapter-owned policy metrics only |
 | transaction commit | `kafka transaction.commit`, `CLIENT` | adapter-owned policy metrics only |
 | transaction abort | `kafka transaction.abort`, `CLIENT` | adapter-owned policy metrics only |
 | replay plan | `kafka replay.plan`, `CLIENT` | adapter-owned policy metrics only |
 | replay record processed | `process [topic]`, `CONSUMER` | `messaging.process.duration` |
-| replay record skipped or failed | `kafka replay.record`, `CLIENT` | adapter-owned policy metrics only |
-| replay run | `kafka replay.run`, `CLIENT` | adapter-owned policy metrics only |
-| replay shutdown | `kafka replay.shutdown`, `CLIENT` | adapter-owned policy metrics only |
+| replay record skipped or failed | `kafka replay.record`, `INTERNAL` | adapter-owned policy metrics only |
+| replay run | `kafka replay.run`, `INTERNAL` | adapter-owned policy metrics only |
+| replay shutdown | `kafka replay.shutdown`, `INTERNAL` | adapter-owned policy metrics only |
 | inspector cluster | `kafka inspector.cluster`, `CLIENT` | adapter-owned policy metrics only |
 | inspector topics | `kafka inspector.topics`, `CLIENT` | adapter-owned policy metrics only |
 | inspector consumer groups | `kafka inspector.consumer_groups`, `CLIENT` | adapter-owned policy metrics only |
 | dependency health | `kafka inspector.dependency_health`, `CLIENT` | adapter-owned policy metrics only |
-| readiness | `kafka inspector.readiness`, `CLIENT` | adapter-owned policy metrics only |
-| inspector shutdown | `kafka inspector.shutdown`, `CLIENT` | adapter-owned policy metrics only |
-| producer shutdown | `kafka producer.shutdown`, `CLIENT` | adapter-owned policy metrics only |
-| consumer shutdown | `kafka consumer.shutdown`, `CLIENT` | adapter-owned policy metrics only |
-| transaction-processor shutdown | `kafka transaction_processor.shutdown`, `CLIENT` | adapter-owned policy metrics only |
+| readiness | `kafka inspector.readiness`, `INTERNAL` | adapter-owned policy metrics only |
+| inspector shutdown | `kafka inspector.shutdown`, `INTERNAL` | adapter-owned policy metrics only |
+| producer shutdown | `kafka producer.shutdown`, `INTERNAL` | adapter-owned policy metrics only |
+| consumer shutdown | `kafka consumer.shutdown`, `INTERNAL` | adapter-owned policy metrics only |
+| transaction-processor shutdown | `kafka transaction_processor.shutdown`, `INTERNAL` | adapter-owned policy metrics only |
 
-The optional `[topic]` suffix is present only for an allowlisted topic. Failed
-operations set a generic error span status and the root package's stable,
-low-cardinality `error.type`; they do not record an exception or error message.
+The optional `[topic]` suffix on standard messaging spans is present only for
+an allowlisted topic. Failed operations set a generic error span status and the
+root package's stable, low-cardinality `error.type`; they do not record an
+exception or error message.
 
 Every root observation emits:
 
@@ -174,7 +182,8 @@ Applicable broker-request or throttle observations additionally emit:
 - `kafka.client.throttle.duration`.
 
 These `kafka.*` metrics are adapter-owned policy metrics, not OpenTelemetry
-messaging semantic conventions.
+messaging semantic conventions. They never carry client, topic, or consumer
+group identities.
 Retry-scheduled observations increment only the adapter-owned operation and
 duration metrics. They do not increment semantic consumed-message or process
 metrics because the event records a retry decision before backoff, not another
@@ -256,7 +265,16 @@ emits no span while metric recording remains independent. After SDK shutdown,
 provider instruments follow OpenTelemetry's no-op behavior and the adapter
 still preserves the Kafka result. Provider callbacks are synchronous and can
 consume the observer deadline, so providers must cooperate with cancellation
-and exporters should use bounded queues. Provider shutdown remains caller-owned.
+and exporters should use bounded queues. A provider panic is contained as the
+stable `ErrProviderPanic` category without retaining its panic value; signals
+recorded before that panic may already have been accepted. Provider shutdown
+remains caller-owned.
+
+An in-process Go callback cannot be forcibly preempted. A provider that ignores
+cancellation can exceed producer, consumer, rebalance, or shutdown deadlines;
+isolating such a provider requires a process boundary. Applications must use
+trusted, cancellation-cooperative providers and bounded SDK/exporter queues.
+The adapter starts no goroutine to race or abandon a blocked provider call.
 
 ## Metric reference
 
@@ -267,11 +285,10 @@ add the bounded numeric protocol API key and fixed request direction.
 
 | Metric | Unit | Value and dimensions |
 | --- | --- | --- |
-| `messaging.client.operation.duration` | `s` | send, poll, or commit duration with allowlisted messaging identities |
-| `messaging.process.duration` | `s` | consumer or successful replay processing duration with allowlisted messaging identities |
-| `messaging.client.sent.messages` | `{message}` | attempted producer records with allowlisted messaging identities |
-| `messaging.client.consumed.messages` | `{message}` | records delivered by a poll with allowlisted messaging identities |
-| `kafka.client.operations` | `{operation}` | one per observation with bounded operation, outcome, error category, and optional allowlisted identities |
+| `messaging.client.operation.duration` | `s` | settle duration with operation type plus allowlisted destination and consumer group |
+| `messaging.process.duration` | `s` | successful replay processing duration with allowlisted destination and consumer group |
+| `messaging.client.consumed.messages` | `{message}` | records delivered by a poll with allowlisted destination and consumer group |
+| `kafka.client.operations` | `{operation}` | one per observation with bounded operation, outcome, and error category |
 | `kafka.client.operation.duration` | `s` | stable observation duration with the same bounded dimensions as the operation counter |
 | `kafka.client.request.size` | `By` | broker request and response bytes with fixed direction and optional numeric API key |
 | `kafka.client.request.queue.duration` | `s` | broker-request queue duration with optional numeric API key |
@@ -289,11 +306,16 @@ never emitted. Standard messaging spans add `messaging.system`,
 
 | Attribute | Surface and cardinality |
 | --- | --- |
-| `messaging.client.id`, `kafka.client.id` | exact client-ID allowlist only |
-| `messaging.destination.name`, `kafka.topic` | exact topic allowlist only |
-| `messaging.consumer.group.name`, `kafka.consumer.group` | exact consumer-group allowlist only |
-| `messaging.destination.partition.id`, `messaging.kafka.offset` | span-only numeric record coordinates |
-| `messaging.batch.message_count` | span-only bounded count for batch send or processing |
+| `messaging.client.id`, `kafka.client.id` | span-only exact client-ID allowlist |
+| `messaging.destination.name` | span and applicable standard-metric exact topic allowlist |
+| `kafka.topic` | span-only exact topic allowlist |
+| `messaging.consumer.group.name` | span and applicable standard-metric exact consumer-group allowlist |
+| `kafka.consumer.group` | span-only exact consumer-group allowlist |
+| `messaging.destination.partition.id` | standard-span-only numeric partition coordinate |
+| `messaging.kafka.offset` | single-record standard-span numeric offset |
+| `kafka.partition` | adapter-span-only numeric partition coordinate |
+| `kafka.offset` | single-record adapter-span numeric offset |
+| `messaging.batch.message_count` | standard-span-only bounded count for batch settlement |
 | `kafka.broker.id` | span-only bounded numeric broker diagnostic |
 | `kafka.protocol.api_key` | span-only and broker-request metric bounded numeric protocol key |
 | `kafka.authentication.method` | span-only fixed configured SASL method |
@@ -310,6 +332,10 @@ Keys, values, record headers, credentials, usernames, tokens, certificates,
 broker endpoints, application error text, and panic values are outside the
 observation contract. W3C trace header values are used only by
 `TraceContextPropagation`; they never become telemetry attributes.
+Adapter-owned metrics are identity-free. Standard-metric identity tuples are
+bounded by the applicable topic and consumer-group allowlist sizes; client IDs
+remain span-only because the pinned standard metric schemas do not include
+client identity.
 
 ## API reference
 

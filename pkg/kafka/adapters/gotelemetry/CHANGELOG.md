@@ -6,8 +6,14 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- suppress unproved standard producer-send and poll-receive signals, restrict
+  remaining standard metric dimensions to the pinned 1.44.0 schemas, keep
+  adapter metrics identity-free, fail closed on unmapped observations, and
+  contain provider panics without exposing panic values
 - keep skipped and pre-handler replay failures out of OpenTelemetry application
   processing and delivery telemetry
+- keep consumer record and batch observations out of standard processing
+  telemetry because pre-handler exits and handler failures are indistinguishable
 
 ### Added
 
@@ -28,17 +34,18 @@ All notable changes to this module are documented here.
 - bounded `kafka.authentication.method` broker-connect span attributes that
   identify the configured SASL flow without credentials or a fabricated
   standalone authentication span
-- `CLIENT` spans for producer, consumer, and consume-transform-produce
+- `INTERNAL` spans for producer, consumer, and consume-transform-produce
   shutdown-attempt observations
 - `CLIENT` spans and bounded adapter-owned diagnostics for cluster, topic,
-  consumer-group, dependency-health, readiness, and inspector shutdown
-  observations
+  consumer-group, and dependency-health queries, with `INTERNAL` readiness and
+  inspector-shutdown spans
 - replay plan, record-processing, exact aggregate progress, and shutdown spans
   plus fixed replay progress attributes
 - independently versioned OpenTelemetry adapter for every stable root Kafka
   observation
-- OpenTelemetry messaging semantic-convention 1.44.0 spans and metrics for
-  send, poll, process, and commit operations
+- OpenTelemetry messaging semantic-convention 1.44.0 spans and metrics only
+  where root observations prove replay processing, settle, and pulled-message
+  semantics
 - explicit deny-by-default client, topic, and consumer-group attribute
   allowlists with bounded validation and defensive copies
 - adapter-owned broker request-size, queue-duration, throttle, lifecycle, and

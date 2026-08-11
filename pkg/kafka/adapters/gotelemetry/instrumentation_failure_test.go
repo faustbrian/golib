@@ -17,7 +17,6 @@ func TestNewRedactsEveryInstrumentCreationFailure(t *testing.T) {
 	names := []string{
 		"messaging.client.operation.duration",
 		"messaging.process.duration",
-		"messaging.client.sent.messages",
 		"messaging.client.consumed.messages",
 		"kafka.client.operations",
 		"kafka.client.operation.duration",

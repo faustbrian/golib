@@ -117,7 +117,7 @@ func TestNewCopiesAttributePolicyAndSuppressesUnlistedIdentities(t *testing.T) {
 	groups[0] = "secret-group"
 
 	if err := instrumentation.Observer()(context.Background(), kafka.Observation{
-		Kind:        kafka.ObservationConsumeRecord,
+		Kind:        kafka.ObservationConsumeCommit,
 		StartedAt:   time.Unix(1, 0),
 		Duration:    time.Millisecond,
 		ClientID:    "client",
@@ -129,14 +129,15 @@ func TestNewCopiesAttributePolicyAndSuppressesUnlistedIdentities(t *testing.T) {
 		t.Fatalf("observe allowed values: %v", err)
 	}
 	if err := instrumentation.Observer()(context.Background(), kafka.Observation{
-		Kind:        kafka.ObservationConsumeRecord,
+		Kind:        kafka.ObservationConsumeCommit,
 		StartedAt:   time.Unix(2, 0),
 		Duration:    time.Millisecond,
 		ClientID:    "secret-client",
 		Topic:       "secret-topic",
 		GroupID:     "secret-group",
 		RecordCount: 1,
-		Succeeded:   true,
+		Succeeded:   false,
+		Category:    kafka.ErrorPermanent,
 	}); err != nil {
 		t.Fatalf("observe disallowed values: %v", err)
 	}

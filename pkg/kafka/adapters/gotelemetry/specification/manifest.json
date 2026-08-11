@@ -10,9 +10,18 @@
       "license": "Apache-2.0",
       "status": "Development",
       "documents": [
-        "docs/messaging/kafka.md",
-        "docs/messaging/messaging-metrics.md",
-        "docs/messaging/messaging-spans.md"
+        {
+          "path": "docs/messaging/kafka.md",
+          "sha256": "ecdd39f4c01ae4b0e1725ceff885404d42e58c162dfc622c8f719fd76c8e16d4"
+        },
+        {
+          "path": "docs/messaging/messaging-metrics.md",
+          "sha256": "0010f8dc0ab6af531a11a6a2bd2d2fbb908d58f7394262e522bd6bcbe2e37861"
+        },
+        {
+          "path": "docs/messaging/messaging-spans.md",
+          "sha256": "4200bc249cf520930412785bc0c52c1e96d6db86be29fba8dbb0445690455046"
+        }
       ]
     },
     {
@@ -24,5 +33,15 @@
       "license": "Apache-2.0",
       "use": "trace and metric API plus SDK verification"
     }
-  ]
+  ],
+  "adapter_decisions": {
+    "producer_send_span_kind": "NONE",
+    "producer_send_span_kind_reason": "The completion observation does not prove a broker send attempt or expose the creation context required by a standard send span.",
+    "poll_receive_span_kind": "NONE",
+    "poll_receive_span_kind_reason": "The root poll observation includes handler and settlement work rather than receive-only timing and status.",
+    "consumer_process_span_kind": "NONE",
+    "consumer_process_span_kind_reason": "Record and batch observations can occur before a handler starts, and failed observations do not distinguish pre-handler rejection from handler failure.",
+    "metric_identity_policy": "Adapter metrics are identity-free; pinned standard metrics use only allowlisted topic and consumer-group dimensions from their schemas.",
+    "provider_boundary": "Provider panics are contained and redacted; deadline enforcement requires cancellation-cooperative in-process providers."
+  }
 }

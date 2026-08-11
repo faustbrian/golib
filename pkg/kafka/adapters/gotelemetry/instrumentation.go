@@ -9,6 +9,7 @@ import (
 	"reflect"
 	"strconv"
 	"strings"
+	"time"
 	"unicode"
 	"unicode/utf8"
 
@@ -50,6 +51,9 @@ var (
 	ErrInstrumentCreation = errors.New(
 		"kafka/gotelemetry: instrument creation failed",
 	)
+	// ErrProviderPanic reports a contained telemetry provider panic without
+	// retaining or rendering its potentially sensitive panic value.
+	ErrProviderPanic = errors.New("kafka/gotelemetry: provider panicked")
 )
 
 // Runtime is the standard-provider surface needed by this adapter. Keeping the
@@ -84,8 +88,14 @@ type Config struct {
 
 // Validate checks dependencies and cardinality policy without creating
 // instruments.
-func (config Config) Validate() error {
-	_, _, _, err := validateConfig(config)
+func (config Config) Validate() (err error) {
+	defer func() {
+		if recover() != nil {
+			err = ErrProviderPanic
+		}
+	}()
+
+	_, _, _, err = validateConfig(config)
 
 	return err
 }
@@ -112,7 +122,6 @@ type Instrumentation struct {
 	tracer            trace.Tracer
 	clientDuration    metric.Float64Histogram
 	processDuration   metric.Float64Histogram
-	sentMessages      metric.Int64Counter
 	consumedMessages  metric.Int64Counter
 	operations        metric.Int64Counter
 	operationDuration metric.Float64Histogram
@@ -130,13 +139,23 @@ type normalizedAttributePolicy struct {
 
 // New validates and copies configuration before constructing telemetry
 // instruments.
-func New(config Config) (*Instrumentation, error) {
+func New(config Config) (instrumentation *Instrumentation, err error) {
+	defer func() {
+		if recover() != nil {
+			instrumentation = nil
+			err = ErrProviderPanic
+		}
+	}()
+
 	tracerProvider, meterProvider, attributes, err := validateConfig(config)
 	if err != nil {
 		return nil, err
 	}
 
 	meter := meterProvider.Meter(instrumentationName)
+	if nilInterface(meter) {
+		return nil, ErrInstrumentCreation
+	}
 	clientDuration, err := meter.Float64Histogram(
 		"messaging.client.operation.duration",
 		metric.WithDescription(
@@ -163,11 +182,12 @@ func New(config Config) (*Instrumentation, error) {
 	if err != nil {
 		return nil, instrumentFailure(err)
 	}
+	if nilInterface(clientDuration) {
+		return nil, ErrInstrumentCreation
+	}
 	processDuration, err := meter.Float64Histogram(
 		"messaging.process.duration",
-		metric.WithDescription(
-			"Duration of processing operation performed by a consumer.",
-		),
+		metric.WithDescription("Duration of processing operation."),
 		metric.WithUnit("s"),
 		metric.WithExplicitBucketBoundaries(
 			0.005,
@@ -189,25 +209,21 @@ func New(config Config) (*Instrumentation, error) {
 	if err != nil {
 		return nil, instrumentFailure(err)
 	}
-	sentMessages, err := meter.Int64Counter(
-		"messaging.client.sent.messages",
+	if nilInterface(processDuration) {
+		return nil, ErrInstrumentCreation
+	}
+	consumedMessages, err := meter.Int64Counter(
+		"messaging.client.consumed.messages",
 		metric.WithDescription(
-			"Number of messages producer attempted to send to the broker.",
+			"Number of messages that were delivered to the application.",
 		),
 		metric.WithUnit("{message}"),
 	)
 	if err != nil {
 		return nil, instrumentFailure(err)
 	}
-	consumedMessages, err := meter.Int64Counter(
-		"messaging.client.consumed.messages",
-		metric.WithDescription(
-			"Number of messages delivered to the application.",
-		),
-		metric.WithUnit("{message}"),
-	)
-	if err != nil {
-		return nil, instrumentFailure(err)
+	if nilInterface(consumedMessages) {
+		return nil, ErrInstrumentCreation
 	}
 	operations, err := meter.Int64Counter(
 		"kafka.client.operations",
@@ -218,6 +234,9 @@ func New(config Config) (*Instrumentation, error) {
 	)
 	if err != nil {
 		return nil, instrumentFailure(err)
+	}
+	if nilInterface(operations) {
+		return nil, ErrInstrumentCreation
 	}
 	operationDuration, err := meter.Float64Histogram(
 		"kafka.client.operation.duration",
@@ -244,6 +263,9 @@ func New(config Config) (*Instrumentation, error) {
 	if err != nil {
 		return nil, instrumentFailure(err)
 	}
+	if nilInterface(operationDuration) {
+		return nil, ErrInstrumentCreation
+	}
 	requestSize, err := meter.Int64Histogram(
 		"kafka.client.request.size",
 		metric.WithDescription(
@@ -264,6 +286,9 @@ func New(config Config) (*Instrumentation, error) {
 	)
 	if err != nil {
 		return nil, instrumentFailure(err)
+	}
+	if nilInterface(requestSize) {
+		return nil, ErrInstrumentCreation
 	}
 	requestQueue, err := meter.Float64Histogram(
 		"kafka.client.request.queue.duration",
@@ -288,6 +313,9 @@ func New(config Config) (*Instrumentation, error) {
 	if err != nil {
 		return nil, instrumentFailure(err)
 	}
+	if nilInterface(requestQueue) {
+		return nil, ErrInstrumentCreation
+	}
 	throttleDuration, err := meter.Float64Histogram(
 		"kafka.client.throttle.duration",
 		metric.WithDescription("Kafka broker-imposed throttle duration."),
@@ -310,12 +338,18 @@ func New(config Config) (*Instrumentation, error) {
 	if err != nil {
 		return nil, instrumentFailure(err)
 	}
+	if nilInterface(throttleDuration) {
+		return nil, ErrInstrumentCreation
+	}
+	tracer := tracerProvider.Tracer(instrumentationName)
+	if nilInterface(tracer) {
+		return nil, ErrRuntimeRequired
+	}
 
 	return &Instrumentation{
-		tracer:            tracerProvider.Tracer(instrumentationName),
+		tracer:            tracer,
 		clientDuration:    clientDuration,
 		processDuration:   processDuration,
-		sentMessages:      sentMessages,
 		consumedMessages:  consumedMessages,
 		operations:        operations,
 		operationDuration: operationDuration,
@@ -378,7 +412,21 @@ func (instrumentation *Instrumentation) Observer() kafka.ObserverFunc {
 func (instrumentation *Instrumentation) observe(
 	ctx context.Context,
 	observation kafka.Observation,
-) error {
+) (err error) {
+	var span trace.Span
+	defer func() {
+		if recover() == nil {
+			return
+		}
+		if span != nil {
+			endSpanWithoutPanic(
+				span,
+				observation.StartedAt.Add(observation.Duration),
+			)
+		}
+		err = ErrProviderPanic
+	}()
+
 	if ctx == nil {
 		return ErrContextRequired
 	}
@@ -386,7 +434,6 @@ func (instrumentation *Instrumentation) observe(
 		instrumentation.tracer == nil ||
 		instrumentation.clientDuration == nil ||
 		instrumentation.processDuration == nil ||
-		instrumentation.sentMessages == nil ||
 		instrumentation.consumedMessages == nil ||
 		instrumentation.operations == nil ||
 		instrumentation.operationDuration == nil ||
@@ -398,33 +445,50 @@ func (instrumentation *Instrumentation) observe(
 	if err := ctx.Err(); err != nil {
 		return err
 	}
+	operation := messagingOperation(observation)
+	if operation.spanName == "" {
+		return ErrInvalidObservation
+	}
 	if err := observation.Validate(); err != nil {
 		return ErrInvalidObservation
 	}
-
-	operation := messagingOperation(observation)
-	metricAttributes := instrumentation.messagingAttributes(
-		observation,
-		operation.name,
-		operation.operationType,
-	)
-	policyAttributes := instrumentation.policyAttributes(observation)
-	spanAttributes := make([]attribute.KeyValue, 0, len(metricAttributes))
-	spanAttributes = append(spanAttributes, metricAttributes...)
-	spanAttributes = append(spanAttributes, policyAttributes...)
-	if observation.PartitionKnown {
-		spanAttributes = append(
-			spanAttributes,
-			attribute.String(
-				"messaging.destination.partition.id",
-				strconv.FormatInt(int64(observation.Partition), 10),
-			),
+	var spanMetricAttributes []attribute.KeyValue
+	if operation.messaging {
+		spanMetricAttributes = instrumentation.messagingSpanAttributes(
+			observation,
+			operation.name,
+			operation.operationType,
 		)
 	}
-	if observation.OffsetKnown {
+	metricPolicyAttributes := instrumentation.metricPolicyAttributes(observation)
+	spanAttributes := make([]attribute.KeyValue, 0, len(spanMetricAttributes))
+	spanAttributes = append(spanAttributes, spanMetricAttributes...)
+	spanAttributes = append(
+		spanAttributes,
+		instrumentation.spanPolicyAttributes(observation)...,
+	)
+	if observation.PartitionKnown {
+		partitionKey := attribute.Key("kafka.partition")
+		partitionValue := attribute.Int64Value(int64(observation.Partition))
+		if operation.messaging {
+			partitionKey = "messaging.destination.partition.id"
+			partitionValue = attribute.StringValue(
+				strconv.FormatInt(int64(observation.Partition), 10),
+			)
+		}
 		spanAttributes = append(
 			spanAttributes,
-			attribute.Int64("messaging.kafka.offset", observation.Offset),
+			attribute.KeyValue{Key: partitionKey, Value: partitionValue},
+		)
+	}
+	if observation.OffsetKnown && observation.RecordCount == 1 {
+		offsetKey := attribute.Key("kafka.offset")
+		if operation.messaging {
+			offsetKey = "messaging.kafka.offset"
+		}
+		spanAttributes = append(
+			spanAttributes,
+			attribute.Int64(string(offsetKey), observation.Offset),
 		)
 	}
 	if operation.batch {
@@ -438,7 +502,7 @@ func (instrumentation *Instrumentation) observe(
 	}
 	spanAttributes = appendObservationDiagnostics(spanAttributes, observation)
 
-	_, span := instrumentation.tracer.Start(
+	_, span = instrumentation.tracer.Start(
 		ctx,
 		instrumentation.spanName(operation, observation.Topic),
 		trace.WithSpanKind(operation.spanKind),
@@ -449,6 +513,12 @@ func (instrumentation *Instrumentation) observe(
 		span.SetStatus(codes.Error, "Kafka operation failed")
 	}
 	if operation.clientDuration {
+		metricAttributes := instrumentation.messagingMetricAttributes(
+			observation,
+			operation.name,
+			operation.operationType,
+			true,
+		)
 		instrumentation.clientDuration.Record(
 			ctx,
 			observation.Duration.Seconds(),
@@ -456,20 +526,28 @@ func (instrumentation *Instrumentation) observe(
 		)
 	}
 	if operation.processDuration {
+		metricAttributes := instrumentation.messagingMetricAttributes(
+			observation,
+			operation.name,
+			operation.operationType,
+			false,
+		)
 		instrumentation.processDuration.Record(
 			ctx,
 			observation.Duration.Seconds(),
 			metric.WithAttributes(metricAttributes...),
 		)
 	}
-	if operation.sentMessages {
-		instrumentation.sentMessages.Add(
-			ctx,
-			int64(observation.RecordCount),
-			metric.WithAttributes(metricAttributes...),
-		)
-	}
 	if operation.consumedMessages {
+		deliveryObservation := observation
+		deliveryObservation.Succeeded = true
+		deliveryObservation.Category = kafka.ErrorUnknown
+		metricAttributes := instrumentation.messagingMetricAttributes(
+			deliveryObservation,
+			operation.name,
+			operation.operationType,
+			false,
+		)
 		instrumentation.consumedMessages.Add(
 			ctx,
 			int64(observation.RecordCount),
@@ -479,27 +557,40 @@ func (instrumentation *Instrumentation) observe(
 	instrumentation.operations.Add(
 		ctx,
 		1,
-		metric.WithAttributes(policyAttributes...),
+		metric.WithAttributes(metricPolicyAttributes...),
 	)
 	instrumentation.operationDuration.Record(
 		ctx,
 		observation.Duration.Seconds(),
-		metric.WithAttributes(policyAttributes...),
+		metric.WithAttributes(metricPolicyAttributes...),
 	)
-	instrumentation.recordBrokerMetrics(ctx, observation, policyAttributes)
-	span.End(trace.WithTimestamp(observation.StartedAt.Add(observation.Duration)))
+	instrumentation.recordBrokerMetrics(ctx, observation, metricPolicyAttributes)
+	if endSpanWithoutPanic(
+		span,
+		observation.StartedAt.Add(observation.Duration),
+	) {
+		return ErrProviderPanic
+	}
 
 	return nil
 }
 
-func (instrumentation *Instrumentation) messagingAttributes(
+func endSpanWithoutPanic(span trace.Span, endedAt time.Time) (panicked bool) {
+	defer func() {
+		if recover() != nil {
+			panicked = true
+		}
+	}()
+	span.End(trace.WithTimestamp(endedAt))
+
+	return false
+}
+
+func (instrumentation *Instrumentation) messagingSpanAttributes(
 	observation kafka.Observation,
 	operationName string,
 	operationType string,
 ) []attribute.KeyValue {
-	if operationName == "" {
-		return nil
-	}
 	attributes := []attribute.KeyValue{
 		attribute.String("messaging.system", "kafka"),
 		attribute.String("messaging.operation.name", operationName),
@@ -536,17 +627,51 @@ func (instrumentation *Instrumentation) messagingAttributes(
 	return attributes
 }
 
-func (instrumentation *Instrumentation) policyAttributes(
+func (instrumentation *Instrumentation) messagingMetricAttributes(
+	observation kafka.Observation,
+	operationName string,
+	operationType string,
+	includeOperationType bool,
+) []attribute.KeyValue {
+	attributes := []attribute.KeyValue{
+		attribute.String("messaging.system", "kafka"),
+		attribute.String("messaging.operation.name", operationName),
+	}
+	if includeOperationType {
+		attributes = append(
+			attributes,
+			attribute.String("messaging.operation.type", operationType),
+		)
+	}
+	if instrumentation.attributes.allowsConsumerGroup(observation.GroupID) {
+		attributes = append(
+			attributes,
+			attribute.String(
+				"messaging.consumer.group.name",
+				observation.GroupID,
+			),
+		)
+	}
+	if instrumentation.attributes.allowsTopic(observation.Topic) {
+		attributes = append(
+			attributes,
+			attribute.String("messaging.destination.name", observation.Topic),
+		)
+	}
+	if !observation.Succeeded {
+		attributes = append(
+			attributes,
+			attribute.String("error.type", observation.Category.String()),
+		)
+	}
+
+	return attributes
+}
+
+func (instrumentation *Instrumentation) spanPolicyAttributes(
 	observation kafka.Observation,
 ) []attribute.KeyValue {
-	outcome := "success"
-	if !observation.Succeeded {
-		outcome = "error"
-	}
-	attributes := []attribute.KeyValue{
-		attribute.String("kafka.operation", observation.Kind.String()),
-		attribute.String("kafka.outcome", outcome),
-	}
+	attributes := basePolicyAttributes(observation)
 	if instrumentation.attributes.allowsClientID(observation.ClientID) {
 		attributes = append(
 			attributes,
@@ -573,6 +698,32 @@ func (instrumentation *Instrumentation) policyAttributes(
 	}
 
 	return attributes
+}
+
+func (instrumentation *Instrumentation) metricPolicyAttributes(
+	observation kafka.Observation,
+) []attribute.KeyValue {
+	attributes := basePolicyAttributes(observation)
+	if !observation.Succeeded {
+		attributes = append(
+			attributes,
+			attribute.String("error.type", observation.Category.String()),
+		)
+	}
+
+	return attributes
+}
+
+func basePolicyAttributes(observation kafka.Observation) []attribute.KeyValue {
+	outcome := "success"
+	if !observation.Succeeded {
+		outcome = "error"
+	}
+
+	return []attribute.KeyValue{
+		attribute.String("kafka.operation", observation.Kind.String()),
+		attribute.String("kafka.outcome", outcome),
+	}
 }
 
 func appendObservationDiagnostics(
@@ -820,18 +971,27 @@ func (instrumentation *Instrumentation) spanName(
 }
 
 func (policy normalizedAttributePolicy) allowsClientID(value string) bool {
+	if len(value) > maxIdentityLength {
+		return false
+	}
 	_, ok := policy.clientIDs[value]
 
 	return ok
 }
 
 func (policy normalizedAttributePolicy) allowsTopic(value string) bool {
+	if len(value) > maxTopicLength {
+		return false
+	}
 	_, ok := policy.topics[value]
 
 	return ok
 }
 
 func (policy normalizedAttributePolicy) allowsConsumerGroup(value string) bool {
+	if len(value) > maxIdentityLength {
+		return false
+	}
 	_, ok := policy.consumerGroups[value]
 
 	return ok
@@ -940,52 +1100,42 @@ type operationDescriptor struct {
 	messaging        bool
 	clientDuration   bool
 	processDuration  bool
-	sentMessages     bool
 	consumedMessages bool
 	batch            bool
 }
 
 func messagingOperation(observation kafka.Observation) operationDescriptor {
 	switch observation.Kind {
-	case kafka.ObservationProduceRecord, kafka.ObservationProduceAsync:
+	case kafka.ObservationProduceRecord:
 		return operationDescriptor{
-			spanName:       "send",
-			name:           "send",
-			operationType:  "send",
-			spanKind:       trace.SpanKindProducer,
-			messaging:      true,
-			clientDuration: true,
-			sentMessages:   true,
+			spanName:      "kafka producer.publish_completion",
+			name:          "send",
+			operationType: "send",
+			spanKind:      trace.SpanKindInternal,
 		}
 	case kafka.ObservationProduceBatch:
 		return operationDescriptor{
-			spanName:       "send",
-			name:           "send",
-			operationType:  "send",
-			spanKind:       trace.SpanKindProducer,
-			messaging:      true,
-			clientDuration: true,
-			sentMessages:   true,
-			batch:          true,
+			spanName:      "kafka producer.publish_batch_completion",
+			name:          "send",
+			operationType: "send",
+			spanKind:      trace.SpanKindInternal,
+		}
+	case kafka.ObservationProduceAsync:
+		return operationDescriptor{
+			spanName:      "kafka producer.publish_async_completion",
+			name:          "send",
+			operationType: "send",
+			spanKind:      trace.SpanKindInternal,
 		}
 	case kafka.ObservationConsumeRecord:
 		return operationDescriptor{
-			spanName:        "process",
-			name:            "process",
-			operationType:   "process",
-			spanKind:        trace.SpanKindConsumer,
-			messaging:       true,
-			processDuration: true,
+			spanName: "kafka consumer.record_completion",
+			spanKind: trace.SpanKindInternal,
 		}
 	case kafka.ObservationConsumeBatch:
 		return operationDescriptor{
-			spanName:        "process",
-			name:            "process",
-			operationType:   "process",
-			spanKind:        trace.SpanKindConsumer,
-			messaging:       true,
-			processDuration: true,
-			batch:           true,
+			spanName: "kafka consumer.batch_completion",
+			spanKind: trace.SpanKindInternal,
 		}
 	case kafka.ObservationConsumeCommit:
 		return operationDescriptor{
@@ -999,14 +1149,11 @@ func messagingOperation(observation kafka.Observation) operationDescriptor {
 		}
 	case kafka.ObservationConsumePoll:
 		return operationDescriptor{
-			spanName:         "poll",
+			spanName:         "kafka consumer.poll_cycle",
 			name:             "poll",
 			operationType:    "receive",
-			spanKind:         trace.SpanKindClient,
-			messaging:        true,
-			clientDuration:   true,
+			spanKind:         trace.SpanKindInternal,
 			consumedMessages: true,
-			batch:            true,
 		}
 	case kafka.ObservationBrokerConnect:
 		return operationDescriptor{
@@ -1026,7 +1173,7 @@ func messagingOperation(observation kafka.Observation) operationDescriptor {
 	case kafka.ObservationBrokerDisconnect:
 		return operationDescriptor{
 			spanName: "kafka broker.disconnect",
-			spanKind: trace.SpanKindClient,
+			spanKind: trace.SpanKindInternal,
 		}
 	case kafka.ObservationConsumeAssigned:
 		return operationDescriptor{
@@ -1066,7 +1213,7 @@ func messagingOperation(observation kafka.Observation) operationDescriptor {
 	case kafka.ObservationTransactionBegin:
 		return operationDescriptor{
 			spanName: "kafka transaction.begin",
-			spanKind: trace.SpanKindClient,
+			spanKind: trace.SpanKindInternal,
 		}
 	case kafka.ObservationTransactionCommit:
 		return operationDescriptor{
@@ -1087,7 +1234,7 @@ func messagingOperation(observation kafka.Observation) operationDescriptor {
 		if observation.ReplayProcessed == 0 {
 			return operationDescriptor{
 				spanName: "kafka replay.record",
-				spanKind: trace.SpanKindClient,
+				spanKind: trace.SpanKindInternal,
 			}
 		}
 
@@ -1102,12 +1249,12 @@ func messagingOperation(observation kafka.Observation) operationDescriptor {
 	case kafka.ObservationReplayRun:
 		return operationDescriptor{
 			spanName: "kafka replay.run",
-			spanKind: trace.SpanKindClient,
+			spanKind: trace.SpanKindInternal,
 		}
 	case kafka.ObservationReplayShutdown:
 		return operationDescriptor{
 			spanName: "kafka replay.shutdown",
-			spanKind: trace.SpanKindClient,
+			spanKind: trace.SpanKindInternal,
 		}
 	case kafka.ObservationInspectorCluster:
 		return operationDescriptor{
@@ -1132,27 +1279,27 @@ func messagingOperation(observation kafka.Observation) operationDescriptor {
 	case kafka.ObservationReadiness:
 		return operationDescriptor{
 			spanName: "kafka inspector.readiness",
-			spanKind: trace.SpanKindClient,
+			spanKind: trace.SpanKindInternal,
 		}
 	case kafka.ObservationInspectorShutdown:
 		return operationDescriptor{
 			spanName: "kafka inspector.shutdown",
-			spanKind: trace.SpanKindClient,
+			spanKind: trace.SpanKindInternal,
 		}
 	case kafka.ObservationProducerShutdown:
 		return operationDescriptor{
 			spanName: "kafka producer.shutdown",
-			spanKind: trace.SpanKindClient,
+			spanKind: trace.SpanKindInternal,
 		}
 	case kafka.ObservationConsumerShutdown:
 		return operationDescriptor{
 			spanName: "kafka consumer.shutdown",
-			spanKind: trace.SpanKindClient,
+			spanKind: trace.SpanKindInternal,
 		}
 	case kafka.ObservationTransactionProcessorShutdown:
 		return operationDescriptor{
 			spanName: "kafka transaction_processor.shutdown",
-			spanKind: trace.SpanKindClient,
+			spanKind: trace.SpanKindInternal,
 		}
 	default:
 		return operationDescriptor{}
