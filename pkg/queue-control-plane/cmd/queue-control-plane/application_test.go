@@ -100,6 +100,16 @@ func TestBuildApplicationComposesPublicHealthAndBoundedCapabilities(t *testing.T
 	if capabilities.Code != http.StatusOK || !reflect.DeepEqual(response.Capabilities, want) {
 		t.Fatalf("capabilities = (%d, %v), want (200, %v)", capabilities.Code, response.Capabilities, want)
 	}
+
+	rejectedRequest := httptest.NewRequest(http.MethodGet, "/v1/tenants/tenant-1/workers", nil)
+	rejectedRequest.Header.Set(server.APIKeyIDHeader, "key-1")
+	rejectedRequest.Header.Set(server.APIKeySecretHeader, "wrong-secret")
+	rejected := httptest.NewRecorder()
+	handler.ServeHTTP(rejected, rejectedRequest)
+	if rejected.Code != http.StatusUnauthorized ||
+		rejected.Header().Get("WWW-Authenticate") != "QueueControlKey" {
+		t.Fatalf("rejected credentials = status %d headers %v", rejected.Code, rejected.Header())
+	}
 }
 
 func TestApplicationNegotiatesEveryCurrentGoQueueCapability(t *testing.T) {

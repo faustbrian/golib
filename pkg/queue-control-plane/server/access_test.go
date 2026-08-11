@@ -72,6 +72,9 @@ func TestStaticAccessAuthenticatesAndAuthorizesTenantACL(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewStaticAccess() error = %v", err)
 	}
+	if access.Challenge.Scheme() != "QueueControlKey" {
+		t.Fatalf("authentication challenge = %q", access.Challenge.Scheme())
+	}
 	request := httptest.NewRequest(http.MethodGet, "/", nil)
 	request.Header.Set(APIKeyIDHeader, "key-1")
 	request.Header.Set(APIKeySecretHeader, "secret-1")

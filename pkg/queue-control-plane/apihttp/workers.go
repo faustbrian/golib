@@ -51,8 +51,8 @@ type workerQuery struct {
 }
 
 func (h *handler) listWorkers(writer http.ResponseWriter, request *http.Request) {
-	principal, ok := authentication.PrincipalFromContext(request.Context())
-	if !ok || principal.IsAnonymous() {
+	principal, _ := authentication.PrincipalFromContext(request.Context())
+	if principal.IsAnonymous() {
 		writeProblem(writer, http.StatusUnauthorized, "unauthenticated")
 		return
 	}
@@ -90,23 +90,27 @@ func (h *handler) listWorkers(writer http.ResponseWriter, request *http.Request)
 		snapshot = h.workers.SnapshotTenant(tenant, h.now(), h.staleAfter)
 	}
 	workers := append([]fleet.WorkerSnapshot(nil), snapshot.Workers...)
-	sort.Slice(workers, func(i, j int) bool {
-		return workers[i].WorkerID < workers[j].WorkerID
+	sort.SliceStable(workers, func(i, j int) bool {
+		return workerComesBefore(workers[i], workers[j])
 	})
 
-	page := WorkerPage{Workers: make([]Worker, 0, query.limit), Rejected: snapshot.Rejected}
+	page := WorkerPage{Workers: make([]Worker, 0, len(workers)), Rejected: snapshot.Rejected}
 	for _, snapshot := range workers {
 		if !query.matches(snapshot) {
 			continue
 		}
-		if len(page.Workers) == int(query.limit) {
-			page.NextCursor = page.Workers[len(page.Workers)-1].WorkerID
-			break
-		}
 		page.Workers = append(page.Workers, h.worker(snapshot))
+	}
+	if len(page.Workers) > int(query.limit) {
+		page.Workers = page.Workers[:query.limit]
+		page.NextCursor = page.Workers[len(page.Workers)-1].WorkerID
 	}
 
 	writeJSON(writer, http.StatusOK, page)
+}
+
+func workerComesBefore(left, right fleet.WorkerSnapshot) bool {
+	return left.WorkerID < right.WorkerID
 }
 
 func (h *handler) worker(snapshot fleet.WorkerSnapshot) Worker {
@@ -143,7 +147,10 @@ func parseWorkerQuery(values url.Values) (workerQuery, error) {
 	}
 	if raw := values.Get("limit"); raw != "" {
 		limit, err := strconv.ParseUint(raw, 10, 32)
-		if err != nil || limit == 0 || limit > uint64(MaxWorkerPageSize) {
+		if err != nil {
+			return workerQuery{}, ErrInvalidConfiguration
+		}
+		if limit == 0 || limit > uint64(MaxWorkerPageSize) {
 			return workerQuery{}, ErrInvalidConfiguration
 		}
 		query.limit = uint32(limit)

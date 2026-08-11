@@ -174,6 +174,12 @@ Versioning.
 - Protocol/failure, crash-boundary, administrative threat, scale, Horizon
   ownership, and release-gate hardening matrices with executable evidence.
 
+### Fixed
+
+- Return an authentication-scheme challenge with rejected administrative
+  credentials so invalid API keys remain a `401` response instead of being
+  misclassified as authentication infrastructure unavailability.
+
 ### Security
 
 - Blocked HTTP redirects in the typed administrative client so bearer tokens

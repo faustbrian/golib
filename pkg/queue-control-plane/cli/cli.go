@@ -151,11 +151,20 @@ func (r Runner) runRetention(ctx context.Context, args []string) error {
 	limit := flags.Uint("limit", 0, "worker page size")
 	after := flags.String("after", "", "worker cursor")
 	queueName := flags.String("queue", "", "queue filter")
-	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 ||
-		strings.TrimSpace(*tenant) == "" || len(*tenant) > controlplane.MaxIdentityBytes ||
-		*limit > uint(apihttp.MaxWorkerPageSize) ||
-		len(*after) > controlplane.MaxIdentityBytes ||
-		len(*queueName) > controlplane.MaxIdentityBytes {
+	if err := flags.Parse(args[1:]); err != nil {
+		return errUsage
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" {
+		return errUsage
+	}
+	if len(*tenant) > controlplane.MaxIdentityBytes ||
+		*limit > uint(apihttp.MaxWorkerPageSize) {
+		return errUsage
+	}
+	if len(*after) > controlplane.MaxIdentityBytes {
+		return errUsage
+	}
+	if len(*queueName) > controlplane.MaxIdentityBytes {
 		return errUsage
 	}
 	page, err := r.Client.ListWorkers(ctx, *tenant, client.WorkerQuery{
@@ -226,9 +235,13 @@ func (r Runner) runQueues(ctx context.Context, args []string) error {
 	tenant := flags.String("tenant", "", "tenant identifier")
 	cursor := flags.String("cursor", "", "opaque queue cursor")
 	limit := flags.Uint("limit", 0, "page size")
-	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 ||
-		strings.TrimSpace(*tenant) == "" || *limit > uint(queue.MaxStatusPageSize) ||
-		len(*cursor) > queue.MaxCursorBytes {
+	if err := flags.Parse(args[1:]); err != nil {
+		return errUsage
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" {
+		return errUsage
+	}
+	if *limit > uint(queue.MaxStatusPageSize) || len(*cursor) > queue.MaxCursorBytes {
 		return errUsage
 	}
 	page, err := queues.ListQueues(ctx, *tenant, client.QueueQuery{
@@ -275,10 +288,17 @@ func (r Runner) runRecordList(
 	search := flags.String("search", "", "bounded record search")
 	sortField := flags.String("sort", "", "occurred_at, queue, or attempts")
 	direction := flags.String("direction", "", "asc or desc")
-	if err := flags.Parse(args); err != nil || flags.NArg() != 0 ||
-		strings.TrimSpace(*tenant) == "" || *limit > uint(queue.MaxPageSize) ||
-		len(*cursor) > queue.MaxCursorBytes || len(*search) > queue.MaxSearchBytes ||
-		!validRecordSort(queue.SortField(*sortField)) ||
+	if err := flags.Parse(args); err != nil {
+		return errUsage
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" {
+		return errUsage
+	}
+	if *limit > uint(queue.MaxPageSize) || len(*cursor) > queue.MaxCursorBytes ||
+		len(*search) > queue.MaxSearchBytes {
+		return errUsage
+	}
+	if !validRecordSort(queue.SortField(*sortField)) ||
 		!validRecordDirection(queue.SortDirection(*direction)) {
 		return errUsage
 	}
@@ -316,8 +336,10 @@ func (r Runner) runRecordGet(
 		return errUsage
 	}
 	visibility, valid := cliPayloadVisibility(*payload)
-	if flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" ||
-		strings.TrimSpace(*id) == "" || len(*id) > controlplane.MaxIdentityBytes || !valid {
+	if flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" {
+		return errUsage
+	}
+	if strings.TrimSpace(*id) == "" || len(*id) > controlplane.MaxIdentityBytes || !valid {
 		return errUsage
 	}
 	var record apihttp.Record
@@ -369,8 +391,13 @@ func (r Runner) runWorkloads(ctx context.Context, args []string) error {
 	tenant := flags.String("tenant", "", "tenant identifier")
 	limit := flags.Int64("limit", 0, "page size")
 	continueToken := flags.String("continue", "", "Kubernetes continuation token")
-	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 ||
-		strings.TrimSpace(*tenant) == "" || *limit < 0 || *limit > controlkubernetes.MaxPageSize ||
+	if err := flags.Parse(args[1:]); err != nil {
+		return errUsage
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" {
+		return errUsage
+	}
+	if *limit < 0 || *limit > controlkubernetes.MaxPageSize ||
 		len(*continueToken) > controlkubernetes.MaxContinueTokenBytes {
 		return errUsage
 	}
@@ -395,8 +422,13 @@ func (r Runner) runCommand(ctx context.Context, args []string) error {
 		tenant := flags.String("tenant", "", "tenant identifier")
 		cursor := flags.String("cursor", "", "opaque command cursor")
 		limit := flags.Uint("limit", 0, "page size")
-		if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 ||
-			strings.TrimSpace(*tenant) == "" || *limit > uint(apihttp.MaxCommandPageSize) ||
+		if err := flags.Parse(args[1:]); err != nil {
+			return errUsage
+		}
+		if flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" {
+			return errUsage
+		}
+		if *limit > uint(apihttp.MaxCommandPageSize) ||
 			len(*cursor) > apihttp.MaxCommandCursorBytes {
 			return errUsage
 		}
@@ -421,8 +453,11 @@ func (r Runner) runCommand(ctx context.Context, args []string) error {
 	flags.SetOutput(r.Stderr)
 	tenant := flags.String("tenant", "", "tenant identifier")
 	key := flags.String("idempotency-key", "", "idempotency key")
-	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 ||
-		strings.TrimSpace(*tenant) == "" || strings.TrimSpace(*key) == "" {
+	if err := flags.Parse(args[1:]); err != nil {
+		return errUsage
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" ||
+		strings.TrimSpace(*key) == "" {
 		return errUsage
 	}
 	result, err := r.Client.GetCommand(ctx, *tenant, *key)
@@ -442,8 +477,11 @@ func (r Runner) runAudit(ctx context.Context, args []string) error {
 	tenant := flags.String("tenant", "", "tenant identifier")
 	after := flags.Uint64("after", 0, "sequence cursor")
 	limit := flags.Uint("limit", 0, "page size")
-	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 ||
-		strings.TrimSpace(*tenant) == "" || *limit > uint(apihttp.MaxAuditPageSize) {
+	if err := flags.Parse(args[1:]); err != nil {
+		return errUsage
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" ||
+		*limit > uint(apihttp.MaxAuditPageSize) {
 		return errUsage
 	}
 	page, err := r.Client.ListAudit(ctx, *tenant, client.AuditQuery{
@@ -468,7 +506,13 @@ func (r Runner) runWorkers(ctx context.Context, args []string) error {
 	after := flags.String("after", "", "worker cursor")
 	state := flags.String("state", "", "worker state")
 	queue := flags.String("queue", "", "queue filter")
-	if err := flags.Parse(args[1:]); err != nil || flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" || *limit > uint(apihttp.MaxWorkerPageSize) {
+	if err := flags.Parse(args[1:]); err != nil {
+		return errUsage
+	}
+	if flags.NArg() != 0 || strings.TrimSpace(*tenant) == "" {
+		return errUsage
+	}
+	if *limit > uint(apihttp.MaxWorkerPageSize) {
 		return errUsage
 	}
 	page, err := r.Client.ListWorkers(ctx, *tenant, client.WorkerQuery{
@@ -502,7 +546,10 @@ func (r Runner) runMutation(ctx context.Context, name string, args []string) err
 	destination := flags.String("destination", "", "replay destination")
 	replayPolicy := flags.String("replay-policy", "", "replay idempotency policy")
 	replicas := flags.Uint("replicas", 0, "desired workload replicas")
-	if err := flags.Parse(args); err != nil || flags.NArg() != 0 {
+	if err := flags.Parse(args); err != nil {
+		return errUsage
+	}
+	if flags.NArg() != 0 {
 		return errUsage
 	}
 	at := r.Now().UTC()

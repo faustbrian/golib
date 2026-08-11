@@ -109,6 +109,26 @@ func TestTelemetryExporterRejectsInvalidBatches(t *testing.T) {
 	}
 }
 
+func TestTelemetryExporterAcceptsExactBatchAndNumericBounds(t *testing.T) {
+	t.Parallel()
+
+	exporter, err := NewTelemetryExporter(metricnoop.NewMeterProvider().Meter("test"))
+	if err != nil {
+		t.Fatalf("NewTelemetryExporter() error = %v", err)
+	}
+	alert := Alert{
+		Kind: KindQueueWait, TenantID: "tenant-1", Resource: "critical",
+		ObservedAt: time.Unix(1, 0),
+	}
+	batch := make([]Alert, MaxAlertBatch)
+	for index := range batch {
+		batch[index] = alert
+	}
+	if err := exporter.Export(context.Background(), batch); err != nil {
+		t.Fatalf("Export() error = %v, want exact batch and zero values accepted", err)
+	}
+}
+
 type failingAlertMeter struct {
 	otelmetric.Meter
 	err error

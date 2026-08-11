@@ -25,6 +25,9 @@ The production server uses the static API-key implementation from
 `authentication`. A request supplies a public key ID and secret in separate
 headers. Authentication is optional only at middleware level so public probes
 can work; every administrative route rejects the anonymous principal.
+Rejected static credentials return `401` with the
+`WWW-Authenticate: QueueControlKey` challenge; provider unavailability remains
+a distinct `503` response.
 
 - Generate high-entropy secrets and store the access document in a secret
   manager-backed read-only volume.

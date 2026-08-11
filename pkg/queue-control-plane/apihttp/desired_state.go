@@ -12,8 +12,8 @@ import (
 )
 
 func (h *handler) getDesiredState(writer http.ResponseWriter, request *http.Request) {
-	principal, ok := authentication.PrincipalFromContext(request.Context())
-	if !ok || principal.IsAnonymous() {
+	principal, _ := authentication.PrincipalFromContext(request.Context())
+	if principal.IsAnonymous() {
 		writeProblem(writer, http.StatusUnauthorized, "unauthenticated")
 		return
 	}

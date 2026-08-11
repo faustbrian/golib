@@ -193,8 +193,8 @@ func rateLimitKey(request *http.Request) string {
 }
 
 func authenticationPrincipal(ctx context.Context) (string, bool) {
-	principal, ok := authentication.PrincipalFromContext(ctx)
-	if !ok || principal.IsAnonymous() {
+	principal, _ := authentication.PrincipalFromContext(ctx)
+	if principal.IsAnonymous() {
 		return "", false
 	}
 

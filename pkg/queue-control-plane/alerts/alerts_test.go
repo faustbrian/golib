@@ -88,6 +88,100 @@ func TestEvaluateSkipsDisabledAndUnsupportedInputs(t *testing.T) {
 	}
 }
 
+func TestEvaluateAcceptsExactInputAndIdentityBounds(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(1, 0).UTC()
+	tenantID := strings.Repeat("x", fleet.MaxIdentityBytes)
+	worker := fleet.WorkerSnapshot{
+		Heartbeat: alertHeartbeat(tenantID, "worker-1", now),
+		State:     fleet.StateRunning,
+	}
+	workers := make([]fleet.WorkerSnapshot, MaxWorkers)
+	for index := range workers {
+		workers[index] = worker
+	}
+	command := alertResult(tenantID, "command-1", controlplane.CommandSucceeded, now)
+	commands := make([]controlplane.CommandResult, MaxCommands)
+	for index := range commands {
+		commands[index] = command
+	}
+
+	alerts, err := Evaluate(Input{
+		TenantID: tenantID, ObservedAt: now,
+		Workers: fleet.RegistrySnapshot{Workers: workers}, Commands: commands,
+	}, Policy{})
+	if err != nil || len(alerts) != 0 {
+		t.Fatalf("Evaluate() = (%+v, %v), want exact bounds accepted", alerts, err)
+	}
+}
+
+func TestEvaluateTreatsThresholdsAsStrictAndSupportAware(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(1, 0).UTC()
+	queueStatus := queue.QueueStatus{
+		Backend: "valkey-streams", Queue: "critical", ObservedAt: now,
+		Metrics: queue.QueueMetrics{
+			OldestAge: queue.Measurement[time.Duration]{Value: time.Minute, Supported: true},
+		},
+	}
+	base := Input{
+		TenantID: "tenant-1", ObservedAt: now,
+		Queues: queue.QueueStatusPage{Items: []queue.QueueStatus{queueStatus}},
+	}
+	tests := map[string]struct {
+		input  Input
+		policy Policy
+	}{
+		"queue threshold equality": {input: base, policy: Policy{MaxQueueWait: time.Minute}},
+		"queue disabled":           {input: base},
+		"failure threshold equality": {
+			input:  withAlertMeasurements(base, queue.Measurement[uint64]{Value: 10, Supported: true}, queue.Measurement[uint64]{}),
+			policy: Policy{MaxFailures: 10},
+		},
+		"failure unsupported": {
+			input:  withAlertMeasurements(base, queue.Measurement[uint64]{Value: 11}, queue.Measurement[uint64]{}),
+			policy: Policy{MaxFailures: 10},
+		},
+		"failure disabled": {
+			input: withAlertMeasurements(base, queue.Measurement[uint64]{Value: 1, Supported: true}, queue.Measurement[uint64]{}),
+		},
+		"dead-letter threshold equality": {
+			input:  withAlertMeasurements(base, queue.Measurement[uint64]{}, queue.Measurement[uint64]{Value: 10, Supported: true}),
+			policy: Policy{MaxDeadLetters: 10},
+		},
+		"dead-letter unsupported": {
+			input:  withAlertMeasurements(base, queue.Measurement[uint64]{}, queue.Measurement[uint64]{Value: 11}),
+			policy: Policy{MaxDeadLetters: 10},
+		},
+		"dead-letter disabled": {
+			input: withAlertMeasurements(base, queue.Measurement[uint64]{}, queue.Measurement[uint64]{Value: 1, Supported: true}),
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			alerts, err := Evaluate(test.input, test.policy)
+			if err != nil || len(alerts) != 0 {
+				t.Fatalf("Evaluate() = (%+v, %v), want no threshold breach", alerts, err)
+			}
+		})
+	}
+}
+
+func withAlertMeasurements(
+	input Input,
+	failures queue.Measurement[uint64],
+	deadLetters queue.Measurement[uint64],
+) Input {
+	input.Failures = failures
+	input.DeadLetters = deadLetters
+
+	return input
+}
+
 func TestEvaluateRejectsMalformedInputs(t *testing.T) {
 	t.Parallel()
 

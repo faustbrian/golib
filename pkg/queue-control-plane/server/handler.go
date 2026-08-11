@@ -16,6 +16,7 @@ func NewAdministrativeHandler(
 	api http.Handler,
 	extractor authhttp.CredentialExtractor,
 	authenticator authentication.Authenticator,
+	challenge authentication.Challenge,
 	securityConfig apihttp.SecurityConfig,
 ) (http.Handler, error) {
 	if nilInterface(api) {
@@ -25,6 +26,7 @@ func NewAdministrativeHandler(
 		extractor,
 		authenticator,
 		authhttp.WithOptionalAnonymous(),
+		authhttp.WithChallenges(challenge),
 	)
 	if err != nil {
 		return nil, err

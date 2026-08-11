@@ -222,8 +222,8 @@ func (h *handler) authorizeRecordRead(
 	name string,
 	permission controlplane.Permission,
 ) (authentication.Principal, string, bool) {
-	principal, ok := authentication.PrincipalFromContext(request.Context())
-	if !ok || principal.IsAnonymous() {
+	principal, _ := authentication.PrincipalFromContext(request.Context())
+	if principal.IsAnonymous() {
 		writeProblem(writer, http.StatusUnauthorized, "unauthenticated")
 		return authentication.Principal{}, "", false
 	}

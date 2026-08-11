@@ -21,6 +21,7 @@ type StaticAccess struct {
 	Extractor     *authhttp.Extractor
 	Authenticator authentication.Authenticator
 	Authorizer    *controlauthz.Authorizer
+	Challenge     authentication.Challenge
 }
 
 // NewStaticAccess builds bounded API-key authentication and deny-overrides ACL
@@ -52,6 +53,7 @@ func NewStaticAccess(keys []apikey.Entry, entries []acl.Entry) (*StaticAccess, e
 		Extractor:     extractor,
 		Authenticator: authenticator,
 		Authorizer:    authorizer,
+		Challenge:     must(authentication.NewChallenge("QueueControlKey", nil)),
 	}, nil
 }
 

@@ -40,8 +40,8 @@ type AuditEntry struct {
 }
 
 func (h *handler) listAudit(writer http.ResponseWriter, request *http.Request) {
-	principal, ok := authentication.PrincipalFromContext(request.Context())
-	if !ok || principal.IsAnonymous() {
+	principal, _ := authentication.PrincipalFromContext(request.Context())
+	if principal.IsAnonymous() {
 		writeProblem(writer, http.StatusUnauthorized, "unauthenticated")
 		return
 	}

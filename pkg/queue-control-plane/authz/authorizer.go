@@ -56,8 +56,8 @@ func (a *Authorizer) Authorize(
 	permission controlplane.Permission,
 	target controlplane.Target,
 ) error {
-	principal, ok := authentication.PrincipalFromContext(ctx)
-	if !ok || principal.IsAnonymous() {
+	principal, _ := authentication.PrincipalFromContext(ctx)
+	if principal.IsAnonymous() {
 		return ErrUnauthenticated
 	}
 	if principal.Subject() != actor {

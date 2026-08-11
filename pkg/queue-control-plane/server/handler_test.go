@@ -19,6 +19,7 @@ func TestAdministrativeHandlerRejectsInvalidComposition(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewExtractor() error = %v", err)
 	}
+	challenge := must(authentication.NewChallenge("Bearer", nil))
 	authenticator := &authenticatorStub{}
 	var typedNilLimiter *handlerRateLimiter
 	tests := []struct {
@@ -44,11 +45,18 @@ func TestAdministrativeHandlerRejectsInvalidComposition(t *testing.T) {
 	}
 	for _, test := range tests {
 		handler, err := NewAdministrativeHandler(
-			test.api, test.extractor, test.authenticator, test.security,
+			test.api, test.extractor, test.authenticator, challenge, test.security,
 		)
 		if handler != nil || !errors.Is(err, test.wantErr) {
 			t.Fatalf("NewAdministrativeHandler() = (%v, %v), want %v", handler, err, test.wantErr)
 		}
+	}
+	handler, err := NewAdministrativeHandler(
+		http.NotFoundHandler(), extractor, authenticator,
+		authentication.Challenge{}, apihttp.SecurityConfig{},
+	)
+	if handler != nil || !errors.Is(err, authentication.ErrInvalidConfiguration) {
+		t.Fatalf("NewAdministrativeHandler(invalid challenge) = (%v, %v)", handler, err)
 	}
 }
 
@@ -59,11 +67,13 @@ func TestAdministrativeHandlerRejectsInvalidCredentialsBeforeAPI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("NewExtractor() error = %v", err)
 	}
+	challenge := must(authentication.NewChallenge("Bearer", nil))
 	calls := 0
 	handler, err := NewAdministrativeHandler(
 		http.HandlerFunc(func(http.ResponseWriter, *http.Request) { calls++ }),
 		extractor,
 		&authenticatorStub{err: authentication.NewFailure(authentication.FailureRejected)},
+		challenge,
 		apihttp.SecurityConfig{AllowedOrigins: []string{"https://control.example.test"}},
 	)
 	if err != nil {
@@ -74,7 +84,8 @@ func TestAdministrativeHandlerRejectsInvalidCredentialsBeforeAPI(t *testing.T) {
 	response := httptest.NewRecorder()
 	handler.ServeHTTP(response, request)
 	if response.Code != http.StatusUnauthorized || calls != 0 ||
-		response.Header().Get("X-Frame-Options") != "DENY" {
+		response.Header().Get("X-Frame-Options") != "DENY" ||
+		response.Header().Get("WWW-Authenticate") != "Bearer" {
 		t.Fatalf("response = %d, API calls = %d, headers = %v", response.Code, calls, response.Header())
 	}
 
@@ -103,6 +114,7 @@ func TestAdministrativeHandlerAuthenticatesBearerAndAllowsAnonymousProbes(t *tes
 	if err != nil {
 		t.Fatalf("NewExtractor() error = %v", err)
 	}
+	challenge := must(authentication.NewChallenge("Bearer", nil))
 	handler, err := NewAdministrativeHandler(
 		http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			got, ok := authentication.PrincipalFromContext(request.Context())
@@ -117,6 +129,7 @@ func TestAdministrativeHandlerAuthenticatesBearerAndAllowsAnonymousProbes(t *tes
 		}),
 		extractor,
 		authenticator,
+		challenge,
 		apihttp.SecurityConfig{RateLimiter: limiter},
 	)
 	if err != nil {

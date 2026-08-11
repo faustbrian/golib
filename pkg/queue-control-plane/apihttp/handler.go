@@ -248,7 +248,7 @@ func NewHandler(config Config) (http.Handler, error) {
 	}
 
 	var commandHistory commandHistorySource
-	if source, ok := config.CommandResults.(commandHistorySource); ok && !nilInterface(source) {
+	if source, ok := config.CommandResults.(commandHistorySource); ok {
 		commandHistory = source
 	}
 	handler := &handler{
@@ -351,8 +351,8 @@ func (h *handler) listCapabilities(writer http.ResponseWriter, _ *http.Request) 
 }
 
 func (h *handler) executeCommand(writer http.ResponseWriter, request *http.Request) {
-	principal, ok := authentication.PrincipalFromContext(request.Context())
-	if !ok || principal.IsAnonymous() {
+	principal, _ := authentication.PrincipalFromContext(request.Context())
+	if principal.IsAnonymous() {
 		writeProblem(writer, http.StatusUnauthorized, "unauthenticated")
 		return
 	}

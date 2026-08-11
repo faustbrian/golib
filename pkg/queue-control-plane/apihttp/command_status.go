@@ -45,8 +45,8 @@ type CommandHistoryEntry struct {
 }
 
 func (h *handler) listCommandHistory(writer http.ResponseWriter, request *http.Request) {
-	principal, ok := authentication.PrincipalFromContext(request.Context())
-	if !ok || principal.IsAnonymous() {
+	principal, _ := authentication.PrincipalFromContext(request.Context())
+	if principal.IsAnonymous() {
 		writeProblem(writer, http.StatusUnauthorized, "unauthenticated")
 		return
 	}
@@ -83,8 +83,8 @@ func (h *handler) listCommandHistory(writer http.ResponseWriter, request *http.R
 }
 
 func (h *handler) getCommandResult(writer http.ResponseWriter, request *http.Request) {
-	principal, ok := authentication.PrincipalFromContext(request.Context())
-	if !ok || principal.IsAnonymous() {
+	principal, _ := authentication.PrincipalFromContext(request.Context())
+	if principal.IsAnonymous() {
 		writeProblem(writer, http.StatusUnauthorized, "unauthenticated")
 		return
 	}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -113,6 +114,132 @@ func TestRunnerRejectsInvalidOutputMode(t *testing.T) {
 			)
 			if exit != ExitUsage || api.workerQuery != (client.WorkerQuery{}) || stderr.String() == "" {
 				t.Fatalf("Run() = %d, query %+v, stderr %q", exit, api.workerQuery, stderr.String())
+			}
+		})
+	}
+}
+
+func TestParseOutputFormatAcceptsEachExactMode(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []outputFormat{outputJSON, outputHuman} {
+		format, remaining, ok := parseOutputFormat([]string{"--output", string(want)})
+		if !ok || format != want || len(remaining) != 0 {
+			t.Fatalf("parseOutputFormat(%q) = (%q, %v, %t)", want, format, remaining, ok)
+		}
+	}
+}
+
+func TestRunnerAcceptsExactPublicBounds(t *testing.T) {
+	t.Parallel()
+
+	tenant := strings.Repeat("t", controlplane.MaxIdentityBytes)
+	tests := map[string][]string{
+		"retention": {
+			"retention", "status", "--tenant", tenant,
+			"--limit", strconv.Itoa(int(apihttp.MaxWorkerPageSize)),
+			"--after", strings.Repeat("a", controlplane.MaxIdentityBytes),
+			"--queue", strings.Repeat("q", controlplane.MaxIdentityBytes),
+		},
+		"queues": {
+			"queues", "list", "--tenant", tenant,
+			"--limit", strconv.Itoa(queue.MaxStatusPageSize),
+			"--cursor", strings.Repeat("c", queue.MaxCursorBytes),
+		},
+		"record list": {
+			"failures", "list", "--tenant", tenant,
+			"--limit", strconv.Itoa(int(queue.MaxPageSize)),
+			"--cursor", strings.Repeat("c", queue.MaxCursorBytes),
+			"--search", strings.Repeat("s", queue.MaxSearchBytes),
+		},
+		"record get": {
+			"failures", "get", "--tenant", tenant,
+			"--id", strings.Repeat("i", controlplane.MaxIdentityBytes),
+		},
+		"workloads": {
+			"workloads", "list", "--tenant", tenant,
+			"--limit", strconv.FormatInt(controlkubernetes.MaxPageSize, 10),
+			"--continue", strings.Repeat("c", controlkubernetes.MaxContinueTokenBytes),
+		},
+		"command list": {
+			"command", "list", "--tenant", tenant,
+			"--limit", strconv.Itoa(int(apihttp.MaxCommandPageSize)),
+			"--cursor", strings.Repeat("c", apihttp.MaxCommandCursorBytes),
+		},
+		"audit": {
+			"audit", "list", "--tenant", tenant,
+			"--limit", strconv.Itoa(int(apihttp.MaxAuditPageSize)),
+		},
+		"workers": {
+			"workers", "list", "--tenant", tenant,
+			"--limit", strconv.Itoa(int(apihttp.MaxWorkerPageSize)),
+		},
+		"bulk retry": {
+			"bulk-retry", "--tenant", tenant, "--idempotency-key", "request-1",
+			"--reason", "maintenance", "--target-kind", "failure", "--target", "failed",
+			"--confirm", "--limit", strconv.Itoa(int(controlplane.MaxBulkSelection)),
+		},
+		"scale": {
+			"scale", "--tenant", tenant, "--idempotency-key", "request-1",
+			"--reason", "maintenance", "--target-kind", "workload", "--target", "workers",
+			"--replicas", strconv.Itoa(int(controlplane.MaxScaleReplicas)),
+		},
+	}
+	for name, args := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			exit := (Runner{
+				Client: &apiStub{}, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{},
+			}).Run(context.Background(), args)
+			if exit != ExitOK {
+				t.Fatalf("Run() = %d, want %d", exit, ExitOK)
+			}
+		})
+	}
+}
+
+func TestRunnerRejectsIsolatedFlagAndArgumentErrors(t *testing.T) {
+	t.Parallel()
+
+	tests := map[string][]string{
+		"retention flag":     {"retention", "status", "--tenant", "tenant-1", "--unknown"},
+		"retention argument": {"retention", "status", "--tenant", "tenant-1", "extra"},
+		"queue flag":         {"queues", "list", "--tenant", "tenant-1", "--unknown"},
+		"queue argument":     {"queues", "list", "--tenant", "tenant-1", "extra"},
+		"record list flag":   {"failures", "list", "--tenant", "tenant-1", "--unknown"},
+		"record list arg":    {"failures", "list", "--tenant", "tenant-1", "extra"},
+		"record get flag":    {"failures", "get", "--tenant", "tenant-1", "--id", "failure-1", "--unknown"},
+		"record get arg":     {"failures", "get", "--tenant", "tenant-1", "--id", "failure-1", "extra"},
+		"workload flag":      {"workloads", "list", "--tenant", "tenant-1", "--unknown"},
+		"workload argument":  {"workloads", "list", "--tenant", "tenant-1", "extra"},
+		"command list flag":  {"command", "list", "--tenant", "tenant-1", "--unknown"},
+		"command list arg":   {"command", "list", "--tenant", "tenant-1", "extra"},
+		"command get flag":   {"command", "get", "--tenant", "tenant-1", "--idempotency-key", "request-1", "--unknown"},
+		"command get arg":    {"command", "get", "--tenant", "tenant-1", "--idempotency-key", "request-1", "extra"},
+		"audit flag":         {"audit", "list", "--tenant", "tenant-1", "--unknown"},
+		"audit argument":     {"audit", "list", "--tenant", "tenant-1", "extra"},
+		"worker flag":        {"workers", "list", "--tenant", "tenant-1", "--unknown"},
+		"worker argument":    {"workers", "list", "--tenant", "tenant-1", "extra"},
+		"mutation flag": {
+			"pause", "--tenant", "tenant-1", "--idempotency-key", "request-1",
+			"--reason", "maintenance", "--target-kind", "queue", "--target", "critical", "--unknown",
+		},
+		"mutation argument": {
+			"pause", "--tenant", "tenant-1", "--idempotency-key", "request-1",
+			"--reason", "maintenance", "--target-kind", "queue", "--target", "critical", "extra",
+		},
+	}
+	for name, args := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			api := &apiStub{}
+			exit := (Runner{
+				Client: api, Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{},
+			}).Run(context.Background(), args)
+			if exit != ExitUsage || api.called() {
+				t.Fatalf("Run() = %d, API called = %t", exit, api.called())
 			}
 		})
 	}
@@ -282,7 +409,7 @@ func TestRunnerListsAndInspectsFailureRecords(t *testing.T) {
 				"--direction", "asc",
 			},
 		)
-		if exit != ExitOK || api.recordQuery != (client.RecordQuery{
+		if exit != ExitOK || api.recordCollection != command || api.recordQuery != (client.RecordQuery{
 			Cursor: "current", Limit: 25, Search: "critical",
 			Sort: queue.SortQueue, Direction: queue.SortAscending,
 		}) || !strings.Contains(output.String(), `"next_cursor":"next"`) {
@@ -297,7 +424,7 @@ func TestRunnerListsAndInspectsFailureRecords(t *testing.T) {
 				"--payload", "revealed", "--diagnostics",
 			},
 		)
-		if exit != ExitOK || api.recordID != "failure-1" ||
+		if exit != ExitOK || api.recordCollection != command || api.recordID != "failure-1" ||
 			api.recordVisibility != queue.PayloadRevealed || !api.recordDiagnostics {
 			t.Fatalf("%s get = exit %d, id %q, visibility %q", command, exit, api.recordID, api.recordVisibility)
 		}
@@ -597,6 +724,7 @@ func checkScale(t *testing.T, command apihttp.CommandRequest) {
 }
 
 type apiStub struct {
+	calls             int
 	result            controlplane.CommandResult
 	commands          apihttp.CommandHistoryPage
 	workers           apihttp.WorkerPage
@@ -618,6 +746,11 @@ type apiStub struct {
 	recordID          string
 	recordVisibility  queue.PayloadVisibility
 	recordDiagnostics bool
+	recordCollection  string
+}
+
+func (s *apiStub) called() bool {
+	return s.calls != 0
 }
 
 type errorWriter struct {
@@ -671,31 +804,37 @@ func (w *errorWriter) Write([]byte) (int, error) {
 }
 
 func (s *apiStub) ExecuteCommand(_ context.Context, _ string, command apihttp.CommandRequest) (controlplane.CommandResult, error) {
+	s.calls++
 	s.command = command
 	return s.result, s.err
 }
 
 func (s *apiStub) ListWorkers(_ context.Context, _ string, query client.WorkerQuery) (apihttp.WorkerPage, error) {
+	s.calls++
 	s.workerQuery = query
 	return s.workers, s.err
 }
 
 func (s *apiStub) ListQueues(_ context.Context, _ string, query client.QueueQuery) (apihttp.QueuePage, error) {
+	s.calls++
 	s.queueQuery = query
 	return s.queues, s.err
 }
 
 func (s *apiStub) ListWorkloads(_ context.Context, _ string, query client.WorkloadQuery) (controlkubernetes.Page, error) {
+	s.calls++
 	s.workloadQuery = query
 	return s.workloads, s.err
 }
 
 func (s *apiStub) ListAudit(_ context.Context, _ string, query client.AuditQuery) (apihttp.AuditPage, error) {
+	s.calls++
 	s.auditQuery = query
 	return s.audit, s.err
 }
 
 func (s *apiStub) GetCommand(_ context.Context, tenant string, key string) (controlplane.CommandResult, error) {
+	s.calls++
 	s.commandTenant = tenant
 	s.commandKey = key
 	return s.result, s.err
@@ -706,6 +845,7 @@ func (s *apiStub) ListCommands(
 	tenant string,
 	query client.CommandQuery,
 ) (apihttp.CommandHistoryPage, error) {
+	s.calls++
 	s.commandTenant = tenant
 	s.commandQuery = query
 
@@ -717,6 +857,8 @@ func (s *apiStub) ListFailures(
 	_ string,
 	query client.RecordQuery,
 ) (apihttp.RecordPage, error) {
+	s.calls++
+	s.recordCollection = "failures"
 	s.recordQuery = query
 
 	return s.records, s.err
@@ -727,6 +869,8 @@ func (s *apiStub) ListDeadLetters(
 	_ string,
 	query client.RecordQuery,
 ) (apihttp.RecordPage, error) {
+	s.calls++
+	s.recordCollection = "dead-letters"
 	s.recordQuery = query
 
 	return s.records, s.err
@@ -738,6 +882,8 @@ func (s *apiStub) InspectFailureWithOptions(
 	id string,
 	options client.RecordInspectOptions,
 ) (apihttp.Record, error) {
+	s.calls++
+	s.recordCollection = "failures"
 	s.recordID = id
 	s.recordVisibility = options.Payload
 	s.recordDiagnostics = options.RevealDiagnostics
@@ -751,6 +897,8 @@ func (s *apiStub) InspectDeadLetterWithOptions(
 	id string,
 	options client.RecordInspectOptions,
 ) (apihttp.Record, error) {
+	s.calls++
+	s.recordCollection = "dead-letters"
 	s.recordID = id
 	s.recordVisibility = options.Payload
 	s.recordDiagnostics = options.RevealDiagnostics

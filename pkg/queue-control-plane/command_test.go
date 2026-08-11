@@ -270,6 +270,128 @@ func TestCommandResultPreservesDistinctTerminalStates(t *testing.T) {
 	}
 }
 
+func TestCommandResultRejectsEachPrematureTransitionTimestamp(t *testing.T) {
+	t.Parallel()
+
+	transitionTime := time.Unix(1, 0)
+	tests := map[string]CommandResult{
+		"pending dispatch": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Status: CommandPending,
+			DispatchedAt: transitionTime,
+		},
+		"pending acknowledgement": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Status: CommandPending,
+			AcknowledgedAt: transitionTime,
+		},
+		"pending completion": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Status: CommandPending,
+			CompletedAt: transitionTime,
+		},
+		"accepted dispatch": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Status: CommandAccepted,
+			DispatchedAt: transitionTime,
+		},
+		"accepted acknowledgement": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Status: CommandAccepted,
+			AcknowledgedAt: transitionTime,
+		},
+		"accepted completion": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Status: CommandAccepted,
+			CompletedAt: transitionTime,
+		},
+	}
+	for name, result := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			err := result.Validate()
+			var validationError *ValidationError
+			if !errors.As(err, &validationError) || validationError.Field != "completed_at" {
+				t.Fatalf("Validate() error = %v, want completed_at validation", err)
+			}
+		})
+	}
+}
+
+func TestCommandResultRequiresEachAcknowledgedTransitionTimestamp(t *testing.T) {
+	t.Parallel()
+
+	dispatchedAt := time.Unix(1, 0)
+	acknowledgedAt := time.Unix(2, 0)
+	tests := map[string]CommandResult{
+		"missing dispatch": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Status: CommandAcknowledged,
+			AcknowledgedAt: acknowledgedAt,
+		},
+		"missing acknowledgement": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Status: CommandAcknowledged,
+			DispatchedAt: dispatchedAt,
+		},
+		"unexpected completion": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Status: CommandAcknowledged,
+			DispatchedAt: dispatchedAt, AcknowledgedAt: acknowledgedAt, CompletedAt: time.Unix(3, 0),
+		},
+	}
+	for name, result := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			err := result.Validate()
+			var validationError *ValidationError
+			if !errors.As(err, &validationError) || validationError.Field != "acknowledged_at" {
+				t.Fatalf("Validate() error = %v, want acknowledged_at validation", err)
+			}
+		})
+	}
+}
+
+func TestCommandValidationAcceptsExactPublicLimits(t *testing.T) {
+	t.Parallel()
+
+	requestedAt := time.Date(2026, time.July, 16, 12, 0, 0, 0, time.UTC)
+	commands := map[string]Command{
+		"identity": {
+			IdempotencyKey: strings.Repeat("x", MaxIdentityBytes), TenantID: "tenant-1",
+			Actor: "operator@example.test", Reason: "bounded identity", Action: ActionDrain,
+			Target: Target{Kind: TargetWorker, Name: "worker-1"}, RequestedAt: requestedAt,
+		},
+		"reason": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Actor: "operator@example.test",
+			Reason: strings.Repeat("x", MaxReasonBytes), Action: ActionDrain,
+			Target: Target{Kind: TargetWorker, Name: "worker-1"}, RequestedAt: requestedAt,
+		},
+		"lifetime": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Actor: "operator@example.test",
+			Reason: "bounded lifetime", Action: ActionDrain,
+			Target: Target{Kind: TargetWorker, Name: "worker-1"}, RequestedAt: requestedAt,
+			Deadline: requestedAt.Add(MaxCommandLifetime),
+		},
+		"replicas": {
+			IdempotencyKey: "request-123", TenantID: "tenant-1", Actor: "operator@example.test",
+			Reason: "bounded replicas", Action: ActionScale,
+			Target: Target{Kind: TargetWorkload, Name: "workers"}, RequestedAt: requestedAt,
+			Scale: &Scale{Replicas: MaxScaleReplicas},
+		},
+	}
+	for name, command := range commands {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if err := command.Validate(); err != nil {
+				t.Fatalf("Validate() error = %v, want exact public limit accepted", err)
+			}
+		})
+	}
+
+	result := CommandResult{
+		IdempotencyKey: "request-123", TenantID: "tenant-1", Status: CommandFailed,
+		Failure: strings.Repeat("x", MaxFailureBytes), CompletedAt: time.Unix(2, 0),
+	}
+	if err := result.Validate(); err != nil {
+		t.Fatalf("CommandResult.Validate() error = %v, want exact failure limit accepted", err)
+	}
+}
+
 func TestValidationErrorIncludesField(t *testing.T) {
 	t.Parallel()
 

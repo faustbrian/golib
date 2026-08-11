@@ -111,6 +111,7 @@ func buildApplication(config Config, dependencies applicationDependencies) (http
 		surface,
 		dependencies.Access.Extractor,
 		dependencies.Access.Authenticator,
+		dependencies.Access.Challenge,
 		apihttp.SecurityConfig{
 			AllowedOrigins: config.AllowedOrigins,
 			RateLimiter:    dependencies.RateLimiter,
