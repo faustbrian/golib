@@ -30,7 +30,12 @@ decisions at hostile boundaries.
 
 PostgreSQL integration tests exercise atomic transition/history/work writes,
 optimistic conflicts, stable pagination, archive membership, fencing, dead
-letters, migration order, rollback, and caller-owned transaction composition.
+letters, migration order, rollback, process death, deadlocks, restart and
+snapshot restore, and caller-owned transaction composition. The
+interoperability target builds a clean temporary consumer and proves workflow
+transitions and optional outbox envelopes share one PostgreSQL commit while
+inbound signal redelivery remains exactly deduplicated. Caller acknowledgement
+still follows the confirmed workflow commit; the package does not own it.
 
 ## Release gates
 
@@ -40,7 +45,7 @@ license, SBOM, fuzz, exact viable mutation kills, documentation, API,
 conformance, interoperability, benchmarks, and clean-consumer build proof. Go
 commands use a disposable task-owned build cache.
 
-Stress, soak, PostgreSQL failover, backup/restore, and broker-partition drills
+Multi-day soak, multi-node PostgreSQL failover, and live broker-partition drills
 depend on deployment resources. Their absence must be reported as an unverified
 boundary; a unit test or local mock is not a substitute. Record environment,
 duration, load, fault timing, tool versions, and resource ceilings with any such
