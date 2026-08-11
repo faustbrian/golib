@@ -325,6 +325,23 @@ func TestStatelessWitnessTopologyClaimFailureBoundaries(t *testing.T) {
 	if err != nil || len(retained) != 1 || disclosed {
 		t.Fatalf("bounded auxiliary scan = retained %d, disclosed %v, error %v", len(retained), disclosed, err)
 	}
+	retainedAfterUpdate := deleted
+	retainedAfterUpdate[31]++
+	retained, disclosed, err = statelessWitnessStemAuxiliaries(
+		context.Background(),
+		[]Claim{
+			Membership(deleted, testValue(1)),
+			Membership(retainedAfterUpdate, testValue(2)),
+		},
+		map[Key]struct{}{deleted: {}},
+		Stem(deleted[:31]),
+	)
+	if err != nil || len(retained) != 1 || retained[0] != retainedAfterUpdate || disclosed {
+		t.Fatalf(
+			"auxiliary after update = retained %v, disclosed %v, error %v",
+			retained, disclosed, err,
+		)
+	}
 	if _, _, err := statelessWitnessStemAuxiliaries(
 		&stepContext{}, proof.claims.claims, map[Key]struct{}{}, stem,
 	); !errors.Is(err, context.Canceled) {
