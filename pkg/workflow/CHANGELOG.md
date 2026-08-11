@@ -16,6 +16,10 @@ and releases use Semantic Versioning.
   streaming-replica promotion drills, plus exhaustive deterministic lifecycle
   model, bounded worker stress, shutdown-join, and continue-as-new history-soak
   tests.
+- Mixed-version rolling-deploy replay proof for old, new, and incompatible
+  definition registries, plus a PostgreSQL process-kill drill after an activity
+  side effect that proves redelivery records an unknown outcome without
+  repeating the effect.
 - A bounded accelerated soak harness that advances deterministic workflow time
   across three logical days, with immutable input evidence and retained heap
   and goroutine ceilings.

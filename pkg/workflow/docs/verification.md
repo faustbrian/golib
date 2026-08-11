@@ -10,7 +10,10 @@ explicitly. Replay tests compare durable snapshots and reject gaps, duplicates,
 stale sequences, invalid lifecycle changes, version mismatches, and malformed
 event-specific fields. Fuzz targets exercise history, transitions, work leases,
 activities, compensation, child dispatch, waits, operators, and worker
-decisions at hostile boundaries.
+decisions at hostile boundaries. A mixed-version rolling-deploy scenario keeps
+version-one history readable by both old and new registries, rejects version-two
+history in an old worker, rejects an incompatible same-version fingerprint, and
+uses only persisted migration and continue-as-new decisions.
 
 ## Failure matrix
 
@@ -19,7 +22,7 @@ decisions at hostile boundaries.
 | Transition write before commit | rollback exposes neither history nor work |
 | Caller transaction plus outbox | rollback or commit affects both records |
 | Commit response lost | exact reconciliation decides retry safety |
-| Attempt start before activity | redelivery cannot silently redispatch an in-flight effect |
+| Attempt start before activity | an OS process exit after the side effect leaves the start durable; redelivery records unknown without redispatch |
 | Activity result persistence | unknown result remains unknown |
 | Timer firing before completion | crash leaves recoverable durable work |
 | Signal persistence before acknowledgement | duplicate source identity is an exact replay |
@@ -32,14 +35,21 @@ PostgreSQL integration tests exercise atomic transition/history/work writes,
 optimistic conflicts, stable pagination, archive membership, fencing, dead
 letters, migration order, rollback, process death, deadlocks, restart and
 snapshot restore, streaming-replica promotion, and caller-owned transaction
-composition. The
+composition. The activity process-kill drill commits a marker side effect in a
+child process, exits before outcome persistence, then proves a higher-fenced
+redelivery records an unknown result without invoking the handler again. The
 interoperability target builds a clean temporary consumer and proves workflow
 transitions and optional outbox envelopes share one PostgreSQL commit while
 inbound signal redelivery remains exactly deduplicated. It also partitions and
 recovers a live Kafka broker, preserves retryable or ambiguous publication
 classification, and proves stable duplicate identity and keyed order after
 recovery. Caller acknowledgement still follows the confirmed workflow commit;
-the package does not own it.
+the package does not own it. The optional CloudEvents adapter separately proves
+loss-aware workflow-history round trips, and queue settlement suites prove that
+successful handlers acknowledge only after return while poison and exhausted
+deliveries reach durable dead-letter handling before source acknowledgement.
+Those transport-owned checks complement, rather than weaken or duplicate, the
+core workflow persistence boundary.
 
 ## Release gates
 

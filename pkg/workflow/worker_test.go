@@ -107,6 +107,53 @@ func TestWorkerImmediatelyRefillsAvailableCapacity(t *testing.T) {
 	}
 }
 
+func TestWorkerDoesNotClaimPastCapacityWhileAProcessorIsActive(t *testing.T) {
+	t.Parallel()
+
+	now := time.Date(2036, 8, 9, 12, 30, 0, 0, time.UTC)
+	secondClaim := make(chan struct{})
+	allowSecondClaim := make(chan struct{})
+	defer close(allowSecondClaim)
+	store := &capacityProbeStore{
+		workerStore: &workerStore{},
+		first:       mustWorkerLease(t, now, "work-1", "tenant-1"),
+		second:      secondClaim,
+		allowSecond: allowSecondClaim,
+	}
+	started := make(chan struct{})
+	release := make(chan struct{})
+	processor := processorFunc(func(context.Context, workflow.WorkLease) (workflow.WorkDecision, error) {
+		close(started)
+		<-release
+		return mustWorkDecision(t, workflow.WorkDecisionSpec{Kind: workflow.WorkComplete}), nil
+	})
+	clock := newManualClock(now)
+	worker, err := workflow.NewWorker(workflow.WorkerConfig{
+		Store: store, Processor: processor, Clock: clock, Owner: "worker-1",
+		MaxConcurrent: 1, ClaimLimit: 1, LeaseDuration: time.Minute,
+		RenewEvery: 20 * time.Second, PollInterval: time.Second, FinalizeTimeout: time.Second,
+	})
+	if err != nil {
+		t.Fatalf("construct capacity worker: %v", err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- worker.Run(ctx) }()
+	receiveWithin(t, started)
+	select {
+	case <-secondClaim:
+		cancel()
+		close(release)
+		t.Fatal("worker claimed again while its only processor slot was active")
+	case <-clock.ready:
+	}
+	cancel()
+	close(release)
+	if err := receiveWithin(t, done); err != nil {
+		t.Fatalf("stop capacity worker: %v", err)
+	}
+}
+
 func TestWorkerPollsAfterAnEmptyClaim(t *testing.T) {
 	t.Parallel()
 
@@ -818,6 +865,27 @@ type workerStore struct {
 	failErr          error
 	claimErr         error
 	ignoreClaimLimit bool
+}
+
+type capacityProbeStore struct {
+	*workerStore
+	first       workflow.WorkLease
+	second      chan<- struct{}
+	allowSecond <-chan struct{}
+	claims      int
+}
+
+func (store *capacityProbeStore) Claim(
+	context.Context,
+	workflow.WorkClaimRequest,
+) ([]workflow.WorkLease, error) {
+	store.claims++
+	if store.claims == 1 {
+		return []workflow.WorkLease{store.first}, nil
+	}
+	store.second <- struct{}{}
+	<-store.allowSecond
+	return nil, nil
 }
 
 func (store *workerStore) Claim(_ context.Context, request workflow.WorkClaimRequest) ([]workflow.WorkLease, error) {
