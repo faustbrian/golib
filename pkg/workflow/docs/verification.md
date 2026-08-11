@@ -35,8 +35,11 @@ snapshot restore, streaming-replica promotion, and caller-owned transaction
 composition. The
 interoperability target builds a clean temporary consumer and proves workflow
 transitions and optional outbox envelopes share one PostgreSQL commit while
-inbound signal redelivery remains exactly deduplicated. Caller acknowledgement
-still follows the confirmed workflow commit; the package does not own it.
+inbound signal redelivery remains exactly deduplicated. It also partitions and
+recovers a live Kafka broker, preserves retryable or ambiguous publication
+classification, and proves stable duplicate identity and keyed order after
+recovery. Caller acknowledgement still follows the confirmed workflow commit;
+the package does not own it.
 
 ## Release gates
 
@@ -46,7 +49,13 @@ license, SBOM, fuzz, exact viable mutation kills, documentation, API,
 conformance, interoperability, benchmarks, and clean-consumer build proof. Go
 commands use a disposable task-owned build cache.
 
-Multi-day soak and live broker-partition drills depend on deployment resources.
-Their absence must be reported as an unverified boundary; a unit test or local
-mock is not a substitute. Record environment, duration, load, fault timing,
-tool versions, and resource ceilings with any such result.
+`make soak` runs an explicit minimum 48-hour continue-as-new replay and worker
+churn audit with hourly checkpoints, deterministic workflow clocks, bounded
+concurrency, and retained-heap and goroutine ceilings. It uses a disposable Go
+build and module cache against an immutable archive of the clean committed
+workflow tree and reports its revision and SHA-256 input digest. A local harness
+smoke may set `WORKFLOW_SOAK_DURATION=2s` and
+`WORKFLOW_SOAK_ALLOW_SHORT=1`; that runs the current tree only to verify the
+harness and is not multi-day evidence. Record the `workflow_soak_input`, final
+`workflow_soak_result`, and uninterrupted exit status before treating the
+multi-day boundary as verified.

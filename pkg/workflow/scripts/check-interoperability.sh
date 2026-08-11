@@ -26,7 +26,11 @@ go mod init workflow-interoperability.invalid/test
 go mod edit -go=1.26.5
 go mod edit -require=github.com/faustbrian/golib/pkg/workflow@v0.0.0
 go mod edit -require=github.com/faustbrian/golib/pkg/outbox@v0.0.0
+go mod edit -require=github.com/faustbrian/golib/pkg/kafka@v0.0.0
+go mod edit -require=github.com/faustbrian/golib/pkg/outbox/adapters/gokafka@v0.0.0
 go mod edit -replace="github.com/faustbrian/golib/pkg/workflow=${module_root}"
 go mod edit -replace="github.com/faustbrian/golib/pkg/outbox=${repository_root}/pkg/outbox"
+go mod edit -replace="github.com/faustbrian/golib/pkg/kafka=${repository_root}/pkg/kafka"
+go mod edit -replace="github.com/faustbrian/golib/pkg/outbox/adapters/gokafka=${repository_root}/pkg/outbox/adapters/gokafka"
 go mod tidy
 go test ./... -count=1

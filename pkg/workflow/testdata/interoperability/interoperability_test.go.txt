@@ -2,18 +2,31 @@ package interoperability_test
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"io/fs"
+	"slices"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/faustbrian/golib/pkg/kafka"
 	"github.com/faustbrian/golib/pkg/outbox"
+	"github.com/faustbrian/golib/pkg/outbox/adapters/gokafka"
 	outboxpostgres "github.com/faustbrian/golib/pkg/outbox/postgres"
 	workflow "github.com/faustbrian/golib/pkg/workflow"
 	workflowpostgres "github.com/faustbrian/golib/pkg/workflow/postgres"
 	"github.com/jackc/pgx/v5/pgxpool"
+	dockerclient "github.com/moby/moby/client"
+	"github.com/testcontainers/testcontainers-go"
+	tckafka "github.com/testcontainers/testcontainers-go/modules/kafka"
 	tcpostgres "github.com/testcontainers/testcontainers-go/modules/postgres"
+	"github.com/twmb/franz-go/pkg/kadm"
+	"github.com/twmb/franz-go/pkg/kgo"
 )
+
+const interoperabilityKafkaImage = "confluentinc/confluent-local:7.5.0@" +
+	"sha256:8e391de42cfcd3498e7317dcf159790f1f1cc3f3ffce900b30d7da23888687fd"
 
 func TestWorkflowAndOutboxShareOneAuthoritativeCommit(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
@@ -184,4 +197,288 @@ func assertDurableCounts(t *testing.T, ctx context.Context, pool *pgxpool.Pool, 
 	if workflowCount != workflows || envelopeCount != envelopes {
 		t.Fatalf("durable counts = workflows %d envelopes %d, want %d and %d", workflowCount, envelopeCount, workflows, envelopes)
 	}
+}
+
+func TestWorkflowOutboxPublicationRecoversFromALiveBrokerPartition(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 4*time.Minute)
+	defer cancel()
+	container, err := tckafka.Run(ctx, interoperabilityKafkaImage)
+	if err != nil {
+		t.Fatalf("start Kafka: %v", err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cleanupCancel()
+		if terminateErr := container.Terminate(cleanupCtx); terminateErr != nil {
+			t.Errorf("terminate Kafka: %v", terminateErr)
+		}
+	})
+	brokers, err := container.Brokers(ctx)
+	if err != nil {
+		t.Fatalf("resolve Kafka brokers: %v", err)
+	}
+	topic := fmt.Sprintf("workflow-outbox-partition-%d", time.Now().UnixNano())
+	createInteroperabilityTopic(t, ctx, brokers, topic)
+	producerConfig := interoperabilityProducerConfig(brokers, topic)
+	producer, err := kafka.NewProducer(producerConfig)
+	if err != nil {
+		t.Fatalf("construct Kafka producer: %v", err)
+	}
+	t.Cleanup(func() {
+		if closeErr := producer.Close(); closeErr != nil {
+			t.Errorf("close Kafka producer: %v", closeErr)
+		}
+	})
+	publisher, err := gokafka.New(producer)
+	if err != nil {
+		t.Fatalf("construct outbox Kafka publisher: %v", err)
+	}
+	beforePartition := outbox.Envelope{
+		ID: "workflow-event-before-partition", Topic: topic,
+		Payload: []byte(`{"sequence":1}`), PayloadVersion: 1,
+		OrderingKey: "order-1", IdempotencyKey: "transition-1",
+	}
+	if err := publisher.Publish(ctx, beforePartition); err != nil {
+		t.Fatalf("publish before broker partition: %v", err)
+	}
+
+	docker, err := testcontainers.NewDockerClientWithOpts(ctx)
+	if err != nil {
+		t.Fatalf("construct Docker client: %v", err)
+	}
+	defer docker.Close()
+	if _, err := docker.ContainerPause(
+		ctx,
+		container.GetContainerID(),
+		dockerclient.ContainerPauseOptions{},
+	); err != nil {
+		t.Fatalf("partition Kafka broker: %v", err)
+	}
+	paused := true
+	defer func() {
+		if paused {
+			_, _ = docker.ContainerUnpause(
+				context.Background(),
+				container.GetContainerID(),
+				dockerclient.ContainerUnpauseOptions{},
+			)
+		}
+	}()
+	duringPartition := outbox.Envelope{
+		ID: "workflow-event-during-partition", Topic: topic,
+		Payload: []byte(`{"sequence":2}`), PayloadVersion: 1,
+		OrderingKey: "order-1", IdempotencyKey: "transition-2",
+	}
+	partitionCtx, partitionCancel := context.WithTimeout(ctx, 1500*time.Millisecond)
+	partitionErr := publisher.Publish(partitionCtx, duringPartition)
+	partitionCancel()
+	if partitionErr == nil {
+		t.Fatal("publish through broker partition succeeded")
+	}
+	var categorized interface{ Category() kafka.ErrorCategory }
+	if !errors.As(partitionErr, &categorized) || !slices.Contains(
+		[]kafka.ErrorCategory{kafka.ErrorRetryable, kafka.ErrorAmbiguous},
+		categorized.Category(),
+	) {
+		t.Fatalf("broker partition outcome = %T, %v", partitionErr, categorized)
+	}
+	for _, broker := range brokers {
+		if strings.Contains(partitionErr.Error(), broker) {
+			t.Fatalf("broker partition diagnostic disclosed endpoint: %v", partitionErr)
+		}
+	}
+
+	if _, err := docker.ContainerUnpause(
+		ctx,
+		container.GetContainerID(),
+		dockerclient.ContainerUnpauseOptions{},
+	); err != nil {
+		t.Fatalf("heal Kafka broker partition: %v", err)
+	}
+	paused = false
+	waitForInteroperabilityKafka(t, ctx, brokers)
+	waitForInteroperabilityTopic(t, ctx, brokers, topic)
+	waitForInteroperabilityPublisher(t, ctx, publisher)
+	if err := publisher.Publish(ctx, duringPartition); err != nil {
+		var retryCategory interface{ Category() kafka.ErrorCategory }
+		_ = errors.As(err, &retryCategory)
+		t.Fatalf("retry after broker partition: category %v", retryCategory)
+	}
+	if err := publisher.Publish(ctx, duringPartition); err != nil {
+		t.Fatalf("redeliver uncertain outbox envelope: %v", err)
+	}
+	records := consumeInteroperabilityRecords(t, ctx, brokers, topic, 3)
+	if got := []string{
+		string(records[0].Value),
+		string(records[1].Value),
+		string(records[2].Value),
+	}; !slices.Equal(got, []string{
+		`{"sequence":1}`,
+		`{"sequence":2}`,
+		`{"sequence":2}`,
+	}) {
+		t.Fatalf("Kafka recovery order = %v", got)
+	}
+	for _, record := range records {
+		if string(record.Key) != "order-1" {
+			t.Fatalf("Kafka recovery key = %q", record.Key)
+		}
+	}
+	if first, duplicate := interoperabilityHeader(records[1], "event-id"), interoperabilityHeader(records[2], "event-id"); first != duringPartition.ID || duplicate != duringPartition.ID {
+		t.Fatalf("Kafka duplicate identity = %q and %q", first, duplicate)
+	}
+}
+
+func interoperabilityProducerConfig(brokers []string, topic string) kafka.ProducerConfig {
+	return kafka.ProducerConfig{
+		Brokers: brokers, ClientID: "workflow-interoperability",
+		AllowedTopics: []string{topic}, Security: kafka.DevelopmentPlaintextSecurity(),
+		Limits: gokafka.DefaultLimits().Kafka, RecordRetries: 3,
+		RetryBackoffMin: 25 * time.Millisecond, RetryBackoffMax: 100 * time.Millisecond,
+		DeliveryTimeout: 5 * time.Second, ShutdownTimeout: 6 * time.Second,
+		RequestTimeout: time.Second, DialTimeout: time.Second, Linger: time.Millisecond,
+	}
+}
+
+func createInteroperabilityTopic(t *testing.T, ctx context.Context, brokers []string, topic string) {
+	t.Helper()
+	client, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
+	if err != nil {
+		t.Fatalf("construct Kafka admin client: %v", err)
+	}
+	defer client.Close()
+	response, err := kadm.NewClient(client).CreateTopic(ctx, 1, 1, nil, topic)
+	if err != nil || response.Err != nil {
+		t.Fatalf("create Kafka topic: response %#v error %v", response, err)
+	}
+}
+
+func waitForInteroperabilityKafka(t *testing.T, ctx context.Context, brokers []string) {
+	t.Helper()
+	client, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
+	if err != nil {
+		t.Fatalf("construct Kafka readiness client: %v", err)
+	}
+	defer client.Close()
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		probeCtx, probeCancel := context.WithTimeout(ctx, time.Second)
+		probeErr := client.Ping(probeCtx)
+		probeCancel()
+		if probeErr == nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait for Kafka recovery: %v", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForInteroperabilityPublisher(
+	t *testing.T,
+	ctx context.Context,
+	publisher *gokafka.Publisher,
+) {
+	t.Helper()
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		probeCtx, probeCancel := context.WithTimeout(ctx, time.Second)
+		probeErr := publisher.Health(probeCtx)
+		probeCancel()
+		if probeErr == nil {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait for Kafka publisher recovery: %v", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func waitForInteroperabilityTopic(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+) {
+	t.Helper()
+	client, err := kgo.NewClient(kgo.SeedBrokers(brokers...))
+	if err != nil {
+		t.Fatalf("construct Kafka topic readiness client: %v", err)
+	}
+	defer client.Close()
+	admin := kadm.NewClient(client)
+	ticker := time.NewTicker(250 * time.Millisecond)
+	defer ticker.Stop()
+	for {
+		probeCtx, probeCancel := context.WithTimeout(ctx, time.Second)
+		details, listErr := admin.ListTopics(probeCtx, topic)
+		probeCancel()
+		detail, exists := details[topic]
+		ready := listErr == nil && exists && detail.Err == nil && len(detail.Partitions) == 1
+		for _, partition := range detail.Partitions {
+			if partition.Err != nil || partition.Leader < 0 {
+				ready = false
+			}
+		}
+		if ready {
+			return
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("wait for Kafka topic recovery: %v", ctx.Err())
+		case <-ticker.C:
+		}
+	}
+}
+
+func consumeInteroperabilityRecords(
+	t *testing.T,
+	ctx context.Context,
+	brokers []string,
+	topic string,
+	want int,
+) []*kgo.Record {
+	t.Helper()
+	client, err := kgo.NewClient(
+		kgo.SeedBrokers(brokers...),
+		kgo.ConsumeTopics(topic),
+		kgo.ConsumeResetOffset(kgo.NewOffset().AtStart()),
+	)
+	if err != nil {
+		t.Fatalf("construct Kafka consumer: %v", err)
+	}
+	defer client.Close()
+	records := make([]*kgo.Record, 0, want)
+	for len(records) < want {
+		fetchCtx, fetchCancel := context.WithTimeout(ctx, 10*time.Second)
+		fetches := client.PollFetches(fetchCtx)
+		fetchCancel()
+		if fetchErrors := fetches.Errors(); len(fetchErrors) != 0 {
+			t.Fatalf("consume Kafka records: %v", fetchErrors)
+		}
+		fetches.EachRecord(func(record *kgo.Record) {
+			if len(records) < want {
+				records = append(records, record)
+			}
+		})
+		if fetches.NumRecords() == 0 {
+			t.Fatalf("consume Kafka records: received %d of %d", len(records), want)
+		}
+	}
+	return records
+}
+
+func interoperabilityHeader(record *kgo.Record, name string) string {
+	for _, header := range record.Headers {
+		if header.Key == name {
+			return string(header.Value)
+		}
+	}
+	return ""
 }

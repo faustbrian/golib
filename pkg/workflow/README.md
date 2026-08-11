@@ -30,7 +30,9 @@ attempt before invoking a caller-owned idempotent adapter, records known
 creation, known absence, or uncertainty, and durably admits policy retries only
 after a known-absent failure. The PostgreSQL adapter exposes stable unresolved
 dead-letter pages and audited, idempotent, token-fenced retry or discard
-commands. Optional messaging integrations are not yet delivered.
+commands. Optional composition uses the sibling CloudEvents adapter, outbox
+PostgreSQL writer and Kafka or queue publishers; core workflow code imports none
+of them.
 
 `Transition` is the persistence boundary: its contiguous history events and
 bounded due-work records must commit atomically. `TransitionStore` exposes that
