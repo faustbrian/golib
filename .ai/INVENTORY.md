@@ -68,7 +68,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 1 | Decisions | `pending-reexecution` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
 | 2 | Architecture | `pending` | `.ai/GOAL_RESILIENCE.md` | 1 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/GOAL_HARDEN.md` | 13, 19 |
-| 41 | Protocol | `pending` | `pkg/http-signature/.ai/GOAL.md` | 1, 13, 19 |
 | 48 | Search | `pending` | `pkg/search/.ai/GOAL_HARDEN.md` | 3-18, 29-32, 43 |
 | 50 | Ecosystem cohesion | `pending` | `.ai/GOAL_COHESION.md` | 3-49 |
 | 51 | Resilience audit | `pending` | `.ai/GOAL_RESILIENCE_HARDEN.md` | 3-50 |
@@ -133,7 +132,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/rule-engine/adapters/gomeasurement/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 38. Current scoped evidence verifies exact quantity encoding and comparison behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gotemporal/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 39. Current scoped evidence verifies exact UTC encoding, bound-sensitive interval relations, persisted-input hardening, compatibility, concurrency, fuzzing, coverage, mutation, benchmarks, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/external-sort/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 40. Current scoped evidence verifies encrypted spill hardening and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/http-signature/.ai/GOAL_HARDEN.md` | `verified` | Formerly grouped in pending order 41. Current scoped evidence verifies RFC 9421 and RFC 9530 conformance, bounded signing and verification profiles, digest and replay behavior, HTTP integration, legacy isolation, interoperability, hardening requirements, and every mandatory affected-module gate; its separate `GOAL.md` remains pending. |
+| `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 41. Current scoped evidence verifies RFC 9421 and RFC 9530 conformance, bounded signing and verification profiles, digest and replay behavior, HTTP integration, legacy isolation, interoperability, base and hardening requirements, and every mandatory affected-module gate; requeue only when affected content or requirements change. |
 | `pkg/feature-flags/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 15. Current scoped evidence verifies bounded fleet bootstrap, refresh, invalidation, degraded evaluation, provider resilience composition, Kubernetes lifecycle behavior, and every mandatory feature-flags module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/sequencer/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 17. Current scoped evidence verifies leaderless fleet lifecycle, fenced renewal and takeover recovery, mixed-binary registry compatibility, bounded shared retry ownership, Kubernetes operational semantics, and every mandatory sequencer module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/sequencer/.ai/GOAL_HARDEN.md` | `verified` | Current scoped evidence verifies durable operation ordering, persistence, ownership and fencing, crash recovery, retries, transaction boundaries, asynchronous settlement, reconciliation, administrative controls, PostgreSQL migration safety, fuzzing, mutation, race behavior, and benchmarks; requeue only when that evidence becomes stale or requirements change. |
@@ -318,9 +317,9 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 
 | Field | Record |
 | --- | --- |
-| Goal | `pkg/http-signature/.ai/GOAL_HARDEN.md` |
+| Goal | `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` |
 | Scope | RFC 9421 signatures, RFC 9530 digest fields, Structured Fields syntax and canonicalization, algorithms and key policy, replay prevention, request and response body ownership, `net/http` adapters, proxy context, compatibility isolation, and bounded failure semantics. |
-| Status | `pending` to `verified`; `pkg/http-signature/.ai/GOAL.md` remains pending as order 41. |
+| Status | Base goal `pending` to `verified`; hardening goal remains `verified`. |
 | Evidence | The package-local complete contract, package-scoped repository analyzer and supply-chain gates, checksum-pinned RFC, errata, IANA, NIST, and HTTPWG sources, normative RFC examples and HTTPWG Structured Fields corpus, three pinned independent Go peers, clean-consumer compilation, and equivalent-operation benchmarks. |
 | Result | Passed exact 3,095/3,095 root and 85/85 compatibility production statements; killed 1,799/1,799 root and 51/51 compatibility viable mutants with 100% efficacy and mutator coverage; passed race, leak, stress, soak, fault injection, nine 10,000-execution fuzz targets, 1,526 HTTPWG parsing and 544 serialization cases, API, documentation, conformance, interoperability, benchmark, safety, vulnerability, secrets, licenses, and SBOM gates. |
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded Go or mutation run and disposable pinned peer checkouts. |
