@@ -99,7 +99,7 @@ func TestRealOpenSearchCompleteOutageIsBounded(t *testing.T) {
 	if outageAlias == "" || outagePhysical == "" {
 		t.Fatal("OPENSEARCH_OUTAGE_ALIAS and OPENSEARCH_OUTAGE_PHYSICAL are required")
 	}
-	codec, err := search.NewCursorCodec([]byte("outage-cursor-key-32-bytes!!!!!"), time.Now, 4096)
+	codec, err := search.NewCursorCodec([]byte("outage-cursor-key-32-bytes!!!!!!"), time.Now, 4096)
 	if err != nil {
 		t.Fatal(err)
 	}

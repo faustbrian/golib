@@ -49,7 +49,7 @@ run_node() {
 		-e "discovery.seed_hosts=$node1,$node2" \
 		-e "cluster.initial_cluster_manager_nodes=node1,node2" \
 		-e DISABLE_SECURITY_PLUGIN=true \
-		-e OPENSEARCH_JAVA_OPTS='-Xms512m -Xmx512m' \
+		-e OPENSEARCH_JAVA_OPTS='-Xms384m -Xmx384m' \
 		"$image" >/dev/null
 }
 

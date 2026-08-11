@@ -204,6 +204,7 @@ func TestAAAAProjectionWildcardMatcherTracksEveryOrderedSegment(t *testing.T) {
 		{pattern: "a**b*c", field: "aXXc", want: false},
 		{pattern: "*a*b", field: "ab", want: true},
 		{pattern: "*ab*b", field: "ab", want: false},
+		{pattern: "*a*b*bb", field: "abb", want: false},
 	} {
 		if got := projectionPatternMatches(test.pattern, test.field); got != test.want {
 			t.Fatalf("projectionPatternMatches(%q, %q) = %t, want %t", test.pattern, test.field, got, test.want)
