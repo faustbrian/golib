@@ -69,7 +69,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 2 | Architecture | `pending` | `.ai/GOAL_RESILIENCE.md` | 1 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18 |
-| 47 | Durable orchestration | `pending` | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 27-35, 43, 44, 46 |
 | 48 | Search | `pending` | `pkg/search/.ai/GOAL_HARDEN.md` | 3-18, 29-32, 43 |
 | 50 | Ecosystem cohesion | `pending` | `.ai/GOAL_COHESION.md` | 3-49 |
 | 51 | Resilience audit | `pending` | `.ai/GOAL_RESILIENCE_HARDEN.md` | 3-50 |
@@ -150,6 +149,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/schema-registry/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 45. Current scoped evidence verifies schema identity, compatibility, provider interoperability, cache and outage safety, hostile boundaries, migration and recovery, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/cloudevents/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 46 retains current scoped evidence for the stable CloudEvents core, normative JSON event and batch formats, HTTP and Kafka bindings, supported tracing and partitioning extensions, Golib ecosystem conversions, conformance, independent SDK interoperability, and every mandatory CloudEvents module gate; its separate `GOAL_HARDEN.md` is verified below. |
 | `pkg/cloudevents/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 46. Current scoped evidence verifies complete supported-surface normative coverage, loss-aware conversions, exact payload and extension preservation, hostile HTTP and Kafka boundaries, explicit schema lookup, independent SDK interoperability, privacy and cardinality controls, fuzzing, race safety, performance, exact statement and mutation coverage, and every mandatory scoped module gate; requeue only when affected inputs or requirements change. |
+| `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 47. Current scoped evidence verifies explicit durable orchestration and choreography, deterministic replay, versioning and migration, activities and truthful compensation, bounded workers, PostgreSQL durability and recovery, optional messaging composition, operator controls, observability, hardening requirements, and every mandatory workflow package gate; requeue only when affected inputs or requirements change. |
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `implemented-unverified` | A subsequent implementation campaign exists; include it in the final repository and release audit rather than restarting it solely because this inventory was added. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies RFC 9162 behavior, persistence and proof boundaries, hostile-input hardening, independent interoperability, exact coverage and mutation, fuzzing, performance, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies Ethereum-compatible state transitions, proofs, persistence and recovery, hostile-input hardening, independent client interoperability, exact coverage and mutation, fuzzing, performance, and every mandatory module gate; requeue only when affected content or requirements change. |
@@ -755,6 +755,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run; no persistent external service. |
 | Observed | 2026-08-11T05:48:36Z |
 | Gaps | NilAway remains advisory and reported potential nil-flow diagnostics in trie, proof, iteration, range-proof, store, and test paths; no mandatory gate gap remains within the scoped goal contract. |
+
+### Durable workflow and saga evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Durable definitions and versioning, deterministic state and history, orchestration and choreography, activities, unknown outcomes, compensation, parallel and child execution, signals and timers, workers and fencing, PostgreSQL storage and recovery, optional messaging and outbox composition, operator controls, observability, documentation, and resource bounds. |
+| Status | `pending` to `verified` |
+| Evidence | The package-scoped `../../scripts/check-module.sh pkg/workflow check` release gate, PostgreSQL failure and recovery drills, clean-consumer transaction and messaging interoperability, live Kafka partition recovery, model and process-death suites, and immutable `make soak` execution at revision `3d19d157d0600b73b78f5cebfe6e73eb21051631` with input digest `587f70ada8dcb5b842e13a45f78bb3f2a4c5d2796e0f609c5a4ec6efdd80b65e`. |
+| Result | Passed every mandatory workflow gate. Exact statement coverage was 2571/2571 for core and 437/437 for PostgreSQL; all 1502 core and 350 PostgreSQL viable mutants were killed with 100% efficacy and mutant coverage and no live, uncovered, timed-out, nonviable, or skipped mutants. Race, 15 fuzz targets, leak, stress, fault, recovery, interoperability, security, API, documentation, supply-chain, clean-consumer, and equivalent-work benchmark gates passed. The bounded accelerated soak completed 72 logical hours, 9,216 deterministic replays, and 4,608 leased work items with retained heap and goroutines within their ceilings. |
+| Environment | Go 1.26.5 on darwin/arm64 with gate-managed PostgreSQL and a digest-pinned Confluent Local Kafka container; every Go and mutation run used task-owned disposable caches removed after its bounded run. |
+| Observed | 2026-08-11T12:07:24Z |
+| Gaps | NilAway remains advisory with pre-existing test-helper diagnostics; conformance is cataloged as not applicable. The accelerated soak proves its explicit deterministic workload and does not claim wall-clock production uptime. No mandatory workflow goal gap remains. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
