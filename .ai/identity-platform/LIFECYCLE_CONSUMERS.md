@@ -22,25 +22,39 @@ consumer requires a new manifest version and an explicit migration decision.
 | --- | --- | --- |
 | `lifecycle.cascade.identity_suspend` | `identity` | `identity/session`, `identity/session/valkey`, `identity/impersonation`, `identity/apikey`, `identity/apikey/valkey`, `oauth-server`, `authorization`, `authorization/valkey`, `identity/risk`, `audit` |
 | `lifecycle.cascade.identity_restore` | `identity` | `identity/session`, `identity/session/valkey`, `identity/impersonation`, `identity/apikey`, `identity/apikey/valkey`, `oauth-server`, `authorization`, `authorization/valkey`, `audit` |
+| `lifecycle.cascade.anonymous_upgrade` | `identity/anonymous` | `identity/anonymous`, `identity/session`, `identity/session/valkey`, `identity`, `audit` |
 | `lifecycle.cascade.password_reset` | `identity/password` | `identity/session`, `identity/session/valkey`, `identity/password`, `capability/postgres`, `identity/mfa`, `identity/oauth`, `oauth-server`, `audit` |
 | `lifecycle.cascade.password_compromise` | `identity/password` | `identity/session`, `identity/session/valkey`, `identity/password`, `capability/postgres`, `identity/mfa`, `identity/oauth`, `oauth-server`, `identity/delivery`, `audit` |
 | `lifecycle.cascade.factor_reset` | `identity/mfa` | `identity/mfa`, `webauthn`, `passkey`, `identity/session`, `identity/session/valkey`, `audit` |
 | `lifecycle.cascade.identifier_change` | `identity` | `identity/password`, `identity/email`, `identity/phone`, `identity/magiclink`, `identity/otp`, `organization`, `identity/delivery`, `sso`, `identity/risk`, `audit` |
 | `lifecycle.cascade.identifier_remove` | `identity` | `identity/password`, `identity/email`, `identity/phone`, `identity/magiclink`, `identity/otp`, `organization`, `identity/delivery`, `sso`, `identity/risk`, `audit` |
-| `lifecycle.cascade.membership_role` | `organization` | `identity/session`, `identity/session/valkey`, `authorization`, `authorization/valkey`, `identity/apikey`, `identity/apikey/valkey`, `oauth-server`, `organization`, `audit` |
-| `lifecycle.cascade.membership_remove` | `organization` | `identity/session`, `identity/session/valkey`, `authorization`, `authorization/valkey`, `identity/apikey`, `identity/apikey/valkey`, `oauth-server`, `organization`, `audit` |
+| `lifecycle.cascade.membership_role` | `organization` | `identity/session`, `identity/session/valkey`, `authorization`, `authorization/valkey`, `identity/apikey`, `identity/apikey/valkey`, `oauth-server`, `identity/impersonation`, `organization`, `audit` |
+| `lifecycle.cascade.membership_remove` | `organization` | `identity/session`, `identity/session/valkey`, `authorization`, `authorization/valkey`, `identity/apikey`, `identity/apikey/valkey`, `oauth-server`, `identity/impersonation`, `organization`, `audit` |
 | `lifecycle.cascade.team_change` | `organization` | `authorization`, `authorization/valkey`, `identity/session`, `identity/session/valkey`, `scim/organization`, `audit` |
 | `lifecycle.cascade.team_delete` | `organization` | `authorization`, `authorization/valkey`, `identity/session`, `identity/session/valkey`, `scim/organization`, `audit` |
 | `lifecycle.cascade.social_provider_disable` | `identity/oauth` | `identity/oauth`, `identity`, `identity/session`, `identity/session/valkey`, `identity/delivery`, `audit` |
 | `lifecycle.cascade.social_provider_unlink` | `identity/oauth` | `identity/oauth`, `identity`, `identity/session`, `identity/session/valkey`, `identity/delivery`, `audit` |
 | `lifecycle.cascade.enterprise_provider_disable` | `sso` | `sso`, `identity/session`, `identity/session/valkey`, `organization`, `scim/organization`, `authorization`, `authorization/valkey`, `audit` |
 | `lifecycle.cascade.domain_revoke` | `sso/domain-verification` | `sso`, `organization`, `scim/organization`, `identity/session`, `identity/session/valkey`, `authorization`, `authorization/valkey`, `audit` |
-| `lifecycle.cascade.identity_anonymize` | `identity` | `identity/session`, `identity/session/valkey`, `identity/password`, `identity/otp`, `identity/mfa`, `webauthn`, `passkey`, `identity/oauth`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `organization`, `sso`, `scim`, `oauth-server`, `identity/risk`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
-| `lifecycle.cascade.identity_delete` | `identity` | `identity/session`, `identity/session/valkey`, `identity/password`, `identity/otp`, `identity/mfa`, `webauthn`, `passkey`, `identity/oauth`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `organization`, `sso`, `scim`, `oauth-server`, `identity/risk`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
-| `lifecycle.cascade.organization_archive` | `organization` | `organization`, `identity/session`, `identity/session/valkey`, `identity/apikey`, `identity/apikey/valkey`, `sso`, `scim`, `oauth-server`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
-| `lifecycle.cascade.organization_restore` | `organization` | `organization`, `identity/session`, `identity/session/valkey`, `identity/apikey`, `identity/apikey/valkey`, `sso`, `scim`, `oauth-server`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
-| `lifecycle.cascade.organization_delete` | `organization` | `organization`, `identity/session`, `identity/session/valkey`, `identity/apikey`, `identity/apikey/valkey`, `sso`, `scim`, `oauth-server`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
+| `lifecycle.cascade.identity_anonymize` | `identity` | `identity/session`, `identity/session/valkey`, `identity/password`, `identity/email`, `identity/phone`, `identity/otp`, `identity/mfa`, `webauthn`, `passkey`, `identity/oauth`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `organization`, `sso`, `scim`, `scim/organization`, `oauth-server`, `identity/risk`, `identity/delivery`, `authorization`, `authorization/valkey`, `capability/postgres`, `audit` |
+| `lifecycle.cascade.identity_delete` | `identity` | `identity/session`, `identity/session/valkey`, `identity/password`, `identity/email`, `identity/phone`, `identity/otp`, `identity/mfa`, `webauthn`, `passkey`, `identity/oauth`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `organization`, `sso`, `scim`, `scim/organization`, `oauth-server`, `identity/risk`, `identity/delivery`, `authorization`, `authorization/valkey`, `capability/postgres`, `audit` |
+| `lifecycle.cascade.organization_archive` | `organization` | `organization`, `identity/session`, `identity/session/valkey`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `sso`, `scim`, `scim/organization`, `oauth-server`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
+| `lifecycle.cascade.organization_restore` | `organization` | `organization`, `identity/session`, `identity/session/valkey`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `sso`, `scim`, `scim/organization`, `oauth-server`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
+| `lifecycle.cascade.organization_delete` | `organization` | `organization`, `identity/session`, `identity/session/valkey`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `sso`, `scim`, `scim/organization`, `oauth-server`, `identity/delivery`, `authorization`, `authorization/valkey`, `audit` |
 | `lifecycle.cascade.global_compromise` | `identity` | `identity/session`, `identity/session/valkey`, `identity/password`, `identity/email`, `identity/magiclink`, `identity/otp`, `identity/phone`, `identity/anonymous`, `identity/mfa`, `webauthn`, `passkey`, `identity/oauth`, `identity/apikey`, `identity/apikey/valkey`, `identity/impersonation`, `organization`, `sso`, `scim`, `oauth-server`, `authorization`, `authorization/valkey`, `identity/risk`, `identity/delivery`, `audit` |
+
+## Privacy-export contributor set
+
+The exact version-1 privacy-export contributor set is `identity`,
+`identity/session`, `identity/password`, `identity/email`, `identity/phone`, `identity/otp`, `identity/mfa`,
+`webauthn`, `passkey`, `identity/oauth`, `identity/apikey`,
+`identity/anonymous`, `identity/impersonation`, `organization`, `sso`, `scim`,
+`scim/organization`, `oauth-server`, `identity/risk`, `identity/delivery`,
+`authorization`, and `audit`. A request MUST snapshot each ID and its contract
+version. A contributor MAY return an explicit `not-applicable` fragment, but
+silence, timeout, an unknown contract version, or an unproved checkpoint MUST
+block publication. This set is independent of cascade generations and MUST NOT
+be inferred from whichever packages happen to return data.
 
 ## Checkpoint persistence ownership
 
@@ -57,6 +71,7 @@ same authoritative mutation and emits no duplicate semantic acknowledgement;
 `webauthn` uses
 `webauthn/postgres`; `passkey` uses `passkey/postgres`; `identity/oauth` uses
 `identity/oauth/postgres`; `identity/apikey` uses `identity/apikey/postgres`;
+`identity/anonymous` uses `identity/anonymous/postgres`;
 `identity/impersonation` uses `identity/impersonation/postgres`; `organization`
 uses `organization/postgres`; `sso` uses `sso/postgres`; `scim` and
 `scim/organization` use `scim/postgres`; `oauth-server` uses
@@ -88,6 +103,11 @@ binding blocks apply, and the cascade remains pending until reconciliation
 proves whether its owning command committed and transitions it legally to
 `finalized` or `revoked`. Finalized, released, expired, and revoked records
 remain terminal and are never reactivated.
+For identity anonymization and deletion it MUST apply the same rules to every
+issued or reserved capability scoped to that tenant and subject, including
+privacy-export download capabilities, before the cascade can close. Its
+acknowledgement MUST bind the exact cascade ID, privacy epoch, and generation;
+a checkpoint from an older generation cannot close the destructive transition.
 
 ## Consumer contract
 

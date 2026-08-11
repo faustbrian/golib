@@ -64,6 +64,11 @@ involved.
   key and replay/idempotency identifier. Tokens and evidence MUST NOT be reused
   under a different binding. Caller-supplied action, host or origin labels MUST
   NOT replace trusted server configuration.
+- No caller or provider adapter may supply, override, or select the
+  authoritative replay fingerprint. The `identity/risk` issuance authority
+  derives it from the raw token and trusted provider/site/profile scope; this
+  package passes the token only through the bounded verification request and
+  returns no reusable replay identity.
 - Normalized evidence MUST retain provider, API/version, tier, site binding,
   action/hostname/origin availability and match status, challenge timestamp,
   score availability/value, provider reason codes and transport outcome. It

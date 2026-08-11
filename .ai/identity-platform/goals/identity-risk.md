@@ -35,12 +35,20 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Action, Subject, Context, Signal, Assessment, Decision, Policy, Counter, Evidence, RiskEvidence, ChallengeRequirement, and Observer contracts. Public errors MUST be typed, stable,
+The design MUST define Action, Subject, Context, Signal, Assessment, Decision, Policy, Counter, Evidence, RiskEvidence, CaptchaEvidence, CaptchaEvidenceContributor, ChallengeRequirement, and Observer contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
 
 ## Required behavior
+
+CAPTCHA provider adapters MUST return normalized bounded verification facts
+only. This core owns the issuance decision and MUST issue `CaptchaEvidence`
+through an injected durable contributor; it MUST NOT construct an evidence
+reference from provider output or import a concrete persistence adapter.
+`identity/risk` MUST derive the replay fingerprint itself from the raw provider
+token and trusted profile scope using the exact configured keyed construction;
+it MUST NOT accept a caller- or adapter-supplied fingerprint.
 
 The implementation and tests MUST combine deterministic signals; distinguish allow, deny, throttle, and step-up; fail closed or degrade only per explicit action policy; bound cardinality; expire evidence; prevent cross-tenant signal contamination. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and
@@ -49,11 +57,11 @@ involved.
 
 ## Package-specific acceptance checklist
 
-- The action catalog MUST at least cover signup, password/username signin,
-  password reset/change, email/phone verification and change, OTP/magic-link
-  request/consume, OAuth start/callback/link, MFA/passkey enrollment/challenge,
-  API-key management, administration, impersonation, organization invitation,
-  SSO/SCIM and OAuth-server authorization/token/device endpoints.
+- The action catalog MUST equal the closed `risk.operation_matrix` in
+  `.ai/identity-platform/REFERENCE_CONFIGURATION.md`. Every evaluation MUST
+  receive exactly one canonical listed action; aliases, category-only values,
+  unlisted actions and caller-selected fail behavior MUST deny before signal
+  access. A package MUST NOT add a local action or exception.
 - Signals MUST distinguish trusted server facts from spoofable request hints.
   The public contract MUST accept transport-neutral verified network facts;
   it MUST NOT import or depend on `identity/http`. The later HTTP composition
@@ -126,7 +134,7 @@ involved.
   fabricate or override phase, purpose, facts, provider evidence, decisions, or
   evidence results.
 - Evidence-producing evaluation MUST use a command ID/fingerprint and enlist
-  `identity/risk/postgres` through the shared unit of work. Denied MUST return no
+  an injected durable RiskEvidence contributor through the shared unit of work; the reference composition supplies `identity/risk/postgres`. Denied MUST return no
   reference; Failed MUST prove no issued row; Unknown MUST return no reference
   and recover the same command before any retry; same-command and
   same-fingerprint replay MUST return the exact recorded result without
@@ -135,7 +143,7 @@ involved.
   issued-at, expires-at, and one-use metadata; raw signals, provider evidence,
   decision internals, embedded evidence payloads, keyed digests, signatures, and journal
   identifiers MUST NOT cross the public contract.
-- Issuance MUST persist the one-use record through `identity/risk/postgres`; an
+- Issuance MUST persist the one-use record through an injected durable contributor; the reference composition supplies `identity/risk/postgres`; an
   immutable bearer without that durable `issued` row is not valid RiskEvidence.
   Core validation MAY perform a read-only precheck, but only the enlisted
   durable reserve/apply/finalize protocol grants authority to the recovery
@@ -185,6 +193,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

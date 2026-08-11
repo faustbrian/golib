@@ -30,7 +30,7 @@ status rules in `DEPENDENCIES.md`. An agent MUST NOT claim a `proposed` unit.
 | `identity/password` | `pkg/identity/password` | `identity`<br>`identity/session`<br>`identity/risk`<br>`identity/delivery` | proposed | — | `goals/identity-password.md` |
 | `identity/password/postgres` | `pkg/identity/password/postgres` | `identity/password`<br>`identity/postgres` | proposed | — | `goals/identity-password-postgres.md` |
 | `identity/username` | `pkg/identity/username` | `identity`<br>`identity/password` | proposed | — | `goals/identity-username.md` |
-| `identity/email` | `pkg/identity/email` | `identity`<br>`identity/delivery` | proposed | — | `goals/identity-email.md` |
+| `identity/email` | `pkg/identity/email` | `identity`<br>`identity/delivery`<br>`identity/otp` | proposed | — | `goals/identity-email.md` |
 | `identity/magiclink` | `pkg/identity/magiclink` | `identity`<br>`identity/session`<br>`identity/email`<br>`identity/risk` | proposed | — | `goals/identity-magiclink.md` |
 | `identity/otp` | `pkg/identity/otp` | `identity`<br>`identity/session`<br>`identity/risk`<br>`identity/delivery` | proposed | — | `goals/identity-otp.md` |
 | `identity/otp/postgres` | `pkg/identity/otp/postgres` | `identity/otp`<br>`identity/postgres` | proposed | — | `goals/identity-otp-postgres.md` |

@@ -26,6 +26,28 @@ suite branch MUST NOT be evidence inputs. Changing any selected source,
 profile, fixture, tool, or algorithm invalidates affected evidence
 fingerprints.
 
+`PROTOCOL_CONFORMANCE_MANIFEST.json` is the sole machine-readable authority for
+source identity: immutable URL, exact title/revision, digest, license, selected
+errata, and exact clause locators. This document is the normative local profile
+authority: it selects manifest source IDs and records stricter security and
+unsupported-profile decisions, but it MUST NOT silently substitute a mutable
+alias, newer draft, later errata, or similarly named publication. IETF RFCs and
+the pinned IETF draft are authoritative for their selected clauses; OpenID
+Foundation Final specifications, dated W3C Recommendations/Candidate
+Recommendation Snapshots, OASIS Standards/errata, and FIDO Proposed Standards
+are authoritative only for the manifest-pinned clauses and revisions. Test
+suites and independent implementations are evidence, never normative sources.
+
+Every selected non-RFC authority or draft and every local
+`profile-decision`/`unsupported` protocol choice MUST have a manifest
+`clause_pins` entry containing a stable local requirement ID, source ID, exact
+section/step/paragraph locator, disposition (`required`, `unsupported`, or
+`profile-decision`), and consumers. A source-level digest without those clause
+pins does not authorize the affected conformance claim. When local policy is
+stricter than source permissiveness, the pin MUST identify the source clause
+and disposition `profile-decision`; it MUST NOT misstate the local choice as a
+source requirement.
+
 ## OAuth authorization and protected resources
 
 The OAuth authorization-server, social OAuth, and enterprise OAuth profiles
@@ -161,9 +183,15 @@ audience, `azp`, subject, nonce, time, `auth_time`, `acr`/`amr` where claimed,
 and `at_hash`/`c_hash` where the selected flow requires them. UserInfo `sub`
 MUST equal the ID-token subject for the same grant.
 
-The reference authorization response mode is `query`; `form_post`, fragment,
-and JWT-secured response modes are not selected. RP-Initiated Logout is enabled
-for the reference OIDC provider and relying-party profiles. Its
+The generic reference authorization response mode is `query`; fragment and
+JWT-secured response modes are not selected. The sole `form_post` selection is
+the built-in Apple social-provider profile: it MUST use the pinned OAuth 2.0
+Form Post Response Mode at the exact registered HTTPS callback and MUST reject
+query, fragment, JWT-secured, or caller-selected response-mode substitution.
+Every other social OAuth/OIDC provider, the enterprise OIDC relying-party
+profile, and the reference OIDC provider MUST use `query` and reject
+`form_post`. RP-Initiated Logout is enabled for the reference OIDC provider and
+relying-party profiles. Its
 `post_logout_redirect_uri` MUST be pre-registered and matched byte-for-byte,
 and the provider MUST validate the `id_token_hint` issuer, audience, signature,
 and session binding before accepting it as logout context. Front-channel and
@@ -304,6 +332,15 @@ HTTP 428 behavior is pinned to RFC 6585. Every SCIM error response MUST use
 `status`, and include only a registered bounded `scimType` and enumeration-safe
 bounded `detail`. HTML, provider text, and internal errors are forbidden.
 
+Every SCIM JSON object MUST reject duplicate member names and any two member
+names equal under SCIM's case-insensitive attribute-name comparison before
+mapping, authorization, filtering, audit, or persistence. This applies to core
+and extension attributes, schema URNs, `Operations` members, `path`, `value`,
+`schemas`, `active`, and nested complex or multi-valued objects. First-wins,
+last-wins, and case-dependent collision resolution are forbidden. Duplicate
+elements of set-valued attributes MUST likewise be rejected when the schema's
+canonical comparison says they are the same value.
+
 The canonical User `password` attribute MUST remain `writeOnly` and
 `returned=never`; it MUST NOT be returned, filtered, sorted, logged, or stored
 in a SCIM projection. The reference profile rejects password writes as
@@ -321,15 +358,29 @@ The exact selected numeric limits are the `scim.*` rows in
 `REFERENCE_CONFIGURATION.md`: list count defaults to 100 and is capped at
 1,000; filter depth is 16 with 256 parsed nodes; PATCH is capped at 100
 operations; Bulk is capped at 1,000 operations and 1 MiB with
-`failOnErrors` capped at 100. Implementations MUST enforce the relevant byte,
-node, and operation limit before allocation or mutation and MUST NOT advertise
+`failOnErrors` capped at 100. Implementations MUST reject before allocating
+filter node 257, before descending past filter depth 16, and before any mutation
+once another applicable byte, collection, or operation bound is exceeded. They
+MUST NOT advertise
 a larger runtime value than the effective manifest snapshot.
 
-Pagination is 1-based. Omitted `startIndex` is 1, omitted `count` is
-`scim.page_default`, values above `scim.page_max` are capped, and `count=0`
+The raw HTTP body uses the route body limit; unsupported `Content-Encoding` is
+rejected before decoding; `scim.bulk.bytes` bounds the decoded canonical
+BulkRequest body; `scim.bulk.operation_bytes` bounds each decoded child; and
+`scim.bulk.response_bytes` bounds the streamed encoded response before another
+operation result is appended. `scim.path_bytes` applies independently to every
+filter attribute path, PATCH path, `sortBy`, `attributes`, and
+`excludedAttributes` path.
+
+Pagination is 1-based. Omitted `startIndex` is 1, values below 1 are interpreted
+as 1, omitted `count` is `scim.page_default`, negative count is interpreted as
+zero, values above `scim.page_max` are capped, and `count=0`
 returns no Resources while still returning exact `totalResults`, `startIndex`,
-and `itemsPerPage=0`. Sort uses the selected SCIM comparison semantics and a
-stable server ID tie-break. Each request observes one transaction snapshot;
+and `itemsPerPage=0`. `itemsPerPage` is always the actual number returned.
+Absent `sortBy` uses server-generated `id` ascending; absent `sortOrder` means
+ascending. Sort uses the selected SCIM comparison semantics and a stable server
+ID tie-break. `totalResults` and Resources come from the same transaction
+snapshot. Each request observes one transaction snapshot;
 there is no cross-request snapshot promise. ServiceProviderConfig MUST
 advertise the effective filter and Bulk values from the manifest, including the
 decoded Bulk byte limit. Every advertised schema-valid filter/sort uses an

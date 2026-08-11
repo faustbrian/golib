@@ -57,6 +57,68 @@
       "recaptcha",
       "turnstile"
     ],
-    "sha256": "fd87b492fb9023b6eb4abb2bed0c00b6f9e0e187f6b98efc7f5bfb0688bc87d7"
+    "sha256": "fd87b492fb9023b6eb4abb2bed0c00b6f9e0e187f6b98efc7f5bfb0688bc87d7",
+    "owners": {
+      "captchafox": "identity/risk/captcha/captchafox",
+      "hcaptcha": "identity/risk/captcha/hcaptcha",
+      "recaptcha": "identity/risk/captcha/recaptcha",
+      "turnstile": "identity/risk/captcha/turnstile"
+    }
+  },
+  "native_token_modes": {
+    "version": "native-token-modes-v1",
+    "catalog": "providers.ids",
+    "default": [],
+    "providers": {
+      "apple": [
+        "id_token"
+      ],
+      "facebook": [
+        "opaque_access_token"
+      ],
+      "google": [
+        "id_token",
+        "opaque_access_token"
+      ],
+      "line": [
+        "id_token",
+        "opaque_access_token"
+      ]
+    },
+    "closed_semantics": {
+      "id_token": "offline signature, issuer, audience, authorized-party, nonce, expiry and subject validation",
+      "opaque_access_token": "bounded provider introspection or UserInfo with issuer, platform-client and subject binding"
+    }
+  },
+  "provider_response_modes": {
+    "version": "provider-response-modes-v1",
+    "catalog": "providers.ids",
+    "default": [
+      "query"
+    ],
+    "providers": {
+      "apple": [
+        "form_post"
+      ]
+    },
+    "closed_semantics": {
+      "query": "generic OAuth/OIDC relying-party authorization response delivered by exact redirect URI query parameters",
+      "form_post": "Apple-only authorization response delivered by an HTTPS form POST to the exact registered callback"
+    }
+  },
+  "jwt_profile_ownership": {
+    "version": "jwt-profile-ownership-v1",
+    "issuance_policy_owner": "oauth-server/oidc",
+    "validation_owner": "authentication/jwt",
+    "remote_signing": {
+      "classification": "typed_adapter",
+      "interface": "oauth-server/oidc.Signer",
+      "owner": "oauth-server/oidc"
+    },
+    "hosted_jwks": {
+      "classification": "typed_adapter",
+      "interface": "authentication/jwt.KeySource",
+      "owner": "authentication/jwt"
+    }
   }
 }

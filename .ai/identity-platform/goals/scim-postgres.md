@@ -71,6 +71,11 @@ involved.
   identifier canonicalization MUST NOT alter or widen that tuple. Other schema
   uniqueness constraints MUST likewise honor their declared scope and
   `caseExact` semantics.
+- Admission and projection writes MUST reject exact duplicate JSON members,
+  SCIM case-insensitive attribute-name collisions, and set-valued duplicates
+  under the schema's canonical comparison. Constraints or canonical projection
+  keys MUST make concurrent case-variant inserts single-winner; database
+  collation MUST NOT define SCIM attribute identity.
 - The filter planner MUST have an explicit supported AST-to-index mapping,
   parameterize all values, use indexed plans or bounded fallback for every
   schema-valid advertised filter/sort, reject only invalid grammar/path, and
@@ -78,8 +83,11 @@ involved.
   Budget exhaustion MUST return a stable SCIM error without partial results or
   an incorrect count. The adapter MUST publish production-shaped query-plan
   budgets. List queries MUST provide exact
-  `totalResults`, 1-based offset/count behavior, one transaction snapshot and a
-  stable server-ID sort tie-break while enforcing `scim.page_default`,
+  `totalResults`, 1-based offset/count behavior, below-one `startIndex` as 1,
+  negative `count` as zero, actual returned `itemsPerPage`, one transaction
+  snapshot and a stable server-ID sort tie-break. Absent `sortBy` MUST use
+  server ID ascending and absent `sortOrder` MUST mean ascending. Queries MUST
+  enforce `scim.page_default`,
   `scim.page_max`, `scim.group_members` and admitted resource bounds from the
   effective manifest.
 - Replace/PATCH/delete and projection/outbox/version updates MUST be one
@@ -94,12 +102,16 @@ involved.
   idempotency mapping, parent and ordered independently random child commands;
   persist each child's bulk ID, dependencies, fingerprint, order and result;
   commit executing children independently; and deterministically rebuild parent
-  responses for every declared child from durable ordered checkpoints after
-  partial commit or restart. A positive `failOnErrors` value durably marks every
+  state for every declared child and responses for every processed child from
+  durable ordered checkpoints after partial commit or restart. A positive
+  `failOnErrors` value durably marks every
   remaining not-started child skipped only after that many child results are
   durably failed; zero or omission disables the cutoff. Unknown dependencies
   remain blocked for reconciliation, and savepoints MUST NOT be represented as
-  durable checkpoints.
+  durable checkpoints. The terminal wire response MUST replay only processed
+  `succeeded`/`failed` children in request order and omit every durable
+  `skipped-fail-on-errors` child as unprocessed; skipped children retain no wire
+  status/location/version/Error body.
 - The adapter MUST implement the HTTP/SCIM idempotency mapping and command
   ledger as one authority with each mutation. Matching key/fingerprint retries
   recover the same command/result, mismatches conflict without mutation, and

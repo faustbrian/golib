@@ -10,56 +10,71 @@
       "path": "docs/content/docs/concepts",
       "kind": "tree",
       "object_id": "9b98359e8415bc9a2f71617639cf2d61f15a0679",
-      "disposition_section": "Core documentation and route surface"
+      "disposition_section": "Core documentation and route surface",
+      "enumeration": "recursive_blobs"
     },
     {
       "path": "docs/content/docs/authentication",
       "kind": "tree",
       "object_id": "b5132040e1543221912db02871153ed6ab57fc4c",
-      "disposition_section": "Core documentation and route surface"
+      "disposition_section": "Core documentation and route surface",
+      "enumeration": "recursive_blobs"
     },
     {
       "path": "docs/content/docs/plugins",
       "kind": "tree",
       "object_id": "7f95f309b87e8737d2677df693a6763bfbf91907",
-      "disposition_section": "Official plugin documentation tree"
+      "disposition_section": "Official plugin documentation tree",
+      "enumeration": "recursive_blobs"
     },
     {
       "path": "packages/better-auth/src/api/routes",
       "kind": "tree",
       "object_id": "474bc1eab9bda2fa20ba6d1605a75a786c710447",
-      "disposition_section": "Core documentation and route surface"
+      "disposition_section": "Core documentation and route surface",
+      "enumeration": "recursive_blobs"
     },
     {
       "path": "packages/better-auth/src/plugins",
       "kind": "tree",
       "object_id": "4e750e9a538dc8b75fe96dbfd7ba411a1deb3d1e",
-      "disposition_section": "Source-exported and internal plugin surface"
+      "disposition_section": "Source-exported and internal plugin surface",
+      "enumeration": "recursive_blobs"
     },
     {
-      "path": "packages/better-auth/src/plugins/index.ts",
+      "path": "packages/better-auth/src/types/plugins.ts",
       "kind": "blob",
-      "object_id": "c6c80709f5b472468b5919c3ac6eea7c452f2091",
-      "disposition_section": "Source-exported and internal plugin surface"
+      "object_id": "c3b7e77fdd268de9707e0b84feae92cc41b84dfb",
+      "disposition_section": "Source-exported and internal plugin surface",
+      "enumeration": "exact_blob"
+    },
+    {
+      "path": "packages/better-auth/src/utils/hide-metadata.ts",
+      "kind": "blob",
+      "object_id": "a7ac60912fb14db1265e122b7e7daf0a59669bef",
+      "disposition_section": "Source-exported and internal plugin surface",
+      "enumeration": "exact_blob"
     },
     {
       "path": "packages/core/src/social-providers",
       "kind": "tree",
       "object_id": "39f9b83ca3681164e9eb8f8ef77f2ea5d5938e4c",
-      "disposition_section": "Provider catalog disposition"
+      "disposition_section": "Provider catalog disposition",
+      "enumeration": "recursive_blobs"
     },
     {
       "path": "packages",
       "kind": "tree",
       "object_id": "2cc84b5f623da92e892bd3288243a8c3ec4a5110",
-      "disposition_section": "Official top-level packages"
+      "disposition_section": "Official top-level packages",
+      "enumeration": "immediate_children"
     }
   ],
   "disposition_inventory": {
     "source": "UPSTREAM_DISPOSITIONS.md",
-    "canonicalization": "document-order TSV of level-2 section and every table data-row first cell, with Markdown code ticks removed and LF terminator",
-    "count": 162,
-    "sha256": "821f68c6f6e35de5d0d4de31c247012b449cc3c2d2bfadcfd27cafd141dbb88d"
+    "canonicalization": "document-order TSV of level-2 section plus every table data row's item, disposition, and rationale cells, with Markdown code ticks removed and LF terminator",
+    "count": 168,
+    "sha256": "e9cc2841684a4869f64adc930dadca3b70bd622ac148076c5068874e4a4e495f"
   },
   "capability_inventory": {
     "source": "BETTER_AUTH_PARITY.md",
@@ -98,6 +113,8 @@
       "identity.apikey.rotate",
       "identity.apikey.update",
       "identity.apikey.verify",
+      "identity.audit-retention.deletion.confirm",
+      "identity.audit-retention.deletion.plan",
       "identity.audit-retention.legal-hold.create",
       "identity.audit-retention.legal-hold.release",
       "identity.audit-retention.legal-hold.update",
@@ -131,6 +148,11 @@
       "identity.identitytest.user-create",
       "identity.identitytest.user-delete",
       "identity.identitytest.user-save",
+      "identity.impersonation.approve",
+      "identity.impersonation.deny",
+      "identity.impersonation.quorum",
+      "identity.impersonation.request",
+      "identity.impersonation.revoke",
       "identity.impersonation.start",
       "identity.impersonation.stop",
       "identity.magic-link.consume",
@@ -182,6 +204,7 @@
       "identity.oauth-server.token",
       "identity.oauth-server.userinfo",
       "identity.oauth.callback",
+      "identity.oauth.callback-form-post",
       "identity.oauth.onetap-callback",
       "identity.oauth.onetap-start",
       "identity.oauth.popup-complete",
@@ -192,16 +215,19 @@
       "identity.openapi.document",
       "identity.organization.active-get",
       "identity.organization.active-set",
+      "identity.organization.archive",
       "identity.organization.create",
       "identity.organization.delete",
       "identity.organization.get",
       "identity.organization.invitation-send",
       "identity.organization.invitation.accept",
       "identity.organization.invitation.cancel",
+      "identity.organization.invitation.expire",
       "identity.organization.invitation.get",
       "identity.organization.invitation.list",
       "identity.organization.invitation.list-mine",
       "identity.organization.invitation.reject",
+      "identity.organization.invitation.resend",
       "identity.organization.list",
       "identity.organization.member.active-get",
       "identity.organization.member.active-role-get",
@@ -212,6 +238,7 @@
       "identity.organization.member.update",
       "identity.organization.owner-transfer",
       "identity.organization.permission-check",
+      "identity.organization.restore",
       "identity.organization.role.create",
       "identity.organization.role.delete",
       "identity.organization.role.get",
@@ -266,6 +293,7 @@
       "identity.platform.role.update",
       "identity.privacy-export.cancel",
       "identity.privacy-export.download",
+      "identity.privacy-export.download-capability-issue",
       "identity.privacy-export.request",
       "identity.privacy-export.status",
       "identity.profile.get",
@@ -286,7 +314,10 @@
       "identity.scim.connection-delete",
       "identity.scim.connection-get",
       "identity.scim.connection-list",
+      "identity.scim.connection-reconcile",
       "identity.scim.connection-rotate",
+      "identity.scim.connection-token-revoke",
+      "identity.scim.connection-update",
       "identity.scim.group-create",
       "identity.scim.group-delete",
       "identity.scim.group-get",
@@ -304,6 +335,7 @@
       "identity.scim.user-list",
       "identity.scim.user-patch",
       "identity.scim.user-replace",
+      "identity.session.bearer-authorize",
       "identity.session.bearer-issue",
       "identity.session.get",
       "identity.session.last-method-check",
@@ -320,6 +352,8 @@
       "identity.session.transfer-consume",
       "identity.session.transfer-generate",
       "identity.session.update",
+      "identity.sso.break-glass.consume",
+      "identity.sso.break-glass.issue",
       "identity.sso.directory-sync-apply",
       "identity.sso.directory-sync-cancel",
       "identity.sso.directory-sync-start",
@@ -327,9 +361,15 @@
       "identity.sso.discover",
       "identity.sso.domain-challenge",
       "identity.sso.domain-verify",
+      "identity.sso.enforcement.update",
       "identity.sso.oauth-callback",
       "identity.sso.oidc-callback",
+      "identity.sso.oidc-logout",
+      "identity.sso.oidc-logout-complete",
+      "identity.sso.provider.credentials-rotate",
       "identity.sso.provider.delete",
+      "identity.sso.provider.disable",
+      "identity.sso.provider.enable",
       "identity.sso.provider.get",
       "identity.sso.provider.list",
       "identity.sso.provider.register-oauth",
@@ -355,13 +395,14 @@
       "identity.username.signup",
       "identity.username.update"
     ],
-    "count": 283,
-    "sha256": "0f5bb1bf7d1502a9784e65f2683a7b7d673e1b76aaa89fb5da8aefc3340b51bd"
+    "count": 308,
+    "sha256": "4d5f397b532e7f4c0e12817b6a5e644fc5c11a25c1fc5b02eafa26c719d78e33"
   },
   "owner_goal_closure": {
     "audit": "pkg/audit/.ai/GOAL.md",
     "authorization": "pkg/authorization/.ai/GOAL.md",
     "capability": "pkg/capability/.ai/GOAL.md",
+    "capability/postgres": "pkg/capability/.ai/GOAL.md",
     "identity": "goals/identity.md",
     "identity/anonymous": "goals/identity-anonymous.md",
     "identity/apikey": "goals/identity-apikey.md",
@@ -384,6 +425,7 @@
     "identity/risk": "goals/identity-risk.md",
     "identity/risk/captcha": "goals/identity-risk-captcha.md",
     "identity/risk/hibp": "goals/identity-risk-hibp.md",
+    "identity/risk/postgres": "goals/identity-risk-postgres.md",
     "identity/session": "goals/identity-session.md",
     "identity/username": "goals/identity-username.md",
     "oauth-server": "goals/oauth-server.md",
@@ -394,6 +436,7 @@
     "scim": "goals/scim.md",
     "scim/organization": "goals/scim-organization.md",
     "sso": "goals/sso.md",
+    "sso/domain-verification": "goals/sso-domain-verification.md",
     "sso/oauth2": "goals/sso-oauth2.md",
     "sso/oidc": "goals/sso-oidc.md",
     "sso/saml": "goals/sso-saml.md",
@@ -407,9 +450,9 @@
   },
   "item_closure": {
     "canonicalization": "rows in disposition order as upstream_item_id, source_locator, source_kind, source_object_id, disposition_row_id, classification, sorted capability IDs, and sorted exact operation IDs; then lexicographically sorted capability-to-operation, operation-to-owner, and owner-to-goal edges; tab-separated with LF terminator",
-    "row_count": 162,
-    "capability_operation_edge_count": 829,
-    "sha256": "2c08ffcbc834d71454732beed4263651d65906ffb715b7e311d80f0dade735b4",
+    "row_count": 168,
+    "capability_operation_edge_count": 862,
+    "sha256": "74e5c3a25e892c11c0fc209985966a2cce9b0e3564bc1baf3b0d94286e378712",
     "rows": [
       {
         "upstream_item_id": "docs/content/docs/concepts/api.mdx",
@@ -580,6 +623,7 @@
           "identity.oauth-server.token",
           "identity.oauth-server.userinfo",
           "identity.oauth.callback",
+          "identity.oauth.callback-form-post",
           "identity.oauth.onetap-callback",
           "identity.oauth.onetap-start",
           "identity.oauth.popup-complete",
@@ -803,6 +847,7 @@
           "identity.anonymous.signin",
           "identity.magic-link.consume",
           "identity.oauth.callback",
+          "identity.oauth.callback-form-post",
           "identity.oauth.signin-token",
           "identity.otp.signin",
           "identity.password.signin",
@@ -901,6 +946,7 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.callback-form-post",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -1020,6 +1066,7 @@
           "identity.oauth-server.token",
           "identity.oauth-server.userinfo",
           "identity.oauth.callback",
+          "identity.oauth.callback-form-post",
           "identity.oauth.onetap-callback",
           "identity.oauth.onetap-start",
           "identity.oauth.popup-complete",
@@ -1294,7 +1341,7 @@
         "source_object_id": "9db94d67f2aef000fc441ddaf18f24f00027fbf8"
       },
       {
-        "upstream_item_id": "docs/content/docs/authentication",
+        "upstream_item_id": "docs/content/docs/authentication/apple.mdx",
         "source_path": "docs/content/docs/authentication",
         "disposition_row_id": "Core documentation and route surface\tauthentication provider pages",
         "classification": "in-scope",
@@ -1308,13 +1355,14 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.callback-form-post",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
         ],
-        "source_locator": "docs/content/docs/authentication",
-        "source_kind": "tree",
-        "source_object_id": "b5132040e1543221912db02871153ed6ab57fc4c"
+        "source_locator": "docs/content/docs/authentication/apple.mdx",
+        "source_kind": "blob",
+        "source_object_id": "f02bf9d3c440e08fa4be2372dd97fc89167343bd"
       },
       {
         "upstream_item_id": "packages/better-auth/src/api/routes/account.ts",
@@ -1347,7 +1395,8 @@
           "Social OAuth / generic OAuth"
         ],
         "operation_ids": [
-          "identity.oauth.callback"
+          "identity.oauth.callback",
+          "identity.oauth.callback-form-post"
         ],
         "source_locator": "packages/better-auth/src/api/routes/callback.ts",
         "source_kind": "blob",
@@ -1383,6 +1432,17 @@
         "source_locator": "packages/better-auth/src/api/routes/error.ts",
         "source_kind": "blob",
         "source_object_id": "a67ab84f1bfc710195e15681afb9960d5d872f4c"
+      },
+      {
+        "upstream_item_id": "packages/better-auth/src/api/routes/index.ts",
+        "source_path": "packages/better-auth/src/api/routes",
+        "disposition_row_id": "Core documentation and route surface\troute index/meta",
+        "classification": "non-capability",
+        "capability_ids": [],
+        "operation_ids": [],
+        "source_locator": "packages/better-auth/src/api/routes/index.ts",
+        "source_kind": "blob",
+        "source_object_id": "f491233eeb9b5ae891da5864c031c00130c40859"
       },
       {
         "upstream_item_id": "packages/better-auth/src/api/routes/ok.ts",
@@ -1583,7 +1643,11 @@
           "identity.platform.permission-statement.update",
           "identity.platform.role.create",
           "identity.platform.role.delete",
-          "identity.platform.role.update"
+          "identity.platform.role.update",
+          "identity.user.create",
+          "identity.user.get",
+          "identity.user.list",
+          "identity.user.update-admin"
         ],
         "source_locator": "docs/content/docs/plugins/admin.mdx",
         "source_kind": "blob",
@@ -1638,6 +1702,61 @@
         "source_locator": "docs/content/docs/plugins/api-key/index.mdx",
         "source_kind": "blob",
         "source_object_id": "b3fa5608d4f822c5811d18fce21d1e7d8092845d"
+      },
+      {
+        "upstream_item_id": "docs/content/docs/plugins/api-key/advanced.mdx",
+        "source_path": "docs/content/docs/plugins",
+        "disposition_row_id": "Official plugin documentation tree\tapi-key advanced",
+        "classification": "in-scope",
+        "capability_ids": [
+          "API keys"
+        ],
+        "operation_ids": [
+          "identity.apikey.create",
+          "identity.apikey.delete",
+          "identity.apikey.delete-expired",
+          "identity.apikey.get",
+          "identity.apikey.list",
+          "identity.apikey.rotate",
+          "identity.apikey.update",
+          "identity.apikey.verify"
+        ],
+        "source_locator": "docs/content/docs/plugins/api-key/advanced.mdx",
+        "source_kind": "blob",
+        "source_object_id": "2fa555f4c106a483b01b23bed331da0617fe01d4"
+      },
+      {
+        "upstream_item_id": "docs/content/docs/plugins/api-key/reference.mdx",
+        "source_path": "docs/content/docs/plugins",
+        "disposition_row_id": "Official plugin documentation tree\tapi-key reference",
+        "classification": "in-scope",
+        "capability_ids": [
+          "API keys"
+        ],
+        "operation_ids": [
+          "identity.apikey.create",
+          "identity.apikey.delete",
+          "identity.apikey.delete-expired",
+          "identity.apikey.get",
+          "identity.apikey.list",
+          "identity.apikey.rotate",
+          "identity.apikey.update",
+          "identity.apikey.verify"
+        ],
+        "source_locator": "docs/content/docs/plugins/api-key/reference.mdx",
+        "source_kind": "blob",
+        "source_object_id": "2cf6b8454bef6b9e42aeb43008d20637a2b17728"
+      },
+      {
+        "upstream_item_id": "docs/content/docs/plugins/api-key/meta.json",
+        "source_path": "docs/content/docs/plugins",
+        "disposition_row_id": "Official plugin documentation tree\tapi-key metadata",
+        "classification": "non-capability",
+        "capability_ids": [],
+        "operation_ids": [],
+        "source_locator": "docs/content/docs/plugins/api-key/meta.json",
+        "source_kind": "blob",
+        "source_object_id": "eb976a28bdbc23351a05b148e546bb28b620bb3d"
       },
       {
         "upstream_item_id": "docs/content/docs/plugins/autumn.mdx",
@@ -1804,6 +1923,7 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.callback-form-post",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -2295,19 +2415,19 @@
         "source_object_id": "e1f98398787fb42ee201a6a91a6e1e40f226e125"
       },
       {
-        "upstream_item_id": "docs/content/docs/plugins",
+        "upstream_item_id": "docs/content/docs/plugins/index.mdx",
         "source_path": "docs/content/docs/plugins",
         "disposition_row_id": "Official plugin documentation tree\tplugin index/meta pages",
         "classification": "non-capability",
         "capability_ids": [],
         "operation_ids": [],
-        "source_locator": "docs/content/docs/plugins",
-        "source_kind": "tree",
-        "source_object_id": "7f95f309b87e8737d2677df693a6763bfbf91907"
+        "source_locator": "docs/content/docs/plugins/index.mdx",
+        "source_kind": "blob",
+        "source_object_id": "114d62864a84a8d0237a1acda57487b295455f6c"
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#access",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\taccess",
         "classification": "in-scope",
         "capability_ids": [
@@ -2328,7 +2448,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#admin",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tadmin",
         "classification": "in-scope",
         "capability_ids": [
@@ -2352,7 +2472,11 @@
           "identity.platform.permission-statement.update",
           "identity.platform.role.create",
           "identity.platform.role.delete",
-          "identity.platform.role.update"
+          "identity.platform.role.update",
+          "identity.user.create",
+          "identity.user.get",
+          "identity.user.list",
+          "identity.user.update-admin"
         ],
         "source_locator": "packages/better-auth/src/plugins/index.ts",
         "source_kind": "blob",
@@ -2360,7 +2484,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#anonymous",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tanonymous",
         "classification": "in-scope",
         "capability_ids": [
@@ -2377,7 +2501,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#bearer",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tbearer",
         "classification": "in-scope",
         "capability_ids": [
@@ -2394,7 +2518,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#captcha",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tcaptcha",
         "classification": "in-scope",
         "capability_ids": [
@@ -2409,7 +2533,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#custom-session",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tcustom-session",
         "classification": "in-scope",
         "capability_ids": [
@@ -2424,7 +2548,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#device-authorization",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tdevice-authorization",
         "classification": "in-scope",
         "capability_ids": [
@@ -2443,7 +2567,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#email-otp",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\temail-otp",
         "classification": "in-scope",
         "capability_ids": [
@@ -2464,7 +2588,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#generic-oauth",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tgeneric-oauth",
         "classification": "in-scope",
         "capability_ids": [
@@ -2478,6 +2602,7 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.callback-form-post",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -2488,7 +2613,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#haveibeenpwned",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\thaveibeenpwned",
         "classification": "in-scope",
         "capability_ids": [
@@ -2503,7 +2628,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#jwt",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tjwt",
         "classification": "in-scope",
         "capability_ids": [
@@ -2521,7 +2646,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#last-login-method",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tlast-login-method",
         "classification": "in-scope",
         "capability_ids": [
@@ -2539,7 +2664,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#magic-link",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tmagic-link",
         "classification": "in-scope",
         "capability_ids": [
@@ -2555,7 +2680,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#mcp",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tmcp",
         "classification": "product-exclusion",
         "capability_ids": [],
@@ -2566,7 +2691,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#multi-session",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tmulti-session",
         "classification": "in-scope",
         "capability_ids": [
@@ -2585,7 +2710,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#oauth-popup",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\toauth-popup",
         "classification": "in-scope",
         "capability_ids": [
@@ -2600,7 +2725,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#oauth-proxy",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\toauth-proxy",
         "classification": "in-scope",
         "capability_ids": [
@@ -2615,7 +2740,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#oidc-provider",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\toidc-provider",
         "classification": "in-scope",
         "capability_ids": [
@@ -2634,7 +2759,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#one-tap",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tone-tap",
         "classification": "in-scope",
         "capability_ids": [
@@ -2650,7 +2775,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#one-time-token",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tone-time-token",
         "classification": "in-scope",
         "capability_ids": [
@@ -2666,7 +2791,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#open-api",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\topen-api",
         "classification": "in-scope",
         "capability_ids": [
@@ -2681,7 +2806,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#organization",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\torganization",
         "classification": "in-scope",
         "capability_ids": [
@@ -2733,7 +2858,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#phone-number",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tphone-number",
         "classification": "in-scope",
         "capability_ids": [
@@ -2754,7 +2879,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#siwe",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tsiwe",
         "classification": "product-exclusion",
         "capability_ids": [],
@@ -2765,7 +2890,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#test-utils",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\ttest-utils",
         "classification": "in-scope",
         "capability_ids": [
@@ -2796,7 +2921,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#two-factor",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\ttwo-factor",
         "classification": "in-scope+security-divergence",
         "capability_ids": [
@@ -2826,7 +2951,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#username",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tusername",
         "classification": "in-scope",
         "capability_ids": [
@@ -2844,7 +2969,7 @@
       },
       {
         "upstream_item_id": "packages/better-auth/src/plugins/index.ts#types/plugins, hide-metadata",
-        "source_path": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\ttypes/plugins, hide-metadata",
         "classification": "non-capability",
         "capability_ids": [],
@@ -2854,7 +2979,7 @@
         "source_object_id": "c6c80709f5b472468b5919c3ac6eea7c452f2091"
       },
       {
-        "upstream_item_id": "packages/better-auth/src/plugins/additional-fields",
+        "upstream_item_id": "packages/better-auth/src/plugins/additional-fields/client.ts",
         "source_path": "packages/better-auth/src/plugins",
         "disposition_row_id": "Source-exported and internal plugin surface\tinternal additional-fields",
         "classification": "in-scope",
@@ -2872,9 +2997,20 @@
           "identity.user.get",
           "identity.user.update-admin"
         ],
-        "source_locator": "packages/better-auth/src/plugins/additional-fields",
-        "source_kind": "tree",
-        "source_object_id": "12db17a165a9f593eedde0981cf092fe388f7e2c"
+        "source_locator": "packages/better-auth/src/plugins/additional-fields/client.ts",
+        "source_kind": "blob",
+        "source_object_id": "c0fb84affece5bb0e1a16bcea57eaa2970b11d3c"
+      },
+      {
+        "upstream_item_id": "packages/better-auth/src/plugins/index.ts",
+        "source_path": "packages/better-auth/src/plugins",
+        "disposition_row_id": "Source-exported and internal plugin surface\tplugin source index",
+        "classification": "non-capability",
+        "capability_ids": [],
+        "operation_ids": [],
+        "source_locator": "packages/better-auth/src/plugins/index.ts",
+        "source_kind": "blob",
+        "source_object_id": "c6c80709f5b472468b5919c3ac6eea7c452f2091"
       },
       {
         "upstream_item_id": "packages/api-key",
@@ -3067,6 +3203,7 @@
           "identity.oauth-server.token",
           "identity.oauth-server.userinfo",
           "identity.oauth.callback",
+          "identity.oauth.callback-form-post",
           "identity.oauth.onetap-callback",
           "identity.oauth.onetap-start",
           "identity.oauth.popup-complete",
@@ -3610,6 +3747,17 @@
         "source_object_id": "5b585cd9912d352b6faff3d16cea5756e39cf0df"
       },
       {
+        "upstream_item_id": "packages/core/src/social-providers/index.ts",
+        "source_path": "packages/core/src/social-providers",
+        "disposition_row_id": "Provider catalog disposition\tprovider source index",
+        "classification": "non-capability",
+        "capability_ids": [],
+        "operation_ids": [],
+        "source_locator": "packages/core/src/social-providers/index.ts",
+        "source_kind": "blob",
+        "source_object_id": "15602df06b61bc5dc64d9e9f3b9e456edff11a7e"
+      },
+      {
         "upstream_item_id": "packages/core/src/social-providers/apple.ts",
         "source_path": "packages/core/src/social-providers",
         "disposition_row_id": "Provider catalog disposition\tApple",
@@ -3626,6 +3774,7 @@
           "identity.account.provider-info",
           "identity.account.refresh-token",
           "identity.oauth.callback",
+          "identity.oauth.callback-form-post",
           "identity.oauth.provider-list",
           "identity.oauth.signin-start",
           "identity.oauth.signin-token"
@@ -4765,12 +4914,18 @@
         "identity.admin.user-password-set",
         "identity.admin.user-role-set",
         "identity.admin.user-unban",
+        "identity.audit-retention.deletion.confirm",
+        "identity.audit-retention.deletion.plan",
         "identity.platform.permission-statement.create",
         "identity.platform.permission-statement.delete",
         "identity.platform.permission-statement.update",
         "identity.platform.role.create",
         "identity.platform.role.delete",
-        "identity.platform.role.update"
+        "identity.platform.role.update",
+        "identity.user.create",
+        "identity.user.get",
+        "identity.user.list",
+        "identity.user.update-admin"
       ],
       "Anonymous users": [
         "identity.anonymous.delete",
@@ -4868,6 +5023,7 @@
         "identity.oauth-server.token",
         "identity.oauth-server.userinfo",
         "identity.oauth.callback",
+        "identity.oauth.callback-form-post",
         "identity.oauth.onetap-callback",
         "identity.oauth.onetap-start",
         "identity.oauth.popup-complete",
@@ -5128,6 +5284,7 @@
         "identity.oauth-server.token",
         "identity.oauth-server.userinfo",
         "identity.oauth.callback",
+        "identity.oauth.callback-form-post",
         "identity.oauth.onetap-callback",
         "identity.oauth.onetap-start",
         "identity.oauth.popup-complete",
@@ -5314,6 +5471,8 @@
         "identity.password.verify"
       ],
       "Enterprise SSO": [
+        "identity.sso.break-glass.consume",
+        "identity.sso.break-glass.issue",
         "identity.sso.directory-sync-apply",
         "identity.sso.directory-sync-cancel",
         "identity.sso.directory-sync-start",
@@ -5321,9 +5480,15 @@
         "identity.sso.discover",
         "identity.sso.domain-challenge",
         "identity.sso.domain-verify",
+        "identity.sso.enforcement.update",
         "identity.sso.oauth-callback",
         "identity.sso.oidc-callback",
+        "identity.sso.oidc-logout",
+        "identity.sso.oidc-logout-complete",
+        "identity.sso.provider.credentials-rotate",
         "identity.sso.provider.delete",
+        "identity.sso.provider.disable",
+        "identity.sso.provider.enable",
         "identity.sso.provider.get",
         "identity.sso.provider.list",
         "identity.sso.provider.register-oauth",
@@ -5340,6 +5505,7 @@
       ],
       "Generic OAuth configuration": [
         "identity.oauth.callback",
+        "identity.oauth.callback-form-post",
         "identity.oauth.provider-list",
         "identity.oauth.signin-start"
       ],
@@ -5352,6 +5518,11 @@
         "identity.hooks.before"
       ],
       "Impersonation": [
+        "identity.impersonation.approve",
+        "identity.impersonation.deny",
+        "identity.impersonation.quorum",
+        "identity.impersonation.request",
+        "identity.impersonation.revoke",
         "identity.impersonation.start",
         "identity.impersonation.stop"
       ],
@@ -5469,16 +5640,19 @@
       "Organizations": [
         "identity.organization.active-get",
         "identity.organization.active-set",
+        "identity.organization.archive",
         "identity.organization.create",
         "identity.organization.delete",
         "identity.organization.get",
         "identity.organization.invitation-send",
         "identity.organization.invitation.accept",
         "identity.organization.invitation.cancel",
+        "identity.organization.invitation.expire",
         "identity.organization.invitation.get",
         "identity.organization.invitation.list",
         "identity.organization.invitation.list-mine",
         "identity.organization.invitation.reject",
+        "identity.organization.invitation.resend",
         "identity.organization.list",
         "identity.organization.member.active-get",
         "identity.organization.member.active-role-get",
@@ -5489,6 +5663,7 @@
         "identity.organization.member.update",
         "identity.organization.owner-transfer",
         "identity.organization.permission-check",
+        "identity.organization.restore",
         "identity.organization.role.create",
         "identity.organization.role.delete",
         "identity.organization.role.get",
@@ -5519,6 +5694,7 @@
         "identity.anonymous.signin",
         "identity.magic-link.consume",
         "identity.oauth.callback",
+        "identity.oauth.callback-form-post",
         "identity.oauth.signin-token",
         "identity.otp.signin",
         "identity.password.signin",
@@ -5548,7 +5724,10 @@
         "identity.scim.connection-delete",
         "identity.scim.connection-get",
         "identity.scim.connection-list",
+        "identity.scim.connection-reconcile",
         "identity.scim.connection-rotate",
+        "identity.scim.connection-token-revoke",
+        "identity.scim.connection-update",
         "identity.scim.group-create",
         "identity.scim.group-delete",
         "identity.scim.group-get",
@@ -5577,10 +5756,12 @@
         "identity.reference.schema-generate"
       ],
       "Self-service profile": [
+        "identity.privacy-export.download-capability-issue",
         "identity.profile.get",
         "identity.profile.update"
       ],
       "Session bearer acquisition": [
+        "identity.session.bearer-authorize",
         "identity.session.bearer-issue"
       ],
       "Session bearer authentication": [
@@ -5593,6 +5774,7 @@
         "identity.account.provider-info",
         "identity.account.refresh-token",
         "identity.oauth.callback",
+        "identity.oauth.callback-form-post",
         "identity.oauth.provider-list",
         "identity.oauth.signin-start",
         "identity.oauth.signin-token"
@@ -5676,6 +5858,26 @@
         "identity.deletion.request"
       ]
     },
-    "operation_owner_edge_count": 362
+    "operation_owner_edge_count": 397
+  },
+  "operation_contract_inventory": {
+    "source": "API_OPERATIONS.md",
+    "canonicalization": "operation rows sorted bytewise by ID; each row encoded as compact JSON with recursively bytewise-sorted keys; LF between rows and final LF",
+    "fields": [
+      "owners",
+      "exposure",
+      "access",
+      "authorization",
+      "csrf_origin",
+      "risk_class",
+      "rate_policy",
+      "idempotency",
+      "event_semantics",
+      "http_method",
+      "http_path",
+      "openapi_operation_id"
+    ],
+    "count": 308,
+    "sha256": "8e0946bfac5177a0a1ef9846ac87c3b550b299b52e7ad84731274f4db377c7d3"
   }
 }

@@ -52,7 +52,9 @@ involved.
 ## Package-specific acceptance checklist
 
 - Anonymous creation MUST generate a non-addressable opaque identity with
-  configured display-name and placeholder-email policy, minimal privileges,
+  configured display-name and placeholder-email policy from
+  `anonymous.display_name`, `anonymous.placeholder_email_domain` and
+  `anonymous.ttl`, minimal privileges,
   bounded expiry and an explicit anonymous principal/session marker. Creation
   and upgrade MUST obtain an action-specific `identity/risk` decision before
   committing identity or session state.
@@ -61,6 +63,12 @@ involved.
 - Link/upgrade MUST require verified target credentials, consume the anonymous
   transition once, preserve the permanent account as authority and apply a
   typed merge plan for every transferable field/resource.
+- A successful upgrade MUST atomically revoke the initiating anonymous session
+  and rotate to one new permanent session bound to the target identity and the
+  caller's unchanged remember policy. The new session MUST NOT become usable
+  before the upgrade commits; the anonymous session MUST NOT remain usable
+  after commit; an unknown outcome MUST reconcile both session records and the
+  upgrade command before retry.
 - Conflict policy MUST cover an already signed-in permanent user, identifier or
   provider-account collision, concurrent upgrades, banned target and unknown
   commit. It MUST never force-link credentials based only on anonymous state.
@@ -107,6 +115,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

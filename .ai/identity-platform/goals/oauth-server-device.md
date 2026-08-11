@@ -57,7 +57,9 @@ involved.
 
 - Device authorization MUST validate client, grant permission and requested
   scopes before issuing codes and MUST publish verification URI and complete
-  URI exactly according to the configured public base URL.
+  URI exactly according to the configured public base URL. It MUST allocate and
+  persist a server-owned command identity; a proprietary `Idempotency-Key` MAY
+  be accepted as an extension but MUST NOT be required.
 - Device authorization MUST bind issuer, client, requested resource/audience,
   scopes, tenant and the exact verification URI to one transaction. It MUST
   issue `verification_uri_complete` only when the complete URI remains bounded
@@ -67,8 +69,10 @@ involved.
   43-character unpadded base64url, and have digest-at-rest lookup through the
   versioned domain-separated key configured by the reference profile; user
   codes MUST be non-confusable, bounded, rate-limited and collision-safe.
-- Optional pre-binding to a user MUST require explicit authenticated policy and
-  MUST NOT let a device choose an arbitrary subject.
+- Subject and consent bindings at issuance are nullable. Optional pre-binding
+  MUST require explicit authenticated policy and MUST NOT let a device choose
+  an arbitrary subject. Inspection MUST validate subject and consent versions
+  only when those bindings are present; absence is not a stale-binding error.
 - Polling MUST return authorization_pending, slow_down, access_denied,
   expired_token and success with exact interval escalation and no timing-based
   user-code enumeration.
@@ -81,13 +85,23 @@ involved.
   MUST permanently win over later approval or exchange.
 - Verification UI contracts MUST support inspect, approve and deny with recent
   authentication, client/scope display and CSRF protection. Approval MUST bind
-  the reviewing subject and consent version atomically.
+  the reviewing subject and consent version atomically when either was absent,
+  or revalidate the exact pre-bound values when present.
 - Inspection MUST return only bounded client display metadata and requested
-  scopes/resources after canonical user-code lookup and rate limiting.
+  scopes/resources after canonical user-code lookup and rate limiting. The UI
+  MUST always display the canonical user code and require the user to explicitly
+  compare and confirm it before approval, including when navigation began from
+  `verification_uri_complete`; the embedded code MUST NOT silently approve.
   Approval MUST revalidate client status, scope/resource policy, current user
   authority and recent authentication; it MUST NOT accept a subject supplied by
   the device. Denial MUST be idempotent without disclosing whether a different
   subject previously acted.
+- Issue, inspect, approve, deny and poll MUST map the code pair onto capability
+  Issue, Validate, Reserve, Apply, Finalize and Recover roles. This package owns
+  permanent winning device state; core owns client, consent, subject and token
+  authority. Every inspect, approve and poll MUST revalidate those versions;
+  client deletion, consent revocation, subject disablement/deletion or global
+  compromise MUST permanently prevent later approval or token success.
 - Custom code generators and client validators MUST meet entropy,
   canonicalization, authorization and redaction contracts or fail
   construction.
@@ -133,6 +147,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

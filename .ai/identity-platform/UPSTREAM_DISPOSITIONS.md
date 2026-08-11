@@ -14,6 +14,17 @@ documentation tree, the `better-auth/plugins` export surface, official
 top-level packages, built-in social providers, and generic OAuth helpers at
 that revision.
 
+`UPSTREAM_LEAVES.json` is the authoritative recursive Git-tree inventory for
+every declared source. Every blob in those trees MUST have exactly one stable
+leaf disposition containing its exact path, kind, object ID, canonical source,
+classification, one semantic disposition row, capability IDs and exact
+operation IDs. The validator MUST
+recompute every declared tree object from the checked-in recursive entries and
+MUST require exact set equality between the proven blob set and leaf
+dispositions. Conceptual rows below MAY group related leaves and exported
+symbols, but MUST NOT act as a second leaf disposition or use a blanket source
+tree as their locator.
+
 Every upstream item MUST have exactly one of these dispositions:
 
 - **In:** equivalent backend capability is REQUIRED through the named local
@@ -56,6 +67,7 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | route `callback.ts` | In | `identity.oauth.callback`. |
 | route `email-verification.ts` | In | `identity.email.verification-send` and `identity.email.verification-confirm`. |
 | route `error.ts` | Superseded | Stable typed/localized error envelopes and allowlisted error redirects replace Better Auth's hosted error-page behavior; no UI is owned. |
+| route `index/meta` | Non-capability | Route aggregation metadata only; every exported route is disposed by its exact implementation and test leaves. |
 | route `ok.ts` | In | `identity.health`; readiness is an additional local operation. |
 | route `password.ts` | In | Reset request/inspect/complete and password verification. |
 | route `session.ts` | In | Get/list/revoke-one/revoke-other/revoke-all plus explicit refresh/rotation. |
@@ -74,6 +86,9 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | `agent-auth` | Excluded | No autonomous-agent capability-discovery, approval, or execution credential product is selected. Standard OAuth/OIDC remains in scope. |
 | `anonymous` | In | `identity/anonymous`. |
 | `api-key` | In | `identity/apikey`, PostgreSQL and Valkey adapters. |
+| `api-key advanced` | In | `identity/apikey`, PostgreSQL and Valkey adapters; multiple configuration IDs, organization-owned keys, storage profiles, quota/refill/expiry and metadata behavior are required. |
+| `api-key reference` | In | `identity/apikey`, PostgreSQL and Valkey adapters; documented options, permissions and schema are part of the typed backend contract. |
+| `api-key metadata` | Non-capability | Navigation metadata only; it adds no API-key behavior. |
 | `autumn` | Excluded | Billing/payment integration; it does not define identity correctness. |
 | `bearer` | In | `identity/session`, `identity/http`; includes both bearer acceptance and explicit token delivery. |
 | `captcha` | In | `identity/risk/captcha` and reCAPTCHA, Turnstile, hCaptcha and CaptchaFox adapters. |
@@ -144,6 +159,7 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | `username` | In | Username workflows. |
 | `types/plugins`, `hide-metadata` | Non-capability | Type and metadata utilities. |
 | internal `additional-fields` | In | Typed user/account/session/organization fields with input/output/write policy. |
+| plugin source index | Non-capability | Source aggregation metadata only; each plugin implementation leaf maps to its own top-level feature row. |
 
 ## Official top-level packages
 
@@ -199,6 +215,7 @@ pinned source even when this summary says "base contract".
 
 | Profile | Required pinned distinctions |
 | --- | --- |
+| provider source index | Non-capability source aggregation; every provider implementation and test leaf maps to its exact provider row. |
 | Apple | Multiple client audiences, optional app bundle identifier, `form_post`, code plus ID-token response, nonce verification including hashed nonce, first-consent user payload, private-relay email semantics, and expiring JWT client-secret operation. |
 | Atlassian | Exact Atlassian endpoints/scopes and stable account identifier under the base contract. |
 | Amazon Cognito | Region/user-pool or explicit domain/issuer variants, client-secret/public-client behavior, discovery/JWKS and exact issuer/audience binding. |
@@ -301,6 +318,7 @@ standards behavior that also happens to be useful to MCP or agents.
 ## Maintenance
 
 `BETTER_AUTH_PARITY.md`, this file, `UPSTREAM_SURFACE.json`,
+`UPSTREAM_LEAVES.json`, `generate_upstream_leaves.rb`,
 `API_OPERATIONS.md`, the package goals, and the validator form one closure set.
 The manifest MUST freeze every exact source-item -> disposition-row ->
 capability -> operation-ID edge and every operation owner MUST resolve to its

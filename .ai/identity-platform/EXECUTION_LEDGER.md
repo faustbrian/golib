@@ -20,12 +20,19 @@ commit; the immediately following ledger-only finalization MUST replace it with
 that prior commit's hash before the worker starts. `Worker commit` is the latest
 reviewed worker-branch tip returned for the assignment; after a recovery it MAY
 be downstream of an authorized baseline merge and is not assumed to be the only
-package-authored commit. `Integration checkpoint` is
-the already-known non-fast-forward worker merge commit, never the hash of the
-status commit that records it. `External evidence` records only `not-needed`,
-`available`, `unavailable:{safe-profile-id}`, or an attributable evidence-record
-path. A dash means never assigned. `available` records preflight availability
-only and MUST NOT be treated as acceptance evidence.
+package-authored commit. `Integration checkpoint` is the already-known
+non-fast-forward worker merge commit, never the hash of the later
+registration/status commit that records it. `Gate execution revision` is a
+distinct required field in every gate evidence record. It is the exact
+post-integration, post-registration committed revision whose complete inputs
+were tested and MUST NOT be inferred from or replaced by the integration
+checkpoint. `External evidence` records only `not-needed`, `available`,
+`unavailable:{safe-profile-id}`, or an attributable
+`<evidence-record-path>@<evidence-record-commit>` binding. The record commit
+MUST contain the exact record bytes at that path and MUST be an ancestor of the
+ledger commit that records the binding. A dash means never assigned. `available`
+records preflight availability only and MUST NOT be treated as acceptance
+evidence.
 
 After `initial`, `Last transition` MUST use
 `v<positive-integer> <status> owner=<owner-or-dash> at=<RFC3339>` and mirror
@@ -65,10 +72,18 @@ branches MUST be conventional and worktrees absolute. Integrated gate
 fingerprints MUST use `sha256:<64-lowercase-hex>`. A verified row whose preflight
 classification has no external acceptance claim MUST record `not-needed`. A
 verified row with any external acceptance claim MUST record an attributable
-`.ai/...` evidence path whose record contains the tested profile, result,
-execution revision, complete input fingerprint, tool/environment identity, and
-sanitized artifact hashes. It MUST NOT retain `available`, missing, or
-unavailable evidence.
+`.ai/...@<commit>` evidence binding whose record contains the tested profile,
+result, distinct `tested_revision`, `gate_execution_revision`, and
+`revalidation_revision` fields, a complete input manifest and canonical input
+root, tool/environment identity, and sanitized artifact hashes. The
+revalidation revision MUST be null when tested and gate revisions are equal.
+For fingerprint-based reuse it MUST equal the gate execution revision, while
+the tested revision retains the original execution identity; the manifest and
+input root MUST validate identically from both committed trees. The record MUST
+NOT contain or attempt to predict its
+own containing commit. The ledger binding supplies that later evidence-record
+commit without a self-referential hash. It MUST NOT retain `available`, missing,
+or unavailable evidence.
 
 Active worker tasks, branches, and worktrees MUST be pairwise unique. Every
 recorded commit MUST exist and have the required integration or worker ancestry.
@@ -107,13 +122,23 @@ starts.
 - A retained-assignment `blocked` row MUST use `blocker:<safe-id>` as owner and
   retain task, branch, worktree, assignment commit, and generation. Before
   integration, worker commit MAY be `—` or the clean coherent stale-baseline
-  commit and integration checkpoint and gate fingerprint MUST be `—`. After
+  commit and integration checkpoint and gate fingerprint MUST be `—`. A later
+  `in-progress -> blocked` recovery conflict MAY replace that checkpoint with
+  a new clean coherent descendant only when assignment identity and generation
+  are unchanged, the old checkpoint is an ancestor of the replacement on the
+  exact registered worker branch, and a new recovery epoch authorizes the
+  replacement. After
   integration, worker commit, integration checkpoint, and gate fingerprint
   MUST remain present. An abandoned assignment MUST transition to `ready`; a
   blocked row with cleared assignment fields is invalid.
 - `implemented-unverified` and `verified` MUST have owner `—` and complete task,
-  branch, worktree, assignment, worker commit, integration checkpoint, and gate
-  fingerprint fields. `implemented-unverified` external evidence MUST be
+  branch, worktree, assignment, worker commit, and integration checkpoint
+  fields. In the initial `implemented-unverified` status commit, gate execution
+  revision and gate fingerprint MUST both be `—`; the immediately following
+  ledger-only same-status finalization MUST replace both with the now-known
+  status-commit revision and its complete input fingerprint before any gate
+  runs. A partial pair is invalid. `verified` MUST retain the complete pair.
+  `implemented-unverified` external evidence MUST be
   `available`, `unavailable:<safe-profile-id>`, `not-needed`, or an attributable
   path. `verified` external evidence follows the stricter rule above.
 
@@ -129,7 +154,18 @@ only additional transition family.
 Same-status updates are limited to assignment-commit finalization for
 `in-progress`, a clean worker checkpoint or evidence disposition for `blocked`,
 and evidence-record finalization for `implemented-unverified` or `verified`.
+A blocked checkpoint finalization or later recovery-conflict replacement MUST
+satisfy the exact descendant and assignment-identity rules above; a sibling,
+rewritten, detached, or different-assignment commit is forbidden.
 Every other same-status field change is forbidden.
+
+Every ordinary `in-progress -> ready` or `blocked -> ready` abandonment MUST
+append an assignment disposition row using an
+`abandonment:<safe-id>` revision marker. It MUST satisfy the same
+identity-bound canonical evidence, preserved-commit, clean worktree,
+pre-removal HEAD, complete task-owned resource disposition, digest, and
+coordinator-authorization rules as a dependency-revision disposition.
+Generation increment plus cleared ledger fields alone MUST be rejected.
 
 ## Dependency revisions
 
@@ -215,68 +251,72 @@ exact preserved commit for every removed worker worktree.
 | Disposition ID | Revision IDs | Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Preservation proof | Preserved commit | Disposition evidence | Evidence digest | Resource dispositions | Recorded at |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 
+This append-only table contains both dependency-revision dispositions and
+ordinary abandonment dispositions. `Revision IDs` MUST name exact dependency
+revision IDs or one `abandonment:<safe-id>` marker.
+
 ## Unit execution ledger
 
-| Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Worker commit | Integration checkpoint | Gate fingerprint | External evidence | Last transition |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| `identity` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/session` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/session/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/session/valkey` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/delivery` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/delivery/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/risk` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/risk/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/risk/valkey` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/risk/captcha` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/risk/captcha/recaptcha` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/risk/captcha/turnstile` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/risk/captcha/hcaptcha` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/risk/captcha/captchafox` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/risk/hibp` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/password` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/password/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/username` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/email` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/magiclink` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/otp` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/otp/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/phone` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/anonymous` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/anonymous/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/mfa` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/mfa/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `webauthn` | 0 | — | — | — | — | — | — | — | — | initial |
-| `webauthn/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `passkey` | 0 | — | — | — | — | — | — | — | — | initial |
-| `passkey/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/oauth` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/oauth/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/oauth/providers` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/oauth/onetap` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/oauth/proxy` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/apikey` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/apikey/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/apikey/valkey` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/impersonation` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/impersonation/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `organization` | 0 | — | — | — | — | — | — | — | — | initial |
-| `organization/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `sso` | 0 | — | — | — | — | — | — | — | — | initial |
-| `sso/domain-verification` | 0 | — | — | — | — | — | — | — | — | initial |
-| `sso/oidc` | 0 | — | — | — | — | — | — | — | — | initial |
-| `sso/oauth2` | 0 | — | — | — | — | — | — | — | — | initial |
-| `sso/saml` | 0 | — | — | — | — | — | — | — | — | initial |
-| `sso/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `scim` | 0 | — | — | — | — | — | — | — | — | initial |
-| `scim/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `scim/organization` | 0 | — | — | — | — | — | — | — | — | initial |
-| `oauth-server` | 0 | — | — | — | — | — | — | — | — | initial |
-| `oauth-server/oidc` | 0 | — | — | — | — | — | — | — | — | initial |
-| `oauth-server/device` | 0 | — | — | — | — | — | — | — | — | initial |
-| `oauth-server/postgres` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/i18n` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/http` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/reference` | 0 | — | — | — | — | — | — | — | — | initial |
-| `identity/identitytest` | 0 | — | — | — | — | — | — | — | — | initial |
+| Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Worker commit | Integration checkpoint | Gate execution revision | Gate fingerprint | External evidence | Last transition |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `identity` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/session` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/session/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/session/valkey` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/delivery` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/delivery/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/risk` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/risk/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/risk/valkey` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/risk/captcha` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/risk/captcha/recaptcha` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/risk/captcha/turnstile` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/risk/captcha/hcaptcha` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/risk/captcha/captchafox` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/risk/hibp` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/password` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/password/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/username` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/email` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/magiclink` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/otp` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/otp/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/phone` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/anonymous` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/anonymous/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/mfa` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/mfa/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `webauthn` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `webauthn/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `passkey` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `passkey/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/oauth` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/oauth/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/oauth/providers` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/oauth/onetap` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/oauth/proxy` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/apikey` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/apikey/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/apikey/valkey` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/impersonation` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/impersonation/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `organization` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `organization/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `sso` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `sso/domain-verification` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `sso/oidc` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `sso/oauth2` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `sso/saml` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `sso/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `scim` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `scim/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `scim/organization` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `oauth-server` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `oauth-server/oidc` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `oauth-server/device` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `oauth-server/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/i18n` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/http` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/reference` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `identity/identitytest` | 0 | — | — | — | — | — | — | — | — | — | initial |

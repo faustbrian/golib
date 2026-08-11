@@ -89,6 +89,11 @@ involved.
   deltas. Mapping versions, checkpoints, source-of-truth fields,
   deprovisioning, local-override conflicts and outcome-unknown recovery MUST be
   explicit; directory input MUST NOT bypass SCIM or organization authority.
+  `sso` is the sole semantic owner of sync generations, provider cursors,
+  checkpoints, cancellation, reconciliation and canonical directory-sync
+  events. Apply MUST enlist the public SCIM/organization mapping contributor
+  before the first write; unknown child outcomes block cursor advancement until
+  recovered.
 - `EnterpriseTokenVault` MUST own provider access/refresh token storage,
   lookup, rotation, serialized refresh, revocation, retention and deletion.
   Recoverable tokens MUST use `secret-envelope` with tenant/organization/
@@ -96,7 +101,11 @@ involved.
   MUST remain token-free. Protocol adapters MUST pass tokens only through this
   contract and MUST NOT persist them independently.
 - SSO enforcement MUST define enrollment, grace, bypass/recovery administrators,
-  provider outage, disabled provider and break-glass audit behavior. It MUST NOT
+  provider outage, disabled provider and separate break-glass issuance/use audit
+  behavior. `identity.sso.break-glass.issue` MUST only issue and audit the
+  reveal-once capability; `identity.sso.break-glass.consume` MUST atomically
+  consume it, establish bounded recovery authority, and emit the distinct use
+  event. It MUST NOT
   permanently lock all administrators out.
 - Self-service provider administration MUST expose only organization-owned
   providers and safe metadata; secrets, certificates/private keys and raw IdP
@@ -136,6 +145,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

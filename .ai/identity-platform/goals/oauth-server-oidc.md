@@ -55,6 +55,8 @@ involved.
 - ID tokens MUST bind issuer, audience/authorized party, subject, issued/expiry
   time, nonce when supplied, authentication time/context/method and access-token
   or code hashes where the selected flow requires them.
+- UserInfo `sub` MUST equal the ID-token subject for the same grant and client;
+  mismatch MUST deny without returning claims.
 - Public and pairwise subjects MUST be stable for the declared sector/client
   policy, unlinkable across sectors, key-rotation safe and non-reversible to a
   raw internal user ID.
@@ -79,6 +81,14 @@ involved.
   session or configured maximum. Session revocation, subject disablement and
   signing-key compromise MUST produce the lifecycle behavior declared for this
   exchange profile.
+- Exchange MUST validate its anti-replay proof read-only, then reserve, apply
+  and finalize the one-use capability with access-JWT issuance in one command.
+  Unknown completion MUST recover before another exchange. Each JWT MUST
+  snapshot global, tenant, user, authorization, every applicable organization
+  and factor, OAuth client, grant, signing-key-compromise epoch and `kid`, plus
+  the source session and session-family authority versions;
+  verifiers and positive caches MUST deny on a newer version or unknown
+  lifecycle acknowledgement.
 - JWKS MUST publish only public verification material, unique `kid` values and
   supported algorithms. Rotation MUST preserve an overlap window, revoke
   compromised keys explicitly and never serve private members.
@@ -137,6 +147,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

@@ -39,6 +39,13 @@ errors. Client ID, issuer, audience, authorized origins, hosted-domain policy,
 clock skew, nonce lifetime, redirect allowlist and account-linking policy MUST
 be explicit. Cross-Origin-Opener-Policy and browser integration requirements
 MUST be documented for consumers without embedding framework code.
+Initiation MUST create a purpose-bound, one-use pre-auth transaction that binds
+tenant, provider, client, authorized origin, nonce, redirect/mode, initiating
+subject when present, risk-policy version and the caller's exact
+`identity/session.RememberPolicy`. Callback validation is read-only; credential
+completion MUST reserve, apply and finalize that transaction with the generic
+OAuth identity result and preserve RememberPolicy unchanged through MFA and
+session issuance. Unknown completion MUST recover before retry.
 
 The module MUST expose a transport-neutral browser seam that produces a typed,
 bounded Google Identity Services initialization/prompt/button configuration and
@@ -73,6 +80,12 @@ cryptographic work. Tokens, nonce, PII and raw claims MUST NOT escape. Tests
 MUST cover JWK rotation, cached-key failure, `azp`, multiple audiences, clock
 skew, replay races, FedCM-related callback variations, origin canonicalization,
 open redirects, cancellation and account collision.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Acceptance and blockers
 

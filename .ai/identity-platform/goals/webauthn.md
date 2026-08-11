@@ -68,6 +68,11 @@ involved.
 - Assertion MUST verify client data, authenticator data, flags, signature,
   allowed/discoverable credential rules, user handle and extensions before
   applying the counter/backup-state policy.
+- Backup eligibility (`BE`) is immutable after registration and `BS=1` with
+  `BE=0` MUST deny. For backup-eligible credentials, equal or decreasing
+  counters MUST produce bounded risk evidence rather than an automatic clone
+  verdict. For non-backup credentials with a stored positive counter, an equal
+  or decreasing counter MUST deny and enter the documented recovery path.
 - This module owns WebAuthn extension request construction, bounded parsing and
   validation. It MUST expose only outputs selected by the shared typed
   extension profile in the cryptographically verified result, with their
@@ -136,6 +141,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

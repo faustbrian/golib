@@ -13,7 +13,7 @@ shown here.
 - Canonical goal after scaffolding: `pkg/identity/otp/.ai/GOAL.md`
 - Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`
 - Consumes existing primitives: `capability`, `capability/postgres`, `password`, `rate-limit`, `audit`
-- Unlocks after verification: `identity/otp/postgres`, `identity/phone`, `identity/mfa`, `identity/http`
+- Unlocks after verification: `identity/email`, `identity/otp/postgres`, `identity/phone`, `identity/mfa`, `identity/http`
 
 ## Start gate
 

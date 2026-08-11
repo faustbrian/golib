@@ -66,6 +66,12 @@ authoritative, mutable, security-sensitive or display-only. Unknown claims
 MUST NOT flow into identity metadata without a bounded declared extension
 mapping.
 
+Apple MUST select `form_post` under the pinned OAuth 2.0 Form Post Response Mode
+and bind it into authorization state with the exact HTTPS callback. Every other
+provider defaults to `query`; a provider may not inherit, advertise, or accept
+`form_post` unless a later named profile adds an exact clause pin, configuration
+catalog decision, and interoperability evidence.
+
 The package does not own browser redirects, state storage, account linking,
 token vaults, sessions, enterprise SSO, provider SDK wrappers, or silent
 provider guessing. A generic provider remains configurable through

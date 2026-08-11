@@ -1,0 +1,371 @@
+{
+  "schema_version": 1,
+  "goals": [
+    {
+      "unit": "identity",
+      "planning_path": "goals/identity.md",
+      "canonical_path": "pkg/identity/.ai/GOAL.md",
+      "sha256": "00ed2c4f18afc4676762f51ae6c17c89f0b9d375be5e24979f1265f5cc63cc50"
+    },
+    {
+      "unit": "identity/postgres",
+      "planning_path": "goals/identity-postgres.md",
+      "canonical_path": "pkg/identity/postgres/.ai/GOAL.md",
+      "sha256": "e5e99322027bdfd9044ec1ad2f930cfde587336d881a3020b46716be6da24223"
+    },
+    {
+      "unit": "identity/session",
+      "planning_path": "goals/identity-session.md",
+      "canonical_path": "pkg/identity/session/.ai/GOAL.md",
+      "sha256": "47a4dc870e3dc1d2dfbdc59d5a14119d7d142283e3df2f4802b9d74551d30c6a"
+    },
+    {
+      "unit": "identity/session/postgres",
+      "planning_path": "goals/identity-session-postgres.md",
+      "canonical_path": "pkg/identity/session/postgres/.ai/GOAL.md",
+      "sha256": "a51b01fa37744d0b8d322d88c3254f13d0bc7f963cd8e5d863496686a063bf74"
+    },
+    {
+      "unit": "identity/session/valkey",
+      "planning_path": "goals/identity-session-valkey.md",
+      "canonical_path": "pkg/identity/session/valkey/.ai/GOAL.md",
+      "sha256": "87054101c2dd3abb2a48818d51b8abafe1b35b9ff1453c6f46eae04806d0885c"
+    },
+    {
+      "unit": "identity/delivery",
+      "planning_path": "goals/identity-delivery.md",
+      "canonical_path": "pkg/identity/delivery/.ai/GOAL.md",
+      "sha256": "fad0731482136ec47bb426d4923324e7a74f1cb90864061dcd848c06208909f7"
+    },
+    {
+      "unit": "identity/delivery/postgres",
+      "planning_path": "goals/identity-delivery-postgres.md",
+      "canonical_path": "pkg/identity/delivery/postgres/.ai/GOAL.md",
+      "sha256": "ac1aeaa7cfb5312a08b7de1d9adeae296d9d0d65656de4f8d486e1092a2925d8"
+    },
+    {
+      "unit": "identity/risk",
+      "planning_path": "goals/identity-risk.md",
+      "canonical_path": "pkg/identity/risk/.ai/GOAL.md",
+      "sha256": "e337b86d6abbb91ab2fc4f0498c8c019dfa88f2589cc9b8b533edd56251901ee"
+    },
+    {
+      "unit": "identity/risk/postgres",
+      "planning_path": "goals/identity-risk-postgres.md",
+      "canonical_path": "pkg/identity/risk/postgres/.ai/GOAL.md",
+      "sha256": "089fe701b3b0ccf9feff3408b62c9e70f67dc9b6585297ce9066eff5a9e1ccc3"
+    },
+    {
+      "unit": "identity/risk/valkey",
+      "planning_path": "goals/identity-risk-valkey.md",
+      "canonical_path": "pkg/identity/risk/valkey/.ai/GOAL.md",
+      "sha256": "158461eb25a007003d4872d4f4e081191644a84de7b990d3dd34dcd7aa5a9286"
+    },
+    {
+      "unit": "identity/risk/captcha",
+      "planning_path": "goals/identity-risk-captcha.md",
+      "canonical_path": "pkg/identity/risk/captcha/.ai/GOAL.md",
+      "sha256": "b9e0e01c779d97a1263fee15ddba0a50f712a539e035fe79d6f936e44bad0a35"
+    },
+    {
+      "unit": "identity/risk/captcha/recaptcha",
+      "planning_path": "goals/identity-risk-captcha-recaptcha.md",
+      "canonical_path": "pkg/identity/risk/captcha/recaptcha/.ai/GOAL.md",
+      "sha256": "df5076e09ea8b32563a0c7d0b20acf9a9eec701fbb2b54d986a16ef2a851c8ba"
+    },
+    {
+      "unit": "identity/risk/captcha/turnstile",
+      "planning_path": "goals/identity-risk-captcha-turnstile.md",
+      "canonical_path": "pkg/identity/risk/captcha/turnstile/.ai/GOAL.md",
+      "sha256": "c32bbfb9ff667141b429ef6c3d0d735ed84b40c3be7cbfcdfa7cc8efd3b88588"
+    },
+    {
+      "unit": "identity/risk/captcha/hcaptcha",
+      "planning_path": "goals/identity-risk-captcha-hcaptcha.md",
+      "canonical_path": "pkg/identity/risk/captcha/hcaptcha/.ai/GOAL.md",
+      "sha256": "8dce31d00fa66299208db5c886bdcf893fe86cb48f3a982d830b96b142a2d0af"
+    },
+    {
+      "unit": "identity/risk/captcha/captchafox",
+      "planning_path": "goals/identity-risk-captcha-captchafox.md",
+      "canonical_path": "pkg/identity/risk/captcha/captchafox/.ai/GOAL.md",
+      "sha256": "63758d90168a01bc9e27d1c4b2d167eaddc3bad5ad4b199aef0da57c74674d59"
+    },
+    {
+      "unit": "identity/risk/hibp",
+      "planning_path": "goals/identity-risk-hibp.md",
+      "canonical_path": "pkg/identity/risk/hibp/.ai/GOAL.md",
+      "sha256": "ac4e283bdffd3d6c02ad17b033b24ff81173f16cb457651631683e30466b04da"
+    },
+    {
+      "unit": "identity/password",
+      "planning_path": "goals/identity-password.md",
+      "canonical_path": "pkg/identity/password/.ai/GOAL.md",
+      "sha256": "a91f8486559cedc45c20841b2c5b746fd15b3d2531c7a5121ff49b8528c708dc"
+    },
+    {
+      "unit": "identity/password/postgres",
+      "planning_path": "goals/identity-password-postgres.md",
+      "canonical_path": "pkg/identity/password/postgres/.ai/GOAL.md",
+      "sha256": "130fa23bd68f9bfa228a6dfac7a7b1fe25d16d3282d2441994226d175913a957"
+    },
+    {
+      "unit": "identity/username",
+      "planning_path": "goals/identity-username.md",
+      "canonical_path": "pkg/identity/username/.ai/GOAL.md",
+      "sha256": "f04789c10e03227b56d3ffbefc22266f7894e973a0ea9cdb37bc2e4dfc7fe7dd"
+    },
+    {
+      "unit": "identity/email",
+      "planning_path": "goals/identity-email.md",
+      "canonical_path": "pkg/identity/email/.ai/GOAL.md",
+      "sha256": "06ed688c2f5c85187e1709370a3c6d24fff06af5632c744f54c81fc28d161366"
+    },
+    {
+      "unit": "identity/magiclink",
+      "planning_path": "goals/identity-magiclink.md",
+      "canonical_path": "pkg/identity/magiclink/.ai/GOAL.md",
+      "sha256": "7833df9833e2a7057624e18d4391fd35a9014e92e75f367e8b5b9888f67ee527"
+    },
+    {
+      "unit": "identity/otp",
+      "planning_path": "goals/identity-otp.md",
+      "canonical_path": "pkg/identity/otp/.ai/GOAL.md",
+      "sha256": "a994a0b319d4f56fe142e702052692c3e15bbb6a79209212d401d2fb4d319cb5"
+    },
+    {
+      "unit": "identity/otp/postgres",
+      "planning_path": "goals/identity-otp-postgres.md",
+      "canonical_path": "pkg/identity/otp/postgres/.ai/GOAL.md",
+      "sha256": "aaa829877a189bd1965923a2d4f47e1e01a133fffef515395a20999750cc26ab"
+    },
+    {
+      "unit": "identity/phone",
+      "planning_path": "goals/identity-phone.md",
+      "canonical_path": "pkg/identity/phone/.ai/GOAL.md",
+      "sha256": "59a889524e776efd3573f32ce1831a7f30112dd252a049584c8e54fa00f6b750"
+    },
+    {
+      "unit": "identity/anonymous",
+      "planning_path": "goals/identity-anonymous.md",
+      "canonical_path": "pkg/identity/anonymous/.ai/GOAL.md",
+      "sha256": "eec2a0a35b8c44fadb4b00cb5e13f66cbb0d43e417ea027604ebf979ce39a5fb"
+    },
+    {
+      "unit": "identity/anonymous/postgres",
+      "planning_path": "goals/identity-anonymous-postgres.md",
+      "canonical_path": "pkg/identity/anonymous/postgres/.ai/GOAL.md",
+      "sha256": "957a66006470d49b2231e3c7a4808a5836216f614912e72f38d8e6802754b479"
+    },
+    {
+      "unit": "identity/mfa",
+      "planning_path": "goals/identity-mfa.md",
+      "canonical_path": "pkg/identity/mfa/.ai/GOAL.md",
+      "sha256": "c0a37b7a4db868b60433303fa42584a60f2658c5534fb115da4dc763f3fe92f9"
+    },
+    {
+      "unit": "identity/mfa/postgres",
+      "planning_path": "goals/identity-mfa-postgres.md",
+      "canonical_path": "pkg/identity/mfa/postgres/.ai/GOAL.md",
+      "sha256": "c9ad5c9d6cc124df87b05375fc0fe3e17482af1731eaa35e616bf2dcf1d65b59"
+    },
+    {
+      "unit": "webauthn",
+      "planning_path": "goals/webauthn.md",
+      "canonical_path": "pkg/webauthn/.ai/GOAL.md",
+      "sha256": "5bfa258c6b0a00fa90069acfa268836fe6f0cb2098ea26edd4a4c52336a164e9"
+    },
+    {
+      "unit": "webauthn/postgres",
+      "planning_path": "goals/webauthn-postgres.md",
+      "canonical_path": "pkg/webauthn/postgres/.ai/GOAL.md",
+      "sha256": "8008c2d6ecee369efe3095e10a5d34030121109879918d1bfa216b2af35557e3"
+    },
+    {
+      "unit": "passkey",
+      "planning_path": "goals/passkey.md",
+      "canonical_path": "pkg/passkey/.ai/GOAL.md",
+      "sha256": "2292fe42032cd5efb50f22cee9795717e1f9132257c0db82825a92d5f6228e78"
+    },
+    {
+      "unit": "passkey/postgres",
+      "planning_path": "goals/passkey-postgres.md",
+      "canonical_path": "pkg/passkey/postgres/.ai/GOAL.md",
+      "sha256": "2bf159a7af9ea2bd953d6d4e0b72f4e77e389a1b367b3998f5a571d5794f51fe"
+    },
+    {
+      "unit": "identity/oauth",
+      "planning_path": "goals/identity-oauth.md",
+      "canonical_path": "pkg/identity/oauth/.ai/GOAL.md",
+      "sha256": "018e3c3bfebd9066962f43fe2e013c49efa49a6bd188547fbd0dbf4d0bd619f7"
+    },
+    {
+      "unit": "identity/oauth/postgres",
+      "planning_path": "goals/identity-oauth-postgres.md",
+      "canonical_path": "pkg/identity/oauth/postgres/.ai/GOAL.md",
+      "sha256": "ab7651987d0f48cfa2b370f87c2a71b69f7a3ec9557e7baaa328795cf0e21204"
+    },
+    {
+      "unit": "identity/oauth/providers",
+      "planning_path": "goals/identity-oauth-providers.md",
+      "canonical_path": "pkg/identity/oauth/providers/.ai/GOAL.md",
+      "sha256": "7307e199b3b905658403e506d402a571232953cfd5a2d98c9994d70bc681d323"
+    },
+    {
+      "unit": "identity/oauth/onetap",
+      "planning_path": "goals/identity-oauth-onetap.md",
+      "canonical_path": "pkg/identity/oauth/onetap/.ai/GOAL.md",
+      "sha256": "2b23286e171252c1826e0d7a4e44001e46a6e1b746446c14db8a7b6eb2a9c1bd"
+    },
+    {
+      "unit": "identity/oauth/proxy",
+      "planning_path": "goals/identity-oauth-proxy.md",
+      "canonical_path": "pkg/identity/oauth/proxy/.ai/GOAL.md",
+      "sha256": "ba1f2f6880cf5c32fc6fb6c17218640cf6602e0ba2fc474fd9b08ef624f19638"
+    },
+    {
+      "unit": "identity/apikey",
+      "planning_path": "goals/identity-apikey.md",
+      "canonical_path": "pkg/identity/apikey/.ai/GOAL.md",
+      "sha256": "409146cfd7169da7aceb3c8752984eb329ac4fa9b05db88ea59918a06d9f3610"
+    },
+    {
+      "unit": "identity/apikey/postgres",
+      "planning_path": "goals/identity-apikey-postgres.md",
+      "canonical_path": "pkg/identity/apikey/postgres/.ai/GOAL.md",
+      "sha256": "e561cb2dc18afe45440f8a3c631658785106e5e9962ef1c448ff89f845138558"
+    },
+    {
+      "unit": "identity/apikey/valkey",
+      "planning_path": "goals/identity-apikey-valkey.md",
+      "canonical_path": "pkg/identity/apikey/valkey/.ai/GOAL.md",
+      "sha256": "1505c6b45e77a51e811a468dcf7e3f76c96480fb4ceabc2a9a3ec0a5fad5de71"
+    },
+    {
+      "unit": "identity/impersonation",
+      "planning_path": "goals/identity-impersonation.md",
+      "canonical_path": "pkg/identity/impersonation/.ai/GOAL.md",
+      "sha256": "6516d20236738496bb755b61093f673a98b9a6fa16a77eb5cbfc74cd8ecb2e82"
+    },
+    {
+      "unit": "identity/impersonation/postgres",
+      "planning_path": "goals/identity-impersonation-postgres.md",
+      "canonical_path": "pkg/identity/impersonation/postgres/.ai/GOAL.md",
+      "sha256": "f28ad5ce1097d3032705012f8d722808c5ebb71ec5228bc0d1d0a4c83c1e18ec"
+    },
+    {
+      "unit": "organization",
+      "planning_path": "goals/organization.md",
+      "canonical_path": "pkg/organization/.ai/GOAL.md",
+      "sha256": "85af298b1fc8a6f3d3fa38e122d61f423a15b5d88a12064c79a5820923752bcd"
+    },
+    {
+      "unit": "organization/postgres",
+      "planning_path": "goals/organization-postgres.md",
+      "canonical_path": "pkg/organization/postgres/.ai/GOAL.md",
+      "sha256": "d5a02c2bb7968c79c992810596495b5eee8018d0b9690cff6bd6a762e82cf43e"
+    },
+    {
+      "unit": "sso",
+      "planning_path": "goals/sso.md",
+      "canonical_path": "pkg/sso/.ai/GOAL.md",
+      "sha256": "4b6df8448e6702496c6902391feac60ae9cfc7a6e13778d16ff3c82752bb774c"
+    },
+    {
+      "unit": "sso/domain-verification",
+      "planning_path": "goals/sso-domain-verification.md",
+      "canonical_path": "pkg/sso/domain-verification/.ai/GOAL.md",
+      "sha256": "f5b802915ff8ce0e85577ca13efb71146c55bdddfb58b2edaa396734de13b414"
+    },
+    {
+      "unit": "sso/oidc",
+      "planning_path": "goals/sso-oidc.md",
+      "canonical_path": "pkg/sso/oidc/.ai/GOAL.md",
+      "sha256": "000505865577d071fe3adf27db5cc033ac7b61f2da1eebe301a0312a3e002190"
+    },
+    {
+      "unit": "sso/oauth2",
+      "planning_path": "goals/sso-oauth2.md",
+      "canonical_path": "pkg/sso/oauth2/.ai/GOAL.md",
+      "sha256": "cea21e054a7c3a24ac9dee16119d306e19b1681e69ce25cdf1d7f88914167ef9"
+    },
+    {
+      "unit": "sso/saml",
+      "planning_path": "goals/sso-saml.md",
+      "canonical_path": "pkg/sso/saml/.ai/GOAL.md",
+      "sha256": "d3af7e593b63e30cf1fd56ceb58cdb0c6656525e6cee9c5f8364cac8772bf1da"
+    },
+    {
+      "unit": "sso/postgres",
+      "planning_path": "goals/sso-postgres.md",
+      "canonical_path": "pkg/sso/postgres/.ai/GOAL.md",
+      "sha256": "10f6557d278cf2bfddd667bee6eb669da7aa07c41d23a37a40ffa857eed05838"
+    },
+    {
+      "unit": "scim",
+      "planning_path": "goals/scim.md",
+      "canonical_path": "pkg/scim/.ai/GOAL.md",
+      "sha256": "ace25ab095707c2cf2f64cedc5b34a4286406ff77dc3840d37ab01f0c1c48010"
+    },
+    {
+      "unit": "scim/postgres",
+      "planning_path": "goals/scim-postgres.md",
+      "canonical_path": "pkg/scim/postgres/.ai/GOAL.md",
+      "sha256": "85830094c4bf15114c73571323e14a2f9cfd35788650ff09a2dceb9b70d9ad18"
+    },
+    {
+      "unit": "scim/organization",
+      "planning_path": "goals/scim-organization.md",
+      "canonical_path": "pkg/scim/organization/.ai/GOAL.md",
+      "sha256": "64227fcb55759b95cc107f37d94bccdc2be27f901162e989d0571f6c2959e310"
+    },
+    {
+      "unit": "oauth-server",
+      "planning_path": "goals/oauth-server.md",
+      "canonical_path": "pkg/oauth-server/.ai/GOAL.md",
+      "sha256": "226432240362ccb872beb09ce6be1cfa6b29d9c4b918ce57fc33243817d44483"
+    },
+    {
+      "unit": "oauth-server/oidc",
+      "planning_path": "goals/oauth-server-oidc.md",
+      "canonical_path": "pkg/oauth-server/oidc/.ai/GOAL.md",
+      "sha256": "c70eda12add65c52e536dc576db0b51d375f07885960cd5324c48319ebfaca41"
+    },
+    {
+      "unit": "oauth-server/device",
+      "planning_path": "goals/oauth-server-device.md",
+      "canonical_path": "pkg/oauth-server/device/.ai/GOAL.md",
+      "sha256": "f022cdb1fd83e7700f87ad055466bc10d29101f0c1e1f4c68d0f7b2e82e1bb1e"
+    },
+    {
+      "unit": "oauth-server/postgres",
+      "planning_path": "goals/oauth-server-postgres.md",
+      "canonical_path": "pkg/oauth-server/postgres/.ai/GOAL.md",
+      "sha256": "7b8ea3d65aa8269a20e2d689974cbf62f3bb00183e7ac154088a55c6650d851f"
+    },
+    {
+      "unit": "identity/i18n",
+      "planning_path": "goals/identity-i18n.md",
+      "canonical_path": "pkg/identity/i18n/.ai/GOAL.md",
+      "sha256": "1d4c145200c957895cd01e6f34434041ee5955f1ba24882a60ffbcadc74d5ff7"
+    },
+    {
+      "unit": "identity/http",
+      "planning_path": "goals/identity-http.md",
+      "canonical_path": "pkg/identity/http/.ai/GOAL.md",
+      "sha256": "b2fd41b83073d2635426dc91785f4abb42a3c9f3cda0c013f244ba65739285ed"
+    },
+    {
+      "unit": "identity/reference",
+      "planning_path": "goals/identity-reference.md",
+      "canonical_path": "pkg/identity/reference/.ai/GOAL.md",
+      "sha256": "5344c35e14403f29306bc7f1043e6c5a89d82fb470d9474a9a982ee513d2b014"
+    },
+    {
+      "unit": "identity/identitytest",
+      "planning_path": "goals/identity-identitytest.md",
+      "canonical_path": "pkg/identity/identitytest/.ai/GOAL.md",
+      "sha256": "6a2fe2da12040109a7c0071fab74cfa3eb0af2713495127b0399464081b74ffd"
+    }
+  ]
+}

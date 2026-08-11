@@ -64,8 +64,15 @@ involved.
   configuration evidence and MUST NOT claim provider-returned site-key proof.
   It MUST never put secrets/tokens in URL logs or diagnostics.
 - Result mapping MUST validate success, challenge timestamp/skew, expected
-  hostname, action for score profiles and configured score threshold while
-  preserving documented error codes and unknown codes conservatively.
+  hostname, action for score profiles, score presence and score range while
+  preserving documented error codes and unknown codes conservatively. It MUST
+  return normalized evidence without comparing the score to a policy threshold.
+- This adapter MUST NOT own or apply score threshold, ambiguity, step-up,
+  throttle, allow or deny policy. Those decisions and one-use evidence
+  consumption belong exclusively to `identity/risk` under
+  `captcha.score_owner`, `captcha.score_threshold`, `captcha.ambiguity` and
+  `risk.operation_matrix`; adapter configuration MUST NOT shadow or override
+  them.
 - A v2 response without score/action MUST NOT fabricate them; a v3 policy MUST
   fail if required action/score evidence is missing.
 - Duplicate/timeout-or-duplicate, invalid-input-secret, invalid-input-response,
@@ -84,6 +91,9 @@ involved.
   Token or evidence replay under another binding MUST fail. Security events and
   lifecycle cascades MUST use `.ai/identity-platform/SECURITY_EVENTS.md` and
   `.ai/identity-platform/LIFECYCLE_CASCADES.md` respectively.
+- The adapter MUST NOT derive or return the authoritative replay fingerprint.
+  It accepts the raw token only for the bounded Siteverify call; `identity/risk`
+  derives the durable keyed replay identity from that token and trusted scope.
 
 ## Security and abuse requirements
 
@@ -113,6 +123,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

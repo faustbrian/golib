@@ -1,0 +1,1 @@
+identity-platform local gate artifact fixture

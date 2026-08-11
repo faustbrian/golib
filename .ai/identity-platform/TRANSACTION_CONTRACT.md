@@ -63,7 +63,7 @@ safe canonical fingerprints or retention of the old key.
 A same-ID mismatch, including an improbable digest collision revealed by stored
 canonical safe fields, MUST return `Conflict` and MUST perform no mutation.
 
-HTTP/SCIM idempotency admission MUST atomically map one scoped
+HTTP/SCIM idempotency admission for proprietary application operations MUST atomically map one scoped
 `Idempotency-Key` keyed digest to one random `CommandID` before reservation. The
 lookup and uniqueness key is exactly tenant, actor, method, canonical route ID,
 and the keyed digest; it MUST NOT include the request body, request fingerprint,
@@ -76,37 +76,75 @@ blocked and is never remapped after the 24-hour replay window. The mapping,
 command ledger, and SCIM mutation MUST NOT be implemented as parallel
 authorities.
 
+Standards-defined OAuth authorization, device authorization, and SCIM mutation
+requests MUST remain interoperable without `Idempotency-Key`. Their admission
+MUST derive one server-owned random command identity and persist a canonical
+protocol-request fingerprint before mutation. When a client voluntarily sends
+the extension header, its scoped digest MAY additionally map to that command
+using the same conflict and recovery rules, but absence MUST NOT be rejected.
+Protocol preconditions, authorization continuations, device codes, resource
+versions, and durable request fingerprints remain the authoritative replay and
+conflict boundaries.
+
 A SCIM Bulk request has one random parent command and a bounded ordered list of
 independently random child command IDs persisted atomically at admission. Each
 declared child stores its `bulkId`, dependency IDs, request fingerprint, order,
-state, and durable result. Child states are exactly `not-started`, `in-progress`,
-`succeeded`, `failed`, `blocked-unknown-dependency`, and
-`skipped-fail-on-errors`. Only conclusively successful dependencies permit a
-child to enter `in-progress`; failed dependencies produce a durable SCIM
-dependency failure, while an unknown dependency durably blocks the child until
-reconciliation proves its outcome. An omitted or zero `failOnErrors` disables
+state, stable preallocated resource ID where applicable, strongly connected
+component (SCC) ID, SCC order, and durable result. Admission MUST build the
+complete bounded dependency graph, reject unknown/cross-request references,
+compute SCCs, and persist the graph plus its deterministic execution plan before
+the first mutation. The SCC condensation graph executes in topological order;
+ties use the lowest original operation index. Forward references therefore wait
+for the referenced predecessor SCC rather than being rejected. Child states are
+exactly `not-started`, `in-progress`, `succeeded`, `failed`,
+`blocked-unknown-dependency`, and `skipped-fail-on-errors`. An acyclic singleton
+enters `in-progress` only after every predecessor SCC conclusively succeeds. A
+cyclic SCC MUST preallocate final resource IDs for all of its create members,
+validate and substitute every within-SCC reference against those IDs, and apply
+the complete bounded SCC in one transaction with deferred within-SCC referential
+checks. Its child results and SCC checkpoint commit atomically; any member
+failure rolls back the SCC and records a deterministic dependency failure for
+every member, so no partial cycle is exposed. This SCC boundary MUST NOT be
+described as whole-request atomicity. A failed predecessor produces a durable
+SCIM dependency failure, while an unknown predecessor durably blocks the
+dependent SCC until reconciliation proves its outcome. An omitted or zero `failOnErrors` disables
 the cutoff and executes every otherwise-admissible child. A positive value N
 triggers the cutoff only after the Nth child durably reaches `failed`; operation
 failures and dependency failures use that state, while `blocked-unknown-dependency`
 and `skipped-fail-on-errors` do not increment the count. At that checkpoint,
 every remaining `not-started` child atomically becomes
-`skipped-fail-on-errors` with the stable SCIM response selected for that state;
+`skipped-fail-on-errors`; skipped children are unprocessed and therefore have
+no BulkResponse `Operations` member, `status`, `location`, `version`, or SCIM
+Error body;
 already completed or blocked children are not rewritten. The parent checkpoint
 persists the failed count and `cutoff_active=true`. A
 `blocked-unknown-dependency` child remains incomplete until reconciliation
 proves its dependency: a failed dependency transitions the child to durable
 `failed` with the SCIM dependency response, while a successful dependency
-transitions it to `skipped-fail-on-errors` when the cutoff is already active.
+transitions it to `skipped-fail-on-errors` when the cutoff is already active,
+again without a wire operation result.
 Such a child MUST NOT enter `in-progress` after the cutoff. The public parent
 result remains `InProgress`/`Unknown` and cannot emit a terminal Bulk response
-while any child is blocked. There is no later child admission. Each executing
-child commits independently through the unit of work; the parent result is a
-deterministic replay of every declared child in
-original order from its durable checkpoint, including dependency failures,
-blocked outcomes, and fail-on-errors skips. Savepoints MUST NOT be used to claim
+while any child is blocked. There is no later child admission. Each acyclic
+singleton commits independently through the unit of work; each cyclic SCC
+commits through the bounded atomic SCC rule above. The terminal parent
+result is a deterministic replay, in original request order, of exactly the
+children that reached `succeeded` or `failed`. It MUST omit every
+`skipped-fail-on-errors` child as unprocessed, and it cannot be terminal while a
+child is `not-started`, `in-progress`, or `blocked-unknown-dependency`. The
+durable parent checkpoint still retains every declared child and its final
+state. Savepoints MUST NOT be used to claim
 durability or survive a root rollback. Delete results and unresolved mappings
 remain replayable through the configured terminal/unknown retention even after
 the resource tombstone ages.
+
+Before the first child mutation, admission MUST compute a conservative
+worst-case terminal BulkResponse size from every admitted child, including the
+maximum status, location, version, `bulkId`, and bounded SCIM Error
+representation. If that bound exceeds `scim.bulk.response_bytes`, the complete
+request MUST fail without persisting or executing a child. Runtime serialization
+MUST remain within the proved bound; truncating a terminal response after
+mutation is forbidden.
 
 ## Durable command ledger and reservation state machine
 
@@ -157,14 +195,16 @@ and fail closed, not guess rollback.
 ## PostgreSQL unit of work
 
 1. **`tx.uow.enlist`:** `Enlist(owner, contributor)` MUST register every
-   compile-time typed command, RiskEvidence, capability, OTP, domain, session,
+   compile-time typed command, RiskEvidence, CaptchaEvidence, capability, OTP,
+   domain, session,
    outbox, and effect contributor before the reservation transaction's first
    write. Duplicate, undeclared, or late contributors fail.
 2. **`tx.uow.reserve`:** `ReserveCommand(ctx, scope, command, contributors)` MUST
    open one short primary-authority transaction and atomically complete the
-   command reservation plus every declared RiskEvidence, capability, and OTP
+   command reservation plus every declared RiskEvidence, CaptchaEvidence,
+   capability, and OTP
    reservation before `Begin`. It locks command row, tenant, then one-time keys
-   ordered as RiskEvidence, capability, and OTP; keys within a class sort
+   ordered as RiskEvidence, CaptchaEvidence, capability, and OTP; keys within a class sort
    lexicographically. Any participant denial, error, or cancellation rolls back
    every reservation write; a separate or private participant reservation is
    forbidden. When an expired `pending` command is taken over, this same
@@ -183,12 +223,12 @@ and fail closed, not guess rollback.
    I/O, or invoke unbounded or caller-controlled callbacks.
 5. **`tx.uow.locks`:** Before the first mutation, contributors MUST publish all lock keys. The unit
    of work MUST reacquire locks in this order: command row; tenant; reserved
-   RiskEvidence, capability, then OTP rows; primary aggregate type/ID; secondary
+   RiskEvidence, CaptchaEvidence, capability, then OTP rows; primary aggregate type/ID; secondary
    aggregate type/ID; credential/session/grant ID; outbox sequence. Keys within
    a class sort lexicographically.
 6. **`tx.uow.commit`:** `Commit(result)` MUST atomically write domain mutations, authority-version
-   bumps, lifecycle events, audit/outbox/effect records, enlisted RiskEvidence
-   and capability finalization, and `pending` to `committed`, guarded by owner
+   bumps, lifecycle events, audit/outbox/effect records, enlisted RiskEvidence,
+   CaptchaEvidence, and capability finalization, and `pending` to `committed`, guarded by owner
    generation, before the single PostgreSQL commit.
    Once commit begins, any error, cancellation, or disconnect returns `Unknown`,
    performs no local rollback, retry, or reveal-once material issuance, and
@@ -203,7 +243,11 @@ and fail closed, not guess rollback.
    that bookkeeping is ambiguous, recovery takes ownership and no local retry
    occurs. A non-retryable failure or
    exhausted retry budget MUST finalize `pending` to `aborted` in a separate
-   short transaction guarded by generation. Failure or ambiguity during
+   short transaction guarded by generation. That same terminalization MUST
+   transition or reconcile every enlisted one-time RiskEvidence,
+   CaptchaEvidence, capability, and OTP reservation to its legal non-commit
+   terminal state; it MUST NOT leave a known-aborted command holding reusable or
+   unresolved authority. Failure or ambiguity during
    rollback or terminalization MUST return `Unknown` and enter reconciliation.
 8. **`tx.uow.query`:** `QueryCommand(ctx, tenant, purpose, commandID, caller)` MUST use the primary
    authority, authorize the caller for that scope, and return only the redacted
@@ -223,6 +267,81 @@ immutable signed or keyed `RiskEvidence` binding tenant, subject, operation,
 signals, provider/configuration versions, decision, issued time, and expiry. The
 transaction MUST perform only local scope/version/age checks plus authoritative
 stored counter and policy checks. It MUST NOT invoke a risk/provider callback.
+
+## One-use CAPTCHA evidence protocol
+
+A protected action that risk policy conditions on CAPTCHA MUST use one typed
+`CaptchaEvidenceContributor` implemented by `identity/risk/postgres`. A provider
+adapter verifies the remote response and returns only normalized bounded
+verification facts; it MUST NOT issue evidence or own durable state. The
+`identity/risk` core decides issuance through the injected contributor, and
+`tx.captcha.issue` durably inserts the opaque `CaptchaEvidence` reference and
+bounded safe metadata in the same transaction that advances the command ledger
+from `pending` to `committed` with the safe result. A separate evidence insert
+is forbidden. `tx.captcha.reconcile` MUST classify the same command and
+fingerprint as exactly `committed` with its recorded safe result, `aborted`
+with proof no evidence row committed, or still `pending` and outcome-unknown.
+An ambiguous insert MUST use `tx.captcha.reconcile` for
+the same command and fingerprint on the primary and MUST NOT issue a second
+reference. The
+durable evidence row MUST bind tenant, subject or anonymous-flow ID, pre-auth
+transaction, exact registered action, canonical request fingerprint,
+provider/site/configuration version, hostname, decision, database-issued time,
+expiry, keyed-digest key version, and proof fingerprint. Raw response tokens,
+remote IP, provider payloads, scores, `cdata`, and provider error text MUST NOT
+enter the command, journal result, audit event, or caller-visible result.
+
+The CAPTCHA replay fingerprint MUST be HMAC-SHA-256 under
+`secrets.captcha_replay_digest_key` over the ASCII domain
+`identity-captcha-replay-v1`, one zero byte, then unsigned 32-bit big-endian
+length-prefixed UTF-8 provider ID, site ID, API/profile ID and configuration
+version fields in that order, followed by the unsigned 64-bit big-endian raw
+provider-token length and raw provider-token bytes. `identity/risk` is the sole
+derivation authority; callers and provider adapters MUST NOT supply or override
+the fingerprint. A unique constraint on tenant, provider, site ID,
+profile/configuration version, and replay fingerprint MUST give exactly one
+issuance command authority. A collision with the same scope and fingerprint
+replays only the original command/result; any different command remains denied
+without revealing which field matched. Replay tombstones MUST survive evidence
+payload erasure and unresolved commands have no time-based release. Terminal
+tombstones and referenced digest-key versions remain through
+`captcha.replay_tombstone_retention`; key retirement MUST NOT make an otherwise
+replayable provider token admissible.
+
+`CaptchaEvidence` states are exactly `issued`, `reserved`, `finalized`,
+`released`, `expired`, and `revoked`. Only `issued` may become `reserved`;
+`reserved` may become `finalized`, `released`, or `revoked`; untouched `issued`
+may become `expired` or `revoked`; every other transition is forbidden. The
+protected action MUST enlist the typed contributor before reservation. Its
+command fingerprint MUST cover the opaque evidence reference and every bound
+action/request/subject/version input. `tx.captcha.reserve` MUST lock the issued
+row inside the coordinator's one `tx.uow.reserve` transaction and bind the
+command ID, command fingerprint, owner generation, and target versions. A
+precheck grants no authority, and the contributor MUST NOT open a private
+transaction or call the provider.
+
+`tx.captcha.apply` MUST recheck command/generation ownership, PostgreSQL expiry,
+exact action, subject/flow, request fingerprint, provider/site/configuration
+versions, and the current risk-policy version inside the domain transaction.
+`tx.captcha.finalize` MUST transition the reservation to `finalized` in the
+same commit as the protected mutation, authority-version changes, session
+transition, audit/outbox records, and command result. Any reservation denial,
+binding mismatch, expiry, replay by another command, cancellation, or
+participant failure MUST leave the protected action uncommitted. An ambiguous
+commit MUST leave the evidence `reserved`, return `Unknown`, and reconcile the
+same command on the primary; timeout, lease loss, or evidence expiry MUST NOT
+release or reassign it. Only authoritative proof that the owning command did
+not commit MAY transition it to terminal `released`, after which retry requires
+new evidence. Expired-owner takeover MUST CAS-rebind this contributor with
+every other declared participant under the rule in `tx.uow.reserve`.
+
+A same-command, same-fingerprint replay MUST return the recorded protected
+action result without re-verifying the provider or consuming new evidence. A
+different command MUST receive the same non-enumerating replay denial whether
+the evidence is missing, terminal, bound elsewhere, or invalid. Cleanup MUST
+retain unresolved reservations and, after terminal payload crypto-shredding,
+retain the scoped keyed-digest/state tombstone until every referenced key is
+retired and the bearer can no longer validate before lookup.
 
 Evidence-producing `identity.risk.evaluate` MUST enlist
 `identity/risk/postgres` in the identity command unit of work and atomically
@@ -394,7 +513,10 @@ durable failed-attempt increment, `issued` to `reserved`, `issued` to `expired`,
    precheck MAY compare the exact binding and digest under a separately bounded
    attempt policy, but grants no authority and MUST NOT reserve or consume.
 3. **`tx.otp.attempt`: Attempt:** an incorrect submitted code MUST atomically
-   increment the one durable attempt counter under the issued-row lock; reaching
+   increment the one durable attempt counter exactly once under the consuming
+   command ID and canonical command fingerprint, persist the stable aborted
+   command result, and replay that result without another increment. A different
+   fingerprint for the same command conflicts without mutation. Reaching
    the budget transitions `issued` to terminal `exhausted`. Cross-purpose,
    cross-subject, cross-channel, or unknown challenges receive the same
    constant-work denial and MUST NOT mutate another row.

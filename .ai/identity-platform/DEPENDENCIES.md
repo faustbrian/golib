@@ -121,6 +121,7 @@ flowchart TD
   risk --> hibp
   identity --> email
   delivery --> email
+  otp --> email
   delivery --> delivery_pg
   identity_pg --> delivery_pg
   identity --> password

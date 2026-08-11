@@ -81,8 +81,11 @@ involved.
   MUST NOT weaken tenant, RP, identity-status or risk checks.
 - Tenant and RP selection MUST be trusted configuration established before
   ceremony creation. Opaque user handles and credential resolution MUST bind
-  tenant, RP and identity together; neither browser-supplied RP fields nor a
-  globally unique credential-ID assumption may cross that boundary.
+  tenant, RP and identity together. Resolution MUST use `(RP namespace,
+  credential ID)`; credential ID is unique across that complete RP namespace
+  and tenant MUST NOT disambiguate it. Reuse in a distinct RP namespace does
+  not establish global identity. Browser-supplied RP fields MUST NOT cross the
+  authority boundary.
 - Pre-auth signup, authenticated enrollment, assertion/session issuance and
   deletion MUST use `.ai/identity-platform/TRANSACTION_CONTRACT.md` so ceremony
   consumption, WebAuthn credential state, identity/passkey mapping and session
@@ -94,6 +97,13 @@ involved.
   the SessionIssuer. No continuation, default or conditional-UI path may
   upgrade a non-persistent choice to a persistent credential or longer server
   lifetime.
+- Register, sign-in, list, rename and delete MUST use the exact authorization,
+  idempotency and continuation contracts in `API_OPERATIONS.md`. Creation,
+  rename, removal and compromise MUST emit passkey-owned lifecycle and security
+  events. Removal MUST bump the passkey authority version and the credential
+  version when primary; compromise MUST bump both. Factor reset, global
+  compromise, identity anonymization and deletion cascades MUST be acknowledged
+  before affected sessions remain valid; unknown acknowledgement denies.
 
 ## Security and abuse requirements
 
@@ -123,6 +133,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

@@ -148,6 +148,12 @@ protocol or security property whose selected baseline no longer proves it.
   Consumption MUST NOT disclose or reuse the source bearer. It mints an exact-
   origin child handle in the same session family that cannot outlive or be
   fresher/more privileged than the source and is independently revocable.
+- Anonymous upgrade locks the anonymous transition and target identity, revokes
+  the complete anonymous session family, rotates the current session, and
+  issues the permanent session in the same command transaction. The old
+  anonymous bearer has no grace window. A committed same-command replay returns
+  the recorded permanent-session result; an unknown result issues no second
+  session and remains in primary-authority reconciliation.
 
 ## One-time credentials and MFA
 
@@ -285,7 +291,11 @@ protocol or security property whose selected baseline no longer proves it.
   reference profile, not RFC 8693. Its grant identifier is
   `urn:golib:params:oauth:grant-type:session-jwt`; it accepts no caller-selected
   subject, actor, or arbitrary audience and is omitted from standard OAuth grant
-  metadata except in a namespaced extension object.
+  metadata except in a namespaced extension object. RFC 8693 token exchange is
+  explicitly unsupported and unadvertised. Issued JWTs bind global, tenant,
+  user, authorization, applicable organization/factor, OAuth-client, grant,
+  signing-key-compromise epoch and `kid`, plus source session and session-family
+  dimensions and never outlive the source session.
 - Enterprise SSO domain routing requires DNS TXT proof at
   `_identity-verification.<registrable-domain>` containing a 32-byte random,
   tenant/organization/domain-bound token. IDNA2008 canonicalization and the
@@ -338,6 +348,10 @@ protocol or security property whose selected baseline no longer proves it.
 - SCIM list count defaults to 100 and is capped at 1,000; filters are capped at
   depth 16 and 256 AST nodes; PATCH is capped at 100 operations. Bulk is capped
   at 1,000 operations and 1 MiB decoded body, with `failOnErrors` capped at 100.
+  SCIM JSON rejects exact duplicate members and case-insensitive attribute-name
+  collisions. Below-one `startIndex` is 1, negative `count` is zero, absent
+  sort uses server `id` ascending, and `itemsPerPage` is the actual returned
+  count from the same snapshot as `totalResults`.
 - Active organization is session/container state, never a user-global row. A
   switch requires current membership and increments the session version;
   membership removal, organization archive, or role invalidation clears it.
@@ -359,6 +373,14 @@ protocol or security property whose selected baseline no longer proves it.
 - Production audit uses `audit/postgres`, the event profile in
   `SECURITY_EVENTS.md`, and atomic or durable-outbox delivery. Missing mandatory
   audit readiness blocks startup; logs, metrics and traces are not substitutes.
+- Privacy export uses the contributor set and immutable version-vector
+  watermark in `LIFECYCLE_CONSUMERS.md`. Shared PostgreSQL contributors use one
+  exported `REPEATABLE READ` snapshot; other authorities MUST reproduce their
+  recorded checkpoint from a versioned journal. Export artifacts remain
+  encrypted and non-downloadable until every fragment and final identity/privacy
+  epoch check succeeds. Anonymization/deletion atomically cancels unpublished
+  exports, revokes issued or reserved download capabilities, and denies every
+  later download before artifact erasure completes.
 
 ## Risk, delivery, and localization
 
@@ -391,10 +413,20 @@ protocol or security property whose selected baseline no longer proves it.
   only risk policy applies score thresholds. A 32-byte server-generated attempt
   ID binds provider/site, tenant, subject or anonymous flow, exact action and
   request fingerprint. Successful evidence is valid for two minutes and is
-  atomically consumed by one assessment; retry is allowed only for the same
-  logical request. Production uses fixed provider HTTPS endpoints, no redirects
+  reserved through the typed `CaptchaEvidenceContributor`, then finalized in
+  the same PostgreSQL commit as the exact protected action, session/authority
+  transition, audit/outbox records, and command result. A precheck or separate
+  consumption transaction grants no authority. Retry is allowed only for the
+  same command and request fingerprint; an ambiguous commit leaves evidence
+  reserved for primary-authority reconciliation and MUST NOT rerun the
+  provider. Production uses fixed provider HTTPS endpoints, no redirects
   or endpoint overrides, and rejects userinfo, query credentials, private/link-
   local/reserved destinations and DNS rebinding.
+  `identity/risk` derives the sole replay fingerprint from the raw provider
+  token plus tenant/provider/site/profile/configuration scope under the
+  versioned CAPTCHA replay key. PostgreSQL enforces one issuance winner and
+  retains a keyed tombstone after payload erasure; adapters and callers cannot
+  choose replay identity.
 - The reference CAPTCHA provider profiles are exactly those in
   `REFERENCE_CONFIGURATION.md`: each fixes its Siteverify API/version/tier,
   requires a site key and canonical hostname allowlist, fixes origins to empty,
@@ -452,9 +484,12 @@ protocol or security property whose selected baseline no longer proves it.
   preflight maximum age, and `Vary: Origin, Access-Control-Request-Method,
   Access-Control-Request-Headers`; wildcard origins and reflected request
   origins are forbidden.
-- HTTP idempotency uses the existing PostgreSQL adapter, a 32-byte random
-  caller key carried only in `Idempotency-Key`, and a digest bound to tenant,
-  actor, method, canonical route ID and request-body SHA-256. Entries expire
+- HTTP idempotency uses the existing PostgreSQL adapter and a 32-byte random
+  caller key carried only in `Idempotency-Key`. Its keyed lookup digest is
+  scoped only by tenant, actor, method, and canonical route ID; request body and
+  other behavior-bearing fields MUST NOT alter that lookup key. The separately
+  stored canonical request fingerprint includes the request-body SHA-256,
+  content type, preconditions, and every behavior-bearing input. Entries expire
   after 24 hours; in-flight duplicates receive HTTP 409 with bounded retry
   metadata. Only successful deterministic responses are replayed. Denials,
   provider failures and unknown commits are never cached as success; an unknown

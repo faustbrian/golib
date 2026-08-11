@@ -35,7 +35,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define User, Account, Identifier, CredentialRef, Verification, StatusPolicy, AttributeSchema, AttributeValue, FieldPolicy, Repository, UnitOfWork, Hook, and Event contracts. Public errors MUST be typed, stable,
+The design MUST define User, Account, Identifier, CredentialRef, Verification, StatusPolicy, AttributeSchema, AttributeValue, FieldPolicy, Repository, UnitOfWork, PrivacyExportContributor, PrivacyExportArtifact, PrivacyExportCapability, PolicySet, AuthorizationPolicyInput, AuthorizationPolicyDecision, RiskPolicyInput, RiskPolicyDecision, ClaimsPolicyInput, ClaimsPolicyDecision, RetentionPolicyInput, RetentionPolicyDecision, RedactionPolicyInput, RedactionPolicyDecision, Hook, and Event contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -70,6 +70,12 @@ may persist it, but neither becomes a parallel semantic owner.
 - Hooks MUST have ordered before/after phases, cancellation, bounded execution,
   reentrancy policy and explicit transaction visibility. An observer failure
   MUST NOT silently roll back an already committed identity mutation.
+- `PolicySet` MUST expose exactly `Authorize`, `AssessRisk`, `MapClaims`,
+  `DecideRetention`, and `Redact` with the signatures, immutable binding fields,
+  policy identity/version results, registered reasons and fail-closed behavior
+  in `struct:ref.identity.policy_set`. Construction MUST reject nil callbacks;
+  callbacks MUST be bounded and side-effect-free and MUST NOT own stores,
+  transactions, routing or workflow continuation.
 - Repository queries MUST define tenant scope, status filters, pagination,
   ordering, consistency and redaction. Search MUST be bounded and MUST NOT
   become an enumeration bypass.
@@ -86,6 +92,16 @@ may persist it, but neither becomes a parallel semantic owner.
   cascade checkpoint in `.ai/identity-platform/LIFECYCLE_CASCADES.md` is
   confirmed; accepted or queued work MUST remain `pending`, and blocked or
   outcome-unknown work MUST remain distinguishable.
+- A privacy export MUST enlist an exact, predeclared set of
+  `PrivacyExportContributor` implementations before its first authoritative
+  write. Each contributor MUST return a bounded, versioned, redacted artifact
+  fragment for the same tenant, subject, snapshot ID and policy version. The
+  identity-owned `PrivacyExportArtifact` MUST record contributor completion,
+  omission reason, content digest, encryption-key version, expiry and legal-
+  hold state; queue acceptance or partial contributor success MUST NOT become a
+  completed export. Download MUST reserve and finalize an identity-owned,
+  purpose-bound, one-use `PrivacyExportCapability`; Validate is read-only, and
+  unknown reserve/finalize outcomes remain fail-closed and reconcilable.
 - Self-service deletion MUST consume the closed proof policy from
   `.ai/identity-platform/REFERENCE_CONFIGURATION.md`: current password plus a
   fresh session, fresh UV passkey, or a purpose/subject/session/version-bound
@@ -93,6 +109,10 @@ may persist it, but neither becomes a parallel semantic owner.
   initiation, session revocation and terminal result MUST use the transaction
   and unknown-outcome contracts; an old session or caller assertion that it is
   fresh is insufficient.
+- Deletion and privacy-export download MUST use the complete shared capability
+  roles: Validate is read-only; Issue creates the purpose-bound artifact;
+  Reserve, Apply and Finalize run with the owning command; Recover determines
+  an unknown outcome. Neither flow MAY treat bearer validation as consumption.
 - Provider links are identity-owned account records keyed by tenant, provider,
   issuer and provider subject. Provider modules may prove a subject and retain
   provider credentials, but MUST NOT create an independent link authority;
@@ -137,6 +157,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

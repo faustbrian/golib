@@ -11,7 +11,7 @@ shown here.
 - Unit: `identity/email`
 - Canonical module: `pkg/identity/email`
 - Canonical goal after scaffolding: `pkg/identity/email/.ai/GOAL.md`
-- Requires: `identity`, `identity/delivery`
+- Requires: `identity`, `identity/delivery`, `identity/otp`
 - Consumes existing primitives: `capability`, `capability/postgres`, `workflow`, `audit`, `identifier`
 - Unlocks after verification: `identity/magiclink`, `identity/http`
 
@@ -42,12 +42,25 @@ limits, and extension points MUST have explicit semantics.
 
 ## Required behavior
 
+The module MUST implement the version-1 privacy-export contributor contract
+for email identifiers, verification history, and bounded redacted delivery
+metadata, and MUST participate in identity anonymization and deletion cascades.
+When the reference PostgreSQL profile is selected, `identity/postgres` MUST
+persist the email anonymization/deletion checkpoint and privacy-export fragment
+for the exact tenant, subject, snapshot ID, policy version, contributor version,
+content digest, and terminal outcome in the owning coordinator transaction.
+
 The implementation and tests MUST send enumeration-safe verification; consume once; bind action and subject; race address claims; confirm old/new address policy; revoke superseded links; avoid losing the last reachable verified identifier. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
 
 ## Package-specific acceptance checklist
+
+- An email-verification OTP recovery flow MUST select the canonical
+  `email_verification_otp` recovery path before issuance and preserve that
+  selector through OTP reservation, identity mutation and audit; a link flow
+  MUST NOT be reinterpreted as OTP recovery or vice versa.
 
 - Address policy MUST define parsing, canonical comparison, case/domain/IDN
   handling, display preservation, maximum length and whether plus-address or
@@ -88,10 +101,12 @@ involved.
 - When handling `identity.otp.email-verify`,
   `identity.otp.email-change-confirm`, or the optional current-address OTP branch
   of `identity.otp.email-change-request`, this workflow MUST
-  reserve/apply/finalize the purpose-bound OTP through `identity/otp/postgres` in
-  the same coordinator unit of work as its owning mutation. Non-OTP email
-  operations MUST NOT enlist an OTP participant. Release and recovery remain
-  fail-closed on rollback or unknown commit.
+  reserve/apply/finalize the purpose-bound OTP through the public
+  `identity/otp` contributor contract in the same coordinator unit of work as
+  its owning mutation. The core MUST NOT import, require, or name a concrete
+  OTP persistence adapter; reference composition selects that adapter.
+  Non-OTP email operations MUST NOT enlist an OTP participant. Release and
+  recovery remain fail-closed on rollback or unknown commit.
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
   cryptographic work.
@@ -119,6 +134,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

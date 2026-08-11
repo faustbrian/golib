@@ -72,6 +72,12 @@ involved.
   cases MUST fail closed.
 - Logout, refresh and revocation capabilities MUST be declared per provider;
   unsupported features MUST NOT be inferred from discovery omissions.
+- RP-initiated logout MUST have distinct start and completion operations. Start
+  persists one-time state bound to provider, issuer, local session/version and
+  allowlisted post-logout target before redirect. Completion MUST consume that
+  state exactly once, validate the provider outcome, and reconcile success,
+  error, timeout, replay, and unknown provider outcome with local revocation,
+  which remains authoritative on every path.
 - Official fixtures plus at least one independent enterprise IdP profile MUST
   prove discovery, login, JWK rotation and mapping; provider-specific deviations
   MUST remain attributable.

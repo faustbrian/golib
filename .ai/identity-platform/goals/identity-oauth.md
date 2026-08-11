@@ -71,6 +71,10 @@ involved.
   additional scopes, provider prompt/response-mode options and bounded
   application data carried through authenticated state. Caller parameters MUST
   not override security-critical provider configuration.
+- The response mode MUST come from the immutable provider profile. Generic
+  OAuth/OIDC providers use `query`; the sole selected exception is Apple's
+  pinned `form_post` profile. The callback MUST reject a transport or mode that
+  differs from the state-bound profile before code or ID-token processing.
 - The generic option model MUST distinguish provider identity, client ID and
   secret source, authorization/token/UserInfo/JWKS/revocation endpoints,
   issuer and audience rules, client-authentication method, default and optional
@@ -84,6 +88,12 @@ involved.
   state/nonce/PKCE failure, code-exchange unknown outcome, identity-proof
   failure, disabled signup and account collision. A callback MUST be idempotent
   without making an authorization code reusable.
+- An authorization response MUST contain exactly one of a code or an error and
+  MUST reject duplicate or conflicting `code`, `state`, `iss`, `error`,
+  `error_description` and `error_uri` members. When RFC 9207 issuer
+  identification is selected, `iss` is REQUIRED and MUST exactly match the
+  transaction's configured issuer before any token exchange; an absent,
+  unexpected or mismatched issuer MUST fail closed.
 - Callback state MUST be authenticated, confidential when it carries
   application data, single-use, bounded and expiring. It MUST bind the
   operation kind, provider and client, tenant, initiating subject for linking,
@@ -157,6 +167,10 @@ explicit configuration under
 Security-relevant starts, denials, callbacks, links, refreshes and revocations
 MUST emit the bounded records defined by
 [`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
+Password reset, password compromise, global compromise, identity suspension,
+anonymization and deletion MUST invalidate every affected session-derived
+grant and cached positive decision at the selected authority-version boundary;
+unknown cascade acknowledgement MUST deny refresh and session issuance.
 
 ## Acceptance evidence
 
@@ -167,6 +181,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

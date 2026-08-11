@@ -99,6 +99,7 @@ permitted:
 | Row ID/type | Exact members | Semantics |
 | --- | --- | --- |
 | `struct:ref.identity.delete.proof` | `password_user = fresh_session_and_current_password`; `passkey_user = fresh_uv_passkey`; `provider_user = emailed_capability`; `no_email_recovery = fresh_uv_passkey_or_administrator_recovery`; `ttl = 15m`; `admin_authorization = identity.delete.admin` | closed immutable policy |
+| `struct:ref.identity.policy_set` | `Authorize = func(context.Context, AuthorizationPolicyInput) (AuthorizationPolicyDecision, error)`; `AssessRisk = func(context.Context, RiskPolicyInput) (RiskPolicyDecision, error)`; `MapClaims = func(context.Context, ClaimsPolicyInput) (ClaimsPolicyDecision, error)`; `DecideRetention = func(context.Context, RetentionPolicyInput) (RetentionPolicyDecision, error)`; `Redact = func(context.Context, RedactionPolicyInput) (RedactionPolicyDecision, error)`; `nil_member = invalid`; `side_effects = forbidden`; `stores_transactions_routing_continuation = forbidden` | `identity.PolicySet` is immutable; every input binds tenant, actor/subject, exact operation ID, policy version and deadline plus the callback-specific typed resource; every decision returns its policy ID/version and a registered reason; timeout, cancellation, panic, error or malformed output denies authorization/risk/retention, rejects claims mapping, and omits redacted output without falling back to another callback |
 | `struct:ref.platform.authority` | `role_store = authorization/postgres`; `assignment_store = authorization/postgres`; `identity_store = identity/postgres`; `bootstrap = one_time_out_of_band`; `role_operations = identity.platform.role.create,identity.platform.role.update,identity.platform.role.delete`; `permission_statement_operations = identity.platform.permission-statement.create,identity.platform.permission-statement.update,identity.platform.permission-statement.delete`; `assignment_operation = identity.admin.user-role-set`; `audit = audit/postgres`; `cache = authorization/valkey_positive_only` | closed immutable policy; every successful mutation increments the platform authority version and invalidates prior-version decisions |
 | `struct:ref.audit.retention_policy` | `durable_store = audit/postgres`; `initialization = insert_once_from_bootstrap_defaults`; `runtime_authority = durable_policy_version`; `restart = load_durable_never_overwrite`; `update_operation = identity.audit-retention.policy.update`; `initialization_event = identity.audit_retention.change_policy`; `unset = unsupported`; `reset = unsupported`; `plan_binding = policy_version_and_hold_checkpoint` | sole closed authority policy; concurrent initialization is insert-once and every later mutation uses an expected durable version |
 | `struct:ref.session.cookie.max_age` | `browser_session = omitted`; `persistent = remaining_absolute_lifetime`; `minimum = 15m`; `maximum = 7d`; `session_bound = true` | closed immutable policy; omission and duration are distinct typed variants |
@@ -115,6 +116,10 @@ permitted:
 | `struct:ref.phone.recovery` | `request_when_disabled = deny`; `complete_when_disabled = deny`; `proof = canonical_reset_capability_plus_purpose_bound_phone_otp_plus_eligible_independent_factor`; `risk_authority = identity/risk`; `risk_evidence = immutable_one_use`; `risk_binding = tenant,subject,operation,purpose,canonical_number,preauth_transaction,attempt_id,policy_version`; `risk_ttl = 2m`; `caller_signals = forbidden`; `sim_swap = negative_allow,positive_deny,unknown_deny,unavailable_deny`; `number_recycling = negative_allow,positive_deny,unknown_deny,unavailable_deny`; `carrier = negative_allow,positive_deny,unknown_deny,unavailable_deny`; `carrier_signal = required` | closed immutable risk/proof policy; `phone.recovery.enabled` is the sole enablement authority; enabling requires explicit operator acceptance of SIM-swap, number-recycling and carrier risks and never weakens the OTP or independent-factor requirements; absent required evidence is `unavailable`; stale, mismatched or replayed evidence denies |
 | `struct:ref.risk.valkey_recovery` | `journal = postgres`; `maximum_window = configured_maximum_velocity_window`; `batch = reconciliation.batch`; `lease_owners = 1`; `healthy_condition = watermark_reaches_database_utc_minus_maximum_window`; `operator_bypass = false` | closed immutable policy |
 | `struct:ref.captcha.evidence` | `attempt_bytes = 32`; `ttl = 2m`; `uses = 1`; `binding = provider,site,tenant,subject_or_anonymous_flow,action,request_fingerprint`; `retry = same_logical_request_only` | closed immutable policy |
+| `struct:ref.captcha.replay_fingerprint` | `algorithm = HMAC-SHA-256`; `domain = identity-captcha-replay-v1`; `owner = identity/risk`; `scope = tenant,provider,site,api_profile,configuration_version`; `token = raw_provider_token`; `uniqueness = durable_single_winner` | closed replay identity; callers and provider adapters cannot supply or override the fingerprint |
+| `struct:ref.authentication.recovery_path` | `catalog = emailed_password_reset,email_verification_otp,phone_password_reset,mfa_recovery_code,uv_passkey,administrator_recovery`; `selection = exactly_one`; `phone_password_reset = disabled_unless_phone.recovery.enabled`; `administrator_recovery = audited_explicit_authorization`; `unknown_or_unavailable = deny`; `fallback = forbidden` | canonical closed recovery-path selector; packages MUST NOT invent aliases, combine paths, or silently substitute a weaker path |
+| `struct:ref.tenant.host_mapping` | `tenant = exact_canonical_host_map`; `public_realm = exact_canonical_host_allowlist`; `tenant_public_overlap = forbidden`; `unknown = deny`; `port = validated_then_removed`; `idna = uts46_nontransitional_ascii`; `trailing_dot = reject`; `wildcard = forbidden` | sole closed host-to-tenant/public-realm authority; request input never selects tenant or realm independently of the trusted effective host |
+| `struct:ref.verification.applicability` | `authority = VERIFICATION_APPLICABILITY.json`; `selectors = race,fuzz,hostile,leak,benchmark,infrastructure,provider_interoperability`; `values = required,not_applicable`; `default = required`; `not_applicable = reviewed_reason_required`; `missing = blocker` | closed per-unit evidence selector; the canonical manifest MUST declare all seven values for every unit, and any inline goal declaration MUST match it exactly; infrastructure/provider absence MUST NOT be recorded as not applicable when the contract requires it |
 | `struct:ref.delivery.provider_retry` | `maximum_attempts = 5`; `unknown = reconcile`; `resubmit = pinned_provider_idempotency_only`; `permanent_rejection = dead_letter`; `queue_acceptance = not_delivered` | closed immutable policy |
 | `struct:ref.http.external_retry` | `maximum_attempts = 3`; `maximum_retries = 2`; `retryable = proven_idempotent_before_effect_or_pinned_idempotency`; `ambiguous_after_send = outcome_unknown`; `redirects = 0` | closed immutable policy |
 | `struct:ref.postgres.command_retry` | `maximum_attempts = 3`; `retryable = serialization_failure,deadlock_detected`; `jitter = full`; `retry_upper_bounds = 10ms,100ms`; `ambiguous_bookkeeping = reconcile` | closed immutable policy |
@@ -139,6 +144,12 @@ only after full validation; failure leaves the prior snapshot active.
 | `identity.email.max_bytes` | 254 | 3..254; IDNA result and original input both bounded |
 | `identity.unicode_version` | Unicode 15.1.0 | canonicalization changes require collision preflight and migration |
 | `identity.phone_metadata` | libphonenumber metadata 9.0.10 | version/checksum required; no silent metadata update |
+| `identity.privacy_export.max_bytes` | 256 MiB | 1 MiB..1 GiB hard aggregate bound before encrypted artifact publication |
+| `identity.privacy_export.artifact_ttl` | 24h | 15m..7d; expiry revokes every outstanding download capability |
+| `identity.privacy_export.retention` | 7d | 24h..30d; legal hold is explicit and does not extend bearer capability lifetime |
+| `identity.privacy_export.store` | encrypted object store | typed injected store; atomic publish, immutable content digest and bounded delete reconciliation required |
+| `identity.privacy_export.worker` | bounded workflow worker | lease, heartbeat, cancellation, contributor deadline and unknown-outcome recovery required |
+| `identity.privacy_export.encryption` | envelope AEAD | versioned KMS-backed key reference, per-artifact data key and authenticated tenant/subject/snapshot binding |
 | `identity.username.min_codepoints` | 3 codepoints | 1..32 |
 | `identity.username.max_codepoints` | 32 codepoints | 3..64; MUST be at least minimum |
 | `identity.username.scripts` | `Latin`, `Common`, one script per name | fixed reference set; mixed scripts denied; any change requires a new manifest value and collision preflight |
@@ -147,6 +158,7 @@ only after full validation; failure leaves the prior snapshot active.
 | `identity.delete.mode` | anonymize then hard-delete after acknowledgements | hard delete never precedes lifecycle closure |
 | `identity.delete.grace` | 24 hours | 0..30 days; zero still requires recent proof and acknowledgements |
 | `identity.delete.proof` | closed policy `struct:ref.identity.delete.proof` | passkey-only users use a fresh UV-required passkey assertion; provider-only users use a 15-minute emailed capability; users lacking verified email use fresh UV passkey or audited administrator recovery; every proof is purpose/version bound |
+| `identity.policy_set` | closed callable seam `struct:ref.identity.policy_set` | exact five-callback `identity.PolicySet`; callbacks are bounded pure decisions and cannot own state, routing or workflow continuation |
 | `identity.ban.expiry_action` | audited automatic restore requiring new login | old authority never reactivates |
 | `platform.authority` | closed composition `struct:ref.platform.authority` | all six role/permission-statement operations plus user-role-set are the sole mutation surface; platform roles and subject assignments are durable versioned authorization state; identity metadata and deployment configuration are never authority |
 | `platform.bootstrap.enabled` | `false` | explicit Boolean; may be true only for one bounded offline operator invocation and never registers an HTTP/OpenAPI surface |
@@ -190,8 +202,14 @@ only after full validation; failure leaves the prior snapshot active.
 | `session.transfer.ttl` | 3 minutes | 30 seconds..3 minutes |
 | `session.rotation_overlap` | 0 seconds | fixed at zero for bearer credentials in the reference profile |
 | `authentication.preauth_ttl` | 5 minutes | 1..10 minutes; single-use and origin/action/tenant bound |
+| `anonymous.display_name` | `Guest` | 1..64 Unicode codepoints after normalization; display only and never an identifier or authority signal |
+| `anonymous.placeholder_email_domain` | `anonymous.invalid` | exact reserved non-deliverable IDNA ASCII domain; MUST NOT overlap tenant/provider domains or become verified contact data |
+| `anonymous.ttl` | 24 hours | 15 minutes..30 days absolute lifetime; expiry uses authoritative database time |
 | `session.last_login_method_retention` | 90 days | 1..365 days; feature remains disabled until notice/consent policy is selected |
+| `session.last_login_method_notice_consent` | `disabled` | enum `disabled`, `notice`, `explicit_consent`; `notice` requires a selected localized notice before collection; `explicit_consent` requires recorded purpose/version consent and revocation; missing selection is `disabled` and no method may be stored |
 | `csrf.token_bytes` | 32 | exactly 32..64; header/body token plus session/origin binding |
+| `csrf.referer_fallback` | `deny` | enum `deny`, `same-origin-https`; default deny; enabling accepts a syntactically valid absolute HTTPS Referer only when Origin is absent and its exact origin equals the trusted effective external origin; missing, opaque, downgraded, cross-origin, userinfo-bearing, or malformed values deny |
+| `authentication.recovery_path` | closed policy `struct:ref.authentication.recovery_path` | every recovery initiation and completion selects exactly one canonical path and preserves it through capability, OTP, risk, audit, and session transitions |
 | `otp.code_digits` | 6 digits | 6..10 digits |
 | `otp.code_alphabet` | decimal `0` through `9` | fixed reference alphabet |
 | `otp.digest` | HMAC-SHA-256 | keyed versioned secret; unkeyed digest forbidden |
@@ -378,6 +396,7 @@ forgotten secret.
 | `scim.delete_tombstone_retention` | 30 days | 24 hours..90 days; same key/fingerprint replays original DELETE result while a different key sees normal precondition/not-found behavior |
 | `risk.authority` | closed policy `struct:ref.risk.authority` | PostgreSQL is authority; Valkey is ephemeral only |
 | `risk.precedence` | closed policy `struct:ref.risk.precedence` | all signals recorded; no allow short-circuit over unknown/stronger result |
+| `risk.operation_matrix` | `authentication = signup,signin,password-reset-request,password-reset-complete,magic-link-request,magic-link-consume,otp-request,otp-consume,oauth-start,oauth-callback,one-tap-callback,sso-start,sso-callback,passkey-signin`; `credential_mutation = password-change,email-add,email-change,email-remove,phone-add,phone-change,phone-remove,mfa-enroll,mfa-change,mfa-remove,passkey-enroll,passkey-remove,provider-link,provider-unlink`; `privileged = api-key-manage,impersonation,organization-invitation,organization-administration,scim-administration,oauth-server-authorize,oauth-server-token,oauth-server-device`; `low_risk_read = session-read,profile-read,provider-catalog-read,health-read`; `unknown_authentication = deny`; `unknown_credential_mutation = deny`; `unknown_privileged = deny`; `unknown_low_risk_read = step_up_with_independent_factor_else_deny`; `unlisted = deny` | exact closed operation/action matrix; callers MUST use one listed canonical action and MUST NOT choose fail behavior |
 | `risk.valkey.boot_epoch` | required random 128-bit epoch plus PostgreSQL-recorded health marker | restart, flush, missing marker, or epoch mismatch is unavailable, never zero counters |
 | `risk.valkey.recovery` | closed policy `struct:ref.risk.valkey_recovery` | replay the PostgreSQL journal before atomically publishing a healthy epoch; state remains unavailable until the exact watermark condition holds |
 | `captcha.ambiguity` | deny signup/signin/reset/credential change; step-up for low-risk read flows only when an independent configured factor exists, otherwise deny | adapters return evidence only; unavailable/unknown never becomes allow |
@@ -385,6 +404,7 @@ forgotten secret.
 | `captcha.score_owner` | risk engine | enum `risk engine`; adapters return evidence and MUST NOT decide |
 | `captcha.score_threshold` | 0.5 | 0.0..1.0; protected actions deny below threshold when selected provider supplies a score |
 | `captcha.evidence` | closed policy `struct:ref.captcha.evidence` | adapters return evidence only; the risk engine owns consumption and decision |
+| `captcha.replay_tombstone_retention` | 24 hours after provider-token expiry and terminal evidence | 2 minutes..7 days; unresolved/unknown issuance has no time-based release, and key versions remain until every retained fingerprint tombstone expires |
 | `hibp.cache.enabled` | `true` | explicit Boolean; memory only |
 | `hibp.cache.entries` | 10,000 prefixes | 100..100,000 |
 | `hibp.cache.ttl` | 24 hours | 1 hour..7 days |
@@ -413,16 +433,17 @@ forgotten secret.
 | `http.read_header_timeout` | 5 seconds | 1..30 seconds |
 | `http.read_timeout` | 15 seconds | 1..60 seconds |
 | `http.write_timeout` | 30 seconds | 1..60 seconds |
+| `http.handler_timeout` | 15 seconds | 1..60 seconds total handler deadline; MUST NOT exceed write timeout; every domain, hook, store, provider, and response-body operation derives a no-longer deadline and cancellation does not imply rollback or non-commit |
 | `http.idle_timeout` | 60 seconds | 5..120 seconds |
 | `http.shutdown_drain` | 30 seconds | 1..60 seconds |
-| `http.rate.default` | 100/minute | 1..10,000/minute |
-| `http.rate.signin` | 10/minute | 1..100/minute per trusted IP + scoped subject |
-| `http.rate.signup` | 5/hour | 1..100/hour per trusted IP + tenant |
-| `http.rate.reset_link_send` | 5/hour | 1..100/hour per trusted IP + scoped subject + destination |
-| `http.rate.otp_send` | 5/hour | 1..100/hour per trusted IP + scoped subject + destination |
-| `http.rate.otp_verify` | 10/10 minutes | 1..100/10 minutes per trusted IP + challenge |
-| `http.rate.mfa_verify` | 10/10 minutes | 1..100/10 minutes per trusted IP + challenge |
-| `http.rate.admin` | 30/minute | 1..300/minute per actor + trusted IP; stricter package limits win |
+| `http.rate.default` | policy `rate.safe` | exact immutable buckets, capacities and outage behavior are owned only by `API_OPERATIONS.md`; local numeric overrides are forbidden |
+| `http.rate.signin` | policy `rate.signin` | exact immutable operation set and buckets are owned only by `API_OPERATIONS.md`; local numeric or dimension overrides are forbidden |
+| `http.rate.signup` | policy `rate.signup` | exact immutable operation set and buckets are owned only by `API_OPERATIONS.md`; local numeric or dimension overrides are forbidden |
+| `http.rate.reset_link_send` | policy `rate.delivery` | exact immutable operation set and buckets are owned only by `API_OPERATIONS.md`; local numeric or dimension overrides are forbidden |
+| `http.rate.otp_send` | policy `rate.delivery` | exact immutable operation set and buckets are owned only by `API_OPERATIONS.md`; local numeric or dimension overrides are forbidden |
+| `http.rate.otp_verify` | policy `rate.verify` | exact immutable operation set and buckets are owned only by `API_OPERATIONS.md`; local numeric or dimension overrides are forbidden |
+| `http.rate.mfa_verify` | policy `rate.verify` | exact immutable operation set and buckets are owned only by `API_OPERATIONS.md`; local numeric or dimension overrides are forbidden |
+| `http.rate.admin` | policy `rate.admin` | exact immutable buckets, capacities and outage behavior are owned only by `API_OPERATIONS.md`; local numeric or dimension overrides are forbidden |
 | `http.rate.algorithm` | PostgreSQL atomic token-bucket counters | each period is continuously refilled by database time with the declared capacity as maximum burst; a request atomically debits every applicable bucket or none; checked fixed-point remainder prevents upward rounding; unknown commit is queried by stable debit command ID |
 | `http.rate.authority` | PostgreSQL | Valkey MAY cache positive metadata only; PostgreSQL unavailable fails closed for sensitive/admin operations and returns unavailable for default operations |
 | `http.client_ip.normalization` | IPv4 mapped addresses normalize to IPv4; IPv6 uses canonical RFC 5952 address | no subnet aggregation; invalid/non-unicast client address is unavailable and sensitive operations fail closed |
@@ -502,6 +523,7 @@ forgotten secret.
 | `http.idempotency_retention` | 24 hours | 1 hour..7 days after terminal result; unresolved/unknown mapping has no time-based release |
 | `tenant.routing_mode` | `host` | enum `host`; header/path routing is unsupported in reference profile |
 | `tenant.host_suffix` | REQUIRED string | lower-case IDNA ASCII DNS suffix; 1..253 bytes; exact-label suffix match only |
+| `tenant.host_mapping` | closed policy `struct:ref.tenant.host_mapping` | configuration supplies the complete exact tenant-host map and exact public-realm host allowlist; an unknown or ambiguous effective host is rejected before tenant-scoped state access |
 
 ## Cookie, issuer, relying-party, and provider settings
 
@@ -541,6 +563,7 @@ forgotten secret.
 | `providers.<id>.subject_pointer` | REQUIRED string when enabled and protocol is OAuth 2.0 | RFC 6901 JSON Pointer to immutable provider subject; mutable email/name forbidden |
 | `providers.<id>.client_id` | REQUIRED string when provider enabled | 1..512 bytes; identifier but redacted from public diagnostics |
 | `providers.<id>.confidential` | `true` | explicit Boolean; when true client secret REQUIRED |
+| `providers.<id>.response_mode` | exact `provider-response-modes-v1` catalog value; default `query`, Apple `form_post` | closed enum `query`, `form_post`; provider profile fixes the value before authorization state issuance and callers cannot override it |
 | `captcha.recaptcha.endpoint` | `https://www.google.com/recaptcha/api/siteverify` | fixed HTTPS URL in the reference profile |
 | `captcha.recaptcha.api` | `classic_siteverify` | enum `classic_siteverify`; Enterprise Assessment is unsupported |
 | `captcha.recaptcha.version` | `v3` | enum `v3`; reference deployment selects score-bearing v3 rather than v2 checkbox/invisible |
@@ -638,6 +661,7 @@ forgotten secret.
 | `valkey.endpoint` | REQUIRED URI when `valkey.enabled=true` | non-secret `rediss://host:port` with no userinfo/query/fragment; embedded credentials forbidden; startup-only |
 | `secrets.valkey_credential` | REQUIRED credential-provider handle when Valkey authentication is enabled | secret; startup-only; rotated by validated connection handoff |
 | `secrets.command_fingerprint_key` | REQUIRED 32-byte-or-stronger versioned key | secret; retained until no pending/unknown command references the version and then through command-result retention plus recovery window; retirement MUST NOT make a command unverifiable or reusable |
+| `secrets.captcha_replay_digest_key` | REQUIRED 32-byte-or-stronger versioned HMAC key when CAPTCHA is enabled | secret; newest derives new replay fingerprints; prior versions remain until no unresolved evidence or retained replay tombstone references them |
 | `secrets.envelope_provider` | REQUIRED authenticated key-provider handle | secret; staged rotate/reload supported, removal only after rewrap proof |
 | `secrets.session_digest_key` | REQUIRED 32-byte-or-stronger versioned key | secret; new issue uses newest, old verify during declared rotation window |
 | `secrets.otp_digest_key` | REQUIRED 32-byte-or-stronger versioned HMAC key | secret; newest signs new codes, retained prior versions verify only through maximum OTP TTL plus clock skew |

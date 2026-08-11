@@ -46,7 +46,7 @@ closed; a package MUST NOT invent a second encoding for a profile field.
 | Authorization | `RecordInput.Policy.PolicyID` and `Version`; `Attributes["authorization.reason"]` contains the safe registered decision reason. |
 | Authentication | `RecordInput.Actor.AuthenticationMethod` uses an exported `audit.AuthenticationMethod*` value. `Attributes["authentication.acr"]`, `["authentication.amr"]`, `["authentication.time"]`, `["session.id"]`, and `["session.version"]` carry the bounded optional details. |
 | Command | `Attributes["command.id"]`, required for state-changing and reconcilable operations. |
-| Scope | Optional canonical IDs use `scope.organization_id`, `scope.team_id`, `scope.client_id`, `scope.provider_id`, `scope.rp_id`, `scope.connection_id`, and `scope.impersonation_grant_id` attribute keys. |
+| Scope | Optional canonical IDs use `scope.organization_id`, `scope.team_id`, `scope.client_id`, `scope.provider_id`, `scope.rp_id`, `scope.connection_id`, and `scope.impersonation_grant_id` attribute keys. SCIM Bulk additionally permits `scim.parent_command_id` and unsigned `scim.operation_order`; privacy export permits unsigned `privacy.epoch` and `privacy.watermark_version`. |
 | Aggregate | `aggregate.type`, `aggregate.id`, `aggregate.before_version`, and `aggregate.after_version` attributes. |
 | Provider | `provider.kind`, `provider.profile`, `provider.version`, and `provider.result` attributes only. |
 | Error | `error.code`, containing only a stable owned safe code. |
@@ -127,26 +127,27 @@ or any value other than the baseline/required override is invalid.
 | Area | Exact actions | `retention.class` |
 | --- | --- | --- |
 | User | `identity.user.create`, `identity.user.update`, `identity.user.suspend`, `identity.user.restore`, `identity.user.anonymize`, `identity.user.delete` | `standard` |
-| Privacy export | `identity.privacy_export.request`, `identity.privacy_export.cancel`, `identity.privacy_export.complete`, `identity.privacy_export.download` | `protected` |
+| Privacy export | `identity.privacy_export.request`, `identity.privacy_export.cancel`, `identity.privacy_export.complete`, `identity.privacy_export.issue_download_capability`, `identity.privacy_export.download` | `protected` |
 | Identifier | `identity.identifier.add`, `identity.identifier.request_verification`, `identity.identifier.verify`, `identity.identifier.change`, `identity.identifier.remove` | `standard` |
 | Linked account | `identity.account.link`, `identity.account.unlink` | `standard` |
 | Anonymous identity | `identity.anonymous.create`, `identity.anonymous.upgrade`, `identity.anonymous.expire` | `standard` |
 | Authentication | `identity.authentication` | `standard` |
 | Session | `identity.session.create`, `identity.session.rotate`, `identity.session.refresh`, `identity.session.revoke`, `identity.session.revoke_all`, `identity.session.expire`, `identity.session.change_active_account`, `identity.session.create_transfer`, `identity.session.consume_transfer` | `standard` |
+| Session bearer issuance | `identity.session.authorize_bearer`, `identity.session.issue_bearer` | `protected` |
 | Remembered login | `identity.last_login_method.change`, `identity.last_login_method.clear` | `standard` |
 | Magic link | `identity.magic_link.request`, `identity.magic_link.consume` | `standard` |
 | OTP | `identity.otp.request`, `identity.otp.verify` | `standard` |
 | Social OAuth | `identity.oauth.start_authorization`, `identity.oauth.handle_callback`, `identity.oauth.link_account`, `identity.oauth.unlink_account`, `identity.oauth.refresh_grant`, `identity.oauth.revoke_grant`, `identity.oauth.deliver_popup`, `identity.oauth.use_proxy`, `identity.oauth.verify_one_tap` | `standard` |
-| Organization invitation | `identity.organization.create_invitation`, `identity.organization.accept_invitation`, `identity.organization.reject_invitation`, `identity.organization.cancel_invitation` | `standard` |
+| Organization invitation | `identity.organization.create_invitation`, `identity.organization.accept_invitation`, `identity.organization.reject_invitation`, `identity.organization.cancel_invitation`, `identity.organization.resend_invitation`, `identity.organization.expire_invitation` | `standard` |
 | Password | `identity.password.register`, `identity.password.change`, `identity.password.remove`, `identity.password.request_reset`, `identity.password.reset`, `identity.password.rehash`, `identity.password.mark_compromised` | `protected` |
 | MFA | `identity.mfa.start_enrollment`, `identity.mfa.add_factor`, `identity.mfa.remove_factor`, `identity.mfa.verify_challenge`, `identity.mfa.use_recovery`, `identity.mfa.regenerate_recovery`, `identity.mfa.add_trusted_device`, `identity.mfa.rotate_trusted_device`, `identity.mfa.revoke_trusted_device`, `identity.mfa.reset` | `protected` |
 | WebAuthn/passkey | `identity.webauthn.register_credential`, `identity.webauthn.verify_assertion`, `identity.webauthn.detect_suspected_clone`, `identity.passkey.rename_credential`, `identity.passkey.remove_credential` | `protected` |
 | API key | `identity.api_key.create`, `identity.api_key.update`, `identity.api_key.rotate`, `identity.api_key.revoke`, `identity.api_key.authenticate` | `protected` |
-| Impersonation | `identity.impersonation.request`, `identity.impersonation.approve`, `identity.impersonation.start`, `identity.impersonation.stop`, `identity.impersonation.revoke` | `protected` |
+| Impersonation | `identity.impersonation.request`, `identity.impersonation.approve`, `identity.impersonation.deny`, `identity.impersonation.start`, `identity.impersonation.stop`, `identity.impersonation.revoke` | `protected` |
 | Organization | `identity.organization.create`, `identity.organization.update`, `identity.organization.archive`, `identity.organization.restore`, `identity.organization.delete`, `identity.organization.change_active`, `identity.organization.add_member`, `identity.organization.remove_member`, `identity.organization.change_member_role`, `identity.organization.transfer_ownership`, `identity.organization.create_team`, `identity.organization.update_team`, `identity.organization.delete_team`, `identity.organization.add_team_member`, `identity.organization.remove_team_member`, `identity.organization.create_role`, `identity.organization.update_role`, `identity.organization.delete_role`, `identity.organization.verify_domain`, `identity.organization.revoke_domain` | `protected` |
-| Enterprise SSO | `identity.sso.register_provider`, `identity.sso.update_provider`, `identity.sso.enable_provider`, `identity.sso.disable_provider`, `identity.sso.delete_provider`, `identity.sso.rotate_provider_credential`, `identity.sso.login`, `identity.sso.provision_jit`, `identity.sso.change_enforcement`, `identity.sso.use_break_glass` | `protected` |
+| Enterprise SSO | `identity.sso.register_provider`, `identity.sso.update_provider`, `identity.sso.enable_provider`, `identity.sso.disable_provider`, `identity.sso.delete_provider`, `identity.sso.rotate_provider_credential`, `identity.sso.login`, `identity.sso.logout_oidc`, `identity.sso.provision_jit`, `identity.sso.change_enforcement`, `identity.sso.issue_break_glass`, `identity.sso.use_break_glass` | `protected` |
 | Directory sync | `identity.sso.start_directory_sync`, `identity.sso.apply_directory_sync`, `identity.sso.cancel_directory_sync`, `identity.sso.reconcile_directory_sync` | `protected` |
-| SCIM | `identity.scim.create_connection`, `identity.scim.update_connection`, `identity.scim.delete_connection`, `identity.scim.create_token`, `identity.scim.rotate_token`, `identity.scim.revoke_token`, `identity.scim.create_resource`, `identity.scim.update_resource`, `identity.scim.deprovision_resource`, `identity.scim.reconcile` | `protected` |
+| SCIM | `identity.scim.create_connection`, `identity.scim.update_connection`, `identity.scim.delete_connection`, `identity.scim.create_token`, `identity.scim.rotate_token`, `identity.scim.revoke_token`, `identity.scim.create_resource`, `identity.scim.update_resource`, `identity.scim.deprovision_resource`, `identity.scim.bulk_admit`, `identity.scim.bulk_apply_child`, `identity.scim.bulk_skip_child`, `identity.scim.reconcile` | `protected` |
 | OAuth server | `identity.oauth_server.create_client`, `identity.oauth_server.update_client`, `identity.oauth_server.delete_client`, `identity.oauth_server.rotate_client_secret`, `identity.oauth_server.add_signing_key`, `identity.oauth_server.retire_signing_key`, `identity.oauth_server.compromise_signing_key`, `identity.oauth_server.grant_consent`, `identity.oauth_server.revoke_consent`, `identity.oauth_server.authorize`, `identity.oauth_server.exchange_code`, `identity.oauth_server.rotate_refresh`, `identity.oauth_server.detect_refresh_reuse`, `identity.oauth_server.revoke_token`, `identity.oauth_server.approve_device`, `identity.oauth_server.deny_device`, `identity.oauth_server.poll_device`, `identity.oauth_server.exchange_session`, `identity.oauth_server.end_session` | `protected` |
 | Risk | `identity.risk.decide`, `identity.risk.start_lockout`, `identity.risk.end_lockout`, `identity.risk.create_override`, `identity.risk.revoke_override`, `identity.risk.query_provider`, `identity.risk.reconcile`, `identity.risk.expire_evidence`, `identity.risk.anonymize_evidence` | `protected` |
 | CAPTCHA | `identity.captcha.verify`, `identity.captcha.reject`, `identity.captcha.detect_replay`, `identity.captcha.detect_binding_mismatch` | `protected` |
@@ -155,7 +156,7 @@ or any value other than the baseline/required override is invalid.
 | Ephemeral risk authority | `identity.risk_valkey.exhaust_window`, `identity.risk_valkey.replay`, `identity.risk_valkey.mark_unavailable`, `identity.risk_valkey.publish_epoch` | `protected` |
 | Platform authority | `identity.platform.bootstrap_administrator`, `identity.platform.create_role`, `identity.platform.update_role`, `identity.platform.delete_role`, `identity.platform.assign_role`, `identity.platform.revoke_role`, `identity.platform.compromise_global_authority` | `protected` |
 | Platform permission statements | `identity.platform.create_permission_statement`, `identity.platform.update_permission_statement`, `identity.platform.delete_permission_statement` | `protected` |
-| Audit retention | `identity.audit_retention.change_policy`, `identity.audit_retention.create_legal_hold`, `identity.audit_retention.update_legal_hold`, `identity.audit_retention.release_legal_hold`, `identity.audit_retention.delete_records` | `protected` |
+| Audit retention | `identity.audit_retention.change_policy`, `identity.audit_retention.create_legal_hold`, `identity.audit_retention.update_legal_hold`, `identity.audit_retention.release_legal_hold`, `identity.audit_retention.confirm_deletion`, `identity.audit_retention.delete_records` | `protected` |
 
 Expiration is an outcome only when an operation encounters expired material.
 Scheduled lifecycle expiry uses its owning imperative operation, such as
@@ -164,6 +165,38 @@ Scheduled lifecycle expiry uses its owning imperative operation, such as
 Administrator password reset, session revocation, and factor reset use the same
 password/session/MFA actions as self-service; Actor/DelegatedBy, Policy, and
 scope identify the privileged initiator without a synonymous admin action.
+
+Anonymous upgrade MUST emit `identity.anonymous.upgrade` and
+`identity.session.rotate` under the same command/correlation IDs. The upgrade
+event names the anonymous subject and permanent target only through their
+opaque aggregate IDs; the rotation event names the old session family/version
+and new session version. No event may contain the anonymous bearer, merge
+payload, verified credential, or transferred application data. The upgrade
+MUST NOT report `OutcomeSucceeded` unless revocation of the old anonymous
+session family and issuance of the permanent session committed atomically.
+
+A privacy-export request, completion, cancellation, and download MUST include
+the export ID as aggregate ID plus safe unsigned `privacy.epoch` and
+`privacy.watermark_version` attributes registered by the identity package.
+Completion is successful only after every required contributor checkpoint and
+artifact digest is committed; it MUST NOT include exported fields, fragment
+digests, download capability material, object-store location, or legal-hold
+detail. A deletion/anonymization race that cancels an export emits the normal
+cancel action with the destructive command as causation; artifact erasure does
+not create a second successful completion event.
+
+Each SCIM Bulk request MUST emit one `identity.scim.bulk_admit` event for the
+parent command. Every child that enters `in-progress` MUST emit exactly one
+`identity.scim.bulk_apply_child` event with that child command's outcome. Every
+child durably changed from `not-started` or `blocked-unknown-dependency` to
+`skipped-fail-on-errors` MUST emit `identity.scim.bulk_skip_child` with
+`OutcomeDenied` and registered reason `identity.scim.fail_on_errors_cutoff`.
+Bulk events MAY contain only the parent command ID, child command ID, unsigned
+operation order, and scoped connection ID; raw or digested `bulkId`, method
+path, resource body, attribute values, dependency IDs, and response detail are
+forbidden. Reconciliation uses
+`identity.scim.reconcile` with the original parent/child command as causation
+and MUST NOT rewrite the original event.
 
 ## Stable reason-code catalog
 

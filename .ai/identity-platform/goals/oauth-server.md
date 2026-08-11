@@ -135,8 +135,13 @@ involved.
   `oauth_server.protected_resource.supported_scopes`, which MUST remain a
   sorted unique subset of `oauth_server.scopes` and match resource-verification
   enforcement.
-- End-session behavior MUST validate client/post-logout redirect and session
-  ownership and state without becoming open redirect or cross-client logout.
+- Core MUST expose typed, authorization-checked client, grant, consent, token
+  and signing seams to `oauth-server/oidc` and `oauth-server/device`, but MUST
+  NOT own their endpoints, protocol state, configuration or child-specific
+  events. OIDC owns end-session and session-token-exchange protocol validation;
+  device owns device/user codes, polling, approval and denial. Their validated
+  commands may invoke core token and revocation transitions without moving
+  semantic ownership into core.
 - Core signing-key lifecycle MUST own private-key generation/import, storage,
   algorithm policy, rotation, compromise and retirement. It MUST expose only a
   signing capability and public-key projection to `oauth-server/oidc`; OIDC
@@ -192,6 +197,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

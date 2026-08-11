@@ -45,12 +45,24 @@ recover the authoritative journal row.
 ## Required public contract
 
 The design MUST define schema, durable risk counters, decision journal,
+CaptchaEvidence and CaptchaEvidenceContributor persistence contracts,
 retention, indexed query, anonymization, and migration contracts. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
 
 ## Required behavior
+
+This adapter owns the durable CAPTCHA evidence participant and implements
+`tx.captcha.issue`, `tx.captcha.reserve`, `tx.captcha.apply`,
+`tx.captcha.finalize`, and `tx.captcha.reconcile`. Ambiguous insertion MUST
+reconcile the same command and fingerprint on the primary and MUST NOT create a
+second evidence row or reference.
+The adapter MUST enforce one durable replay-fingerprint winner across all
+issuance commands using the exact tenant/provider/site/profile/configuration
+scope. It MUST retain the keyed fingerprint, key version and terminal tombstone
+through the configured replay-retention boundary; unresolved issuance has no
+time-based release.
 
 The implementation and tests MUST increment concurrently without lost updates; enforce windows by database time; retain minimal evidence; clean expired data; recover ambiguous writes; prove query plans at scale. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and

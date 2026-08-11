@@ -142,6 +142,11 @@ specified. Cookie sessions MUST explicitly enforce `Secure`, `HttpOnly`,
 `SameSite`, domain/path, prefix, partition/cross-site and rotation semantics.
 State-changing cookie requests MUST have unbypassable CSRF binding. Bearer
 endpoints MUST NOT rely on cookie CSRF assumptions.
+The reference profile MUST use `csrf.referer_fallback=deny`. A non-reference
+profile MAY select `same-origin-https`, but only when Origin is absent and a
+syntactically valid absolute HTTPS Referer has the exact trusted effective
+origin. Missing, opaque, downgraded, cross-origin, userinfo-bearing or malformed
+Referer values MUST deny.
 
 Login, signup, recovery, verification and account-link callbacks MUST apply the
 exact initiating origin, return target, state/nonce/PKCE and one-time
@@ -196,6 +201,10 @@ rather than bypassing controls accidentally.
 
 Trusted proxy, forwarded-header, host, scheme, origin, CORS and redirect policy
 MUST be fail-closed and resistant to spoofing, IDN confusion and open redirects.
+Tenant resolution MUST consume only `tenant.host_mapping`: one exact canonical
+effective host maps to either one tenant or the public realm, never both.
+Unknown, overlapping, wildcard, trailing-dot or request-supplied tenant/realm
+selection MUST be rejected before tenant-scoped state access.
 Security headers MUST account for OAuth popups/One Tap without globally
 weakening isolation. Middleware and hooks MUST have documented order,
 cancellation and error behavior and MUST NOT run under package locks or open
@@ -218,6 +227,10 @@ shutdown and external-operation timeouts within reviewed bounds. Timeouts and
 cancellation MUST map to stable errors without continuing detached work,
 leaking a body/resource, committing an unreported transition or revealing
 whether an identifier exists.
+`http.handler_timeout` MUST bound the complete handler, including domain calls,
+hooks, stores, providers and response streaming; it MUST NOT extend an inbound
+deadline or exceed `http.write_timeout`. Cancellation alone MUST NOT be treated
+as proof that an authoritative mutation rolled back.
 
 ## OpenAPI and lifecycle
 
@@ -242,6 +255,12 @@ fixed bounded responses, methods, cache denial and content types. Liveness is
 process-only; readiness delegates to the composed dependency/migration/key
 snapshot, returns unavailable before startup and during drain, and exposes no
 tenant, dependency address, migration detail, secret or provider response.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Acceptance and blockers
 

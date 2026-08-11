@@ -31,10 +31,13 @@ Read completely before editing:
 3. .ai/identity-platform/INVENTORY.md for this unit and its prerequisites;
 4. .ai/identity-platform/DEPENDENCIES.md;
 5. .ai/identity-platform/END_STATE.md sections referenced by the goal;
+5a. .ai/identity-platform/END_STATE_ACCEPTANCE.json acceptance rows and artifact catalog owned or consumed by this unit;
 6. .ai/identity-platform/REFERENCE_PROFILE.md sections owned by this unit;
 7. .ai/identity-platform/BETTER_AUTH_PARITY.md rows owned by this unit;
+7a. .ai/identity-platform/PARITY_DISPOSITIONS.json exact exclusions, divergences and ownership reclassifications;
 8. .ai/identity-platform/API_OPERATIONS.md operations owned or consumed by this
    unit;
+8a. .ai/identity-platform/OPERATION_SEMANTICS.json exact semantic rows owned or consumed by this unit;
 9. .ai/identity-platform/UPSTREAM_DISPOSITIONS.md rows owned by this unit;
 10. .ai/identity-platform/UPSTREAM_SURFACE.json pinned upstream objects and
     operation IDs owned or consumed by this unit;
@@ -54,6 +57,7 @@ Read completely before editing:
     this unit;
 18. .ai/identity-platform/CONFIGURATION_CATALOGS.json exact provider/CAPTCHA
     catalog IDs, versions and checksums consumed by this unit;
+18a. .ai/identity-platform/VERIFICATION_APPLICABILITY.json exact verification selectors for this unit;
 19. .ai/identity-platform/PREFLIGHT_EVIDENCE.md rows for this unit's primitive,
     environment, external-evidence, and resource lanes;
 20. the exact assigned goal.
@@ -117,7 +121,8 @@ Workflow:
     resume/authorization commit after recording the corresponding
     `in-progress -> blocked -> in-progress` transitions and an `authorized`
     conflict-recovery row in `PREFLIGHT_EVIDENCE.md`. Before any package edit,
-    verify that row matches this unit, generation, and worker checkpoint;
+    verify that row matches this unit, generation, recovery epoch, and worker
+    checkpoint;
     verify its integration commit is the named resume commit's first parent;
     then merge the exact named resume/authorization commit. Reject a missing,
     superseded, ancestry-invalid, or otherwise mismatched row or commit.
@@ -134,6 +139,11 @@ Return:
   worker-branch tip, and ordered worker-authored commit hashes;
 - changed package-local paths;
 - requirement-to-evidence mapping;
+- for every returned report, its artifact-specific observation IDs and exact
+  expected/actual behavioral outcomes, the tested revision, gate execution
+  revision, nullable revalidation revision, complete sorted input manifest, canonical input root, and
+  sanitized artifact hashes; the worker MUST NOT claim or predict the later
+  coordinator evidence-record commit;
 - exact checks and outcomes;
 - coverage and mutation totals;
 - race, fuzz, leak, interoperability, benchmark, API, docs, security, and
@@ -171,6 +181,11 @@ the coordinator has moved it.
 The coordinator MUST include the raw assignment without additional
 implementation suggestions that narrow, reinterpret, or weaken the goal.
 
+Before spawn, it MUST commit the complete rendered bytes and finalized
+assignment attestation required by `PREFLIGHT_EVIDENCE.md`; any prompt/model,
+scope, descendant reservation, goal digest, fork-turn, or subagent-policy drift
+invalidates the assignment.
+
 ## Pause and baseline-refresh handshake
 
 When the coordinator reports that a verified prerequisite changed, the worker
@@ -188,7 +203,9 @@ The coordinator MUST synchronize a refreshed baseline only after the worker
 branch and worktree are clean. The worker then performs only the exact recovery
 merge authorized by the coordinator, resolves assigned-package conflicts,
 reruns every invalidated requirement from the refreshed baseline, and returns a
-new coherent commit. When dirty work cannot reach a coherent clean checkpoint,
-the unit remains inventory `blocked`; the coordinator continues independent
-work and requests user direction only when this is the last remaining progress
-lane.
+new coherent descendant commit. If that repaired tip later conflicts again,
+the worker MUST stop cleanly and wait for a new higher recovery epoch; a
+completed prior epoch does not authorize another merge. When dirty work cannot
+reach a coherent clean checkpoint, the unit remains inventory `blocked`; the
+coordinator continues independent work and requests user direction only when
+this is the last remaining progress lane.

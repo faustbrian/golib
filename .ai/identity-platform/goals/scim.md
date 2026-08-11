@@ -58,15 +58,24 @@ involved.
   `scim.page_max`, `scim.bulk.operations` and `scim.bulk.bytes`, including the
   decoded Bulk byte limit, and MUST NOT advertise a configured maximum that the
   runtime cannot enforce.
+- The decoder MUST reject duplicate JSON member names and any pair of member
+  names equal under SCIM's case-insensitive attribute-name comparison in every
+  core, extension, Bulk, PATCH, complex and multi-valued object before mapping,
+  authorization, filtering, audit or persistence. First-wins, last-wins and
+  case-dependent collision resolution are forbidden. Set-valued attributes
+  MUST reject values that collide under their schema's canonical comparison.
 - User and Group operations MUST include create, get, list/filter/page/sort,
   replace, atomic PATCH and delete/deactivate with SCIM content types, canonical
   schemas and location/version metadata.
 - List behavior MUST follow the SCIM baseline exactly: pagination is 1-based;
-  omitted `startIndex` is 1; omitted `count` is `scim.page_default`; count is
-  capped at `scim.page_max`; and `count=0` returns no resources with exact
-  `totalResults`, `startIndex` and `itemsPerPage=0`. Each list observes one
-  transaction snapshot, and sorting MUST use schema comparison semantics plus
-  a stable server-generated `id` tie-break.
+  omitted or below-one `startIndex` is 1; omitted `count` is
+  `scim.page_default`; negative count is zero; count is capped at
+  `scim.page_max`; and `count=0` returns no resources with exact `totalResults`,
+  `startIndex` and `itemsPerPage=0`. `itemsPerPage` MUST equal the actual number
+  returned. Absent `sortBy` uses server-generated `id` ascending and absent
+  `sortOrder` means ascending. Each list's Resources and `totalResults` MUST
+  come from one transaction snapshot, and sorting MUST use schema comparison
+  semantics plus the stable server-generated `id` tie-break.
 - Each SCIM connection MUST be owned by one tenant organization and provider,
   and every token, resource, external ID, bulk reference and audit event MUST
   inherit that scope. Personal or unowned connections MUST be rejected; any
@@ -87,7 +96,12 @@ involved.
   `scim.patch.operations`, `scim.bulk.operations`, `scim.bulk.bytes`,
   `scim.bulk.fail_on_errors`, `scim.bulk.operation_bytes`,
   `scim.bulk.response_bytes` and `scim.error_detail_bytes`, enforcing each
-  applicable limit before allocation or mutation.
+  applicable limit before mutation, before allocating filter node 257, and
+  before descending past filter depth 16. The raw route body, decoded body,
+  decoded BulkRequest, each decoded Bulk child, and streamed response MUST use
+  their distinct manifest bounds; unsupported Content-Encoding MUST fail before
+  decoding. `scim.path_bytes` applies to every filter attribute path, PATCH
+  path, `sortBy`, `attributes`, and `excludedAttributes` path.
 - PATCH MUST implement add/remove/replace for scalar, complex and multi-valued
   attributes with mutability, required, uniqueness and caseExact semantics and
   all-or-nothing resource versioning.
@@ -115,22 +129,39 @@ involved.
   MUST NOT widen, fold or otherwise alter it.
 - Bulk, if advertised, MUST enforce maximum operations, payload and per-
   operation resource limits before execution; validate unique `bulkId` values;
-  resolve only prior in-request dependencies in the same connection; reject
-  cycles/forward, cross-tenant and cross-request references; honor
+  resolve bounded prior, forward, and circular in-request `bulkId` dependencies
+  in the same connection as required by RFC 7644 Section 3.7. The resolver MUST
+  build and durably persist the complete bounded graph and deterministic SCC
+  plan before mutation, preallocate stable final resource IDs for create
+  members, execute the SCC condensation graph topologically with original-index
+  tie breaking, commit acyclic children independently, and commit each circular
+  SCC as one bounded transaction with deferred within-SCC reference checks.
+  Failure MUST roll back the complete SCC and produce deterministic per-member
+  dependency failures without claiming whole-request atomicity; it MUST reject
+  unknown, cross-tenant, and cross-request references;
+  honor
   `failOnErrors`; and return ordered per-operation status/location/version/error
   without claiming whole-request atomicity. It MUST consume the SCIM Bulk
   contract in `.ai/identity-platform/TRANSACTION_CONTRACT.md`: persist one
-  parent and every ordered independently identified child at admission, commit
-  each executing child independently, durably mark all remaining not-started
+  parent, every ordered independently identified child, and the graph/SCC plan
+  at admission; commit each acyclic child independently and each cyclic SCC
+  under its bounded atomic rule; durably mark all remaining not-started
   children skipped only after a positive `failOnErrors` threshold reaches that
   many durable failed child results, treat zero or omission as no cutoff, block
-  unknown dependencies for reconciliation, and replay every declared child in
-  order from its durable checkpoint.
+  unknown dependencies for reconciliation, and replay processed child results
+  in request order from durable checkpoints. A skipped child is unprocessed and
+  MUST be omitted from BulkResponse `Operations`; it has no wire status,
+  location, version, or Error body, while its durable state and
+  `identity.scim.bulk_skip_child` audit event remain mandatory. The SCIM reason
+  extension `identity.scim.fail_on_errors_cutoff` is reserved exclusively for
+  that audit event and MUST NOT appear as an unregistered SCIM `scimType`.
 - Every SCIM mutation MUST consume the HTTP/SCIM idempotency-admission contract
-  in `.ai/identity-platform/TRANSACTION_CONTRACT.md`. A matching scoped key and
-  fingerprint MUST recover the same command and semantic result, a mismatch
-  MUST conflict without mutation, and an in-progress or unknown mapping MUST
-  remain blocked. DELETE MUST retain and replay its original result for the
+  in `.ai/identity-platform/TRANSACTION_CONTRACT.md`. Server-owned command
+  identity and a canonical request fingerprint are mandatory; `Idempotency-Key`
+  is an optional extension rather than a protocol prerequisite. When supplied,
+  a matching scoped key and fingerprint MUST recover the same command and
+  semantic result, a mismatch MUST conflict without mutation, and an in-progress
+  or unknown mapping MUST remain blocked. DELETE MUST retain and replay its original result for the
   `scim.delete_tombstone_retention` and `scim.idempotency_retention` contracts;
   a different key follows normal precondition/not-found behavior.
 - Error responses MUST use stable SCIM status/scimType/detail with enumeration

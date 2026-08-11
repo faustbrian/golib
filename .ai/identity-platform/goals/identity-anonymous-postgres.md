@@ -42,6 +42,11 @@ identity rows, credential proof, session tokens or application resource data.
 - Issuance MUST atomically create the anonymous lifecycle record with the
   identity mutation and outbox evidence, or return a typed known rollback or
   unknown commit. No raw session or upgrade bearer value may be stored.
+- Upgrade MUST enlist the public `identity/session` contributor so anonymous
+  revocation and permanent-session rotation commit with the identity and merge
+  transition. This adapter MUST persist only the anonymous side of that
+  coordination and MUST NOT create, copy, or become authority for session
+  bearer records.
 - Upgrade MUST lock or compare the anonymous version, stable command ID and
   target identity so exactly one concurrent command can own the transition.
   Retries MUST return the prior attributable result or reconciliation state and
@@ -66,6 +71,12 @@ identity rows, credential proof, session tokens or application resource data.
 - Migrations MUST preserve active anonymous sessions indirectly through stable
   identity references, active upgrade commands, merge journals and expiry
   ownership across populated data and old/new binaries.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Required evidence
 

@@ -20,6 +20,43 @@ credentials, templates, explicit policy callbacks and bounded email/SMS
 Consumers MUST NOT supply domain stores, workflow orchestration, handlers,
 migrations or security middleware.
 
+`END_STATE_ACCEPTANCE.json` is the closed machine-readable acceptance index
+for all eighteen journeys and every cross-cutting section in this document.
+Its stable IDs, accountable owners, required evidence artifacts and semantic
+digests MUST be present before a journey can be assigned, and an implementation
+MUST prove every listed artifact against the digest-bearing acceptance contract.
+
+## Closed callable composition seams
+
+The reference profile MUST compose the following public typed seams; no
+consumer-written workflow substitute is permitted:
+
+- `identity/reference.NewServer(ReferenceConfig, ReferenceDependencies,
+  FeatureSet) (Server, error)` validates the complete immutable graph before
+  exposing `Handler`, `OpenAPI`, `Health`, or `Readiness`.
+- `identity/http.NewRouter(TransportPolicy, []OperationDescriptor,
+  []MiddlewareDescriptor) (http.Handler, OpenAPIDocument, error)` rejects
+  duplicate method/path, operation ID, schema, middleware and rate-policy
+  ownership before serving.
+- `identity/reference.ComposeStores(StoreSet)`,
+  `ComposeProviders(ProviderSet)`, and `ComposeWorkers(WorkerSet)` accept the
+  exact typed adapters selected by the reference profile; they MUST NOT perform
+  reflection, global registration or service lookup.
+- `identity/delivery.Sender.Send(context.Context, DeliveryIntent)
+  (DeliveryReceipt, error)` is the sole application callback permitted for
+  email/SMS delivery. The platform owns intent construction, persistence,
+  idempotency, retry classification and outcome recovery.
+- `identity.PolicySet` is the exact immutable five-member contract in
+  `struct:ref.identity.policy_set`: `Authorize`, `AssessRisk`, `MapClaims`,
+  `DecideRetention`, and `Redact` use the exact typed function signatures and
+  fail-closed semantics declared there. It MUST reject a nil member and MUST
+  NOT own stores, transactions, routing, workflow continuation, or unbounded
+  callbacks.
+
+The exact operation descriptors and transport semantics are closed by
+`OPERATION_SEMANTICS.json`. Any dependency not expressible through these
+callable seams is a missing platform contract, not application glue.
+
 The selected PostgreSQL end state MUST use the dedicated identity, password,
 session, risk, OTP, MFA, WebAuthn, passkey, social-OAuth, API-key,
 impersonation, organization, SSO, SCIM and OAuth-server adapters; an in-memory
@@ -142,6 +179,10 @@ Its handlers MUST call public package contracts exactly as a consumer would.
 8. **Administration:** explicitly authorized user search/management, bans,
    role/permission decisions, session control, credential reset and bounded
    impersonation with actor chain and immutable audit.
+   Impersonation MUST prove request, distinct-actor approval, denial, quorum
+   inspection and revocation as separate operations. No active grant or session
+   may exist before the configured quorum commits, and requesters MUST NOT
+   approve their own request.
    A clean tenant MUST bootstrap its first administrator exactly once through
    the out-of-band, short-lived bootstrap capability; concurrent/replayed
    attempts, non-empty authority state, wrong tenant and partial/unknown
@@ -204,7 +245,8 @@ Its handlers MUST call public package contracts exactly as a consumer would.
    The proof MUST also observe one protected bootstrap initialization event
    `identity.audit_retention.change_policy` committed atomically with version 1
    and no duplicate event after restart.
-9. **Organizations:** create/update/delete, invite/accept/reject/cancel, member
+9. **Organizations:** create/update/archive/restore/delete,
+   invite/accept/reject/cancel/resend/expire, member
    lifecycle, roles and permissions, teams, ownership transfer, active
    organization and configured limits under concurrent changes.
 10. **Enterprise federation:** domain verification and provider selection;
@@ -215,6 +257,12 @@ Its handlers MUST call public package contracts exactly as a consumer would.
     versioned claim/mapping policy before session issuance, including explicit
     absent/null, downgrade/removal, local-ownership conflict, replay and
     outcome-unknown behavior.
+    The proof MUST separately enable and disable a provider, rotate credentials
+    with overlap and reconciliation, enable enforcement only after verified
+    ownership, exercise distinct `identity.sso.break-glass.issue` and
+    `identity.sso.break-glass.consume` operations with separate issuance/use
+    audit events, and complete both start and state-consuming callback phases of
+    RP-initiated enterprise OIDC logout with local revocation on every outcome.
     Directory/IdP synchronization MUST add, update, suspend and remove mapped
     users/groups/roles idempotently, preserve authoritative-source and conflict
     policy, reject stale/replayed versions, and cascade deprovisioning into
@@ -226,6 +274,9 @@ Its handlers MUST call public package contracts exactly as a consumer would.
     Personal/user-owned SCIM connections MUST be rejected; every connection,
     bearer and mapping is organization/provider owned, and imported legacy
     personal state requires an explicit migrate, disable or delete disposition.
+    The proof MUST update an organization-owned connection, revoke one named
+    bearer without rotating unrelated credentials, and reconcile a bounded
+    dry-run/apply generation including unknown-outcome continuation.
 12. **OAuth/OIDC provider:** register clients, authorize with consent and PKCE,
     exchange and refresh with rotation, revoke/introspect, discover metadata
     and JWKS, validate ID token/UserInfo at an independent relying party, and
@@ -263,6 +314,9 @@ Its handlers MUST call public package contracts exactly as a consumer would.
     expiry, deletion races and delivery failure MUST preserve idempotency,
     auditability, minimization and redaction; provider-held data and legal-hold
     limitations MUST be explicit.
+    Download MUST first call the separately authorized capability-issuance
+    operation and then consume that capability once; status responses MUST NOT
+    contain a download credential.
 
 ## HTTP and browser-facing contract
 
@@ -299,7 +353,9 @@ operation-scoped concurrent idempotency and unknown outcomes; exact
 credential-mode CORS; trusted-hop-only proxy/base-URL resolution; configured
 server/handler/provider/store timeouts; deterministic secret-free OpenAPI
 export; and separate process-only liveness and dependency/migration/key-aware
-readiness probes through startup and drain.
+readiness probes through startup and drain. The only probe routes are
+`GET /healthz` (`identity.health`) and `GET /readyz`
+(`identity.ready`); aliases and feature-local probe routes are forbidden.
 
 Every client HTTP route MUST have an explicit default, endpoint or extension
 rate rule. The complete profile MUST prove trusted-proxy derivation,
@@ -378,6 +434,33 @@ the repository release gates required for all affected modules. Exact coverage
 and mutation requirements, race/fuzz/leak/benchmark gates, clean-consumer
 proof, API compatibility, documentation compilation, dependency/license,
 vulnerability/secret, SBOM and provenance checks MUST pass where required.
+
+Every acceptance report MUST satisfy its artifact-specific schema in
+`END_STATE_ACCEPTANCE.json`. That schema MUST require exact behavioral
+observations for the report's own claims, including applicable success, denial,
+failure, outage, replay, concurrency, cleanup and unknown-outcome recovery
+boundaries. A generic text assertion, schema label, command name or aggregate
+pass is not behavioral proof.
+
+Before a final gate starts, the coordinator MUST capture the exact committed
+tested revision and a sorted exhaustive input manifest covering all affected
+implementation trees, tests, fixtures, generated files, owned dependencies,
+normative identity-platform contracts, gate code/configuration, pinned tools,
+service profiles and behavior-affecting environment identity. The canonical
+SHA-256 root of that manifest is the acceptance input root; the semantic digest
+of a shortlist of planning files is not a complete-input fingerprint.
+
+Evidence records MUST name that tested revision, the distinct gate execution
+revision, and a nullable revalidation revision. The revalidation revision MUST
+be null without reuse; for fingerprint-proven reuse it MUST equal the gate
+execution revision, and the complete input manifest and root MUST validate
+identically at both committed revisions. After execution, their exact bytes and artifacts MUST be committed in
+a later evidence-record commit. The record MUST NOT attempt to contain its own
+commit hash. A later coordinator finalization commit MUST bind each path, blob
+digest and evidence-record commit, prove the tested revision is its ancestor,
+and parse the blob from that commit rather than the working tree. The final
+`identity/reference` evidence index MUST provide these bindings for every
+required artifact before final completion.
 
 The program MUST NOT be called complete while any inventory unit, parity row,
 journey, provider profile, security property, migration/recovery profile,

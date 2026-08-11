@@ -2,121 +2,1953 @@
   "version": 1,
   "retrieved_at": "2026-08-11",
   "verified_errata": {
-    "rfc-7643": ["5368", "5606", "5607", "5990", "5991", "6004", "6727", "7522", "8361", "8415", "8417", "8435", "8450", "8471", "8472", "8475"],
-    "rfc-7644": ["6893", "7898", "7916", "8096", "8365"]
+    "rfc-7643": [
+      "5368",
+      "5606",
+      "5607",
+      "5990",
+      "5991",
+      "6004",
+      "6727",
+      "7522",
+      "8361",
+      "8415",
+      "8417",
+      "8435",
+      "8450",
+      "8471",
+      "8472",
+      "8475"
+    ],
+    "rfc-7644": [
+      "6893",
+      "7898",
+      "7916",
+      "8096",
+      "8365"
+    ]
   },
+  "clause_pins": [
+    {
+      "requirement_id": "oauth.draft.security-baseline",
+      "source_id": "oauth-2.1-draft-15",
+      "locator": "Sections 1.7, 4.1, 7.5, 7.6, and 10",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oauth.protected-resource-metadata",
+      "source_id": "rfc-9728",
+      "locator": "Sections 2 and 3",
+      "disposition": "required",
+      "consumers": [
+        "identity/http",
+        "oauth-server"
+      ]
+    },
+    {
+      "requirement_id": "oauth.dynamic-registration",
+      "source_id": "rfc-7591",
+      "locator": "Sections 3.1, 3.2.1, and 3.2.2",
+      "disposition": "profile-decision",
+      "consumers": [
+        "oauth-server"
+      ]
+    },
+    {
+      "requirement_id": "oauth.dynamic-registration-management-unsupported",
+      "source_id": "rfc-7592",
+      "locator": "Sections 2 and 2.1",
+      "disposition": "unsupported",
+      "consumers": [
+        "oauth-server"
+      ]
+    },
+    {
+      "requirement_id": "oidc.authorization-code-validation",
+      "source_id": "oidc-core-1.0-errata-2",
+      "locator": "Sections 3.1.2.1, 3.1.2.7, 3.1.3.7, 5.3.2, and 15.5.2",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oidc.discovery-validation",
+      "source_id": "oidc-discovery-1.0-errata-2",
+      "locator": "Sections 3, 4.3, and 7.3",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oidc.logout",
+      "source_id": "oidc-rp-initiated-logout-1.0",
+      "locator": "Sections 2, 3, and 4",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "saml.binding-selection",
+      "source_id": "saml-bindings-2.0-os",
+      "locator": "Sections 3.4 and 3.5",
+      "disposition": "profile-decision",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "saml.web-sso-validation",
+      "source_id": "saml-profiles-2.0-os",
+      "locator": "Sections 4.1.4.2, 4.1.4.3, and 4.1.5",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "saml.destination-and-correlation",
+      "source_id": "saml-core-2.0-os",
+      "locator": "Sections 2.4.1.2, 3.2.1, and 3.4.1",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "saml.signature-security",
+      "source_id": "saml-security-2.0-os",
+      "locator": "Sections 5.4.2, 6.4.3, and 6.5.1",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "saml.xml-signature",
+      "source_id": "xml-signature-1.1-20130411",
+      "locator": "Sections 3.2, 3.2.1, and 4.3.3",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "scim.schema-comparison",
+      "source_id": "rfc-7643",
+      "locator": "Sections 2.1, 2.2, 3.1, 4.1.1, and 8.7.1",
+      "disposition": "required",
+      "consumers": [
+        "scim",
+        "scim/postgres"
+      ]
+    },
+    {
+      "requirement_id": "scim.protocol-list-patch-bulk",
+      "source_id": "rfc-7644",
+      "locator": "Sections 3.4.2.4, 3.4.2.5, 3.5.2, 3.7, 3.9, and 4",
+      "disposition": "required",
+      "consumers": [
+        "scim",
+        "scim/postgres"
+      ]
+    },
+    {
+      "requirement_id": "webauthn.assertion-counter",
+      "source_id": "webauthn-level-3-cr-20260526",
+      "locator": "Section 7.2, steps 20 and 21",
+      "disposition": "profile-decision",
+      "consumers": [
+        "passkey",
+        "passkey/postgres",
+        "webauthn",
+        "webauthn/postgres"
+      ]
+    },
+    {
+      "requirement_id": "webauthn.registration-validation",
+      "source_id": "webauthn-level-3-cr-20260526",
+      "locator": "Section 7.1",
+      "disposition": "required",
+      "consumers": [
+        "passkey",
+        "passkey/postgres",
+        "webauthn",
+        "webauthn/postgres"
+      ]
+    },
+    {
+      "requirement_id": "fido.metadata-service-validation",
+      "source_id": "fido-metadata-service-3.1.1-20260105",
+      "locator": "Sections 3.1, 3.2, and 5",
+      "disposition": "required",
+      "consumers": [
+        "webauthn"
+      ]
+    },
+    {
+      "requirement_id": "fido.metadata-statement-validation",
+      "source_id": "fido-metadata-statement-3.1.1-20260105",
+      "locator": "Sections 3.1 and 3.3",
+      "disposition": "required",
+      "consumers": [
+        "webauthn"
+      ]
+    },
+    {
+      "requirement_id": "scim.duplicate-case-collision",
+      "source_id": "rfc-7643",
+      "locator": "Sections 2.1, 2.2, and 2.3",
+      "disposition": "profile-decision",
+      "consumers": [
+        "scim",
+        "scim/postgres"
+      ]
+    },
+    {
+      "requirement_id": "scim.password-write-unsupported",
+      "source_id": "rfc-7643",
+      "locator": "Section 4.1.2 password characteristic; reference profile rejects writes",
+      "disposition": "unsupported",
+      "consumers": [
+        "identity/reference",
+        "scim",
+        "scim/postgres"
+      ]
+    },
+    {
+      "requirement_id": "scim.if-match-precondition",
+      "source_id": "rfc-7644",
+      "locator": "Section 3.14 with RFC 6585 Section 3 for HTTP 428",
+      "disposition": "profile-decision",
+      "consumers": [
+        "identity/reference",
+        "scim",
+        "scim/postgres"
+      ]
+    },
+    {
+      "requirement_id": "scim.default-sorting",
+      "source_id": "rfc-7644",
+      "locator": "Section 3.4.2.3; absent sortBy selects stable id ascending",
+      "disposition": "profile-decision",
+      "consumers": [
+        "identity/reference",
+        "scim",
+        "scim/postgres"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-2119",
+      "source_id": "rfc-2119",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity",
+        "identity/anonymous",
+        "identity/anonymous/postgres",
+        "identity/apikey",
+        "identity/apikey/postgres",
+        "identity/apikey/valkey",
+        "identity/delivery",
+        "identity/delivery/postgres",
+        "identity/email",
+        "identity/http",
+        "identity/i18n",
+        "identity/identitytest",
+        "identity/impersonation",
+        "identity/impersonation/postgres",
+        "identity/magiclink",
+        "identity/mfa",
+        "identity/mfa/postgres",
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "identity/oauth/postgres",
+        "identity/oauth/providers",
+        "identity/oauth/proxy",
+        "identity/otp",
+        "identity/otp/postgres",
+        "identity/password",
+        "identity/password/postgres",
+        "identity/phone",
+        "identity/postgres",
+        "identity/reference",
+        "identity/risk",
+        "identity/risk/captcha",
+        "identity/risk/captcha/captchafox",
+        "identity/risk/captcha/hcaptcha",
+        "identity/risk/captcha/recaptcha",
+        "identity/risk/captcha/turnstile",
+        "identity/risk/hibp",
+        "identity/risk/postgres",
+        "identity/risk/valkey",
+        "identity/session",
+        "identity/session/postgres",
+        "identity/session/valkey",
+        "identity/username",
+        "oauth-server",
+        "oauth-server/device",
+        "oauth-server/oidc",
+        "oauth-server/postgres",
+        "organization",
+        "organization/postgres",
+        "passkey",
+        "passkey/postgres",
+        "scim",
+        "scim/organization",
+        "scim/postgres",
+        "sso",
+        "sso/domain-verification",
+        "sso/oauth2",
+        "sso/oidc",
+        "sso/postgres",
+        "sso/saml",
+        "webauthn",
+        "webauthn/postgres"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-4226",
+      "source_id": "rfc-4226",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/mfa"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-5280",
+      "source_id": "rfc-5280",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "webauthn"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-5952",
+      "source_id": "rfc-5952",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/http",
+        "identity/reference",
+        "identity/risk",
+        "identity/risk/postgres",
+        "identity/risk/valkey"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-6238",
+      "source_id": "rfc-6238",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/mfa",
+        "identity/reference"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-6585",
+      "source_id": "rfc-6585",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "scim"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-6749",
+      "source_id": "rfc-6749",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-6750",
+      "source_id": "rfc-6750",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/http",
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-6901",
+      "source_id": "rfc-6901",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth/providers",
+        "identity/reference"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-7009",
+      "source_id": "rfc-7009",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-7239",
+      "source_id": "rfc-7239",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/http",
+        "identity/reference"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-7515",
+      "source_id": "rfc-7515",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-7517",
+      "source_id": "rfc-7517",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-7518",
+      "source_id": "rfc-7518",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-7519",
+      "source_id": "rfc-7519",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-7636",
+      "source_id": "rfc-7636",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-7642",
+      "source_id": "rfc-7642",
+      "locator": "Complete selected normative source",
+      "disposition": "profile-decision",
+      "consumers": [
+        "scim"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-7662",
+      "source_id": "rfc-7662",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-8174",
+      "source_id": "rfc-8174",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity",
+        "identity/anonymous",
+        "identity/anonymous/postgres",
+        "identity/apikey",
+        "identity/apikey/postgres",
+        "identity/apikey/valkey",
+        "identity/delivery",
+        "identity/delivery/postgres",
+        "identity/email",
+        "identity/http",
+        "identity/i18n",
+        "identity/identitytest",
+        "identity/impersonation",
+        "identity/impersonation/postgres",
+        "identity/magiclink",
+        "identity/mfa",
+        "identity/mfa/postgres",
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "identity/oauth/postgres",
+        "identity/oauth/providers",
+        "identity/oauth/proxy",
+        "identity/otp",
+        "identity/otp/postgres",
+        "identity/password",
+        "identity/password/postgres",
+        "identity/phone",
+        "identity/postgres",
+        "identity/reference",
+        "identity/risk",
+        "identity/risk/captcha",
+        "identity/risk/captcha/captchafox",
+        "identity/risk/captcha/hcaptcha",
+        "identity/risk/captcha/recaptcha",
+        "identity/risk/captcha/turnstile",
+        "identity/risk/hibp",
+        "identity/risk/postgres",
+        "identity/risk/valkey",
+        "identity/session",
+        "identity/session/postgres",
+        "identity/session/valkey",
+        "identity/username",
+        "oauth-server",
+        "oauth-server/device",
+        "oauth-server/oidc",
+        "oauth-server/postgres",
+        "organization",
+        "organization/postgres",
+        "passkey",
+        "passkey/postgres",
+        "scim",
+        "scim/organization",
+        "scim/postgres",
+        "sso",
+        "sso/domain-verification",
+        "sso/oauth2",
+        "sso/oidc",
+        "sso/postgres",
+        "sso/saml",
+        "webauthn",
+        "webauthn/postgres"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-8252",
+      "source_id": "rfc-8252",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "oauth-server"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-8414",
+      "source_id": "rfc-8414",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth/providers",
+        "oauth-server"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-8628",
+      "source_id": "rfc-8628",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "oauth-server/device"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-8693",
+      "source_id": "rfc-8693",
+      "locator": "RFC 8693 token exchange is not selected by the private session-JWT extension",
+      "disposition": "unsupported",
+      "consumers": [
+        "oauth-server",
+        "oauth-server/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-8707",
+      "source_id": "rfc-8707",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "oauth-server"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-8949",
+      "source_id": "rfc-8949",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity",
+        "identity/anonymous",
+        "identity/anonymous/postgres",
+        "identity/apikey",
+        "identity/apikey/postgres",
+        "identity/apikey/valkey",
+        "identity/delivery",
+        "identity/delivery/postgres",
+        "identity/email",
+        "identity/impersonation",
+        "identity/impersonation/postgres",
+        "identity/magiclink",
+        "identity/mfa",
+        "identity/mfa/postgres",
+        "identity/oauth",
+        "identity/oauth/postgres",
+        "identity/otp",
+        "identity/otp/postgres",
+        "identity/password",
+        "identity/password/postgres",
+        "identity/phone",
+        "identity/postgres",
+        "identity/reference",
+        "identity/risk",
+        "identity/risk/captcha",
+        "identity/risk/hibp",
+        "identity/risk/postgres",
+        "identity/risk/valkey",
+        "identity/session",
+        "identity/session/postgres",
+        "identity/session/valkey",
+        "oauth-server",
+        "oauth-server/device",
+        "oauth-server/oidc",
+        "oauth-server/postgres",
+        "organization",
+        "organization/postgres",
+        "passkey",
+        "passkey/postgres",
+        "scim",
+        "scim/organization",
+        "scim/postgres",
+        "sso",
+        "sso/domain-verification",
+        "sso/oauth2",
+        "sso/oidc",
+        "sso/postgres",
+        "sso/saml",
+        "webauthn",
+        "webauthn/postgres"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-9052",
+      "source_id": "rfc-9052",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "webauthn"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-9053",
+      "source_id": "rfc-9053",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "webauthn"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-9207",
+      "source_id": "rfc-9207",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-9700",
+      "source_id": "rfc-9700",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.oidc-multiple-response-types-1.0",
+      "source_id": "oidc-multiple-response-types-1.0",
+      "locator": "Sections 2 and 3 response_type registration and unsupported combinations",
+      "disposition": "required",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "source.saml-metadata-2.0-os",
+      "source_id": "saml-metadata-2.0-os",
+      "locator": "Sections 2.4 and 2.5 metadata role and endpoint processing",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "source.saml-errata-05",
+      "source_id": "saml-errata-05",
+      "locator": "Approved Errata 05 items E6, E13, E43, E55, E60, E62, E79, E90, E92 and E94 selected by the SAML profile",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "source.exclusive-xml-c14n-20020718",
+      "source_id": "exclusive-xml-c14n-20020718",
+      "locator": "Section 2 exclusive canonicalization algorithm",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "source.public-suffix-list-e1b8015c",
+      "source_id": "public-suffix-list-e1b8015c",
+      "locator": "Complete pinned ICANN and PRIVATE rule snapshot",
+      "disposition": "required",
+      "consumers": [
+        "sso/domain-verification",
+        "webauthn"
+      ]
+    },
+    {
+      "requirement_id": "source.google-authenticator-key-uri-8ba6e793",
+      "source_id": "google-authenticator-key-uri-8ba6e793",
+      "locator": "Key URI Format sections Label, Secret, Issuer, Algorithm, Digits, Counter and Period; unknown or conflicting parameters rejected",
+      "disposition": "required",
+      "consumers": [
+        "identity/mfa"
+      ]
+    },
+    {
+      "requirement_id": "oidc.implicit-unsupported",
+      "source_id": "oidc-core-1.0-errata-2",
+      "locator": "Sections 3.2 and 15.1 implicit flow",
+      "disposition": "unsupported",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oidc.hybrid-unsupported",
+      "source_id": "oidc-core-1.0-errata-2",
+      "locator": "Sections 3.3 and 15.1 hybrid flow",
+      "disposition": "unsupported",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oidc.request-objects-unsupported",
+      "source_id": "oidc-core-1.0-errata-2",
+      "locator": "Section 6 Request Object and request_uri parameters",
+      "disposition": "unsupported",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oidc.encrypted-id-token-unsupported",
+      "source_id": "oidc-core-1.0-errata-2",
+      "locator": "Sections 10.2 and 10.2.1 encrypted ID Tokens",
+      "disposition": "unsupported",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oidc.response-mode-fragment-unsupported",
+      "source_id": "oidc-multiple-response-types-1.0",
+      "locator": "Section 2 fragment response mode",
+      "disposition": "unsupported",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oidc.form-post-response-mode-unsupported",
+      "source_id": "oauth-form-post-response-mode-1.0-final",
+      "locator": "Section 2 Form Post Response Mode",
+      "disposition": "unsupported",
+      "consumers": [
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oauth.apple-form-post-response-mode-required",
+      "source_id": "oauth-form-post-response-mode-1.0-final",
+      "locator": "Section 2 Form Post Response Mode",
+      "disposition": "profile-decision",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers"
+      ]
+    },
+    {
+      "requirement_id": "oidc.jarm-unsupported",
+      "source_id": "oauth-jarm-1.0-final",
+      "locator": "Sections 2 and 3 response mode and client metadata; Section 4 authorization-server metadata; Section 5 security considerations",
+      "disposition": "unsupported",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oidc.frontchannel-logout-unsupported",
+      "source_id": "oidc-frontchannel-logout-1.0-final",
+      "locator": "Sections 2, 3, and 4 Front-Channel Logout",
+      "disposition": "unsupported",
+      "consumers": [
+        "identity/oauth",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "requirement_id": "oidc.backchannel-logout-unsupported",
+      "source_id": "oidc-backchannel-logout-1.0-final",
+      "locator": "Sections 2 and 3 Back-Channel Logout",
+      "disposition": "unsupported",
+      "consumers": [
+        "identity/oauth",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    }
+  ],
   "source_identity": {
-    "oauth-2.1-draft-15": {"title":"The OAuth 2.1 Authorization Framework","revision":"Internet-Draft draft-ietf-oauth-v2-1-15, 2 March 2026"},
-    "rfc-2119": {"title":"Key words for use in RFCs to Indicate Requirement Levels","revision":"RFC 2119"},
-    "rfc-4226": {"title":"HOTP: An HMAC-Based One-Time Password Algorithm","revision":"RFC 4226"},
-    "rfc-5280": {"title":"Internet X.509 Public Key Infrastructure Certificate and CRL Profile","revision":"RFC 5280"},
-    "rfc-5952": {"title":"A Recommendation for IPv6 Address Text Representation","revision":"RFC 5952"},
-    "rfc-6238": {"title":"TOTP: Time-Based One-Time Password Algorithm","revision":"RFC 6238"},
-    "rfc-6585": {"title":"Additional HTTP Status Codes","revision":"RFC 6585"},
-    "rfc-6749": {"title":"The OAuth 2.0 Authorization Framework","revision":"RFC 6749"},
-    "rfc-6750": {"title":"The OAuth 2.0 Authorization Framework: Bearer Token Usage","revision":"RFC 6750"},
-    "rfc-6901": {"title":"JavaScript Object Notation (JSON) Pointer","revision":"RFC 6901"},
-    "rfc-7009": {"title":"OAuth 2.0 Token Revocation","revision":"RFC 7009"},
-    "rfc-7239": {"title":"Forwarded HTTP Extension","revision":"RFC 7239"},
-    "rfc-7515": {"title":"JSON Web Signature","revision":"RFC 7515"},
-    "rfc-7517": {"title":"JSON Web Key","revision":"RFC 7517"},
-    "rfc-7518": {"title":"JSON Web Algorithms","revision":"RFC 7518"},
-    "rfc-7519": {"title":"JSON Web Token","revision":"RFC 7519"},
-    "rfc-7591": {"title":"OAuth 2.0 Dynamic Client Registration Protocol","revision":"RFC 7591"},
-    "rfc-7592": {"title":"OAuth 2.0 Dynamic Client Registration Management Protocol","revision":"RFC 7592"},
-    "rfc-7636": {"title":"Proof Key for Code Exchange by OAuth Public Clients","revision":"RFC 7636"},
-    "rfc-7642": {"title":"System for Cross-domain Identity Management: Definitions, Overview, Concepts, and Requirements","revision":"RFC 7642"},
-    "rfc-7643": {"title":"System for Cross-domain Identity Management: Core Schema","revision":"RFC 7643"},
-    "rfc-7644": {"title":"System for Cross-domain Identity Management: Protocol","revision":"RFC 7644"},
-    "rfc-7662": {"title":"OAuth 2.0 Token Introspection","revision":"RFC 7662"},
-    "rfc-8174": {"title":"Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words","revision":"RFC 8174"},
-    "rfc-8252": {"title":"OAuth 2.0 for Native Apps","revision":"RFC 8252"},
-    "rfc-8414": {"title":"OAuth 2.0 Authorization Server Metadata","revision":"RFC 8414"},
-    "rfc-8628": {"title":"OAuth 2.0 Device Authorization Grant","revision":"RFC 8628"},
-    "rfc-8693": {"title":"OAuth 2.0 Token Exchange","revision":"RFC 8693"},
-    "rfc-8707": {"title":"Resource Indicators for OAuth 2.0","revision":"RFC 8707"},
-    "rfc-8949": {"title":"Concise Binary Object Representation","revision":"RFC 8949"},
-    "rfc-9052": {"title":"CBOR Object Signing and Encryption: Structures and Process","revision":"RFC 9052"},
-    "rfc-9053": {"title":"CBOR Object Signing and Encryption: Initial Algorithms","revision":"RFC 9053"},
-    "rfc-9207": {"title":"OAuth 2.0 Authorization Server Issuer Identification","revision":"RFC 9207"},
-    "rfc-9700": {"title":"Best Current Practice for OAuth 2.0 Security","revision":"RFC 9700"},
-    "rfc-9728": {"title":"OAuth 2.0 Protected Resource Metadata","revision":"RFC 9728"},
-    "oidc-core-1.0-errata-2": {"title":"OpenID Connect Core 1.0","revision":"incorporating errata set 2"},
-    "oidc-discovery-1.0-errata-2": {"title":"OpenID Connect Discovery 1.0","revision":"incorporating errata set 2"},
-    "oidc-multiple-response-types-1.0": {"title":"OAuth 2.0 Multiple Response Type Encoding Practices","revision":"1.0"},
-    "oidc-rp-initiated-logout-1.0": {"title":"OpenID Connect RP-Initiated Logout","revision":"1.0 Final, 12 September 2022"},
-    "saml-core-2.0-os": {"title":"Assertions and Protocols for SAML V2.0","revision":"OASIS Standard, 15 March 2005"},
-    "saml-bindings-2.0-os": {"title":"Bindings for SAML V2.0","revision":"OASIS Standard, 15 March 2005"},
-    "saml-profiles-2.0-os": {"title":"Profiles for SAML V2.0","revision":"OASIS Standard, 15 March 2005"},
-    "saml-metadata-2.0-os": {"title":"Metadata for SAML V2.0","revision":"OASIS Standard, 15 March 2005"},
-    "saml-security-2.0-os": {"title":"Security and Privacy Considerations for SAML V2.0","revision":"OASIS Standard, 15 March 2005"},
-    "saml-errata-05": {"title":"SAML V2.0 Approved Errata","revision":"05, 1 May 2012"},
-    "xml-signature-1.1-20130411": {"title":"XML Signature Syntax and Processing Version 1.1","revision":"W3C Recommendation, 11 April 2013"},
-    "exclusive-xml-c14n-20020718": {"title":"Exclusive XML Canonicalization Version 1.0","revision":"W3C Recommendation, 18 July 2002"},
-    "webauthn-level-3-cr-20260526": {"title":"Web Authentication: An API for accessing Public Key Credentials Level 3","revision":"W3C Candidate Recommendation Snapshot, 26 May 2026"},
-    "fido-metadata-service-3.1.1-20260105": {"title":"FIDO Metadata Service","revision":"v3.1.1 Proposed Standard, 5 January 2026"},
-    "fido-metadata-statement-3.1.1-20260105": {"title":"FIDO Metadata Statement","revision":"v3.1.1 Proposed Standard, 5 January 2026"},
-    "public-suffix-list-e1b8015c": {"title":"Public Suffix List","revision":"commit e1b8015c3b2f0f4f8c18659c2480fc1a22c07b20"},
-    "google-authenticator-key-uri-8ba6e793": {"title":"Key Uri Format","revision":"commit 8ba6e79359344f57b2b0ebea2bfab4cdab2a6573"}
+    "oauth-2.1-draft-15": {
+      "title": "The OAuth 2.1 Authorization Framework",
+      "revision": "Internet-Draft draft-ietf-oauth-v2-1-15, 2 March 2026"
+    },
+    "rfc-2119": {
+      "title": "Key words for use in RFCs to Indicate Requirement Levels",
+      "revision": "RFC 2119"
+    },
+    "rfc-4226": {
+      "title": "HOTP: An HMAC-Based One-Time Password Algorithm",
+      "revision": "RFC 4226"
+    },
+    "rfc-5280": {
+      "title": "Internet X.509 Public Key Infrastructure Certificate and CRL Profile",
+      "revision": "RFC 5280"
+    },
+    "rfc-5952": {
+      "title": "A Recommendation for IPv6 Address Text Representation",
+      "revision": "RFC 5952"
+    },
+    "rfc-6238": {
+      "title": "TOTP: Time-Based One-Time Password Algorithm",
+      "revision": "RFC 6238"
+    },
+    "rfc-6585": {
+      "title": "Additional HTTP Status Codes",
+      "revision": "RFC 6585"
+    },
+    "rfc-6749": {
+      "title": "The OAuth 2.0 Authorization Framework",
+      "revision": "RFC 6749"
+    },
+    "rfc-6750": {
+      "title": "The OAuth 2.0 Authorization Framework: Bearer Token Usage",
+      "revision": "RFC 6750"
+    },
+    "rfc-6901": {
+      "title": "JavaScript Object Notation (JSON) Pointer",
+      "revision": "RFC 6901"
+    },
+    "rfc-7009": {
+      "title": "OAuth 2.0 Token Revocation",
+      "revision": "RFC 7009"
+    },
+    "rfc-7239": {
+      "title": "Forwarded HTTP Extension",
+      "revision": "RFC 7239"
+    },
+    "rfc-7515": {
+      "title": "JSON Web Signature",
+      "revision": "RFC 7515"
+    },
+    "rfc-7517": {
+      "title": "JSON Web Key",
+      "revision": "RFC 7517"
+    },
+    "rfc-7518": {
+      "title": "JSON Web Algorithms",
+      "revision": "RFC 7518"
+    },
+    "rfc-7519": {
+      "title": "JSON Web Token",
+      "revision": "RFC 7519"
+    },
+    "rfc-7591": {
+      "title": "OAuth 2.0 Dynamic Client Registration Protocol",
+      "revision": "RFC 7591"
+    },
+    "rfc-7592": {
+      "title": "OAuth 2.0 Dynamic Client Registration Management Protocol",
+      "revision": "RFC 7592"
+    },
+    "rfc-7636": {
+      "title": "Proof Key for Code Exchange by OAuth Public Clients",
+      "revision": "RFC 7636"
+    },
+    "rfc-7642": {
+      "title": "System for Cross-domain Identity Management: Definitions, Overview, Concepts, and Requirements",
+      "revision": "RFC 7642"
+    },
+    "rfc-7643": {
+      "title": "System for Cross-domain Identity Management: Core Schema",
+      "revision": "RFC 7643"
+    },
+    "rfc-7644": {
+      "title": "System for Cross-domain Identity Management: Protocol",
+      "revision": "RFC 7644"
+    },
+    "rfc-7662": {
+      "title": "OAuth 2.0 Token Introspection",
+      "revision": "RFC 7662"
+    },
+    "rfc-8174": {
+      "title": "Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words",
+      "revision": "RFC 8174"
+    },
+    "rfc-8252": {
+      "title": "OAuth 2.0 for Native Apps",
+      "revision": "RFC 8252"
+    },
+    "rfc-8414": {
+      "title": "OAuth 2.0 Authorization Server Metadata",
+      "revision": "RFC 8414"
+    },
+    "rfc-8628": {
+      "title": "OAuth 2.0 Device Authorization Grant",
+      "revision": "RFC 8628"
+    },
+    "rfc-8693": {
+      "title": "OAuth 2.0 Token Exchange",
+      "revision": "RFC 8693"
+    },
+    "rfc-8707": {
+      "title": "Resource Indicators for OAuth 2.0",
+      "revision": "RFC 8707"
+    },
+    "rfc-8949": {
+      "title": "Concise Binary Object Representation",
+      "revision": "RFC 8949"
+    },
+    "rfc-9052": {
+      "title": "CBOR Object Signing and Encryption: Structures and Process",
+      "revision": "RFC 9052"
+    },
+    "rfc-9053": {
+      "title": "CBOR Object Signing and Encryption: Initial Algorithms",
+      "revision": "RFC 9053"
+    },
+    "rfc-9207": {
+      "title": "OAuth 2.0 Authorization Server Issuer Identification",
+      "revision": "RFC 9207"
+    },
+    "rfc-9700": {
+      "title": "Best Current Practice for OAuth 2.0 Security",
+      "revision": "RFC 9700"
+    },
+    "rfc-9728": {
+      "title": "OAuth 2.0 Protected Resource Metadata",
+      "revision": "RFC 9728"
+    },
+    "oidc-core-1.0-errata-2": {
+      "title": "OpenID Connect Core 1.0",
+      "revision": "incorporating errata set 2"
+    },
+    "oidc-discovery-1.0-errata-2": {
+      "title": "OpenID Connect Discovery 1.0",
+      "revision": "incorporating errata set 2"
+    },
+    "oidc-multiple-response-types-1.0": {
+      "title": "OAuth 2.0 Multiple Response Type Encoding Practices",
+      "revision": "1.0"
+    },
+    "oidc-rp-initiated-logout-1.0": {
+      "title": "OpenID Connect RP-Initiated Logout",
+      "revision": "1.0 Final, 12 September 2022"
+    },
+    "saml-core-2.0-os": {
+      "title": "Assertions and Protocols for SAML V2.0",
+      "revision": "OASIS Standard, 15 March 2005"
+    },
+    "saml-bindings-2.0-os": {
+      "title": "Bindings for SAML V2.0",
+      "revision": "OASIS Standard, 15 March 2005"
+    },
+    "saml-profiles-2.0-os": {
+      "title": "Profiles for SAML V2.0",
+      "revision": "OASIS Standard, 15 March 2005"
+    },
+    "saml-metadata-2.0-os": {
+      "title": "Metadata for SAML V2.0",
+      "revision": "OASIS Standard, 15 March 2005"
+    },
+    "saml-security-2.0-os": {
+      "title": "Security and Privacy Considerations for SAML V2.0",
+      "revision": "OASIS Standard, 15 March 2005"
+    },
+    "saml-errata-05": {
+      "title": "SAML V2.0 Approved Errata",
+      "revision": "05, 1 May 2012"
+    },
+    "xml-signature-1.1-20130411": {
+      "title": "XML Signature Syntax and Processing Version 1.1",
+      "revision": "W3C Recommendation, 11 April 2013"
+    },
+    "exclusive-xml-c14n-20020718": {
+      "title": "Exclusive XML Canonicalization Version 1.0",
+      "revision": "W3C Recommendation, 18 July 2002"
+    },
+    "webauthn-level-3-cr-20260526": {
+      "title": "Web Authentication: An API for accessing Public Key Credentials Level 3",
+      "revision": "W3C Candidate Recommendation Snapshot, 26 May 2026"
+    },
+    "fido-metadata-service-3.1.1-20260105": {
+      "title": "FIDO Metadata Service",
+      "revision": "v3.1.1 Proposed Standard, 5 January 2026"
+    },
+    "fido-metadata-statement-3.1.1-20260105": {
+      "title": "FIDO Metadata Statement",
+      "revision": "v3.1.1 Proposed Standard, 5 January 2026"
+    },
+    "public-suffix-list-e1b8015c": {
+      "title": "Public Suffix List",
+      "revision": "commit e1b8015c3b2f0f4f8c18659c2480fc1a22c07b20"
+    },
+    "google-authenticator-key-uri-8ba6e793": {
+      "title": "Key Uri Format",
+      "revision": "commit 8ba6e79359344f57b2b0ebea2bfab4cdab2a6573"
+    },
+    "oauth-form-post-response-mode-1.0-final": {
+      "title": "OAuth 2.0 Form Post Response Mode",
+      "revision": "Final 1.0"
+    },
+    "oauth-jarm-1.0-final": {
+      "title": "JWT Secured Authorization Response Mode for OAuth 2.0 (JARM)",
+      "revision": "Final 1.0"
+    },
+    "oidc-frontchannel-logout-1.0-final": {
+      "title": "OpenID Connect Front-Channel Logout 1.0",
+      "revision": "Final 1.0"
+    },
+    "oidc-backchannel-logout-1.0-final": {
+      "title": "OpenID Connect Back-Channel Logout 1.0",
+      "revision": "Final 1.0 incorporating errata set 1"
+    }
   },
   "sources": [
-    {"id":"oauth-2.1-draft-15","url":"https://www.ietf.org/archive/id/draft-ietf-oauth-v2-1-15.txt","sha256":"fca5d031abb5220998edb9316df2a03d8d641e88bc8a7e4fd80ab29c635455a3","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/providers","oauth-server","sso/oauth2","sso/oidc"]},
-    {"id":"rfc-2119","url":"https://www.rfc-editor.org/rfc/rfc2119.txt","sha256":"3c2ceb7bfc84cd34720f4a5271338ab9d8280d34bdd1eb250c64306202f2ed8b","license":"IETF Trust Legal Provisions","consumers":["identity","identity/anonymous","identity/anonymous/postgres","identity/apikey","identity/apikey/postgres","identity/apikey/valkey","identity/delivery","identity/delivery/postgres","identity/email","identity/http","identity/i18n","identity/identitytest","identity/impersonation","identity/impersonation/postgres","identity/magiclink","identity/mfa","identity/mfa/postgres","identity/oauth","identity/oauth/onetap","identity/oauth/postgres","identity/oauth/providers","identity/oauth/proxy","identity/otp","identity/otp/postgres","identity/password","identity/password/postgres","identity/phone","identity/postgres","identity/reference","identity/risk","identity/risk/captcha","identity/risk/captcha/captchafox","identity/risk/captcha/hcaptcha","identity/risk/captcha/recaptcha","identity/risk/captcha/turnstile","identity/risk/hibp","identity/risk/postgres","identity/risk/valkey","identity/session","identity/session/postgres","identity/session/valkey","identity/username","oauth-server","oauth-server/device","oauth-server/oidc","oauth-server/postgres","organization","organization/postgres","passkey","passkey/postgres","scim","scim/organization","scim/postgres","sso","sso/domain-verification","sso/oauth2","sso/oidc","sso/postgres","sso/saml","webauthn","webauthn/postgres"]},
-    {"id":"rfc-4226","url":"https://www.rfc-editor.org/rfc/rfc4226.txt","sha256":"db6974cd02ca33560ec3a191ee9b1016067cd11d1f5d89e7efa36be69482229d","license":"IETF Trust Legal Provisions","consumers":["identity/mfa"]},
-    {"id":"rfc-5280","url":"https://www.rfc-editor.org/rfc/rfc5280.txt","sha256":"a2f2628c0a83b873fc4786abd921f9b2c02395954b655d190bf16b831633345d","license":"IETF Trust Legal Provisions","consumers":["webauthn"]},
-    {"id":"rfc-5952","url":"https://www.rfc-editor.org/rfc/rfc5952.txt","sha256":"c75e82c5f53bcec8148820fadf0d65935336ee2031fa6ce10504797ed4c1979d","license":"IETF Trust Legal Provisions","consumers":["identity/http","identity/reference","identity/risk","identity/risk/postgres","identity/risk/valkey"]},
-    {"id":"rfc-6238","url":"https://www.rfc-editor.org/rfc/rfc6238.txt","sha256":"82947ed9064450850547f55959dc79d2de775f0fa33f7b3f9622fb6c93e69a7a","license":"IETF Trust Legal Provisions","consumers":["identity/mfa","identity/reference"]},
-    {"id":"rfc-6585","url":"https://www.rfc-editor.org/rfc/rfc6585.txt","sha256":"f6d55d1b491cd515c35827cf9181753b23b2a68c4df14e56d83dc445b3876e58","license":"IETF Trust Legal Provisions","consumers":["scim"]},
-    {"id":"rfc-6749","url":"https://www.rfc-editor.org/rfc/rfc6749.txt","sha256":"f204fc8661d6c92d2ec6e0b54808f961a9ad26e792f57f312d9528335519bd71","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/providers","oauth-server","sso/oauth2","sso/oidc"]},
-    {"id":"rfc-6750","url":"https://www.rfc-editor.org/rfc/rfc6750.txt","sha256":"9dc385cf4ecdd85024e5a95e447ede9230e11700bf35251906b25b37557d604b","license":"IETF Trust Legal Provisions","consumers":["identity/http","identity/oauth","identity/oauth/providers","oauth-server","oauth-server/oidc","sso/oauth2","sso/oidc"]},
-    {"id":"rfc-6901","url":"https://www.rfc-editor.org/rfc/rfc6901.txt","sha256":"12f9f4fc13d686aa4fbe7d144d70166cd3fcd4ab89174c2b13bda8f4b55e49da","license":"IETF Trust Legal Provisions","consumers":["identity/oauth/providers","identity/reference"]},
-    {"id":"rfc-7009","url":"https://www.rfc-editor.org/rfc/rfc7009.txt","sha256":"b2f346d5a87ba9d7f09047901257a65f7ac0b26352095969c25821afab447829","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/providers","oauth-server","sso/oauth2","sso/oidc"]},
-    {"id":"rfc-7239","url":"https://www.rfc-editor.org/rfc/rfc7239.txt","sha256":"f15c45c9e079684bc4284d041be63285923962448cb0d8540d54106c68c2a40d","license":"IETF Trust Legal Provisions","consumers":["identity/http","identity/reference"]},
-    {"id":"rfc-7515","url":"https://www.rfc-editor.org/rfc/rfc7515.txt","sha256":"ecbf84674118e62526511c1237e1deaa86aada86d25b247623a2a7e04ae62e40","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/onetap","oauth-server","oauth-server/oidc","sso/oidc"]},
-    {"id":"rfc-7517","url":"https://www.rfc-editor.org/rfc/rfc7517.txt","sha256":"681c19b92a85068716b7e89c5815aa821bd3f11c755ff1c641b40ae9851bb33c","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/onetap","oauth-server","oauth-server/oidc","sso/oidc"]},
-    {"id":"rfc-7518","url":"https://www.rfc-editor.org/rfc/rfc7518.txt","sha256":"9a9ae524b09ea700ad3f189bac115df95ba69af84b26ffdbe3cdfb8d2152b1fc","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/onetap","oauth-server","oauth-server/oidc","sso/oidc"]},
-    {"id":"rfc-7519","url":"https://www.rfc-editor.org/rfc/rfc7519.txt","sha256":"fecd930e9ccf2276b95c0017c6c4ff5d09352e4bc3c7629946447894e0f97248","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/onetap","oauth-server","oauth-server/oidc","sso/oidc"]},
-    {"id":"rfc-7591","url":"https://www.rfc-editor.org/rfc/rfc7591.txt","sha256":"f9cd8b8eefdb2d1b1bd5734310f246926db0abb4ec1b2f933f358d58327964e3","license":"IETF Trust Legal Provisions","consumers":["oauth-server"]},
-    {"id":"rfc-7592","url":"https://www.rfc-editor.org/rfc/rfc7592.txt","sha256":"6e59ce6f2f7cd98bfe849f643a55ddb45fc0278a43c49b2cf0d947ca604ccaee","license":"IETF Trust Legal Provisions","consumers":["oauth-server"]},
-    {"id":"rfc-7636","url":"https://www.rfc-editor.org/rfc/rfc7636.txt","sha256":"1972e5d81cbaba7066cfd46374207bc2b4546b085ed5dd9b034e79e023e0ca31","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/providers","oauth-server","sso/oauth2","sso/oidc"]},
-    {"id":"rfc-7642","url":"https://www.rfc-editor.org/rfc/rfc7642.txt","sha256":"4abbf1bf65926800df6604d627ac0e1d8a0efa784ddcb63b5b59ca8cf4a93e56","license":"IETF Trust Legal Provisions","consumers":["scim"]},
-    {"id":"rfc-7643","url":"https://www.rfc-editor.org/rfc/rfc7643.txt","sha256":"df799c112a3fa5be3c0fe054c08b1f4eb5d07590c4c8343a014c4537bf638ae3","license":"IETF Trust Legal Provisions","consumers":["scim","scim/postgres"]},
-    {"id":"rfc-7644","url":"https://www.rfc-editor.org/rfc/rfc7644.txt","sha256":"b9078e016c98b86934a23c80926b74fc8b59885ab2943729ec2493c17488a09b","license":"IETF Trust Legal Provisions","consumers":["scim","scim/postgres"]},
-    {"id":"rfc-7662","url":"https://www.rfc-editor.org/rfc/rfc7662.txt","sha256":"2b7d688cb849f093e860557ac97e6cddac2556d69a4386561b22cdf97bf13657","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/providers","oauth-server"]},
-    {"id":"rfc-8174","url":"https://www.rfc-editor.org/rfc/rfc8174.txt","sha256":"5ca0e2f90be0bc5928ee465f76518fee316dfa775aed885658a29a419cc293b7","license":"IETF Trust Legal Provisions","consumers":["identity","identity/anonymous","identity/anonymous/postgres","identity/apikey","identity/apikey/postgres","identity/apikey/valkey","identity/delivery","identity/delivery/postgres","identity/email","identity/http","identity/i18n","identity/identitytest","identity/impersonation","identity/impersonation/postgres","identity/magiclink","identity/mfa","identity/mfa/postgres","identity/oauth","identity/oauth/onetap","identity/oauth/postgres","identity/oauth/providers","identity/oauth/proxy","identity/otp","identity/otp/postgres","identity/password","identity/password/postgres","identity/phone","identity/postgres","identity/reference","identity/risk","identity/risk/captcha","identity/risk/captcha/captchafox","identity/risk/captcha/hcaptcha","identity/risk/captcha/recaptcha","identity/risk/captcha/turnstile","identity/risk/hibp","identity/risk/postgres","identity/risk/valkey","identity/session","identity/session/postgres","identity/session/valkey","identity/username","oauth-server","oauth-server/device","oauth-server/oidc","oauth-server/postgres","organization","organization/postgres","passkey","passkey/postgres","scim","scim/organization","scim/postgres","sso","sso/domain-verification","sso/oauth2","sso/oidc","sso/postgres","sso/saml","webauthn","webauthn/postgres"]},
-    {"id":"rfc-8252","url":"https://www.rfc-editor.org/rfc/rfc8252.txt","sha256":"4233c0650ec7e7918c20e0fde2dc565f85e2aa2d4c18123e3cd834295c2f68d0","license":"IETF Trust Legal Provisions","consumers":["oauth-server"]},
-    {"id":"rfc-8414","url":"https://www.rfc-editor.org/rfc/rfc8414.txt","sha256":"16c816e4e0fdbffb7e910ff3017867bf39debe9cb7f52f5cbc508a052ed660e8","license":"IETF Trust Legal Provisions","consumers":["identity/oauth/providers","oauth-server"]},
-    {"id":"rfc-8628","url":"https://www.rfc-editor.org/rfc/rfc8628.txt","sha256":"ebd3c37415aa665b55b412fccd9571943e8dbd3f2bf0b18fee4924264252decd","license":"IETF Trust Legal Provisions","consumers":["oauth-server/device"]},
-    {"id":"rfc-8693","url":"https://www.rfc-editor.org/rfc/rfc8693.txt","sha256":"358d658014738bf4dc56c8aae2094ce716ede23b6d5a80488a7dc8e8d72da609","license":"IETF Trust Legal Provisions","consumers":["oauth-server","oauth-server/oidc"]},
-    {"id":"rfc-8707","url":"https://www.rfc-editor.org/rfc/rfc8707.txt","sha256":"3b89844a938b9219571931b664ed4a7b380555a4dda1df4e9445a2f72188e76b","license":"IETF Trust Legal Provisions","consumers":["oauth-server"]},
-    {"id":"rfc-8949","url":"https://www.rfc-editor.org/rfc/rfc8949.txt","sha256":"f1164a5b31a39350ad46abe29b83575eb933ca6c45366989c118b6b1058a214a","license":"IETF Trust Legal Provisions","consumers":["identity","identity/anonymous","identity/anonymous/postgres","identity/apikey","identity/apikey/postgres","identity/apikey/valkey","identity/delivery","identity/delivery/postgres","identity/email","identity/impersonation","identity/impersonation/postgres","identity/magiclink","identity/mfa","identity/mfa/postgres","identity/oauth","identity/oauth/postgres","identity/otp","identity/otp/postgres","identity/password","identity/password/postgres","identity/phone","identity/postgres","identity/reference","identity/risk","identity/risk/captcha","identity/risk/hibp","identity/risk/postgres","identity/risk/valkey","identity/session","identity/session/postgres","identity/session/valkey","oauth-server","oauth-server/device","oauth-server/oidc","oauth-server/postgres","organization","organization/postgres","passkey","passkey/postgres","scim","scim/organization","scim/postgres","sso","sso/domain-verification","sso/oauth2","sso/oidc","sso/postgres","sso/saml","webauthn","webauthn/postgres"]},
-    {"id":"rfc-9052","url":"https://www.rfc-editor.org/rfc/rfc9052.txt","sha256":"01eecd7f646537600e7aad665b1fa581ce6ec33dae4ef4add0997aaf38cd0a45","license":"IETF Trust Legal Provisions","consumers":["webauthn"]},
-    {"id":"rfc-9053","url":"https://www.rfc-editor.org/rfc/rfc9053.txt","sha256":"3d470615875620375f8453ba25b8dce7e4d0271e76b0b79a46df34ccb2d56ab0","license":"IETF Trust Legal Provisions","consumers":["webauthn"]},
-    {"id":"rfc-9207","url":"https://www.rfc-editor.org/rfc/rfc9207.txt","sha256":"c9c17b9824315aca9bda5c0b5e3627cb24aa28d54324292f3761006209b705fd","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/providers","oauth-server","sso/oauth2","sso/oidc"]},
-    {"id":"rfc-9700","url":"https://www.rfc-editor.org/rfc/rfc9700.txt","sha256":"9919d061d40a97886ca866b51c69389b6c81c65cd4b979056c14fdbebfcf622a","license":"IETF Trust Legal Provisions","consumers":["identity/oauth","identity/oauth/providers","oauth-server","sso/oauth2","sso/oidc"]},
-    {"id":"rfc-9728","url":"https://www.rfc-editor.org/rfc/rfc9728.txt","sha256":"b65bcd0d9daf90fd7006a42cf48e0ac3ba24b7f5637d5197f2de41c6b91c8a89","license":"IETF Trust Legal Provisions","consumers":["identity/http","oauth-server"]},
-    {"id":"oidc-core-1.0-errata-2","url":"https://openid.net/specs/openid-connect-core-1_0.html","sha256":"4d016752a645e8a3c259baa4173b5a90cb6c82898ce868fc8444adde262a5aed","license":"OpenID Foundation specification license","consumers":["identity/oauth","identity/oauth/onetap","identity/oauth/providers","oauth-server/oidc","sso/oidc"]},
-    {"id":"oidc-discovery-1.0-errata-2","url":"https://openid.net/specs/openid-connect-discovery-1_0.html","sha256":"0401a07b35de50e914e195aa2c3c64cc4f6542464381c885d24a2623fbf75ec2","license":"OpenID Foundation specification license","consumers":["identity/oauth","identity/oauth/providers","oauth-server/oidc","sso/oidc"]},
-    {"id":"oidc-multiple-response-types-1.0","url":"https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html","sha256":"6b0c1ee34cd13c91ff0dc0531e52a761947b2241f121cc6e1dae48a1c845196f","license":"OpenID Foundation specification license","consumers":["identity/oauth","identity/oauth/providers","oauth-server/oidc"]},
-    {"id":"oidc-rp-initiated-logout-1.0","url":"https://openid.net/specs/openid-connect-rpinitiated-1_0.html","sha256":"246432dafaa5556d896fa9b9ae4284b213ff6921b33478ed3b46bd6bd4aab804","license":"OpenID Foundation specification license","consumers":["identity/oauth","oauth-server/oidc","sso/oidc"]},
-    {"id":"saml-core-2.0-os","url":"https://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf","sha256":"dc0890f88bfe862c9b39672bed76e2dcb0bedb03491cc41c161aea472b0468ab","license":"OASIS IPR Policy","consumers":["sso/saml"]},
-    {"id":"saml-bindings-2.0-os","url":"https://docs.oasis-open.org/security/saml/v2.0/saml-bindings-2.0-os.pdf","sha256":"80dde7953739eeb306484888ea128dd214e2b4a5dd16fbcbb231ef7ae18fa3f1","license":"OASIS IPR Policy","consumers":["sso/saml"]},
-    {"id":"saml-profiles-2.0-os","url":"https://docs.oasis-open.org/security/saml/v2.0/saml-profiles-2.0-os.pdf","sha256":"5df9b874551941c7f03cb9270e67ea44f426b44a8fa642b8cf261064cc6f7de2","license":"OASIS IPR Policy","consumers":["sso/saml"]},
-    {"id":"saml-metadata-2.0-os","url":"https://docs.oasis-open.org/security/saml/v2.0/saml-metadata-2.0-os.pdf","sha256":"48656c21cc0cf26873ebec6792299de4f71c46ce5df73c707653b4c0b12117ae","license":"OASIS IPR Policy","consumers":["sso/saml"]},
-    {"id":"saml-security-2.0-os","url":"https://docs.oasis-open.org/security/saml/v2.0/saml-sec-consider-2.0-os.pdf","sha256":"e518006eff28c876c35b315fa4b1a553b7276af54e848dcf9e3a8ef879bfba2e","license":"OASIS IPR Policy","consumers":["sso/saml"]},
-    {"id":"saml-errata-05","url":"https://docs.oasis-open.org/security/saml/v2.0/errata05/os/saml-v2.0-errata05-os.pdf","sha256":"c9f6d7c4d6b147066a24715076ac8b62269429fae8e27d53a03cf0d73651ace3","license":"OASIS IPR Policy","consumers":["sso/saml"]},
-    {"id":"xml-signature-1.1-20130411","url":"https://www.w3.org/TR/2013/REC-xmldsig-core1-20130411/","sha256":"4924a334deb880e7e18b54cd6db037aa6b4d0186e626a26d636c124f8a2e07a3","license":"W3C Document License","consumers":["sso/saml"]},
-    {"id":"exclusive-xml-c14n-20020718","url":"https://www.w3.org/TR/2002/REC-xml-exc-c14n-20020718/","sha256":"10b1ec71542db546b311a3e600589339505b9099bc60affafa4204ece31807e3","license":"W3C Document License","consumers":["sso/saml"]},
-    {"id":"webauthn-level-3-cr-20260526","url":"https://www.w3.org/TR/2026/CR-webauthn-3-20260526/","sha256":"cd9be6587c6560ffe6f2b7175324d0bc4cd33963cf752ad414160affd7f8e163","license":"W3C Document License","consumers":["passkey","passkey/postgres","webauthn","webauthn/postgres"]},
-    {"id":"fido-metadata-service-3.1.1-20260105","url":"https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.pdf","sha256":"e1e0f578c8d09749b89fdf706321cf4c25dc17d7a718fe15ca8d031d09a1e92f","license":"FIDO Alliance Document License","consumers":["webauthn"]},
-    {"id":"fido-metadata-statement-3.1.1-20260105","url":"https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.pdf","sha256":"cf71e8c26cd8f598355d6eef27f5ccbb839a0939d2cbe4930b7d10ec9f4b644b","license":"FIDO Alliance Document License","consumers":["webauthn"]},
-    {"id":"public-suffix-list-e1b8015c","url":"https://raw.githubusercontent.com/publicsuffix/list/e1b8015c3b2f0f4f8c18659c2480fc1a22c07b20/public_suffix_list.dat","sha256":"fe6adc7fb8014f57d28d69b18d0aa3e581efb432544922e12131a5d4a87bd954","license":"Mozilla Public License 2.0","consumers":["sso/domain-verification","webauthn"]},
-    {"id":"google-authenticator-key-uri-8ba6e793","url":"git+https://github.com/google/google-authenticator.wiki.git#8ba6e79359344f57b2b0ebea2bfab4cdab2a6573:Key-Uri-Format.md","sha256":"07d2f6e3a2b0e5dd8e5690d87932c0bdc0888281495b2ccc52e96aaa2a6fbdcd","license":"Apache-2.0 project documentation","consumers":["identity/mfa"]}
+    {
+      "id": "oauth-2.1-draft-15",
+      "url": "https://www.ietf.org/archive/id/draft-ietf-oauth-v2-1-15.txt",
+      "sha256": "fca5d031abb5220998edb9316df2a03d8d641e88bc8a7e4fd80ab29c635455a3",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-2119",
+      "url": "https://www.rfc-editor.org/rfc/rfc2119.txt",
+      "sha256": "3c2ceb7bfc84cd34720f4a5271338ab9d8280d34bdd1eb250c64306202f2ed8b",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity",
+        "identity/anonymous",
+        "identity/anonymous/postgres",
+        "identity/apikey",
+        "identity/apikey/postgres",
+        "identity/apikey/valkey",
+        "identity/delivery",
+        "identity/delivery/postgres",
+        "identity/email",
+        "identity/http",
+        "identity/i18n",
+        "identity/identitytest",
+        "identity/impersonation",
+        "identity/impersonation/postgres",
+        "identity/magiclink",
+        "identity/mfa",
+        "identity/mfa/postgres",
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "identity/oauth/postgres",
+        "identity/oauth/providers",
+        "identity/oauth/proxy",
+        "identity/otp",
+        "identity/otp/postgres",
+        "identity/password",
+        "identity/password/postgres",
+        "identity/phone",
+        "identity/postgres",
+        "identity/reference",
+        "identity/risk",
+        "identity/risk/captcha",
+        "identity/risk/captcha/captchafox",
+        "identity/risk/captcha/hcaptcha",
+        "identity/risk/captcha/recaptcha",
+        "identity/risk/captcha/turnstile",
+        "identity/risk/hibp",
+        "identity/risk/postgres",
+        "identity/risk/valkey",
+        "identity/session",
+        "identity/session/postgres",
+        "identity/session/valkey",
+        "identity/username",
+        "oauth-server",
+        "oauth-server/device",
+        "oauth-server/oidc",
+        "oauth-server/postgres",
+        "organization",
+        "organization/postgres",
+        "passkey",
+        "passkey/postgres",
+        "scim",
+        "scim/organization",
+        "scim/postgres",
+        "sso",
+        "sso/domain-verification",
+        "sso/oauth2",
+        "sso/oidc",
+        "sso/postgres",
+        "sso/saml",
+        "webauthn",
+        "webauthn/postgres"
+      ]
+    },
+    {
+      "id": "rfc-4226",
+      "url": "https://www.rfc-editor.org/rfc/rfc4226.txt",
+      "sha256": "db6974cd02ca33560ec3a191ee9b1016067cd11d1f5d89e7efa36be69482229d",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/mfa"
+      ]
+    },
+    {
+      "id": "rfc-5280",
+      "url": "https://www.rfc-editor.org/rfc/rfc5280.txt",
+      "sha256": "a2f2628c0a83b873fc4786abd921f9b2c02395954b655d190bf16b831633345d",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "webauthn"
+      ]
+    },
+    {
+      "id": "rfc-5952",
+      "url": "https://www.rfc-editor.org/rfc/rfc5952.txt",
+      "sha256": "c75e82c5f53bcec8148820fadf0d65935336ee2031fa6ce10504797ed4c1979d",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/http",
+        "identity/reference",
+        "identity/risk",
+        "identity/risk/postgres",
+        "identity/risk/valkey"
+      ]
+    },
+    {
+      "id": "rfc-6238",
+      "url": "https://www.rfc-editor.org/rfc/rfc6238.txt",
+      "sha256": "82947ed9064450850547f55959dc79d2de775f0fa33f7b3f9622fb6c93e69a7a",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/mfa",
+        "identity/reference"
+      ]
+    },
+    {
+      "id": "rfc-6585",
+      "url": "https://www.rfc-editor.org/rfc/rfc6585.txt",
+      "sha256": "f6d55d1b491cd515c35827cf9181753b23b2a68c4df14e56d83dc445b3876e58",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "scim"
+      ]
+    },
+    {
+      "id": "rfc-6749",
+      "url": "https://www.rfc-editor.org/rfc/rfc6749.txt",
+      "sha256": "f204fc8661d6c92d2ec6e0b54808f961a9ad26e792f57f312d9528335519bd71",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-6750",
+      "url": "https://www.rfc-editor.org/rfc/rfc6750.txt",
+      "sha256": "9dc385cf4ecdd85024e5a95e447ede9230e11700bf35251906b25b37557d604b",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/http",
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-6901",
+      "url": "https://www.rfc-editor.org/rfc/rfc6901.txt",
+      "sha256": "12f9f4fc13d686aa4fbe7d144d70166cd3fcd4ab89174c2b13bda8f4b55e49da",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth/providers",
+        "identity/reference"
+      ]
+    },
+    {
+      "id": "rfc-7009",
+      "url": "https://www.rfc-editor.org/rfc/rfc7009.txt",
+      "sha256": "b2f346d5a87ba9d7f09047901257a65f7ac0b26352095969c25821afab447829",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-7239",
+      "url": "https://www.rfc-editor.org/rfc/rfc7239.txt",
+      "sha256": "f15c45c9e079684bc4284d041be63285923962448cb0d8540d54106c68c2a40d",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/http",
+        "identity/reference"
+      ]
+    },
+    {
+      "id": "rfc-7515",
+      "url": "https://www.rfc-editor.org/rfc/rfc7515.txt",
+      "sha256": "ecbf84674118e62526511c1237e1deaa86aada86d25b247623a2a7e04ae62e40",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-7517",
+      "url": "https://www.rfc-editor.org/rfc/rfc7517.txt",
+      "sha256": "681c19b92a85068716b7e89c5815aa821bd3f11c755ff1c641b40ae9851bb33c",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-7518",
+      "url": "https://www.rfc-editor.org/rfc/rfc7518.txt",
+      "sha256": "9a9ae524b09ea700ad3f189bac115df95ba69af84b26ffdbe3cdfb8d2152b1fc",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-7519",
+      "url": "https://www.rfc-editor.org/rfc/rfc7519.txt",
+      "sha256": "fecd930e9ccf2276b95c0017c6c4ff5d09352e4bc3c7629946447894e0f97248",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-7591",
+      "url": "https://www.rfc-editor.org/rfc/rfc7591.txt",
+      "sha256": "f9cd8b8eefdb2d1b1bd5734310f246926db0abb4ec1b2f933f358d58327964e3",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "oauth-server"
+      ]
+    },
+    {
+      "id": "rfc-7592",
+      "url": "https://www.rfc-editor.org/rfc/rfc7592.txt",
+      "sha256": "6e59ce6f2f7cd98bfe849f643a55ddb45fc0278a43c49b2cf0d947ca604ccaee",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "oauth-server"
+      ]
+    },
+    {
+      "id": "rfc-7636",
+      "url": "https://www.rfc-editor.org/rfc/rfc7636.txt",
+      "sha256": "1972e5d81cbaba7066cfd46374207bc2b4546b085ed5dd9b034e79e023e0ca31",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-7642",
+      "url": "https://www.rfc-editor.org/rfc/rfc7642.txt",
+      "sha256": "4abbf1bf65926800df6604d627ac0e1d8a0efa784ddcb63b5b59ca8cf4a93e56",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "scim"
+      ]
+    },
+    {
+      "id": "rfc-7643",
+      "url": "https://www.rfc-editor.org/rfc/rfc7643.txt",
+      "sha256": "df799c112a3fa5be3c0fe054c08b1f4eb5d07590c4c8343a014c4537bf638ae3",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "scim",
+        "scim/postgres"
+      ]
+    },
+    {
+      "id": "rfc-7644",
+      "url": "https://www.rfc-editor.org/rfc/rfc7644.txt",
+      "sha256": "b9078e016c98b86934a23c80926b74fc8b59885ab2943729ec2493c17488a09b",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "scim",
+        "scim/postgres"
+      ]
+    },
+    {
+      "id": "rfc-7662",
+      "url": "https://www.rfc-editor.org/rfc/rfc7662.txt",
+      "sha256": "2b7d688cb849f093e860557ac97e6cddac2556d69a4386561b22cdf97bf13657",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server"
+      ]
+    },
+    {
+      "id": "rfc-8174",
+      "url": "https://www.rfc-editor.org/rfc/rfc8174.txt",
+      "sha256": "5ca0e2f90be0bc5928ee465f76518fee316dfa775aed885658a29a419cc293b7",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity",
+        "identity/anonymous",
+        "identity/anonymous/postgres",
+        "identity/apikey",
+        "identity/apikey/postgres",
+        "identity/apikey/valkey",
+        "identity/delivery",
+        "identity/delivery/postgres",
+        "identity/email",
+        "identity/http",
+        "identity/i18n",
+        "identity/identitytest",
+        "identity/impersonation",
+        "identity/impersonation/postgres",
+        "identity/magiclink",
+        "identity/mfa",
+        "identity/mfa/postgres",
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "identity/oauth/postgres",
+        "identity/oauth/providers",
+        "identity/oauth/proxy",
+        "identity/otp",
+        "identity/otp/postgres",
+        "identity/password",
+        "identity/password/postgres",
+        "identity/phone",
+        "identity/postgres",
+        "identity/reference",
+        "identity/risk",
+        "identity/risk/captcha",
+        "identity/risk/captcha/captchafox",
+        "identity/risk/captcha/hcaptcha",
+        "identity/risk/captcha/recaptcha",
+        "identity/risk/captcha/turnstile",
+        "identity/risk/hibp",
+        "identity/risk/postgres",
+        "identity/risk/valkey",
+        "identity/session",
+        "identity/session/postgres",
+        "identity/session/valkey",
+        "identity/username",
+        "oauth-server",
+        "oauth-server/device",
+        "oauth-server/oidc",
+        "oauth-server/postgres",
+        "organization",
+        "organization/postgres",
+        "passkey",
+        "passkey/postgres",
+        "scim",
+        "scim/organization",
+        "scim/postgres",
+        "sso",
+        "sso/domain-verification",
+        "sso/oauth2",
+        "sso/oidc",
+        "sso/postgres",
+        "sso/saml",
+        "webauthn",
+        "webauthn/postgres"
+      ]
+    },
+    {
+      "id": "rfc-8252",
+      "url": "https://www.rfc-editor.org/rfc/rfc8252.txt",
+      "sha256": "4233c0650ec7e7918c20e0fde2dc565f85e2aa2d4c18123e3cd834295c2f68d0",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "oauth-server"
+      ]
+    },
+    {
+      "id": "rfc-8414",
+      "url": "https://www.rfc-editor.org/rfc/rfc8414.txt",
+      "sha256": "16c816e4e0fdbffb7e910ff3017867bf39debe9cb7f52f5cbc508a052ed660e8",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth/providers",
+        "oauth-server"
+      ]
+    },
+    {
+      "id": "rfc-8628",
+      "url": "https://www.rfc-editor.org/rfc/rfc8628.txt",
+      "sha256": "ebd3c37415aa665b55b412fccd9571943e8dbd3f2bf0b18fee4924264252decd",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "oauth-server/device"
+      ]
+    },
+    {
+      "id": "rfc-8693",
+      "url": "https://www.rfc-editor.org/rfc/rfc8693.txt",
+      "sha256": "358d658014738bf4dc56c8aae2094ce716ede23b6d5a80488a7dc8e8d72da609",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "oauth-server",
+        "oauth-server/oidc"
+      ]
+    },
+    {
+      "id": "rfc-8707",
+      "url": "https://www.rfc-editor.org/rfc/rfc8707.txt",
+      "sha256": "3b89844a938b9219571931b664ed4a7b380555a4dda1df4e9445a2f72188e76b",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "oauth-server"
+      ]
+    },
+    {
+      "id": "rfc-8949",
+      "url": "https://www.rfc-editor.org/rfc/rfc8949.txt",
+      "sha256": "f1164a5b31a39350ad46abe29b83575eb933ca6c45366989c118b6b1058a214a",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity",
+        "identity/anonymous",
+        "identity/anonymous/postgres",
+        "identity/apikey",
+        "identity/apikey/postgres",
+        "identity/apikey/valkey",
+        "identity/delivery",
+        "identity/delivery/postgres",
+        "identity/email",
+        "identity/impersonation",
+        "identity/impersonation/postgres",
+        "identity/magiclink",
+        "identity/mfa",
+        "identity/mfa/postgres",
+        "identity/oauth",
+        "identity/oauth/postgres",
+        "identity/otp",
+        "identity/otp/postgres",
+        "identity/password",
+        "identity/password/postgres",
+        "identity/phone",
+        "identity/postgres",
+        "identity/reference",
+        "identity/risk",
+        "identity/risk/captcha",
+        "identity/risk/hibp",
+        "identity/risk/postgres",
+        "identity/risk/valkey",
+        "identity/session",
+        "identity/session/postgres",
+        "identity/session/valkey",
+        "oauth-server",
+        "oauth-server/device",
+        "oauth-server/oidc",
+        "oauth-server/postgres",
+        "organization",
+        "organization/postgres",
+        "passkey",
+        "passkey/postgres",
+        "scim",
+        "scim/organization",
+        "scim/postgres",
+        "sso",
+        "sso/domain-verification",
+        "sso/oauth2",
+        "sso/oidc",
+        "sso/postgres",
+        "sso/saml",
+        "webauthn",
+        "webauthn/postgres"
+      ]
+    },
+    {
+      "id": "rfc-9052",
+      "url": "https://www.rfc-editor.org/rfc/rfc9052.txt",
+      "sha256": "01eecd7f646537600e7aad665b1fa581ce6ec33dae4ef4add0997aaf38cd0a45",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "webauthn"
+      ]
+    },
+    {
+      "id": "rfc-9053",
+      "url": "https://www.rfc-editor.org/rfc/rfc9053.txt",
+      "sha256": "3d470615875620375f8453ba25b8dce7e4d0271e76b0b79a46df34ccb2d56ab0",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "webauthn"
+      ]
+    },
+    {
+      "id": "rfc-9207",
+      "url": "https://www.rfc-editor.org/rfc/rfc9207.txt",
+      "sha256": "c9c17b9824315aca9bda5c0b5e3627cb24aa28d54324292f3761006209b705fd",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-9700",
+      "url": "https://www.rfc-editor.org/rfc/rfc9700.txt",
+      "sha256": "9919d061d40a97886ca866b51c69389b6c81c65cd4b979056c14fdbebfcf622a",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "rfc-9728",
+      "url": "https://www.rfc-editor.org/rfc/rfc9728.txt",
+      "sha256": "b65bcd0d9daf90fd7006a42cf48e0ac3ba24b7f5637d5197f2de41c6b91c8a89",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/http",
+        "oauth-server"
+      ]
+    },
+    {
+      "id": "oidc-core-1.0-errata-2",
+      "url": "https://openid.net/specs/openid-connect-core-1_0-36.html",
+      "sha256": "16ffd8f91ed7efe8e884e768e7ef724209f301264eaf5d7bd5a1f7ad56563471",
+      "license": "OpenID Foundation specification license",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/onetap",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "oidc-discovery-1.0-errata-2",
+      "url": "https://openid.net/specs/openid-connect-discovery-1_0-36.html",
+      "sha256": "9b61be3c958d9c5cbc26e1e507035cefa06999bea1a7b059eedda80d204c5704",
+      "license": "OpenID Foundation specification license",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "oidc-multiple-response-types-1.0",
+      "url": "https://openid.net/specs/oauth-v2-multiple-response-types-1_0.html",
+      "sha256": "6b0c1ee34cd13c91ff0dc0531e52a761947b2241f121cc6e1dae48a1c845196f",
+      "license": "OpenID Foundation specification license",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "oidc-rp-initiated-logout-1.0",
+      "url": "https://openid.net/specs/openid-connect-rpinitiated-1_0-final.html",
+      "sha256": "246432dafaa5556d896fa9b9ae4284b213ff6921b33478ed3b46bd6bd4aab804",
+      "license": "OpenID Foundation specification license",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "saml-core-2.0-os",
+      "url": "https://docs.oasis-open.org/security/saml/v2.0/saml-core-2.0-os.pdf",
+      "sha256": "dc0890f88bfe862c9b39672bed76e2dcb0bedb03491cc41c161aea472b0468ab",
+      "license": "OASIS IPR Policy",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "id": "saml-bindings-2.0-os",
+      "url": "https://docs.oasis-open.org/security/saml/v2.0/saml-bindings-2.0-os.pdf",
+      "sha256": "80dde7953739eeb306484888ea128dd214e2b4a5dd16fbcbb231ef7ae18fa3f1",
+      "license": "OASIS IPR Policy",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "id": "saml-profiles-2.0-os",
+      "url": "https://docs.oasis-open.org/security/saml/v2.0/saml-profiles-2.0-os.pdf",
+      "sha256": "5df9b874551941c7f03cb9270e67ea44f426b44a8fa642b8cf261064cc6f7de2",
+      "license": "OASIS IPR Policy",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "id": "saml-metadata-2.0-os",
+      "url": "https://docs.oasis-open.org/security/saml/v2.0/saml-metadata-2.0-os.pdf",
+      "sha256": "48656c21cc0cf26873ebec6792299de4f71c46ce5df73c707653b4c0b12117ae",
+      "license": "OASIS IPR Policy",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "id": "saml-security-2.0-os",
+      "url": "https://docs.oasis-open.org/security/saml/v2.0/saml-sec-consider-2.0-os.pdf",
+      "sha256": "e518006eff28c876c35b315fa4b1a553b7276af54e848dcf9e3a8ef879bfba2e",
+      "license": "OASIS IPR Policy",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "id": "saml-errata-05",
+      "url": "https://docs.oasis-open.org/security/saml/v2.0/errata05/os/saml-v2.0-errata05-os.pdf",
+      "sha256": "c9f6d7c4d6b147066a24715076ac8b62269429fae8e27d53a03cf0d73651ace3",
+      "license": "OASIS IPR Policy",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "id": "xml-signature-1.1-20130411",
+      "url": "https://www.w3.org/TR/2013/REC-xmldsig-core1-20130411/",
+      "sha256": "4924a334deb880e7e18b54cd6db037aa6b4d0186e626a26d636c124f8a2e07a3",
+      "license": "W3C Document License",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "id": "exclusive-xml-c14n-20020718",
+      "url": "https://www.w3.org/TR/2002/REC-xml-exc-c14n-20020718/",
+      "sha256": "10b1ec71542db546b311a3e600589339505b9099bc60affafa4204ece31807e3",
+      "license": "W3C Document License",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "id": "webauthn-level-3-cr-20260526",
+      "url": "https://www.w3.org/TR/2026/CR-webauthn-3-20260526/",
+      "sha256": "cd9be6587c6560ffe6f2b7175324d0bc4cd33963cf752ad414160affd7f8e163",
+      "license": "W3C Document License",
+      "consumers": [
+        "passkey",
+        "passkey/postgres",
+        "webauthn",
+        "webauthn/postgres"
+      ]
+    },
+    {
+      "id": "fido-metadata-service-3.1.1-20260105",
+      "url": "https://fidoalliance.org/specs/mds/fido-metadata-service-v3.1.1-ps-20260105.pdf",
+      "sha256": "e1e0f578c8d09749b89fdf706321cf4c25dc17d7a718fe15ca8d031d09a1e92f",
+      "license": "FIDO Alliance Document License",
+      "consumers": [
+        "webauthn"
+      ]
+    },
+    {
+      "id": "fido-metadata-statement-3.1.1-20260105",
+      "url": "https://fidoalliance.org/specs/mds/fido-metadata-statement-v3.1.1-ps-20260105.pdf",
+      "sha256": "cf71e8c26cd8f598355d6eef27f5ccbb839a0939d2cbe4930b7d10ec9f4b644b",
+      "license": "FIDO Alliance Document License",
+      "consumers": [
+        "webauthn"
+      ]
+    },
+    {
+      "id": "public-suffix-list-e1b8015c",
+      "url": "https://raw.githubusercontent.com/publicsuffix/list/e1b8015c3b2f0f4f8c18659c2480fc1a22c07b20/public_suffix_list.dat",
+      "sha256": "fe6adc7fb8014f57d28d69b18d0aa3e581efb432544922e12131a5d4a87bd954",
+      "license": "Mozilla Public License 2.0",
+      "consumers": [
+        "sso/domain-verification",
+        "webauthn"
+      ]
+    },
+    {
+      "id": "google-authenticator-key-uri-8ba6e793",
+      "url": "git+https://github.com/google/google-authenticator.wiki.git#8ba6e79359344f57b2b0ebea2bfab4cdab2a6573:Key-Uri-Format.md",
+      "sha256": "07d2f6e3a2b0e5dd8e5690d87932c0bdc0888281495b2ccc52e96aaa2a6fbdcd",
+      "license": "Apache-2.0 project documentation",
+      "consumers": [
+        "identity/mfa"
+      ]
+    },
+    {
+      "id": "oauth-form-post-response-mode-1.0-final",
+      "url": "https://openid.net/specs/oauth-v2-form-post-response-mode-1_0-final.html",
+      "sha256": "5c776e43611a8fb03f673b121ebadab504f5372cb3c15dc020a9bd867a3a02dc",
+      "license": "OpenID Foundation specification license",
+      "consumers": [
+        "identity/oauth",
+        "identity/oauth/providers",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "oauth-jarm-1.0-final",
+      "url": "https://openid.net/specs/oauth-v2-jarm-final.html",
+      "sha256": "8d08881daa7c749abb101c0698b5a6ddedad40391e2aaf09f7e453790af86cfc",
+      "license": "OpenID Foundation specification license",
+      "consumers": [
+        "identity/oauth",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "oidc-frontchannel-logout-1.0-final",
+      "url": "https://openid.net/specs/openid-connect-frontchannel-1_0-final.html",
+      "sha256": "8b89f9f5a9386474b424a20dd24994763137d14d5f13915a9dd4e6cb71f9061b",
+      "license": "OpenID Foundation specification license",
+      "consumers": [
+        "identity/oauth",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "oidc-backchannel-logout-1.0-final",
+      "url": "https://openid.net/specs/openid-connect-backchannel-1_0-errata1.html",
+      "sha256": "3b5c933d5269047b39a65166d5c4d8ff6852b06451f54ed2531b8f97299fdc50",
+      "license": "OpenID Foundation specification license",
+      "consumers": [
+        "identity/oauth",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    }
   ],
   "tools": [
-    {"id":"openid-conformance-suite","url":"https://gitlab.com/openid/conformance-suite/-/archive/3f2bc78770e9ebdbb8165b6be86ae85b99bb2fc8/conformance-suite-3f2bc78770e9ebdbb8165b6be86ae85b99bb2fc8.tar.gz","revision":"3f2bc78770e9ebdbb8165b6be86ae85b99bb2fc8","sha256":"db61b212c6067a4f5a4258f8375840c7076bacca88d25adb102232a599d6074f","license":"Apache-2.0","consumers":["identity/oauth","oauth-server","oauth-server/oidc","sso/oidc"]},
-    {"id":"web-platform-tests","url":"https://codeload.github.com/web-platform-tests/wpt/tar.gz/9bc6e2404bff5349e48d7962b0a495582bc5ade8","revision":"9bc6e2404bff5349e48d7962b0a495582bc5ade8","sha256":"559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a","license":"W3C 3-clause BSD","consumers":["passkey","webauthn"]},
-    {"id":"unboundid-scim2-sdk","url":"https://codeload.github.com/pingidentity/scim2/tar.gz/badd1eb5e8ee7ace3712a92f9d83891884f93189","revision":"badd1eb5e8ee7ace3712a92f9d83891884f93189","sha256":"116ba12596da10932da9c8cc6eb9fff8a646365e45925fbb73aeda5c967a6539","license":"Apache-2.0","consumers":["scim","scim/organization","scim/postgres"]},
-    {"id":"simplesamlphp","url":"https://codeload.github.com/simplesamlphp/simplesamlphp/tar.gz/e049be1819327c76403fc0d6fa648d6dcfbc8516","revision":"e049be1819327c76403fc0d6fa648d6dcfbc8516","sha256":"ff7569639b54308fe44bb98f0f0b5fc84e540e32c2b3b4a586b3ba57c6914477","license":"LGPL-2.1-or-later","consumers":["sso/saml"]}
+    {
+      "id": "openid-conformance-suite",
+      "url": "https://gitlab.com/openid/conformance-suite/-/archive/3f2bc78770e9ebdbb8165b6be86ae85b99bb2fc8/conformance-suite-3f2bc78770e9ebdbb8165b6be86ae85b99bb2fc8.tar.gz",
+      "revision": "3f2bc78770e9ebdbb8165b6be86ae85b99bb2fc8",
+      "sha256": "db61b212c6067a4f5a4258f8375840c7076bacca88d25adb102232a599d6074f",
+      "license": "Apache-2.0",
+      "consumers": [
+        "identity/oauth",
+        "oauth-server",
+        "oauth-server/oidc",
+        "sso/oidc"
+      ]
+    },
+    {
+      "id": "web-platform-tests",
+      "url": "https://codeload.github.com/web-platform-tests/wpt/tar.gz/9bc6e2404bff5349e48d7962b0a495582bc5ade8",
+      "revision": "9bc6e2404bff5349e48d7962b0a495582bc5ade8",
+      "sha256": "559c6d1edbff75dfbacb10a3466a36da8897dc3f586da1866a7b718f928a837a",
+      "license": "W3C 3-clause BSD",
+      "consumers": [
+        "passkey",
+        "webauthn"
+      ]
+    },
+    {
+      "id": "unboundid-scim2-sdk",
+      "url": "https://codeload.github.com/pingidentity/scim2/tar.gz/badd1eb5e8ee7ace3712a92f9d83891884f93189",
+      "revision": "badd1eb5e8ee7ace3712a92f9d83891884f93189",
+      "sha256": "116ba12596da10932da9c8cc6eb9fff8a646365e45925fbb73aeda5c967a6539",
+      "license": "Apache-2.0",
+      "consumers": [
+        "scim",
+        "scim/organization",
+        "scim/postgres"
+      ]
+    },
+    {
+      "id": "simplesamlphp",
+      "url": "https://codeload.github.com/simplesamlphp/simplesamlphp/tar.gz/e049be1819327c76403fc0d6fa648d6dcfbc8516",
+      "revision": "e049be1819327c76403fc0d6fa648d6dcfbc8516",
+      "sha256": "ff7569639b54308fe44bb98f0f0b5fc84e540e32c2b3b4a586b3ba57c6914477",
+      "license": "LGPL-2.1-or-later",
+      "consumers": [
+        "sso/saml"
+      ]
+    }
   ]
 }

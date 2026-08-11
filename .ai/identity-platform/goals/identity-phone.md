@@ -42,6 +42,15 @@ limits, and extension points MUST have explicit semantics.
 
 ## Required behavior
 
+The module MUST implement the version-1 privacy-export contributor contract
+for canonical phone identifiers and verification history, and MUST participate
+in identity anonymization and deletion cascades without exporting provider risk
+payloads.
+When the reference PostgreSQL profile is selected, `identity/postgres` MUST
+persist the phone anonymization/deletion checkpoint and privacy-export fragment
+for the exact tenant, subject, snapshot ID, policy version, contributor version,
+content digest, and terminal outcome in the owning coordinator transaction.
+
 The implementation and tests MUST canonicalize E.164 with pinned metadata; reject ambiguous input; race claims; verify ownership by purpose-bound OTP; replace safely; preserve tenant isolation; define recycling and re-verification policy. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is

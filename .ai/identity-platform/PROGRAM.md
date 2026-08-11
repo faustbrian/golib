@@ -18,7 +18,10 @@ and their adapters through explicit packages.
 The goals remain in this planning tree until modules exist. On integration,
 the coordinator MUST move each goal unchanged to
 the exact canonical goal path declared in that goal, update the inventory, and
-register the module.
+register the module. `GOAL_MANIFEST.json` pins the exact semantic bytes,
+planning location, and canonical destination for every unit. Every later
+validator consumer MUST resolve the body through the current inventory link;
+missing, rewritten, duplicated, mismatched, or orphan goal paths are invalid.
 
 ## Product boundary decisions
 
@@ -81,7 +84,7 @@ inputs. No row may remain partial, depend on undocumented application glue, or
 be represented only by a primitive that lacks the required workflow.
 
 The coordinator artifacts close the implementation choices that package goals
-consume. `API_OPERATIONS.md` owns the complete transport operation catalog;
+consume. `END_STATE_ACCEPTANCE.json` closes the 18 journeys, cross-cutting claims and acceptance-artifact producers; `API_OPERATIONS.md` owns the complete transport operation catalog and `OPERATION_SEMANTICS.json` pins every operation semantic field;
 `UPSTREAM_DISPOSITIONS.md` owns the disposition of every pinned upstream
 surface; `UPSTREAM_SURFACE.json` pins the machine-verifiable source objects and
 every exact source-item -> disposition-row -> capability -> operation-ID edge,
@@ -97,7 +100,7 @@ destructive and privilege-changing cascades; `LIFECYCLE_CONSUMERS.md` owns the
 versioned exact consumer set for every cascade; `REFERENCE_CONFIGURATION.md`
 owns exact deployable defaults; `CONFIGURATION_CATALOGS.json` owns the
 versioned provider/CAPTCHA instance IDs and checksums used for template
-expansion; and `PREFLIGHT_EVIDENCE.md` records the
+expansion; `PARITY_DISPOSITIONS.json` pins exclusions and ownership reclassifications; `VERIFICATION_APPLICABILITY.json` closes every unit's seven verification selectors; and `PREFLIGHT_EVIDENCE.md` records the
 coordinator's versioned, attributable preflight result. Every artifact MUST be
 complete and structurally valid before the first worker assignment. Package
 goals MUST consume these decisions and MUST NOT reopen them independently.

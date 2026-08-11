@@ -40,6 +40,9 @@ dependency overrides for testing, migration plan, `Application` lifecycle,
 entry points. Zero/default behavior MUST be secure and explicit. Configuration
 MUST distinguish required, optional and mutually exclusive settings and return
 all safe validation failures before starting listeners or migrations.
+`ReferenceConfig` MUST require the exact immutable `identity.PolicySet` from
+`struct:ref.identity.policy_set`; composition validates all five members before
+exposing a handler and MUST NOT wrap, replace or silently default a callback.
 
 ## Selected complete profile
 

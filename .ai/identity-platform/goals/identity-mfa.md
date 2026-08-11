@@ -58,6 +58,10 @@ involved.
 
 ## Package-specific acceptance checklist
 
+- Recovery MUST select exactly one canonical `authentication.recovery_path`;
+  recovery-code, UV-passkey and administrator paths MUST remain distinct and a
+  failed or unavailable path MUST NOT silently fall back to another.
+
 - Enable/disable MUST require recent primary authentication and password or
   equivalent configured proof, create a pending enrollment, and activate only
   after a valid second-factor confirmation.
@@ -114,10 +118,13 @@ involved.
 ## Security and abuse requirements
 
 - When handling `identity.mfa.otp-verify`, this workflow MUST
-  reserve/apply/finalize the purpose-bound OTP through `identity/otp/postgres` in
-  the same coordinator unit of work as its owning mutation. Other MFA methods
-  and OTP-send initiation MUST NOT enlist an OTP consumption participant.
-  Release and recovery remain fail-closed on rollback or unknown commit.
+  reserve/apply/finalize the purpose-bound OTP through the public
+  `identity/otp` contributor contract in the same coordinator unit of work as
+  its owning mutation. The core MUST NOT import, require, or name a concrete
+  OTP persistence adapter; reference composition selects that adapter. Other
+  MFA methods and OTP-send initiation MUST NOT enlist an OTP consumption
+  participant. Release and recovery remain fail-closed on rollback or unknown
+  commit.
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
   cryptographic work.
@@ -145,6 +152,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

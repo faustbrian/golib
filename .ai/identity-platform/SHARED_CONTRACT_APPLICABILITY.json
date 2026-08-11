@@ -3,9 +3,17 @@
   "units": {
     "identity": {
       "transaction": [
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
         "tx.foundation"
       ],
       "lifecycle": [
+        "lifecycle.artifact.privacy_export",
+        "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identifier_change",
         "lifecycle.cascade.identifier_remove",
@@ -21,6 +29,7 @@
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
+        "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identifier_change",
         "lifecycle.cascade.identifier_remove",
@@ -33,12 +42,23 @@
       ],
       "configuration": [
         "ref.authentication.preauth_ttl",
+        "ref.authentication.recovery_path",
         "ref.identity.ban.expiry_action",
         "ref.identity.delete.grace",
         "ref.identity.delete.mode",
         "ref.identity.delete.proof",
         "ref.identity.identifier_reuse",
-        "ref.struct:ref.identity.delete.proof"
+        "ref.identity.policy_set",
+        "ref.identity.privacy_export.artifact_ttl",
+        "ref.identity.privacy_export.encryption",
+        "ref.identity.privacy_export.max_bytes",
+        "ref.identity.privacy_export.retention",
+        "ref.identity.privacy_export.store",
+        "ref.identity.privacy_export.worker",
+        "ref.struct:ref.authentication.recovery_path",
+        "ref.struct:ref.identity.delete.proof",
+        "ref.struct:ref.identity.policy_set",
+        "ref.struct:ref.verification.applicability"
       ],
       "security_events": [
         "identity.authentication",
@@ -50,6 +70,7 @@
         "identity.privacy_export.cancel",
         "identity.privacy_export.complete",
         "identity.privacy_export.download",
+        "identity.privacy_export.issue_download_capability",
         "identity.privacy_export.request",
         "identity.user.anonymize",
         "identity.user.create",
@@ -78,9 +99,11 @@
         "tx.uow.rollback"
       ],
       "lifecycle": [
+        "lifecycle.artifact.privacy_export",
         "lifecycle.dimension.credential",
         "lifecycle.dimension.global",
         "lifecycle.dimension.identifier",
+        "lifecycle.dimension.privacy",
         "lifecycle.dimension.social_link",
         "lifecycle.dimension.tenant",
         "lifecycle.dimension.user",
@@ -122,6 +145,7 @@
         "lifecycle.artifact.session",
         "lifecycle.artifact.session_enrichment",
         "lifecycle.artifact.stateless_session",
+        "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.domain_revoke",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.factor_reset",
@@ -145,6 +169,7 @@
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
+        "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.domain_revoke",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.factor_reset",
@@ -183,6 +208,7 @@
         "ref.session.cookie_cache.ttl",
         "ref.session.fresh_for",
         "ref.session.idle_ttl",
+        "ref.session.last_login_method_notice_consent",
         "ref.session.last_login_method_retention",
         "ref.session.max_per_container",
         "ref.session.refresh_after",
@@ -198,11 +224,13 @@
         "identity.last_login_method.change",
         "identity.last_login_method.clear",
         "identity.oauth_server.end_session",
+        "identity.session.authorize_bearer",
         "identity.session.change_active_account",
         "identity.session.consume_transfer",
         "identity.session.create",
         "identity.session.create_transfer",
         "identity.session.expire",
+        "identity.session.issue_bearer",
         "identity.session.refresh",
         "identity.session.revoke",
         "identity.session.revoke_all",
@@ -262,6 +290,7 @@
       ],
       "lifecycle": [
         "lifecycle.artifact.cookie_cache",
+        "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.domain_revoke",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.factor_reset",
@@ -284,6 +313,7 @@
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
+        "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.domain_revoke",
         "lifecycle.cascade.enterprise_provider_disable",
         "lifecycle.cascade.factor_reset",
@@ -455,6 +485,7 @@
         "ref.delivery.dead_letter",
         "ref.delivery.dedupe_ttl",
         "ref.delivery.enabled",
+        "ref.delivery.provider_retry",
         "ref.delivery.queue",
         "ref.delivery.sender",
         "ref.delivery.sender_concurrency",
@@ -477,6 +508,7 @@
         "ref.reconciliation.interval",
         "ref.struct:ref.delivery.backoff",
         "ref.struct:ref.delivery.dead_letter",
+        "ref.struct:ref.delivery.provider_retry",
         "ref.struct:ref.delivery.queue",
         "ref.struct:ref.postgres.command_retry",
         "ref.worker.claim_ttl",
@@ -489,6 +521,8 @@
     },
     "identity/risk": {
       "transaction": [
+        "tx.captcha.issue",
+        "tx.captcha.reconcile",
         "tx.command.aborted",
         "tx.command.committed",
         "tx.command.conflict",
@@ -527,10 +561,14 @@
         "lifecycle.cascade.identity_suspend"
       ],
       "configuration": [
+        "ref.captcha.replay_tombstone_retention",
         "ref.risk.authority",
+        "ref.risk.operation_matrix",
         "ref.risk.precedence",
         "ref.risk.valkey.boot_epoch",
         "ref.risk.valkey.recovery",
+        "ref.secrets.captcha_replay_digest_key",
+        "ref.struct:ref.captcha.replay_fingerprint",
         "ref.struct:ref.risk.authority",
         "ref.struct:ref.risk.precedence"
       ],
@@ -548,6 +586,11 @@
     },
     "identity/risk/postgres": {
       "transaction": [
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.issue",
+        "tx.captcha.reconcile",
+        "tx.captcha.reserve",
         "tx.command.aborted",
         "tx.command.committed",
         "tx.command.conflict",
@@ -578,6 +621,7 @@
         "none"
       ],
       "configuration": [
+        "ref.captcha.replay_tombstone_retention",
         "ref.postgres.command_retries",
         "ref.postgres.command_retry",
         "ref.postgres.connect_timeout",
@@ -590,6 +634,7 @@
         "ref.postgres.tls.root_ca",
         "ref.postgres.tls.server_name",
         "ref.postgres.tx_timeout",
+        "ref.struct:ref.captcha.replay_fingerprint",
         "ref.struct:ref.postgres.command_retry"
       ],
       "security_events": [
@@ -638,7 +683,10 @@
     },
     "identity/risk/captcha": {
       "transaction": [
-        "none"
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
+        "tx.foundation"
       ],
       "lifecycle": [
         "lifecycle.events.captcha",
@@ -690,7 +738,8 @@
         "ref.captcha.turnstile.remote_ip_disclosure",
         "ref.captcha.turnstile.tier",
         "ref.captcha.turnstile.version",
-        "ref.struct:ref.captcha.evidence"
+        "ref.struct:ref.captcha.evidence",
+        "ref.struct:ref.captcha.replay_fingerprint"
       ],
       "security_events": [
         "identity.captcha.detect_binding_mismatch",
@@ -848,6 +897,9 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
         "tx.foundation",
         "tx.otp.apply",
         "tx.otp.finalize",
@@ -876,6 +928,7 @@
         "lifecycle.cascade.password_reset"
       ],
       "configuration": [
+        "ref.authentication.recovery_path",
         "ref.password.hibp.outage",
         "ref.password.max_bytes",
         "ref.password.min_bytes",
@@ -884,6 +937,7 @@
         "ref.password.reset_ttl",
         "ref.secrets.otp_digest_key",
         "ref.session.remember_default",
+        "ref.struct:ref.authentication.recovery_path",
         "ref.struct:ref.password.recovery_factor_policy"
       ],
       "security_events": [
@@ -941,7 +995,10 @@
     },
     "identity/username": {
       "transaction": [
-        "none"
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
+        "tx.foundation"
       ],
       "lifecycle": [
         "none"
@@ -976,20 +1033,27 @@
         "tx.otp.reserve"
       ],
       "lifecycle": [
+        "lifecycle.artifact.privacy_export",
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identifier_change",
         "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identifier_change",
-        "lifecycle.cascade.identifier_remove"
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete"
       ],
       "configuration": [
+        "ref.authentication.recovery_path",
         "ref.email.resend_interval",
         "ref.email.verification_ttl",
-        "ref.identity.email.max_bytes"
+        "ref.identity.email.max_bytes",
+        "ref.struct:ref.authentication.recovery_path"
       ],
       "security_events": [
         "identity.identifier.request_verification",
@@ -1004,6 +1068,9 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
         "tx.foundation"
       ],
       "lifecycle": [
@@ -1033,6 +1100,9 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
         "tx.foundation",
         "tx.otp.apply",
         "tx.otp.attempt",
@@ -1133,6 +1203,9 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
         "tx.foundation",
         "tx.otp.apply",
         "tx.otp.attempt",
@@ -1149,15 +1222,20 @@
         "tx.risk_evidence.reserve"
       ],
       "lifecycle": [
+        "lifecycle.artifact.privacy_export",
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identifier_change",
         "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
         "lifecycle.cascade.global_compromise",
         "lifecycle.cascade.identifier_change",
-        "lifecycle.cascade.identifier_remove"
+        "lifecycle.cascade.identifier_remove",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete"
       ],
       "configuration": [
         "ref.authentication.preauth_ttl",
@@ -1188,17 +1266,25 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
         "tx.foundation"
       ],
       "lifecycle": [
+        "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.global_compromise",
+        "lifecycle.events.anonymous",
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
+        "lifecycle.cascade.anonymous_upgrade",
         "lifecycle.cascade.global_compromise"
       ],
       "configuration": [
-        "none"
+        "ref.anonymous.display_name",
+        "ref.anonymous.placeholder_email_domain",
+        "ref.anonymous.ttl"
       ],
       "security_events": [
         "identity.anonymous.create",
@@ -1288,6 +1374,7 @@
         "lifecycle.cascade.password_reset"
       ],
       "configuration": [
+        "ref.authentication.recovery_path",
         "ref.mfa.attempts",
         "ref.mfa.challenge_ttl",
         "ref.mfa.enrollment_ttl",
@@ -1297,6 +1384,7 @@
         "ref.mfa.totp.digits",
         "ref.mfa.totp.period",
         "ref.mfa.totp.skew_steps",
+        "ref.struct:ref.authentication.recovery_path",
         "ref.trusted_device.rotate_after",
         "ref.trusted_device.rotation_overlap",
         "ref.trusted_device.ttl"
@@ -1411,8 +1499,6 @@
         "ref.webauthn.user_handle_max_bytes"
       ],
       "security_events": [
-        "identity.passkey.remove_credential",
-        "identity.passkey.rename_credential",
         "identity.webauthn.detect_suspected_clone",
         "identity.webauthn.register_credential",
         "identity.webauthn.verify_assertion"
@@ -1470,6 +1556,9 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
         "tx.foundation"
       ],
       "lifecycle": [
@@ -1549,6 +1638,9 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
         "tx.effect.cancel",
         "tx.effect.cancel_confirmed",
         "tx.effect.cancel_submitted",
@@ -1606,6 +1698,7 @@
         "ref.oauth.rp.state_bytes",
         "ref.oauth.rp.state_ttl",
         "ref.oauth.rp.transaction",
+        "ref.providers.<id>.response_mode",
         "ref.struct:ref.oauth.rp_transaction"
       ],
       "security_events": [
@@ -1709,6 +1802,7 @@
         "ref.providers.<id>.jwks_uri",
         "ref.providers.<id>.profile_endpoint",
         "ref.providers.<id>.protocol",
+        "ref.providers.<id>.response_mode",
         "ref.providers.<id>.subject_pointer",
         "ref.providers.<id>.token_endpoint",
         "ref.providers.catalog_version"
@@ -1719,7 +1813,16 @@
     },
     "identity/oauth/onetap": {
       "transaction": [
-        "none"
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
+        "tx.foundation"
       ],
       "lifecycle": [
         "none"
@@ -1728,7 +1831,15 @@
         "none"
       ],
       "configuration": [
-        "none"
+        "ref.oauth.clock_skew",
+        "ref.oauth.rp.audiences",
+        "ref.oauth.rp.nonce_bytes",
+        "ref.oauth.rp.nonce_ttl",
+        "ref.oauth.rp.redirect_uris",
+        "ref.oauth.rp.state_bytes",
+        "ref.oauth.rp.state_ttl",
+        "ref.oauth.rp.transaction",
+        "ref.struct:ref.oauth.rp_transaction"
       ],
       "security_events": [
         "identity.oauth.verify_one_tap"
@@ -1736,7 +1847,31 @@
     },
     "identity/oauth/proxy": {
       "transaction": [
-        "none"
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.effect.cancel",
+        "tx.effect.cancel_confirmed",
+        "tx.effect.cancel_submitted",
+        "tx.effect.confirm",
+        "tx.effect.expire_planned",
+        "tx.effect.expire_unknown",
+        "tx.effect.reconcile",
+        "tx.effect.reject",
+        "tx.effect.resubmit",
+        "tx.effect.retry",
+        "tx.effect.retry_cancel",
+        "tx.effect.retry_exhaust",
+        "tx.effect.retry_expire",
+        "tx.effect.retry_reconcile",
+        "tx.effect.retry_wait",
+        "tx.effect.submit",
+        "tx.effect.supersede",
+        "tx.effect.unknown",
+        "tx.foundation"
       ],
       "lifecycle": [
         "none"
@@ -1745,7 +1880,15 @@
         "none"
       ],
       "configuration": [
-        "none"
+        "ref.http.external_retry",
+        "ref.http.external_total_timeout",
+        "ref.oauth.provider_timeout",
+        "ref.oauth.rp.redirect_uris",
+        "ref.oauth.rp.state_bytes",
+        "ref.oauth.rp.state_ttl",
+        "ref.oauth.rp.transaction",
+        "ref.struct:ref.http.external_retry",
+        "ref.struct:ref.oauth.rp_transaction"
       ],
       "security_events": [
         "identity.oauth.use_proxy"
@@ -1908,6 +2051,11 @@
         "lifecycle.cascade.identity_delete",
         "lifecycle.cascade.identity_restore",
         "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
@@ -1915,7 +2063,12 @@
         "lifecycle.cascade.identity_anonymize",
         "lifecycle.cascade.identity_delete",
         "lifecycle.cascade.identity_restore",
-        "lifecycle.cascade.identity_suspend"
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.cascade.membership_remove",
+        "lifecycle.cascade.membership_role",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore"
       ],
       "configuration": [
         "ref.impersonation.approvals",
@@ -1923,6 +2076,7 @@
       ],
       "security_events": [
         "identity.impersonation.approve",
+        "identity.impersonation.deny",
         "identity.impersonation.request",
         "identity.impersonation.revoke",
         "identity.impersonation.start",
@@ -2045,9 +2199,11 @@
         "identity.organization.delete",
         "identity.organization.delete_role",
         "identity.organization.delete_team",
+        "identity.organization.expire_invitation",
         "identity.organization.reject_invitation",
         "identity.organization.remove_member",
         "identity.organization.remove_team_member",
+        "identity.organization.resend_invitation",
         "identity.organization.restore",
         "identity.organization.revoke_domain",
         "identity.organization.transfer_ownership",
@@ -2098,7 +2254,7 @@
         "ref.struct:ref.postgres.command_retry"
       ],
       "security_events": [
-        "none"
+        "identity.sso.logout_oidc"
       ]
     },
     "sso": {
@@ -2109,6 +2265,9 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
         "tx.effect.cancel",
         "tx.effect.cancel_confirmed",
         "tx.effect.cancel_submitted",
@@ -2167,6 +2326,7 @@
         "identity.sso.delete_provider",
         "identity.sso.disable_provider",
         "identity.sso.enable_provider",
+        "identity.sso.issue_break_glass",
         "identity.sso.login",
         "identity.sso.provision_jit",
         "identity.sso.register_provider",
@@ -2520,11 +2680,30 @@
     },
     "scim/organization": {
       "transaction": [
-        "none"
+        "tx.command.aborted",
+        "tx.command.committed",
+        "tx.command.conflict",
+        "tx.command.expired",
+        "tx.command.first",
+        "tx.command.live",
+        "tx.foundation",
+        "tx.uow.begin",
+        "tx.uow.commit",
+        "tx.uow.contributor",
+        "tx.uow.enlist",
+        "tx.uow.locks",
+        "tx.uow.query",
+        "tx.uow.reserve",
+        "tx.uow.rollback"
       ],
       "lifecycle": [
         "lifecycle.cascade.domain_revoke",
         "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
         "lifecycle.cascade.team_change",
         "lifecycle.cascade.team_delete",
         "lifecycle.foundation"
@@ -2532,6 +2711,11 @@
       "lifecycle_consumers": [
         "lifecycle.cascade.domain_revoke",
         "lifecycle.cascade.enterprise_provider_disable",
+        "lifecycle.cascade.identity_anonymize",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.organization_archive",
+        "lifecycle.cascade.organization_delete",
+        "lifecycle.cascade.organization_restore",
         "lifecycle.cascade.team_change",
         "lifecycle.cascade.team_delete"
       ],
@@ -2539,6 +2723,9 @@
         "none"
       ],
       "security_events": [
+        "identity.scim.bulk_admit",
+        "identity.scim.bulk_apply_child",
+        "identity.scim.bulk_skip_child",
         "identity.sso.apply_directory_sync",
         "identity.sso.cancel_directory_sync",
         "identity.sso.reconcile_directory_sync",
@@ -2597,12 +2784,6 @@
         "ref.oauth_server.client_secret_bytes",
         "ref.oauth_server.client_secret_overlap",
         "ref.oauth_server.code_ttl",
-        "ref.oauth_server.device_lookup_limit",
-        "ref.oauth_server.device_poll",
-        "ref.oauth_server.device_slow_down_increment",
-        "ref.oauth_server.device_ttl",
-        "ref.oauth_server.device_user_code_alphabet",
-        "ref.oauth_server.device_user_code_length",
         "ref.oauth_server.dynamic_registration",
         "ref.oauth_server.dynamic_registration.allowed_auth_methods",
         "ref.oauth_server.dynamic_registration.allowed_grant_types",
@@ -2618,8 +2799,6 @@
         "ref.oauth_server.redirect_uris",
         "ref.oauth_server.refresh_ttl",
         "ref.oauth_server.scopes",
-        "ref.oauth_server.session_jwt_exchange",
-        "ref.oauth_server.session_jwt_ttl",
         "ref.oauth_server.signing_rotation",
         "ref.oauth_server.token_endpoint",
         "ref.secrets.oauth_signing_provider",
@@ -2628,7 +2807,6 @@
       ],
       "security_events": [
         "identity.oauth_server.add_signing_key",
-        "identity.oauth_server.approve_device",
         "identity.oauth_server.authorize",
         "identity.oauth_server.compromise_signing_key",
         "identity.oauth_server.create_client",
@@ -2650,10 +2828,17 @@
     },
     "oauth-server/oidc": {
       "transaction": [
-        "none"
+        "tx.capability.apply",
+        "tx.capability.finalize",
+        "tx.capability.issue",
+        "tx.capability.recover",
+        "tx.capability.reserve",
+        "tx.capability.validate",
+        "tx.foundation"
       ],
       "lifecycle": [
         "lifecycle.artifact.access_jwt",
+        "lifecycle.artifact.session_exchange_jwt",
         "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
@@ -2666,6 +2851,8 @@
         "ref.oauth_server.oidc.pairwise_subject",
         "ref.oauth_server.oidc.response_mode",
         "ref.oauth_server.oidc.rp_initiated_logout",
+        "ref.oauth_server.session_jwt_exchange",
+        "ref.oauth_server.session_jwt_ttl",
         "ref.struct:ref.oauth_server.pairwise_subject"
       ],
       "security_events": [
@@ -2684,7 +2871,10 @@
         "tx.foundation"
       ],
       "lifecycle": [
-        "none"
+        "lifecycle.cascade.global_compromise",
+        "lifecycle.cascade.identity_delete",
+        "lifecycle.cascade.identity_suspend",
+        "lifecycle.foundation"
       ],
       "lifecycle_consumers": [
         "none"
@@ -2784,6 +2974,7 @@
         "none"
       ],
       "configuration": [
+        "ref.csrf.referer_fallback",
         "ref.http.body_bytes",
         "ref.http.client_ip.normalization",
         "ref.http.cookies.max_count",
@@ -2802,6 +2993,7 @@
         "ref.http.external_total_timeout",
         "ref.http.forwarded_max_hops",
         "ref.http.forwarded_precedence",
+        "ref.http.handler_timeout",
         "ref.http.header_bytes",
         "ref.http.idempotency_key_bytes",
         "ref.http.idempotency_retention",
@@ -2838,6 +3030,8 @@
         "ref.session.cookie.secure",
         "ref.struct:ref.http.external_retry",
         "ref.struct:ref.session.cookie.max_age",
+        "ref.struct:ref.tenant.host_mapping",
+        "ref.tenant.host_mapping",
         "ref.tenant.host_suffix",
         "ref.tenant.routing_mode"
       ],
@@ -2853,6 +3047,9 @@
         "tx.capability.recover",
         "tx.capability.reserve",
         "tx.capability.validate",
+        "tx.captcha.apply",
+        "tx.captcha.finalize",
+        "tx.captcha.reserve",
         "tx.command.aborted",
         "tx.command.committed",
         "tx.command.conflict",
@@ -2941,6 +3138,7 @@
         "ref.captcha.recaptcha.remote_ip_disclosure",
         "ref.captcha.recaptcha.tier",
         "ref.captcha.recaptcha.version",
+        "ref.captcha.replay_tombstone_retention",
         "ref.captcha.score_owner",
         "ref.captcha.score_threshold",
         "ref.captcha.timeout",
@@ -3037,6 +3235,13 @@
         "ref.identity.email.max_bytes",
         "ref.identity.identifier_reuse",
         "ref.identity.phone_metadata",
+        "ref.identity.policy_set",
+        "ref.identity.privacy_export.artifact_ttl",
+        "ref.identity.privacy_export.encryption",
+        "ref.identity.privacy_export.max_bytes",
+        "ref.identity.privacy_export.retention",
+        "ref.identity.privacy_export.store",
+        "ref.identity.privacy_export.worker",
         "ref.identity.unicode_version",
         "ref.identity.username.max_codepoints",
         "ref.identity.username.min_codepoints",
@@ -3259,6 +3464,7 @@
         "ref.scim.token_overlap",
         "ref.scim.token_ttl",
         "ref.secrets.api_key_digest_key",
+        "ref.secrets.captcha_replay_digest_key",
         "ref.secrets.command_fingerprint_key",
         "ref.secrets.csrf_key",
         "ref.secrets.envelope_provider",
@@ -3297,12 +3503,14 @@
         "ref.struct:ref.api_key.encoding",
         "ref.struct:ref.audit.retention_policy",
         "ref.struct:ref.captcha.evidence",
+        "ref.struct:ref.captcha.replay_fingerprint",
         "ref.struct:ref.delivery.backoff",
         "ref.struct:ref.delivery.dead_letter",
         "ref.struct:ref.delivery.provider_retry",
         "ref.struct:ref.delivery.queue",
         "ref.struct:ref.http.external_retry",
         "ref.struct:ref.identity.delete.proof",
+        "ref.struct:ref.identity.policy_set",
         "ref.struct:ref.lifecycle.legal_hold",
         "ref.struct:ref.oauth.rp_transaction",
         "ref.struct:ref.oauth_server.dynamic_registration",
@@ -3361,6 +3569,7 @@
       ],
       "security_events": [
         "identity.audit_retention.change_policy",
+        "identity.audit_retention.confirm_deletion",
         "identity.audit_retention.create_legal_hold",
         "identity.audit_retention.delete_records",
         "identity.audit_retention.release_legal_hold",

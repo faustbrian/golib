@@ -36,6 +36,12 @@ rotation, deployment/environment IDs, origin registration, one-time state
 store, maximum envelope lifetime/size, callback result and typed stable errors.
 The profile envelope MUST bind provider, client, preview origin, redirect,
 state, timestamps, key ID and result status using authenticated encryption.
+State and envelope bindings MUST also include tenant, initiating command ID and
+request fingerprint, generic OAuth transaction, claims-mapping profile/version,
+claims provenance, intended preview client/recipient and the caller's unchanged
+`identity/session.RememberPolicy`. Validation grants no authority; production
+callback and preview consumption MUST each reserve, apply and finalize their
+own one-use artifact, and unknown outcomes MUST recover before retry.
 
 ## Required behavior and security
 
@@ -75,6 +81,12 @@ lifetimes and size limits MUST be explicit in
 [`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
 Every forwarded or denied proxy transaction MUST emit the bounded record
 defined by [`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Acceptance and blockers
 

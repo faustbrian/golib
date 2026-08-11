@@ -23,6 +23,8 @@ creates one isolated worker for each eligible inventory unit. Humans MUST NOT
 create, paste, or run per-package prompts. Individual goal files are inputs to
 the coordinator-rendered worker prompt, not independent entry points; using
 them directly omits common, parity, integration, and dependency requirements.
+`GOAL_MANIFEST.json` pins every goal's exact bytes and its planning and
+canonical package locations so unchanged lifecycle moves remain executable.
 
 ## Authority and ownership
 
@@ -42,25 +44,30 @@ exactly, is:
 3. `PROGRAM.md`;
 4. `COMMON_REQUIREMENTS.md`;
 5. `END_STATE.md`;
-6. `REFERENCE_PROFILE.md`;
-7. `BETTER_AUTH_PARITY.md`;
-8. `API_OPERATIONS.md`;
-9. `UPSTREAM_DISPOSITIONS.md`;
-10. `UPSTREAM_SURFACE.json`;
-11. `PROTOCOL_BASELINES.md`;
-12. `PROTOCOL_CONFORMANCE_MANIFEST.json`;
-13. `SECURITY_EVENTS.md`;
-14. `TRANSACTION_CONTRACT.md`;
-15. `LIFECYCLE_CASCADES.md`;
-16. `LIFECYCLE_CONSUMERS.md`;
-17. `REFERENCE_CONFIGURATION.md`;
-18. `CONFIGURATION_CATALOGS.json`;
-19. `PREFLIGHT_EVIDENCE.md`;
-20. `DEPENDENCIES.md`;
-21. `INVENTORY.md`;
-22. `EXECUTION_LEDGER.md`;
-23. `WORKER_PROMPT.md`;
-24. the exact goal assigned to that worker.
+6. `END_STATE_ACCEPTANCE.json`;
+7. `REFERENCE_PROFILE.md`;
+8. `BETTER_AUTH_PARITY.md`;
+9. `PARITY_DISPOSITIONS.json`;
+10. `API_OPERATIONS.md`;
+11. `OPERATION_SEMANTICS.json`;
+12. `UPSTREAM_DISPOSITIONS.md`;
+13. `UPSTREAM_SURFACE.json`;
+14. `PROTOCOL_BASELINES.md`;
+15. `PROTOCOL_CONFORMANCE_MANIFEST.json`;
+16. `SECURITY_EVENTS.md`;
+17. `TRANSACTION_CONTRACT.md`;
+18. `LIFECYCLE_CASCADES.md`;
+19. `LIFECYCLE_CONSUMERS.md`;
+20. `REFERENCE_CONFIGURATION.md`;
+21. `CONFIGURATION_CATALOGS.json`;
+22. `VERIFICATION_APPLICABILITY.json`;
+23. `PREFLIGHT_EVIDENCE.md`;
+24. `DEPENDENCIES.md`;
+25. `INVENTORY.md`;
+26. `EXECUTION_LEDGER.md`;
+27. `WORKER_PROMPT.md`;
+28. `GOAL_MANIFEST.json`;
+29. the exact goal assigned to that worker.
 
 ## Computed execution waves
 
@@ -79,7 +86,6 @@ are `verified`; a wave is not a barrier.
 - `identity/postgres`
 - `identity/session`
 - `identity/risk`
-- `identity/email`
 - `identity/apikey`
 - `identity/i18n`
 
@@ -93,7 +99,6 @@ are `verified`; a wave is not a barrier.
 - `identity/risk/captcha`
 - `identity/risk/hibp`
 - `identity/password`
-- `identity/magiclink`
 - `identity/otp`
 - `identity/anonymous`
 - `webauthn/postgres`
@@ -113,6 +118,7 @@ are `verified`; a wave is not a barrier.
 - `identity/risk/captcha/captchafox`
 - `identity/password/postgres`
 - `identity/username`
+- `identity/email`
 - `identity/otp/postgres`
 - `identity/phone`
 - `identity/anonymous/postgres`
@@ -130,6 +136,7 @@ are `verified`; a wave is not a barrier.
 
 ### Wave 4
 
+- `identity/magiclink`
 - `identity/mfa/postgres`
 - `identity/oauth/onetap`
 - `sso/domain-verification`
@@ -152,7 +159,6 @@ are `verified`; a wave is not a barrier.
 ### Wave 7
 
 - `identity/identitytest`
-
 ## Readiness and completion
 
 Only dependency-free units begin `ready`. The coordinator changes a proposed

@@ -49,6 +49,10 @@ involved.
 
 ## Package-specific acceptance checklist
 
+- Reset initiation and completion MUST select exactly one canonical
+  `authentication.recovery_path`, bind it into capability and audit state, and
+  MUST NOT fall back to another path after issuance.
+
 - Signup MUST support explicit enabled/disabled policy, required verified email
   policy, minimum/maximum password byte length, risk/HIBP decision, identity
   fields permitted at signup and optional post-commit session issuance.
@@ -68,6 +72,11 @@ involved.
 - Administrator set/reset MUST be a separate authorized operation with audit,
   forced-change/session policy and no ability to retrieve either old or new
   password.
+- Every path that establishes a new password hash MUST complete the configured
+  HIBP decision before hashing or committing: signup/create, authenticated
+  change, provider-only set, reset completion, and administrator set/reset.
+  No caller, recovery type, or administrator path may bypass the same outage,
+  breach-threshold, redaction, and unknown-result policy.
 - Password bytes MUST NOT be normalized, trimmed, copied into immutable logs or
   retained beyond verification/hashing. Hash parameters and upgrade policy MUST
   be bounded against denial of service.
@@ -100,7 +109,7 @@ involved.
 
 - When handling `identity.otp.password-reset` or
   `identity.phone.password-reset-complete`, this workflow MUST
-  reserve/apply/finalize the purpose-bound OTP through `identity/otp/postgres` in
+  reserve/apply/finalize the purpose-bound OTP through an injected OTP persistence contributor, supplied by `identity/otp/postgres` in the reference composition, in
   the same coordinator unit of work as its owning mutation. Signup, signin,
   password change, and capability-only reset MUST NOT enlist an OTP participant.
   Release and recovery remain fail-closed on rollback or unknown commit.
@@ -131,6 +140,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 

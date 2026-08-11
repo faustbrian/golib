@@ -14,6 +14,11 @@ end-state proof. A capability row is not complete unless every operation it
 references here has a public owner, an implemented direct contract, its stated
 HTTP disposition, and executable evidence for the stated policy.
 
+`OPERATION_SEMANTICS.json` records the closed transport and authorization
+fields for the operation-closure additions and reclassifications in this
+baseline. Its values MUST match the normative rows and route tables in this
+document exactly; it does not authorize aliases or alternate owners.
+
 Operation IDs are stable public identifiers. Implementations MAY choose
 different Go method names, but HTTP method and path are fixed as follows:
 `both` rows use `/v1/` followed by the operation ID with the leading
@@ -41,8 +46,9 @@ operation MUST NOT disappear through consolidation into a broad service method.
 - A cookie-authenticated unsafe HTTP method MUST use CSRF protection. `CSRF`
   below therefore means request `Origin` validation plus anti-CSRF token/session
   binding; `origin` means callback or redirect allowlist validation; `none` is
-  allowed only for a bearer-
-  authenticated protocol operation that does not consume ambient cookies.
+  allowed for a bearer-authenticated protocol operation that does not consume
+  ambient cookies and for a public side-effect-free read such as health,
+  readiness, discovery, or public metadata.
 - A `pre-auth transaction` is the five-minute, single-use unauthenticated
   session-issuance/linking transaction bound to the flow cookie, exact request
   origin, intended action, tenant, callback/redirect, server nonce, and resolved
@@ -72,8 +78,13 @@ operation MUST NOT disappear through consolidation into a broad service method.
 - `repeat` means a retry returns the same semantic state without duplicating a
   transition; `keyed` requires an idempotency key; `once` consumes a single-use
   proof; `read` has no state transition; `rotate` returns one known successor
-  or an explicit unknown/reconciliation result; `none` means duplicate effects
-  are invalid and MUST be rejected.
+  or an explicit unknown/reconciliation result; `protocol-poll` repeats the
+  exact standards-defined polling transition and returns pending/slow-down or
+  one terminal result; `protocol-command` derives a stable server-owned command
+  identity from the authenticated protocol request and its preconditions; a
+  client `Idempotency-Key` MAY be accepted only as an optional extension and
+  MUST NOT be required for standards interoperability; `none` means duplicate effects are invalid and MUST be
+  rejected.
 - Every operation returns its named typed result and stable typed errors. Common
   errors include invalid input, unauthenticated, forbidden, stale/freshness
   required, conflict, rate limited, unavailable, cancelled, deadline exceeded,
@@ -100,6 +111,11 @@ MUST use the default exactly; an entry for any other operation is invalid.
 | Operation ID | HTTP method | Exact path | OpenAPI operationId |
 | --- | --- | --- | --- |
 | `identity.openapi.document` | `GET` | `/openapi.json` | `identity.openapi.document` |
+| `identity.health` | `GET` | `/healthz` | `identity.health` |
+| `identity.ready` | `GET` | `/readyz` | `identity.ready` |
+| `identity.password.reset-inspect` | `POST` | `/v1/password/reset/inspect` | `identity.password.reset-inspect` |
+| `identity.oauth.callback` | `GET` | `/v1/oauth/callback` | `identity.oauth.callback` |
+| `identity.oauth.callback-form-post` | `POST` | `/v1/oauth/callback/form-post` | `identity.oauth.callback-form-post` |
 
 Every `protocol` row MUST occur exactly once in the following table. Paths use
 OpenAPI template notation; template values are bounded request inputs, never
@@ -109,6 +125,8 @@ worker-selected route prefixes. No other protocol route or alias exists.
 | --- | --- | --- | --- |
 | `identity.oauth.proxy-forward` | `POST` | `/oauth2/callback/proxy` | `identity.oauth.proxy-forward` |
 | `identity.sso.oidc-callback` | `GET` | `/sso/oidc/callback` | `identity.sso.oidc-callback` |
+| `identity.sso.oidc-logout` | `POST` | `/sso/oidc/{provider_id}/logout` | `identity.sso.oidc-logout` |
+| `identity.sso.oidc-logout-complete` | `GET` | `/sso/oidc/{provider_id}/logout/callback` | `identity.sso.oidc-logout-complete` |
 | `identity.sso.oauth-callback` | `GET` | `/sso/oauth2/callback` | `identity.sso.oauth-callback` |
 | `identity.sso.saml-metadata` | `GET` | `/saml2/{provider_id}/metadata` | `identity.sso.saml-metadata` |
 | `identity.sso.saml-start` | `GET` | `/saml2/{provider_id}/login` | `identity.sso.saml-start` |
@@ -163,8 +181,8 @@ MUST NOT attach by prefix, tag, risk class, or worker-selected configuration.
 
 | Middleware operation ID | Exact target operation IDs |
 | --- | --- |
-| `identity.session.last-method-record` | `identity.password.signin`, `identity.username.signin`, `identity.magic-link.consume`, `identity.otp.signin`, `identity.phone.signin`, `identity.anonymous.signin`, `identity.passkey.signin-verify`, `identity.oauth.callback`, `identity.oauth.onetap-callback`, `identity.oauth.popup-complete`, `identity.sso.oidc-callback`, `identity.sso.oauth-callback`, `identity.sso.saml-acs`, `identity.sso.saml-idp-init`, `identity.mfa.totp-verify`, `identity.mfa.otp-verify`, `identity.mfa.recovery-use`, `identity.mfa.security-key-assert-verify` |
-| `identity.risk.captcha-verify` | `identity.password.signup`, `identity.password.signin`, `identity.password.reset-request`, `identity.username.signup`, `identity.username.signin`, `identity.magic-link.request`, `identity.otp.send`, `identity.otp.signin`, `identity.phone.send-verification`, `identity.phone.signin`, `identity.phone.password-reset-request`, `identity.anonymous.signin`, `identity.passkey.signin-options`, `identity.passkey.signin-verify`, `identity.oauth.signin-start`, `identity.oauth.signin-token`, `identity.oauth.onetap-callback`, `identity.sso.discover`, `identity.sso.signin-start` |
+| `identity.session.last-method-record` | `identity.password.signin`, `identity.username.signin`, `identity.magic-link.consume`, `identity.otp.signin`, `identity.phone.signin`, `identity.anonymous.signin`, `identity.passkey.signin-verify`, `identity.oauth.callback`, `identity.oauth.callback-form-post`, `identity.oauth.onetap-callback`, `identity.oauth.popup-complete`, `identity.sso.oidc-callback`, `identity.sso.oauth-callback`, `identity.sso.saml-acs`, `identity.sso.saml-idp-init`, `identity.mfa.totp-verify`, `identity.mfa.otp-verify`, `identity.mfa.recovery-use`, `identity.mfa.security-key-assert-verify` |
+| `identity.risk.captcha-verify` | `identity.password.signup`, `identity.password.signin`, `identity.password.change`, `identity.password.set`, `identity.password.reset-request`, `identity.password.reset-complete`, `identity.admin.user-password-set`, `identity.username.signup`, `identity.username.signin`, `identity.magic-link.request`, `identity.otp.send`, `identity.otp.signin`, `identity.phone.send-verification`, `identity.phone.signin`, `identity.phone.password-reset-request`, `identity.phone.password-reset-complete`, `identity.anonymous.signin`, `identity.passkey.signin-options`, `identity.passkey.signin-verify`, `identity.oauth.signin-start`, `identity.oauth.signin-token`, `identity.oauth.onetap-callback`, `identity.sso.discover`, `identity.sso.signin-start` |
 
 Every `direct` row maps to method `none`, path `none`, and OpenAPI ownership
 `none`. A direct row in any route table, or any registered handler or OpenAPI
@@ -227,7 +245,7 @@ wins.
 | `rate.signin` | `identity.password.signin`, `identity.username.signin`, `identity.otp.signin`, `identity.phone.signin`, `identity.anonymous.signin` |
 | `rate.delivery` | `identity.password.reset-request`, `identity.email.verification-send`, `identity.magic-link.request`, `identity.otp.send`, `identity.phone.send-verification`, `identity.phone.password-reset-request`, `identity.mfa.otp-send` |
 | `rate.verify` | `identity.password.verify`, `identity.password.reset-complete`, `identity.email.verification-confirm`, `identity.email.change-confirm`, `identity.magic-link.consume`, `identity.otp.check`, `identity.otp.email-verify`, `identity.otp.password-reset`, `identity.otp.email-change-confirm`, `identity.phone.verify`, `identity.phone.password-reset-complete`, `identity.mfa.totp-verify`, `identity.mfa.otp-verify`, `identity.mfa.recovery-use`, `identity.mfa.security-key-register-verify`, `identity.mfa.security-key-assert-verify`, `identity.passkey.register-verify`, `identity.passkey.signin-verify` |
-| `rate.provider-callback` | `identity.oauth.callback`, `identity.oauth.popup-complete`, `identity.oauth.onetap-callback`, `identity.oauth.proxy-forward`, `identity.sso.oidc-callback`, `identity.sso.oauth-callback`, `identity.sso.saml-acs`, `identity.sso.saml-idp-init`, `identity.sso.saml-slo` |
+| `rate.provider-callback` | `identity.oauth.callback`, `identity.oauth.callback-form-post`, `identity.oauth.popup-complete`, `identity.oauth.onetap-callback`, `identity.oauth.proxy-forward`, `identity.sso.oidc-callback`, `identity.sso.oidc-logout-complete`, `identity.sso.oauth-callback`, `identity.sso.saml-acs`, `identity.sso.saml-idp-init`, `identity.sso.saml-slo` |
 | `rate.oauth-token` | `identity.oauth-server.token` |
 | `rate.device-poll` | `identity.oauth-server.device-token` |
 
@@ -236,7 +254,7 @@ wins.
 | Operation ID | Owner / exposure | Access / CSRF | Rate / idempotency | Request, result, and additional error semantics |
 | --- | --- | --- | --- | --- |
 | `identity.health` | `identity/http` / both | public / none | safe / read | Empty request; bounded process-liveness result; MUST NOT reveal dependencies or configuration. |
-| `identity.ready` | `identity/reference` / both | public / none | safe / read | Empty request; bounded readiness state and opaque failed-component codes; no secrets or network topology. |
+| `identity.ready` | `identity/reference` / both | public / none | safe / read | Empty request; bounded dependency, migration and signing-key readiness with opaque failed-component codes; no secrets or network topology. |
 | `identity.platform.bootstrap-administrator` | `identity/reference` / direct | offline operator plus one-time bootstrap proof / internal | internal / once | Out-of-band operator invocation with bootstrap capability, initial tenant, administrator identity and role set; returns committed disabled-after-use bootstrap state, authority versions and immutable audit ID. It MUST NOT be registered as an HTTP handler or OpenAPI operation. |
 | `identity.platform.role.create` | `identity/reference`, `authorization` / both | fresh platform admin / CSRF | admin / keyed | Stable role ID, name and initial statement IDs; returns the versioned role and authority version. |
 | `identity.platform.role.update` | `identity/reference`, `authorization` / both | fresh platform admin / CSRF | admin / keyed | Role ID, expected version, name and statement IDs; returns the updated role, assignment impact and authority version. |
@@ -248,6 +266,8 @@ wins.
 | `identity.audit-retention.legal-hold.create` | `identity/reference`, `audit` / both | fresh privacy admin / CSRF | admin / keyed | Stable hold ID, exact tenant/record/query scope, legal authority, reason and optional expiry; returns hold version and emits exactly `identity.audit_retention.create_legal_hold`. |
 | `identity.audit-retention.legal-hold.update` | `identity/reference`, `audit` / both | fresh privacy admin / CSRF | admin / keyed | Hold ID, expected version, replacement scope/authority/reason/expiry; returns the next hold version and emits exactly `identity.audit_retention.update_legal_hold`. |
 | `identity.audit-retention.legal-hold.release` | `identity/reference`, `audit` / both | fresh privacy admin / CSRF | admin / repeat | Active hold ID, expected version, release authority and reason; returns the terminal released version and emits exactly `identity.audit_retention.release_legal_hold`. |
+| `identity.audit-retention.deletion.plan` | `identity/reference`, `audit` / direct | offline retention operator / internal | internal / read | Cutoff, bounded tenant/query scope and policy/hold checkpoint; returns an immutable bounded candidate plan and semantic digest without deleting records. It MUST NOT be registered as an HTTP handler or OpenAPI operation. |
+| `identity.audit-retention.deletion.confirm` | `identity/reference`, `audit` / direct | offline retention operator plus independent confirmer / internal | internal / once | Exact plan digest, confirmer identity, reason and expiry; returns a single-use immutable confirmation bound to the policy/hold checkpoint and emits exactly `identity.audit_retention.confirm_deletion`. It MUST NOT delete records or be registered as an HTTP handler or OpenAPI operation. |
 | `identity.audit-retention.records.delete` | `identity/reference`, `audit` / direct | offline retention operator plus immutable plan confirmation / internal | internal / keyed | Plan digest, cutoff, expected policy/hold checkpoint, bounded batch/cursor and confirmation; rechecks holds, deletes only eligible records, retains a protected receipt, and emits exactly `identity.audit_retention.delete_records`. It MUST NOT be registered as an HTTP handler or OpenAPI operation. |
 | `identity.user.create` | `identity` / both | admin / CSRF | admin / keyed | Typed identity fields and actor scope; returns safe user; duplicate identifier, tenant conflict, or unknown commit are distinct. |
 | `identity.user.get` | `identity` / both | admin / none | admin / read | Opaque user ID and tenant; safe user projection or enumeration-safe not-found. |
@@ -258,6 +278,7 @@ wins.
 | `identity.privacy-export.request` | `identity` / both | fresh / CSRF | secret / keyed | Export scope and format; snapshots authorized subject data and returns an opaque export job without provider secrets. |
 | `identity.privacy-export.status` | `identity` / both | fresh / none | secret / read | Owned export job; returns bounded pending/ready/failed/expired state and no download bearer. |
 | `identity.privacy-export.cancel` | `identity` / both | fresh / CSRF | secret / repeat | Owned export job/version; cancels pending work and crypto-erases any completed payload when policy permits. |
+| `identity.privacy-export.download-capability-issue` | `identity`, `capability` / both | fresh export owner / CSRF | secret / rotate | Ready export job, version and exact audience/origin; returns one short-lived reveal-once capability, invalidates any unconsumed predecessor, emits exactly `identity.privacy_export.issue_download_capability`, and never returns the export payload. |
 | `identity.privacy-export.download` | `identity` / both | fresh plus export capability / origin | secret / once | Single-use job/audience/session-bound capability; returns the bounded encrypted export stream or expired/replayed result and records download completion. |
 | `identity.user.suspend` | `identity` / both | admin / CSRF | admin / keyed | User, reason and optional expiry; returns status transition and revocation outcome. |
 | `identity.user.restore` | `identity` / both | admin / CSRF | admin / keyed | User and expected status version; returns restored state or conflict. |
@@ -277,7 +298,7 @@ wins.
 | `identity.password.set` | `identity/password` / both | fresh or reset/admin proof / CSRF | secret / keyed | New password and proof; returns credential version and session-revocation outcome. |
 | `identity.password.change` | `identity/password` / both | fresh plus current-password proof / CSRF | secret / keyed | Current/new password and revoke policy; returns credential version and revocation result. |
 | `identity.password.reset-request` | `identity/password` / both | public / origin | auth / keyed | Identifier and allowlisted callback; always returns enumeration-safe delivery-intent result. |
-| `identity.password.reset-inspect` | `identity/password` / both | reset capability / origin | secret / read | Bounded token; returns valid/invalid UI state without revealing subject. |
+| `identity.password.reset-inspect` | `identity/password` / both | reset capability / origin | secret / repeat | Token in a bounded no-store POST body; returns valid/invalid UI state without revealing subject and MUST NOT place the capability in a URL, query string, redirect or log. |
 | `identity.password.reset-complete` | `identity/password` / both | reset capability / origin | secret / once | Token and new password; returns committed credential/session-revocation result or invalid/replayed/expired. |
 | `identity.email.verification-send` | `identity/email` / both | public or session / origin | auth / keyed | Address/subject context and callback; returns enumeration-safe delivery state. |
 | `identity.email.verification-confirm` | `identity/email` / both | pre-auth-bound email capability when issuing a session, otherwise email capability / origin | secret / once | Token and callback; returns verified identity and optional new session only after commit. |
@@ -314,11 +335,12 @@ substitute a public pre-auth transaction.
 | `identity.session.last-method-check` | `identity/session` / both | session or privacy cookie / none | safe / read | Candidate method; returns boolean without authentication meaning. |
 | `identity.session.last-method-clear` | `identity/session` / both | session or privacy cookie / CSRF | safe / repeat | Current scope; deletes database/cookie records. |
 | `identity.session.last-method-record` | `identity/session` / middleware | successful configured signin / none | signin / keyed | Records only the successful method after identity/session commit; shares the parent signin admission without a second debit; failed attempts and privacy-disabled profiles write nothing. |
-| `identity.session.bearer-issue` | `identity/session`, `identity/http` / both | successful session issuance / none | secret / rotate | Emits the exact session bearer once in a typed body or exposed response header; never uses URL/query; rotation replaces prior bearer. |
+| `identity.session.bearer-authorize` | `identity/session` / both | fresh non-impersonated session plus `session:bearer-issue` authorization / CSRF | secret / keyed | Requested audience, origin, bounded lifetime and transport; returns a short-lived single-use issuance continuation bound to the exact session/version and authorization decision and emits exactly `identity.session.authorize_bearer`. |
+| `identity.session.bearer-issue` | `identity/session`, `identity/http` / both | authorized bearer-issuance continuation / origin | secret / once | Atomically consumes the callable continuation, emits exactly `identity.session.issue_bearer`, and returns the exact session bearer once in a typed no-store body or CORS-exposed response header; never uses URL/query; denial or replay emits no credential. |
 | `identity.magic-link.request` | `identity/magiclink` / both | public plus pre-auth transaction / origin | auth / keyed | Email, signin/signup intent and callback; returns enumeration-safe delivery result. |
 | `identity.magic-link.consume` | `identity/magiclink` / both | pre-auth-bound magic-link capability / origin | secret / once | Token and callback; returns session/linked verification or invalid/replay/expired. |
 | `identity.otp.send` | `identity/otp` / both | public plus pre-auth transaction for signin, session, or MFA continuation by purpose / origin or CSRF | auth / keyed | Channel, subject and declared purpose; returns enumeration-safe delivery/challenge state. |
-| `identity.otp.check` | `identity/otp` / both | purpose challenge / none | auth / none | Challenge and code; validates without consume only if enabled and separately limited. |
+| `identity.otp.check` | `identity/otp` / both | purpose challenge / none | auth / read | Challenge and code; validates without consume only if enabled and separately limited. |
 | `identity.otp.signin` | `identity/otp` / both | pre-auth-bound public challenge / origin | auth / once | Identifier, code and remember policy; returns session/MFA continuation or generic denial. |
 | `identity.otp.email-verify` | `identity/otp`, `identity/email` / both | pre-auth-bound email challenge when issuing a session, otherwise email challenge / origin | auth / once | Address-bound code; returns verified address/session policy. |
 | `identity.otp.password-reset` | `identity/otp`, `identity/password` / both | reset challenge / origin | secret / once | Code and new password; returns credential/revocation result. |
@@ -364,6 +386,7 @@ substitute a public pre-auth transaction.
 | `identity.oauth.signin-start` | `identity/oauth` / both | public plus pre-auth transaction / origin | provider / keyed | Provider, signin/signup intent, login hint, scopes, success/new-user/error callbacks, popup/URL-return mode and bounded state; returns redirect transaction. |
 | `identity.oauth.signin-token` | `identity/oauth`, `identity/oauth/providers` / both | public plus pre-auth transaction / origin | provider / keyed | Provider ID token or supported opaque access token, nonce, platform client/audience and optional provider token metadata; returns session/MFA/collision result. |
 | `identity.oauth.callback` | `identity/oauth` / both | pre-auth-bound provider callback state / origin | provider / once | Code/error/issuer/state; returns session/link/new-user/error redirect result or replay/mix-up denial. |
+| `identity.oauth.callback-form-post` | `identity/oauth`, `identity/oauth/providers` / both | pre-auth-bound Apple provider callback state / origin | provider / once | Apple Form Post code/error/state submitted as bounded `application/x-www-form-urlencoded` POST; rejects every non-Apple profile and response-mode mismatch, and returns the same session/link/new-user/error result or replay/mix-up denial as the query callback. |
 | `identity.oauth.popup-complete` | `identity/oauth`, `identity/http` / both | popup transaction / origin | provider / once | One-time result channel; bounded CSP page and exact-origin acknowledged delivery. |
 | `identity.oauth.onetap-start` | `identity/oauth/onetap` / both | public plus pre-auth transaction / origin | provider / keyed | Prompt/button options, nonce, hints and callback; returns GIS request context. |
 | `identity.oauth.onetap-callback` | `identity/oauth/onetap` / both | pre-auth-bound One Tap state / origin | provider / once | Google credential and nonce; returns session/link/dismissal/error. |
@@ -388,6 +411,11 @@ substitute a public pre-auth transaction.
 | `identity.admin.session-revoke-all` | `identity/session` / both | admin / CSRF | admin / repeat | User; revocation count and propagation. |
 | `identity.impersonation.start` | `identity/impersonation` / both | fresh admin / CSRF | admin / keyed | Target, reason, duration and scope; marked actor-chain session or denial. |
 | `identity.impersonation.stop` | `identity/impersonation` / both | impersonated session / CSRF | admin / repeat | Current grant; restored actor session or expired/revoked. |
+| `identity.impersonation.request` | `identity/impersonation` / both | fresh admin with `impersonation:request` / CSRF | admin / keyed | Target, reason, scope, duration and required quorum policy; returns a pending request or policy denial and MUST NOT issue an impersonated session. |
+| `identity.impersonation.approve` | `identity/impersonation` / both | fresh distinct admin with `impersonation:approve` / CSRF | admin / keyed | Request ID/version and reason; records one distinct approval or terminal conflict without allowing self-approval. |
+| `identity.impersonation.deny` | `identity/impersonation` / both | fresh distinct admin with `impersonation:approve` / CSRF | admin / repeat | Request ID/version and reason; atomically denies the request and invalidates outstanding approvals. |
+| `identity.impersonation.revoke` | `identity/impersonation` / both | fresh admin with `impersonation:revoke` / CSRF | admin / repeat | Request/grant ID, version and reason; revokes pending or active authority and terminates derived sessions under the declared propagation result. |
+| `identity.impersonation.quorum` | `identity/impersonation` / both | fresh admin with `impersonation:read` / none | admin / read | Request ID; returns required quorum, distinct safe approval metadata and terminal status without exposing approval credentials. |
 
 ## Organizations, federation, and SCIM
 
@@ -398,7 +426,9 @@ substitute a public pre-auth transaction.
 | `identity.organization.list` | `organization` / both | session / none | safe / read | Stable cursor; organizations visible to current subject. |
 | `identity.organization.get` | `organization` / both | org:read / none | safe / read | Organization ID; bounded full view. |
 | `identity.organization.update` | `organization` / both | org:update / CSRF | admin / keyed | Versioned allowed fields; updated organization. |
-| `identity.organization.delete` | `organization` / both | org:delete / CSRF | admin / keyed | Version/reason; archived/deleted transition or last-owner/policy denial. |
+| `identity.organization.archive` | `organization` / both | fresh org:delete / CSRF | admin / keyed | Version/reason; atomically enters archived non-authoritative state, revokes active access and preserves the bounded restoration window. |
+| `identity.organization.restore` | `organization` / both | fresh org:restore / CSRF | admin / keyed | Archived organization/version and reason; restores eligible organization state without resurrecting expired credentials or grants. |
+| `identity.organization.delete` | `organization` / both | fresh org:delete / CSRF | admin / keyed | Archived organization/version, explicit cascade plan digest and reason; performs terminal deletion or returns restoration-window, hold, last-owner or stale-plan denial. |
 | `identity.organization.active-set` | `organization`, `identity/session` / both | session plus membership / CSRF | safe / keyed | Organization ID or clear; updated session selection. |
 | `identity.organization.active-get` | `organization`, `identity/session` / both | session / none | safe / read | Returns the active organization projection or explicit none; stale/deleted selections are cleared safely. |
 | `identity.organization.invitation-send` | `organization` / both | org:invite / CSRF | admin / keyed | Recipient/roles/team/expiry; invitation plus delivery state. |
@@ -408,6 +438,8 @@ substitute a public pre-auth transaction.
 | `identity.organization.invitation.accept` | `organization` / both | intended verified recipient / CSRF | secret / once | Invitation proof/version; membership result or expired/collision. |
 | `identity.organization.invitation.reject` | `organization` / both | intended recipient / CSRF | safe / repeat | Invitation/version; rejected state. |
 | `identity.organization.invitation.cancel` | `organization` / both | org:invite / CSRF | admin / repeat | Invitation/version; cancelled state. |
+| `identity.organization.invitation.resend` | `organization` / both | org:invite / CSRF | admin / keyed | Pending invitation/version and delivery target; rotates the reveal-once invitation proof, invalidates the predecessor, emits exactly `identity.organization.resend_invitation`, and returns bounded delivery state. |
+| `identity.organization.invitation.expire` | `organization` / both | org:invite / CSRF | admin / repeat | Pending invitation/version and reason; records terminal expiry, invalidates every outstanding proof, and emits exactly `identity.organization.expire_invitation`. |
 | `identity.organization.member.list` | `organization` / both | org:member-read / none | safe / read | Search/cursor; stable page. |
 | `identity.organization.member.add` | `organization` / both | org:member-write / CSRF | admin / keyed | User/roles/teams; membership or duplicate/scope conflict. |
 | `identity.organization.member.update` | `organization` / both | org:member-write / CSRF | admin / keyed | Member roles/version; updated membership or last-owner denial. |
@@ -438,8 +470,16 @@ substitute a public pre-auth transaction.
 | `identity.sso.provider.get` | `sso` / both | org:sso-read / none | safe / read | Provider ID; redacted provider details. |
 | `identity.sso.provider.update` | `sso` / both | org:sso-write / CSRF | admin / keyed | Versioned config/mappings/key rotation; update result. |
 | `identity.sso.provider.delete` | `sso` / both | org:sso-write / CSRF | admin / repeat | Provider/version; disable/delete and active-login race outcome. |
-| `identity.sso.domain-challenge` | `sso`, `organization` / both | org:sso-write / CSRF | admin / rotate | Domain; reveal-once proof challenge. |
-| `identity.sso.domain-verify` | `sso`, `organization` / both | org:sso-write / CSRF | provider / keyed | Domain/challenge evidence; verified ownership or conflict/unavailable. |
+| `identity.sso.provider.enable` | `sso` / both | fresh org:sso-write / CSRF | admin / keyed | Disabled provider/version and validated verified-domain/credential checkpoint; enables new login transactions or returns a closed readiness denial. |
+| `identity.sso.provider.disable` | `sso` / both | fresh org:sso-write / CSRF | admin / repeat | Provider/version, reason and active-transaction disposition; denies new starts and returns bounded drain/revocation state. |
+| `identity.sso.provider.credentials-rotate` | `sso` / both | fresh org:sso-credentials / CSRF | admin / rotate | Provider/version, replacement encrypted credential reference and overlap policy; returns one successor version with redacted activation state or unknown/reconciliation. |
+| `identity.sso.enforcement.update` | `sso` / both | fresh org:sso-enforce / CSRF | admin / keyed | Organization/version, verified domains, enforcement mode and recovery exclusions; returns the next policy version after lockout-safety validation. |
+| `identity.sso.break-glass.issue` | `sso` / both | fresh organization owner plus `org:sso-break-glass` / CSRF | admin / rotate | Organization/policy version, named recipient, reason and bounded expiry; returns one reveal-once recovery capability and emits exactly the issuance-only `identity.sso.issue_break_glass` audit event. |
+| `identity.sso.break-glass.consume` | `sso`, `capability/postgres` / both | valid organization-bound break-glass capability plus pre-auth transaction / origin | admin / once | Typed capability, organization/policy version and recovery intent; atomically consumes the capability, establishes the bounded recovery session, and emits exactly the distinct use-only `identity.sso.use_break_glass` audit event or a stable invalid/replayed/expired denial. |
+| `identity.sso.oidc-logout` | `sso/oidc` / protocol | session plus enabled OIDC provider / CSRF | provider / keyed | Starts RP-initiated logout, binds provider/issuer/session/version and allowlisted post-logout redirect into one-time state, performs local revocation, emits exactly `identity.sso.logout_oidc`, and returns redirect/local-only/unknown outcome. |
+| `identity.sso.oidc-logout-complete` | `sso/oidc` / protocol | provider callback plus one-time logout state / origin | provider / once | Provider response and state; consumes the state exactly once, validates issuer/provider/session binding, reconciles provider success/error/timeout with the already authoritative local revocation, and returns only an allowlisted redirect or stable terminal error. |
+| `identity.sso.domain-challenge` | `sso/domain-verification`, `sso` / both | org:sso-write / CSRF | admin / rotate | Organization, domain and expected ownership version; returns a reveal-once challenge bound to owner and provider scope. |
+| `identity.sso.domain-verify` | `sso/domain-verification`, `sso` / both | org:sso-write / CSRF | provider / keyed | Organization/domain/challenge version and bounded DNS or well-known evidence; returns verified ownership or conflict/unavailable without worker-selected lookup behavior. |
 | `identity.sso.discover` | `sso` / both | public / none | auth / read | Email/domain; returns safe provider choice without organization enumeration. |
 | `identity.sso.signin-start` | `sso` / both | public plus pre-auth transaction / origin | provider / keyed | Provider/domain, callbacks and login intent; protocol redirect. |
 | `identity.sso.oidc-callback` | `sso/oidc` / protocol | pre-auth-bound OIDC state / origin | provider / once | Code/error/state/issuer; session/provision/link result or mix-up/replay denial. |
@@ -459,6 +499,9 @@ substitute a public pre-auth transaction.
 | `identity.scim.connection-get` | `scim`, `scim/organization` / both | org:scim-read / none | safe / read | Provider connection; redacted details. |
 | `identity.scim.connection-rotate` | `scim`, `scim/organization` / both | org:scim-write / CSRF | secret / rotate | Connection/version; reveal-once successor and old-token disposition. |
 | `identity.scim.connection-delete` | `scim`, `scim/organization` / both | org:scim-write / CSRF | admin / repeat | Connection/version; immediate bearer revocation. |
+| `identity.scim.connection-update` | `scim`, `scim/organization` / both | fresh org:scim-write / CSRF | admin / keyed | Organization/provider-owned connection, expected version, mappings and deprovision policy; returns the next redacted connection version or stale/conflict denial. |
+| `identity.scim.connection-token-revoke` | `scim`, `scim/organization` / both | fresh org:scim-credentials / CSRF | admin / repeat | Connection/token ID and expected version; revokes the bearer and returns propagation state without revealing token material. |
+| `identity.scim.connection-reconcile` | `scim`, `scim/organization` / both | fresh org:scim-reconcile / CSRF | admin / keyed | Connection/version, bounded cursor and dry-run/apply mode; returns attributable create/update/suspend/remove/conflict counts and an unknown-outcome reconciliation cursor. |
 | `identity.scim.service-provider-config` | `scim` / protocol | scim-token / none | protocol / read | Exact feature support and effective `scim.page_max`, `scim.bulk.operations`, and decoded `scim.bulk.bytes`. |
 | `identity.scim.schemas-list` | `scim` / protocol | scim-token / none | protocol / read | Schema list bounded by effective `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes`. |
 | `identity.scim.schema-get` | `scim` / protocol | scim-token / none | protocol / read | Schema URN bounded by `scim.string_bytes`; exact schema bounded by `scim.resource_depth` and `scim.resource_attributes`, or SCIM not-found. |
@@ -466,17 +509,17 @@ substitute a public pre-auth transaction.
 | `identity.scim.resource-type-get` | `scim` / protocol | scim-token / none | protocol / read | Resource type ID bounded by `scim.string_bytes`; exact metadata bounded by `scim.resource_depth` and `scim.resource_attributes`. |
 | `identity.scim.user-list` | `scim` / protocol | scim-token / none | protocol / read | RFC filter/sort/page under `scim.page_default`, `scim.page_max`, `scim.filter_bytes`, `scim.filter_tokens`, `scim.filter.depth`, `scim.filter.nodes`, and `scim.path_bytes`; exact scoped snapshot response. |
 | `identity.scim.user-get` | `scim` / protocol | scim-token / none | protocol / read | Resource ID; scoped resource and ETag. |
-| `identity.scim.user-create` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / keyed | User under `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes`; password rejected in the reference profile; resource or uniqueness/mapping conflict. |
-| `identity.scim.user-replace` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / keyed | If-Match and representation under `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes`; password rejected in the reference profile; updated resource/ETag or precondition failure. |
-| `identity.scim.user-patch` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / keyed | Atomic PATCH under `scim.patch.operations`, `scim.path_bytes`, `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes` plus If-Match; password rejected in the reference profile; updated resource/ETag or SCIM path/value error. |
-| `identity.scim.user-delete` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / keyed | Resource/If-Match, idempotency key and deprovision policy; tombstone-backed replay of the original outcome. |
+| `identity.scim.user-create` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / protocol-command | User under `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes`; password rejected in the reference profile; resource or uniqueness/mapping conflict. |
+| `identity.scim.user-replace` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / protocol-command | If-Match and representation under `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes`; password rejected in the reference profile; updated resource/ETag or precondition failure. |
+| `identity.scim.user-patch` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / protocol-command | Atomic PATCH under `scim.patch.operations`, `scim.path_bytes`, `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes` plus If-Match; password rejected in the reference profile; updated resource/ETag or SCIM path/value error. |
+| `identity.scim.user-delete` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / protocol-command | Resource/If-Match and deprovision policy; server-owned command identity provides tombstone-backed replay, while `Idempotency-Key` is an optional extension. |
 | `identity.scim.group-list` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / read | RFC filter/sort/page under `scim.page_default`, `scim.page_max`, `scim.filter_bytes`, `scim.filter_tokens`, `scim.filter.depth`, `scim.filter.nodes`, and `scim.path_bytes`; exact scoped snapshot response. |
 | `identity.scim.group-get` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / read | Group ID; resource and ETag. |
-| `identity.scim.group-create` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / keyed | Group under `scim.resource_depth`, `scim.resource_attributes`, `scim.string_bytes`, and `scim.group_members`; mapped team/group result. |
-| `identity.scim.group-replace` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / keyed | Group under `scim.resource_depth`, `scim.resource_attributes`, `scim.string_bytes`, and `scim.group_members` plus If-Match; resource/ETag. |
-| `identity.scim.group-patch` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / keyed | Atomic group PATCH under `scim.patch.operations`, `scim.path_bytes`, `scim.resource_depth`, `scim.resource_attributes`, `scim.string_bytes`, and `scim.group_members` plus If-Match; resource/ETag. |
-| `identity.scim.group-delete` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / keyed | Group/If-Match and idempotency key; tombstone-backed replay of the mapping deletion result. |
-| `identity.scim.bulk` | `scim` / protocol | scim-token / none | protocol / keyed | Effective `scim.bulk.operations`, `scim.bulk.bytes`, `scim.bulk.fail_on_errors`, `scim.bulk.operation_bytes`, and `scim.bulk.response_bytes`; deterministic ordered replay from independently committed child checkpoints. |
+| `identity.scim.group-create` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / protocol-command | Group under `scim.resource_depth`, `scim.resource_attributes`, `scim.string_bytes`, and `scim.group_members`; mapped team/group result. |
+| `identity.scim.group-replace` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / protocol-command | Group under `scim.resource_depth`, `scim.resource_attributes`, `scim.string_bytes`, and `scim.group_members` plus If-Match; resource/ETag. |
+| `identity.scim.group-patch` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / protocol-command | Atomic group PATCH under `scim.patch.operations`, `scim.path_bytes`, `scim.resource_depth`, `scim.resource_attributes`, `scim.string_bytes`, and `scim.group_members` plus If-Match; resource/ETag. |
+| `identity.scim.group-delete` | `scim`, `scim/organization` / protocol | scim-token / none | protocol / protocol-command | Group/If-Match; server-owned command identity provides tombstone-backed replay, while `Idempotency-Key` is an optional extension. |
+| `identity.scim.bulk` | `scim` / protocol | scim-token / none | protocol / protocol-command | Effective `scim.bulk.operations`, `scim.bulk.bytes`, `scim.bulk.fail_on_errors`, `scim.bulk.operation_bytes`, and `scim.bulk.response_bytes`; deterministic ordered replay from independently committed child checkpoints under server-owned request identity, with optional extension `Idempotency-Key`. |
 
 ## OAuth/OIDC authorization server and device operations
 
@@ -491,7 +534,7 @@ substitute a public pre-auth transaction.
 | `identity.oauth-server.client-rotate-secret` | `oauth-server` / both | fresh owner/admin / CSRF | secret / rotate | Client/version; reveal-once successor and overlap state. |
 | `identity.oauth-server.client-delete` | `oauth-server` / both | owner/admin / CSRF | admin / repeat | Client/version; deletion/revocation result. |
 | `identity.oauth-server.dynamic-register` | `oauth-server` / protocol | enabled-profile initial access token / none | protocol / keyed | RFC 7591 client metadata plus immutable tenant/organization/platform owner and unique scopes contained in `oauth_server.dynamic_registration.allowed_scopes`; unavailable unless the explicit dynamic-registration profile is enabled. Enabling this operation selects RFC 7591 only; RFC 7592 remains an unselected future profile, so no registration management URI or access token is returned. |
-| `identity.oauth-server.authorize` | `oauth-server` / protocol | session or interaction-required / origin | protocol / keyed | OAuth authorization request; signed expiring continuation, redirect error, login/account/consent outcome, or code. |
+| `identity.oauth-server.authorize` | `oauth-server` / protocol | session or interaction-required / origin | protocol / protocol-command | OAuth authorization request; server-owned continuation/command identity, signed expiring continuation, redirect error, login/account/consent outcome, or code; client `Idempotency-Key` is optional. |
 | `identity.oauth-server.continue` | `oauth-server` / protocol | session plus continuation / CSRF | protocol / once | Tamper-evident continuation and selected account/decision; resumed authorization or stale/replay denial. |
 | `identity.oauth-server.consent-get` | `oauth-server` / both | session / none | safe / read | Client/grant context; current bounded consent. |
 | `identity.oauth-server.consent-list` | `oauth-server` / both | session / none | safe / read | Cursor; consent page. |
@@ -508,18 +551,18 @@ substitute a public pre-auth transaction.
 | `identity.oauth-server.session-token` | `oauth-server/oidc` / both | fresh session / CSRF | secret / keyed | Configured audience/scope/claims; bounded JWT no stronger/longer than source session; emits exactly `identity.oauth_server.exchange_session`. |
 | `identity.oauth-server.protected-resource-metadata` | `oauth-server` / protocol | public / none | safe / read | RFC 9728 metadata with `resource` byte-for-byte equal to the canonical `oauth_server.protected_resource.resource` origin, exact authorization-server issuer set, supported bearer methods and `scopes_supported` equal to `oauth_server.protected_resource.supported_scopes`; values MUST match token audience/resource validation and the configured well-known URL. |
 | `identity.oauth-server.resource-verify` | `oauth-server` / direct | OAuth access token / internal | internal / read | JWT/JWKS or introspection profile; requires audience/resource byte-for-byte equal to `oauth_server.protected_resource.resource` and returns a scope-bound principal or typed invalid/unavailable. |
-| `identity.oauth-server.device-authorize` | `oauth-server/device` / protocol | oauth-client / none | protocol / keyed | Client/scopes and optional authorized pre-binding; device/user codes and verification URIs. |
+| `identity.oauth-server.device-authorize` | `oauth-server/device` / protocol | oauth-client / none | protocol / protocol-command | Client/scopes with nullable subject and consent bindings; server-owned command identity returns device/user codes and verification URIs without requiring a proprietary key. |
 | `identity.oauth-server.device-inspect` | `oauth-server/device` / both | fresh session plus user code / none | auth / read | User code; safe client/scope prompt without device enumeration. |
 | `identity.oauth-server.device-approve` | `oauth-server/device` / both | fresh session / CSRF | auth / once | User code/consent; approved binding or stale/expired. |
 | `identity.oauth-server.device-deny` | `oauth-server/device` / both | fresh session / CSRF | auth / once | User code; denied state; emits exactly `identity.oauth_server.deny_device`. |
-| `identity.oauth-server.device-token` | `oauth-server/device`, `oauth-server` / protocol | oauth-client plus device code / none | protocol / none | Poll request; pending/slow_down/denied/expired or token response; emits exactly `identity.oauth_server.poll_device`. |
+| `identity.oauth-server.device-token` | `oauth-server/device`, `oauth-server` / protocol | oauth-client plus device code / none | protocol / protocol-poll | Poll request; pending/slow_down/denied/expired or token response; emits exactly `identity.oauth_server.poll_device`. |
 
 ## Cross-cutting direct APIs and middleware
 
 | Operation ID | Owner / exposure | Access / CSRF | Rate / idempotency | Request, result, and additional error semantics |
 | --- | --- | --- | --- | --- |
 | `identity.risk.evaluate` | `identity/risk` / direct | explicit actor/network facts plus trusted issuance phase and binding / internal | internal / keyed | Action, subject, authoritative server-resolved carrier facts, signals, attempt ID, and issuance phase. Issuance phase is exactly `none`, `phone-reset-initiation`, or `phone-reset-completion`: `none` is non-issuing, phase `phone-reset-initiation` maps only to purpose `phone-password-reset-initiate`, and phase `phone-reset-completion` maps only to purpose `phone-password-reset-complete`. Purpose is derived exclusively from the two issuing phases; unknown/unsupported phases, a purpose with `none`, and any caller-supplied purpose are rejected before provider evaluation or state access. Issuing phases bind tenant, subject, recovery operation, canonical number, pre-auth transaction, attempt ID, and risk-policy version. An allowed issuance returns an opaque RiskEvidence reference plus purpose, issued-at, expires-at, and one-use metadata, never raw signals, provider evidence, decision internals, embedded evidence payloads, digests, signatures, or journal identifiers. Denied returns no reference; Failed proves no issuance; Unknown returns no reference and requires same-command recovery; the same command and fingerprint replay the exact recorded result without issuing another artifact. Callers cannot fabricate authoritative facts, phase, purpose, decision, or evidence. Non-issuing evaluations return the deterministic allow/deny/throttle/step-up result. |
-| `identity.risk.captcha-verify` | `identity/risk/captcha` plus adapter / middleware | route challenge / none | auth / once | Provider token and server-bound action/site/origin; attributable evidence or invalid/unavailable. |
+| `identity.risk.captcha-verify` | `identity/risk/captcha`, `identity/risk`, `identity/risk/postgres` plus adapter / middleware | route challenge / none | auth / once | Provider token and server-bound action/site/origin; the adapter returns verification facts only, then `identity/risk` derives replay identity and `identity/risk/postgres` durably issues the one-use evidence before an attributable reference is returned. |
 | `identity.risk.hibp-check` | `identity/risk/hibp` / direct | password workflow / internal | internal / read | Password-derived prefix only leaves process; breach count/evidence or unavailable/ambiguous. |
 | `identity.delivery.enqueue` | `identity/delivery` / direct | owning workflow / internal | internal / keyed | Versioned typed intent; queued/no-op/failure/unknown result, never false delivered. |
 | `identity.i18n.resolve` | `identity/i18n` / direct | explicit/session/cookie/header context / internal | internal / read | Locale inputs and stable error; localized envelope retaining machine/original identity. |

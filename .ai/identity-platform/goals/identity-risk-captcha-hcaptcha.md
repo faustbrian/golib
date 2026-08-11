@@ -86,6 +86,10 @@ events MUST use `.ai/identity-platform/SECURITY_EVENTS.md`; challenge expiry,
 tenant/site disablement and secret rotation MUST follow
 `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 
+The adapter MUST NOT derive or return the authoritative replay fingerprint. It
+exposes only normalized verification facts; `identity/risk` derives the durable
+keyed replay identity from the raw token and trusted scope.
+
 ## Acceptance and blockers
 
 Tests MUST cover success, negative verification, every documented error class,

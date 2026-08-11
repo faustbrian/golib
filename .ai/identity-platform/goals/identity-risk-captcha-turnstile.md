@@ -81,6 +81,10 @@ involved.
   under another binding MUST fail. Security events and lifecycle cascades MUST
   use `.ai/identity-platform/SECURITY_EVENTS.md` and
   `.ai/identity-platform/LIFECYCLE_CASCADES.md` respectively.
+- The adapter MUST NOT derive or return the authoritative replay fingerprint.
+  Any provider request idempotency value is transport evidence only;
+  `identity/risk` derives the durable keyed replay identity from the raw token
+  and trusted scope.
 
 ## Security and abuse requirements
 

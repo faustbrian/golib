@@ -19,6 +19,32 @@ module SharedContractApplicability
   CHECKPOINT_PARTICIPANT_PARENTS = {
     "identity/risk/valkey" => "identity/risk"
   }.freeze
+  EXPECTED_PROVIDER_IDS = %w[
+    apple atlassian auth0 cognito discord dropbox facebook figma github gitlab google gumroad
+    hubspot huggingface kakao keycloak kick line linear linkedin microsoft microsoft-entra-id
+    naver notion okta patreon paybin paypal polar railway reddit roblox salesforce slack spotify
+    tiktok twitch twitter vercel vk wechat yandex zoom
+  ].freeze
+  EXPECTED_CAPTCHA_OWNERS = {
+    "captchafox" => "identity/risk/captcha/captchafox",
+    "hcaptcha" => "identity/risk/captcha/hcaptcha",
+    "recaptcha" => "identity/risk/captcha/recaptcha",
+    "turnstile" => "identity/risk/captcha/turnstile"
+  }.freeze
+  EXPECTED_NATIVE_TOKEN_MODES = {
+    "apple" => ["id_token"], "facebook" => ["opaque_access_token"],
+    "google" => %w[id_token opaque_access_token], "line" => %w[id_token opaque_access_token]
+  }.freeze
+  EXPECTED_PROVIDER_RESPONSE_MODES = {
+    "apple" => ["form_post"]
+  }.freeze
+  EXPECTED_JWT_PROFILE_OWNERSHIP = {
+    "version" => "jwt-profile-ownership-v1",
+    "issuance_policy_owner" => "oauth-server/oidc",
+    "validation_owner" => "authentication/jwt",
+    "remote_signing" => {"classification" => "typed_adapter", "interface" => "oauth-server/oidc.Signer", "owner" => "oauth-server/oidc"},
+    "hosted_jwks" => {"classification" => "typed_adapter", "interface" => "authentication/jwt.KeySource", "owner" => "authentication/jwt"}
+  }.freeze
 
   module_function
 
@@ -85,19 +111,17 @@ module SharedContractApplicability
   end
 
   def load_configuration_catalogs!(root)
-    path = if ENV.key?("IDENTITY_PLATFORM_CONFIGURATION_CATALOGS_FIXTURE")
-             File.expand_path(ENV.fetch("IDENTITY_PLATFORM_CONFIGURATION_CATALOGS_FIXTURE"))
-           else
-             File.join(root, "CONFIGURATION_CATALOGS.json")
-           end
+    path = File.join(root, "CONFIGURATION_CATALOGS.json")
     fail_contract("missing CONFIGURATION_CATALOGS.json") unless File.file?(path)
     document = JSON.parse(File.read(path))
     fail_contract("CONFIGURATION_CATALOGS.json is not canonical JSON") unless File.read(path) == JSON.pretty_generate(document) + "\n"
-    fail_contract("configuration catalog top-level keys drifted") unless document.keys == %w[schema_version providers captcha]
+    expected_keys = %w[schema_version providers captcha native_token_modes provider_response_modes jwt_profile_ownership]
+    fail_contract("configuration catalog top-level keys drifted") unless document.keys == expected_keys
     fail_contract("configuration catalog schema version drifted") unless document.fetch("schema_version") == 1
     {"providers" => "provider-catalog-v1", "captcha" => "captcha-catalog-v1"}.each do |name, version|
       catalog = document.fetch(name)
-      fail_contract("#{name} catalog keys drifted") unless catalog.keys == %w[version ids sha256]
+      expected_catalog_keys = name == "captcha" ? %w[version ids sha256 owners] : %w[version ids sha256]
+      fail_contract("#{name} catalog keys drifted") unless catalog.keys == expected_catalog_keys
       ids = catalog.fetch("ids")
       fail_contract("#{name} catalog version drifted") unless catalog.fetch("version") == version
       fail_contract("#{name} catalog IDs must be sorted and unique") unless ids == ids.sort.uniq
@@ -105,6 +129,27 @@ module SharedContractApplicability
       digest = Digest::SHA256.hexdigest(ids.join("\n") + "\n")
       fail_contract("#{name} catalog checksum drifted") unless catalog.fetch("sha256") == digest
     end
+    fail_contract("providers catalog is not the exact native provider set") unless document.dig("providers", "ids") == EXPECTED_PROVIDER_IDS
+    fail_contract("CAPTCHA catalog is not the exact four-provider set") unless document.dig("captcha", "owners") == EXPECTED_CAPTCHA_OWNERS
+    native = document.fetch("native_token_modes")
+    fail_contract("native-token catalog keys drifted") unless native.keys == %w[version catalog default providers closed_semantics]
+    fail_contract("native-token catalog version drifted") unless native.fetch("version") == "native-token-modes-v1"
+    fail_contract("native-token catalog authority drifted") unless native.fetch("catalog") == "providers.ids"
+    fail_contract("native-token catalog default must remain closed") unless native.fetch("default") == []
+    fail_contract("native-token provider modes drifted") unless native.fetch("providers") == EXPECTED_NATIVE_TOKEN_MODES
+    fail_contract("native-token semantics drifted") unless native.fetch("closed_semantics").keys == %w[id_token opaque_access_token] && native.fetch("closed_semantics").values.all? { |value| value.is_a?(String) && !value.empty? }
+    response_modes = document.fetch("provider_response_modes")
+    fail_contract("provider-response-mode catalog keys drifted") unless response_modes.keys == %w[version catalog default providers closed_semantics]
+    fail_contract("provider-response-mode catalog version drifted") unless response_modes.fetch("version") == "provider-response-modes-v1"
+    fail_contract("provider-response-mode catalog authority drifted") unless response_modes.fetch("catalog") == "providers.ids"
+    fail_contract("provider-response-mode default drifted") unless response_modes.fetch("default") == ["query"]
+    fail_contract("provider-response-mode exceptions drifted") unless response_modes.fetch("providers") == EXPECTED_PROVIDER_RESPONSE_MODES
+    fail_contract("provider-response-mode semantics drifted") unless response_modes.fetch("closed_semantics") == {
+      "query" => "generic OAuth/OIDC relying-party authorization response delivered by exact redirect URI query parameters",
+      "form_post" => "Apple-only authorization response delivered by an HTTPS form POST to the exact registered callback"
+    }
+    jwt = document.fetch("jwt_profile_ownership")
+    fail_contract("JWT ownership schema or semantics drifted") unless jwt == EXPECTED_JWT_PROFILE_OWNERSHIP
     document
   rescue JSON::ParserError => e
     fail_contract("CONFIGURATION_CATALOGS.json is invalid JSON: #{e.message}")
@@ -137,6 +182,17 @@ module SharedContractApplicability
       end
       lines << ""
     end
+    verification = JSON.parse(File.read(File.join(root, "VERIFICATION_APPLICABILITY.json")))
+    verification_row = verification.fetch("units").find { |row| row.fetch("unit") == unit }
+    fail_contract("#{unit} lacks verification applicability") unless verification_row
+    lines << "## Exact verification applicability"
+    lines << ""
+    verification.fetch("selectors").each do |selector|
+      value = verification_row.fetch("selectors").fetch(selector)
+      suffix = value["reviewed_reason"] ? " — #{value.fetch('reviewed_reason')}" : ""
+      lines << "- `#{selector}=#{value.fetch('status')}`#{suffix}"
+    end
+    lines << ""
     lines.join("\n")
   end
 
@@ -253,10 +309,11 @@ module SharedContractApplicability
     end
     capability_cleanup = declared["capability/postgres"]
     required_capability_cleanup = Set[
-      "lifecycle.cascade.password_reset", "lifecycle.cascade.password_compromise"
+      "lifecycle.cascade.password_reset", "lifecycle.cascade.password_compromise",
+      "lifecycle.cascade.identity_anonymize", "lifecycle.cascade.identity_delete"
     ]
     unless capability_cleanup == required_capability_cleanup
-      fail_contract("capability/postgres lifecycle cleanup must be exactly password reset and compromise")
+      fail_contract("capability/postgres lifecycle cleanup must include password reset, compromise, anonymization, and deletion exactly")
     end
 
     global_line = File.readlines(File.join(root, SOURCES.fetch("lifecycle_consumers"))).find do |line|

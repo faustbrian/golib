@@ -68,6 +68,10 @@ second workflow engine, or treat queue admission as provider delivery.
   maximum-attempt, expiry and provider-idempotency policy. It MUST preserve the
   original one-time credential rather than generating a different secret
   outside the owning workflow.
+  It MUST consume the exact `delivery.provider_retry` policy: an ambiguous
+  outcome reconciles, resubmission requires the pinned provider idempotency
+  identity, permanent rejection dead-letters, and queue acceptance is not
+  delivery.
 - A Sender MUST run after committed dequeue/lease acquisition and outside
   locks and transactions with a bounded context. Cancellation or process loss
   MUST leave a recoverable lease/outcome, not a fabricated failure or success.
@@ -77,6 +81,12 @@ second workflow engine, or treat queue admission as provider delivery.
 - Cleanup MUST use bounded indexed batches, preserve records needed for retry,
   reconciliation, audit and legal hold, and cryptographically erase or remove
   sensitive payloads at the declared retention boundary.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Required evidence
 

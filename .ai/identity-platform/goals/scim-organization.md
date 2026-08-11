@@ -82,6 +82,15 @@ involved.
   its own idempotent command, committed results survive later child failures,
   and resume/reconciliation MUST use the durable child status rather than
   replaying already committed identity or organization transitions.
+- Every mutating child MUST enlist the public identity and organization
+  contributors before the coordinator's first write and reserve, apply, commit
+  or recover under one stable child command. This mapper owns mapping policy
+  and orchestration, while identity and organization remain sole durable
+  authorities; partial success MUST retain exact checkpoints.
+- Directory-sync generations, provider cursors, status, cancellation,
+  reconciliation and events belong to `sso`. This package MAY consume an
+  admitted version-bound delta batch, but MUST NOT create a second sync
+  authority, cursor, scheduler or event stream.
 - The mapper MUST use only public `identity` and `organization` contracts for
   authoritative users, identifiers, memberships, teams and roles. It MUST NOT
   define substitute user, membership, team or role repositories inside SCIM.
@@ -114,6 +123,12 @@ manifests, public API baseline, security and supply-chain checks, documentation,
 changelog, and changed reverse-dependant gates. The final evidence record MUST
 name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
+
+Verification applicability is exact for this unit: `race=required`,
+`fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,
+`infrastructure=required`, and `provider_interoperability=required`; a gate
+MAY be satisfied by the required composed reference evidence but MUST NOT be
+silently skipped.
 
 ## Release blockers
 
