@@ -617,53 +617,10 @@ func validateStatelessWitnessClaims(
 		if err := checkTreeProofContext(ctx); err != nil {
 			return err
 		}
-		if _, set := setStems[stem]; set {
-			continue
-		}
-		retained, disclosed, err := statelessWitnessStemAuxiliaries(
-			ctx, claims.claims, expected, stem,
-		)
-		if err != nil {
+		if err := statelessWitnessCompleteDeletionStem(
+			ctx, claims.claims, stemPaths, expected, setStems, stem,
+		); err != nil {
 			return err
-		}
-		if len(retained) > 1 {
-			return errInvalidStatelessWitness
-		}
-		if len(retained) == 1 {
-			expected[retained[0]] = struct{}{}
-
-			continue
-		}
-		if !disclosed {
-			continue
-		}
-		path, found := statelessWitnessStemPath(stemPaths, stem)
-		if !found || path.kind != StemPathPresent {
-			return errInvalidStatelessWitness
-		}
-		for suffix := range backend.VectorWidth {
-			if err := checkTreeProofContext(ctx); err != nil {
-				return err
-			}
-			var key Key
-			copy(key[:31], stem[:])
-			key[31] = byte(suffix)
-			expected[key] = struct{}{}
-			if len(expected) > len(claims.claims) {
-				return errInvalidStatelessWitness
-			}
-		}
-		for parentDepth := uint8(1); parentDepth < path.depth; parentDepth++ {
-			parent := makeStatelessPath(stem[:parentDepth])
-			for child := range backend.VectorWidth {
-				if err := checkTreeProofContext(ctx); err != nil {
-					return err
-				}
-				expected[statelessTopologyProbe(parent, byte(child))] = struct{}{}
-				if len(expected) > len(claims.claims) {
-					return errInvalidStatelessWitness
-				}
-			}
 		}
 	}
 	if len(expected) != len(claims.claims) {
@@ -675,6 +632,66 @@ func validateStatelessWitnessClaims(
 		}
 		if _, found := statelessValidatedClaimLookup(claims.claims, key); !found {
 			return errInvalidStatelessWitness
+		}
+	}
+
+	return nil
+}
+
+func statelessWitnessCompleteDeletionStem(
+	ctx context.Context,
+	claims []Claim,
+	stemPaths []StemPath,
+	expected map[Key]struct{},
+	setStems map[Stem]struct{},
+	stem Stem,
+) error {
+	if _, set := setStems[stem]; set {
+		return nil
+	}
+	retained, disclosed, err := statelessWitnessStemAuxiliaries(
+		ctx, claims, expected, stem,
+	)
+	if err != nil {
+		return err
+	}
+	if len(retained) > 1 {
+		return errInvalidStatelessWitness
+	}
+	if len(retained) == 1 {
+		expected[retained[0]] = struct{}{}
+
+		return nil
+	}
+	if !disclosed {
+		return nil
+	}
+	path, found := statelessWitnessStemPath(stemPaths, stem)
+	if !found || path.kind != StemPathPresent {
+		return errInvalidStatelessWitness
+	}
+	for suffix := range backend.VectorWidth {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return err
+		}
+		var key Key
+		copy(key[:31], stem[:])
+		key[31] = byte(suffix)
+		expected[key] = struct{}{}
+		if len(expected) > len(claims) {
+			return errInvalidStatelessWitness
+		}
+	}
+	for parentDepth := uint8(1); parentDepth < path.depth; parentDepth++ {
+		parent := makeStatelessPath(stem[:parentDepth])
+		for child := range backend.VectorWidth {
+			if err := checkTreeProofContext(ctx); err != nil {
+				return err
+			}
+			expected[statelessTopologyProbe(parent, byte(child))] = struct{}{}
+			if len(expected) > len(claims) {
+				return errInvalidStatelessWitness
+			}
 		}
 	}
 
