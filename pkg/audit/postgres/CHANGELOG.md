@@ -21,10 +21,28 @@
   retention, and exact canonical/schema validation at the security-definer
   append boundary, including the canonical UTC year range.
 - Migration-safe identity capture for protocol-compatible writers already in
-  flight while the hardening migration commits.
-- Atomic full-table legacy validation before the hardening migration accepts
+  flight while the durability migration commits.
+- Atomic full-table legacy validation before the durability migration accepts
   and backfills existing history.
-- Refuse fixed-role collisions with privileges inherited through any existing
-  role membership before the initial migration grants audit access.
+- Preserve the published migration 1 and 2 checksums while migration 3 commits
+  fixed-role neutralization, including stored-password removal, before
+  migration 4 validates legacy history and installs the durable acceptance
+  boundary.
+- Add a fresh-install preflight that atomically reserves fixed `NOLOGIN` roles,
+  rejecting existing and concurrent name collisions before migration 1 can
+  grant temporary access.
+- Pin the retention trigger's trusted search path so a retention writer cannot
+  shadow its ordering and locking dependencies.
+- Bind fixed-role neutralization directly to the PostgreSQL catalog so a
+  hostile migration search path cannot hide reserved-role memberships.
+- Enforce unique per-record retention acceptance order and reject ambiguous
+  historical orders atomically during durability migration.
+- Reject non-UTF-8 databases before canonical validation or persistence can
+  accept only an encoding-dependent subset of records.
+- Enforce the core closed authentication-method vocabulary during legacy
+  validation and every new append so credential-shaped custom values cannot
+  cross the persistence boundary.
+- Bound durability-migration lock acquisition at 30 seconds so active writers
+  cause a visible deployment failure instead of an unbounded wait.
 - Atomic digest-bound evidence for each digest-pinned PostgreSQL 14 through 18
   matrix result.

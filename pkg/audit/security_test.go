@@ -62,10 +62,17 @@ func TestBuilderRejectsUnrestrictedBodyFields(t *testing.T) {
 func TestBuilderRejectsCredentialsInAuthenticationMethod(t *testing.T) {
 	t.Parallel()
 
+	credentialShaped := strings.Join([]string{
+		"eyJhbGciOiJIUzI1NiJ9", "eyJzdWIiOiJ1c2VyIn0", "signature",
+	}, ".")
 	for _, method := range []string{
 		"Authorization: Bearer secret",
 		"Basic dXNlcjpwYXNzd29yZA==",
 		"password=hunter2",
+		credentialShaped,
+		strings.Repeat("0123456789abcdef", 2),
+		"a", "z", "A", "Z", "0", "9", ".", "_", "-",
+		strings.Repeat("a", 128),
 	} {
 		method := method
 		t.Run(method, func(t *testing.T) {
@@ -85,8 +92,16 @@ func TestBuilderRejectsCredentialsInAuthenticationMethod(t *testing.T) {
 	}
 
 	for _, method := range []string{
-		"a", "z", "A", "Z", "0", "9", ".", "_", "-",
-		"webauthn", "mTLS", "workload_identity", strings.Repeat("a", 128),
+		"", audit.AuthenticationMethodAPIKey,
+		audit.AuthenticationMethodCertificate, audit.AuthenticationMethodEmailOTP,
+		audit.AuthenticationMethodHOTP, audit.AuthenticationMethodMutualTLS,
+		audit.AuthenticationMethodMagicLink, audit.AuthenticationMethodOAuth2,
+		audit.AuthenticationMethodOIDC, audit.AuthenticationMethodPasskey,
+		audit.AuthenticationMethodPassword, audit.AuthenticationMethodRecoveryCode,
+		audit.AuthenticationMethodSAML, audit.AuthenticationMethodSession,
+		audit.AuthenticationMethodSMSOTP, audit.AuthenticationMethodTOTP,
+		audit.AuthenticationMethodWebAuthn,
+		audit.AuthenticationMethodWorkloadIdentity,
 	} {
 		input := securityInput(audit.IntegrityInput{}, nil)
 		input.Actor.AuthenticationMethod = method

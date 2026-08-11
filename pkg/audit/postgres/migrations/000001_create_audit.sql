@@ -176,30 +176,6 @@ BEGIN
 END
 $roles$;
 
-DO $role_safety$
-BEGIN
-    IF EXISTS (
-        SELECT 1 FROM pg_roles
-        WHERE rolname IN ('audit_writer', 'audit_reader', 'audit_retention')
-          AND (rolcanlogin OR rolsuper OR rolcreatedb OR rolcreaterole OR
-               rolreplication OR rolbypassrls)
-    ) OR EXISTS (
-        SELECT 1
-        FROM pg_auth_members AS membership
-        JOIN pg_roles AS fixed_role ON fixed_role.oid = membership.roleid
-        WHERE fixed_role.rolname IN ('audit_writer', 'audit_reader', 'audit_retention')
-    ) OR EXISTS (
-        SELECT 1
-        FROM pg_auth_members AS membership
-        JOIN pg_roles AS fixed_role ON fixed_role.oid = membership.member
-        WHERE fixed_role.rolname IN ('audit_writer', 'audit_reader', 'audit_retention')
-    ) THEN
-        RAISE EXCEPTION 'audit fixed roles must be inert and have no memberships before privileges are granted'
-            USING ERRCODE = '42501';
-    END IF;
-END
-$role_safety$;
-
 GRANT USAGE ON SCHEMA audit TO audit_writer, audit_reader, audit_retention;
 REVOKE ALL ON FUNCTION audit.append_record(
     text, timestamptz, timestamptz, text, smallint, text, text, text, text,

@@ -33,9 +33,8 @@ Keep a Changelog, and releases follow Semantic Versioning.
 - Verify canonical bytes, persisted digests, historical HMAC key IDs, stable
   acceptance snapshots, deterministic retention plans, and cross-adapter field
   ceilings before use.
-- Reject credential-bearing authentication-method values; the field accepts
-  only bounded credential-free labels such as `webauthn`, `mTLS`, and
-  `workload_identity`.
+- Reject arbitrary and credential-shaped authentication-method values; the
+  field accepts only the closed `AuthenticationMethod*` vocabulary.
 - Reject NUL in every durable text field and map entry so every accepted core
   record remains representable by the PostgreSQL adapter.
 - Reject separator-obfuscated credential and API-key field names at every

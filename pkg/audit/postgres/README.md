@@ -13,14 +13,29 @@ independently controlled retention pool. See the core module's
 
 ## Usage
 
-Apply the embedded migration with the deployment's migration owner before
-starting ordinary application processes. The published initial migration
+For a fresh database, execute `FreshInstallPreflightSQL()` and every embedded
+migration in one outer transaction with the deployment's migration owner. The
+preflight atomically creates the three fixed roles as `NOLOGIN`; an existing
+name collision fails with PostgreSQL error `42710`, while a concurrent creator
+waits and then fails under role-name uniqueness. Migration 1 cannot grant
+temporary access to either collision. The outer transaction is required so a
+failed installation rolls the role reservation back. For an existing
+installation, commit migration 3's role neutralization before starting
+migration 4; poisoned legacy history must not
+roll the role safety change back. Apply migration 4 transactionally without
+splitting its validation, identity backfill, trigger installation, and
+privilege revocation across committed statements. It fails if the required
+record and retention-event locks cannot be acquired within 30 seconds, or if
+historical retention events contain duplicate per-record acceptance orders.
+The published initial migration
 retains historical fixed `NOLOGIN` roles, and migration 2 revokes all audit
-privileges from them; do not assign them to application logins. Migration 1
-refuses any pre-existing fixed role that is login-capable, elevated, or has a
-membership in either direction before it grants privileges. Create distinct
-deployment-specific writer, reader, and retention roles, then generate and
-review their grants:
+privileges from them. Migration 3 removes every membership involving
+those reserved names and strips login, inheritance, and elevated role
+attributes and stored passwords. Apply it with a migration owner authorized to
+manage roles, and do not assign the fixed names to applications. The database
+encoding must be `UTF8`; migration 4 rejects databases that cannot represent
+every canonical record. Create distinct deployment-specific writer, reader,
+and retention roles, then generate and review their grants:
 
 ```go
 sql, err := auditpostgres.PrivilegeSQL(auditpostgres.RoleNames{
@@ -32,7 +47,12 @@ sql, err := auditpostgres.PrivilegeSQL(auditpostgres.RoleNames{
 The writer can execute the idempotent append function but cannot directly
 select, update, or delete audit rows or retained record-identity tombstones.
 The function rejects noncanonical, malformed, privacy-invalid, or
-projection-inconsistent records before persistence.
+projection-inconsistent records before persistence. Dependency-bearing
+database routines and trigger functions pin trusted search paths so
+caller-controlled schemas cannot replace their lock, validation, or
+canonicalization dependencies. Authentication methods must be empty or match
+the core module's closed `AuthenticationMethod*` vocabulary; arbitrary custom
+labels and credential-shaped values are rejected.
 
 ```go
 pool, err := pgxpool.New(ctx, dsn)

@@ -23,11 +23,14 @@ reordered, duplicated, altered, truncated, partially archived, and restored
 records. PostgreSQL fault tests classify validation and statement failures as
 rejected and post-commit ambiguity as unknown, including deadlock and
 serialization SQLSTATEs. Real-database tests cover transactional migration
-interruption, atomic caller-owned writes, duplicate reconciliation, stable
+interruption, published migration checksums, fail-safe reserved-role
+neutralization and atomic fresh-install reservation, atomic caller-owned
+writes, duplicate reconciliation, stable
 pagination, cancellation, protocol-compatible rolling writes across migration,
 backup and restore, two-phase retention, legal holds,
-backend termination and pool reconnection, and least-privilege read/update/delete
-denial.
+backend termination and pool reconnection, caller-search-path shadowing denial,
+duplicate retention-order rejection, closed authentication-method validation,
+and least-privilege read/update/delete denial.
 
 The supported PostgreSQL matrix is the upstream-supported majors 14 through 18
 using the digest-pinned current-minor images declared in

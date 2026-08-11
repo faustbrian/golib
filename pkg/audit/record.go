@@ -20,6 +20,45 @@ const (
 	maxAuthenticationMethodBytes = 128
 )
 
+const (
+	// AuthenticationMethodAPIKey identifies API-key authentication without
+	// retaining the key value.
+	AuthenticationMethodAPIKey = "api_key"
+	// AuthenticationMethodCertificate identifies certificate authentication.
+	AuthenticationMethodCertificate = "certificate"
+	// AuthenticationMethodEmailOTP identifies a one-time code delivered by email.
+	AuthenticationMethodEmailOTP = "email_otp"
+	// AuthenticationMethodHOTP identifies HMAC-based one-time-password authentication.
+	AuthenticationMethodHOTP = "hotp"
+	// AuthenticationMethodMutualTLS identifies mutual-TLS authentication.
+	AuthenticationMethodMutualTLS = "mTLS"
+	// AuthenticationMethodMagicLink identifies magic-link authentication.
+	AuthenticationMethodMagicLink = "magic_link"
+	// AuthenticationMethodOAuth2 identifies OAuth 2 authentication.
+	AuthenticationMethodOAuth2 = "oauth2"
+	// AuthenticationMethodOIDC identifies OpenID Connect authentication.
+	AuthenticationMethodOIDC = "oidc"
+	// AuthenticationMethodPasskey identifies passkey authentication.
+	AuthenticationMethodPasskey = "passkey"
+	// AuthenticationMethodPassword identifies password authentication without
+	// retaining the password value.
+	AuthenticationMethodPassword = "password"
+	// AuthenticationMethodRecoveryCode identifies recovery-code authentication.
+	AuthenticationMethodRecoveryCode = "recovery_code"
+	// AuthenticationMethodSAML identifies SAML authentication.
+	AuthenticationMethodSAML = "saml"
+	// AuthenticationMethodSession identifies an already-established session.
+	AuthenticationMethodSession = "session"
+	// AuthenticationMethodSMSOTP identifies a one-time code delivered by SMS.
+	AuthenticationMethodSMSOTP = "sms_otp"
+	// AuthenticationMethodTOTP identifies time-based one-time-password authentication.
+	AuthenticationMethodTOTP = "totp"
+	// AuthenticationMethodWebAuthn identifies WebAuthn authentication.
+	AuthenticationMethodWebAuthn = "webauthn"
+	// AuthenticationMethodWorkloadIdentity identifies workload-identity authentication.
+	AuthenticationMethodWorkloadIdentity = "workload_identity"
+)
+
 var (
 	// ErrInvalidArgument classifies a caller-supplied value that violates the
 	// bounded audit record contract.
@@ -108,8 +147,10 @@ func (limits Limits) Validate() error {
 
 // ActorInput supplies actor identity to a new record.
 type ActorInput struct {
-	Kind                 ActorKind
-	ID                   string
+	Kind ActorKind
+	ID   string
+	// AuthenticationMethod is empty or one of the exported
+	// AuthenticationMethod constants. It records a mechanism, never a credential.
 	AuthenticationMethod string
 	DelegatedBy          *ActorInput
 }
@@ -579,8 +620,8 @@ func validateActor(input ActorInput, limits Limits, delegated bool) error {
 	if len(input.AuthenticationMethod) > maxAuthenticationMethodBytes {
 		return invalid("authentication_method", "exceeds label byte limit")
 	}
-	if !safeAuthenticationMethod(input.AuthenticationMethod) {
-		return fmt.Errorf("%w: authentication_method must be a credential-free label", ErrSensitiveData)
+	if !supportedAuthenticationMethod(input.AuthenticationMethod) {
+		return fmt.Errorf("%w: authentication_method must be a supported credential-free label", ErrSensitiveData)
 	}
 	if delegated && input.DelegatedBy != nil {
 		return invalid("delegated_actor", "delegation cannot be nested")
@@ -591,17 +632,30 @@ func validateActor(input ActorInput, limits Limits, delegated bool) error {
 	return nil
 }
 
-func safeAuthenticationMethod(value string) bool {
-	for _, character := range value {
-		if (character >= 'a' && character <= 'z') ||
-			(character >= 'A' && character <= 'Z') ||
-			(character >= '0' && character <= '9') ||
-			character == '.' || character == '_' || character == '-' {
-			continue
-		}
+func supportedAuthenticationMethod(value string) bool {
+	switch value {
+	case "",
+		AuthenticationMethodAPIKey,
+		AuthenticationMethodCertificate,
+		AuthenticationMethodEmailOTP,
+		AuthenticationMethodHOTP,
+		AuthenticationMethodMutualTLS,
+		AuthenticationMethodMagicLink,
+		AuthenticationMethodOAuth2,
+		AuthenticationMethodOIDC,
+		AuthenticationMethodPasskey,
+		AuthenticationMethodPassword,
+		AuthenticationMethodRecoveryCode,
+		AuthenticationMethodSAML,
+		AuthenticationMethodSession,
+		AuthenticationMethodSMSOTP,
+		AuthenticationMethodTOTP,
+		AuthenticationMethodWebAuthn,
+		AuthenticationMethodWorkloadIdentity:
+		return true
+	default:
 		return false
 	}
-	return true
 }
 
 func copyActor(input ActorInput) Actor {

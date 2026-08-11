@@ -29,7 +29,7 @@ import (
 
 const frozenV1Canonical = `{"schema_version":1,"id":"golden-record","occurred_at":"2026-08-09T12:00:00Z","recorded_at":"2026-08-09T12:00:00Z","action":"invoice.approved","outcome":1,"reason_code":"policy_match","description":"approved automatically","actor":{"kind":2,"id":"billing","authentication_method":"workload_identity","delegated_by":{"kind":1,"id":"user-42","authentication_method":"passkey"}},"subject":{"type":"invoice","id":"invoice-7","deleted":false},"context":{"tenant_id":"tenant-1","correlation_id":"corr-1","source_service":"billing","environment":"production"},"changes":{"no_change":false,"before":{"status":"pending"},"after":{"status":"approved"}},"policy":{"id":"approval","version":"2026-08-01"},"attributes":{"app.channel":"automatic"},"integrity":{"algorithm":1,"partition":"tenant-1","sequence":1,"digest":"632f0f2444cd6ca903c2b20f7e7f57f6341211febf9e51f5bbc9c47be4cf8181"}}`
 
-func TestInitialMigrationRejectsUnsafeRoleCollision(t *testing.T) {
+func TestFreshInstallPreflightRejectsReservedRoleCollision(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
 	defer cancel()
 	database, err := postgrestest.Start(ctx, postgresTestConfig())
@@ -48,31 +48,581 @@ func TestInitialMigrationRejectsUnsafeRoleCollision(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(pool.Close)
-	if _, err := pool.Exec(ctx, "CREATE ROLE audit_writer LOGIN"); err != nil {
+	for _, role := range []string{"audit_writer", "audit_reader", "audit_retention"} {
+		if _, err := pool.Exec(ctx, "CREATE ROLE "+pgx.Identifier{role}.Sanitize()+" LOGIN"); err != nil {
+			t.Fatal(err)
+		}
+		_, err = pool.Exec(ctx, auditpostgres.FreshInstallPreflightSQL())
+		var collision *pgconn.PgError
+		if !errors.As(err, &collision) || collision.Code != "42710" {
+			t.Fatalf("fresh-install preflight collision for %s = %v", role, err)
+		}
+		var absent bool
+		var reservedRoles int
+		if err := pool.QueryRow(ctx, `SELECT to_regnamespace('audit') IS NULL,
+			count(*) FROM pg_roles
+			WHERE rolname IN ('audit_writer', 'audit_reader', 'audit_retention')`).Scan(&absent, &reservedRoles); err != nil || !absent || reservedRoles != 1 {
+			t.Fatalf("failed preflight state for %s = namespace absent %t, reserved roles %d, %v", role, absent, reservedRoles, err)
+		}
+		if _, err := pool.Exec(ctx, "DROP ROLE "+pgx.Identifier{role}.Sanitize()); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestFreshInstallPreflightAtomicallyReservesRoles(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err == nil {
-		t.Fatal("initial migration accepted a pre-existing LOGIN audit_writer role")
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, `ALTER ROLE audit_writer NOLOGIN;
+	t.Cleanup(pool.Close)
+	type roleCreator struct {
+		role   string
+		conn   *pgxpool.Conn
+		pid    int32
+		result chan error
+	}
+	creators := make([]roleCreator, 0, 3)
+	for _, role := range []string{"audit_writer", "audit_reader", "audit_retention"} {
+		conn, err := pool.Acquire(ctx)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer conn.Release()
+		creator := roleCreator{role: role, conn: conn, result: make(chan error, 1)}
+		if err := conn.QueryRow(ctx, "SELECT pg_backend_pid()").Scan(&creator.pid); err != nil {
+			t.Fatal(err)
+		}
+		creators = append(creators, creator)
+	}
+
+	migrationTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer migrationTx.Rollback(context.Background())
+	if _, err := migrationTx.Exec(ctx, auditpostgres.FreshInstallPreflightSQL()); err != nil {
+		t.Fatal(err)
+	}
+	for i := range creators {
+		creator := &creators[i]
+		go func() {
+			_, createErr := creator.conn.Exec(ctx, "CREATE ROLE "+pgx.Identifier{creator.role}.Sanitize()+" LOGIN CREATEDB CREATEROLE REPLICATION BYPASSRLS")
+			creator.result <- createErr
+		}()
+	}
+	for _, creator := range creators {
+		blocked := false
+		deadline := time.NewTimer(10 * time.Second)
+		probe := time.NewTicker(10 * time.Millisecond)
+		for !blocked {
+			select {
+			case createErr := <-creator.result:
+				deadline.Stop()
+				probe.Stop()
+				t.Fatalf("concurrent creation of %s completed before migration commit: %v", creator.role, createErr)
+			case <-deadline.C:
+				probe.Stop()
+				t.Fatalf("concurrent creation of %s did not wait for the reserved role", creator.role)
+			case <-probe.C:
+				if err := pool.QueryRow(ctx, `SELECT EXISTS (
+					SELECT 1 FROM pg_stat_activity
+					WHERE pid = $1 AND wait_event_type = 'Lock'
+				)`, creator.pid).Scan(&blocked); err != nil {
+					t.Fatal(err)
+				}
+			}
+		}
+		deadline.Stop()
+		probe.Stop()
+	}
+
+	for _, name := range []string{
+		"000001_create_audit.sql",
+		"000002_harden_audit.sql",
+		"000003_fixed_role_safety.sql",
+		"000004_durability_hardening.sql",
+	} {
+		if _, err := migrationTx.Exec(ctx, migrationUpSQLFile(t, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := migrationTx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	for _, creator := range creators {
+		createErr := <-creator.result
+		var collision *pgconn.PgError
+		if !errors.As(createErr, &collision) || collision.Code != "23505" {
+			t.Fatalf("concurrent creation of %s = %v", creator.role, createErr)
+		}
+	}
+
+	var allPresent, inert, membershipFree, usageDenied bool
+	if err := pool.QueryRow(ctx, `SELECT
+		count(*) = 3,
+		bool_and(NOT (rolcanlogin OR rolsuper OR rolcreatedb OR rolcreaterole OR
+			 rolreplication OR rolbypassrls OR rolinherit)),
+		NOT EXISTS (
+			SELECT 1 FROM pg_auth_members AS membership
+			JOIN pg_roles AS granted ON granted.oid = membership.roleid
+			JOIN pg_roles AS member ON member.oid = membership.member
+			WHERE granted.rolname IN ('audit_writer', 'audit_reader', 'audit_retention')
+			   OR member.rolname IN ('audit_writer', 'audit_reader', 'audit_retention')
+		),
+		bool_and(NOT has_schema_privilege(rolname, 'audit', 'USAGE'))
+		FROM pg_roles
+		WHERE rolname IN ('audit_writer', 'audit_reader', 'audit_retention')`).Scan(&allPresent, &inert, &membershipFree, &usageDenied); err != nil {
+		t.Fatal(err)
+	}
+	if !allPresent || !inert || !membershipFree || !usageDenied {
+		t.Fatalf("reserved roles = present %t, inert %t, membership-free %t, usage-denied %t", allPresent, inert, membershipFree, usageDenied)
+	}
+}
+
+func TestForwardMigrationNeutralizesUnsafeHistoricalRoleCollision(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	if _, err := pool.Exec(ctx, `CREATE ROLE audit_writer LOGIN CREATEDB CREATEROLE REPLICATION BYPASSRLS IN ROLE pg_read_all_data;
 		CREATE ROLE audit_member LOGIN;
 		GRANT audit_writer TO audit_member`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err == nil {
-		t.Fatal("initial migration accepted a fixed role with a LOGIN member")
-	}
-	if _, err := pool.Exec(ctx, `REVOKE audit_writer FROM audit_member;
-		DROP ROLE audit_member;
-		GRANT pg_read_all_data TO audit_writer`); err != nil {
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err == nil {
-		t.Fatal("initial migration accepted a fixed role that inherits external privileges")
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err != nil {
+		t.Fatal(err)
 	}
-	var usage bool
-	if err := pool.QueryRow(ctx, "SELECT has_schema_privilege('audit_writer', 'audit', 'USAGE')").Scan(&usage); err == nil && usage {
-		t.Fatal("failed migration granted audit schema usage to LOGIN role")
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000003_fixed_role_safety.sql")); err != nil {
+		t.Fatal(err)
+	}
+	var inert, membershipFree, usageDenied bool
+	if err := pool.QueryRow(ctx, `SELECT
+		NOT (rolcanlogin OR rolsuper OR rolcreatedb OR rolcreaterole OR
+			 rolreplication OR rolbypassrls OR rolinherit),
+		NOT EXISTS (
+			SELECT 1 FROM pg_auth_members
+			WHERE roleid = pg_roles.oid OR member = pg_roles.oid
+		),
+		NOT has_schema_privilege('audit_writer', 'audit', 'USAGE')
+		FROM pg_roles WHERE rolname = 'audit_writer'`).Scan(&inert, &membershipFree, &usageDenied); err != nil {
+		t.Fatal(err)
+	}
+	if !inert || !membershipFree || !usageDenied {
+		t.Fatalf("neutralized role = inert %t, membership-free %t, usage-denied %t", inert, membershipFree, usageDenied)
+	}
+}
+
+func TestForwardMigrationIgnoresHostileSearchPathWhileNeutralizingRoles(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	if _, err := pool.Exec(ctx, `CREATE ROLE audit_writer LOGIN IN ROLE pg_read_all_data;
+		CREATE ROLE audit_member LOGIN;
+		GRANT audit_writer TO audit_member`); err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"000001_create_audit.sql", "000002_harden_audit.sql"} {
+		if _, err := pool.Exec(ctx, migrationUpSQLFile(t, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := pool.Exec(ctx, `CREATE SCHEMA audit_hostile;
+		CREATE VIEW audit_hostile.pg_roles AS
+			SELECT * FROM pg_catalog.pg_roles WHERE false;
+		CREATE VIEW audit_hostile.pg_auth_members AS
+			SELECT * FROM pg_catalog.pg_auth_members WHERE false;
+		SET search_path = audit_hostile, pg_catalog`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000003_fixed_role_safety.sql")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, "RESET search_path"); err != nil {
+		t.Fatal(err)
+	}
+	var membershipFree bool
+	if err := pool.QueryRow(ctx, `SELECT NOT EXISTS (
+		SELECT 1 FROM pg_catalog.pg_auth_members AS membership
+		JOIN pg_catalog.pg_roles AS granted ON granted.oid = membership.roleid
+		JOIN pg_catalog.pg_roles AS member ON member.oid = membership.member
+		WHERE granted.rolname IN ('audit_writer', 'audit_reader', 'audit_retention')
+		   OR member.rolname IN ('audit_writer', 'audit_reader', 'audit_retention')
+	)`).Scan(&membershipFree); err != nil {
+		t.Fatal(err)
+	}
+	if !membershipFree {
+		t.Fatal("fixed-role safety migration retained a membership under a hostile search path")
+	}
+}
+
+func TestRetentionTriggerIgnoresWriterSearchPath(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	applyMigrations(t, ctx, pool)
+	roles := configureTestRoles(t, ctx, pool, database.DSN())
+	if _, err := pool.Exec(ctx, `CREATE SCHEMA audit_hostile;
+		CREATE FUNCTION audit_hostile.force_zero(bigint, bigint) RETURNS bigint
+		LANGUAGE sql IMMUTABLE STRICT AS 'SELECT 0::bigint';
+		CREATE AGGREGATE audit_hostile.max(bigint) (
+			SFUNC = audit_hostile.force_zero, STYPE = bigint, INITCOND = '0'
+		);
+		GRANT USAGE ON SCHEMA audit_hostile TO `+pgx.Identifier{roles.Retention}.Sanitize()); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(context.Background())
+	if _, err := tx.Exec(ctx, "SET LOCAL ROLE "+pgx.Identifier{roles.Retention}.Sanitize()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, "SET LOCAL search_path = audit_hostile, pg_catalog"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, `INSERT INTO audit.retention_events (
+		event_id, record_id, event_kind, reason_code, occurred_at
+	) VALUES
+		('event-1', 'record-1', 'hold', 'search-path-proof', '2026-08-10T10:00:00Z'),
+		('event-2', 'record-1', 'release', 'search-path-proof', '2026-08-10T10:00:01Z')`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, "SET LOCAL search_path = pg_catalog"); err != nil {
+		t.Fatal(err)
+	}
+	var first, second int64
+	var uniqueOrder bool
+	if err := tx.QueryRow(ctx, `SELECT
+		(SELECT accepted_order FROM audit.retention_events WHERE event_id = 'event-1'),
+		(SELECT accepted_order FROM audit.retention_events WHERE event_id = 'event-2'),
+		(SELECT indisunique FROM pg_index
+		 WHERE indexrelid = 'audit.retention_events_record_order_idx'::regclass)`).Scan(&first, &second, &uniqueOrder); err != nil {
+		t.Fatal(err)
+	}
+	if first != 1 || second != 2 || !uniqueOrder {
+		t.Fatalf("retention order with hostile search path = %d, %d, unique %t", first, second, uniqueOrder)
+	}
+}
+
+func TestDurabilityMigrationRejectsAmbiguousHistoricalRetentionOrder(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	for _, name := range []string{
+		"000001_create_audit.sql",
+		"000002_harden_audit.sql",
+	} {
+		if _, err := pool.Exec(ctx, migrationUpSQLFile(t, name)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := pool.Exec(ctx, `CREATE SCHEMA audit_hostile;
+		CREATE FUNCTION audit_hostile.force_zero(bigint, bigint) RETURNS bigint
+		LANGUAGE sql IMMUTABLE STRICT AS 'SELECT 0::bigint';
+		CREATE AGGREGATE audit_hostile.max(bigint) (
+			SFUNC = audit_hostile.force_zero, STYPE = bigint, INITCOND = '0'
+		);
+		SET search_path = audit_hostile, pg_catalog;
+		INSERT INTO audit.retention_events (
+			event_id, record_id, event_kind, reason_code, occurred_at
+		) VALUES
+			('ambiguous-1', 'record-1', 'hold', 'poisoned-history', '2026-08-10T10:00:00Z'),
+			('ambiguous-2', 'record-1', 'release', 'poisoned-history', '2026-08-10T10:00:01Z');
+		RESET search_path`); err != nil {
+		t.Fatal(err)
+	}
+	var distinctOrders int
+	if err := pool.QueryRow(ctx, `SELECT count(DISTINCT accepted_order)
+		FROM audit.retention_events WHERE record_id = 'record-1'`).Scan(&distinctOrders); err != nil || distinctOrders != 1 {
+		t.Fatalf("poisoned retention orders = %d, %v", distinctOrders, err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000003_fixed_role_safety.sql")); err != nil {
+		t.Fatal(err)
+	}
+	migrationTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, migrationErr := migrationTx.Exec(ctx, migrationUpSQLFile(t, "000004_durability_hardening.sql"))
+	if migrationErr == nil {
+		_ = migrationTx.Rollback(context.Background())
+		t.Fatal("durability migration accepted ambiguous historical retention order")
+	}
+	var duplicate *pgconn.PgError
+	if !errors.As(migrationErr, &duplicate) || duplicate.Code != "23505" {
+		_ = migrationTx.Rollback(context.Background())
+		t.Fatalf("ambiguous retention order migration error = %v", migrationErr)
+	}
+	if err := migrationTx.Rollback(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var rolledBack, oldIndexRetained bool
+	if err := pool.QueryRow(ctx, `SELECT
+		to_regclass('audit.record_identities') IS NULL,
+		NOT (SELECT indisunique FROM pg_index
+			 WHERE indexrelid = 'audit.retention_events_record_order_idx'::regclass)`).Scan(&rolledBack, &oldIndexRetained); err != nil {
+		t.Fatal(err)
+	}
+	if !rolledBack || !oldIndexRetained {
+		t.Fatalf("failed durability migration = rolled back %t, old index retained %t", rolledBack, oldIndexRetained)
+	}
+}
+
+func TestDurabilityMigrationRejectsNonUTF8Database(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	admin, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(admin.Close)
+	if _, err := admin.Exec(ctx, `CREATE DATABASE audit_latin1
+		TEMPLATE template0 ENCODING 'LATIN1' LC_COLLATE 'C' LC_CTYPE 'C'`); err != nil {
+		t.Fatal(err)
+	}
+	latinURL, err := url.Parse(database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	latinURL.Path = "/audit_latin1"
+	latin, err := pgxpool.New(ctx, latinURL.String())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(latin.Close)
+	if _, err := latin.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := latin.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := latin.Exec(ctx, migrationUpSQLFile(t, "000003_fixed_role_safety.sql")); err != nil {
+		t.Fatal(err)
+	}
+	_, err = latin.Exec(ctx, migrationUpSQLFile(t, "000004_durability_hardening.sql"))
+	var unsupported *pgconn.PgError
+	if !errors.As(err, &unsupported) || unsupported.Code != "0A000" {
+		t.Fatalf("non-UTF8 migration error = %v", err)
+	}
+}
+
+func TestPoisonedHistoryCannotRollbackFixedRoleSafety(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	if _, err := pool.Exec(ctx, `CREATE ROLE audit_writer LOGIN CREATEDB CREATEROLE REPLICATION BYPASSRLS IN ROLE pg_read_all_data;
+		CREATE ROLE audit_member LOGIN;
+		GRANT audit_writer TO audit_member`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err != nil {
+		t.Fatal(err)
+	}
+	malformed := []byte(`{"schema_version":1,"id":"poisoned","occurred_at":"2026-08-09T12:00:00Z","recorded_at":"2026-08-09T12:00:00Z","action":"invoice.created","outcome":1,"actor":{"kind":1,"id":"actor"},"subject":{"type":"invoice","id":"invoice-1","deleted":false},"context":{},"changes":{"no_change":true},"policy":{},"integrity":{},"injected":"value"}`)
+	digest := sha256.Sum256(malformed)
+	if _, err := pool.Exec(ctx, `INSERT INTO audit.records (
+		record_id, occurred_at, recorded_at, actor_kind, subject_type, subject_id,
+		action, outcome, canonical_record, canonical_sha256
+	) VALUES ('poisoned', '2026-08-09T12:00:00Z', '2026-08-09T12:00:00Z',
+		1, 'invoice', 'invoice-1', 'invoice.created', 1, $1, $2)`, malformed, digest[:]); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := fs.ReadDir(auditpostgres.Migrations(), ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var migrationErr error
+	for _, entry := range entries[2:] {
+		if _, migrationErr = pool.Exec(ctx, migrationUpSQLFile(t, entry.Name())); migrationErr != nil {
+			break
+		}
+	}
+	if migrationErr == nil {
+		t.Fatal("durability migration accepted poisoned history")
+	}
+	var inert, membershipFree, readDenied bool
+	if err := pool.QueryRow(ctx, `SELECT
+		NOT (rolcanlogin OR rolsuper OR rolcreatedb OR rolcreaterole OR
+			 rolreplication OR rolbypassrls OR rolinherit),
+		NOT EXISTS (
+			SELECT 1 FROM pg_auth_members
+			WHERE roleid = pg_roles.oid OR member = pg_roles.oid
+		),
+		NOT has_table_privilege('audit_writer', 'audit.records', 'SELECT')
+		FROM pg_roles WHERE rolname = 'audit_writer'`).Scan(&inert, &membershipFree, &readDenied); err != nil {
+		t.Fatal(err)
+	}
+	if !inert || !membershipFree || !readDenied {
+		t.Fatalf("failed migration role safety = inert %t, membership-free %t, read-denied %t", inert, membershipFree, readDenied)
+	}
+}
+
+func TestFixedRoleSafetyIgnoresCallerSearchPath(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	defer cancel()
+	database, err := postgrestest.Start(ctx, postgresTestConfig())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		cleanupCtx, cleanupCancel := context.WithTimeout(context.Background(), 2*time.Minute)
+		defer cleanupCancel()
+		if err := database.Close(cleanupCtx); err != nil {
+			t.Errorf("close PostgreSQL: %v", err)
+		}
+	})
+	pool, err := pgxpool.New(ctx, database.DSN())
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	if _, err := pool.Exec(ctx, `CREATE ROLE audit_writer NOLOGIN;
+		CREATE ROLE audit_member NOLOGIN;
+		GRANT audit_writer TO audit_member`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000001_create_audit.sql")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `CREATE SCHEMA hostile;
+		CREATE TABLE hostile.pg_roles (oid oid, rolname name);
+		CREATE TABLE hostile.pg_auth_members (roleid oid, member oid)`); err != nil {
+		t.Fatal(err)
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer tx.Rollback(context.Background())
+	if _, err := tx.Exec(ctx, "SET LOCAL search_path = hostile, pg_catalog"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tx.Exec(ctx, migrationUpSQLFile(t, "000003_fixed_role_safety.sql")); err != nil {
+		t.Fatal(err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		t.Fatal(err)
+	}
+	var memberships int
+	if err := pool.QueryRow(ctx, `SELECT count(*)
+		FROM pg_catalog.pg_auth_members AS relation
+		JOIN pg_catalog.pg_roles AS granted_role ON granted_role.oid = relation.roleid
+		JOIN pg_catalog.pg_roles AS member_role ON member_role.oid = relation.member
+		WHERE granted_role.rolname IN ('audit_writer', 'audit_reader', 'audit_retention')
+		   OR member_role.rolname IN ('audit_writer', 'audit_reader', 'audit_retention')`).Scan(&memberships); err != nil {
+		t.Fatal(err)
+	}
+	if memberships != 0 {
+		t.Fatalf("fixed-role memberships after hostile-search-path migration = %d", memberships)
 	}
 }
 
@@ -107,12 +657,18 @@ func TestHardeningMigrationRejectsPoisonedLegacyRows(t *testing.T) {
 		1, 'invoice', 'invoice-1', 'invoice.created', 1, $1, $2)`, malformed, digest[:]); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err == nil {
-		t.Fatal("hardening migration accepted a malformed legacy record")
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000003_fixed_role_safety.sql")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000004_durability_hardening.sql")); err == nil {
+		t.Fatal("durability migration accepted a malformed legacy record")
 	}
 	var rolledBack bool
 	if err := pool.QueryRow(ctx, "SELECT to_regclass('audit.record_identities') IS NULL").Scan(&rolledBack); err != nil || !rolledBack {
-		t.Fatalf("failed hardening migration rollback = %t, %v", rolledBack, err)
+		t.Fatalf("failed durability migration rollback = %t, %v", rolledBack, err)
 	}
 }
 
@@ -358,11 +914,17 @@ func TestPostgreSQLBackupRestoreAndReconciliation(t *testing.T) {
 	) VALUES ('legacy-hold', 'legacy-record', 'hold', 'migration-proof', '2026-08-09T11:00:00Z')`); err != nil {
 		t.Fatal(err)
 	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, migrationUpSQLFile(t, "000003_fixed_role_safety.sql")); err != nil {
+		t.Fatal(err)
+	}
 	migrationTx, err := pool.Begin(ctx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := migrationTx.Exec(ctx, migrationUpSQLFile(t, "000002_harden_audit.sql")); err != nil {
+	if _, err := migrationTx.Exec(ctx, migrationUpSQLFile(t, "000004_durability_hardening.sql")); err != nil {
 		_ = migrationTx.Rollback(context.Background())
 		t.Fatal(err)
 	}
@@ -945,6 +1507,34 @@ func TestPostgreSQLAppendQueryIdempotencyAndWriterPrivileges(t *testing.T) {
 	}
 	roleRecord := postgresRecord(t, "role-record", "tenant-1", "invoice.viewed", base.Add(6*time.Second))
 	assertWriterRejectsInconsistentRecord(t, ctx, pool, roles.Writer, roleRecord)
+	for index, method := range []string{
+		audit.AuthenticationMethodAPIKey,
+		audit.AuthenticationMethodCertificate,
+		audit.AuthenticationMethodEmailOTP,
+		audit.AuthenticationMethodHOTP,
+		audit.AuthenticationMethodMutualTLS,
+		audit.AuthenticationMethodMagicLink,
+		audit.AuthenticationMethodOAuth2,
+		audit.AuthenticationMethodOIDC,
+		audit.AuthenticationMethodPasskey,
+		audit.AuthenticationMethodPassword,
+		audit.AuthenticationMethodRecoveryCode,
+		audit.AuthenticationMethodSAML,
+		audit.AuthenticationMethodSession,
+		audit.AuthenticationMethodSMSOTP,
+		audit.AuthenticationMethodTOTP,
+		audit.AuthenticationMethodWebAuthn,
+		audit.AuthenticationMethodWorkloadIdentity,
+	} {
+		record := postgresRecordWithAuthenticationMethod(
+			t, fmt.Sprintf("authentication-method-%d", index), "tenant-1",
+			"authentication.succeeded", method,
+			base.Add(time.Duration(index+20)*time.Second),
+		)
+		if result, err := store.Append(ctx, record); err != nil || result.Status != audit.AppendAccepted {
+			t.Fatalf("append authentication method %q = %#v, %v", method, result, err)
+		}
+	}
 
 	writerTx, err := pool.Begin(ctx)
 	if err != nil {
@@ -1375,6 +1965,14 @@ func assertWriterRejectsInconsistentRecord(t *testing.T, ctx context.Context, po
 	}
 	canonicalTime := record.OccurredAt().Format(time.RFC3339Nano)
 	offsetTime := record.OccurredAt().In(time.FixedZone("offset", 2*60*60)).Format(time.RFC3339Nano)
+	credentialValue := strings.Repeat("0123456789abcdef", 2)
+	credentialCanonical := bytes.Replace(
+		canonical, []byte(`"actor":{"kind":1,"id":"actor-1"}`),
+		[]byte(`"actor":{"kind":1,"id":"actor-1","authentication_method":"`+credentialValue+`"}`), 1,
+	)
+	if status, err := attempt(record.Context().TenantID(), credentialCanonical, record.OccurredAt(), record.RecordedAt()); err == nil {
+		t.Fatalf("credential-shaped authentication method accepted with status %d", status)
+	}
 
 	for name, hostile := range map[string][]byte{
 		"unknown field":           append(append([]byte(nil), canonical[:len(canonical)-1]...), []byte(`,"injected":"value"}`)...),
@@ -1482,6 +2080,8 @@ func migrationUpSQL(t testing.TB) string {
 		t.Fatal(err)
 	}
 	var up strings.Builder
+	up.WriteString(auditpostgres.FreshInstallPreflightSQL())
+	up.WriteByte('\n')
 	for _, entry := range entries {
 		contents, readErr := fs.ReadFile(auditpostgres.Migrations(), entry.Name())
 		if readErr != nil {
@@ -1569,6 +2169,16 @@ func TestPostgreSQLVersionMatrixUsesImmutableImages(t *testing.T) {
 
 func postgresRecord(t testing.TB, id, tenant, action string, recordedAt time.Time) audit.Record {
 	t.Helper()
+	return postgresRecordWithAuthenticationMethod(t, id, tenant, action, "", recordedAt)
+}
+
+func postgresRecordWithAuthenticationMethod(
+	t testing.TB,
+	id, tenant, action string,
+	method string,
+	recordedAt time.Time,
+) audit.Record {
+	t.Helper()
 	builder, err := audit.NewBuilder(audit.BuilderConfig{
 		Clock: func() time.Time { return recordedAt }, IDGenerator: func() (string, error) { return id, nil },
 	})
@@ -1577,7 +2187,9 @@ func postgresRecord(t testing.TB, id, tenant, action string, recordedAt time.Tim
 	}
 	record, err := builder.Build(audit.RecordInput{
 		OccurredAt: recordedAt, Action: action, Outcome: audit.OutcomeSucceeded,
-		Actor:   audit.ActorInput{Kind: audit.ActorHuman, ID: "actor-1"},
+		Actor: audit.ActorInput{
+			Kind: audit.ActorHuman, ID: "actor-1", AuthenticationMethod: method,
+		},
 		Subject: audit.SubjectInput{Type: "invoice", ID: "invoice-1"},
 		Context: audit.ContextInput{TenantID: tenant, CorrelationID: "correlation-1"},
 		Changes: audit.ChangeSetInput{NoChange: true},

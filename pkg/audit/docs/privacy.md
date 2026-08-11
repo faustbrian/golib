@@ -16,9 +16,11 @@ that have not crossed an explicit redaction boundary.
 Authorization headers, cookies, passwords, API keys, credentials, secrets,
 tokens, and unrestricted request or response bodies are rejected by field-name
 policy.
-Authentication method is a bounded credential-free label containing only
-letters, digits, `.`, `_`, or `-`; pass the mechanism name, never an
-authorization header or credential value.
+Authentication method is empty or one of the closed labels exported as
+`AuthenticationMethod*` constants. The closed vocabulary is enforced again by
+the PostgreSQL append boundary so token-shaped values cannot be mistaken for a
+custom mechanism name. Pass only the mechanism constant, never an authorization
+header or credential value.
 All durable text rejects NUL because PostgreSQL cannot represent that code
 point in JSON text; other valid UTF-8 remains supported within field limits.
 Callers must still minimize values, pseudonymize identifiers where lawful,
