@@ -1448,8 +1448,10 @@ func TestStatelessTopologyDisclosureFailureBoundaries(t *testing.T) {
 	shallow := shallowPaths[Stem(missingProbe[:31])]
 	shallow.depth = parent.length
 	shallowPaths[Stem(missingProbe[:31])] = shallow
+	shallowCommitments := cloneCommitments()
+	shallowCommitments[statelessChildPath(parent, missingChild)] = backend.EmptyVectorCommitment()
 	if _, err := statelessDisclosedInternalVector(
-		context.Background(), proof.claims, shallowPaths, commitments,
+		context.Background(), proof.claims, shallowPaths, shallowCommitments,
 		parent, newBudget(),
 	); !errors.Is(err, errIncompleteStatelessWitness) {
 		t.Fatalf("internal disclosure shallow path error = %v", err)
