@@ -2,6 +2,8 @@ package httpsignature
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"errors"
 	"net/http"
 	"testing"
@@ -12,6 +14,16 @@ type signingKeyProviderFunc func(context.Context) (SigningKey, error)
 
 func (provider signingKeyProviderFunc) SigningKey(ctx context.Context) (SigningKey, error) {
 	return provider(ctx)
+}
+
+type deterministicRandomReader struct {
+	reads int
+}
+
+func (reader *deterministicRandomReader) Read(buffer []byte) (int, error) {
+	reader.reads++
+	clear(buffer)
+	return len(buffer), nil
 }
 
 func TestSignerCreatesDeterministicFieldsAcceptedByVerifier(t *testing.T) {
@@ -102,7 +114,7 @@ func TestSignerCreatesDeterministicFieldsAcceptedByVerifier(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseSignatures() error = %v", err)
 	}
-	replay, _ := NewMemoryReplayStore(MemoryReplayConfig{Capacity: 1, MaxTTL: 2 * time.Minute, Now: func() time.Time { return now }})
+	replay, _ := NewMemoryReplayStore(MemoryReplayConfig{Capacity: 1, MaxTTL: 2 * time.Minute, MaxKeyIDBytes: 64, MaxNonceBytes: 64, Now: func() time.Time { return now }})
 	verificationProfile, err := NewVerificationProfile(VerificationProfileConfig{
 		AllowedAlgorithms:  []Algorithm{HMACSHA256},
 		RequiredComponents: []ComponentIdentifier{{Name: "@method"}, {Name: "@authority"}},
@@ -115,6 +127,7 @@ func TestSignerCreatesDeterministicFieldsAcceptedByVerifier(t *testing.T) {
 		MaxAge:             time.Minute,
 		ClockSkew:          time.Second,
 		ResolveTimeout:     time.Second,
+		ReplayTimeout:      time.Second,
 		Now:                func() time.Time { return now },
 		Resolver: resolverFunc(func(context.Context, string) (ResolvedKey, error) {
 			return ResolvedKey{Algorithm: HMACSHA256, Key: key, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(time.Hour), FreshUntil: now.Add(time.Minute)}, nil
@@ -173,6 +186,75 @@ func TestSigningProfileRequiresExplicitCoherentPolicy(t *testing.T) {
 		if _, err := NewSigningProfile(config); !errors.Is(err, ErrInvalidSigningProfile) {
 			t.Fatalf("NewSigningProfile() error = %v, want ErrInvalidSigningProfile", err)
 		}
+	}
+
+	for _, algorithm := range []Algorithm{RSAPSSSHA512, ECDSAP256SHA256, ECDSAP384SHA384} {
+		randomizedWithoutCallerRandom := valid
+		randomizedWithoutCallerRandom.AllowedAlgorithms = []Algorithm{algorithm}
+		if _, err := NewSigningProfile(randomizedWithoutCallerRandom); err != nil {
+			t.Fatalf("NewSigningProfile(%s without caller random) error = %v", algorithm, err)
+		}
+	}
+}
+
+func TestSigningErrorMappingPreservesPublicFailureCategories(t *testing.T) {
+	t.Parallel()
+
+	if err := mapSigningError(nil); err != nil {
+		t.Fatalf("mapSigningError(nil) = %v", err)
+	}
+	if err := mapSigningError(ErrIncompatibleKey); !errors.Is(err, ErrSigningKey) {
+		t.Fatalf("mapSigningError(incompatible key) = %v, want ErrSigningKey", err)
+	}
+	if err := mapSigningError(ErrSignatureRandomness); !errors.Is(err, ErrSigningCryptographic) {
+		t.Fatalf("mapSigningError(randomness failure) = %v, want ErrSigningCryptographic", err)
+	}
+}
+
+func TestSignerIgnoresDeprecatedCallerRandomness(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(1_700_000_000, 0)
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	configuredRandom := &deterministicRandomReader{}
+	profile, err := NewSigningProfile(SigningProfileConfig{
+		AllowedAlgorithms:  []Algorithm{RSAPSSSHA512},
+		CoveredComponents:  []ComponentIdentifier{{Name: "@method"}},
+		Expires:            ParameterForbidden,
+		AlgorithmParameter: ParameterRequired,
+		Nonce:              ParameterForbidden,
+		Tag:                ParameterForbidden,
+		ResolveTimeout:     time.Second,
+		Now:                func() time.Time { return now },
+		Provider: signingKeyProviderFunc(func(context.Context) (SigningKey, error) {
+			return SigningKey{KeyID: "key", Algorithm: RSAPSSSHA512, Key: key, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(time.Hour)}, nil
+		}),
+		Random: configuredRandom,
+	})
+	if err != nil {
+		t.Fatalf("NewSigningProfile() error = %v", err)
+	}
+	request, err := http.NewRequest(http.MethodGet, "https://example.com/", nil)
+	if err != nil {
+		t.Fatalf("NewRequest() error = %v", err)
+	}
+	message := MessageContext{Request: request}
+	signed, err := NewSigner(profile).Sign(context.Background(), message, "sig", SigningOptions{})
+	if err != nil {
+		t.Fatalf("Sign() error = %v", err)
+	}
+	if configuredRandom.reads != 0 {
+		t.Fatalf("configured random reads = %d, want 0", configuredRandom.reads)
+	}
+	base, err := CreateSignatureBase(message, signed.input)
+	if err != nil {
+		t.Fatalf("CreateSignatureBase() error = %v", err)
+	}
+	if err := Verify(context.Background(), RSAPSSSHA512, &key.PublicKey, []byte(base), signed.signature.Value); err != nil {
+		t.Fatalf("Verify() error = %v", err)
 	}
 }
 

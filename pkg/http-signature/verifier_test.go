@@ -24,9 +24,8 @@ func TestVerifierEnforcesProfileThenAtomicallyConsumesReplayRecord(t *testing.T)
 		t.Fatalf("NewHMACKey() error = %v", err)
 	}
 	replay, err := NewMemoryReplayStore(MemoryReplayConfig{
-		Capacity: 4,
-		MaxTTL:   10 * time.Minute,
-		Now:      func() time.Time { return now },
+		Capacity: 4, MaxTTL: 10 * time.Minute, MaxKeyIDBytes: 64, MaxNonceBytes: 64,
+		Now: func() time.Time { return now },
 	})
 	if err != nil {
 		t.Fatalf("NewMemoryReplayStore() error = %v", err)
@@ -46,6 +45,7 @@ func TestVerifierEnforcesProfileThenAtomicallyConsumesReplayRecord(t *testing.T)
 		MaxAge:             5 * time.Minute,
 		ClockSkew:          10 * time.Second,
 		ResolveTimeout:     time.Second,
+		ReplayTimeout:      time.Second,
 		Now:                func() time.Time { return now },
 		Resolver: resolverFunc(func(_ context.Context, keyID string) (ResolvedKey, error) {
 			if keyID != "key-1" {
@@ -186,7 +186,7 @@ func TestVerifierRetainsNonceThroughAcceptedExpirationSkew(t *testing.T) {
 
 	now := time.Unix(1_700_000_000, 0)
 	key, _ := NewHMACKey([]byte("0123456789abcdef0123456789abcdef"))
-	replay, err := NewMemoryReplayStore(MemoryReplayConfig{Capacity: 1, MaxTTL: time.Minute, Now: func() time.Time { return now }})
+	replay, err := NewMemoryReplayStore(MemoryReplayConfig{Capacity: 1, MaxTTL: time.Minute, MaxKeyIDBytes: 64, MaxNonceBytes: 64, Now: func() time.Time { return now }})
 	if err != nil {
 		t.Fatalf("NewMemoryReplayStore() error = %v", err)
 	}
@@ -201,6 +201,7 @@ func TestVerifierRetainsNonceThroughAcceptedExpirationSkew(t *testing.T) {
 		MaxAge:             time.Minute,
 		ClockSkew:          10 * time.Second,
 		ResolveTimeout:     time.Second,
+		ReplayTimeout:      time.Second,
 		Now:                func() time.Time { return now },
 		Resolver: resolverFunc(func(context.Context, string) (ResolvedKey, error) {
 			return ResolvedKey{Algorithm: HMACSHA256, Key: key, NotBefore: now.Add(-time.Minute), NotAfter: now.Add(time.Minute), FreshUntil: now.Add(time.Minute)}, nil
@@ -235,7 +236,7 @@ func TestVerificationProfileRejectsZeroLengthKeyValidityWindow(t *testing.T) {
 		NotBefore:  now,
 		NotAfter:   now,
 		FreshUntil: now.Add(time.Minute),
-	}, HMACSHA256, true)
+	}, HMACSHA256, true, time.Time{})
 	if !verificationFailureIs(err, VerificationKey) {
 		t.Fatalf("validateKey() error = %v, want key failure", err)
 	}
@@ -400,7 +401,7 @@ func TestVerifierRejectsResolverSuccessAfterItsDeadline(t *testing.T) {
 func testVerificationProfile(t *testing.T, now time.Time, key HMACKey) (*VerificationProfile, *MemoryReplayStore) {
 	t.Helper()
 
-	replay, err := NewMemoryReplayStore(MemoryReplayConfig{Capacity: 4, MaxTTL: 2 * time.Minute, Now: func() time.Time { return now }})
+	replay, err := NewMemoryReplayStore(MemoryReplayConfig{Capacity: 4, MaxTTL: 2 * time.Minute, MaxKeyIDBytes: 64, MaxNonceBytes: 64, Now: func() time.Time { return now }})
 	if err != nil {
 		t.Fatalf("NewMemoryReplayStore() error = %v", err)
 	}
@@ -415,6 +416,7 @@ func testVerificationProfile(t *testing.T, now time.Time, key HMACKey) (*Verific
 		MaxAge:             time.Minute,
 		ClockSkew:          time.Second,
 		ResolveTimeout:     time.Second,
+		ReplayTimeout:      time.Second,
 		Now:                func() time.Time { return now },
 		Resolver: resolverFunc(func(_ context.Context, keyID string) (ResolvedKey, error) {
 			if keyID != "key" {

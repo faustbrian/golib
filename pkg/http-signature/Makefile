@@ -1,9 +1,10 @@
 GO ?= go
 FUZZ_TIME ?= 10000x
 BENCH_TIME ?= 100ms
+BENCH_COUNT ?= 10
 
 .PHONY: api benchmark check clean-consumer comparison-benchmark conformance coverage docs fault \
-	format-check fuzz interoperability leak mutation race soak spec-sources \
+	format-check fuzz interoperability leak lifecycle mutation race soak spec-sources \
 	stress test tidy-check vet
 
 format-check:
@@ -39,6 +40,10 @@ fault:
 	./scripts/with-go-cache.sh env GOWORK=off $(GO) test -mod=readonly ./... \
 		-run '(FailsClosed|BoundaryFailures|RejectsEach|Sanitizes|CallbackFailures)' -count=1
 
+lifecycle:
+	./scripts/with-go-cache.sh env GOWORK=off $(GO) test -mod=readonly -race . \
+		-run '^TestVerifierLifecycle' -count=20
+
 fuzz:
 	FUZZ_TIME=$(FUZZ_TIME) ./scripts/check-fuzz.sh
 
@@ -51,7 +56,7 @@ benchmark:
 	$(MAKE) comparison-benchmark BENCH_TIME=$(BENCH_TIME)
 
 comparison-benchmark:
-	$(MAKE) -C benchmarks/comparison benchmark BENCH_TIME=$(BENCH_TIME) BENCH_COUNT=1
+	$(MAKE) -C benchmarks/comparison benchmark BENCH_TIME=$(BENCH_TIME) BENCH_COUNT=$(BENCH_COUNT)
 
 docs:
 	./scripts/check-docs.sh
@@ -73,6 +78,6 @@ interoperability:
 clean-consumer:
 	./scripts/check-clean-consumer.sh
 
-check: tidy-check format-check vet test coverage race leak stress soak fault fuzz \
+check: tidy-check format-check vet test coverage race leak stress soak fault lifecycle fuzz \
 	docs api spec-sources interoperability conformance benchmark clean-consumer \
 	mutation

@@ -1,7 +1,144 @@
 {
-  "schema_version": 1,
-  "description": "Every BCP 14 keyword occurrence in the pinned RFC bodies, excluding each RFC's conventions boilerplate. Each occurrence inherits implementation, test, and documentation mappings from its group.",
+  "schema_version": 2,
+  "description": "Complete inventories of BCP 14 keyword occurrences (excluding conventions boilerplate), locally declared ABNF rules, and main-body prose sections in the pinned RFC 8941, RFC 9421, and RFC 9530 texts. Each inventory item inherits implementation, test, and documentation mappings from its group.",
   "rfcs": [
+    {
+      "rfc": 8941,
+      "source_name": "RFC 8941 text",
+      "source_sha256": "92e07becbe27974319d79de6195e72e25062b4193f68623e90ea4f7deaf33bb9",
+      "groups": {
+        "structured-field-processing": [
+          "177:MUST",
+          "184:MAY"
+        ],
+        "structured-field-definition": [
+          "283:MUST",
+          "287:MUST",
+          "288:MUST",
+          "298:MUST",
+          "299:MUST"
+        ],
+        "structured-field-limits": [
+          "356:MUST",
+          "384:MUST",
+          "425:MUST",
+          "503:MUST",
+          "611:MUST",
+          "627:MUST",
+          "648:MUST"
+        ],
+        "structured-field-model": [
+          "396:MUST",
+          "397:MAY",
+          "438:MUST",
+          "439:MAY",
+          "485:MUST"
+        ],
+        "structured-field-serialization": [
+          "415:MUST",
+          "459:MUST",
+          "601:MUST",
+          "988:SHOULD"
+        ],
+        "structured-field-parsing": [
+          "1042:MUST",
+          "1066:MAY",
+          "1076:MUST",
+          "1472:SHOULD NOT",
+          "1477:SHOULD NOT",
+          "1481:MUST"
+        ]
+      },
+      "abnf_rules": {
+        "structured-field-model": [
+          "330:sf-list",
+          "331:list-member",
+          "368:inner-list",
+          "401:parameters",
+          "402:parameter",
+          "403:param-key",
+          "404:key",
+          "406:lcalpha",
+          "407:param-value",
+          "444:sf-dictionary",
+          "445:dict-member",
+          "446:member-key",
+          "447:member-value",
+          "517:sf-item",
+          "518:bare-item",
+          "538:sf-integer",
+          "564:sf-decimal",
+          "589:sf-string",
+          "590:chr",
+          "591:unescaped",
+          "592:escaped",
+          "621:sf-token",
+          "640:sf-binary",
+          "641:base64",
+          "657:sf-boolean",
+          "658:boolean"
+        ]
+      },
+      "prose_sections": {
+        "structured-field-processing": [
+          "1",
+          "1.1",
+          "1.2",
+          "6"
+        ],
+        "structured-field-definition": [
+          "2",
+          "5"
+        ],
+        "structured-field-model": [
+          "3",
+          "3.1",
+          "3.1.1",
+          "3.1.2",
+          "3.2",
+          "3.3",
+          "3.3.1",
+          "3.3.2",
+          "3.3.3",
+          "3.3.4",
+          "3.3.5",
+          "3.3.6"
+        ],
+        "structured-field-serialization": [
+          "4",
+          "4.1",
+          "4.1.1",
+          "4.1.1.1",
+          "4.1.1.2",
+          "4.1.1.3",
+          "4.1.2",
+          "4.1.3",
+          "4.1.3.1",
+          "4.1.4",
+          "4.1.5",
+          "4.1.6",
+          "4.1.7",
+          "4.1.8",
+          "4.1.9"
+        ],
+        "structured-field-parsing": [
+          "4.2",
+          "4.2.1",
+          "4.2.1.1",
+          "4.2.1.2",
+          "4.2.2",
+          "4.2.3",
+          "4.2.3.1",
+          "4.2.3.2",
+          "4.2.3.3",
+          "4.2.4",
+          "4.2.5",
+          "4.2.6",
+          "4.2.7",
+          "4.2.8"
+        ]
+      }
+    },
     {
       "rfc": 9421,
       "source_name": "RFC 9421 text",
@@ -173,6 +310,151 @@
         "official-test-keys": [
           "4377:MUST NOT"
         ]
+      },
+      "abnf_rules": {
+        "signature-base": [
+          "1777:signature-base",
+          "1778:signature-base-line",
+          "1781:component-identifier",
+          "1782:component-name",
+          "1783:derived-component-value",
+          "1784:signature-params-line"
+        ]
+      },
+      "prose_sections": {
+        "application-profile": [
+          "1.2",
+          "1.4",
+          "7",
+          "7.1",
+          "7.1.1",
+          "7.1.2",
+          "7.2",
+          "7.2.1",
+          "7.2.2",
+          "7.2.3",
+          "7.2.4",
+          "7.2.5",
+          "7.2.6",
+          "7.2.7",
+          "7.2.8"
+        ],
+        "component-model": [
+          "1",
+          "1.1",
+          "1.3",
+          "2",
+          "7.4",
+          "7.4.1",
+          "7.4.2",
+          "7.4.3",
+          "7.4.4"
+        ],
+        "http-fields": [
+          "2.1"
+        ],
+        "structured-fields": [
+          "2.1.1",
+          "2.1.2",
+          "7.5",
+          "7.5.1",
+          "7.5.2",
+          "7.5.3",
+          "7.5.4",
+          "7.5.5",
+          "7.5.6",
+          "7.5.7",
+          "7.5.8"
+        ],
+        "binary-fields": [
+          "2.1.3"
+        ],
+        "trailers": [
+          "2.1.4"
+        ],
+        "derived-components": [
+          "2.2",
+          "2.2.1",
+          "2.2.2",
+          "2.2.3",
+          "2.2.4",
+          "2.2.5",
+          "2.2.6",
+          "2.2.7",
+          "2.2.9"
+        ],
+        "query-parameters": [
+          "2.2.8"
+        ],
+        "signature-parameters": [
+          "2.3"
+        ],
+        "request-response-binding": [
+          "2.4"
+        ],
+        "signature-base": [
+          "2.5"
+        ],
+        "signing-process": [
+          "3",
+          "3.1"
+        ],
+        "verification-process": [
+          "3.2",
+          "3.2.1"
+        ],
+        "algorithms": [
+          "3.3",
+          "3.3.1",
+          "3.3.2",
+          "3.3.3",
+          "3.3.4",
+          "3.3.5",
+          "3.3.6",
+          "3.3.7",
+          "7.3",
+          "7.3.1",
+          "7.3.2",
+          "7.3.3",
+          "7.3.4",
+          "7.3.5",
+          "7.3.6",
+          "7.3.7"
+        ],
+        "signature-fields": [
+          "4",
+          "4.1",
+          "4.2",
+          "4.3"
+        ],
+        "accept-signature": [
+          "5",
+          "5.1",
+          "5.2"
+        ],
+        "registry-administration": [
+          "6",
+          "6.1",
+          "6.2",
+          "6.2.1",
+          "6.2.2",
+          "6.3",
+          "6.3.1",
+          "6.3.2",
+          "6.4",
+          "6.4.1",
+          "6.4.2",
+          "6.5",
+          "6.5.1",
+          "6.5.2"
+        ],
+        "privacy-considerations": [
+          "8",
+          "8.1",
+          "8.2",
+          "8.3",
+          "8.4"
+        ]
       }
     },
     {
@@ -204,10 +486,156 @@
           "505:MAY",
           "506:MUST NOT"
         ]
+      },
+      "abnf_rules": {},
+      "prose_sections": {
+        "digest-protocol-scope": [
+          "1",
+          "1.1",
+          "1.2",
+          "1.3",
+          "1.4"
+        ],
+        "content-digest": [
+          "2"
+        ],
+        "repr-digest": [
+          "3"
+        ],
+        "representation-semantics": [
+          "3.1",
+          "3.2"
+        ],
+        "digest-algorithms": [
+          "4",
+          "5"
+        ],
+        "digest-security": [
+          "6",
+          "6.1",
+          "6.2",
+          "6.3",
+          "6.4",
+          "6.5",
+          "6.6",
+          "6.7"
+        ],
+        "registry-administration": [
+          "7",
+          "7.1",
+          "7.2",
+          "7.3"
+        ]
       }
     }
   ],
   "mappings": {
+    "structured-field-processing": {
+      "implementation": [
+        "structured_field_safe.go",
+        "message.go",
+        "signature_fields.go",
+        "digest.go"
+      ],
+      "tests": [
+        "structured_field_safe_test.go",
+        "message_test.go",
+        "signature_fields_test.go",
+        "digest_test.go",
+        "httpwg_rfc8941_corpus_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/security.md"
+      ]
+    },
+    "structured-field-definition": {
+      "implementation": [
+        "spec/normative-requirements.json",
+        "spec/sources.lock.json"
+      ],
+      "tests": [
+        "scripts/check-conformance.sh",
+        "scripts/check-spec-sources.sh"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "spec/errata-decisions.md"
+      ]
+    },
+    "structured-field-limits": {
+      "implementation": [
+        "syntax_limits.go"
+      ],
+      "tests": [
+        "syntax_limits_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/security.md"
+      ]
+    },
+    "structured-field-model": {
+      "implementation": [
+        "message.go",
+        "signature_fields.go",
+        "digest.go",
+        "digest_preference.go"
+      ],
+      "tests": [
+        "message_test.go",
+        "signature_fields_test.go",
+        "digest_test.go",
+        "digest_preference_test.go",
+        "httpwg_rfc8941_corpus_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md"
+      ]
+    },
+    "structured-field-serialization": {
+      "implementation": [
+        "structured_field_safe.go",
+        "message.go",
+        "signature_fields.go",
+        "digest.go",
+        "digest_preference.go"
+      ],
+      "tests": [
+        "message_test.go",
+        "signature_fields_test.go",
+        "digest_test.go",
+        "digest_preference_test.go",
+        "httpwg_rfc8941_corpus_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md"
+      ]
+    },
+    "structured-field-parsing": {
+      "implementation": [
+        "structured_field_safe.go",
+        "message.go",
+        "signature_fields.go",
+        "digest.go",
+        "digest_preference.go"
+      ],
+      "tests": [
+        "structured_field_safe_test.go",
+        "message_test.go",
+        "signature_fields_test.go",
+        "digest_test.go",
+        "digest_preference_test.go",
+        "httpwg_rfc8941_corpus_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/conformance.md",
+        "docs/security.md"
+      ]
+    },
     "application-profile": {
       "implementation": [
         "signer.go",
@@ -461,6 +889,34 @@
         "docs/security.md"
       ]
     },
+    "privacy-considerations": {
+      "implementation": [
+        "signer.go",
+        "verifier.go"
+      ],
+      "tests": [
+        "signer_test.go",
+        "verifier_test.go"
+      ],
+      "documentation": [
+        "docs/security.md"
+      ]
+    },
+    "digest-protocol-scope": {
+      "implementation": [
+        "digest.go",
+        "body_integration.go"
+      ],
+      "tests": [
+        "digest_test.go",
+        "body_integration_test.go"
+      ],
+      "documentation": [
+        "README.md",
+        "docs/conformance.md",
+        "docs/integration.md"
+      ]
+    },
     "content-digest": {
       "implementation": [
         "digest.go",
@@ -516,6 +972,21 @@
       "documentation": [
         "README.md",
         "docs/security.md"
+      ]
+    },
+    "digest-security": {
+      "implementation": [
+        "digest.go",
+        "body_integration.go"
+      ],
+      "tests": [
+        "digest_test.go",
+        "body_integration_test.go",
+        "fuzz_test.go"
+      ],
+      "documentation": [
+        "docs/security.md",
+        "docs/integration.md"
       ]
     }
   }

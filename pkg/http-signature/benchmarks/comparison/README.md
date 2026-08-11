@@ -3,9 +3,11 @@
 This non-releasable module isolates the comparison dependency from the public
 HTTP Message Signatures module. It compares an equivalent HMAC-SHA256 request
 operation with the maintained `github.com/yaronf/httpsign` implementation at
-commit `de382d35c1add89cc09b9355161d61471fb7f632`.
+commit `de382d35c1add89cc09b9355161d61471fb7f632` and
+`github.com/dadrus/httpsig` at commit
+`0f24bf7dd9b76727af985d9a6f7ce87207a18387`.
 
-Both candidates cover `@method`, `@authority`, and `content-type`, include
+All three candidates cover `@method`, `@authority`, and `content-type`, include
 `created`, `keyid`, and `alg`, serialize `Signature-Input` and `Signature`, and
 verify those fields on the same request. The local case additionally executes
 its explicit bounded key-provider/resolver and immutable application-profile

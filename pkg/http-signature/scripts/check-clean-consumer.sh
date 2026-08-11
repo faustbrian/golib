@@ -14,5 +14,5 @@ cd "$consumer"
 go mod init clean-consumer.example/http-signature
 go mod edit -require github.com/faustbrian/golib/pkg/http-signature@v0.0.0
 go mod edit -replace github.com/faustbrian/golib/pkg/http-signature="$module_root"
-printf '%s\n' 'package consumer' 'import _ "github.com/faustbrian/golib/pkg/http-signature"' > consumer.go
+cp "$module_root/scripts/testdata/clean-consumer/consumer_test.go" consumer_test.go
 "$module_root/scripts/with-go-cache.sh" env GOWORK=off go test -mod=mod ./...

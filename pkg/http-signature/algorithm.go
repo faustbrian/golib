@@ -7,6 +7,7 @@ import (
 	"crypto/ed25519"
 	"crypto/elliptic"
 	"crypto/hmac"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/sha256"
 	"crypto/sha512"
@@ -33,12 +34,20 @@ const (
 	ECDSAP384SHA384 Algorithm = "ecdsa-p384-sha384"
 	// Ed25519 is pure Ed25519 with no prehash.
 	Ed25519 Algorithm = "ed25519"
+
+	minRSAModulusBits = 2048
+	// The upper bound caps attacker-controlled verification work while retaining
+	// interoperability with conventional high-assurance RSA deployments.
+	maxRSAModulusBits   = 8192
+	maxRSASignatureSize = maxRSAModulusBits / 8
+	minHMACKeySize      = sha256.Size
+	maxHMACKeySize      = sha256.BlockSize
 )
 
 var (
 	// ErrUnsupportedSignatureAlgorithm reports an unavailable or unregistered algorithm.
 	ErrUnsupportedSignatureAlgorithm = errors.New("http signature: unsupported signature algorithm")
-	// ErrIncompatibleKey reports a wrong, malformed, or below-policy key type.
+	// ErrIncompatibleKey reports a wrong, malformed, or out-of-policy key type.
 	ErrIncompatibleKey = errors.New("http signature: incompatible key")
 	// ErrInvalidSignatureValue reports cryptographic verification failure.
 	ErrInvalidSignatureValue = errors.New("http signature: invalid signature value")
@@ -46,24 +55,26 @@ var (
 	ErrSignatureRandomness = errors.New("http signature: signing randomness unavailable")
 )
 
-// HMACKey owns copied HMAC key bytes. The minimum length is 256 bits, matching
-// the output size and security strength expected for HMAC-SHA-256 profiles.
+// HMACKey owns copied HMAC key bytes. Keys contain between 256 and 512 bits.
+// The lower bound matches the HMAC-SHA-256 output size; the upper bound matches
+// its block size, beyond which HMAC hashes the key before use.
 type HMACKey struct {
 	material []byte
 }
 
-// NewHMACKey copies caller key material and rejects keys shorter than 256 bits.
+// NewHMACKey copies caller key material and enforces the HMACKey size bounds.
 func NewHMACKey(material []byte) (HMACKey, error) {
-	if len(material) < sha256.Size {
+	if len(material) < minHMACKeySize || len(material) > maxHMACKeySize {
 		return HMACKey{}, ErrIncompatibleKey
 	}
 
 	return HMACKey{material: append([]byte(nil), material...)}, nil
 }
 
-// Sign applies the exact RFC 9421 algorithm to signatureBase. random is
-// required for RSA-PSS and ECDSA signing and ignored by deterministic
-// algorithms.
+// Sign applies the exact RFC 9421 algorithm to signatureBase. RSA moduli must
+// contain 2048 through 8192 bits. Randomized algorithms use Go-managed
+// cryptographically secure randomness. random is retained for source
+// compatibility and ignored.
 func Sign(ctx context.Context, algorithm Algorithm, key any, signatureBase []byte, random io.Reader) ([]byte, error) {
 	if err := contextError(ctx); err != nil {
 		return nil, err
@@ -77,11 +88,8 @@ func Sign(ctx context.Context, algorithm Algorithm, key any, signatureBase []byt
 		if !ok || !validRSAPrivateKey(privateKey) {
 			return nil, ErrIncompatibleKey
 		}
-		if random == nil {
-			return nil, ErrSignatureRandomness
-		}
 		digest := sha512.Sum512(signatureBase)
-		signature, err = rsa.SignPSS(random, privateKey, crypto.SHA512, digest[:], &rsa.PSSOptions{
+		signature, err = rsa.SignPSS(rand.Reader, privateKey, crypto.SHA512, digest[:], &rsa.PSSOptions{
 			SaltLength: sha512.Size,
 			Hash:       crypto.SHA512,
 		})
@@ -91,10 +99,10 @@ func Sign(ctx context.Context, algorithm Algorithm, key any, signatureBase []byt
 			return nil, ErrIncompatibleKey
 		}
 		digest := sha256.Sum256(signatureBase)
-		signature, err = rsa.SignPKCS1v15(random, privateKey, crypto.SHA256, digest[:])
+		signature, err = rsa.SignPKCS1v15(nil, privateKey, crypto.SHA256, digest[:])
 	case HMACSHA256:
 		hmacKey, ok := key.(HMACKey)
-		if !ok || len(hmacKey.material) < sha256.Size {
+		if !ok || !validHMACKey(hmacKey) {
 			return nil, ErrIncompatibleKey
 		}
 		mac := hmac.New(sha256.New, append([]byte(nil), hmacKey.material...))
@@ -105,21 +113,15 @@ func Sign(ctx context.Context, algorithm Algorithm, key any, signatureBase []byt
 		if !ok || !validECDSAPrivateKey(privateKey, elliptic.P256()) {
 			return nil, ErrIncompatibleKey
 		}
-		if random == nil {
-			return nil, ErrSignatureRandomness
-		}
 		digest := sha256.Sum256(signatureBase)
-		signature, err = signECDSA(random, privateKey, digest[:], 32)
+		signature, err = signECDSA(privateKey, digest[:], 32)
 	case ECDSAP384SHA384:
 		privateKey, ok := key.(*ecdsa.PrivateKey)
 		if !ok || !validECDSAPrivateKey(privateKey, elliptic.P384()) {
 			return nil, ErrIncompatibleKey
 		}
-		if random == nil {
-			return nil, ErrSignatureRandomness
-		}
 		digest := sha512.Sum384(signatureBase)
-		signature, err = signECDSA(random, privateKey, digest[:], 48)
+		signature, err = signECDSA(privateKey, digest[:], 48)
 	case Ed25519:
 		privateKey, ok := key.(ed25519.PrivateKey)
 		if !ok || !validEd25519PrivateKey(privateKey) {
@@ -129,6 +131,10 @@ func Sign(ctx context.Context, algorithm Algorithm, key any, signatureBase []byt
 	default:
 		return nil, fmt.Errorf("%w: %s", ErrUnsupportedSignatureAlgorithm, algorithm)
 	}
+	return finishSignature(ctx, signature, err)
+}
+
+func finishSignature(ctx context.Context, signature []byte, err error) ([]byte, error) {
 	if err != nil {
 		return nil, ErrSignatureRandomness
 	}
@@ -140,8 +146,9 @@ func Sign(ctx context.Context, algorithm Algorithm, key any, signatureBase []byt
 }
 
 // Verify applies the exact RFC 9421 algorithm and returns only typed,
-// secret-safe errors. Verification keys must be public key types; RSA or ECDSA
-// private keys are deliberately rejected.
+// secret-safe errors. RSA moduli must contain 2048 through 8192 bits.
+// Verification keys must be public key types; RSA or ECDSA private keys are
+// deliberately rejected.
 func Verify(ctx context.Context, algorithm Algorithm, key any, signatureBase, signature []byte) error {
 	if err := contextError(ctx); err != nil {
 		return err
@@ -154,6 +161,9 @@ func Verify(ctx context.Context, algorithm Algorithm, key any, signatureBase, si
 		if !ok || !validRSAPublicKey(publicKey) {
 			return ErrIncompatibleKey
 		}
+		if !validRSASignatureSize(publicKey, signature) {
+			return ErrInvalidSignatureValue
+		}
 		digest := sha512.Sum512(signatureBase)
 		valid = rsa.VerifyPSS(publicKey, crypto.SHA512, digest[:], signature, &rsa.PSSOptions{
 			SaltLength: sha512.Size,
@@ -164,11 +174,14 @@ func Verify(ctx context.Context, algorithm Algorithm, key any, signatureBase, si
 		if !ok || !validRSAPublicKey(publicKey) {
 			return ErrIncompatibleKey
 		}
+		if !validRSASignatureSize(publicKey, signature) {
+			return ErrInvalidSignatureValue
+		}
 		digest := sha256.Sum256(signatureBase)
 		valid = rsa.VerifyPKCS1v15(publicKey, crypto.SHA256, digest[:], signature) == nil
 	case HMACSHA256:
 		hmacKey, ok := key.(HMACKey)
-		if !ok || len(hmacKey.material) < sha256.Size {
+		if !ok || !validHMACKey(hmacKey) {
 			return ErrIncompatibleKey
 		}
 		mac := hmac.New(sha256.New, append([]byte(nil), hmacKey.material...))
@@ -208,8 +221,8 @@ func Verify(ctx context.Context, algorithm Algorithm, key any, signatureBase, si
 	return nil
 }
 
-func signECDSA(random io.Reader, key *ecdsa.PrivateKey, digest []byte, size int) ([]byte, error) {
-	r, s, err := ecdsa.Sign(random, key, digest)
+func signECDSA(key *ecdsa.PrivateKey, digest []byte, size int) ([]byte, error) {
+	r, s, err := ecdsa.Sign(rand.Reader, key, digest)
 	if err != nil {
 		return nil, err
 	}
@@ -230,11 +243,27 @@ func verifyECDSA(key *ecdsa.PublicKey, digest, signature []byte, size int) bool 
 }
 
 func validRSAPrivateKey(key *rsa.PrivateKey) bool {
-	return key != nil && key.N != nil && key.N.BitLen() >= 2048 && key.Validate() == nil
+	return key != nil && validRSAPublicKey(&key.PublicKey) && key.Validate() == nil
 }
 
 func validRSAPublicKey(key *rsa.PublicKey) bool {
-	return key != nil && key.N != nil && key.N.Sign() != -1 && key.N.BitLen() >= 2048 && key.N.Bit(0) == 1 && key.E >= 3 && key.E%2 == 1
+	return key != nil && validRSAModulus(key.N) && key.E >= 3 && key.E%2 == 1
+}
+
+func validRSAModulus(modulus *big.Int) bool {
+	if modulus == nil || modulus.Sign() != 1 || modulus.Bit(0) != 1 {
+		return false
+	}
+	bits := modulus.BitLen()
+	return bits >= minRSAModulusBits && bits <= maxRSAModulusBits
+}
+
+func validRSASignatureSize(key *rsa.PublicKey, signature []byte) bool {
+	return len(signature) <= maxRSASignatureSize && len(signature) == key.Size()
+}
+
+func validHMACKey(key HMACKey) bool {
+	return len(key.material) >= minHMACKeySize && len(key.material) <= maxHMACKeySize
 }
 
 func validECDSAPrivateKey(key *ecdsa.PrivateKey, curve elliptic.Curve) bool {

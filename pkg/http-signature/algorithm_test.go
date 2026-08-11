@@ -116,6 +116,12 @@ func TestNewHMACKeyRejectsWeakOrEmptyMaterialAndDoesNotAlias(t *testing.T) {
 	if _, err := NewHMACKey(make([]byte, 31)); !errors.Is(err, ErrIncompatibleKey) {
 		t.Fatalf("NewHMACKey(short) error = %v, want ErrIncompatibleKey", err)
 	}
+	if _, err := NewHMACKey(make([]byte, 65)); !errors.Is(err, ErrIncompatibleKey) {
+		t.Fatalf("NewHMACKey(long) error = %v, want ErrIncompatibleKey", err)
+	}
+	if _, err := NewHMACKey(make([]byte, 64)); err != nil {
+		t.Fatalf("NewHMACKey(maximum length) error = %v", err)
+	}
 
 	material := []byte("0123456789abcdef0123456789abcdef")
 	key, err := NewHMACKey(material)
@@ -166,9 +172,25 @@ func TestAlgorithmsRejectInternallyInconsistentKeys(t *testing.T) {
 	}
 }
 
-type failingRandomReader struct{}
+type recordingFailingRandomReader struct {
+	reads int
+}
 
-func (failingRandomReader) Read([]byte) (int, error) { return 0, io.ErrUnexpectedEOF }
+func (reader *recordingFailingRandomReader) Read([]byte) (int, error) {
+	reader.reads++
+	return 0, io.ErrUnexpectedEOF
+}
+
+type blockingRandomReader struct {
+	started chan struct{}
+	release chan struct{}
+}
+
+func (reader *blockingRandomReader) Read([]byte) (int, error) {
+	close(reader.started)
+	<-reader.release
+	return 0, io.ErrUnexpectedEOF
+}
 
 type secondCheckCanceledContext struct {
 	checks int
@@ -250,28 +272,9 @@ func TestAlgorithmsFailClosedAcrossEveryKeyAndCancellationBoundary(t *testing.T)
 		})
 	}
 
-	for _, test := range []struct {
-		name      string
-		algorithm Algorithm
-		key       any
-	}{
-		{"rsa pss", RSAPSSSHA512, rsaKey},
-		{"p256", ECDSAP256SHA256, p256Key},
-		{"p384", ECDSAP384SHA384, p384Key},
-	} {
-		test := test
-		t.Run(test.name+" missing randomness", func(t *testing.T) {
-			if _, err := Sign(context.Background(), test.algorithm, test.key, base, nil); !errors.Is(err, ErrSignatureRandomness) {
-				t.Fatalf("Sign() error = %v, want ErrSignatureRandomness", err)
-			}
-		})
-	}
-	if _, err := Sign(context.Background(), RSAPSSSHA512, rsaKey, base, failingRandomReader{}); !errors.Is(err, ErrSignatureRandomness) {
-		t.Fatalf("Sign(failed randomness) error = %v, want ErrSignatureRandomness", err)
-	}
 	invalidECDSA := *p256Key
 	invalidECDSA.D = big.NewInt(0) //nolint:staticcheck // Deliberately corrupts an invalid-key fixture.
-	if _, err := signECDSA(rand.Reader, &invalidECDSA, make([]byte, 32), 32); err == nil {
+	if _, err := signECDSA(&invalidECDSA, make([]byte, 32), 32); err == nil {
 		t.Fatal("signECDSA(invalid key) succeeded")
 	}
 
@@ -292,6 +295,135 @@ func TestAlgorithmsFailClosedAcrossEveryKeyAndCancellationBoundary(t *testing.T)
 	validHMAC, _ := Sign(context.Background(), HMACSHA256, hmacKey, base, nil)
 	if err := Verify(&secondCheckCanceledContext{}, HMACSHA256, hmacKey, base, validHMAC); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Verify(second-check cancellation) error = %v", err)
+	}
+}
+
+func TestRSAPSSSigningUsesGoManagedRandomness(t *testing.T) {
+	t.Parallel()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	base := []byte("base")
+	reader := &blockingRandomReader{started: make(chan struct{}), release: make(chan struct{})}
+	type signingResult struct {
+		signature []byte
+		err       error
+	}
+	result := make(chan signingResult, 1)
+	go func() {
+		signature, signErr := Sign(context.Background(), RSAPSSSHA512, key, base, reader)
+		result <- signingResult{signature: signature, err: signErr}
+	}()
+
+	timer := time.NewTimer(time.Second)
+	defer timer.Stop()
+	select {
+	case <-reader.started:
+		close(reader.release)
+		completed := <-result
+		t.Fatalf("Sign() read caller randomness; error after release = %v", completed.err)
+	case completed := <-result:
+		if completed.err != nil {
+			t.Fatalf("Sign(blocking caller random) error = %v", completed.err)
+		}
+		if verifyErr := Verify(context.Background(), RSAPSSSHA512, &key.PublicKey, base, completed.signature); verifyErr != nil {
+			t.Fatalf("Verify() error = %v", verifyErr)
+		}
+	case <-timer.C:
+		close(reader.release)
+		<-result
+		t.Fatal("Sign() did not complete without caller randomness")
+	}
+
+	signature, err := Sign(context.Background(), RSAPSSSHA512, key, base, nil)
+	if err != nil {
+		t.Fatalf("Sign(nil caller random) error = %v", err)
+	}
+	if verifyErr := Verify(context.Background(), RSAPSSSHA512, &key.PublicKey, base, signature); verifyErr != nil {
+		t.Fatalf("Verify(nil caller random signature) error = %v", verifyErr)
+	}
+}
+
+func TestRSAV15SigningIgnoresCallerRandomness(t *testing.T) {
+	t.Parallel()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	configuredRandom := &recordingFailingRandomReader{}
+	base := []byte("base")
+	signature, err := Sign(context.Background(), RSAV15SHA256, key, base, configuredRandom)
+	if err != nil {
+		t.Fatalf("Sign() error = %v", err)
+	}
+	if configuredRandom.reads != 0 {
+		t.Fatalf("configured random reads = %d, want 0", configuredRandom.reads)
+	}
+	if err := Verify(context.Background(), RSAV15SHA256, &key.PublicKey, base, signature); err != nil {
+		t.Fatalf("Verify() error = %v", err)
+	}
+}
+
+func TestFinishSignatureMapsManagedRandomnessFailureAndCancellation(t *testing.T) {
+	t.Parallel()
+
+	if _, err := finishSignature(context.Background(), nil, io.ErrUnexpectedEOF); !errors.Is(err, ErrSignatureRandomness) {
+		t.Fatalf("finishSignature(randomness failure) error = %v, want ErrSignatureRandomness", err)
+	}
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+	if _, err := finishSignature(canceled, nil, nil); !errors.Is(err, context.Canceled) {
+		t.Fatalf("finishSignature(canceled) error = %v, want context.Canceled", err)
+	}
+	signature := []byte("signature")
+	completed, err := finishSignature(context.Background(), signature, nil)
+	if err != nil {
+		t.Fatalf("finishSignature() error = %v", err)
+	}
+	if string(completed) != string(signature) {
+		t.Fatalf("finishSignature() = %q, want %q", completed, signature)
+	}
+}
+
+func TestECDSASigningUsesGoManagedRandomness(t *testing.T) {
+	t.Parallel()
+
+	base := []byte("base")
+	for _, test := range []struct {
+		name      string
+		algorithm Algorithm
+		curve     elliptic.Curve
+	}{
+		{"p256", ECDSAP256SHA256, elliptic.P256()},
+		{"p384", ECDSAP384SHA384, elliptic.P384()},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			key, err := ecdsa.GenerateKey(test.curve, rand.Reader)
+			if err != nil {
+				t.Fatalf("GenerateKey() error = %v", err)
+			}
+			if _, signErr := Sign(context.Background(), test.algorithm, key, base, nil); signErr != nil {
+				t.Fatalf("Sign(nil random) error = %v", signErr)
+			}
+
+			configuredRandom := &recordingFailingRandomReader{}
+			signature, signErr := Sign(context.Background(), test.algorithm, key, base, configuredRandom)
+			if signErr != nil {
+				t.Fatalf("Sign(configured random) error = %v", signErr)
+			}
+			if configuredRandom.reads != 0 {
+				t.Fatalf("configured random reads = %d, want 0", configuredRandom.reads)
+			}
+			if verifyErr := Verify(context.Background(), test.algorithm, &key.PublicKey, base, signature); verifyErr != nil {
+				t.Fatalf("Verify() error = %v", verifyErr)
+			}
+		})
 	}
 }
 
@@ -348,6 +480,19 @@ func TestAlgorithmKeyPredicatesRejectEveryIndependentBoundary(t *testing.T) {
 	if !validRSAPublicKey(&rsa.PublicKey{N: new(big.Int).Set(rsaKey.N), E: 3}) {
 		t.Fatal("minimum odd RSA exponent rejected")
 	}
+	maximumModulus := new(big.Int).SetBit(new(big.Int), 8191, 1)
+	maximumModulus.SetBit(maximumModulus, 0, 1)
+	if !validRSAPublicKey(&rsa.PublicKey{N: maximumModulus, E: 3}) {
+		t.Fatal("maximum RSA modulus rejected")
+	}
+	overlongModulus := new(big.Int).SetBit(new(big.Int), 8192, 1)
+	overlongModulus.SetBit(overlongModulus, 0, 1)
+	if validRSAPublicKey(&rsa.PublicKey{N: overlongModulus, E: 3}) {
+		t.Fatal("overlong RSA modulus accepted")
+	}
+	if validRSAPrivateKey(&rsa.PrivateKey{PublicKey: rsa.PublicKey{N: overlongModulus, E: 3}}) {
+		t.Fatal("overlong RSA private key accepted")
+	}
 
 	p256, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
 	if err != nil {
@@ -392,6 +537,60 @@ func TestAlgorithmKeyPredicatesRejectEveryIndependentBoundary(t *testing.T) {
 	}
 }
 
+func TestRSASignatureSizePolicyRejectsValuesBeyondTheModulusLimit(t *testing.T) {
+	t.Parallel()
+
+	maximumModulus := new(big.Int).SetBit(new(big.Int), 8191, 1)
+	maximumModulus.SetBit(maximumModulus, 0, 1)
+	maximumKey := &rsa.PublicKey{N: maximumModulus, E: 3}
+	if !validRSASignatureSize(maximumKey, make([]byte, maximumKey.Size())) {
+		t.Fatal("maximum RSA signature rejected")
+	}
+
+	overlongModulus := new(big.Int).SetBit(new(big.Int), 8192, 1)
+	overlongModulus.SetBit(overlongModulus, 0, 1)
+	overlongKey := &rsa.PublicKey{N: overlongModulus, E: 3}
+	if validRSASignatureSize(overlongKey, make([]byte, overlongKey.Size())) {
+		t.Fatal("overlong RSA signature accepted")
+	}
+	if validRSASignatureSize(maximumKey, make([]byte, maximumKey.Size()-1)) {
+		t.Fatal("truncated RSA signature accepted")
+	}
+}
+
+func TestRSAPublicVerificationRejectsResourceLimitsBeforeCryptography(t *testing.T) {
+	t.Parallel()
+
+	validKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("GenerateKey() error = %v", err)
+	}
+	overlongModulus := new(big.Int).SetBit(new(big.Int), 8192, 1)
+	overlongModulus.SetBit(overlongModulus, 0, 1)
+	overlongKey := &rsa.PublicKey{N: overlongModulus, E: 3}
+
+	for _, algorithm := range []Algorithm{RSAPSSSHA512, RSAV15SHA256} {
+		if verifyErr := Verify(
+			&secondCheckCanceledContext{},
+			algorithm,
+			overlongKey,
+			[]byte("base"),
+			make([]byte, overlongKey.Size()),
+		); !errors.Is(verifyErr, ErrIncompatibleKey) {
+			t.Fatalf("Verify(%s overlong modulus) error = %v, want ErrIncompatibleKey", algorithm, verifyErr)
+		}
+		if verifyErr := Verify(
+			&secondCheckCanceledContext{},
+			algorithm,
+			&validKey.PublicKey,
+			[]byte("base"),
+			make([]byte, maxRSASignatureSize+1),
+		); !errors.Is(verifyErr, ErrInvalidSignatureValue) {
+			t.Fatalf("Verify(%s overlong signature) error = %v, want ErrInvalidSignatureValue", algorithm, verifyErr)
+		}
+	}
+}
+
 func TestAlgorithmsRejectCorrectTypesWithInvalidKeyMaterial(t *testing.T) {
 	t.Parallel()
 
@@ -407,6 +606,7 @@ func TestAlgorithmsRejectCorrectTypesWithInvalidKeyMaterial(t *testing.T) {
 		{RSAPSSSHA512, &rsa.PrivateKey{}},
 		{RSAV15SHA256, &rsa.PrivateKey{}},
 		{HMACSHA256, HMACKey{material: make([]byte, sha256.Size-1)}},
+		{HMACSHA256, HMACKey{material: make([]byte, sha256.BlockSize+1)}},
 		{ECDSAP256SHA256, p256},
 		{ECDSAP384SHA384, p384},
 		{Ed25519, badEdPrivate},
@@ -422,6 +622,7 @@ func TestAlgorithmsRejectCorrectTypesWithInvalidKeyMaterial(t *testing.T) {
 		{RSAPSSSHA512, &rsa.PublicKey{}},
 		{RSAV15SHA256, &rsa.PublicKey{}},
 		{HMACSHA256, HMACKey{material: make([]byte, sha256.Size-1)}},
+		{HMACSHA256, HMACKey{material: make([]byte, sha256.BlockSize+1)}},
 		{ECDSAP256SHA256, &p256.PublicKey},
 		{ECDSAP384SHA384, &p384.PublicKey},
 		{Ed25519, make(ed25519.PublicKey, ed25519.PublicKeySize-1)},

@@ -1,0 +1,206 @@
+{
+  "structured_fields": [
+    {
+      "name": "combined signature inputs preserve dictionary order",
+      "kind": "signature-input",
+      "fields": [
+        "primary=(\"@method\" \"@authority\");created=1618884473;keyid=\"test-key\"",
+        "fallback=(\"@method\");alg=\"hmac-sha256\""
+      ],
+      "valid": true,
+      "canonical": "primary=(\"@method\" \"@authority\");created=1618884473;keyid=\"test-key\", fallback=(\"@method\");alg=\"hmac-sha256\""
+    },
+    {
+      "name": "signature parameter order remains significant",
+      "kind": "signature-input",
+      "fields": [
+        "sig=(\"@method\"  \"@path\");keyid=\"k\";created=1;expires=2;nonce=\"n\";alg=\"hmac-sha256\";tag=\"example\""
+      ],
+      "valid": true,
+      "canonical": "sig=(\"@method\" \"@path\");keyid=\"k\";created=1;expires=2;nonce=\"n\";alg=\"hmac-sha256\";tag=\"example\""
+    },
+    {
+      "name": "combined binary signatures",
+      "kind": "signature",
+      "fields": [
+        "primary=:AQIDBA==:",
+        "backup=:AAE=:;tag=\"binary\""
+      ],
+      "valid": true,
+      "canonical": "primary=:AQIDBA==:, backup=:AAE=:;tag=\"binary\""
+    },
+    {
+      "name": "accept signature boolean request",
+      "kind": "accept-signature",
+      "fields": [
+        "sig=(\"@method\" \"content-digest\");created;keyid=\"k\";alg=\"hmac-sha256\""
+      ],
+      "valid": true,
+      "canonical": "sig=(\"@method\" \"content-digest\");created;keyid=\"k\";alg=\"hmac-sha256\""
+    },
+    {
+      "name": "combined content digests",
+      "kind": "content-digest",
+      "fields": [
+        "sha-256=:AQID:",
+        "sha-512=:BAUG:"
+      ],
+      "valid": true,
+      "canonical": "sha-256=:AQID:, sha-512=:BAUG:"
+    },
+    {
+      "name": "digest preference weights",
+      "kind": "digest-preference",
+      "fields": [
+        "sha-512=10, sha-256=5"
+      ],
+      "valid": true,
+      "canonical": "sha-512=10, sha-256=5"
+    },
+    {
+      "name": "duplicate signature labels are rejected before sf replacement",
+      "kind": "signature-input",
+      "fields": [
+        "sig=(\"@method\"), sig=(\"@path\")"
+      ],
+      "valid": false,
+      "canonical": "",
+      "peer_valid": true,
+      "peer_canonical": "sig=(\"@path\")",
+      "divergence": "generic-sf-dictionary-replacement"
+    },
+    {
+      "name": "duplicate covered components are rejected semantically",
+      "kind": "signature-input",
+      "fields": [
+        "sig=(\"@method\" \"@method\")"
+      ],
+      "valid": false,
+      "canonical": "",
+      "peer_valid": true,
+      "peer_canonical": "sig=(\"@method\" \"@method\")",
+      "divergence": "rfc9421-component-uniqueness"
+    },
+    {
+      "name": "missing binary padding is canonicalized",
+      "kind": "signature",
+      "fields": [
+        "sig=:AQI:"
+      ],
+      "valid": true,
+      "canonical": "sig=:AQI=:"
+    },
+    {
+      "name": "rfc9530 rejects generic sf decimal preference",
+      "kind": "digest-preference",
+      "fields": [
+        "sha-512=1, sha-256=0.5"
+      ],
+      "valid": false,
+      "canonical": "",
+      "peer_valid": true,
+      "peer_canonical": "sha-512=1, sha-256=0.5",
+      "divergence": "rfc9530-integer-preference-policy"
+    },
+    {
+      "name": "binary with invalid alphabet is rejected",
+      "kind": "signature",
+      "fields": [
+        "sig=:A*:"
+      ],
+      "valid": false,
+      "canonical": ""
+    },
+    {
+      "name": "trailing dictionary comma is rejected",
+      "kind": "signature-input",
+      "fields": [
+        "sig=(\"@method\"),"
+      ],
+      "valid": false,
+      "canonical": ""
+    },
+    {
+      "name": "non ascii sf string is rejected",
+      "kind": "signature-input",
+      "fields": [
+        "sig=(\"@method\");keyid=\"caf\u00e9\""
+      ],
+      "valid": false,
+      "canonical": ""
+    },
+    {
+      "name": "invalid boolean is rejected",
+      "kind": "accept-signature",
+      "fields": [
+        "sig=(\"@method\");created=?2"
+      ],
+      "valid": false,
+      "canonical": ""
+    }
+  ],
+  "signature_bases": [
+    {
+      "name": "rfc request components and combined fields",
+      "method": "POST",
+      "target": "https://example.com/foo?param=Value&Pet=dog",
+      "body": "{\"hello\": \"world\"}",
+      "headers": {
+        "Date": ["Tue, 20 Apr 2021 02:07:55 GMT"],
+        "Content-Type": ["application/json"],
+        "Content-Digest": ["sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:"],
+        "Forwarded": ["for=192.0.2.123;host=example.com", "proto=https"]
+      },
+      "components": [
+        "date",
+        "@method",
+        "@path",
+        "@query",
+        "@authority",
+        "content-type",
+        "content-digest",
+        "forwarded"
+      ],
+      "signature_input": "sig=(\"date\" \"@method\" \"@path\" \"@query\" \"@authority\" \"content-type\" \"content-digest\" \"forwarded\");created=1618884473;keyid=\"differential-key\";alg=\"hmac-sha256\"",
+      "structured_fields": {},
+      "expected_base": "\"date\": Tue, 20 Apr 2021 02:07:55 GMT\n\"@method\": POST\n\"@path\": /foo\n\"@query\": ?param=Value&Pet=dog\n\"@authority\": example.com\n\"content-type\": application/json\n\"content-digest\": sha-512=:WZDPaVn/7XgHaAy8pmojAkGWoRx2UFChF41A2svX+TaPm+AbwAgBWnrIiYllu7BNNyealdVLvRwEmTHWXvJwew==:\n\"forwarded\": for=192.0.2.123;host=example.com, proto=https\n\"@signature-params\": (\"date\" \"@method\" \"@path\" \"@query\" \"@authority\" \"content-type\" \"content-digest\" \"forwarded\");created=1618884473;keyid=\"differential-key\";alg=\"hmac-sha256\""
+    },
+    {
+      "name": "query parameter structured dictionary and combined field",
+      "method": "GET",
+      "target": "https://example.net/search?Pet=small%20dog&empty=",
+      "headers": {
+        "X-Dictionary": ["a=1, b=2;x=1", "c=(a b c)"],
+        "X-Combined": ["first", "second"]
+      },
+      "components": [
+        "@method",
+        "@authority",
+        "@query-param;name=\"Pet\"",
+        "x-dictionary;sf",
+        "x-combined"
+      ],
+      "signature_input": "sig=(\"@method\" \"@authority\" \"@query-param\";name=\"Pet\" \"x-dictionary\";sf \"x-combined\");created=1618884473;keyid=\"differential-key\";alg=\"hmac-sha256\"",
+      "structured_fields": {
+        "x-dictionary": "dictionary"
+      },
+      "expected_base": "\"@method\": GET\n\"@authority\": example.net\n\"@query-param\";name=\"Pet\": small%20dog\n\"x-dictionary\";sf: a=1, b=2;x=1, c=(a b c)\n\"x-combined\": first, second\n\"@signature-params\": (\"@method\" \"@authority\" \"@query-param\";name=\"Pet\" \"x-dictionary\";sf \"x-combined\");created=1618884473;keyid=\"differential-key\";alg=\"hmac-sha256\""
+    },
+    {
+      "name": "target uri scheme authority and request target",
+      "method": "PUT",
+      "target": "http://api.example.test:8080/items/42?view=full",
+      "headers": {},
+      "components": [
+        "@method",
+        "@target-uri",
+        "@scheme",
+        "@authority",
+        "@request-target"
+      ],
+      "signature_input": "sig=(\"@method\" \"@target-uri\" \"@scheme\" \"@authority\" \"@request-target\");created=1618884473;keyid=\"differential-key\";alg=\"hmac-sha256\"",
+      "structured_fields": {},
+      "expected_base": "\"@method\": PUT\n\"@target-uri\": http://api.example.test:8080/items/42?view=full\n\"@scheme\": http\n\"@authority\": api.example.test:8080\n\"@request-target\": /items/42?view=full\n\"@signature-params\": (\"@method\" \"@target-uri\" \"@scheme\" \"@authority\" \"@request-target\");created=1618884473;keyid=\"differential-key\";alg=\"hmac-sha256\""
+    }
+  ]
+}

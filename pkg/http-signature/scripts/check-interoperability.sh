@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+module_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 scratch="$(mktemp -d)"
 cleanup() {
     chmod -R u+w "$scratch" 2>/dev/null || true
@@ -45,3 +46,5 @@ run_peer \
     https://github.com/dadrus/httpsig.git \
     0f24bf7dd9b76727af985d9a6f7ce87207a18387 \
     '^TestVerifierVerify$'
+
+"${module_root}/differential/shared-corpus/check.sh"

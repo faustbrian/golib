@@ -50,9 +50,13 @@ failures should remain indistinguishable where account enumeration is a risk.
 
 Streaming response signing has a distinct failure boundary: final signing can
 fail after bytes are emitted. `TrailerResponseSigningMiddleware` reports this
-through its required callback and leaves the declared trailers absent. Clients
-must wait for EOF and fail closed; servers must not claim that reporting can
-retract or authenticate already-emitted bytes.
+through its required callback and clears protected trailer values so the
+message remains incomplete. Buffered `ResponseSigningMiddleware` also requires
+a late `ReportError` callback: a short, invalid, or failed write after signed
+headers commit is reported once as `ErrBodyRead` without another write or
+status attempt. Clients must wait for complete authenticated content and fail
+closed; servers must not claim that reporting can retract or authenticate
+already-emitted bytes.
 
 ## Transformations
 
@@ -61,3 +65,21 @@ the selected components. Field combination, Structured Fields serialization,
 default-port removal, query escaping, content coding, trailer removal, and
 proxy target reconstruction can change observable inputs. Test the actual
 proxy and HTTP-version path used in production.
+
+The package derives deterministic transport-owned fields from `net/http`
+state, not stale `Header` aliases. It deliberately rejects inbound `Trailer`
+declaration coverage because Go discards its field-line order. Profiles must
+set an explicit User-Agent before covering it and must use an ASCII wire Host;
+the package does not guess Go's downstream default User-Agent or IDNA mapping.
+Use one semicolon-space-canonical Cookie field value, and use `bs` when
+covering multiple Set-Cookie field lines.
+
+Buffered response integrations never interpret bytes after a 101 or successful
+`CONNECT` as HTTP content. Signing rejects those responses before commitment;
+digest and trailer verification rejects and closes them before reading the
+upgraded connection or tunnel.
+
+RFC 9110 forbids server-generated content on 205 responses. Buffered response
+signing rejects handler body writes and authenticates empty content; streaming
+response signing rejects 205 before commitment because its mandatory trailers
+cannot be emitted on a bodyless response.

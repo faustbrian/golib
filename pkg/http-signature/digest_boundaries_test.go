@@ -169,7 +169,7 @@ func TestMemoryReplayStoreCancellationBoundaries(t *testing.T) {
 	t.Parallel()
 
 	now := time.Unix(1_700_000_000, 0)
-	store, err := NewMemoryReplayStore(MemoryReplayConfig{Capacity: 1, MaxTTL: time.Minute, Now: func() time.Time { return now }})
+	store, err := NewMemoryReplayStore(MemoryReplayConfig{Capacity: 1, MaxTTL: time.Minute, MaxKeyIDBytes: 64, MaxNonceBytes: 64, Now: func() time.Time { return now }})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -275,6 +275,7 @@ func TestResponseSigningMiddlewareBuffersAndSignsRelatedRequestComponents(t *tes
 		MapError: func(writer http.ResponseWriter, _ *http.Request, _ error) {
 			http.Error(writer, "response signing failed", http.StatusInternalServerError)
 		},
+		ReportError: func(*http.Request, error) {},
 	})
 	if err != nil {
 		t.Fatalf("NewResponseSigningMiddleware() error = %v", err)
@@ -342,6 +343,7 @@ func TestResponseSigningMiddlewareFailsClosedOnBufferLimit(t *testing.T) {
 			}
 			http.Error(writer, "too large", http.StatusInternalServerError)
 		},
+		ReportError: func(*http.Request, error) {},
 	})
 	if err != nil {
 		t.Fatalf("NewResponseSigningMiddleware() error = %v", err)
@@ -406,6 +408,7 @@ func TestResponseSigningMiddlewareComputesCoveredContentDigest(t *testing.T) {
 		MapError: func(writer http.ResponseWriter, _ *http.Request, _ error) {
 			http.Error(writer, "failed", http.StatusInternalServerError)
 		},
+		ReportError: func(*http.Request, error) {},
 	})
 	if err != nil {
 		t.Fatalf("NewResponseSigningMiddleware() error = %v", err)
@@ -451,6 +454,7 @@ func TestResponseSigningMiddlewareDigestsAndEmitsActualHEADContent(t *testing.T)
 		MapError: func(writer http.ResponseWriter, _ *http.Request, _ error) {
 			http.Error(writer, "failed", http.StatusInternalServerError)
 		},
+		ReportError: func(*http.Request, error) {},
 	})
 	if err != nil {
 		t.Fatalf("NewResponseSigningMiddleware() error = %v", err)
@@ -465,6 +469,89 @@ func TestResponseSigningMiddlewareDigestsAndEmitsActualHEADContent(t *testing.T)
 	digests, err := ParseDigestFields(recorder.Header().Values("Content-Digest"))
 	if err != nil || digests.Verify(nil, []DigestAlgorithm{SHA256}) != nil {
 		t.Fatalf("Content-Digest = %q, parse error = %v", recorder.Header().Get("Content-Digest"), err)
+	}
+}
+
+func TestResponseSigningMiddlewareTreatsResetContentAsBodyless(t *testing.T) {
+	t.Parallel()
+
+	now := time.Unix(1_700_000_000, 0)
+	key, _ := NewHMACKey([]byte("0123456789abcdef0123456789abcdef"))
+	profile, err := NewSigningProfile(SigningProfileConfig{
+		AllowedAlgorithms: []Algorithm{HMACSHA256},
+		CoveredComponents: []ComponentIdentifier{{Name: "@status"}, {Name: "content-digest"}},
+		Expires:           ParameterRequired, AlgorithmParameter: ParameterRequired, Nonce: ParameterForbidden, Tag: ParameterForbidden,
+		Lifetime: time.Minute, ResolveTimeout: time.Second, Now: func() time.Time { return now },
+		Provider: signingKeyProviderFunc(func(context.Context) (SigningKey, error) {
+			return SigningKey{KeyID: "key", Algorithm: HMACSHA256, Key: key, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(time.Hour)}, nil
+		}),
+	})
+	if err != nil {
+		t.Fatalf("NewSigningProfile() error = %v", err)
+	}
+	middleware, err := NewResponseSigningMiddleware(ResponseSigningMiddlewareConfig{
+		Signer: NewSigner(profile), Label: "res", Existing: ExistingSignaturesReject, MaxBufferedBytes: 16,
+		ContentDigestAlgorithms: []DigestAlgorithm{SHA256},
+		Options: func(context.Context, *http.Request, *http.Response) (SigningOptions, error) {
+			return SigningOptions{}, nil
+		},
+		MapError: func(writer http.ResponseWriter, _ *http.Request, _ error) {
+			http.Error(writer, "failed", http.StatusInternalServerError)
+		},
+		ReportError: func(*http.Request, error) {},
+	})
+	if err != nil {
+		t.Fatalf("NewResponseSigningMiddleware() error = %v", err)
+	}
+	var writeCount int
+	var writeErr error
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodGet, "https://example.com/data", nil)
+	middleware(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusResetContent)
+		writeCount, writeErr = writer.Write([]byte("must not escape"))
+	})).ServeHTTP(recorder, request)
+	if writeCount != 0 || !errors.Is(writeErr, http.ErrBodyNotAllowed) {
+		t.Fatalf("handler Write() = %d, %v, want 0, http.ErrBodyNotAllowed", writeCount, writeErr)
+	}
+	if recorder.Code != http.StatusResetContent || recorder.Body.Len() != 0 || recorder.Header().Get("Content-Length") != "" {
+		t.Fatalf("response = %d %q Content-Length=%q", recorder.Code, recorder.Body.String(), recorder.Header().Get("Content-Length"))
+	}
+	digests, err := ParseDigestFields(recorder.Header().Values("Content-Digest"))
+	if err != nil || digests.Verify(nil, []DigestAlgorithm{SHA256}) != nil {
+		t.Fatalf("Content-Digest = %q, parse error = %v", recorder.Header().Get("Content-Digest"), err)
+	}
+	inputs, err := ParseSignatureInputs(recorder.Header().Values("Signature-Input"))
+	if err != nil {
+		t.Fatalf("ParseSignatureInputs() error = %v", err)
+	}
+	signatures, err := ParseSignatures(recorder.Header().Values("Signature"))
+	if err != nil {
+		t.Fatalf("ParseSignatures() error = %v", err)
+	}
+	verificationProfile, err := NewVerificationProfile(VerificationProfileConfig{
+		AllowedAlgorithms:  []Algorithm{HMACSHA256},
+		RequiredComponents: []ComponentIdentifier{{Name: "@status"}, {Name: "content-digest"}},
+		Created:            ParameterRequired, Expires: ParameterRequired, AlgorithmParameter: ParameterRequired,
+		Nonce: ParameterForbidden, Tag: ParameterForbidden, MaxAge: time.Minute, ClockSkew: time.Second,
+		ResolveTimeout: time.Second, Now: func() time.Time { return now },
+		Resolver: resolverFunc(func(context.Context, string) (ResolvedKey, error) {
+			return ResolvedKey{Algorithm: HMACSHA256, Key: key, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(time.Hour), FreshUntil: now.Add(time.Minute)}, nil
+		}),
+	})
+	if err != nil {
+		t.Fatalf("NewVerificationProfile() error = %v", err)
+	}
+	response := recorder.Result()
+	defer func() {
+		if closeErr := response.Body.Close(); closeErr != nil {
+			t.Errorf("response body Close() error = %v", closeErr)
+		}
+	}()
+	if _, err := NewVerifier(verificationProfile).Verify(
+		context.Background(), MessageContext{Response: response, RelatedRequest: request}, "res", inputs, signatures,
+	); err != nil {
+		t.Fatalf("Verify(reset response) error = %v", err)
 	}
 }
 

@@ -3,6 +3,7 @@ module github.com/faustbrian/golib/pkg/http-signature/benchmarks/comparison
 go 1.26.5
 
 require (
+	github.com/dadrus/httpsig v0.9.1-0.20260717221208-0f24bf7dd9b7
 	github.com/faustbrian/golib/pkg/http-signature v0.0.0
 	github.com/yaronf/httpsign v0.5.3-0.20260728182352-de382d35c1ad
 )

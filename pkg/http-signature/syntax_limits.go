@@ -26,9 +26,9 @@ func DefaultSyntaxLimits() SyntaxLimits {
 	return SyntaxLimits{
 		MaxFieldBytes:             64 << 10,
 		MaxFieldLines:             32,
-		MaxDictionaryMembers:      32,
-		MaxComponentsPerSignature: 64,
-		MaxParametersPerItem:      16,
+		MaxDictionaryMembers:      1024,
+		MaxComponentsPerSignature: 256,
+		MaxParametersPerItem:      256,
 		MaxBinaryBytes:            16 << 10,
 	}
 }
@@ -51,11 +51,18 @@ func enforceRawSyntaxLimits(values []string, limits SyntaxLimits) error {
 		return ErrSyntaxLimit
 	}
 	remaining := limits.MaxFieldBytes
-	for _, value := range values {
+	for index, value := range values {
+		if index > 0 {
+			const combinedFieldSeparatorBytes = 2
+			if remaining < combinedFieldSeparatorBytes {
+				return ErrSyntaxLimit
+			}
+			remaining -= combinedFieldSeparatorBytes
+		}
 		if len(value) > remaining {
 			return ErrSyntaxLimit
 		}
-		remaining = remaining - len(value)
+		remaining -= len(value)
 	}
 	return nil
 }

@@ -50,9 +50,9 @@ func TestStructuredFieldOWSNormalizationBoundaries(t *testing.T) {
 		input string
 		want  string
 	}{
-		{"\tkey=1", " key=1"},
-		{" \tkey=1", "  key=1"},
-		{"key=1\t ", "key=1  "},
+		{"\tkey=1", "\tkey=1"},
+		{" \tkey=1", " \tkey=1"},
+		{"key=1\t ", "key=1\t "},
 		{"key=1\t, next=2", "key=1 , next=2"},
 		{"key=1\t  , next=2", "key=1   , next=2"},
 		{"a\tb", "a\tb"},
@@ -212,11 +212,11 @@ func TestDictionarySplittingAndOWSBoundaries(t *testing.T) {
 		t.Fatalf("invalid dictionaryMemberKey() = %q", key)
 	}
 	normalized := normalizeStructuredFieldOWS([]string{"\tkey=:AA==:\t,\tother=:AA==:\t", `key="tab\tinside"`})
-	if normalized[0] != " key=:AA==: , other=:AA==: " || normalized[1] != `key="tab\tinside"` {
+	if normalized[0] != "\tkey=:AA==: , other=:AA==:\t" || normalized[1] != `key="tab\tinside"` {
 		t.Fatalf("normalizeStructuredFieldOWS() = %#v", normalized)
 	}
 	spaced := normalizeStructuredFieldOWS([]string{" \t \tkey=:AA==:,\t \tother=:AA==:"})
-	if spaced[0] != "    key=:AA==:,   other=:AA==:" {
+	if spaced[0] != " \t \tkey=:AA==:,   other=:AA==:" {
 		t.Fatalf("spaced OWS = %q", spaced[0])
 	}
 }

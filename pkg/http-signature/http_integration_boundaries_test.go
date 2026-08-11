@@ -86,7 +86,8 @@ func TestHTTPAdapterConstructorsRejectEachIndependentField(t *testing.T) {
 		Options: func(context.Context, *http.Request, *http.Response) (SigningOptions, error) {
 			return SigningOptions{}, nil
 		},
-		MapError: func(http.ResponseWriter, *http.Request, error) {},
+		MapError:    func(http.ResponseWriter, *http.Request, error) {},
+		ReportError: func(*http.Request, error) {},
 	}
 	if _, err := NewResponseSigningMiddleware(responseBase); err != nil {
 		t.Fatalf("valid response middleware error = %v", err)
@@ -97,6 +98,7 @@ func TestHTTPAdapterConstructorsRejectEachIndependentField(t *testing.T) {
 		func(config *ResponseSigningMiddlewareConfig) { config.MaxBufferedBytes = 0 },
 		func(config *ResponseSigningMiddlewareConfig) { config.Options = nil },
 		func(config *ResponseSigningMiddlewareConfig) { config.MapError = nil },
+		func(config *ResponseSigningMiddlewareConfig) { config.ReportError = nil },
 		func(config *ResponseSigningMiddlewareConfig) { config.Existing = 0 },
 		func(config *ResponseSigningMiddlewareConfig) { config.Existing = ExistingSignaturesAppend + 1 },
 	} {
@@ -269,6 +271,33 @@ func TestBufferedResponseWriterExactStatusAndCapacityBoundaries(t *testing.T) {
 	}
 }
 
+func TestResponseProtocolTransitionBoundaries(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name   string
+		method string
+		status int
+		want   bool
+	}{
+		{name: "101 switch", method: http.MethodGet, status: http.StatusSwitchingProtocols, want: true},
+		{name: "CONNECT 199", method: http.MethodConnect, status: 199},
+		{name: "CONNECT 200", method: http.MethodConnect, status: 200, want: true},
+		{name: "CONNECT 299", method: http.MethodConnect, status: 299, want: true},
+		{name: "CONNECT 300", method: http.MethodConnect, status: 300},
+		{name: "ordinary 200", method: http.MethodGet, status: 200},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			request := &http.Request{Method: test.method}
+			response := &http.Response{StatusCode: test.status}
+			if got := responseTransitionsProtocol(request, response); got != test.want {
+				t.Fatalf("responseTransitionsProtocol(%s, %d) = %t, want %t", test.method, test.status, got, test.want)
+			}
+		})
+	}
+}
+
 func TestResponseSigningExistingFieldsFailBeforeOptions(t *testing.T) {
 	t.Parallel()
 
@@ -290,7 +319,8 @@ func TestResponseSigningExistingFieldsFailBeforeOptions(t *testing.T) {
 				calls++
 				return SigningOptions{}, nil
 			},
-			MapError: func(_ http.ResponseWriter, _ *http.Request, errorValue error) { mapped = errorValue },
+			MapError:    func(_ http.ResponseWriter, _ *http.Request, errorValue error) { mapped = errorValue },
+			ReportError: func(*http.Request, error) {},
 		})
 		if err != nil {
 			t.Fatal(err)
@@ -551,6 +581,7 @@ func TestResponseSigningMiddlewareRejectsEachBufferedBoundary(t *testing.T) {
 			Options: func(context.Context, *http.Request, *http.Response) (SigningOptions, error) {
 				return SigningOptions{}, nil
 			},
+			ReportError: func(*http.Request, error) {},
 		}
 	}
 	for _, test := range []struct {
@@ -625,10 +656,10 @@ func TestResponseSigningMiddlewareRejectsEachBufferedBoundary(t *testing.T) {
 		{},
 		{Signer: NewSigner(testResponseSigningProfile(t, now, key)), Label: "response", Existing: ExistingSignaturesReject, MaxBufferedBytes: 1, ContentDigestAlgorithms: []DigestAlgorithm{SHA256}, Options: func(context.Context, *http.Request, *http.Response) (SigningOptions, error) {
 			return SigningOptions{}, nil
-		}, MapError: func(http.ResponseWriter, *http.Request, error) {}},
+		}, MapError: func(http.ResponseWriter, *http.Request, error) {}, ReportError: func(*http.Request, error) {}},
 		{Signer: NewSigner(responseDigestSigningProfile(t, now, key)), Label: "response", Existing: ExistingSignaturesReject, MaxBufferedBytes: 1, ContentDigestAlgorithms: []DigestAlgorithm{"unsupported"}, Options: func(context.Context, *http.Request, *http.Response) (SigningOptions, error) {
 			return SigningOptions{}, nil
-		}, MapError: func(http.ResponseWriter, *http.Request, error) {}},
+		}, MapError: func(http.ResponseWriter, *http.Request, error) {}, ReportError: func(*http.Request, error) {}},
 	} {
 		if _, err := NewResponseSigningMiddleware(config); !errors.Is(err, ErrInvalidHTTPIntegration) {
 			t.Fatalf("invalid constructor error = %v for %#v", err, config.ContentDigestAlgorithms)
@@ -646,7 +677,8 @@ func TestResponseSigningMiddlewareAppendsExistingSignature(t *testing.T) {
 		Options: func(context.Context, *http.Request, *http.Response) (SigningOptions, error) {
 			return SigningOptions{}, nil
 		},
-		MapError: func(_ http.ResponseWriter, _ *http.Request, err error) { t.Fatalf("MapError() = %v", err) },
+		MapError:    func(_ http.ResponseWriter, _ *http.Request, err error) { t.Fatalf("MapError() = %v", err) },
+		ReportError: func(*http.Request, error) {},
 	})
 	if err != nil {
 		t.Fatal(err)

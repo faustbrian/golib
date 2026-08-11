@@ -49,18 +49,22 @@ type SigningKeyProvider interface {
 // are always included as required by this signing API. Other registered
 // parameters must be explicitly required or forbidden.
 type SigningProfileConfig struct {
-	AllowedAlgorithms             []Algorithm
-	CoveredComponents             []ComponentIdentifier
-	AllowEmptyCoverage            bool
-	Expires                       ParameterPolicy
-	AlgorithmParameter            ParameterPolicy
-	Nonce                         ParameterPolicy
-	Tag                           ParameterPolicy
-	TagValue                      string
-	Lifetime                      time.Duration
-	ResolveTimeout                time.Duration
-	Now                           func() time.Time
-	Provider                      SigningKeyProvider
+	AllowedAlgorithms  []Algorithm
+	CoveredComponents  []ComponentIdentifier
+	AllowEmptyCoverage bool
+	Expires            ParameterPolicy
+	AlgorithmParameter ParameterPolicy
+	Nonce              ParameterPolicy
+	Tag                ParameterPolicy
+	TagValue           string
+	Lifetime           time.Duration
+	ResolveTimeout     time.Duration
+	Now                func() time.Time
+	Provider           SigningKeyProvider
+	// Random is retained for source compatibility.
+	//
+	// Deprecated: Random is ignored. Randomized algorithms use Go-managed
+	// cryptographically secure randomness.
 	Random                        io.Reader
 	RequireExternalRequestContext bool
 }
@@ -79,7 +83,6 @@ type SigningProfile struct {
 	resolveTimeout         time.Duration
 	now                    func() time.Time
 	provider               SigningKeyProvider
-	random                 io.Reader
 	requireExternalRequest bool
 }
 
@@ -103,7 +106,6 @@ func NewSigningProfile(config SigningProfileConfig) (*SigningProfile, error) {
 	}
 
 	algorithms := make(map[Algorithm]struct{}, len(config.AllowedAlgorithms))
-	requiresRandom := false
 	for _, algorithm := range config.AllowedAlgorithms {
 		if !supportedAlgorithm(algorithm) {
 			return nil, ErrInvalidSigningProfile
@@ -112,13 +114,6 @@ func NewSigningProfile(config SigningProfileConfig) (*SigningProfile, error) {
 			return nil, ErrInvalidSigningProfile
 		}
 		algorithms[algorithm] = struct{}{}
-		switch algorithm {
-		case RSAPSSSHA512, ECDSAP256SHA256, ECDSAP384SHA384:
-			requiresRandom = true
-		}
-	}
-	if requiresRandom && config.Random == nil {
-		return nil, ErrInvalidSigningProfile
 	}
 
 	components := make([]ComponentIdentifier, len(config.CoveredComponents))
@@ -148,7 +143,6 @@ func NewSigningProfile(config SigningProfileConfig) (*SigningProfile, error) {
 		resolveTimeout:         config.ResolveTimeout,
 		now:                    config.Now,
 		provider:               config.Provider,
-		random:                 config.Random,
 		requireExternalRequest: config.RequireExternalRequestContext,
 	}, nil
 }
@@ -282,18 +276,25 @@ func (signer *Signer) Sign(ctx context.Context, message MessageContext, label st
 	if err != nil {
 		return SignedFields{}, ErrSigningBase
 	}
-	value, err := Sign(ctx, key.Algorithm, key.Key, []byte(base), signer.profile.random)
-	if err != nil {
-		if errors.Is(err, ErrIncompatibleKey) {
-			return SignedFields{}, ErrSigningKey
-		}
-		return SignedFields{}, ErrSigningCryptographic
+	value, err := Sign(ctx, key.Algorithm, key.Key, []byte(base), nil)
+	if mapped := mapSigningError(err); mapped != nil {
+		return SignedFields{}, mapped
 	}
 
 	return SignedFields{
 		input:     cloneSignatureInput(input),
 		signature: SignatureValue{Label: label, Value: append([]byte(nil), value...)},
 	}, nil
+}
+
+func mapSigningError(err error) error {
+	if err == nil {
+		return nil
+	}
+	if errors.Is(err, ErrIncompatibleKey) {
+		return ErrSigningKey
+	}
+	return ErrSigningCryptographic
 }
 
 func signingParameterPolicy(policy ParameterPolicy) bool {

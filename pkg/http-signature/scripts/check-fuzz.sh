@@ -7,6 +7,11 @@ targets=(
     FuzzParseSignatures
     FuzzParseDigestFields
     FuzzCreateSignatureBase
+    FuzzParseAcceptSignatures
+    FuzzParseDigestPreferences
+    FuzzStrictStructuredFieldsMultiline
+    FuzzExternalRequestTrailers
+    FuzzRawHTTPMessageFields
 )
 for target in "${targets[@]}"; do
     ./scripts/with-go-cache.sh env GOWORK=off go test -mod=readonly . \

@@ -9,19 +9,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Add an isolated equivalent request sign-and-verify benchmark against pinned
-  `yaronf/httpsign`, with separate correctness proof and documented policy-cost
+- Add an auditable RFC 8941, RFC 9421, and RFC 9530 specification decision
+  register with explicit compatibility and security consequences.
+- Add isolated equivalent request sign-and-verify benchmarks against pinned
+  `yaronf/httpsign` and `dadrus/httpsig`, with separate correctness proof,
+  repeated samples, environment capture, and documented policy-cost
   differences.
 - Convert Structured Fields dependency panics on hostile extension syntax into
   typed parse failures across signature, digest, and canonicalization entry
   points.
+- Combine multiple Structured Field lines with the RFC-mandated comma and space
+  before parsing, reject leading horizontal tabs outside RFC 8941
+  optional-whitespace positions, and retain the required fractional zero when
+  canonicalizing integral Decimal values.
 - Add isolated compatibility `RoundTripper` and verification middleware seams
   for Cavage drafts, AWS SigV4, OAuth 1.0, and explicitly named vendor schemes;
-  these seams never expand RFC 9421 parser acceptance.
-- Add streaming response digest/signature trailers and bounded client-side
-  verification that waits for EOF before releasing response content.
+  outbound callbacks cannot replace request identity or RFC 9421 signature
+  fields, and inbound callback mutations cannot reach later RFC verification.
+- Add streaming response digest/signature trailers with canonical application
+  declarations, bounded authenticated late-trailer support, fail-closed
+  protocol constraints, and client-side verification that waits for EOF before
+  releasing response content.
+- Make buffered response signing inherit outer ordinary headers with normal
+  handler replacement semantics and reject handler-managed transfer or trailer
+  framing, protocol switching, and successful `CONNECT` before signing.
 - Fail streaming adapters on zero-progress body readers and reject protocol
   switching where digest/signature trailers cannot complete.
+- Preserve application trailer values populated at EOF across buffered request
+  digest generation and verification without losing caller-declared framing.
+- Prevent streaming request downgrade by forcing supported HTTP/1 attempts to
+  chunk even empty bodies, preserving and authenticating only predeclared EOF
+  trailers, rejecting early responses and `CONNECT`, and refusing profiles that
+  cover transport-dependent connection or framing fields.
+- Clear handler-injected protected response trailers on every late streaming
+  failure, omit mutable TLS state from verification callback snapshots, and
+  report signed buffered-response short, invalid, or failed writes once through
+  a redacted late diagnostic path.
 - Add deterministic RFC 9530 SHA-256 and SHA-512 integrity-field generation,
   strict byte-sequence parsing, immutable ordered values, and policy-selected
   constant-time verification.
@@ -29,6 +52,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   strict integer weights, duplicate rejection, and unknown-algorithm retention.
 - Add explicit and default-bounded parser resource limits across signature,
   digest, and negotiation fields.
+- Bound complete signature-base canonicalization by default and permit a
+  stricter per-message ceiling.
+- Bind transport-owned Host, content-length, transfer-encoding, trailer, and
+  connection components to deterministic `net/http` wire state, including
+  method- and status-sensitive zero-length request and response emission,
+  exact transfer-coding spelling and order, and response body-probe ambiguity,
+  with an explicit received-versus-`Response.Write` transport mode that rejects
+  ambiguous zero-value contexts, unavailable inbound trailer identity, and
+  stale outbound header aliases.
+- Reject noncanonical or multi-line Cookie coverage and require binary wrapping
+  for multiple Set-Cookie field lines to prevent transformation collisions.
 - Add strict ordered parsing for `Signature-Input` and `Signature`, rejecting
   duplicate labels, wrong Structured Fields member types, duplicate covered
   component identifiers, and RFC 9651-only values outside RFC 8941.
@@ -40,8 +74,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   header and trailer selection, field combination, explicit external request
   context, request-response component binding, and Structured Fields modes.
 - Add all active IANA signature algorithms with exact RFC encodings, strict key
-  compatibility, caller-owned randomness, cancellation, and secret-safe typed
-  verification failures.
+  compatibility, Go-managed cryptographically secure RSA-PSS and ECDSA
+  randomness, cancellation, and secret-safe typed verification failures;
+  retain the former caller-random inputs as ignored compatibility parameters so
+  weak or blocking readers cannot affect signing.
 - Add explicit verification profiles with mandatory coverage, parameter,
   algorithm, time, tag, key-resolution, cache-freshness, and nonce policy.
 - Reject zero-length verification-key validity windows even when configured
@@ -65,9 +101,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   middleware adapters with caller-owned label selection, trusted external
   request context, failure mapping, existing-field policy, and body ownership.
 - Add bounded fail-closed response-signing middleware and a response-verifying
-  round-tripper with request-response binding and untouched response bodies.
-- Match `net/http` body suppression for `HEAD` and bodyless status codes when
-  signing responses, including digesting only content actually emitted.
+  round-tripper with request-response binding, authenticated digest coverage,
+  callback isolation, transparent-decompression rejection, and replayable
+  verified bodies; buffered digest and trailer paths reject 101 and successful
+  `CONNECT` before reading opaque protocol or tunnel bytes.
+- Match body suppression for `HEAD`, 204, 205, and 304 when signing responses,
+  including rejecting RFC-forbidden 205 handler content and digesting only
+  content actually emitted.
 - Add explicit bounded Content-Digest round-tripper and verification
   middleware with caller-body closure, replayable clones, and no partial
   delegation after size or digest failure.
@@ -83,3 +123,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   replay adapter contract with fail-closed capacity and backend semantics.
 - Pin the RFC texts, errata records, and relevant IANA registries with explicit
   decisions for every currently listed erratum.
+
+### Changed
+
+- **Breaking:** `ResponseSigningMiddlewareConfig.ReportError` is now required.
+  Callers must provide a concurrency-safe callback that records redacted late
+  output failures; `MapError` remains responsible only for failures that can be
+  mapped before response commitment.

@@ -18,8 +18,9 @@ validation outside that dependency boundary is not recovered.
 ## Cryptography and timing
 
 - RSA-PSS, RSA PKCS #1 v1.5, ECDSA, and Ed25519 use Go standard-library
-  implementations and their randomness requirements. The package performs no
-  private-key arithmetic.
+  implementations. RSA-PSS and ECDSA use Go-managed cryptographically secure
+  randomness and never consume caller-configured readers. The package performs
+  no custom private-key arithmetic.
 - ECDSA keys are re-encoded and parsed through the current safe standard-library
   APIs before use. Malformed caller-built keys fail without exposing deprecated
   affine-coordinate operations or panics.
@@ -40,10 +41,22 @@ The core starts no goroutines. `goleak.VerifyTestMain` covers both production
 packages. `make stress` repeatedly races atomic nonce consumption and
 cancellation; `make soak` repeats deterministic signing, verification, and
 expiry transitions; `make fault` selects injected reader, resolver, replay,
-randomness, callback, body-limit, trailer, and transport failures. `make race`
-retains the complete race-detector gate. Parser limits, body limits, replay
-capacity and TTL, resolver deadlines, validity intervals, and cache freshness
-are all mandatory configuration rather than hidden defaults.
+callback, body-limit, trailer, and transport failures. `make
+lifecycle` runs shared-verifier rotation, revocation, cache-refresh race,
+resolver outage, replay unknown-commit, cancellation, and shutdown scenarios
+under the race detector. `make race` retains the complete race-detector gate.
+Parser limits, body limits, replay capacity and TTL, resolver and replay
+deadlines, validity intervals, and cache freshness are all mandatory
+configuration rather than hidden defaults.
+
+`VerificationProfile` values are immutable after construction and can be
+shared. Caller-owned clocks, resolvers, replay stores, and resolved key objects
+must also be safe for concurrent use. Resolver caches must publish complete
+immutable key snapshots, set a bounded `FreshUntil`, surface revocation rather
+than serving a cached success, and return an error for an unknown refresh
+outcome. Cancellation of the caller context is the package shutdown boundary;
+resolver and replay implementations must stop promptly when that context is
+done.
 
 ## Golib composition boundaries
 

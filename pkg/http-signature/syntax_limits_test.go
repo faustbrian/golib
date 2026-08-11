@@ -64,8 +64,12 @@ func TestExplicitSyntaxLimitsRejectBeforeStructuredParsing(t *testing.T) {
 func TestDefaultSyntaxLimitsAreValidAndBounded(t *testing.T) {
 	t.Parallel()
 
-	if err := DefaultSyntaxLimits().Validate(); err != nil {
+	limits := DefaultSyntaxLimits()
+	if err := limits.Validate(); err != nil {
 		t.Fatalf("DefaultSyntaxLimits.Validate() error = %v", err)
+	}
+	if limits.MaxDictionaryMembers < 1024 || limits.MaxComponentsPerSignature < 256 || limits.MaxParametersPerItem < 256 {
+		t.Fatalf("default Structured Fields cardinalities are below RFC 8941 minima: %#v", limits)
 	}
 	if _, err := ParseSignatureInputsWithLimits([]string{`sig=("@method")`}, SyntaxLimits{}); !errors.Is(err, ErrInvalidSyntaxLimits) {
 		t.Fatalf("zero limits error = %v", err)
@@ -122,7 +126,7 @@ func TestRawSyntaxLimitsAcceptExactLimitsAndRejectTheirNeighbors(t *testing.T) {
 	t.Parallel()
 
 	limits := SyntaxLimits{
-		MaxFieldBytes:             2,
+		MaxFieldBytes:             4,
 		MaxFieldLines:             2,
 		MaxDictionaryMembers:      1,
 		MaxComponentsPerSignature: 1,
@@ -132,10 +136,41 @@ func TestRawSyntaxLimitsAcceptExactLimitsAndRejectTheirNeighbors(t *testing.T) {
 	if err := enforceRawSyntaxLimits([]string{"a", "b"}, limits); err != nil {
 		t.Fatalf("exact limits error = %v", err)
 	}
-	for _, values := range [][]string{nil, {}, {"a", "b", "c"}, {"abc"}, {"ab", "a"}} {
+	for _, values := range [][]string{nil, {}, {"a", "b", "c"}, {"abcde"}, {"abcd", "a"}} {
 		if err := enforceRawSyntaxLimits(values, limits); !errors.Is(err, ErrSyntaxLimit) {
 			t.Fatalf("enforceRawSyntaxLimits(%q) error = %v, want ErrSyntaxLimit", values, err)
 		}
+	}
+}
+
+func TestRawSyntaxLimitsCountCombinedFieldSeparators(t *testing.T) {
+	t.Parallel()
+
+	limits := SyntaxLimits{
+		MaxFieldBytes:             7,
+		MaxFieldLines:             8,
+		MaxDictionaryMembers:      2,
+		MaxComponentsPerSignature: 1,
+		MaxParametersPerItem:      1,
+		MaxBinaryBytes:            1,
+	}
+	if _, err := ParseDigestPreferencesWithLimits([]string{"x=1", "y=1"}, limits); !errors.Is(err, ErrSyntaxLimit) {
+		t.Fatalf("combined field error = %v, want ErrSyntaxLimit", err)
+	}
+
+	limits.MaxFieldBytes = 4
+	if err := enforceRawSyntaxLimits([]string{"a", "b"}, limits); err != nil {
+		t.Fatalf("exact combined field error = %v", err)
+	}
+
+	emptyLines := make([]string, limits.MaxFieldLines)
+	limits.MaxFieldBytes = 2 * (len(emptyLines) - 1)
+	if err := enforceRawSyntaxLimits(emptyLines, limits); err != nil {
+		t.Fatalf("exact empty-line separators error = %v", err)
+	}
+	limits.MaxFieldBytes--
+	if err := enforceRawSyntaxLimits(emptyLines, limits); !errors.Is(err, ErrSyntaxLimit) {
+		t.Fatalf("oversized empty-line separators error = %v, want ErrSyntaxLimit", err)
 	}
 }
 

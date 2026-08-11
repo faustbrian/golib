@@ -1,6 +1,7 @@
 package httpsignature
 
 import (
+	"bytes"
 	"cmp"
 	"errors"
 	"fmt"
@@ -86,7 +87,7 @@ func (inputs SignatureInputs) String() string {
 		dictionary.Add(entry.Label, httpsfv.InnerList{Items: items, Params: parameters})
 	}
 
-	value, err := httpsfv.Marshal(dictionary)
+	value, err := marshalRFC8941(dictionary)
 	if err != nil {
 		panic(fmt.Errorf("serialize validated Signature-Input: %w", err))
 	}
@@ -262,7 +263,7 @@ func (signatures Signatures) String() string {
 		dictionary.Add(entry.Label, item)
 	}
 
-	value, err := httpsfv.Marshal(dictionary)
+	value, err := marshalRFC8941(dictionary)
 	if err != nil {
 		panic(fmt.Errorf("serialize validated Signature: %w", err))
 	}
@@ -610,15 +611,9 @@ func normalizeStructuredFieldOWS(values []string) []string {
 			if character != '\t' {
 				continue
 			}
-			previous := index - 1
-			for previous >= 0 && (buffer[previous] == ' ' || buffer[previous] == '\t') {
-				previous--
-			}
-			next := index + 1
-			for next < len(buffer) && (buffer[next] == ' ' || buffer[next] == '\t') {
-				next++
-			}
-			if previous < 0 || buffer[previous] == ',' || next == len(buffer) || buffer[next] == ',' {
+			before := bytes.TrimRight(buffer[:index], " \t")
+			after := bytes.TrimLeft(buffer[index+1:], " \t")
+			if bytes.HasSuffix(before, []byte{','}) || bytes.HasPrefix(after, []byte{','}) {
 				buffer[index] = ' '
 			}
 		}

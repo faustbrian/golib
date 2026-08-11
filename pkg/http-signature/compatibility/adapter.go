@@ -7,6 +7,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 )
 
 // Protocol identifies a compatibility protocol that is deliberately separate
@@ -46,7 +47,11 @@ var (
 type ErrorReporter func(context.Context, Protocol, Operation, error)
 
 // SigningRoundTripperConfig configures an outbound compatibility adapter.
-// Sign may modify request headers but must not read, close, or replace Body.
+// Sign receives an isolated request view. Protocol-specific header and trailer
+// mutations are delegated, except Signature-Input, Signature, and
+// Accept-Signature. Request identity mutations are discarded, and Body cannot
+// be read or closed through the view. Body-derived form state, TLS, and redirect
+// Response graphs are omitted because net/http clones can retain aliases.
 type SigningRoundTripperConfig struct {
 	Transport   http.RoundTripper
 	Sign        func(context.Context, *http.Request) error
@@ -112,17 +117,24 @@ func (adapter *SigningRoundTripper) RoundTrip(request *http.Request) (*http.Resp
 	if request == nil || adapter.transport == nil {
 		return nil, ErrInvalidAdapter
 	}
-	clone := request.Clone(request.Context())
-	if err := adapter.sign(clone.Context(), clone); err != nil {
-		adapter.report(clone.Context(), adapter.protocol, OperationSign, err)
+	delegated := request.Clone(request.Context())
+	callbackRequest := isolatedCallbackRequest(delegated)
+	if err := adapter.sign(callbackRequest.Context(), callbackRequest); err != nil {
+		closeRequestBody(request)
+		adapter.report(callbackRequest.Context(), adapter.protocol, OperationSign, err)
 		return nil, ErrSigning
 	}
-	return adapter.transport.RoundTrip(clone)
+	delegated.Header = compatibleSigningFields(callbackRequest.Header, delegated.Header)
+	delegated.Trailer = compatibleSigningFields(callbackRequest.Trailer, delegated.Trailer)
+	return adapter.transport.RoundTrip(delegated)
 }
 
 // VerificationMiddlewareConfig configures an inbound compatibility adapter.
-// Verify must not consume or replace the request body. Reject receives only a
-// sanitized error; ReportError is the separate application diagnostic seam.
+// Verify receives an isolated request view whose mutations cannot reach later
+// middleware. It communicates verification only through its returned error.
+// Body, body-derived form state, TLS, and redirect Response graphs are omitted
+// from the view. Reject receives only a sanitized error; ReportError is the
+// separate application diagnostic seam.
 type VerificationMiddlewareConfig struct {
 	Verify      func(context.Context, *http.Request) error
 	ReportError ErrorReporter
@@ -168,7 +180,8 @@ func newVerificationMiddleware(protocol Protocol, config VerificationMiddlewareC
 				http.Error(writer, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 				return
 			}
-			if err := config.Verify(request.Context(), request); err != nil {
+			callbackRequest := isolatedCallbackRequest(request)
+			if err := config.Verify(callbackRequest.Context(), callbackRequest); err != nil {
 				config.ReportError(request.Context(), protocol, OperationVerify, err)
 				config.Reject(writer, request, ErrVerification)
 				return
@@ -176,6 +189,72 @@ func newVerificationMiddleware(protocol Protocol, config VerificationMiddlewareC
 			next.ServeHTTP(writer, request)
 		})
 	}, nil
+}
+
+var errCallbackBodyAccess = errors.New("http signature compatibility: callback body access is forbidden")
+
+type isolatedBody struct{}
+
+func (isolatedBody) Read([]byte) (int, error) {
+	return 0, errCallbackBodyAccess
+}
+
+func (isolatedBody) Close() error {
+	return nil
+}
+
+func isolatedCallbackRequest(request *http.Request) *http.Request {
+	clone := request.Clone(request.Context())
+	clone.GetBody = nil
+	clone.Form = nil
+	clone.PostForm = nil
+	clone.MultipartForm = nil
+	clone.TLS = nil
+	clone.Response = nil
+	if clone.Body != nil {
+		clone.Body = isolatedBody{}
+	}
+	return clone
+}
+
+func closeRequestBody(request *http.Request) {
+	if request.Body != nil {
+		_ = request.Body.Close()
+	}
+}
+
+func compatibleSigningFields(callback, original http.Header) http.Header {
+	fields := callback.Clone()
+	for name := range fields {
+		if isRFC9421Field(name) {
+			delete(fields, name)
+		}
+	}
+	for name, values := range original {
+		if !isRFC9421Field(name) {
+			continue
+		}
+		if fields == nil {
+			fields = make(http.Header)
+		}
+		fields[name] = cloneStrings(values)
+	}
+	return fields
+}
+
+func isRFC9421Field(name string) bool {
+	return strings.EqualFold(name, "Signature-Input") ||
+		strings.EqualFold(name, "Signature") ||
+		strings.EqualFold(name, "Accept-Signature")
+}
+
+func cloneStrings(values []string) []string {
+	if values == nil {
+		return nil
+	}
+	clone := make([]string, len(values))
+	copy(clone, values)
+	return clone
 }
 
 func vendorProtocol(name string) (Protocol, bool) {

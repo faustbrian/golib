@@ -4,18 +4,31 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math"
 	"net"
 	"net/http"
 	"net/url"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/dunglas/httpsfv"
 )
 
-// ErrSignatureBase reports that a covered component cannot be resolved safely.
-var ErrSignatureBase = errors.New("http signature: cannot create signature base")
+var (
+	// ErrSignatureBase reports that a covered component cannot be resolved safely.
+	ErrSignatureBase = errors.New("http signature: cannot create signature base")
+	// ErrSignatureBaseLimit reports that canonicalization exceeded its explicit
+	// output bound. It wraps ErrSignatureBase so existing classification remains
+	// fail closed.
+	ErrSignatureBaseLimit = fmt.Errorf("%w: resource limit exceeded", ErrSignatureBase)
+)
+
+// DefaultMaxSignatureBaseBytes is the bounded default for direct callers that
+// do not select a stricter per-message limit.
+const DefaultMaxSignatureBaseBytes = 1 << 20
 
 var obsoleteLineFolding = regexp.MustCompile(`\r\n[ \t]+`)
 
@@ -41,15 +54,34 @@ type ExternalRequestContext struct {
 	RequestTarget string
 }
 
+// ResponseTransportMode selects the net/http response representation whose
+// transport-managed fields are covered by a signature.
+type ResponseTransportMode uint8
+
+const (
+	// ResponseTransportUnspecified accepts a managed response field only when
+	// the received and Response.Write representations are provably identical.
+	ResponseTransportUnspecified ResponseTransportMode = iota
+	// ResponseTransportReceived covers a response parsed by net/http or returned
+	// by a RoundTripper. Preserved Header values carry received field identity.
+	ResponseTransportReceived
+	// ResponseTransportWrite covers the deterministic output of Response.Write.
+	ResponseTransportWrite
+)
+
 // MessageContext supplies the target message and optional related request.
 // Exactly one of Request and Response must be set. RelatedRequest is required
 // when a response signature covers a component carrying the req parameter.
 type MessageContext struct {
-	Request          *http.Request
-	Response         *http.Response
-	RelatedRequest   *http.Request
-	ExternalRequest  *ExternalRequestContext
-	StructuredFields map[string]StructuredFieldType
+	Request           *http.Request
+	Response          *http.Response
+	RelatedRequest    *http.Request
+	ExternalRequest   *ExternalRequestContext
+	StructuredFields  map[string]StructuredFieldType
+	ResponseTransport ResponseTransportMode
+	// MaxSignatureBaseBytes bounds the complete canonical base. Zero selects
+	// DefaultMaxSignatureBaseBytes; negative values are invalid.
+	MaxSignatureBaseBytes int
 }
 
 // CreateSignatureBase resolves the ordered covered components and produces the
@@ -58,9 +90,23 @@ func CreateSignatureBase(context MessageContext, input SignatureInput) (string, 
 	if (context.Request == nil) == (context.Response == nil) {
 		return "", fmt.Errorf("%w: exactly one target message is required", ErrSignatureBase)
 	}
+	if context.ResponseTransport > ResponseTransportWrite || context.Request != nil && context.ResponseTransport != ResponseTransportUnspecified {
+		return "", fmt.Errorf("%w: invalid response transport mode", ErrSignatureBase)
+	}
+	limit := context.MaxSignatureBaseBytes
+	if limit == 0 {
+		limit = DefaultMaxSignatureBaseBytes
+	}
+	if uint(limit) > uint(math.MaxInt) {
+		return "", ErrSignatureBaseLimit
+	}
 	var builder strings.Builder
-	seen := make(map[string]struct{}, len(input.Components))
+	remaining := limit
+	seen := make(map[string]struct{})
 	for _, component := range input.Components {
+		if !structuredItemFits(component.Name, component.Parameters, remaining) {
+			return "", ErrSignatureBaseLimit
+		}
 		identifier, err := serializeComponentIdentifier(component)
 		if err != nil {
 			return "", fmt.Errorf("%w: invalid component identifier", ErrSignatureBase)
@@ -71,32 +117,55 @@ func CreateSignatureBase(context MessageContext, input SignatureInput) (string, 
 		}
 		seen[comparisonKey] = struct{}{}
 
-		value, err := resolveComponent(context, component)
+		fixedBytes := saturatingSizeAdd(len(identifier), len(": ")+len("\n"))
+		if !consumeSize(&remaining, fixedBytes) {
+			return "", ErrSignatureBaseLimit
+		}
+		value, err := resolveComponent(context, component, remaining)
 		if err != nil {
+			if errors.Is(err, ErrSignatureBaseLimit) {
+				return "", ErrSignatureBaseLimit
+			}
 			return "", fmt.Errorf("%w: %v", ErrSignatureBase, err)
 		}
-		if strings.HasPrefix(component.Name, "@") && !validDerivedValue(value) ||
-			!strings.HasPrefix(component.Name, "@") && !validFieldBaseValue(value) {
-			return "", fmt.Errorf("%w: component contains prohibited bytes", ErrSignatureBase)
+		switch component.Name[0] {
+		case '@':
+			switch component.Name {
+			case "@query-param":
+			default:
+				if !validDerivedValue(value) {
+					return "", fmt.Errorf("%w: component contains prohibited bytes", ErrSignatureBase)
+				}
+			}
+		default:
 		}
+		// Every resolver receives this remaining budget and returns either a value
+		// within it or ErrSignatureBaseLimit, so subtraction cannot underflow.
+		remaining -= len(value)
 
+		// The identifier framing and resolved value were bounded against the
+		// remaining builder capacity above, so these writes cannot cross limit.
 		builder.WriteString(identifier)
 		builder.WriteString(": ")
 		builder.WriteString(value)
 		builder.WriteByte('\n')
 	}
 
+	parameterPrefix := `"@signature-params": `
+	if !consumeSize(&remaining, len(parameterPrefix)) || !signatureParametersFit(input, remaining) {
+		return "", ErrSignatureBaseLimit
+	}
 	parameters, err := serializeSignatureParameters(input)
 	if err != nil {
 		return "", fmt.Errorf("%w: invalid signature parameters", ErrSignatureBase)
 	}
-	builder.WriteString(`"@signature-params": `)
+	builder.WriteString(parameterPrefix)
 	builder.WriteString(parameters)
 
 	return builder.String(), nil
 }
 
-func resolveComponent(context MessageContext, component ComponentIdentifier) (string, error) {
+func resolveComponent(context MessageContext, component ComponentIdentifier, maxBytes int) (string, error) {
 	if component.Name == "@signature-params" {
 		return "", errors.New("@signature-params cannot be covered explicitly")
 	}
@@ -107,10 +176,10 @@ func resolveComponent(context MessageContext, component ComponentIdentifier) (st
 	}
 
 	if strings.HasPrefix(component.Name, "@") {
-		return resolveDerived(context, component.Name, parameters)
+		return resolveDerived(context, component.Name, parameters, maxBytes)
 	}
 
-	return resolveField(context, component.Name, parameters)
+	return resolveField(context, component.Name, parameters, maxBytes)
 }
 
 type componentParameters struct {
@@ -167,7 +236,7 @@ func componentParameterSet(parameters []Parameter) (componentParameters, error) 
 	return result, nil
 }
 
-func resolveDerived(context MessageContext, name string, parameters componentParameters) (string, error) {
+func resolveDerived(context MessageContext, name string, parameters componentParameters, maxBytes int) (string, error) {
 	if parameters.bs || parameters.sf || parameters.tr || parameters.hasKey {
 		return "", errors.New("field parameter used on derived component")
 	}
@@ -182,32 +251,48 @@ func resolveDerived(context MessageContext, name string, parameters componentPar
 
 	switch name {
 	case "@method":
+		if len(request.Method) > maxBytes {
+			return "", ErrSignatureBaseLimit
+		}
+		if !validHTTPToken(request.Method) {
+			return "", errors.New("request method is invalid")
+		}
 		return request.Method, nil
 	case "@target-uri", "@authority", "@scheme", "@request-target", "@path", "@query", "@query-param":
+		if !derivedSourceFits(request, externalForRequest(context, request), name, maxBytes) {
+			return "", ErrSignatureBaseLimit
+		}
 		parts, partsErr := requestParts(request, externalForRequest(context, request))
 		if partsErr != nil {
 			return "", partsErr
 		}
-		values := map[string]string{
-			"@target-uri":     parts.scheme + "://" + parts.authority + parts.originTarget,
-			"@authority":      parts.authority,
-			"@scheme":         parts.scheme,
-			"@request-target": parts.requestTarget,
-			"@path":           parts.path,
-			"@query":          "?" + parts.rawQuery,
-		}
 		if name != "@query-param" {
-			return values[name], nil
+			var value string
+			switch name {
+			case "@target-uri":
+				value = parts.scheme + "://" + parts.authority + parts.originTarget
+			case "@authority":
+				value = parts.authority
+			case "@scheme":
+				value = parts.scheme
+			case "@request-target":
+				value = parts.requestTarget
+			case "@path":
+				value = parts.path
+			case "@query":
+				value = "?" + parts.rawQuery
+			}
+			return value, nil
 		}
 		if !parameters.hasName {
 			return "", errors.New("@query-param requires name")
 		}
-		return queryParameter(parts.rawQuery, parameters.name)
+		return queryParameter(parts.rawQuery, parameters.name, maxBytes)
 	case "@status":
 		if parameters.req || parameters.hasName {
 			return "", errors.New("@status has invalid parameters")
 		}
-		if context.Response == nil || context.Response.StatusCode < 100 || context.Response.StatusCode > 999 {
+		if context.Response == nil || context.Response.StatusCode < 100 || context.Response.StatusCode > 599 {
 			return "", errors.New("@status requires a valid response")
 		}
 		return strconv.Itoa(context.Response.StatusCode), nil
@@ -217,26 +302,51 @@ func resolveDerived(context MessageContext, name string, parameters componentPar
 
 }
 
-func resolveField(context MessageContext, name string, parameters componentParameters) (string, error) {
+func resolveField(context MessageContext, name string, parameters componentParameters, maxBytes int) (string, error) {
 	if parameters.hasName {
 		return "", errors.New("name parameter used on field")
 	}
 
-	header, err := headerForComponent(context, parameters.req, parameters.tr)
-	if err != nil {
-		return "", err
+	requestOwned := !parameters.tr && (parameters.req || context.Request != nil)
+	values, handled, valuesErr := managedFieldValues(context, name, parameters, requestOwned)
+	if valuesErr != nil {
+		return "", valuesErr
 	}
-	values := header.Values(name)
-	if len(values) == 0 && strings.EqualFold(name, "host") && !parameters.tr {
-		request, requestErr := requestForComponent(context, parameters.req)
-		if requestErr == nil {
-			if request.Host != "" {
-				values = []string{request.Host}
-			}
+	if !handled {
+		header, _ := headerForComponent(context, parameters.req, parameters.tr)
+		values, valuesErr = caseInsensitiveHeaderValues(header, name)
+		if valuesErr != nil {
+			return "", valuesErr
 		}
 	}
 	if len(values) == 0 {
 		return "", errors.New("covered field is absent")
+	}
+	if !parameters.bs && strings.EqualFold(name, "set-cookie") && len(values) != 1 {
+		return "", errors.New("multiple Set-Cookie fields require binary wrapping")
+	}
+	if requestOwned && strings.EqualFold(name, "cookie") && !parameters.bs {
+		if len(values) != 1 {
+			return "", errors.New("cookie coverage requires one canonical field value")
+		}
+		normalizedCookie, normalizeErr := normalizeFieldValue(values[0])
+		if normalizeErr != nil {
+			return "", normalizeErr
+		}
+		canonicalCookie, validCookie := canonicalCookieValue(normalizedCookie)
+		if !validCookie || canonicalCookie != normalizedCookie {
+			return "", errors.New("cookie coverage requires canonical semicolon spacing")
+		}
+	}
+	if !fieldValuesFit(values, parameters.bs, maxBytes) {
+		return "", ErrSignatureBaseLimit
+	}
+	if componentHTTPMajor(context, parameters.req) != 1 {
+		for _, value := range values {
+			if strings.ContainsAny(value, "\r\n") {
+				return "", errors.New("field value contains HTTP/1.1-only line folding")
+			}
+		}
 	}
 
 	if parameters.bs {
@@ -281,6 +391,475 @@ func resolveField(context MessageContext, name string, parameters componentParam
 	}
 
 	return strings.Join(normalized, ", "), nil
+}
+
+func managedFieldValues(context MessageContext, name string, parameters componentParameters, requestOwned bool) ([]string, bool, error) {
+	if requestOwned && strings.EqualFold(name, "host") {
+		request, requestErr := requestForComponent(context, parameters.req)
+		if requestErr != nil {
+			return nil, true, requestErr
+		}
+		host := request.Host
+		if host == "" && request.URL != nil {
+			host = request.URL.Host
+		}
+		host = removeIPv6Zone(host)
+		if host == "" {
+			return nil, true, nil
+		}
+		if !validNetHTTPHostHeader(host) {
+			return nil, true, errors.New("request Host is not representable on the net/http wire")
+		}
+		return []string{host}, true, nil
+	}
+	if requestOwned && strings.EqualFold(name, "content-length") {
+		request, requestErr := requestForComponent(context, parameters.req)
+		if requestErr != nil {
+			return nil, true, requestErr
+		}
+		if contentLength, ok := requestContentLength(request); ok {
+			return []string{strconv.FormatInt(contentLength, 10)}, true, nil
+		}
+		return nil, true, nil
+	}
+	if requestOwned {
+		request, requestErr := requestForComponent(context, parameters.req)
+		if requestErr != nil {
+			return nil, true, requestErr
+		}
+		values, handled, managedErr := requestTransportFieldValues(request, name)
+		if handled || managedErr != nil {
+			return values, true, managedErr
+		}
+	}
+	if context.Response == nil {
+		return nil, false, nil
+	}
+	if parameters.req {
+		return nil, false, nil
+	}
+	if parameters.tr {
+		return nil, false, nil
+	}
+	if strings.EqualFold(name, "content-length") {
+		values, contentLengthErr := responseContentLengthFieldValues(context.Response, context.ResponseTransport)
+		return values, true, contentLengthErr
+	}
+	values, handled, managedErr := responseTransportFieldValues(context.Response, context.ResponseTransport, name)
+	if handled || managedErr != nil {
+		return values, true, managedErr
+	}
+	return nil, false, nil
+}
+
+func canonicalCookieValue(value string) (string, bool) {
+	parts := strings.Split(value, ";")
+	for index := range parts {
+		parts[index] = strings.Trim(parts[index], " \t")
+		if parts[index] == "" {
+			return "", false
+		}
+	}
+	return strings.Join(parts, "; "), true
+}
+
+func requestTransportFieldValues(request *http.Request, name string) ([]string, bool, error) {
+	switch {
+	case strings.EqualFold(name, "transfer-encoding"):
+		if request.Body == nil {
+			return nil, true, nil
+		}
+		values, err := transferEncodingFieldValues(request.TransferEncoding)
+		return values, true, err
+	case strings.EqualFold(name, "trailer"):
+		if request.RequestURI != "" {
+			return nil, true, errors.New("inbound Trailer declaration order is unavailable")
+		}
+		if !requestUsesChunkedTransferEncoding(request) || len(request.Trailer) == 0 {
+			return nil, true, nil
+		}
+		values, err := trailerDeclarationFieldValues(request.Trailer)
+		return values, true, err
+	case strings.EqualFold(name, "user-agent") && request.RequestURI == "":
+		values, err := caseInsensitiveHeaderValues(request.Header, name)
+		if err != nil || len(values) == 0 || values[0] == "" {
+			return nil, true, err
+		}
+		return values[:1], true, nil
+	case strings.EqualFold(name, "connection") && request.RequestURI == "" && request.Close:
+		values, err := caseInsensitiveHeaderValues(request.Header, name)
+		if err != nil {
+			return nil, true, err
+		}
+		for _, value := range values {
+			if fieldValueHasToken(value, "close") {
+				return values, true, nil
+			}
+		}
+		return append([]string{"close"}, values...), true, nil
+	default:
+		return nil, false, nil
+	}
+}
+
+func responseTransportFieldValues(response *http.Response, mode ResponseTransportMode, name string) ([]string, bool, error) {
+	switch {
+	case strings.EqualFold(name, "transfer-encoding"):
+		values, err := responseTransferEncodingFieldValues(response, mode)
+		return values, true, err
+	case strings.EqualFold(name, "trailer"):
+		values, err := responseTrailerFieldValues(response, mode)
+		return values, true, err
+	case strings.EqualFold(name, "connection"):
+		values, err := responseConnectionFieldValues(response, mode)
+		return values, true, err
+	default:
+		return nil, false, nil
+	}
+}
+
+func receivedResponseCloseFieldIsExplicit(response *http.Response) bool {
+	if response.ProtoMajor != 1 || response.ProtoMinor < 1 {
+		return false
+	}
+	if response.ContentLength >= 0 || len(response.TransferEncoding) != 0 {
+		return true
+	}
+	if response.Request != nil && response.Request.Method == http.MethodHead {
+		return true
+	}
+	return !responseWriteBodyAllowed(response.StatusCode)
+}
+
+func trailerDeclarationFieldValues(trailer http.Header) ([]string, error) {
+	keys := make([]string, 0, len(trailer))
+	for key := range trailer {
+		canonical := http.CanonicalHeaderKey(key)
+		if !validHTTPToken(canonical) || strings.EqualFold(canonical, "transfer-encoding") ||
+			strings.EqualFold(canonical, "trailer") || strings.EqualFold(canonical, "content-length") {
+			return nil, errors.New("invalid Trailer declaration")
+		}
+		keys = append(keys, canonical)
+	}
+	sort.Strings(keys)
+	return []string{strings.Join(keys, ",")}, nil
+}
+
+func transferEncodingFieldValues(encodings []string) ([]string, error) {
+	if len(encodings) == 0 || len(encodings) == 1 && encodings[0] == "identity" {
+		return nil, nil
+	}
+	if hasChunkedTransferEncoding(encodings) {
+		return []string{"chunked"}, nil
+	}
+	return nil, errors.New("unsupported net/http transfer encoding")
+}
+
+func hasChunkedTransferEncoding(encodings []string) bool {
+	return len(encodings) > 0 && encodings[0] == "chunked"
+}
+
+func requestUsesChunkedTransferEncoding(request *http.Request) bool {
+	return request != nil && request.Body != nil && hasChunkedTransferEncoding(request.TransferEncoding)
+}
+
+func responseTransferEncodingFieldValues(response *http.Response, mode ResponseTransportMode) ([]string, error) {
+	if response == nil {
+		return nil, errors.New("response is unavailable")
+	}
+	received, receivedErr := receivedResponseTransferEncodingFieldValues(response.TransferEncoding)
+	written, writeErr := writeResponseTransferEncodingFieldValues(response)
+	switch mode {
+	case ResponseTransportReceived:
+		return received, receivedErr
+	case ResponseTransportWrite:
+		return written, writeErr
+	default:
+		return matchingResponseFieldValues(received, receivedErr, written, writeErr)
+	}
+}
+
+func receivedResponseTransferEncodingFieldValues(encodings []string) ([]string, error) {
+	if len(encodings) == 0 {
+		return nil, nil
+	}
+	if len(encodings) == 1 && encodings[0] == "chunked" {
+		return []string{"chunked"}, nil
+	}
+	return nil, errors.New("received response has impossible transfer coding state")
+}
+
+func writeResponseTransferEncodingFieldValues(response *http.Response) ([]string, error) {
+	if responseUsesChunkedTransferEncoding(response) {
+		return []string{"chunked"}, nil
+	}
+	if len(response.TransferEncoding) == 0 || len(response.TransferEncoding) == 1 && response.TransferEncoding[0] == "identity" ||
+		response.Body == nil || response.Request == nil || response.Request.Method != http.MethodHead && !response.ProtoAtLeast(1, 1) {
+		return nil, nil
+	}
+	return nil, errors.New("unsupported net/http transfer encoding")
+}
+
+func responseUsesChunkedTransferEncoding(response *http.Response) bool {
+	if response == nil || !hasChunkedTransferEncoding(response.TransferEncoding) {
+		return false
+	}
+	if response.Request != nil && response.Request.Method == http.MethodHead {
+		return true
+	}
+	return response.Body != nil && response.ProtoAtLeast(1, 1)
+}
+
+func fieldValueHasToken(value, token string) bool {
+	for candidate := range strings.SplitSeq(value, ",") {
+		if strings.EqualFold(strings.TrimSpace(candidate), token) {
+			return true
+		}
+	}
+	return false
+}
+
+func caseInsensitiveHeaderValues(header http.Header, name string) ([]string, error) {
+	var values []string
+	found := false
+	for key, current := range header {
+		if !strings.EqualFold(key, name) {
+			continue
+		}
+		if found {
+			return nil, errors.New("covered field has case-colliding map keys")
+		}
+		found = true
+		values = current
+	}
+	return values, nil
+}
+
+func componentHTTPMajor(context MessageContext, related bool) int {
+	if related || context.Request != nil {
+		request, err := requestForComponent(context, related)
+		if err != nil {
+			return 0
+		}
+		return request.ProtoMajor
+	}
+	if context.Response != nil {
+		return context.Response.ProtoMajor
+	}
+	return 0
+}
+
+func responseContentLengthFieldValues(response *http.Response, mode ResponseTransportMode) ([]string, error) {
+	if response == nil {
+		return nil, nil
+	}
+	received, receivedErr := receivedResponseContentLengthFieldValues(response)
+	written, writeErr := writeResponseContentLengthFieldValues(response)
+	switch mode {
+	case ResponseTransportReceived:
+		return received, receivedErr
+	case ResponseTransportWrite:
+		return written, writeErr
+	default:
+		return matchingResponseFieldValues(received, receivedErr, written, writeErr)
+	}
+}
+
+func receivedResponseContentLengthFieldValues(response *http.Response) ([]string, error) {
+	values, err := preservedResponseContentLengthFieldValues(response.Header)
+	if err != nil || len(values) == 0 {
+		return values, err
+	}
+	if len(response.TransferEncoding) != 0 {
+		return nil, errors.New("received response has conflicting Content-Length and transfer coding")
+	}
+	contentLength, _ := strconv.ParseUint(strings.TrimSpace(values[0]), 10, 63)
+	method := ""
+	if response.Request != nil {
+		method = response.Request.Method
+	}
+	if (responseWriteBodyAllowed(response.StatusCode) || method == http.MethodHead) &&
+		(response.ContentLength < 0 || uint64(response.ContentLength) != contentLength) {
+		return nil, errors.New("received response Content-Length disagrees with parsed transport state")
+	}
+	return values, nil
+}
+
+func writeResponseContentLengthFieldValues(response *http.Response) ([]string, error) {
+	if responseUsesChunkedTransferEncoding(response) {
+		return nil, nil
+	}
+	if response.ContentLength == 0 && response.Body != nil && response.Body != http.NoBody {
+		return nil, errors.New("response content length depends on body probing")
+	}
+
+	method := ""
+	if response.Request != nil {
+		method = response.Request.Method
+	}
+	if method != http.MethodHead && response.Body == http.NoBody && response.ContentLength > 0 {
+		return nil, errors.New("response body is shorter than its declared content length")
+	}
+	responseToHEAD := method == http.MethodHead
+	contentLength := response.ContentLength
+	effectiveTransferEncoding := response.TransferEncoding
+	if !responseToHEAD {
+		if !response.ProtoAtLeast(1, 1) {
+			effectiveTransferEncoding = nil
+		}
+		if response.Body == nil {
+			effectiveTransferEncoding = nil
+			contentLength = 0
+		}
+	}
+	if contentLength > 0 {
+		return []string{strconv.FormatInt(contentLength, 10)}, nil
+	}
+	if contentLength < 0 {
+		return nil, nil
+	}
+	switch method {
+	case http.MethodPost, http.MethodPut, http.MethodPatch:
+		return []string{"0"}, nil
+	}
+	if len(effectiveTransferEncoding) == 1 && effectiveTransferEncoding[0] == "identity" {
+		switch method {
+		case http.MethodGet, http.MethodHead:
+		default:
+			return []string{"0"}, nil
+		}
+	}
+	if response.ContentLength == 0 && !hasChunkedTransferEncoding(response.TransferEncoding) && responseWriteBodyAllowed(response.StatusCode) {
+		return []string{"0"}, nil
+	}
+	return nil, nil
+}
+
+func preservedResponseContentLengthFieldValues(header http.Header) ([]string, error) {
+	values, err := caseInsensitiveHeaderValues(header, "content-length")
+	if err != nil {
+		return values, err
+	}
+	if len(values) == 0 {
+		return values, err
+	}
+	if len(values) != 1 {
+		return nil, errors.New("received response has ambiguous Content-Length")
+	}
+	if _, err := strconv.ParseUint(strings.TrimSpace(values[0]), 10, 63); err != nil {
+		return nil, errors.New("received response has invalid Content-Length")
+	}
+	return values, nil
+}
+
+func responseTrailerFieldValues(response *http.Response, mode ResponseTransportMode) ([]string, error) {
+	var received []string
+	var receivedErr error
+	if len(response.Trailer) != 0 {
+		receivedErr = errors.New("received Trailer declaration order is unavailable")
+	}
+	var written []string
+	var writeErr error
+	if responseUsesChunkedTransferEncoding(response) && len(response.Trailer) != 0 {
+		written, writeErr = trailerDeclarationFieldValues(response.Trailer)
+	}
+	switch mode {
+	case ResponseTransportReceived:
+		return received, receivedErr
+	case ResponseTransportWrite:
+		return written, writeErr
+	default:
+		return matchingResponseFieldValues(received, receivedErr, written, writeErr)
+	}
+}
+
+func responseConnectionFieldValues(response *http.Response, mode ResponseTransportMode) ([]string, error) {
+	receivedClose := false
+	if response.Close {
+		receivedClose = receivedResponseCloseFieldIsExplicit(response)
+	}
+	received, receivedErr := responseCloseFieldValues(response, receivedClose)
+	written, writeErr := responseCloseFieldValues(response, responseWriteClosesConnection(response))
+	switch mode {
+	case ResponseTransportReceived:
+		return received, receivedErr
+	case ResponseTransportWrite:
+		return written, writeErr
+	default:
+		return matchingResponseFieldValues(received, receivedErr, written, writeErr)
+	}
+}
+
+func responseWriteClosesConnection(response *http.Response) bool {
+	return response.Close || response.ContentLength == -1 && response.ProtoAtLeast(1, 1) &&
+		!hasChunkedTransferEncoding(response.TransferEncoding) && !response.Uncompressed
+}
+
+func responseCloseFieldValues(response *http.Response, synthesizeClose bool) ([]string, error) {
+	values, err := caseInsensitiveHeaderValues(response.Header, "connection")
+	if err != nil {
+		return nil, err
+	}
+	if !synthesizeClose {
+		return values, nil
+	}
+	for _, value := range values {
+		if fieldValueHasToken(value, "close") {
+			return values, nil
+		}
+	}
+	return append([]string{"close"}, values...), nil
+}
+
+func matchingResponseFieldValues(received []string, receivedErr error, written []string, writeErr error) ([]string, error) {
+	if receivedErr != nil || writeErr != nil || !sameFieldValues(received, written) {
+		return nil, errors.New("response transport mode is required for ambiguous field identity")
+	}
+	return received, nil
+}
+
+func sameFieldValues(left, right []string) bool {
+	if len(left) != len(right) {
+		return false
+	}
+	for index := range left {
+		if left[index] != right[index] {
+			return false
+		}
+	}
+	return true
+}
+
+func responseWriteBodyAllowed(status int) bool {
+	return status < 100 || status > 199 && status != http.StatusNoContent && status != http.StatusNotModified
+}
+
+func requestContentLength(request *http.Request) (int64, bool) {
+	if request == nil {
+		return 0, false
+	}
+	if requestUsesChunkedTransferEncoding(request) {
+		return 0, false
+	}
+	identityTransfer := len(request.TransferEncoding) == 1 && request.TransferEncoding[0] == "identity"
+	if request.Body == nil {
+		if request.ContentLength != 0 {
+			return 0, false
+		}
+	} else if request.Body != http.NoBody {
+		if request.ContentLength > 0 {
+			return request.ContentLength, true
+		}
+		return 0, false
+	}
+	method := request.Method
+	if method == "" {
+		method = http.MethodGet
+	}
+	if method == http.MethodGet || method == http.MethodHead {
+		return 0, false
+	}
+	return 0, identityTransfer || method == http.MethodPost || method == http.MethodPut || method == http.MethodPatch
 }
 
 func requestForComponent(context MessageContext, related bool) (*http.Request, error) {
@@ -334,11 +913,11 @@ func requestParts(request *http.Request, external *ExternalRequestContext) (norm
 	}
 
 	scheme := request.URL.Scheme
-	authority := request.URL.Host
-	requestTarget := request.RequestURI
-	if requestTarget == "" {
-		requestTarget = request.URL.RequestURI()
+	authority := request.Host
+	if authority == "" {
+		authority = request.URL.Host
 	}
+	requestTarget := request.RequestURI
 	if external != nil {
 		if external.Scheme == "" {
 			return normalizedRequestParts{}, errors.New("external request context must be complete")
@@ -352,6 +931,8 @@ func requestParts(request *http.Request, external *ExternalRequestContext) (norm
 		scheme = external.Scheme
 		authority = external.Authority
 		requestTarget = external.RequestTarget
+	} else if requestTarget == "" {
+		requestTarget = request.URL.RequestURI()
 	}
 
 	var targetURL *url.URL
@@ -483,16 +1064,15 @@ func requestParts(request *http.Request, external *ExternalRequestContext) (norm
 }
 
 func externalForRequest(context MessageContext, request *http.Request) *ExternalRequestContext {
-	if request == context.Request {
-		return context.ExternalRequest
-	}
-	if request == context.RelatedRequest {
+	switch request {
+	case context.Request, context.RelatedRequest:
 		return context.ExternalRequest
 	}
 	return nil
 }
 
 func normalizeAuthority(authority, scheme string) (string, error) {
+	authority = removeIPv6Zone(authority)
 	parsed, err := url.Parse("//" + authority)
 	if err != nil || parsed.User != nil || parsed.Host == "" || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.Opaque != "" {
 		return "", errors.New("invalid request authority")
@@ -520,6 +1100,31 @@ func normalizeAuthority(authority, scheme string) (string, error) {
 	}
 
 	return host, nil
+}
+
+func removeIPv6Zone(host string) string {
+	if !strings.HasPrefix(host, "[") {
+		return host
+	}
+	closing := strings.IndexByte(host, ']')
+	if closing == -1 {
+		return host
+	}
+	zone := strings.LastIndexByte(host[:closing], '%')
+	if zone == -1 {
+		return host
+	}
+	return host[:zone] + host[closing:]
+}
+
+func validNetHTTPHostHeader(host string) bool {
+	const allowed = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ!$%&()*+,-.:;='[]_~"
+	for index := 0; index < len(host); index++ {
+		if !strings.ContainsRune(allowed, rune(host[index])) {
+			return false
+		}
+	}
+	return true
 }
 
 func normalizeFieldValue(value string) (string, error) {
@@ -551,10 +1156,7 @@ func strictStructuredField(values []string, fieldType StructuredFieldType) (stri
 	case StructuredFieldList:
 		value, err = unmarshalStructuredList(normalizeStructuredFieldOWS(values))
 	case StructuredFieldItem:
-		if len(values) != 1 {
-			return "", errors.New("item field has multiple values")
-		}
-		item, itemErr := unmarshalStructuredItem(values)
+		item, itemErr := unmarshalStructuredItem(normalizeStructuredFieldOWS(values))
 		value, err = item, itemErr
 	default:
 		return "", errors.New("unknown structured field type")
@@ -562,14 +1164,90 @@ func strictStructuredField(values []string, fieldType StructuredFieldType) (stri
 	if err != nil {
 		return "", errors.New("malformed structured field")
 	}
-	serialized, _ := httpsfv.Marshal(value)
-	return serialized, nil
+	if !isRFC8941StructuredField(value) {
+		return "", errors.New("structured field uses RFC 9651-only value")
+	}
+	// Successful parsing plus the RFC 8941 type guard makes this serialization
+	// total; returning its error directly still fails closed if the dependency
+	// ever violates that contract.
+	return marshalRFC8941(value)
+}
+
+func isRFC8941StructuredField(value httpsfv.StructuredFieldValue) bool {
+	switch field := value.(type) {
+	case httpsfv.Item:
+		return isRFC8941Item(field)
+	case httpsfv.InnerList:
+		return isRFC8941Member(field)
+	case httpsfv.List:
+		for _, member := range field {
+			if !isRFC8941Member(member) {
+				return false
+			}
+		}
+		return true
+	case *httpsfv.Dictionary:
+		for _, name := range field.Names() {
+			member, _ := field.Get(name)
+			if !isRFC8941Member(member) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
+func isRFC8941Member(member httpsfv.Member) bool {
+	switch value := member.(type) {
+	case httpsfv.Item:
+		return isRFC8941Item(value)
+	case httpsfv.InnerList:
+		if !isRFC8941Parameters(value.Params) {
+			return false
+		}
+		for _, item := range value.Items {
+			if !isRFC8941Item(item) {
+				return false
+			}
+		}
+		return true
+	default:
+		return false
+	}
+}
+
+func isRFC8941Item(item httpsfv.Item) bool {
+	return isRFC8941BareItem(item.Value) && isRFC8941Parameters(item.Params)
+}
+
+func isRFC8941Parameters(parameters *httpsfv.Params) bool {
+	if parameters == nil {
+		return false
+	}
+	for _, name := range parameters.Names() {
+		value, _ := parameters.Get(name)
+		if !isRFC8941BareItem(value) {
+			return false
+		}
+	}
+	return true
+}
+
+func isRFC8941BareItem(value any) bool {
+	switch value.(type) {
+	case bool, string, int64, float64, []byte, httpsfv.Token:
+		return true
+	default:
+		return false
+	}
 }
 
 func marshalMember(member httpsfv.Member) string {
 	dictionary := httpsfv.NewDictionary()
 	dictionary.Add("x", member)
-	serialized, _ := httpsfv.Marshal(dictionary)
+	serialized, _ := marshalRFC8941(dictionary)
 	separator := strings.IndexByte(serialized, '=')
 	if separator == -1 {
 		return "?1" + strings.TrimPrefix(serialized, "x")
@@ -578,12 +1256,15 @@ func marshalMember(member httpsfv.Member) string {
 }
 
 func serializeComponentIdentifier(component ComponentIdentifier) (string, error) {
-	if !validComponentName(component.Name) || !validParametersForSerialization(component.Parameters) {
+	if !validComponentName(component.Name) {
+		return "", errors.New("invalid component identifier")
+	}
+	if !validParametersForSerialization(component.Parameters) {
 		return "", errors.New("invalid component identifier")
 	}
 	item := httpsfv.NewItem(component.Name)
 	addParameters(item.Params, component.Parameters)
-	return httpsfv.Marshal(item)
+	return marshalRFC8941(item)
 }
 
 func serializeSignatureParameters(input SignatureInput) (string, error) {
@@ -592,7 +1273,10 @@ func serializeSignatureParameters(input SignatureInput) (string, error) {
 	}
 	items := make([]httpsfv.Item, len(input.Components))
 	for index, component := range input.Components {
-		if !validComponentName(component.Name) || !validParametersForSerialization(component.Parameters) {
+		if !validComponentName(component.Name) {
+			return "", errors.New("invalid component identifier")
+		}
+		if !validParametersForSerialization(component.Parameters) {
 			return "", errors.New("invalid component identifier")
 		}
 		items[index] = httpsfv.NewItem(component.Name)
@@ -600,40 +1284,141 @@ func serializeSignatureParameters(input SignatureInput) (string, error) {
 	}
 	parameters := httpsfv.NewParams()
 	addParameters(parameters, input.Parameters)
-	return httpsfv.Marshal(httpsfv.InnerList{Items: items, Params: parameters})
+	return marshalRFC8941(httpsfv.InnerList{Items: items, Params: parameters})
 }
 
-func queryParameter(rawQuery, encodedName string) (string, error) {
+func queryParameter(rawQuery, encodedName string, maxBytes int) (string, error) {
 	if rawQuery == "" {
 		return "", errors.New("named query parameter is absent")
 	}
+	if len(rawQuery) > maxBytes/3 {
+		return "", ErrSignatureBaseLimit
+	}
 	var found string
 	foundCount := 0
-	for _, pair := range strings.Split(rawQuery, "&") {
-		name, value, hasValue := strings.Cut(pair, "=")
-		if !hasValue {
-			value = ""
+	for pair := range strings.SplitSeq(rawQuery, "&") {
+		if pair != "" {
+			name, value, hasValue := strings.Cut(pair, "=")
+			if !hasValue {
+				value = ""
+			}
+			decodedName := decodeFormComponent(name)
+			if formPercentEncode(decodedName) == encodedName {
+				decodedValue := decodeFormComponent(value)
+				found = formPercentEncode(decodedValue)
+				foundCount++
+			}
 		}
-		decodedName, err := url.QueryUnescape(name)
-		if err != nil {
-			return "", errors.New("malformed query parameter name")
-		}
-		decodedName = strings.ToValidUTF8(decodedName, "\uFFFD")
-		if formPercentEncode(decodedName) != encodedName {
-			continue
-		}
-		decodedValue, err := url.QueryUnescape(value)
-		if err != nil {
-			return "", errors.New("malformed query parameter value")
-		}
-		decodedValue = strings.ToValidUTF8(decodedValue, "\uFFFD")
-		found = formPercentEncode(decodedValue)
-		foundCount++
 	}
 	if foundCount != 1 {
 		return "", errors.New("named query parameter is absent or repeated")
 	}
+	if len(found) > maxBytes {
+		return "", ErrSignatureBaseLimit
+	}
 	return found, nil
+}
+
+func decodeFormComponent(value string) string {
+	decoded := make([]byte, 0, len(value))
+	remaining := value
+	for remaining != "" {
+		switch {
+		case remaining[0] == '+':
+			decoded = append(decoded, ' ')
+			remaining = remaining[1:]
+		case remaining[0] == '%' && len(remaining) >= 3:
+			high, highOK := hexValue(remaining[1])
+			low, lowOK := hexValue(remaining[2])
+			if highOK && lowOK {
+				decoded = append(decoded, high<<4|low)
+				remaining = remaining[3:]
+			} else {
+				decoded = append(decoded, remaining[0])
+				remaining = remaining[1:]
+			}
+		default:
+			decoded = append(decoded, remaining[0])
+			remaining = remaining[1:]
+		}
+	}
+	return decodeUTF8WithReplacement(decoded)
+}
+
+func decodeUTF8WithReplacement(value []byte) string {
+	var builder strings.Builder
+	remaining := value
+	for len(remaining) != 0 {
+		if remaining[0] < utf8.RuneSelf {
+			builder.WriteByte(remaining[0])
+			remaining = remaining[1:]
+		} else {
+			width, secondMin, secondMax := utf8Sequence(remaining[0])
+			switch width {
+			case 0:
+				builder.WriteRune(utf8.RuneError)
+				remaining = remaining[1:]
+			default:
+				available := min(width, len(remaining))
+				consumed := 1
+				valid := available == width
+				for offset, character := range remaining[1:available] {
+					minimum, maximum := byte(0x80), byte(0xbf)
+					if offset == 0 {
+						minimum, maximum = secondMin, secondMax
+					}
+					if character < minimum || character > maximum {
+						valid = false
+						break
+					}
+					consumed = offset + 2
+				}
+				if valid {
+					runeValue, _ := utf8.DecodeRune(remaining[:width])
+					builder.WriteRune(runeValue)
+					remaining = remaining[width:]
+				} else {
+					builder.WriteRune(utf8.RuneError)
+					remaining = remaining[consumed:]
+				}
+			}
+		}
+	}
+	return builder.String()
+}
+
+func utf8Sequence(first byte) (width int, secondMin, secondMax byte) {
+	switch {
+	case first >= 0xc2 && first <= 0xdf:
+		return 2, 0x80, 0xbf
+	case first == 0xe0:
+		return 3, 0xa0, 0xbf
+	case first >= 0xe1 && first <= 0xec || first >= 0xee && first <= 0xef:
+		return 3, 0x80, 0xbf
+	case first == 0xed:
+		return 3, 0x80, 0x9f
+	case first == 0xf0:
+		return 4, 0x90, 0xbf
+	case first >= 0xf1 && first <= 0xf3:
+		return 4, 0x80, 0xbf
+	case first == 0xf4:
+		return 4, 0x80, 0x8f
+	default:
+		return 0, 0, 0
+	}
+}
+
+func hexValue(value byte) (byte, bool) {
+	switch {
+	case value >= '0' && value <= '9':
+		return value - '0', true
+	case value >= 'a' && value <= 'f':
+		return value - 'a' + 10, true
+	case value >= 'A' && value <= 'F':
+		return value - 'A' + 10, true
+	default:
+		return 0, false
+	}
 }
 
 func formPercentEncode(value string) string {
@@ -662,6 +1447,21 @@ func validDerivedValue(value string) bool {
 		if character < 0x20 || character > 0x7e {
 			return false
 		}
+	}
+	return true
+}
+
+func validHTTPToken(value string) bool {
+	if value == "" {
+		return false
+	}
+	for index := 0; index < len(value); index++ {
+		character := value[index]
+		if character >= 'a' && character <= 'z' || character >= 'A' && character <= 'Z' ||
+			character >= '0' && character <= '9' || strings.ContainsRune("!#$%&'*+-.^_`|~", rune(character)) {
+			continue
+		}
+		return false
 	}
 	return true
 }

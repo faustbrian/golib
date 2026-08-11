@@ -161,7 +161,7 @@ func (field DigestField) String() string {
 		addParameters(item.Params, entry.Parameters)
 		dictionary.Add(string(entry.Algorithm), item)
 	}
-	value, err := httpsfv.Marshal(dictionary)
+	value, err := marshalRFC8941(dictionary)
 	if err != nil {
 		panic(fmt.Errorf("serialize validated digest field: %w", err))
 	}

@@ -12,9 +12,22 @@ import (
 	"time"
 )
 
-func TestBodyIntegrationConstructorsRejectEachIndependentField(t *testing.T) {
-	t.Parallel()
+type gatedReadBody struct {
+	started chan struct{}
+	release chan struct{}
+}
 
+func (body *gatedReadBody) Read(buffer []byte) (int, error) {
+	close(body.started)
+	<-body.release
+	buffer[0] = 'x'
+	return 1, nil
+}
+
+func (*gatedReadBody) Close() error { return nil }
+
+func assertBodyIntegrationConstructorsRejectEachIndependentField(t *testing.T) {
+	t.Helper()
 	now := time.Unix(1_700_000_000, 0)
 	key, _ := NewHMACKey([]byte("0123456789abcdef0123456789abcdef"))
 	transport := roundTripperFunc(func(*http.Request) (*http.Response, error) { return nil, nil })
@@ -140,6 +153,11 @@ func TestBodyIntegrationConstructorsRejectEachIndependentField(t *testing.T) {
 	}
 }
 
+func TestBodyIntegrationConstructorsRejectEachIndependentField(t *testing.T) {
+	t.Parallel()
+	assertBodyIntegrationConstructorsRejectEachIndependentField(t)
+}
+
 func TestBodyIntegrationExactByteAndStatusBoundaries(t *testing.T) {
 	t.Parallel()
 
@@ -186,7 +204,7 @@ func TestBodyIntegrationExactByteAndStatusBoundaries(t *testing.T) {
 	for _, test := range []struct {
 		status  int
 		allowed bool
-	}{{199, false}, {200, true}, {204, false}, {304, false}} {
+	}{{199, false}, {200, true}, {204, false}, {205, false}, {304, false}} {
 		if got := responseBodyAllowed(test.status); got != test.allowed {
 			t.Fatalf("responseBodyAllowed(%d) = %v", test.status, got)
 		}
@@ -399,8 +417,18 @@ func TestTrailerSigningBodyBoundaryFailures(t *testing.T) {
 	if count, err := body.Read(make([]byte, 1)); count != 0 || err == nil || err.Error() != "finalize" {
 		t.Fatalf("finalizing read = %d, %v", count, err)
 	}
-	if count, err := body.Read(make([]byte, 1)); count != 0 || !errors.Is(err, io.EOF) {
+	if count, err := body.Read(make([]byte, 1)); count != 0 || err == nil || err.Error() != "finalize" {
 		t.Fatalf("finished read = %d, %v", count, err)
+	}
+	successful := &trailerSigningBody{
+		body: io.NopCloser(strings.NewReader("")), ctx: context.Background(), maxBytes: 1,
+		finalize: func(DigestField) error { return nil },
+	}
+	if count, err := successful.Read(make([]byte, 1)); count != 0 || !errors.Is(err, io.EOF) {
+		t.Fatalf("successful finalization = %d, %v", count, err)
+	}
+	if count, err := successful.Read(make([]byte, 1)); count != 0 || !errors.Is(err, io.EOF) {
+		t.Fatalf("completed successful read = %d, %v", count, err)
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -416,6 +444,58 @@ func TestTrailerSigningBodyBoundaryFailures(t *testing.T) {
 	closer := &countingBody{reader: strings.NewReader("")}
 	if err := (&trailerSigningBody{body: closer}).Close(); err != nil || closer.closed != 1 {
 		t.Fatalf("Close() = %v, count = %d", err, closer.closed)
+	}
+}
+
+func TestTrailerSigningBodySerializesConcurrentTerminalState(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name     string
+		complete func(*trailerSigningBody)
+		want     error
+	}{
+		{name: "close failure state", complete: func(body *trailerSigningBody) { _ = body.Close() }, want: ErrBodyRead},
+		{name: "successful state", complete: func(body *trailerSigningBody) { body.complete(nil) }, want: io.EOF},
+	} {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			underlying := &gatedReadBody{started: make(chan struct{}), release: make(chan struct{})}
+			body := &trailerSigningBody{body: underlying, ctx: context.Background(), maxBytes: 1}
+			result := make(chan error, 1)
+			go func() {
+				_, err := body.Read(make([]byte, 1))
+				result <- err
+			}()
+			<-underlying.started
+			test.complete(body)
+			close(underlying.release)
+			if err := <-result; !errors.Is(err, test.want) {
+				t.Fatalf("Read() error = %v, want %v", err, test.want)
+			}
+		})
+	}
+}
+
+func TestRequestTrailerNormalizationAndNameIdentity(t *testing.T) {
+	t.Parallel()
+
+	for _, header := range []http.Header{
+		{"Content-Length": []string{"1"}},
+		{"X-Final": []string{"one"}, "x-final": []string{"two"}},
+	} {
+		if _, err := normalizeTrailerFields(header); err == nil {
+			t.Fatalf("normalizeTrailerFields(%#v) succeeded", header)
+		}
+	}
+	names := applicationTrailerNames(http.Header{
+		"Content-Digest": nil, "Signature-Input": nil, "Signature": nil, "X-Final": nil,
+	})
+	if len(names) != 1 {
+		t.Fatalf("application trailer names = %#v, want only X-Final", names)
+	}
+	if sameTrailerNames(map[string]struct{}{"X-Final": {}}, map[string]struct{}{"X-Other": {}}) {
+		t.Fatal("different equal-sized trailer name sets matched")
 	}
 }
 

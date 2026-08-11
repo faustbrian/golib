@@ -5,8 +5,7 @@ BENCH_COUNT ?= 10
 .PHONY: benchmark test
 
 test:
-	../../scripts/with-go-cache.sh $(GO) test -mod=readonly ./... -count=1
+	./check.sh test
 
 benchmark:
-	../../scripts/with-go-cache.sh $(GO) test -mod=readonly ./... -run '^$$' \
-		-bench . -benchmem -benchtime=$(BENCH_TIME) -count=$(BENCH_COUNT)
+	BENCH_TIME=$(BENCH_TIME) BENCH_COUNT=$(BENCH_COUNT) ./check.sh benchmark

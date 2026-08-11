@@ -3,10 +3,7 @@ package httpsignature
 import (
 	"context"
 	"crypto/ed25519"
-	"crypto/rand"
-	"crypto/rsa"
 	"errors"
-	"io"
 	"net/http"
 	"testing"
 	"time"
@@ -30,7 +27,6 @@ func TestSigningProfileAndSignedFieldBoundarySemantics(t *testing.T) {
 	for _, mutate := range []func(*SigningProfileConfig){
 		func(config *SigningProfileConfig) { config.AllowedAlgorithms = []Algorithm{"unsupported"} },
 		func(config *SigningProfileConfig) { config.AllowedAlgorithms = []Algorithm{HMACSHA256, HMACSHA256} },
-		func(config *SigningProfileConfig) { config.AllowedAlgorithms = []Algorithm{RSAPSSSHA512} },
 		func(config *SigningProfileConfig) {
 			config.CoveredComponents = []ComponentIdentifier{{Name: "@method"}, {Name: "@method"}}
 		},
@@ -196,24 +192,6 @@ func TestSignerRejectsEachProviderKeyAndCryptographicBoundary(t *testing.T) {
 	if _, err := NewSigner(edProfile).Sign(context.Background(), requestMessage, "sig", SigningOptions{}); !errors.Is(err, ErrSigningKey) {
 		t.Fatalf("incompatible signing key error = %v", err)
 	}
-	rsaKey, err := rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		t.Fatal(err)
-	}
-	rsaProfile, err := NewSigningProfile(SigningProfileConfig{
-		AllowedAlgorithms: []Algorithm{RSAPSSSHA512}, CoveredComponents: []ComponentIdentifier{{Name: "@method"}},
-		Expires: ParameterRequired, AlgorithmParameter: ParameterRequired, Nonce: ParameterForbidden, Tag: ParameterForbidden,
-		Lifetime: time.Minute, ResolveTimeout: time.Second, Now: func() time.Time { return now }, Random: failingReader{},
-		Provider: signingKeyProviderFunc(func(context.Context) (SigningKey, error) {
-			return SigningKey{KeyID: "key", Algorithm: RSAPSSSHA512, Key: rsaKey, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(time.Hour)}, nil
-		}),
-	})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := NewSigner(rsaProfile).Sign(context.Background(), requestMessage, "sig", SigningOptions{}); !errors.Is(err, ErrSigningCryptographic) {
-		t.Fatalf("signing randomness error = %v", err)
-	}
 }
 
 func newTestRequest(t *testing.T) *http.Request {
@@ -340,7 +318,7 @@ func TestVerificationProfileAndResolvedKeyIndependentBoundaries(t *testing.T) {
 	validKey := ResolvedKey{
 		Algorithm: HMACSHA256, Key: key, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(time.Hour), FreshUntil: now.Add(time.Hour),
 	}
-	if err := profile.validateKey(validKey, HMACSHA256, true); err != nil {
+	if err := profile.validateKey(validKey, HMACSHA256, true, time.Time{}); err != nil {
 		t.Fatalf("valid resolved key error = %v", err)
 	}
 	for _, mutate := range []func(*ResolvedKey){
@@ -355,7 +333,7 @@ func TestVerificationProfileAndResolvedKeyIndependentBoundaries(t *testing.T) {
 	} {
 		resolved := validKey
 		mutate(&resolved)
-		if err := profile.validateKey(resolved, HMACSHA256, true); !verificationFailureIs(err, VerificationKey) {
+		if err := profile.validateKey(resolved, HMACSHA256, true, time.Time{}); !verificationFailureIs(err, VerificationKey) {
 			t.Fatalf("invalid resolved key error = %v", err)
 		}
 	}
@@ -368,7 +346,7 @@ func TestVerificationProfileAndResolvedKeyIndependentBoundaries(t *testing.T) {
 		}(),
 		func() ResolvedKey { value := validKey; value.FreshUntil = now.Add(time.Nanosecond); return value }(),
 	} {
-		if err := profile.validateKey(resolved, HMACSHA256, true); err != nil {
+		if err := profile.validateKey(resolved, HMACSHA256, true, time.Time{}); err != nil {
 			t.Fatalf("accepted resolved key boundary error = %v", err)
 		}
 	}
@@ -601,14 +579,10 @@ func TestVerifierSelectionInputAndKeyBoundaries(t *testing.T) {
 		}
 	}
 	validKey := ResolvedKey{Algorithm: HMACSHA256, Key: key, NotBefore: now.Add(-time.Hour), NotAfter: now.Add(time.Hour), FreshUntil: now.Add(time.Minute)}
-	if err := minimal.validateKey(ResolvedKey{Algorithm: Ed25519, Key: key, NotBefore: validKey.NotBefore, NotAfter: validKey.NotAfter, FreshUntil: validKey.FreshUntil}, "", false); err == nil {
+	if err := minimal.validateKey(ResolvedKey{Algorithm: Ed25519, Key: key, NotBefore: validKey.NotBefore, NotAfter: validKey.NotAfter, FreshUntil: validKey.FreshUntil}, "", false, time.Time{}); err == nil {
 		t.Fatal("disallowed resolved algorithm succeeded")
 	}
-	if err := minimal.validateKey(validKey, Ed25519, true); err == nil {
+	if err := minimal.validateKey(validKey, Ed25519, true, time.Time{}); err == nil {
 		t.Fatal("mismatched algorithm parameter succeeded")
 	}
 }
-
-type failingReader struct{}
-
-func (failingReader) Read([]byte) (int, error) { return 0, io.ErrUnexpectedEOF }

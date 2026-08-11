@@ -1,48 +1,281 @@
 {
-  "retrieved_at": "2026-08-09T04:40:00+03:00",
+  "schema_version": 2,
+  "retrieved_at": "2026-08-10T04:53:22+03:00",
   "sources": [
     {
+      "name": "RFC 8941 text",
+      "kind": "normative-rfc",
+      "url": "https://www.rfc-editor.org/rfc/rfc8941.txt",
+      "sha256": "92e07becbe27974319d79de6195e72e25062b4193f68623e90ea4f7deaf33bb9"
+    },
+    {
       "name": "RFC 9421 text",
+      "kind": "normative-rfc",
       "url": "https://www.rfc-editor.org/rfc/rfc9421.txt",
       "sha256": "612655786bf4293bfc486e4177571467fbb3de6e6f0eea90cb74c346a34fdf3c"
     },
     {
       "name": "RFC 9530 text",
+      "kind": "normative-rfc",
       "url": "https://www.rfc-editor.org/rfc/rfc9530.txt",
       "sha256": "544dbb7d9afceafa8c9931d9924ca6cff2b4807274166d7ed2483342ef2cdd6a"
     },
     {
+      "name": "RFC 8941 errata records",
+      "kind": "rfc-errata",
+      "url": "https://errata.rfc-editor.org/search/?rfc_number=8941&presentation=records",
+      "sha256": "3905d3f16a4e6f122779fe377a482b690e3ea8a306c1dd7f78d080a737fc12f5"
+    },
+    {
       "name": "RFC 9421 errata records",
+      "kind": "rfc-errata",
       "url": "https://errata.rfc-editor.org/search/?rfc_number=9421&presentation=records",
       "sha256": "3f516aebd2d2255249c94718fb04cc69bd40e477a807b5acad209d4c5cb3783a"
     },
     {
       "name": "RFC 9530 errata records",
+      "kind": "rfc-errata",
       "url": "https://errata.rfc-editor.org/search/?rfc_number=9530&presentation=records",
       "sha256": "9d95d87653e8547edf221423c16c80a92ed297f00698e37638576a99a1050dfe"
     },
     {
       "name": "IANA HTTP Message Signature registries",
+      "kind": "iana-registry",
       "url": "https://www.iana.org/assignments/http-message-signature/http-message-signature.xml",
       "last_modified": "Mon, 20 Jul 2026 09:11:20 GMT",
       "sha256": "bd4b0304e21e226fef189ed283a31392b5ffc99a37d00e9911dc011dcfb1523f"
     },
     {
       "name": "IANA Hash Algorithms for HTTP Digest Fields registry",
+      "kind": "iana-registry",
       "url": "https://www.iana.org/assignments/http-digest-hash-alg/http-digest-hash-alg.xml",
       "last_modified": "Wed, 22 May 2024 19:55:28 GMT",
       "sha256": "6336a1abc58420f6fcabab4a0cd999ce3c0a8f12e034e543f05edf342cf927e7"
     },
     {
+      "name": "IANA legacy HTTP Digest Algorithm Values registry",
+      "kind": "iana-registry",
+      "url": "https://www.iana.org/assignments/http-dig-alg/http-dig-alg.xml",
+      "last_modified": "Fri, 16 Feb 2024 22:55:33 GMT",
+      "sha256": "8e2ee05465e8973b63567ef82c9c4f58e56c14a460c288853ce0f90faba027ec"
+    },
+    {
       "name": "IANA HTTP Field Name registry",
+      "kind": "iana-registry",
       "url": "https://www.iana.org/assignments/http-fields/http-fields.xml",
       "last_modified": "Fri, 07 Aug 2026 17:26:19 GMT",
       "sha256": "bf556b570acea5cf8686521eafa90f91dbfabe61eb175e25956487dc38df3e9d"
     },
     {
+      "name": "HTTPWG RFC 8941 Structured Fields corpus",
+      "kind": "interoperability-corpus",
+      "url": "https://codeload.github.com/httpwg/structured-field-tests/tar.gz/faed1f92942abd4fb5d61b1f9f0dc359f499f1d7",
+      "revision": "faed1f92942abd4fb5d61b1f9f0dc359f499f1d7",
+      "scope": "Last HTTPWG structured-field-tests revision explicitly targeting RFC 8941 before RFC 9651 Date and Display String corpus additions",
+      "license": "BSD-3-Clause",
+      "sha256": "2bf9b56519cae6cf170eb5c7837f3b744ca2a07c0defd15aa84b541a3cb25a52"
+    },
+    {
       "name": "NIST CAVP FIPS 186-3 ECDSA test vectors",
+      "kind": "cryptographic-vector-corpus",
       "url": "https://csrc.nist.gov/CSRC/media/Projects/Cryptographic-Algorithm-Validation-Program/documents/dss/186-3ecdsatestvectors.zip",
       "sha256": "e0d9bee3f760ca3fabb82bd43dd04c13ee64ca9e0b719c6ea64fd52c9f0dd929"
+    }
+  ],
+  "errata": [
+    {
+      "rfc": 8941,
+      "source_name": "RFC 8941 errata records",
+      "records": []
+    },
+    {
+      "rfc": 9421,
+      "source_name": "RFC 9421 errata records",
+      "records": [
+        {
+          "id": 8102,
+          "status": "Verified",
+          "type": "Editorial"
+        },
+        {
+          "id": 8103,
+          "status": "Verified",
+          "type": "Technical"
+        }
+      ]
+    },
+    {
+      "rfc": 9530,
+      "source_name": "RFC 9530 errata records",
+      "records": [
+        {
+          "id": 8158,
+          "status": "Verified",
+          "type": "Editorial"
+        },
+        {
+          "id": 8273,
+          "status": "Verified",
+          "type": "Editorial"
+        },
+        {
+          "id": 8890,
+          "status": "Reported",
+          "type": "Technical"
+        }
+      ]
+    }
+  ],
+  "registries": [
+    {
+      "source_name": "IANA HTTP Message Signature registries",
+      "registry_id": "signature-algorithms",
+      "key_element": "name",
+      "scope": "complete",
+      "records": [
+        { "key": "rsa-pss-sha512", "fields": { "status": "Active" } },
+        { "key": "rsa-v1_5-sha256", "fields": { "status": "Active" } },
+        { "key": "hmac-sha256", "fields": { "status": "Active" } },
+        { "key": "ecdsa-p256-sha256", "fields": { "status": "Active" } },
+        { "key": "ecdsa-p384-sha384", "fields": { "status": "Active" } },
+        { "key": "ed25519", "fields": { "status": "Active" } }
+      ]
+    },
+    {
+      "source_name": "IANA HTTP Message Signature registries",
+      "registry_id": "signature-metadata-parameters",
+      "key_element": "name",
+      "scope": "complete",
+      "records": [
+        { "key": "alg", "fields": {} },
+        { "key": "created", "fields": {} },
+        { "key": "expires", "fields": {} },
+        { "key": "keyid", "fields": {} },
+        { "key": "nonce", "fields": {} },
+        { "key": "tag", "fields": {} }
+      ]
+    },
+    {
+      "source_name": "IANA HTTP Message Signature registries",
+      "registry_id": "signature-derived-component-names",
+      "key_element": "name",
+      "scope": "complete",
+      "records": [
+        { "key": "@signature-params", "fields": { "status": "Active", "target": "Request, Response" } },
+        { "key": "@method", "fields": { "status": "Active", "target": "Request" } },
+        { "key": "@authority", "fields": { "status": "Active", "target": "Request" } },
+        { "key": "@scheme", "fields": { "status": "Active", "target": "Request" } },
+        { "key": "@target-uri", "fields": { "status": "Active", "target": "Request" } },
+        { "key": "@request-target", "fields": { "status": "Active", "target": "Request" } },
+        { "key": "@path", "fields": { "status": "Active", "target": "Request" } },
+        { "key": "@query", "fields": { "status": "Active", "target": "Request" } },
+        { "key": "@query-param", "fields": { "status": "Active", "target": "Request" } },
+        { "key": "@status", "fields": { "status": "Active", "target": "Response" } }
+      ]
+    },
+    {
+      "source_name": "IANA HTTP Message Signature registries",
+      "registry_id": "component-parameters",
+      "key_element": "name",
+      "scope": "complete",
+      "records": [
+        { "key": "sf", "fields": {} },
+        { "key": "key", "fields": {} },
+        { "key": "bs", "fields": {} },
+        { "key": "tr", "fields": {} },
+        { "key": "req", "fields": {} },
+        { "key": "name", "fields": {} }
+      ]
+    },
+    {
+      "source_name": "IANA Hash Algorithms for HTTP Digest Fields registry",
+      "registry_id": "digest-fields",
+      "key_element": "key",
+      "scope": "complete",
+      "records": [
+        { "key": "sha-512", "fields": { "status": "Active" } },
+        { "key": "sha-256", "fields": { "status": "Active" } },
+        { "key": "md5", "fields": { "status": "Deprecated" } },
+        { "key": "sha", "fields": { "status": "Deprecated" } },
+        { "key": "unixsum", "fields": { "status": "Deprecated" } },
+        { "key": "unixcksum", "fields": { "status": "Deprecated" } },
+        { "key": "adler", "fields": { "status": "Deprecated" } },
+        { "key": "crc32c", "fields": { "status": "Deprecated" } }
+      ]
+    },
+    {
+      "source_name": "IANA legacy HTTP Digest Algorithm Values registry",
+      "registry_id": "http-dig-alg-1",
+      "key_element": "name",
+      "scope": "complete",
+      "metadata": {
+        "note_text": "This registry is deprecated since it lists the algorithms that can be used with the Digest and Want-Digest fields defined in , which has been obsoleted by . While registration is not closed, new registrations are encouraged to use the Hash Algorithms for HTTP Digest Fields registry instead.",
+        "note_text_segments": [
+          "This registry is deprecated since it lists the algorithms that can be used with the Digest and Want-Digest fields defined in",
+          ", which has been obsoleted by",
+          ". While registration is not closed, new registrations are encouraged to use the",
+          "registry instead."
+        ],
+        "registry_xrefs": [
+          { "type": "rfc", "data": "rfc3230" }
+        ],
+        "note_xrefs": [
+          { "type": "rfc", "data": "rfc3230" },
+          { "type": "rfc", "data": "rfc9530" },
+          { "type": "registry", "data": "http-digest-hash-alg" }
+        ]
+      },
+      "records": [
+        { "key": "ADLER32", "fields": {} },
+        { "key": "CRC32c", "fields": {} },
+        { "key": "MD5", "fields": {} },
+        { "key": "SHA", "fields": {} },
+        { "key": "SHA-256", "fields": {} },
+        { "key": "SHA-512", "fields": {} },
+        { "key": "UNIXsum", "fields": {} },
+        { "key": "UNIXcksum", "fields": {} }
+      ]
+    },
+    {
+      "source_name": "IANA HTTP Field Name registry",
+      "registry_id": "field-names",
+      "key_element": "value",
+      "scope": "selected-package-fields",
+      "records": [
+        { "key": "Accept-Signature", "fields": { "status": "permanent" } },
+        { "key": "Content-Digest", "fields": { "status": "permanent", "structured": "Dictionary" } },
+        {
+          "key": "Digest",
+          "fields": { "status": "obsoleted" },
+          "direct_xrefs": [
+            { "type": "rfc", "data": "rfc3230" }
+          ],
+          "comments": {
+            "text": "Obsoleted by RFC 9530, Section 1.3: Digest Fields",
+            "xrefs": [
+              { "type": "rfc", "data": "rfc9530", "section": "1.3" }
+            ]
+          }
+        },
+        { "key": "Repr-Digest", "fields": { "status": "permanent", "structured": "Dictionary" } },
+        { "key": "Signature", "fields": { "status": "permanent", "structured": "Dictionary" } },
+        { "key": "Signature-Input", "fields": { "status": "permanent", "structured": "Dictionary" } },
+        { "key": "Want-Content-Digest", "fields": { "status": "permanent", "structured": "Dictionary" } },
+        {
+          "key": "Want-Digest",
+          "fields": { "status": "obsoleted" },
+          "direct_xrefs": [
+            { "type": "rfc", "data": "rfc3230" }
+          ],
+          "comments": {
+            "text": "Obsoleted by RFC 9530, Section 1.3: Digest Fields",
+            "xrefs": [
+              { "type": "rfc", "data": "rfc9530", "section": "1.3" }
+            ]
+          }
+        },
+        { "key": "Want-Repr-Digest", "fields": { "status": "permanent", "structured": "Dictionary" } }
+      ]
     }
   ]
 }

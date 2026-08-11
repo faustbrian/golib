@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	dadrus "github.com/dadrus/httpsig"
 	httpsignature "github.com/faustbrian/golib/pkg/http-signature"
 	peer "github.com/yaronf/httpsign"
 )
@@ -34,6 +35,11 @@ type peerCandidate struct {
 	verifier *peer.Verifier
 }
 
+type dadrusCandidate struct {
+	signer   dadrus.Signer
+	verifier dadrus.Verifier
+}
+
 func TestCandidatesSignAndVerifyEquivalentRequestCoverage(t *testing.T) {
 	t.Parallel()
 
@@ -45,6 +51,53 @@ func TestCandidatesSignAndVerifyEquivalentRequestCoverage(t *testing.T) {
 	request = benchmarkRequest(t)
 	if err := newPeerCandidate(t).signAndVerify(request); err != nil {
 		t.Fatalf("peer sign and verify: %v", err)
+	}
+
+	request = benchmarkRequest(t)
+	if err := newDadrusCandidate(t).signAndVerify(request); err != nil {
+		t.Fatalf("dadrus sign and verify: %v", err)
+	}
+}
+
+func TestCandidatesDoNotAccumulateSignatureFieldsAcrossCalls(t *testing.T) {
+	t.Parallel()
+
+	t.Run("HTTPMessageSignature", func(t *testing.T) {
+		candidate := newLocalCandidate(t)
+		assertCandidateDoesNotAccumulateSignatures(t, candidate.signAndVerify)
+	})
+	t.Run("YaronFHTTPSign", func(t *testing.T) {
+		candidate := newPeerCandidate(t)
+		assertCandidateDoesNotAccumulateSignatures(t, candidate.signAndVerify)
+	})
+	t.Run("DadrusHTTPSig", func(t *testing.T) {
+		candidate := newDadrusCandidate(t)
+		assertCandidateDoesNotAccumulateSignatures(t, candidate.signAndVerify)
+	})
+}
+
+func assertCandidateDoesNotAccumulateSignatures(t *testing.T, signAndVerify func(*http.Request) error) {
+	t.Helper()
+
+	request := benchmarkRequest(t)
+	for range 2 {
+		if err := signAndVerify(request); err != nil {
+			t.Fatalf("sign and verify: %v", err)
+		}
+	}
+	inputs, err := httpsignature.ParseSignatureInputs(request.Header.Values("Signature-Input"))
+	if err != nil {
+		t.Fatalf("parse Signature-Input: %v", err)
+	}
+	signatures, err := httpsignature.ParseSignatures(request.Header.Values("Signature"))
+	if err != nil {
+		t.Fatalf("parse Signature: %v", err)
+	}
+	if entries := inputs.Entries(); len(entries) != 1 || entries[0].Label != "sig" {
+		t.Fatalf("Signature-Input entries = %#v, want one sig entry", entries)
+	}
+	if entries := signatures.Entries(); len(entries) != 1 || entries[0].Label != "sig" {
+		t.Fatalf("Signature entries = %#v, want one sig entry", entries)
 	}
 }
 
@@ -63,6 +116,18 @@ func BenchmarkRequestHMACSHA256SignVerify(b *testing.B) {
 
 	b.Run("YaronFHTTPSign", func(b *testing.B) {
 		candidate := newPeerCandidate(b)
+		request := benchmarkRequest(b)
+		b.ReportAllocs()
+		b.ResetTimer()
+		for b.Loop() {
+			if err := candidate.signAndVerify(request); err != nil {
+				b.Fatal(err)
+			}
+		}
+	})
+
+	b.Run("DadrusHTTPSig", func(b *testing.B) {
+		candidate := newDadrusCandidate(b)
 		request := benchmarkRequest(b)
 		b.ReportAllocs()
 		b.ResetTimer()
@@ -122,6 +187,7 @@ func newLocalCandidate(tb testing.TB) localCandidate {
 }
 
 func (candidate localCandidate) signAndVerify(request *http.Request) error {
+	resetSignatureFields(request)
 	signed, err := candidate.signer.Sign(context.Background(), httpsignature.MessageContext{Request: request}, "sig", httpsignature.SigningOptions{})
 	if err != nil {
 		return err
@@ -155,6 +221,7 @@ func newPeerCandidate(tb testing.TB) peerCandidate {
 }
 
 func (candidate peerCandidate) signAndVerify(request *http.Request) error {
+	resetSignatureFields(request)
 	signatureInput, signature, err := peer.SignRequest("sig", *candidate.signer, request)
 	if err != nil {
 		return err
@@ -162,6 +229,48 @@ func (candidate peerCandidate) signAndVerify(request *http.Request) error {
 	request.Header.Set("Signature-Input", signatureInput)
 	request.Header.Set("Signature", signature)
 	return peer.VerifyRequest("sig", *candidate.verifier, request)
+}
+
+func newDadrusCandidate(tb testing.TB) dadrusCandidate {
+	tb.Helper()
+	key := dadrus.Key{KeyID: "benchmark-key", Algorithm: dadrus.HmacSha256, Key: benchmarkKey}
+	signer, err := dadrus.NewSigner(key,
+		dadrus.WithLabel("sig"),
+		dadrus.WithTTL(0),
+		dadrus.WithNonce(dadrus.NonceGetterFunc(func(context.Context) (string, error) { return "", nil })),
+		dadrus.WithComponents("@method", "@authority", "content-type"),
+	)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	verifier, err := dadrus.NewVerifier(key,
+		dadrus.WithValidateAllSignatures(),
+		dadrus.WithRequiredComponents("@method", "@authority", "content-type"),
+		dadrus.WithCreatedTimestampRequired(true),
+		dadrus.WithExpiredTimestampRequired(false),
+		dadrus.WithMaxAge(time.Minute),
+		dadrus.WithValidityTolerance(time.Second),
+	)
+	if err != nil {
+		tb.Fatal(err)
+	}
+	return dadrusCandidate{signer: signer, verifier: verifier}
+}
+
+func (candidate dadrusCandidate) signAndVerify(request *http.Request) error {
+	resetSignatureFields(request)
+	header, err := candidate.signer.Sign(dadrus.MessageFromRequest(request))
+	if err != nil {
+		return err
+	}
+	request.Header.Set("Signature-Input", header.Get("Signature-Input"))
+	request.Header.Set("Signature", header.Get("Signature"))
+	return candidate.verifier.Verify(dadrus.MessageFromRequest(request))
+}
+
+func resetSignatureFields(request *http.Request) {
+	request.Header.Del("Signature-Input")
+	request.Header.Del("Signature")
 }
 
 func benchmarkRequest(tb testing.TB) *http.Request {

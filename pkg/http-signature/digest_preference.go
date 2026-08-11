@@ -107,7 +107,7 @@ func (preferences DigestPreferences) String() string {
 	for _, entry := range preferences.entries {
 		dictionary.Add(string(entry.Algorithm), httpsfv.NewItem(entry.Weight))
 	}
-	value, err := httpsfv.Marshal(dictionary)
+	value, err := marshalRFC8941(dictionary)
 	if err != nil {
 		panic(fmt.Errorf("serialize validated digest preferences: %w", err))
 	}

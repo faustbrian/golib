@@ -14,9 +14,11 @@ func TestMemoryReplayStoreAtomicallyConsumesNonceUntilExpiration(t *testing.T) {
 
 	now := time.Unix(1_700_000_000, 0)
 	store, err := NewMemoryReplayStore(MemoryReplayConfig{
-		Capacity: 2,
-		MaxTTL:   10 * time.Minute,
-		Now:      func() time.Time { return now },
+		Capacity:      2,
+		MaxTTL:        10 * time.Minute,
+		MaxKeyIDBytes: 64,
+		MaxNonceBytes: 64,
+		Now:           func() time.Time { return now },
 	})
 	if err != nil {
 		t.Fatalf("NewMemoryReplayStore() error = %v", err)
@@ -42,9 +44,11 @@ func TestMemoryReplayStoreIsBoundedAndRejectsInvalidRecords(t *testing.T) {
 
 	now := time.Unix(1_700_000_000, 0)
 	store, err := NewMemoryReplayStore(MemoryReplayConfig{
-		Capacity: 1,
-		MaxTTL:   time.Minute,
-		Now:      func() time.Time { return now },
+		Capacity:      1,
+		MaxTTL:        time.Minute,
+		MaxKeyIDBytes: 64,
+		MaxNonceBytes: 64,
+		Now:           func() time.Time { return now },
 	})
 	if err != nil {
 		t.Fatalf("NewMemoryReplayStore() error = %v", err)
@@ -80,7 +84,10 @@ func TestMemoryReplayStoreRejectsEachIndependentRecordBoundary(t *testing.T) {
 	t.Parallel()
 
 	now := time.Unix(1_700_000_000, 0)
-	store, err := NewMemoryReplayStore(MemoryReplayConfig{Capacity: 8, MaxTTL: time.Minute, Now: func() time.Time { return now }})
+	store, err := NewMemoryReplayStore(MemoryReplayConfig{
+		Capacity: 8, MaxTTL: time.Minute, MaxKeyIDBytes: 64, MaxNonceBytes: 64,
+		Now: func() time.Time { return now },
+	})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -108,9 +115,11 @@ func TestMemoryReplayStoreAllowsExactlyOneConcurrentConsumer(t *testing.T) {
 
 	now := time.Unix(1_700_000_000, 0)
 	store, err := NewMemoryReplayStore(MemoryReplayConfig{
-		Capacity: 1,
-		MaxTTL:   time.Minute,
-		Now:      func() time.Time { return now },
+		Capacity:      1,
+		MaxTTL:        time.Minute,
+		MaxKeyIDBytes: 64,
+		MaxNonceBytes: 64,
+		Now:           func() time.Time { return now },
 	})
 	if err != nil {
 		t.Fatalf("NewMemoryReplayStore() error = %v", err)
@@ -144,12 +153,22 @@ func TestMemoryReplayStoreAllowsExactlyOneConcurrentConsumer(t *testing.T) {
 func TestNewMemoryReplayStoreRequiresExplicitBounds(t *testing.T) {
 	t.Parallel()
 
-	for _, config := range []MemoryReplayConfig{
-		{},
-		{Capacity: 1, MaxTTL: time.Minute},
-		{Capacity: 1, Now: time.Now},
-		{MaxTTL: time.Minute, Now: time.Now},
+	valid := MemoryReplayConfig{
+		Capacity: 1, MaxTTL: time.Minute, MaxKeyIDBytes: 1, MaxNonceBytes: 1, Now: time.Now,
+	}
+	for _, mutate := range []func(*MemoryReplayConfig){
+		func(config *MemoryReplayConfig) { config.Capacity = 0 },
+		func(config *MemoryReplayConfig) { config.Capacity = -1 },
+		func(config *MemoryReplayConfig) { config.MaxTTL = 0 },
+		func(config *MemoryReplayConfig) { config.MaxTTL = -1 },
+		func(config *MemoryReplayConfig) { config.MaxKeyIDBytes = 0 },
+		func(config *MemoryReplayConfig) { config.MaxKeyIDBytes = -1 },
+		func(config *MemoryReplayConfig) { config.MaxNonceBytes = 0 },
+		func(config *MemoryReplayConfig) { config.MaxNonceBytes = -1 },
+		func(config *MemoryReplayConfig) { config.Now = nil },
 	} {
+		config := valid
+		mutate(&config)
 		if _, err := NewMemoryReplayStore(config); !errors.Is(err, ErrInvalidReplayConfig) {
 			t.Fatalf("NewMemoryReplayStore(%#v) error = %v, want ErrInvalidReplayConfig", config, err)
 		}

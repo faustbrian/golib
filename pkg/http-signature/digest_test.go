@@ -117,7 +117,7 @@ func TestParseDigestFieldPreservesRFC8941ItemParameters(t *testing.T) {
 func TestParseDigestFieldAllowsRFC8941OptionalWhitespace(t *testing.T) {
 	t.Parallel()
 
-	field, err := ParseDigestField("\tsha-256=:YWJj:\t,\tsha-512=:YWJjZA==:\t")
+	field, err := ParseDigestField(" sha-256=:YWJj:\t,\tsha-512=:YWJjZA==:\t")
 	if err != nil {
 		t.Fatalf("ParseDigestField() error = %v", err)
 	}

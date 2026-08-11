@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 var (
@@ -23,7 +25,12 @@ var (
 	// ErrResponseBodyTooLarge reports that buffered response signing reached its
 	// explicit resource limit before any response bytes were emitted.
 	ErrResponseBodyTooLarge = errors.New("http signature: response body exceeds signing buffer")
+	// ErrAmbiguousProtectedField reports case-colliding map keys for a protected
+	// HTTP field whose values cannot be interpreted unambiguously.
+	ErrAmbiguousProtectedField = errors.New("http signature: ambiguous protected HTTP field")
 )
+
+var protectedHTTPFieldNames = [...]string{"Signature-Input", "Signature", "Accept-Signature", "Content-Digest"}
 
 // ExistingSignaturesPolicy controls how a signing transport handles fields
 // already present on a caller request. The zero value is invalid.
@@ -83,8 +90,12 @@ func (transport *SigningRoundTripper) RoundTrip(request *http.Request) (*http.Re
 	if transport == nil || request == nil {
 		return nil, ErrInvalidHTTPIntegration
 	}
-	inputValues := request.Header.Values("Signature-Input")
-	signatureValues := request.Header.Values("Signature")
+	clone, err := normalizeProtectedRequest(request)
+	if err != nil {
+		return signingRoundTripError(request, err)
+	}
+	inputValues := clone.Header.Values("Signature-Input")
+	signatureValues := clone.Header.Values("Signature")
 	hasExisting := len(inputValues) != 0 || len(signatureValues) != 0
 	if hasExisting && transport.existing == ExistingSignaturesReject {
 		return signingRoundTripError(request, ErrExistingSignatures)
@@ -109,10 +120,6 @@ func (transport *SigningRoundTripper) RoundTrip(request *http.Request) (*http.Re
 		return signingRoundTripError(request, ErrHTTPIntegrationSigning)
 	}
 
-	clone := request.Clone(ctx)
-	if clone.Header == nil {
-		clone.Header = make(http.Header)
-	}
 	message := MessageContext{Request: clone}
 	if transport.externalContext != nil {
 		external, externalErr := transport.externalContext(ctx, request)
@@ -173,24 +180,29 @@ func NewRequestVerificationMiddleware(config RequestVerificationMiddlewareConfig
 				config.MapError(writer, request, ErrInvalidHTTPIntegration)
 				return
 			}
-			inputs, err := ParseSignatureInputs(request.Header.Values("Signature-Input"))
+			verifiedRequest, err := normalizeProtectedRequest(request)
 			if err != nil {
 				config.MapError(writer, request, err)
 				return
 			}
-			signatures, err := ParseSignatures(request.Header.Values("Signature"))
+			inputs, err := ParseSignatureInputs(verifiedRequest.Header.Values("Signature-Input"))
 			if err != nil {
 				config.MapError(writer, request, err)
 				return
 			}
-			label, err := config.SelectLabel(request, inputs, signatures)
+			signatures, err := ParseSignatures(verifiedRequest.Header.Values("Signature"))
+			if err != nil {
+				config.MapError(writer, request, err)
+				return
+			}
+			label, err := config.SelectLabel(cloneRequestSnapshot(verifiedRequest), inputs, signatures)
 			if err != nil || !validSignatureLabel(label) {
 				config.MapError(writer, request, ErrInvalidHTTPIntegration)
 				return
 			}
-			message := MessageContext{Request: request}
+			message := MessageContext{Request: verifiedRequest}
 			if config.ExternalContext != nil {
-				external, externalErr := config.ExternalContext(request.Context(), request)
+				external, externalErr := config.ExternalContext(request.Context(), cloneRequestSnapshot(verifiedRequest))
 				if externalErr != nil {
 					config.MapError(writer, request, ErrInvalidHTTPIntegration)
 					return
@@ -203,7 +215,7 @@ func NewRequestVerificationMiddleware(config RequestVerificationMiddlewareConfig
 				return
 			}
 			ctx := context.WithValue(request.Context(), verifiedSignatureContextKey{}, verified)
-			next.ServeHTTP(writer, request.WithContext(ctx))
+			next.ServeHTTP(writer, verifiedRequest.WithContext(ctx))
 		})
 	}, nil
 }
@@ -221,9 +233,10 @@ func VerifiedSignatureFromContext(ctx context.Context) (VerifiedSignature, bool)
 }
 
 // ResponseSigningMiddlewareConfig defines a fail-closed buffered response
-// signing boundary. MaxBufferedBytes is mandatory; handlers requiring
-// streaming, flushing, hijacking, or full-duplex operation need a trailer-aware
-// adapter instead.
+// signing boundary. MaxBufferedBytes and ReportError are mandatory; the latter
+// records redacted output failures after signed headers have committed.
+// Handlers requiring streaming, flushing, hijacking, or full-duplex operation
+// need a trailer-aware adapter instead.
 type ResponseSigningMiddlewareConfig struct {
 	Signer                  *Signer
 	Label                   string
@@ -233,17 +246,19 @@ type ResponseSigningMiddlewareConfig struct {
 	Options                 func(context.Context, *http.Request, *http.Response) (SigningOptions, error)
 	ExternalContext         func(context.Context, *http.Request, *http.Response) (*ExternalRequestContext, error)
 	MapError                func(http.ResponseWriter, *http.Request, error)
+	ReportError             func(*http.Request, error)
 }
 
 // ResponseSigningMiddleware wraps an http.Handler.
 type ResponseSigningMiddleware func(http.Handler) http.Handler
 
 // NewResponseSigningMiddleware validates an explicit response-signing policy.
-// Configuration callbacks and the signing profile must be safe for concurrent
-// handler calls.
+// Configuration, mapping, and reporting callbacks and the signing profile must
+// be safe for concurrent handler calls.
 func NewResponseSigningMiddleware(config ResponseSigningMiddlewareConfig) (ResponseSigningMiddleware, error) {
 	if config.Signer == nil || !validSignatureLabel(config.Label) || config.MaxBufferedBytes <= 0 || config.Options == nil ||
-		config.MapError == nil || config.Existing < ExistingSignaturesReject || config.Existing > ExistingSignaturesAppend {
+		config.MapError == nil || config.ReportError == nil ||
+		config.Existing < ExistingSignaturesReject || config.Existing > ExistingSignaturesAppend {
 		return nil, ErrInvalidHTTPIntegration
 	}
 	digestAlgorithms := append([]DigestAlgorithm(nil), config.ContentDigestAlgorithms...)
@@ -262,18 +277,79 @@ func NewResponseSigningMiddleware(config ResponseSigningMiddlewareConfig) (Respo
 				config.MapError(writer, request, ErrInvalidHTTPIntegration)
 				return
 			}
+			outerHeader, normalizeErr := normalizeProtectedHeader(writer.Header())
+			if normalizeErr != nil {
+				config.MapError(writer, request, normalizeErr)
+				return
+			}
+			if len(outerHeader.Values("Content-Digest")) != 0 {
+				config.MapError(writer, request, ErrExistingDigest)
+				return
+			}
+			if len(outerHeader.Values("Signature-Input")) != 0 || len(outerHeader.Values("Signature")) != 0 {
+				config.MapError(writer, request, ErrExistingSignatures)
+				return
+			}
+			for _, name := range []string{"Content-Length", "Transfer-Encoding", "Trailer"} {
+				_, present, framingErr := protectedFieldValues(writer.Header(), name)
+				if framingErr != nil {
+					config.MapError(writer, request, framingErr)
+					return
+				}
+				if present {
+					config.MapError(writer, request, ErrInvalidHTTPIntegration)
+					return
+				}
+			}
+			relatedRequest, normalizeErr := normalizeProtectedRequest(request)
+			if normalizeErr != nil {
+				config.MapError(writer, request, normalizeErr)
+				return
+			}
 			buffer := newBufferedResponseWriter(config.MaxBufferedBytes)
+			buffer.header = outerHeader.Clone()
 			next.ServeHTTP(buffer, request)
 			if buffer.tooLarge {
 				config.MapError(writer, request, ErrResponseBodyTooLarge)
 				return
 			}
 
-			response := buffer.response(request)
+			response := buffer.response(relatedRequest)
+			if responseTransitionsProtocol(relatedRequest, response) {
+				config.MapError(writer, request, ErrInvalidHTTPIntegration)
+				return
+			}
+			normalizedHeader, normalizeErr := normalizeProtectedHeader(response.Header)
+			if normalizeErr != nil {
+				config.MapError(writer, request, normalizeErr)
+				return
+			}
+			response.Header = normalizedHeader
+			normalizeErr = rejectBufferedResponseManagedFraming(response.Header)
+			switch normalizeErr {
+			case nil:
+			default:
+				config.MapError(writer, request, normalizeErr)
+				return
+			}
 			content := buffer.body.Bytes()
-			if request.Method == http.MethodHead || !responseBodyAllowed(response.StatusCode) {
+			switch {
+			case request.Method == http.MethodHead:
+				content = nil
+				response.ContentLength, normalizeErr = normalizeBufferedRepresentationContentLength(response.Header, response.ContentLength)
+			case response.StatusCode == http.StatusNotModified:
+				content = nil
+				response.ContentLength, normalizeErr = normalizeBufferedRepresentationContentLength(response.Header, 0)
+			case !responseBodyAllowed(response.StatusCode):
 				content = nil
 				response.ContentLength = 0
+				normalizeErr = rejectBufferedContentLength(response.Header)
+			default:
+				normalizeErr = normalizeBufferedContentLength(response.Header, response.ContentLength, true)
+			}
+			if normalizeErr != nil {
+				config.MapError(writer, request, normalizeErr)
+				return
 			}
 			if len(digestAlgorithms) != 0 {
 				if len(response.Header.Values("Content-Digest")) != 0 {
@@ -306,14 +382,16 @@ func NewResponseSigningMiddleware(config ResponseSigningMiddlewareConfig) (Respo
 				}
 			}
 
-			options, err := config.Options(request.Context(), request, response)
+			options, err := config.Options(request.Context(), cloneRequestSnapshot(relatedRequest), responseCallbackSnapshot(response, relatedRequest))
 			if err != nil {
 				config.MapError(writer, request, ErrHTTPIntegrationSigning)
 				return
 			}
-			message := MessageContext{Response: response, RelatedRequest: request}
+			message := MessageContext{
+				Response: response, RelatedRequest: relatedRequest, ResponseTransport: ResponseTransportWrite,
+			}
 			if config.ExternalContext != nil {
-				external, externalErr := config.ExternalContext(request.Context(), request, response)
+				external, externalErr := config.ExternalContext(request.Context(), cloneRequestSnapshot(relatedRequest), responseCallbackSnapshot(response, relatedRequest))
 				if externalErr != nil {
 					config.MapError(writer, request, ErrHTTPIntegrationSigning)
 					return
@@ -337,7 +415,9 @@ func NewResponseSigningMiddleware(config ResponseSigningMiddlewareConfig) (Respo
 				response.Header.Set("Signature-Input", signed.SignatureInputField())
 				response.Header.Set("Signature", signed.SignatureField())
 			}
-			copyResponse(writer, response, content)
+			if copyErr := copyResponse(writer, response, content); copyErr != nil {
+				config.ReportError(request, copyErr)
+			}
 		})
 	}, nil
 }
@@ -386,7 +466,14 @@ func (writer *bufferedResponseWriter) Write(content []byte) (int, error) {
 }
 
 func responseBodyAllowed(status int) bool {
-	return status >= 200 && status != http.StatusNoContent && status != http.StatusNotModified
+	return status >= 200 && status != http.StatusNoContent && status != http.StatusResetContent && status != http.StatusNotModified
+}
+
+func responseTransitionsProtocol(request *http.Request, response *http.Response) bool {
+	if response.StatusCode == http.StatusSwitchingProtocols {
+		return true
+	}
+	return request.Method == http.MethodConnect && response.StatusCode >= 200 && response.StatusCode <= 299
 }
 
 func (writer *bufferedResponseWriter) response(request *http.Request) *http.Response {
@@ -407,33 +494,116 @@ func (writer *bufferedResponseWriter) response(request *http.Request) *http.Resp
 	}
 }
 
-func copyResponse(writer http.ResponseWriter, response *http.Response, body []byte) {
+func copyResponse(writer http.ResponseWriter, response *http.Response, body []byte) error {
+	for name := range writer.Header() {
+		delete(writer.Header(), name)
+	}
 	for name, values := range response.Header {
-		for _, value := range values {
-			writer.Header().Add(name, value)
-		}
+		writer.Header()[name] = append([]string(nil), values...)
 	}
 	writer.WriteHeader(response.StatusCode)
-	_, _ = writer.Write(body)
+	count, err := writer.Write(body)
+	if err != nil || count != len(body) {
+		return ErrBodyRead
+	}
+	return nil
+}
+
+func rejectBufferedResponseManagedFraming(header http.Header) error {
+	for _, name := range []string{"Transfer-Encoding", "Trailer"} {
+		_, present, err := protectedFieldValues(header, name)
+		switch err {
+		case nil:
+		default:
+			return err
+		}
+		if present {
+			return ErrInvalidHTTPIntegration
+		}
+	}
+	for name := range header {
+		if strings.HasPrefix(name, http.TrailerPrefix) {
+			return ErrInvalidHTTPIntegration
+		}
+	}
+	return nil
+}
+
+func normalizeBufferedContentLength(header http.Header, contentLength int64, required bool) error {
+	values, present, err := protectedFieldValues(header, "Content-Length")
+	if err != nil {
+		return err
+	}
+	expected := strconv.FormatInt(contentLength, 10)
+	if present && (len(values) != 1 || values[0] != expected) {
+		return ErrInvalidHTTPIntegration
+	}
+	if present || required {
+		deleteHeaderField(header, "Content-Length")
+		header.Set("Content-Length", expected)
+	}
+	return nil
+}
+
+func normalizeBufferedRepresentationContentLength(header http.Header, fallback int64) (int64, error) {
+	values, present, err := protectedFieldValues(header, "Content-Length")
+	if err != nil {
+		return 0, err
+	}
+	if !present {
+		if fallback > 0 {
+			header.Set("Content-Length", strconv.FormatInt(fallback, 10))
+		}
+		return fallback, nil
+	}
+	if len(values) != 1 || values[0] == "" {
+		return 0, ErrInvalidHTTPIntegration
+	}
+	if strings.Trim(values[0], "0123456789") != "" {
+		return 0, ErrInvalidHTTPIntegration
+	}
+	contentLength, parseErr := strconv.ParseInt(values[0], 10, 64)
+	if parseErr != nil {
+		return 0, ErrInvalidHTTPIntegration
+	}
+	deleteHeaderField(header, "Content-Length")
+	header.Set("Content-Length", strconv.FormatInt(contentLength, 10))
+	return contentLength, nil
+}
+
+func rejectBufferedContentLength(header http.Header) error {
+	_, present, err := protectedFieldValues(header, "Content-Length")
+	if err != nil {
+		return err
+	}
+	if present {
+		return ErrInvalidHTTPIntegration
+	}
+	return nil
 }
 
 // VerifyingRoundTripperConfig defines response signature selection and trusted
 // external request context. The wrapped transport retains request-body
 // ownership; this adapter closes a response body when verification fails.
 type VerifyingRoundTripperConfig struct {
-	Transport       http.RoundTripper
-	Verifier        *Verifier
-	SelectLabel     func(*http.Request, *http.Response, SignatureInputs, Signatures) (string, error)
-	ExternalContext func(context.Context, *http.Request, *http.Response) (*ExternalRequestContext, error)
+	Transport               http.RoundTripper
+	Verifier                *Verifier
+	SelectLabel             func(*http.Request, *http.Response, SignatureInputs, Signatures) (string, error)
+	ContentDigestAlgorithms []DigestAlgorithm
+	MaxBufferedBytes        int64
+	ExternalContext         func(context.Context, *http.Request, *http.Response) (*ExternalRequestContext, error)
 }
 
-// VerifyingRoundTripper verifies response signatures without reading or
-// replacing response bodies.
+// VerifyingRoundTripper verifies response signatures. A selected signature
+// that covers a response Content-Digest is accepted only when an explicit
+// bounded digest policy verifies and replaces the consumed body.
 type VerifyingRoundTripper struct {
-	transport       http.RoundTripper
-	verifier        *Verifier
-	selectLabel     func(*http.Request, *http.Response, SignatureInputs, Signatures) (string, error)
-	externalContext func(context.Context, *http.Request, *http.Response) (*ExternalRequestContext, error)
+	transport               http.RoundTripper
+	verifier                *Verifier
+	selectLabel             func(*http.Request, *http.Response, SignatureInputs, Signatures) (string, error)
+	contentDigestAlgorithms []DigestAlgorithm
+	maxBufferedBytes        int64
+	externalContext         func(context.Context, *http.Request, *http.Response) (*ExternalRequestContext, error)
 }
 
 // NewVerifyingRoundTripper validates an explicit response-verification adapter.
@@ -441,8 +611,19 @@ func NewVerifyingRoundTripper(config VerifyingRoundTripperConfig) (*VerifyingRou
 	if config.Transport == nil || config.Verifier == nil || config.SelectLabel == nil {
 		return nil, ErrInvalidHTTPIntegration
 	}
+	digestPolicyConfigured := len(config.ContentDigestAlgorithms) != 0 || config.MaxBufferedBytes != 0
+	if digestPolicyConfigured {
+		if config.MaxBufferedBytes <= 0 {
+			return nil, ErrInvalidHTTPIntegration
+		}
+		if _, err := ComputeDigests(config.ContentDigestAlgorithms, nil); err != nil {
+			return nil, ErrInvalidHTTPIntegration
+		}
+	}
 	return &VerifyingRoundTripper{
-		transport: config.Transport, verifier: config.Verifier, selectLabel: config.SelectLabel, externalContext: config.ExternalContext,
+		transport: config.Transport, verifier: config.Verifier, selectLabel: config.SelectLabel,
+		contentDigestAlgorithms: append([]DigestAlgorithm(nil), config.ContentDigestAlgorithms...),
+		maxBufferedBytes:        config.MaxBufferedBytes, externalContext: config.ExternalContext,
 	}, nil
 }
 
@@ -465,6 +646,19 @@ func (transport *VerifyingRoundTripper) RoundTrip(request *http.Request) (*http.
 		}
 		return nil, fmt.Errorf("%w: %w", ErrHTTPIntegrationVerification, cause)
 	}
+	relatedRequest, err := snapshotResponseRequest(response.Request)
+	if err != nil {
+		return fail(verificationError(VerificationBase, ErrInvalidHTTPIntegration))
+	}
+	normalizedHeader, err := normalizeProtectedHeader(response.Header)
+	if err != nil {
+		return fail(verificationError(VerificationBase, err))
+	}
+	_, err = normalizeProtectedHeader(response.Trailer)
+	if err != nil {
+		return fail(verificationError(VerificationBase, err))
+	}
+	response.Header = normalizedHeader
 	inputs, err := ParseSignatureInputs(response.Header.Values("Signature-Input"))
 	if err != nil {
 		return fail(verificationError(VerificationSelection, ErrInvalidSignatureInput))
@@ -473,13 +667,63 @@ func (transport *VerifyingRoundTripper) RoundTrip(request *http.Request) (*http.
 	if err != nil {
 		return fail(verificationError(VerificationSelection, ErrInvalidSignature))
 	}
-	label, err := transport.selectLabel(request, response, inputs, signatures)
+	label, err := transport.selectLabel(cloneRequestSnapshot(relatedRequest), responseCallbackSnapshot(response, relatedRequest), inputs, signatures)
 	if err != nil || !validSignatureLabel(label) {
 		return fail(verificationError(VerificationSelection, ErrInvalidHTTPIntegration))
 	}
-	message := MessageContext{Response: response, RelatedRequest: request}
+	selectedInput, _, ok := selectSignature(label, inputs, signatures)
+	if !ok {
+		return fail(verificationError(VerificationSelection, ErrInvalidSignedFields))
+	}
+	verifiesContent, authenticatesDigestPolicy := signatureInputAuthenticatesResponseContentDigest(
+		selectedInput, transport.contentDigestAlgorithms,
+	)
+	if !responseDigestBufferingConfigured(verifiesContent, transport.contentDigestAlgorithms, transport.maxBufferedBytes) {
+		return fail(verificationError(VerificationPolicy, ErrInvalidHTTPIntegration))
+	}
+	if verifiesContent && !authenticatesDigestPolicy {
+		return fail(verificationError(VerificationPolicy, ErrInvalidHTTPIntegration))
+	}
+	if verifiesContent && responseTransitionsProtocol(relatedRequest, response) {
+		return fail(verificationError(VerificationPolicy, ErrInvalidHTTPIntegration))
+	}
+	if verifiesContent && response.Uncompressed {
+		return fail(verificationError(VerificationBase, ErrInvalidBodyIntegration))
+	}
+	wireContentLength := response.ContentLength
+	if verifiesContent {
+		digestField, parseErr := ParseDigestFields(response.Header.Values("Content-Digest"))
+		if parseErr != nil {
+			return fail(verificationError(VerificationBase, ErrInvalidDigestField))
+		}
+		receivedBody := response.Body
+		response.Body = nil
+		content, readErr := readBoundedAndClose(request.Context(), receivedBody, transport.maxBufferedBytes)
+		if readErr != nil {
+			return nil, fmt.Errorf("%w: %w", ErrHTTPIntegrationVerification, readErr)
+		}
+		if digestErr := digestField.Verify(content, transport.contentDigestAlgorithms); digestErr != nil {
+			return nil, fmt.Errorf("%w: %w", ErrHTTPIntegrationVerification, digestErr)
+		}
+		response.Trailer, readErr = normalizeProtectedHeader(response.Trailer)
+		if readErr != nil {
+			return nil, fmt.Errorf("%w: %w", ErrHTTPIntegrationVerification, readErr)
+		}
+		response.Body = io.NopCloser(bytes.NewReader(content))
+		response.ContentLength = int64(len(content))
+	}
+	messageResponse := response
+	if verifiesContent {
+		messageResponse = responseCallbackSnapshot(response, relatedRequest)
+		messageResponse.ContentLength = wireContentLength
+	}
+	message := MessageContext{
+		Response: messageResponse, RelatedRequest: relatedRequest, ResponseTransport: ResponseTransportReceived,
+	}
 	if transport.externalContext != nil {
-		external, externalErr := transport.externalContext(request.Context(), request, response)
+		external, externalErr := transport.externalContext(
+			request.Context(), cloneRequestSnapshot(relatedRequest), responseCallbackSnapshot(response, relatedRequest),
+		)
 		if externalErr != nil {
 			return fail(verificationError(VerificationBase, ErrInvalidHTTPIntegration))
 		}
@@ -489,7 +733,7 @@ func (transport *VerifyingRoundTripper) RoundTrip(request *http.Request) (*http.
 	if err != nil {
 		return fail(err)
 	}
-	response.Request = request.WithContext(context.WithValue(request.Context(), verifiedSignatureContextKey{}, verified))
+	response.Request = relatedRequest.WithContext(context.WithValue(relatedRequest.Context(), verifiedSignatureContextKey{}, verified))
 	return response, nil
 }
 
@@ -529,6 +773,150 @@ func signingProfileCoversComponent(profile *SigningProfile, want ComponentIdenti
 		serialized, serializeErr := componentComparisonKey(component)
 		if serializeErr == nil && serialized == wantSerialized {
 			return true
+		}
+	}
+	return false
+}
+
+func snapshotResponseRequest(request *http.Request) (*http.Request, error) {
+	if request == nil || request.URL == nil {
+		return nil, ErrInvalidHTTPIntegration
+	}
+	return normalizeProtectedRequest(request)
+}
+
+func cloneRequestSnapshot(request *http.Request) *http.Request {
+	clone := request.Clone(request.Context())
+	clone.Body = nil
+	clone.GetBody = nil
+	clone.Response = nil
+	clone.TLS = nil
+	return clone
+}
+
+func responseCallbackSnapshot(response *http.Response, request *http.Request) *http.Response {
+	clone := *response
+	clone.Header = response.Header.Clone()
+	clone.Trailer = response.Trailer.Clone()
+	clone.TransferEncoding = append([]string(nil), response.TransferEncoding...)
+	clone.Body = nil
+	clone.Request = cloneRequestSnapshot(request)
+	clone.TLS = nil
+	return &clone
+}
+
+func normalizeProtectedRequest(request *http.Request) (*http.Request, error) {
+	clone := request.Clone(request.Context())
+	var err error
+	clone.Header, err = normalizeProtectedHeader(request.Header)
+	if err != nil {
+		return nil, err
+	}
+	clone.Trailer, err = normalizeProtectedHeader(request.Trailer)
+	if err != nil {
+		return nil, err
+	}
+	return clone, nil
+}
+
+func normalizeProtectedHeader(header http.Header) (http.Header, error) {
+	normalized := header.Clone()
+	if normalized == nil {
+		normalized = make(http.Header)
+	}
+	for _, name := range protectedHTTPFieldNames {
+		values, present, err := protectedFieldValues(header, name)
+		if err != nil {
+			return nil, err
+		}
+		for key := range normalized {
+			if strings.EqualFold(key, name) {
+				delete(normalized, key)
+			}
+		}
+		if present {
+			normalized[http.CanonicalHeaderKey(name)] = values
+		}
+	}
+	return normalized, nil
+}
+
+func protectedFieldValues(header http.Header, name string) ([]string, bool, error) {
+	var values []string
+	present := false
+	for key, current := range header {
+		if !strings.EqualFold(key, name) {
+			continue
+		}
+		if present {
+			return nil, false, ErrAmbiguousProtectedField
+		}
+		present = true
+		values = append([]string(nil), current...)
+	}
+	return values, present, nil
+}
+
+func deleteHeaderField(header http.Header, name string) {
+	for key := range header {
+		if strings.EqualFold(key, name) {
+			delete(header, key)
+		}
+	}
+}
+
+func signatureInputCoversResponseContentDigest(input SignatureInput) bool {
+	covered, _, _ := responseContentDigestCoverage(input)
+	return covered
+}
+
+func signatureInputAuthenticatesResponseContentDigest(input SignatureInput, algorithms []DigestAlgorithm) (bool, bool) {
+	covered, wholeField, keyedAlgorithms := responseContentDigestCoverage(input)
+	if !covered {
+		return false, false
+	}
+	if wholeField {
+		return true, true
+	}
+	for _, algorithm := range algorithms {
+		if _, ok := keyedAlgorithms[algorithm]; !ok {
+			return true, false
+		}
+	}
+	return true, true
+}
+
+func responseDigestBufferingConfigured(verifiesContent bool, algorithms []DigestAlgorithm, maxBufferedBytes int64) bool {
+	if !verifiesContent {
+		return true
+	}
+	return len(algorithms) != 0 && maxBufferedBytes > 0
+}
+
+func responseContentDigestCoverage(input SignatureInput) (bool, bool, map[DigestAlgorithm]struct{}) {
+	covered := false
+	wholeField := false
+	keyedAlgorithms := make(map[DigestAlgorithm]struct{})
+	for _, component := range input.Components {
+		if component.Name != "content-digest" || componentParameterTrue(component, "req") || componentParameterTrue(component, "tr") {
+			continue
+		}
+		covered = true
+		key, keyed := component.Parameter("key")
+		if !keyed {
+			wholeField = true
+		} else if algorithm, ok := key.(string); ok {
+			keyedAlgorithms[DigestAlgorithm(algorithm)] = struct{}{}
+		}
+	}
+	return covered, wholeField, keyedAlgorithms
+}
+
+func componentParameterTrue(component ComponentIdentifier, name string) bool {
+	for _, parameter := range component.Parameters {
+		if parameter.Name == name {
+			value, ok := parameter.Value.(bool)
+			return ok && value
 		}
 	}
 	return false

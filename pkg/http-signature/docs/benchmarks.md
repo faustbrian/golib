@@ -14,7 +14,9 @@ not equivalent.
 `make benchmark` also runs the isolated
 [`benchmarks/comparison`](../benchmarks/comparison/README.md) module. It compares
 end-to-end request signing, field serialization and parsing, and verification
-against pinned `yaronf/httpsign` using HMAC-SHA-256 and the same covered
-components. The local operation retains its mandatory application-profile and
-bounded resolver/provider checks, so the report documents that additional work
-instead of presenting the candidates as identical internals.
+against pinned `yaronf/httpsign` and `dadrus/httpsig` revisions using
+HMAC-SHA-256 and the same covered components. The local operation retains its
+mandatory application-profile and bounded resolver/provider checks, so the
+report documents that additional work instead of presenting the candidates as
+identical internals. The comparison gate records ten samples by default plus
+the Go, operating-system, architecture, CPU, and `GOMAXPROCS` environment.

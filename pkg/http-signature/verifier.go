@@ -68,6 +68,7 @@ type VerificationProfileConfig struct {
 	MaxAge                        time.Duration
 	ClockSkew                     time.Duration
 	ResolveTimeout                time.Duration
+	ReplayTimeout                 time.Duration
 	Now                           func() time.Time
 	Resolver                      KeyResolver
 	Replay                        ReplayStore
@@ -88,6 +89,7 @@ type VerificationProfile struct {
 	maxAge                 time.Duration
 	clockSkew              time.Duration
 	resolveTimeout         time.Duration
+	replayTimeout          time.Duration
 	now                    func() time.Time
 	resolver               KeyResolver
 	replay                 ReplayStore
@@ -108,8 +110,8 @@ func NewVerificationProfile(config VerificationProfileConfig) (*VerificationProf
 		config.Created != ParameterForbidden && config.MaxAge <= 0 {
 		return nil, ErrInvalidVerificationProfile
 	}
-	if config.Nonce == ParameterForbidden && config.Replay != nil ||
-		config.Nonce != ParameterForbidden && config.Replay == nil {
+	if config.Nonce == ParameterForbidden && (config.Replay != nil || config.ReplayTimeout != 0) ||
+		config.Nonce != ParameterForbidden && (config.Replay == nil || config.ReplayTimeout <= 0) {
 		return nil, ErrInvalidVerificationProfile
 	}
 	if config.Tag == ParameterForbidden && len(config.AllowedTags) != 0 ||
@@ -169,6 +171,7 @@ func NewVerificationProfile(config VerificationProfileConfig) (*VerificationProf
 		maxAge:                 config.MaxAge,
 		clockSkew:              config.ClockSkew,
 		resolveTimeout:         config.ResolveTimeout,
+		replayTimeout:          config.ReplayTimeout,
 		now:                    config.Now,
 		resolver:               config.Resolver,
 		replay:                 config.Replay,
@@ -263,6 +266,10 @@ func (verifier *Verifier) Verify(
 	if err != nil {
 		return VerifiedSignature{}, err
 	}
+	base, err := CreateSignatureBase(message, input)
+	if err != nil {
+		return VerifiedSignature{}, verificationError(VerificationBase, err)
+	}
 
 	resolveContext, cancel := context.WithTimeout(ctx, verifier.profile.resolveTimeout)
 	resolved, resolveErr := verifier.profile.resolver.Resolve(resolveContext, metadata.keyID)
@@ -274,15 +281,11 @@ func (verifier *Verifier) Verify(
 	if resolveErr != nil {
 		return VerifiedSignature{}, verificationError(VerificationKeyResolution, safeResolutionCause(resolveErr))
 	}
-	if err := verifier.profile.validateKey(resolved, metadata.algorithm, metadata.hasAlgorithm); err != nil {
+	if err := verifier.profile.validateKey(resolved, metadata.algorithm, metadata.hasAlgorithm, metadata.result.Created); err != nil {
 		return VerifiedSignature{}, err
 	}
 	metadata.result.Algorithm = resolved.Algorithm
 
-	base, err := CreateSignatureBase(message, input)
-	if err != nil {
-		return VerifiedSignature{}, verificationError(VerificationBase, err)
-	}
 	if err := Verify(ctx, resolved.Algorithm, resolved.Key, []byte(base), signature.Value); err != nil {
 		failure := VerificationCryptographic
 		if errors.Is(err, ErrIncompatibleKey) || errors.Is(err, ErrUnsupportedSignatureAlgorithm) {
@@ -292,12 +295,19 @@ func (verifier *Verifier) Verify(
 	}
 
 	if metadata.nonce != "" {
-		if err := verifier.profile.replay.Consume(ctx, ReplayRecord{
+		replayContext, cancelReplay := context.WithTimeout(ctx, verifier.profile.replayTimeout)
+		replayErr := verifier.profile.replay.Consume(replayContext, ReplayRecord{
 			KeyID:     metadata.keyID,
 			Nonce:     metadata.nonce,
 			ExpiresAt: metadata.replayExpires,
-		}); err != nil {
-			return VerifiedSignature{}, verificationError(VerificationReplay, safeReplayCause(err))
+		})
+		replayContextErr := replayContext.Err()
+		cancelReplay()
+		if replayContextErr != nil {
+			return VerifiedSignature{}, verificationError(VerificationReplay, safeReplayCause(replayContextErr))
+		}
+		if replayErr != nil {
+			return VerifiedSignature{}, verificationError(VerificationReplay, safeReplayCause(replayErr))
 		}
 	}
 
@@ -402,11 +412,12 @@ func (profile *VerificationProfile) validateInput(input SignatureInput) (validat
 	return metadata, nil
 }
 
-func (profile *VerificationProfile) validateKey(key ResolvedKey, parameterAlgorithm Algorithm, hasParameter bool) error {
+func (profile *VerificationProfile) validateKey(key ResolvedKey, parameterAlgorithm Algorithm, hasParameter bool, created time.Time) error {
 	now := profile.now()
 	if key.Revoked || key.Key == nil || key.NotBefore.IsZero() || key.NotAfter.IsZero() || key.FreshUntil.IsZero() ||
 		!key.NotAfter.After(key.NotBefore) || now.Before(key.NotBefore.Add(-profile.clockSkew)) ||
-		!now.Before(key.NotAfter.Add(profile.clockSkew)) || !now.Before(key.FreshUntil) {
+		!now.Before(key.NotAfter.Add(profile.clockSkew)) || !now.Before(key.FreshUntil) ||
+		!created.IsZero() && (created.Before(key.NotBefore.Add(-profile.clockSkew)) || !created.Before(key.NotAfter.Add(profile.clockSkew))) {
 		return verificationError(VerificationKey, errors.New("unusable key"))
 	}
 	if _, allowed := profile.algorithms[key.Algorithm]; !allowed {
