@@ -638,3 +638,19 @@ func TestFailFastMergeExistingStemIntoEmptyInsertion(t *testing.T) {
 		t.Fatalf("merged stems = %#v, want only %#v", merged, existing)
 	}
 }
+
+func TestFailFastParentChangedChildReturnsExactIndex(t *testing.T) {
+	matching := statelessChangedCommitment{kind: statelessChangedStem}
+	later := statelessChangedCommitment{kind: statelessChangedInternal}
+	changes := []statelessParentChange{
+		{opening: backend.VectorUpdate{Index: 7}, child: matching},
+		{opening: backend.VectorUpdate{Index: 8}, child: later},
+	}
+	changed, found := statelessParentChangedChild(changes, 7)
+	if !found || changed != matching {
+		t.Fatalf("matching changed child = %#v, found %v", changed, found)
+	}
+	if _, found := statelessParentChangedChild(changes, 9); found {
+		t.Fatal("absent changed child reported present")
+	}
+}

@@ -1042,13 +1042,9 @@ func (updater *StatelessUpdater) updateDisclosedParent(
 	if nonzeroCount == 1 {
 		kind := statelessChangedUnknown
 		var child backend.VectorCommitment
-		for index := range changes {
-			if changes[index].opening.Index == nonzeroIndex {
-				kind = changes[index].child.kind
-				child = changes[index].child.new
-
-				break
-			}
+		if changedChild, found := statelessParentChangedChild(changes, nonzeroIndex); found {
+			kind = changedChild.kind
+			child = changedChild.new
 		}
 		if kind == statelessChangedUnknown {
 			stemChild, err := statelessDisclosedChildIsStem(
@@ -1089,6 +1085,19 @@ func (updater *StatelessUpdater) updateDisclosedParent(
 	updated, err := updater.commitment.UpdateCommitment(ctx, oldParent, updates)
 
 	return updated, statelessChangedInternal, false, err
+}
+
+func statelessParentChangedChild(
+	changes []statelessParentChange,
+	index byte,
+) (statelessChangedCommitment, bool) {
+	for candidate := range changes {
+		if changes[candidate].opening.Index == index {
+			return changes[candidate].child, true
+		}
+	}
+
+	return statelessChangedCommitment{}, false
 }
 
 func statelessDisclosedInternalVector(
