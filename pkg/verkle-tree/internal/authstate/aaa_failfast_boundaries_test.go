@@ -395,6 +395,31 @@ func TestFailFastStatelessAbsentDeleteDoesNotStopLaterStemUpdate(t *testing.T) {
 	}
 }
 
+func TestFailFastStatelessAbsentDeleteDoesNotStopSameStemInsertion(t *testing.T) {
+	existing := testKey(0x40, 1)
+	absent := testKey(0x20, 1)
+	inserted := testKey(0x20, 2)
+	snapshot := newTestSnapshot(t, []Entry{{Key: existing, Value: testValue(1)}})
+	proof, updater := newStatelessTestProof(t, snapshot, []Key{absent, inserted})
+	updates := []Update{Delete(absent), Set(inserted, testValue(2))}
+	got, err := updater.Apply(
+		context.Background(), proof, updates,
+		testProofVerificationLimits(), testStatelessUpdateLimits(),
+	)
+	if err != nil {
+		t.Fatalf("apply absent delete before same-stem insertion: %v", err)
+	}
+	wantSnapshot, _, err := snapshot.Apply(context.Background(), updates)
+	if err != nil {
+		t.Fatalf("apply stateful comparison updates: %v", err)
+	}
+	want, err := wantSnapshot.RootContainer(context.Background())
+	if err != nil {
+		t.Fatalf("stateful comparison root: %v", err)
+	}
+	assertSameBackendRoot(t, got, want)
+}
+
 func TestFailFastStatelessNoOpDoesNotStopLaterStemUpdate(t *testing.T) {
 	first := testKey(0x20, 1)
 	later := testKey(0x40, 1)
