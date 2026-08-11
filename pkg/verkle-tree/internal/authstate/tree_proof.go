@@ -390,8 +390,7 @@ func NewTreeProof(
 		if err := stemPaths[index].validate(); err != nil {
 			return TreeProof{}, err
 		}
-		if emptyRoot && (stemPaths[index].kind != StemPathMissing ||
-			stemPaths[index].depth != 1) {
+		if emptyRoot && !canonicalEmptyRootStemPath(stemPaths[index]) {
 			return TreeProof{}, errInvalidTreeProof
 		}
 	}
@@ -591,6 +590,10 @@ func (proof TreeProof) validate() error {
 	return nil
 }
 
+func canonicalEmptyRootStemPath(path StemPath) bool {
+	return path.kind == StemPathMissing && path.depth == 1
+}
+
 func validEmptyRootTreeProofShape(
 	claims []Claim,
 	paths []StemPath,
@@ -602,7 +605,7 @@ func validEmptyRootTreeProofShape(
 	claimIndex := 0
 	for pathIndex := range paths {
 		path := paths[pathIndex]
-		if path.kind != StemPathMissing || path.depth != 1 ||
+		if !canonicalEmptyRootStemPath(path) ||
 			claimIndex == len(claims) ||
 			Stem(claims[claimIndex].key[:31]) != path.stem {
 			return false

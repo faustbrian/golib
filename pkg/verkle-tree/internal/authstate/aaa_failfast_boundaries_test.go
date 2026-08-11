@@ -41,6 +41,25 @@ func TestFailFastStatelessWitnessStemPathLookup(t *testing.T) {
 	}
 }
 
+func TestFailFastCanonicalEmptyRootStemPath(t *testing.T) {
+	stem := Stem{1}
+	for name, test := range map[string]struct {
+		path StemPath
+		want bool
+	}{
+		"canonical":    {path: MissingStemPath(stem, 1), want: true},
+		"present":      {path: PresentStemPath(stem, 1), want: false},
+		"different":    {path: DifferentStemPath(stem, 1, Stem{2}), want: false},
+		"deep missing": {path: MissingStemPath(stem, 2), want: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := canonicalEmptyRootStemPath(test.path); got != test.want {
+				t.Fatalf("canonical empty-root stem path = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
 func TestFailFastClaimAccessorsPreservePresenceAndAbsence(t *testing.T) {
 	key := testKey(1, 2)
 	value := testValue(3)
