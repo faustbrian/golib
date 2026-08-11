@@ -9,9 +9,9 @@ this report does not turn a historical or partial result into a pass.
 
 **Not ready for release.** The production API and documented Apache Kafka
 policy are substantially implemented, but the release decision remains blocked
-by the release-blocking findings below. In particular, the current tree does
-not yet have a successful content-matched mutation result, a complete
-frozen-tree release gate set, or direct Amazon MSK evidence.
+by the release-blocking findings below. The current tree has successful
+content-matched exact mutation evidence, but it does not yet have a complete
+frozen-tree release gate set or direct Amazon MSK evidence.
 
 Severity means:
 
@@ -28,7 +28,6 @@ Severity means:
 
 | ID | Severity | Finding and impact | Disposition | Release condition |
 | --- | --- | --- | --- | --- |
-| KAF-F001 | Critical | The latest long-running mutation gate is not valid release evidence for the current tree. Its package campaign killed all 3,016 generated mutants, but the aggregate gate ended with status 141 after its output consumer disconnected; production and test inputs also changed afterward. Exact 100% mutation efficacy and mutant coverage are therefore unproved for the release candidate. | Open. The output-durability defect is fixed, but the campaign itself is deliberately deferred while inputs are changing. | Freeze every mutation input, calculate the final content fingerprint, run one Kafka mutation campaign, and retain successful package and aggregate checkpoints with exact 100% efficacy and mutant coverage. |
 | KAF-F002 | Critical | The current release evidence set was collected across changing inputs. A pass whose complete gate fingerprint no longer matches the release candidate cannot establish release readiness, and not all nine manifest-derived reverse dependencies have final content-matched results. | Open. Reuse matching checkpoints and execute only stale Kafka gates and affected reverse dependencies. Do not restart unrelated modules or rerun a gate merely because `HEAD` changed. | Every mandatory Kafka gate and affected reverse dependency has a successful checkpoint for its complete final input fingerprint; no required result is failed, skipped, stale, missing, or warning-substituted. |
 | KAF-F003 | High | Neither Amazon MSK Provisioned nor Serverless has been exercised. The optional IAM signer adapter has local contract, race, fuzz, cancellation, expiry, refresh, redaction, and allocation evidence, but that does not prove broker authentication, rolling operation, transactions, consumer groups, replay, or inspection on MSK. The supplied goal's tested-compatible-service requirement is not met. | Open. Documentation labels both modes unverified and unsupported, so no accidental support claim is permitted meanwhile. | Run the reviewed capability and authentication matrix against each MSK mode claimed as supported, record exact service/client/adapter/tool versions, and retain failure, rotation, lifecycle, and cleanup evidence. |
 
@@ -50,7 +49,8 @@ the corresponding support or performance claim is added.
 
 | ID | Former severity | Finding and impact | Disposition |
 | --- | --- | --- | --- |
-| KAF-R001 | Critical | A disconnected live output consumer could terminate a completed evidence gate with `SIGPIPE`, losing a valid aggregate result after a long mutation campaign. | Resolved in the shared evidence wrapper. Its regression closes stdout after the first gate line and proves durable log/checkpoint completion continues without a broken-pipe exit. The next final Kafka mutation run must prove the repair under the actual long-running path. |
+| KAF-F001 | Critical | Earlier mutation evidence was invalid after its aggregate output consumer disconnected and subsequent production and test input changes. | Resolved. The content-matched final campaign completed durably in 2 hours 26 minutes: the root package killed all 3,093 viable mutants and `adapters/golog` killed all 50, with zero lived, uncovered, timed-out, non-viable, or skipped mutants and exact 100% test efficacy and mutator coverage. The successful aggregate and per-package checkpoints remain valid for the current mutation input fingerprint. |
+| KAF-R001 | Critical | A disconnected live output consumer could terminate a completed evidence gate with `SIGPIPE`, losing a valid aggregate result after a long mutation campaign. | Resolved in the shared evidence wrapper. Its regression closes stdout after the first gate line and proves durable log/checkpoint completion continues without a broken-pipe exit. The final 2-hour-26-minute Kafka campaign completed with durable aggregate and per-package checkpoints, proving the repair on the actual long-running path. |
 | KAF-R002 | High | The draft exposed no single operator-ready set of capacity, alerting, rolling deployment, incident recovery, disaster recovery, migration, troubleshooting, MSK/ECS, and Kafka topic-design guidance. | Resolved in the documentation set and runnable examples. Documentation gates must still match the frozen release tree. |
 | KAF-R003 | High | A shallow wrapper could have leaked franz-go clients, records, options, or administrator response types and allowed arbitrary options to bypass policy. | Resolved in the current public boundary: stable Kafka concepts are owned by this module and franz-go translation remains internal. Final API compatibility evidence must confirm that boundary. |
 | KAF-F004 | High | PLAIN provider refresh alone did not prove zero-downtime broker credential rotation because Kafka 4.3.1's exercised default JAAS verifier does not reload in place. | Resolved with an overlap-first three-broker fixture. One producer adopts the new principal, preserves exact acks-all delivery across all three partitions while each broker restarts separately at RF=3 and `min.insync.replicas=2`, waits for ISR=3 between restarts, and proves every recovered broker accepts the new credential before all three reject the retired one. |
