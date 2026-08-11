@@ -486,12 +486,10 @@ func DecodeStatelessWitness(
 		if updates[index].validate() != nil {
 			return StatelessWitness{}, errInvalidStatelessWitnessEncoding
 		}
-		if index != 0 {
-			if bytes.Compare(
-				updates[index-1].key[:], updates[index].key[:],
-			) >= 0 {
-				return StatelessWitness{}, errInvalidStatelessWitnessEncoding
-			}
+		if index != 0 && !statelessWitnessUpdateKeysAreStrictlyIncreasing(
+			updates[index-1].key, updates[index].key,
+		) {
+			return StatelessWitness{}, errInvalidStatelessWitnessEncoding
 		}
 	}
 	postRootOffset := statelessWitnessMagicBytes +
@@ -593,9 +591,9 @@ func validateStatelessWitnessClaims(
 		if err := checkTreeProofContext(ctx); err != nil {
 			return err
 		}
-		if index > 0 && bytes.Compare(
-			updates[index-1].key[:], updates[index].key[:],
-		) >= 0 {
+		if index > 0 && !statelessWitnessUpdateKeysAreStrictlyIncreasing(
+			updates[index-1].key, updates[index].key,
+		) {
 			return errInvalidStatelessWitness
 		}
 		stem := Stem(updates[index].key[:31])
@@ -681,6 +679,13 @@ func validateStatelessWitnessClaims(
 	}
 
 	return nil
+}
+
+func statelessWitnessUpdateKeysAreStrictlyIncreasing(
+	previous Key,
+	current Key,
+) bool {
+	return bytes.Compare(previous[:], current[:]) < 0
 }
 
 func statelessValidatedClaimLookup(claims []Claim, key Key) (Claim, bool) {

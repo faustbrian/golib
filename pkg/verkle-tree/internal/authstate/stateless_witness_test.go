@@ -386,6 +386,34 @@ func TestStatelessWitnessDecoderRejectsShortEmbeddedProof(t *testing.T) {
 	)
 }
 
+func TestStatelessWitnessUpdateKeysAreStrictlyIncreasing(t *testing.T) {
+	t.Parallel()
+
+	var first Key
+	second := first
+	second[31] = 1
+
+	for name, test := range map[string]struct {
+		previous Key
+		current  Key
+		want     bool
+	}{
+		"ascending":  {previous: first, current: second, want: true},
+		"duplicate":  {previous: first, current: first, want: false},
+		"descending": {previous: second, current: first, want: false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := statelessWitnessUpdateKeysAreStrictlyIncreasing(
+				test.previous, test.current,
+			); got != test.want {
+				t.Fatalf("strictly increasing = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
 func TestStatelessUpdaterVerifiesWitnessPostStateRoot(t *testing.T) {
 	t.Parallel()
 
