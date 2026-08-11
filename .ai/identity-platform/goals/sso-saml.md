@@ -11,7 +11,8 @@ shown here.
 - Unit: `sso/saml`
 - Canonical module: `pkg/sso/saml`
 - Canonical goal after scaffolding: `pkg/sso/saml/.ai/GOAL.md`
-- Requires: `sso`
+- Public contracts: unit ID `contract:unit:sso/saml:v1`; owned operation IDs: `contract:operation:identity.sso.saml-acs:v1`, `contract:operation:identity.sso.saml-idp-init:v1`, `contract:operation:identity.sso.saml-logout-start:v1`, `contract:operation:identity.sso.saml-metadata:v1`, `contract:operation:identity.sso.saml-slo:v1`, `contract:operation:identity.sso.saml-start:v1`
+- Requires: `sso`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `http-client`, `secret-envelope`, `capability`, `audit`
 - Unlocks after verification: `sso/postgres`, `identity/http`
 
@@ -59,12 +60,29 @@ involved.
   provider MUST have an explicit unsolicited-response allowlist, current
   organization domain proof, fixed destination, short acceptance window and
   replay policy, and MUST NOT pretend to validate a nonexistent request ID.
+- The binding table is directional and closed: SP-to-IdP AuthnRequest and
+  LogoutRequest use HTTP-Redirect; IdP-to-SP login Response, LogoutRequest and
+  LogoutResponse use HTTP-POST; and an SP LogoutResponse answering an inbound
+  HTTP-POST LogoutRequest returns by HTTP-POST to the verified IdP endpoint.
+  Application routes that initiate those messages MUST NOT be described or
+  advertised as SAML bindings.
 - SP metadata MUST advertise the exact SP-initiated ACS as default and the
   separate IdP-initiated ACS only when enabled. Response Destination and
   SubjectConfirmation Recipient MUST match the selected configured URL
   byte-for-byte; only SP-initiated responses require the outstanding request ID
-  in `InResponseTo`. RelayState for either route MUST use the complete
-  `tx.capability.*` issue/validate/reserve/apply/finalize/recover protocol.
+  in `InResponseTo`. RelayState is optional wherever SAML permits it. When
+  present on an SP-initiated flow it MUST use the complete `tx.capability.*`
+  issue/validate/reserve/apply/finalize/recover protocol. IdP-initiated login
+  MUST NOT require RelayState or a pre-auth transaction and MUST treat any
+  received RelayState as untrusted for authority.
+  The IdP-initiated URL MUST be composed only from the validated external-base
+  origin plus `/saml2/{canonical_provider_id}/idp-init`; metadata Location,
+  Response Destination and Recipient MUST equal it byte-for-byte, and both the
+  Response and SubjectConfirmation `InResponseTo` attributes MUST be absent.
+- Apple and SAML cross-site HTTP-POST callbacks MUST use the separate
+  `__Secure-identity_frontchannel` Secure/HttpOnly/SameSite=None, exact-path,
+  five-minute, one-use correlation cookie. Normal session and flow cookies
+  remain SameSite=Lax and MUST NOT be reused or weakened for this exception.
 - Signed AuthnRequests MUST be configurable with supported algorithms and key
   rotation. Every outbound HTTP-Redirect AuthnRequest and LogoutRequest MUST
   use the configured `saml.redirect_signature_algorithm`, sign the exact
@@ -80,9 +98,16 @@ involved.
   LogoutResponse use the one HTTP-POST SP SLO route. A signed LogoutResponse to
   an inbound request uses HTTP-POST to the verified IdP response endpoint, and
   SP metadata MUST NOT advertise an unregistered Redirect SLO endpoint.
+- Single Logout MUST implement SAML Core 2.0 §3.7 and SAML Profiles 2.0 §4.4
+  under the exact directional binding table; unlisted SLO profiles and bindings
+  are unsupported.
 - Response validation MUST cover XML signature location/reference, issuer,
   audience, destination, recipient, subject confirmation, InResponseTo,
   NotBefore/NotOnOrAfter, session index and assertion/response replay.
+- The Response ID and every consumed Assertion ID MUST be reserved atomically
+  as one replay set before authority issuance. If any ID exists, none are newly
+  reserved; an unknown commit outcome remains reserved until authoritative
+  reconciliation.
 - XML processing MUST disable DTDs, external entities, XInclude and network/
   filesystem resolution; reject duplicate IDs and ambiguous references; bind
   signature verification to the exact assertion subsequently consumed; and
@@ -133,6 +158,12 @@ name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
 
 ## Release blockers
+
+This unit owns applicability for `ref.frontchannel_post.cookie`,
+`ref.saml.relay_state`, `ref.saml.replay_set`,
+`ref.struct:ref.frontchannel_post_cookie`, and
+`ref.struct:ref.saml.replay_set`; workers MUST consume those exact policies and
+MUST NOT invent adapter-local cookie, RelayState, or replay-set semantics.
 
 The unit MUST remain `implemented-unverified` or `blocked` if any prerequisite
 is not `verified`, any ownership boundary is unresolved, a protocol claim

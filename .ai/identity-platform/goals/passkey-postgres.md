@@ -11,6 +11,7 @@ shown here.
 - Unit: `passkey/postgres`
 - Canonical module: `pkg/passkey/postgres`
 - Canonical goal after scaffolding: `pkg/passkey/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:passkey/postgres:v1`; owned operation IDs: none
 - Requires: `passkey`, `identity/postgres`, `webauthn/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`

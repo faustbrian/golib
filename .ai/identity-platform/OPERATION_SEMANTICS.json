@@ -1,6 +1,6 @@
 {
-  "schema_version": 1,
-  "authority": "API_OPERATIONS.md",
+  "schema_version": 2,
+  "authority": "API_OPERATIONS.md#complete-operation-catalog",
   "closed_fields": [
     "owners",
     "exposure",
@@ -135,6 +135,43 @@
       "http_method": "POST",
       "http_path": "/v1/account/unlink",
       "openapi_operation_id": "identity.account.unlink"
+    },
+    {
+      "id": "identity.admin.mfa-recovery-issue",
+      "owners": [
+        "identity/mfa",
+        "identity/delivery",
+        "capability"
+      ],
+      "exposure": "both",
+      "access": "fresh recovery admin plus independent approval",
+      "authorization": "administrative policy: fresh recovery admin plus independent approval",
+      "csrf_origin": "CSRF",
+      "risk_class": "admin",
+      "rate_policy": "rate.admin",
+      "idempotency": "rotate",
+      "event_semantics": "Target user, completed reset generation, approved recovery channel and reason; issues one short-lived single-use account-recovery capability through durable delivery after the reset commits, never reveals factor secrets/codes to the administrator, and invalidates any predecessor capability.",
+      "http_method": "POST",
+      "http_path": "/v1/admin/mfa-recovery-issue",
+      "openapi_operation_id": "identity.admin.mfa-recovery-issue"
+    },
+    {
+      "id": "identity.admin.mfa-reset",
+      "owners": [
+        "identity/mfa",
+        "identity/session"
+      ],
+      "exposure": "both",
+      "access": "fresh recovery admin plus independent approval",
+      "authorization": "administrative policy: fresh recovery admin plus independent approval",
+      "csrf_origin": "CSRF",
+      "risk_class": "admin",
+      "rate_policy": "rate.admin",
+      "idempotency": "keyed",
+      "event_semantics": "Target user, exact factor/all-factor scope, expected factor version and reason; atomically bumps factor authority, removes selected factors, recovery codes, trusted devices and pending MFA proofs, initiates `lifecycle.cascade.factor_reset`, and revokes affected sessions without issuing replacement recovery material.",
+      "http_method": "POST",
+      "http_path": "/v1/admin/mfa-reset",
+      "openapi_operation_id": "identity.admin.mfa-reset"
     },
     {
       "id": "identity.admin.permission-check",
@@ -450,6 +487,25 @@
       "openapi_operation_id": "identity.apikey.rotate"
     },
     {
+      "id": "identity.apikey.session-authenticate",
+      "owners": [
+        "identity/apikey",
+        "identity/session",
+        "identity/http"
+      ],
+      "exposure": "direct",
+      "access": "trusted HTTP credential extractor",
+      "authorization": "flow binding policy: trusted HTTP credential extractor",
+      "csrf_origin": "internal",
+      "risk_class": "internal",
+      "rate_policy": null,
+      "idempotency": "none",
+      "event_semantics": "Exactly one configured case-insensitive header name supplies one raw key; ambiguous, duplicated or cookie-fallback credentials deny before session lookup. One authoritative verification and quota debit yields a request-scoped session-compatible principal only for an active user-owned key, bounded by the key owner, permissions, tenant, expiry and revocation versions. It creates no durable or browser session, organization-owned keys cannot impersonate a user, and the target request MUST reuse this result without a second key verification or debit.",
+      "http_method": null,
+      "http_path": null,
+      "openapi_operation_id": null
+    },
+    {
       "id": "identity.apikey.update",
       "owners": [
         "identity/apikey"
@@ -610,6 +666,78 @@
       "openapi_operation_id": null
     },
     {
+      "id": "identity.audit.export",
+      "owners": [
+        "identity/reference",
+        "audit"
+      ],
+      "exposure": "both",
+      "access": "fresh audit exporter plus investigation",
+      "authorization": "administrative policy: fresh audit exporter plus investigation",
+      "csrf_origin": "CSRF",
+      "risk_class": "admin",
+      "rate_policy": "rate.admin",
+      "idempotency": "keyed",
+      "event_semantics": "Investigation ID, immutable search/list query digest, bounded format, maximum records/bytes and reason; returns a bounded redacted export stream plus content digest, records immutable access/export audit, stops at the declared bound with a continuation cursor, and never includes fields outside the investigator's event-class and field grants.",
+      "http_method": "POST",
+      "http_path": "/v1/audit/export",
+      "openapi_operation_id": "identity.audit.export"
+    },
+    {
+      "id": "identity.audit.get",
+      "owners": [
+        "identity/reference",
+        "audit"
+      ],
+      "exposure": "both",
+      "access": "fresh audit investigator",
+      "authorization": "administrative policy: fresh audit investigator",
+      "csrf_origin": "none",
+      "risk_class": "admin",
+      "rate_policy": "rate.admin",
+      "idempotency": "read",
+      "event_semantics": "Tenant and opaque audit record ID; returns one permission-filtered projection with actor/subject/resource identifiers redacted unless the investigator holds the exact field grant; payloads, secrets, credential material and provider bodies are never returned.",
+      "http_method": "GET",
+      "http_path": "/v1/audit/get",
+      "openapi_operation_id": "identity.audit.get"
+    },
+    {
+      "id": "identity.audit.list",
+      "owners": [
+        "identity/reference",
+        "audit"
+      ],
+      "exposure": "both",
+      "access": "fresh audit investigator",
+      "authorization": "administrative policy: fresh audit investigator",
+      "csrf_origin": "none",
+      "risk_class": "admin",
+      "rate_policy": "rate.admin",
+      "idempotency": "read",
+      "event_semantics": "Tenant, bounded time range and stable cursor; returns chronological redacted records under the caller's event-class and field grants.",
+      "http_method": "GET",
+      "http_path": "/v1/audit/list",
+      "openapi_operation_id": "identity.audit.list"
+    },
+    {
+      "id": "identity.audit.search",
+      "owners": [
+        "identity/reference",
+        "audit"
+      ],
+      "exposure": "both",
+      "access": "fresh audit investigator",
+      "authorization": "administrative policy: fresh audit investigator",
+      "csrf_origin": "none",
+      "risk_class": "admin",
+      "rate_policy": "rate.admin",
+      "idempotency": "read",
+      "event_semantics": "Tenant, bounded time range, exact indexed predicates, projection and limit; returns a stable-cursor permission-filtered result page and query digest without raw free-text scanning or cross-tenant existence disclosure.",
+      "http_method": "GET",
+      "http_path": "/v1/audit/search",
+      "openapi_operation_id": "identity.audit.search"
+    },
+    {
       "id": "identity.deletion.confirm",
       "owners": [
         "identity"
@@ -649,6 +777,23 @@
       "openapi_operation_id": "identity.deletion.request"
     },
     {
+      "id": "identity.delivery.cancel",
+      "owners": [
+        "identity/delivery"
+      ],
+      "exposure": "direct",
+      "access": "owning workflow or delivery operator",
+      "authorization": "flow binding policy: owning workflow or delivery operator",
+      "csrf_origin": "internal",
+      "risk_class": "internal",
+      "rate_policy": null,
+      "idempotency": "repeat",
+      "event_semantics": "Delivery intent/effect ID, expected generation and reason; prevents unsent/retry work, invokes provider cancellation only when supported and idempotently records local cancelled, already-terminal or provider-outcome-unknown without claiming remote cancellation.",
+      "http_method": null,
+      "http_path": null,
+      "openapi_operation_id": null
+    },
+    {
       "id": "identity.delivery.enqueue",
       "owners": [
         "identity/delivery"
@@ -664,6 +809,110 @@
       "http_method": null,
       "http_path": null,
       "openapi_operation_id": null
+    },
+    {
+      "id": "identity.delivery.receipt-record",
+      "owners": [
+        "identity/delivery"
+      ],
+      "exposure": "direct",
+      "access": "authenticated provider adapter/webhook",
+      "authorization": "provider response binding policy: authenticated provider adapter/webhook",
+      "csrf_origin": "internal",
+      "risk_class": "internal",
+      "rate_policy": null,
+      "idempotency": "keyed",
+      "event_semantics": "Provider, tenant, opaque provider receipt/event identity, effect binding and normalized status; authenticates and deduplicates the receipt, stores only bounded redacted evidence, advances state monotonically, and rejects stale, conflicting or cross-provider bindings.",
+      "http_method": null,
+      "http_path": null,
+      "openapi_operation_id": null
+    },
+    {
+      "id": "identity.delivery.reconcile",
+      "owners": [
+        "identity/delivery"
+      ],
+      "exposure": "direct",
+      "access": "bounded reconciliation worker",
+      "authorization": "flow binding policy: bounded reconciliation worker",
+      "csrf_origin": "internal",
+      "risk_class": "internal",
+      "rate_policy": null,
+      "idempotency": "keyed",
+      "event_semantics": "Outcome-unknown/cancellation-pending effect, provider query capability, generation and checkpoint; records confirmed, rejected, cancelled, retryable or still-unknown from authenticated provider evidence and never resubmits unless the pinned provider idempotency contract permits it.",
+      "http_method": null,
+      "http_path": null,
+      "openapi_operation_id": null
+    },
+    {
+      "id": "identity.delivery.status-get",
+      "owners": [
+        "identity/delivery"
+      ],
+      "exposure": "direct",
+      "access": "owning workflow or delivery operator",
+      "authorization": "flow binding policy: owning workflow or delivery operator",
+      "csrf_origin": "internal",
+      "risk_class": "internal",
+      "rate_policy": null,
+      "idempotency": "read",
+      "event_semantics": "Delivery intent/effect ID and tenant; returns the durable bounded state, attempt generation, terminal classification and redacted provider-reference presence without recipient, rendered content or raw receipt.",
+      "http_method": null,
+      "http_path": null,
+      "openapi_operation_id": null
+    },
+    {
+      "id": "identity.email.address-get",
+      "owners": [
+        "identity/email"
+      ],
+      "exposure": "both",
+      "access": "session owner or email admin",
+      "authorization": "authenticated subject policy: session owner or email admin",
+      "csrf_origin": "none",
+      "risk_class": "safe",
+      "rate_policy": "rate.safe",
+      "idempotency": "read",
+      "event_semantics": "Owned or explicitly authorized target address ID; returns one safe versioned projection or an indistinguishable absent/forbidden result.",
+      "http_method": "GET",
+      "http_path": "/v1/email/address-get",
+      "openapi_operation_id": "identity.email.address-get"
+    },
+    {
+      "id": "identity.email.address-list",
+      "owners": [
+        "identity/email"
+      ],
+      "exposure": "both",
+      "access": "session owner or email admin",
+      "authorization": "authenticated subject policy: session owner or email admin",
+      "csrf_origin": "none",
+      "risk_class": "safe",
+      "rate_policy": "rate.safe",
+      "idempotency": "read",
+      "event_semantics": "Current subject or explicitly authorized target subject and stable cursor; returns bounded address IDs, canonical display forms, primary/verified state and versions without verification tokens or cross-tenant existence disclosure.",
+      "http_method": "GET",
+      "http_path": "/v1/email/address-list",
+      "openapi_operation_id": "identity.email.address-list"
+    },
+    {
+      "id": "identity.email.address-remove",
+      "owners": [
+        "identity/email",
+        "identity",
+        "identity/session"
+      ],
+      "exposure": "both",
+      "access": "fresh owner or fresh email admin",
+      "authorization": "authenticated subject policy: fresh owner or fresh email admin",
+      "csrf_origin": "CSRF",
+      "risk_class": "secret",
+      "rate_policy": "rate.secret",
+      "idempotency": "keyed",
+      "event_semantics": "Address ID, expected version, actor reason and replacement-primary/recovery disposition; atomically removes only an eligible address, initiates `lifecycle.cascade.identifier_remove`, invalidates address-bound capabilities/sessions where required, and denies removal of the last permitted signin or recovery path.",
+      "http_method": "POST",
+      "http_path": "/v1/email/address-remove",
+      "openapi_operation_id": "identity.email.address-remove"
     },
     {
       "id": "identity.email.change-confirm",
@@ -1756,7 +2005,7 @@
       "risk_class": "auth",
       "rate_policy": "rate.auth",
       "idempotency": "once",
-      "event_semantics": "User code/consent; approved binding or stale/expired.",
+      "event_semantics": "User code/consent; approved binding or stale/expired; emits exactly `identity.oauth_server.approve_device`.",
       "http_method": "POST",
       "http_path": "/v1/oauth-server/device-approve",
       "openapi_operation_id": "identity.oauth-server.device-approve"
@@ -1773,7 +2022,7 @@
       "risk_class": "protocol",
       "rate_policy": "rate.protocol",
       "idempotency": "protocol-command",
-      "event_semantics": "Client/scopes with nullable subject and consent bindings; server-owned command identity returns device/user codes and verification URIs without requiring a proprietary key.",
+      "event_semantics": "Client/scopes with nullable subject and consent bindings; server-owned command identity returns device/user codes and verification URIs without requiring a proprietary key; emits exactly `identity.oauth_server.authorize_device`.",
       "http_method": "POST",
       "http_path": "/oauth2/device_authorization",
       "openapi_operation_id": "identity.oauth-server.device-authorize"
@@ -1875,8 +2124,8 @@
       "csrf_origin": "none",
       "risk_class": "protocol",
       "rate_policy": "rate.protocol",
-      "idempotency": "keyed",
-      "event_semantics": "RFC 7591 client metadata plus immutable tenant/organization/platform owner and unique scopes contained in `oauth_server.dynamic_registration.allowed_scopes`; unavailable unless the explicit dynamic-registration profile is enabled. Enabling this operation selects RFC 7591 only; RFC 7592 remains an unselected future profile, so no registration management URI or access token is returned.",
+      "idempotency": "protocol-command",
+      "event_semantics": "RFC 7591 registration uses stable server-owned command identity derived from the authenticated request and immutable preconditions; client `Idempotency-Key` is optional and never required for standards interoperability. Enabling selects RFC 7591 only; RFC 7592 management remains unselected.",
       "http_method": "POST",
       "http_path": "/oauth2/register",
       "openapi_operation_id": "identity.oauth-server.dynamic-register"
@@ -1911,7 +2160,7 @@
       "risk_class": "protocol",
       "rate_policy": "rate.protocol",
       "idempotency": "read",
-      "event_semantics": "Token and hint; active metadata bounded to caller audience.",
+      "event_semantics": "Token and hint; RFC 7662 inactive returns `active=false` with token metadata absent, while active client/subject/scopes/audience/expiry members remain optional and caller-authorized.",
       "http_method": "POST",
       "http_path": "/oauth2/introspect",
       "openapi_operation_id": "identity.oauth-server.introspect"
@@ -2065,7 +2314,7 @@
       "risk_class": "provider",
       "rate_policy": "rate.provider-callback",
       "idempotency": "once",
-      "event_semantics": "Apple Form Post code/error/state submitted as bounded `application/x-www-form-urlencoded` POST; rejects every non-Apple profile and response-mode mismatch, and returns the same session/link/new-user/error result or replay/mix-up denial as the query callback.",
+      "event_semantics": "Apple Form Post success carries code, ID token and state. Validate the front-channel ID token issuer, audience, `azp`, nonce, `c_hash`, time and subject before code exchange; the exchanged proof MUST have the same subject.",
       "http_method": "POST",
       "http_path": "/v1/oauth/callback/form-post",
       "openapi_operation_id": "identity.oauth.callback-form-post"
@@ -2082,7 +2331,7 @@
       "risk_class": "provider",
       "rate_policy": "rate.provider-callback",
       "idempotency": "once",
-      "event_semantics": "Google credential and nonce; returns session/link/dismissal/error.",
+      "event_semantics": "Google credential and nonce; returns session/link/dismissal/error; emits exactly `identity.oauth.verify_one_tap`.",
       "http_method": "POST",
       "http_path": "/v1/oauth/onetap-callback",
       "openapi_operation_id": "identity.oauth.onetap-callback"
@@ -2151,7 +2400,7 @@
       "risk_class": "provider",
       "rate_policy": "rate.provider-callback",
       "idempotency": "once",
-      "event_semantics": "Encrypted callback profile/state; returns encrypted origin-bound result and performs no production writes.",
+      "event_semantics": "Encrypted callback profile/state; returns encrypted origin-bound result and performs no production writes; emits exactly `identity.oauth.use_proxy`.",
       "http_method": "POST",
       "http_path": "/oauth2/callback/proxy",
       "openapi_operation_id": "identity.oauth.proxy-forward"
@@ -3116,7 +3365,7 @@
       "risk_class": "auth",
       "rate_policy": "rate.verify",
       "idempotency": "once",
-      "event_semantics": "Attestation result/name; returns credential and optional new identity/session.",
+      "event_semantics": "Attestation result/name; returns credential and optional new identity/session; emits exactly `identity.passkey.create_credential` when credential creation commits.",
       "http_method": "POST",
       "http_path": "/v1/passkey/register-verify",
       "openapi_operation_id": "identity.passkey.register-verify"
@@ -3152,7 +3401,7 @@
       "risk_class": "auth",
       "rate_policy": "rate.verify",
       "idempotency": "once",
-      "event_semantics": "Assertion and remember policy; returns session/MFA policy or generic denial.",
+      "event_semantics": "Assertion and remember policy; returns session/MFA policy or generic denial; emits exactly `identity.passkey.mark_compromised` when clone or counter evidence durably marks the credential compromised, while ordinary failed assertions do not claim compromise.",
       "http_method": "POST",
       "http_path": "/v1/passkey/signin-verify",
       "openapi_operation_id": "identity.passkey.signin-verify"
@@ -3345,6 +3594,24 @@
       "http_method": "POST",
       "http_path": "/v1/phone/password-reset-request",
       "openapi_operation_id": "identity.phone.password-reset-request"
+    },
+    {
+      "id": "identity.phone.password-signin",
+      "owners": [
+        "identity/phone",
+        "identity/password"
+      ],
+      "exposure": "both",
+      "access": "public plus pre-auth transaction",
+      "authorization": "flow binding policy: public plus pre-auth transaction",
+      "csrf_origin": "origin",
+      "risk_class": "auth",
+      "rate_policy": "rate.signin",
+      "idempotency": "none",
+      "event_semantics": "Canonical E.164 number, password, remember policy and callback; resolves only the tenant-bound credential account for that canonical phone identifier, applies the same password verification, risk, account-status and MFA continuation policy as email/password signin, and returns an indistinguishable denial for absent phone, absent credential account or wrong password. It never consumes an OTP challenge or aliases `identity.phone.signin`.",
+      "http_method": "POST",
+      "http_path": "/v1/phone/password-signin",
+      "openapi_operation_id": "identity.phone.password-signin"
     },
     {
       "id": "identity.phone.remove",
@@ -3677,7 +3944,7 @@
       "openapi_operation_id": "identity.profile.update"
     },
     {
-      "id": "identity.ready",
+      "id": "identity.readiness",
       "owners": [
         "identity/reference"
       ],
@@ -3691,7 +3958,7 @@
       "event_semantics": "Empty request; bounded dependency, migration and signing-key readiness with opaque failed-component codes; no secrets or network topology.",
       "http_method": "GET",
       "http_path": "/readyz",
-      "openapi_operation_id": "identity.ready"
+      "openapi_operation_id": "identity.readiness"
     },
     {
       "id": "identity.reference.config-validate",
@@ -4003,7 +4270,7 @@
       "risk_class": "admin",
       "rate_policy": "rate.admin",
       "idempotency": "repeat",
-      "event_semantics": "Connection/token ID and expected version; revokes the bearer and returns propagation state without revealing token material.",
+      "event_semantics": "Durable CommandID, connection/token ID and expected version; revokes the bearer and returns propagation or same-command recovery state without revealing token material.",
       "http_method": "POST",
       "http_path": "/v1/scim/connection-token-revoke",
       "openapi_operation_id": "identity.scim.connection-token-revoke"
@@ -4057,7 +4324,7 @@
       "risk_class": "protocol",
       "rate_policy": "rate.protocol",
       "idempotency": "protocol-command",
-      "event_semantics": "Group/If-Match; server-owned command identity provides tombstone-backed replay, while `Idempotency-Key` is an optional extension.",
+      "event_semantics": "Group/If-Match; the canonical connection, target and precondition fingerprint recovers one server-owned command and tombstone-backed result even without a header, while `Idempotency-Key` is an optional additional lookup.",
       "http_method": "DELETE",
       "http_path": "/scim/v2/Groups/{resource_id}",
       "openapi_operation_id": "identity.scim.group-delete"
@@ -4135,6 +4402,24 @@
       "openapi_operation_id": "identity.scim.group-replace"
     },
     {
+      "id": "identity.scim.group-search",
+      "owners": [
+        "scim",
+        "scim/organization"
+      ],
+      "exposure": "protocol",
+      "access": "scim-token",
+      "authorization": "protocol credential policy: scim-token",
+      "csrf_origin": "none",
+      "risk_class": "protocol",
+      "rate_policy": "rate.protocol",
+      "idempotency": "read",
+      "event_semantics": "RFC 7644 SearchRequest scoped to Groups; returns the same RFC ListResponse contract as `identity.scim.group-list`.",
+      "http_method": "POST",
+      "http_path": "/scim/v2/Groups/.search",
+      "openapi_operation_id": "identity.scim.group-search"
+    },
+    {
       "id": "identity.scim.resource-type-get",
       "owners": [
         "scim"
@@ -4163,7 +4448,7 @@
       "risk_class": "protocol",
       "rate_policy": "rate.protocol",
       "idempotency": "read",
-      "event_semantics": "Resource types bounded by effective `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes`.",
+      "event_semantics": "RFC ListResponse containing ResourceType resources, bounded by effective `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes`.",
       "http_method": "GET",
       "http_path": "/scim/v2/ResourceTypes",
       "openapi_operation_id": "identity.scim.resource-types-list"
@@ -4197,10 +4482,27 @@
       "risk_class": "protocol",
       "rate_policy": "rate.protocol",
       "idempotency": "read",
-      "event_semantics": "Schema list bounded by effective `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes`.",
+      "event_semantics": "RFC ListResponse containing Schema resources, bounded by effective `scim.resource_depth`, `scim.resource_attributes`, and `scim.string_bytes`.",
       "http_method": "GET",
       "http_path": "/scim/v2/Schemas",
       "openapi_operation_id": "identity.scim.schemas-list"
+    },
+    {
+      "id": "identity.scim.search",
+      "owners": [
+        "scim"
+      ],
+      "exposure": "protocol",
+      "access": "scim-token",
+      "authorization": "protocol credential policy: scim-token",
+      "csrf_origin": "none",
+      "risk_class": "protocol",
+      "rate_policy": "rate.protocol",
+      "idempotency": "read",
+      "event_semantics": "RFC 7644 SearchRequest across the connection's advertised resource types; returns one RFC ListResponse under the same filter, sort, projection and pagination bounds as GET lists.",
+      "http_method": "POST",
+      "http_path": "/scim/v2/.search",
+      "openapi_operation_id": "identity.scim.search"
     },
     {
       "id": "identity.scim.service-provider-config",
@@ -4250,7 +4552,7 @@
       "risk_class": "protocol",
       "rate_policy": "rate.protocol",
       "idempotency": "protocol-command",
-      "event_semantics": "Resource/If-Match and deprovision policy; server-owned command identity provides tombstone-backed replay, while `Idempotency-Key` is an optional extension.",
+      "event_semantics": "Resource/If-Match and deprovision policy; the canonical connection, target and precondition fingerprint recovers one server-owned command and tombstone-backed result even without a header, while `Idempotency-Key` is an optional additional lookup.",
       "http_method": "DELETE",
       "http_path": "/scim/v2/Users/{resource_id}",
       "openapi_operation_id": "identity.scim.user-delete"
@@ -4326,6 +4628,23 @@
       "openapi_operation_id": "identity.scim.user-replace"
     },
     {
+      "id": "identity.scim.user-search",
+      "owners": [
+        "scim"
+      ],
+      "exposure": "protocol",
+      "access": "scim-token",
+      "authorization": "protocol credential policy: scim-token",
+      "csrf_origin": "none",
+      "risk_class": "protocol",
+      "rate_policy": "rate.protocol",
+      "idempotency": "read",
+      "event_semantics": "RFC 7644 SearchRequest scoped to Users; returns the same RFC ListResponse contract as `identity.scim.user-list`.",
+      "http_method": "POST",
+      "http_path": "/scim/v2/Users/.search",
+      "openapi_operation_id": "identity.scim.user-search"
+    },
+    {
       "id": "identity.session.bearer-authorize",
       "owners": [
         "identity/session"
@@ -4337,7 +4656,7 @@
       "risk_class": "secret",
       "rate_policy": "rate.secret",
       "idempotency": "keyed",
-      "event_semantics": "Requested audience, origin, bounded lifetime and transport; returns a short-lived single-use issuance continuation bound to the exact session/version and authorization decision and emits exactly `identity.session.authorize_bearer`.",
+      "event_semantics": "Requested audience, exact trusted origin, lifetime and transport from `struct:ref.session.bearer_issuance`; returns in one `no-store` JSON response a reveal-once opaque continuation plus its expiry and fixed issue path. The continuation binds tenant, subject, source session/family and versions, authorization decision/version, audience, origin, lifetime, transport and command ID; it is not the session bearer and emits exactly `identity.session.authorize_bearer`.",
       "http_method": "POST",
       "http_path": "/v1/session/bearer-authorize",
       "openapi_operation_id": "identity.session.bearer-authorize"
@@ -4351,11 +4670,11 @@
       "exposure": "both",
       "access": "authorized bearer-issuance continuation",
       "authorization": "protocol credential policy: authorized bearer-issuance continuation",
-      "csrf_origin": "origin",
+      "csrf_origin": "exact bound origin",
       "risk_class": "secret",
       "rate_policy": "rate.secret",
       "idempotency": "once",
-      "event_semantics": "Atomically consumes the callable continuation, emits exactly `identity.session.issue_bearer`, and returns the exact session bearer once in a typed no-store body or CORS-exposed response header; never uses URL/query; denial or replay emits no credential.",
+      "event_semantics": "Accepts exactly one continuation in a bounded `application/json` body, ignores ambient cookies and rejects any request `Authorization` credential or transport override. It atomically reserves, applies and finalizes that continuation with `identity.session.issue_bearer`, then returns the exact session bearer once using the bound `struct:ref.session.bearer_issuance` JSON-body or response-header shape. Every response is `no-store`; the bearer and continuation never use a URL/query/cookie, and invalid, denied, expired, unknown or replayed issuance emits no credential.",
       "http_method": "POST",
       "http_path": "/v1/session/bearer-issue",
       "openapi_operation_id": "identity.session.bearer-issue"
@@ -4740,8 +5059,9 @@
     {
       "id": "identity.sso.domain-challenge",
       "owners": [
+        "sso",
         "sso/domain-verification",
-        "sso"
+        "organization"
       ],
       "exposure": "both",
       "access": "org:sso-write",
@@ -4758,8 +5078,9 @@
     {
       "id": "identity.sso.domain-verify",
       "owners": [
+        "sso",
         "sso/domain-verification",
-        "sso"
+        "organization"
       ],
       "exposure": "both",
       "access": "org:sso-write",
@@ -4802,7 +5123,7 @@
       "risk_class": "provider",
       "rate_policy": "rate.provider-callback",
       "idempotency": "once",
-      "event_semantics": "Code/error/state; session/provision/link result.",
+      "event_semantics": "Code/error/state plus RFC 9207 `iss`; validates the issuer byte-for-byte against the expected issuer bound into the transaction before code exchange on the shared redirect URI.",
       "http_method": "GET",
       "http_path": "/sso/oauth2/callback",
       "openapi_operation_id": "identity.sso.oauth-callback"
@@ -4853,7 +5174,7 @@
       "risk_class": "provider",
       "rate_policy": "rate.provider-callback",
       "idempotency": "once",
-      "event_semantics": "Provider response and state; consumes the state exactly once, validates issuer/provider/session binding, reconciles provider success/error/timeout with the already authoritative local revocation, and returns only an allowlisted redirect or stable terminal error.",
+      "event_semantics": "Provider response and state; consumes state once, validates issuer/provider/session binding, and returns exactly one redirect, local-only, provider-complete, provider-error, timeout, or unknown-reconciliation outcome.",
       "http_method": "GET",
       "http_path": "/sso/oidc/{provider_id}/logout/callback",
       "openapi_operation_id": "identity.sso.oidc-logout-complete"
@@ -5043,7 +5364,7 @@
       "risk_class": "provider",
       "rate_policy": "rate.provider-callback",
       "idempotency": "once",
-      "event_semantics": "HTTP-POST Response at the exact configured SP ACS URL; Destination/Recipient equal that URL and InResponseTo/relay state bind the outstanding SP-initiated request.",
+      "event_semantics": "HTTP-POST Response at the exact configured SP ACS URL; Destination/Recipient and InResponseTo bind the outstanding request. RelayState is optional and, when present, is bound and echoed exactly.",
       "http_method": "POST",
       "http_path": "/saml2/{provider_id}/acs",
       "openapi_operation_id": "identity.sso.saml-acs"
@@ -5054,13 +5375,13 @@
         "sso/saml"
       ],
       "exposure": "protocol",
-      "access": "permitted unsolicited response plus relay state",
-      "authorization": "flow binding policy: permitted unsolicited response plus relay state",
+      "access": "permitted unsolicited response plus independent login-CSRF/confirmation policy",
+      "authorization": "flow binding policy: explicit unsolicited-response allowlist and independent login-CSRF/confirmation policy; optional RelayState is untrusted",
       "csrf_origin": "origin",
       "risk_class": "provider",
       "rate_policy": "rate.provider-callback",
       "idempotency": "once",
-      "event_semantics": "HTTP-POST Response at the distinct configured IdP-initiated URL; disabled by default and, when enabled, requires exact Destination/Recipient, unsolicited-response allowlist and login-CSRF/confirmation policy without fabricating InResponseTo.",
+      "event_semantics": "HTTP-POST Response at the distinct configured IdP-initiated URL; no pre-auth transaction or RelayState is required. RelayState is optional and untrusted for authority.",
       "http_method": "POST",
       "http_path": "/saml2/{provider_id}/idp-init",
       "openapi_operation_id": "identity.sso.saml-idp-init"
@@ -5078,7 +5399,7 @@
       "risk_class": "provider",
       "rate_policy": "rate.provider",
       "idempotency": "keyed",
-      "event_semantics": "Provider, bounded session and allowlisted post-logout target; signs a LogoutRequest, binds relay state and returns redirect/front-channel result or explicit local-only disposition.",
+      "event_semantics": "Provider, bounded session and allowlisted post-logout target; signs a LogoutRequest and optionally binds RelayState, returning redirect/front-channel or explicit local-only disposition.",
       "http_method": "POST",
       "http_path": "/saml2/{provider_id}/logout",
       "openapi_operation_id": "identity.sso.saml-logout-start"
@@ -5107,13 +5428,13 @@
         "identity/session"
       ],
       "exposure": "protocol",
-      "access": "signed SAML logout message plus relay state",
-      "authorization": "flow binding policy: signed SAML logout message plus relay state",
+      "access": "signed SAML logout message with optional RelayState",
+      "authorization": "flow binding policy: signed SAML logout message; optional RelayState is correlated and echoed when present",
       "csrf_origin": "origin",
       "risk_class": "provider",
       "rate_policy": "rate.provider-callback",
       "idempotency": "once",
-      "event_semantics": "Bounded LogoutRequest or LogoutResponse, issuer and relay state; verifies signature/time/replay/session binding, performs the configured local/federated revocation and returns a signed response or allowlisted redirect.",
+      "event_semantics": "Bounded LogoutRequest or LogoutResponse and issuer; RelayState is optional and, when present, is correlated and echoed exactly.",
       "http_method": "POST",
       "http_path": "/saml2/{provider_id}/slo",
       "openapi_operation_id": "identity.sso.saml-slo"
@@ -5129,8 +5450,8 @@
       "csrf_origin": "origin",
       "risk_class": "provider",
       "rate_policy": "rate.provider",
-      "idempotency": "keyed",
-      "event_semantics": "Provider/callback; HTTP-Redirect request signed with the configured `SigAlg` over exact `SAMLRequest=value&RelayState=value&SigAlg=value` order and bound relay state; the no-RelayState form is `SAMLRequest=value&SigAlg=value`.",
+      "idempotency": "protocol-command",
+      "event_semantics": "Provider/callback; server-owned request/command identity provides replay semantics and client `Idempotency-Key` is optional. HTTP-Redirect signing covers the RelayState-present or RelayState-absent form exactly.",
       "http_method": "GET",
       "http_path": "/saml2/{provider_id}/login",
       "openapi_operation_id": "identity.sso.saml-start"

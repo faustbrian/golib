@@ -11,8 +11,9 @@ shown here.
 - Unit: `identity/password`
 - Canonical module: `pkg/identity/password`
 - Canonical goal after scaffolding: `pkg/identity/password/.ai/GOAL.md`
-- Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`
-- Consumes existing primitives: `password`, `capability`, `capability/postgres`, `workflow`, `audit`, `rate-limit`
+- Public contracts: unit ID `contract:unit:identity/password:v1`; owned operation IDs: `contract:operation:identity.admin.user-password-set:v1`, `contract:operation:identity.password.change:v1`, `contract:operation:identity.password.reset-complete:v1`, `contract:operation:identity.password.reset-inspect:v1`, `contract:operation:identity.password.reset-request:v1`, `contract:operation:identity.password.set:v1`, `contract:operation:identity.password.signin:v1`, `contract:operation:identity.password.signup:v1`, `contract:operation:identity.password.verify:v1`
+- Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`, `identity/otp`, `primitive/authentication-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/identifier-identity-contracts`, `primitive/password-secret-contracts`
+- Consumes existing primitives: `password`, `capability`, `workflow`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/password/postgres`, `identity/username`, `identity/http`
 
 ## Start gate
@@ -46,6 +47,13 @@ The implementation and tests MUST register transactionally; sign in and upgrade 
 define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
+
+The password verifier MUST support the already-canonicalized, tenant-bound
+credential account supplied by `identity.phone.password-signin`. It MUST apply
+the identical hash verification, upgrade, risk, account-status, MFA
+continuation, remember-policy and enumeration contract used by
+`identity.password.signin`; it MUST NOT perform phone parsing or lookup, or
+accept an OTP as a password substitute.
 
 ## Package-specific acceptance checklist
 
@@ -109,10 +117,13 @@ involved.
 
 - When handling `identity.otp.password-reset` or
   `identity.phone.password-reset-complete`, this workflow MUST
-  reserve/apply/finalize the purpose-bound OTP through an injected OTP persistence contributor, supplied by `identity/otp/postgres` in the reference composition, in
-  the same coordinator unit of work as its owning mutation. Signup, signin,
-  password change, and capability-only reset MUST NOT enlist an OTP participant.
-  Release and recovery remain fail-closed on rollback or unknown commit.
+  reserve/apply/finalize the purpose-bound OTP through the public
+  `identity/otp` contributor contract in the same coordinator unit of work as
+  its owning mutation. The core MUST NOT import, require, or name a concrete
+  OTP persistence adapter; reference composition selects that adapter. Signup,
+  signin, password change, and capability-only reset MUST NOT enlist an OTP
+  participant. Release and recovery remain fail-closed on rollback or unknown
+  commit.
 
 - Inputs MUST be bounded before parsing, allocation, storage, hashing, or
   cryptographic work.

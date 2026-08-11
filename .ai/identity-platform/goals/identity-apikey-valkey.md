@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/apikey/valkey`
 - Canonical module: `pkg/identity/apikey/valkey`
 - Canonical goal after scaffolding: `pkg/identity/apikey/valkey/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/apikey/valkey:v1`; owned operation IDs: none
 - Requires: `identity/apikey`
 - Consumes existing primitives: `audit`, `telemetry`
 - Unlocks after verification: `identity/reference`

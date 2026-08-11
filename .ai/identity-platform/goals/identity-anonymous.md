@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/anonymous`
 - Canonical module: `pkg/identity/anonymous`
 - Canonical goal after scaffolding: `pkg/identity/anonymous/.ai/GOAL.md`
-- Requires: `identity`, `identity/session`, `identity/risk`
+- Public contracts: unit ID `contract:unit:identity/anonymous:v1`; owned operation IDs: `contract:operation:identity.anonymous.delete:v1`, `contract:operation:identity.anonymous.signin:v1`, `contract:operation:identity.anonymous.upgrade:v1`
+- Requires: `identity`, `identity/session`, `identity/risk`, `primitive/authentication-identity-contracts`
 - Consumes existing primitives: `audit`, `identifier`
 - Unlocks after verification: `identity/anonymous/postgres`, `identity/http`
 
@@ -63,6 +64,11 @@ involved.
 - Link/upgrade MUST require verified target credentials, consume the anonymous
   transition once, preserve the permanent account as authority and apply a
   typed merge plan for every transferable field/resource.
+- Upgrade MUST use an injected public capability participant for its
+  purpose-bound one-use anonymous transition. Validate is read-only;
+  Reserve/Apply/Finalize run with the owning upgrade command, and Recover
+  resolves an unknown outcome. The core MUST NOT open a private capability
+  store or import a concrete capability persistence adapter.
 - A successful upgrade MUST atomically revoke the initiating anonymous session
   and rotate to one new permanent session bound to the target identity and the
   caller's unchanged remember policy. The new session MUST NOT become usable

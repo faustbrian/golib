@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/otp/postgres`
 - Canonical module: `pkg/identity/otp/postgres`
 - Canonical goal after scaffolding: `pkg/identity/otp/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/otp/postgres:v1`; owned operation IDs: none
 - Requires: `identity/otp`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
@@ -42,6 +43,12 @@ finalize, release, recover, or erase the OTP replay record.
   retain earlier challenges exactly as declared by the profile.
 - Incorrect attempt, correct verification, check-without-consume and consume
   MUST serialize so concurrency cannot exceed attempts or produce two winners.
+  Each incorrect logical submission MUST carry a server-issued attempt ID bound
+  to its command and canonical fingerprint. The dedicated pre-reservation denial
+  transaction MUST lock command and challenge, validate that binding, increment
+  exactly once, enter `exhausted` when required, and persist the stable aborted
+  command result atomically; ambiguous commits return unknown and reconcile by
+  command plus attempt ID before retry.
 - Purpose, identifier and tenant mismatches MUST have enumeration-safe public
   behavior and MUST NOT decrement another challenge's counters.
 - Database time MUST own expiry/window boundaries. Cleanup MUST use bounded

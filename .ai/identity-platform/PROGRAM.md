@@ -23,6 +23,14 @@ planning location, and canonical destination for every unit. Every later
 validator consumer MUST resolve the body through the current inventory link;
 missing, rewritten, duplicated, mismatched, or orphan goal paths are invalid.
 
+The canonical contract read order is `END_STATE.md`,
+`END_STATE_ACCEPTANCE.json`, `ACCEPTANCE_ARTIFACTS.json`,
+`REFERENCE_PROFILE.md`, `API_OPERATIONS.md`, `OPERATION_SEMANTICS.json`,
+`PUBLIC_CONTRACTS.json`, `public_contracts.rb`, then the upstream disposition
+and source documents. Public contracts precede implementation and package
+goals; a worker MUST NOT infer, add, broaden, or substitute a public API beyond
+the exact unit and operation contract IDs assigned to its goal.
+
 ## Product boundary decisions
 
 - There is no `identityadmin` or `identity/management` module and no admin UI.
@@ -75,20 +83,30 @@ lower-level primitives. JWT/JWK and OIDC remain validation-only. Authorization
 server issuance, grants, discovery, consent, and JWKS publication belong to
 `oauth-server` and `oauth-server/oidc`.
 
+Five dependency-free schedulable prerequisite units extend the exact pinned
+public contracts needed by the identity platform: authentication,
+authorization, capability (including its PostgreSQL adapter contract),
+identifier, and password. They are not additional identity-platform product
+units: the product scope remains 61 units while the complete execution DAG has
+66 schedulable units.
+
 ## Program completion contract
 
-Completion requires all 61 inventory units to be `verified`, every in-scope
+Completion requires all 61 identity-platform inventory units and all five
+primitive-extension prerequisites to be `verified` (66 schedulable units
+total), every in-scope
 row in `BETTER_AUTH_PARITY.md` to have executable proof, and every composed
 journey and cross-cutting property in `END_STATE.md` to pass against final
 inputs. No row may remain partial, depend on undocumented application glue, or
 be represented only by a primitive that lacks the required workflow.
 
 The coordinator artifacts close the implementation choices that package goals
-consume. `END_STATE_ACCEPTANCE.json` closes the 18 journeys, cross-cutting claims and acceptance-artifact producers; `API_OPERATIONS.md` owns the complete transport operation catalog and `OPERATION_SEMANTICS.json` pins every operation semantic field;
+consume. `END_STATE_ACCEPTANCE.json` closes all 19 journeys, cross-cutting claims and acceptance-artifact producers; `API_OPERATIONS.md` owns the complete transport operation catalog and `OPERATION_SEMANTICS.json` pins every operation semantic field;
 `UPSTREAM_DISPOSITIONS.md` owns the disposition of every pinned upstream
 surface; `UPSTREAM_SURFACE.json` pins the machine-verifiable source objects and
 every exact source-item -> disposition-row -> capability -> operation-ID edge,
-with operation owners resolving to registered goals; independent inventory
+with operation owners resolving to registered goals; `UPSTREAM_LEAVES.json`
+pins the exact closed leaf inventory consumed by that mapping; independent inventory
 digests or owner-has-some-operation checks are insufficient;
 `PROTOCOL_BASELINES.md` pins supported protocol revisions and profiles;
 `PROTOCOL_CONFORMANCE_MANIFEST.json` binds every selected source and

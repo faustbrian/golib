@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/session`
 - Canonical module: `pkg/identity/session`
 - Canonical goal after scaffolding: `pkg/identity/session/.ai/GOAL.md`
-- Requires: `identity`
+- Public contracts: unit ID `contract:unit:identity/session:v1`; owned operation IDs: `contract:operation:identity.admin.session-list:v1`, `contract:operation:identity.admin.session-revoke:v1`, `contract:operation:identity.admin.session-revoke-all:v1`, `contract:operation:identity.session.bearer-authorize:v1`, `contract:operation:identity.session.bearer-issue:v1`, `contract:operation:identity.session.get:v1`, `contract:operation:identity.session.last-method-check:v1`, `contract:operation:identity.session.last-method-clear:v1`, `contract:operation:identity.session.last-method-get:v1`, `contract:operation:identity.session.last-method-record:v1`, `contract:operation:identity.session.list:v1`, `contract:operation:identity.session.refresh:v1`, `contract:operation:identity.session.revoke-all:v1`, `contract:operation:identity.session.revoke-one:v1`, `contract:operation:identity.session.revoke-other:v1`, `contract:operation:identity.session.select-active:v1`, `contract:operation:identity.session.signout:v1`, `contract:operation:identity.session.transfer-consume:v1`, `contract:operation:identity.session.transfer-generate:v1`, `contract:operation:identity.session.update:v1`
+- Requires: `identity`, `primitive/authorization-identity-contracts`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `authentication`, `authorization`, `identifier`, `capability`, `capability/postgres`, `audit`, `secret-envelope`
 - Unlocks after verification: `identity/session/postgres`, `identity/session/valkey`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `organization`, `sso`, `oauth-server`, `identity/http`
 
@@ -71,6 +72,15 @@ It MUST return `NotCommitted`, `Committed`, `Unknown`, `Conflict`, or
 `InProgress` consistently with `TRANSACTION_CONTRACT.md`; after `Unknown`, the
 caller MUST be able to recover the safe issuance result by command identity
 without minting a second session or changing `RememberPolicy`.
+
+The public contract MUST define typed bearer-authorization input/result and
+bearer-issuance continuation/result values matching
+`struct:ref.session.bearer_issuance`. Authorization MUST bind tenant, subject,
+source session/family and versions, authorization decision/version, audience,
+origin, lifetime, transport and command ID into a 60-second one-use
+continuation without returning a bearer. Issuance MUST reserve, apply and
+finalize that continuation with bearer creation in one authoritative command;
+invalid, denied, expired, unknown or replayed outcomes return no credential.
 
 ## Required behavior
 

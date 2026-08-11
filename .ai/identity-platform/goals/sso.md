@@ -11,6 +11,7 @@ shown here.
 - Unit: `sso`
 - Canonical module: `pkg/sso`
 - Canonical goal after scaffolding: `pkg/sso/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:sso:v1`; owned operation IDs: `contract:operation:identity.sso.break-glass.consume:v1`, `contract:operation:identity.sso.break-glass.issue:v1`, `contract:operation:identity.sso.directory-sync-apply:v1`, `contract:operation:identity.sso.directory-sync-cancel:v1`, `contract:operation:identity.sso.directory-sync-start:v1`, `contract:operation:identity.sso.directory-sync-status:v1`, `contract:operation:identity.sso.discover:v1`, `contract:operation:identity.sso.domain-challenge:v1`, `contract:operation:identity.sso.domain-verify:v1`, `contract:operation:identity.sso.enforcement.update:v1`, `contract:operation:identity.sso.provider.credentials-rotate:v1`, `contract:operation:identity.sso.provider.delete:v1`, `contract:operation:identity.sso.provider.disable:v1`, `contract:operation:identity.sso.provider.enable:v1`, `contract:operation:identity.sso.provider.get:v1`, `contract:operation:identity.sso.provider.list:v1`, `contract:operation:identity.sso.provider.register-oauth:v1`, `contract:operation:identity.sso.provider.register-oidc:v1`, `contract:operation:identity.sso.provider.register-saml:v1`, `contract:operation:identity.sso.provider.update:v1`, `contract:operation:identity.sso.signin-start:v1`
 - Requires: `identity`, `identity/session`, `identity/risk`, `organization`
 - Consumes existing primitives: `authentication`, `authorization`, `capability`, `capability/postgres`, `secret-envelope`, `audit`, `workflow`
 - Unlocks after verification: `sso/domain-verification`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `sso/postgres`, `identity/http`
@@ -56,6 +57,12 @@ involved.
   rotate credentials/certificates, delete and organization link/unlink with
   explicit ownership and authorization. Provider IDs, domains and issuer/entity
   IDs MUST have collision rules.
+- The callable lifecycle MUST expose `identity.sso.provider.enable`,
+  `identity.sso.provider.disable`, `identity.sso.provider.credentials-rotate`
+  and `identity.sso.enforcement.update` as distinct operations with the exact
+  access, CSRF, rate, idempotency and outcome contracts in
+  `API_OPERATIONS.md`; generic provider update/delete MUST NOT substitute for
+  those transitions.
 - Routing MUST support explicit provider ID, verified-domain discovery,
   configured default and deterministic multiple-provider conflict. Unverified
   domains, arbitrary email suffixes and hostile discovery metadata MUST NOT
@@ -65,6 +72,11 @@ involved.
   expiry/revocation state. SSO MUST NOT maintain an independent truth for
   domain ownership; proof expiry, revocation or transfer MUST invalidate routes
   and block new transactions at a documented boundary.
+- `sso` owns the callable `identity.sso.domain-challenge` and
+  `identity.sso.domain-verify` orchestration and their HTTP/OpenAPI contracts.
+  It MUST delegate bounded proof retrieval and classification to
+  `sso/domain-verification` and commit claim state only through `organization`;
+  neither collaborator may publish a competing operation definition.
 - Login transactions MUST bind protocol, provider, organization, tenant,
   redirect, state/relay state, initiator and expiry and MUST be atomically
   single-use across shared callback URLs.

@@ -1,0 +1,1361 @@
+{
+  "schema_version": 1,
+  "manifest_schema": {
+    "allowed_top_level_keys": [
+      "external_contracts",
+      "manifest_schema",
+      "operations",
+      "product_exclusions",
+      "schema_version",
+      "source_digests",
+      "types",
+      "units",
+      "validation_rules"
+    ],
+    "unit_required_keys": [
+      "contract_id",
+      "constructors",
+      "errors",
+      "functions",
+      "goal_sha256",
+      "interfaces",
+      "module_path",
+      "operations",
+      "package_name",
+      "types",
+      "unit"
+    ],
+    "type_kinds": [
+      "alias",
+      "defined",
+      "enum",
+      "fixed_bytes",
+      "function",
+      "interface",
+      "scalar",
+      "slice",
+      "struct",
+      "tagged_union"
+    ],
+    "operation_required_keys": [
+      "contract_id",
+      "declared_owners",
+      "error_types",
+      "id",
+      "method",
+      "owner",
+      "request_type",
+      "result_type",
+      "semantic_digest",
+      "transport"
+    ],
+    "external_contract_pin_rules": [
+      "Every external contract MUST declare one exact package_path and exactly one pin mode: api_baseline_files plus api_baseline_sha256 for repository-local packages, module_path plus module_version for third-party modules, or go_version for standard-library packages.",
+      "api_baseline_files MUST be a bytewise sorted duplicate-free list of repository-relative files; it MUST include the owning module's go.mod, every buildable non-test Go source file in the exact package tree, and api/baseline.txt when present, and MUST NOT include unrelated package trees.",
+      "api_baseline_sha256 MUST equal SHA-256 over each api_baseline_files entry encoded as the UTF-8 path, one NUL byte, the base-10 byte length, one NUL byte, the exact file bytes, and one NUL byte, concatenated in listed order.",
+      "module_path MUST be the module containing package_path and module_version MUST be the exact version selected by the repository module graph; unversioned, latest, branch, pseudo-authority and wildcard pins are forbidden.",
+      "go_version MUST equal the repository's exact Go language/toolchain baseline and MUST pin every standard-library symbol authority used by the manifest.",
+      "Every external contract MUST declare current_api_status as exact or requires-extension; requires-extension MUST retain the current api_baseline_files and api_baseline_sha256 pin, MUST add required_contract_sha256 over the canonical types, interfaces, methods and errors contract, and MUST NOT present required-only symbols as current API.",
+      "Each authority alias MUST resolve to exactly one pinned package_path or one local unit; bare package names, directory-wide package roots, wildcard symbols and duplicate aliases are forbidden."
+    ],
+    "authority_aliases": [
+      {
+        "alias": "audit",
+        "authority": "external:audit",
+        "package_path": "github.com/faustbrian/golib/pkg/audit"
+      },
+      {
+        "alias": "authentication",
+        "authority": "external:authentication",
+        "package_path": "github.com/faustbrian/golib/pkg/authentication"
+      },
+      {
+        "alias": "authorization",
+        "authority": "external:authorization",
+        "package_path": "github.com/faustbrian/golib/pkg/authorization"
+      },
+      {
+        "alias": "capability",
+        "authority": "external:capability",
+        "package_path": "github.com/faustbrian/golib/pkg/capability"
+      },
+      {
+        "alias": "capabilitypostgres",
+        "authority": "external:capability/postgres",
+        "package_path": "github.com/faustbrian/golib/pkg/capability/postgres"
+      },
+      {
+        "alias": "clock",
+        "authority": "external:clock",
+        "package_path": "github.com/faustbrian/golib/pkg/clock"
+      },
+      {
+        "alias": "context",
+        "authority": "stdlib:context",
+        "package_path": "context"
+      },
+      {
+        "alias": "golibpassword",
+        "authority": "external:password",
+        "package_path": "github.com/faustbrian/golib/pkg/password"
+      },
+      {
+        "alias": "http",
+        "authority": "stdlib:net/http",
+        "package_path": "net/http"
+      },
+      {
+        "alias": "httpclient",
+        "authority": "external:httpclient",
+        "package_path": "github.com/faustbrian/golib/pkg/http-client"
+      },
+      {
+        "alias": "idempotency",
+        "authority": "external:idempotency",
+        "package_path": "github.com/faustbrian/golib/pkg/idempotency"
+      },
+      {
+        "alias": "identifier",
+        "authority": "external:identifier",
+        "package_path": "github.com/faustbrian/golib/pkg/identifier"
+      },
+      {
+        "alias": "identity",
+        "authority": "unit:identity",
+        "package_path": "github.com/faustbrian/golib/pkg/identity"
+      },
+      {
+        "alias": "identitypostgres",
+        "authority": "unit:identity/postgres",
+        "package_path": "github.com/faustbrian/golib/pkg/identity/postgres"
+      },
+      {
+        "alias": "identitysession",
+        "authority": "unit:identity/session",
+        "package_path": "github.com/faustbrian/golib/pkg/identity/session"
+      },
+      {
+        "alias": "io",
+        "authority": "stdlib:io",
+        "package_path": "io"
+      },
+      {
+        "alias": "netip",
+        "authority": "stdlib:net/netip",
+        "package_path": "net/netip"
+      },
+      {
+        "alias": "organization",
+        "authority": "unit:organization",
+        "package_path": "github.com/faustbrian/golib/pkg/organization"
+      },
+      {
+        "alias": "outbox",
+        "authority": "external:outbox",
+        "package_path": "github.com/faustbrian/golib/pkg/outbox"
+      },
+      {
+        "alias": "passkey",
+        "authority": "unit:passkey",
+        "package_path": "github.com/faustbrian/golib/pkg/passkey"
+      },
+      {
+        "alias": "pgxpool",
+        "authority": "module:github.com/jackc/pgx/v5@v5.10.0",
+        "package_path": "github.com/jackc/pgx/v5/pgxpool"
+      },
+      {
+        "alias": "rate_limit",
+        "authority": "external:rate-limit",
+        "package_path": "github.com/faustbrian/golib/pkg/rate-limit"
+      },
+      {
+        "alias": "secretenvelope",
+        "authority": "external:secret-envelope",
+        "package_path": "github.com/faustbrian/golib/pkg/secret-envelope"
+      },
+      {
+        "alias": "session",
+        "authority": "unit:identity/session",
+        "package_path": "github.com/faustbrian/golib/pkg/identity/session"
+      },
+      {
+        "alias": "sql",
+        "authority": "stdlib:database/sql",
+        "package_path": "database/sql"
+      },
+      {
+        "alias": "tenancy",
+        "authority": "external:tenancy",
+        "package_path": "github.com/faustbrian/golib/pkg/tenancy"
+      },
+      {
+        "alias": "testing",
+        "authority": "stdlib:testing",
+        "package_path": "testing"
+      },
+      {
+        "alias": "time",
+        "authority": "stdlib:time",
+        "package_path": "time"
+      },
+      {
+        "alias": "url",
+        "authority": "stdlib:net/url",
+        "package_path": "net/url"
+      },
+      {
+        "alias": "valkeyclient",
+        "authority": "module:github.com/valkey-io/valkey-go@v1.0.76",
+        "package_path": "github.com/valkey-io/valkey-go"
+      },
+      {
+        "alias": "workflow",
+        "authority": "external:workflow",
+        "package_path": "github.com/faustbrian/golib/pkg/workflow"
+      }
+    ],
+    "standard_library_go_version": "go1.26.5",
+    "required_primitive_extensions": [
+      {
+        "unit": "authentication",
+        "extension_unit": "primitive/authentication-identity-contracts",
+        "package_path": "github.com/faustbrian/golib/pkg/authentication",
+        "depends_on": [],
+        "consumers": [
+          "identity/anonymous",
+          "identity/email",
+          "identity/magiclink",
+          "identity/mfa",
+          "identity/otp",
+          "identity/password",
+          "identity/phone",
+          "identity/username",
+          "passkey",
+          "webauthn"
+        ],
+        "required_contract_sha256": "sha256:4846e4ef155c350b63ce8c24e13e6411f1aaf18150caa365e971345af1ad601d",
+        "required_symbols": [
+          "authentication.Assurance",
+          "authentication.OneTimeCode",
+          "authentication.PermanentAccountProof",
+          "authentication.Proof",
+          "authentication.ProofID",
+          "authentication.Purpose",
+          "authentication.ReauthenticationOrRecoveryProof",
+          "authentication.ReauthenticationProof",
+          "authentication.RecoveryCode",
+          "authentication.RecoveryPath",
+          "authentication.SignInState"
+        ]
+      },
+      {
+        "unit": "authorization",
+        "extension_unit": "primitive/authorization-identity-contracts",
+        "package_path": "github.com/faustbrian/golib/pkg/authorization",
+        "depends_on": [],
+        "consumers": [
+          "identity",
+          "identity/apikey",
+          "identity/http",
+          "identity/impersonation",
+          "identity/reference",
+          "identity/session",
+          "organization"
+        ],
+        "required_contract_sha256": "sha256:2b6ad43b43cbd75c8f6bb5c81d6290bdb87bcbc2a70e8152165f7802dfea004d",
+        "required_symbols": [
+          "authorization.AdminPermissionCheckError",
+          "authorization.AdminPermissionCheckRequest",
+          "authorization.AdminPermissionCheckResult",
+          "authorization.AdminUserRoleSetError",
+          "authorization.AdminUserRoleSetRequest",
+          "authorization.AdminUserRoleSetResult",
+          "authorization.AssignmentDisposition",
+          "authorization.AssignmentImpact",
+          "authorization.AuthorizationService",
+          "authorization.DecisionContext",
+          "authorization.PermissionID",
+          "authorization.PermissionStatement",
+          "authorization.RoleDisposition",
+          "authorization.Service",
+          "authorization.StatementID",
+          "authorization.SubjectProjection",
+          "authorization.VersionedPermissionStatement"
+        ]
+      },
+      {
+        "unit": "capability",
+        "extension_unit": "primitive/capability-identity-contracts",
+        "package_path": "github.com/faustbrian/golib/pkg/capability",
+        "depends_on": [],
+        "consumers": [
+          "identity",
+          "identity/email",
+          "identity/magiclink",
+          "identity/oauth",
+          "identity/oauth/onetap",
+          "identity/oauth/proxy",
+          "identity/password",
+          "identity/session",
+          "oauth-server",
+          "oauth-server/device",
+          "oauth-server/oidc",
+          "organization",
+          "sso/domain-verification",
+          "sso/saml",
+          "webauthn"
+        ],
+        "required_contract_sha256": "sha256:6af858713d36ea5902174d067f0b63d95f4f620c183c777951b482aaff8b17e0",
+        "required_symbols": [
+          "capability.Proof",
+          "capability.Purpose",
+          "capability.Reference",
+          "capability.Service"
+        ]
+      },
+      {
+        "unit": "capability/postgres",
+        "extension_unit": "primitive/capability-identity-contracts",
+        "package_path": "github.com/faustbrian/golib/pkg/capability/postgres",
+        "depends_on": [
+          "capability"
+        ],
+        "consumers": [
+          "identity/oauth/postgres",
+          "sso/postgres"
+        ],
+        "required_contract_sha256": "sha256:670937908b9793ccb7fae6865dbe35291a2474356829a27f19a8749bdd1ada7b",
+        "required_symbols": [
+          "capabilitypostgres.Enlister"
+        ]
+      },
+      {
+        "unit": "identifier",
+        "extension_unit": "primitive/identifier-identity-contracts",
+        "package_path": "github.com/faustbrian/golib/pkg/identifier",
+        "depends_on": [],
+        "consumers": [
+          "identity/email",
+          "identity/magiclink",
+          "identity/otp",
+          "identity/password",
+          "identity/username",
+          "passkey",
+          "webauthn"
+        ],
+        "required_contract_sha256": "sha256:c683662a1c639d6dfc5751fe0ea297b5bb1bfeaefdfa111ed32f8a5c7df9cbbd",
+        "required_symbols": [
+          "identifier.Canonical",
+          "identifier.Input",
+          "identifier.NormalizationProfile",
+          "identifier.Reference"
+        ]
+      },
+      {
+        "unit": "password",
+        "extension_unit": "primitive/password-secret-contracts",
+        "package_path": "github.com/faustbrian/golib/pkg/password",
+        "depends_on": [],
+        "consumers": [
+          "identity/otp",
+          "identity/password",
+          "identity/phone",
+          "identity/username"
+        ],
+        "required_contract_sha256": "sha256:d16e6923889a4a30acc0a22e489815ecac57e913213d0bad51010b97c18b20b9",
+        "required_symbols": [
+          "golibpassword.Parameters",
+          "golibpassword.Secret"
+        ]
+      }
+    ],
+    "canonical_ordering": [
+      "The complete manifest MUST be encoded as UTF-8 JSON with one trailing LF and no byte-order mark.",
+      "Every object key MUST be ordered bytewise ascending.",
+      "Units MUST preserve exact GOAL_MANIFEST.json order; operations MUST be ordered bytewise by id, types and interfaces by fully qualified name, errors by stable identity, external contracts by owner, and product exclusions by id.",
+      "Every set-like array MUST be bytewise sorted and duplicate-free; arrays whose order is behavioral MUST declare ordered=true and preserve the declared order.",
+      "Numbers MUST be base-10 JSON integers without fractions, exponents, negative zero, or values outside the declared scalar range."
+    ],
+    "reference_rules": [
+      "Every type reference MUST be a fully qualified symbol owned by exactly one unit or one external_contracts entry.",
+      "A unit MUST NOT redeclare, alias around, or copy an external authority type or interface to change its semantics.",
+      "The first declared owner of an operation MUST remain its contract owner; later declared owners are collaborators and MUST NOT publish a competing request, result, or error definition.",
+      "An operation whose first owner is external MUST reference that external owner's exact request, result, and error symbols and MUST NOT be reassigned to one of the 61 units.",
+      "Every reference MUST resolve, every declared type MUST be reachable from a unit root, operation, constructor, function, interface, or external contract, and unresolved or orphan symbols MUST fail validation.",
+      "Reference cycles MUST fail validation unless every traversal of the cycle crosses an explicit positive max_items or max_depth bound."
+    ],
+    "bounds_rules": [
+      "Every string, byte sequence, slice, and collection MUST declare a positive maximum or reference a named external bound.",
+      "Every integer MUST declare signedness and inclusive minimum and maximum values.",
+      "Every struct MUST declare its exact fields, required fields, zero-value semantics, and additional_fields=false.",
+      "Every tagged union MUST declare one required discriminator and the exact closed variant set.",
+      "Every callback MUST declare invocation count, ordering, panic behavior, cancellation behavior, and whether it may run while a lock or transaction is held.",
+      "Every secret-bearing field MUST declare redaction, serialization, ownership, and lifetime semantics."
+    ],
+    "forbidden_placeholders": [
+      "[]byte payload whose fields are defined only by prose",
+      "arbitrary JSON object",
+      "free-form attributes without a named bounded external type",
+      "generic request",
+      "generic response",
+      "generic result",
+      "generic service interface",
+      "generic Payload type",
+      "implementation-defined error",
+      "opaque payload",
+      "stringly typed union",
+      "unbounded collection",
+      "unspecified callback"
+    ]
+  },
+  "external_contracts": [
+    {
+      "owner": "audit",
+      "package_path": "github.com/faustbrian/golib/pkg/audit",
+      "current_api_status": "exact",
+      "types": [
+        {
+          "name": "audit.Record",
+          "declaration": "immutable record constructed from audit.RecordInput",
+          "semantics": "Record owns defensive copies, carries explicit actor, subject, tenant-aware context, outcome, policy metadata and redaction state, and exposes no secret-bearing diagnostic representation."
+        },
+        {
+          "name": "audit.Query",
+          "declaration": "validated immutable query constructed by audit.NewQuery(audit.QueryInput)",
+          "semantics": "Tenant scope and a positive Limit no greater than audit.MaxQueryRecords are mandatory; time bounds are inclusive and After is an exclusive stable cursor."
+        },
+        {
+          "name": "audit.AppendOutcome",
+          "declaration": "enum{audit.AppendUnknown,audit.AppendRejected,audit.AppendCommitted}",
+          "semantics": "Unclassified append failures are unknown and require record-ID reconciliation before a non-idempotent retry."
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "audit.Sink",
+          "methods": [
+            "Append(context.Context, audit.Record) (audit.AppendResult, error)",
+            "AppendBatch(context.Context, []audit.Record) (audit.BatchResult, error)"
+          ],
+          "semantics": "Append is record-ID idempotent, batch input is bounded by audit.MaxAppendBatchRecords, and every failure is classified as rejected, committed, or unknown."
+        },
+        {
+          "name": "audit.Reader",
+          "methods": [
+            "Query(context.Context, audit.Query) (audit.Page, error)"
+          ],
+          "semantics": "Reader applies no authorization by itself and returns one stable bounded page."
+        },
+        {
+          "name": "audit.Exporter",
+          "methods": [
+            "Export(context.Context, audit.Query, func(audit.Record) error) error"
+          ],
+          "semantics": "Records are delivered in stable order; the consumer is bounded by Query.Limit, runs without a store lock held, and consumer panic or error is redacted as audit.ErrExportConsumerFailed."
+        },
+        {
+          "name": "audit.RetentionStore",
+          "methods": [
+            "AppendRetentionEvent(context.Context, audit.RetentionEvent) (audit.AppendResult, error)",
+            "ApplyRetention(context.Context, audit.RetentionPlan) (audit.RetentionApplyResult, error)",
+            "PlanRetention(context.Context, audit.RetentionRequest) (audit.RetentionPlan, error)"
+          ],
+          "semantics": "Planning is separate from deletion; apply rechecks immutable candidate digests and legal-hold state, and callbacks do not execute while database locks are held."
+        }
+      ],
+      "methods": [
+        "audit.AppendOutcomeOf(error) audit.AppendOutcome",
+        "audit.NewQuery(audit.QueryInput) (audit.Query, error)"
+      ],
+      "errors": [
+        "audit.ErrBackpressure",
+        "audit.ErrBatchTooLarge",
+        "audit.ErrDuplicateConflict",
+        "audit.ErrExportConsumerFailed",
+        "audit.ErrExportFailed",
+        "audit.ErrInvalidArgument",
+        "audit.ErrRedactionRequired",
+        "audit.ErrSensitiveData",
+        "audit.ErrSinkProtocol"
+      ]
+    },
+    {
+      "owner": "authentication",
+      "package_path": "github.com/faustbrian/golib/pkg/authentication",
+      "current_api_status": "requires-extension",
+      "required_contract_sha256": "sha256:4846e4ef155c350b63ce8c24e13e6411f1aaf18150caa365e971345af1ad601d",
+      "types": [
+        {
+          "name": "authentication.Assurance",
+          "declaration": "enum{authentication.AssuranceUnspecified,authentication.AssuranceSingleFactor,authentication.AssuranceMultiFactor,authentication.AssurancePhishingResistant}",
+          "semantics": "AssuranceUnspecified is invalid for successful authentication; ordering is monotonic from single-factor through phishing-resistant and callers MUST compare by the package helper rather than numeric conversion."
+        },
+        {
+          "name": "authentication.OneTimeCode",
+          "declaration": "defined string; 4..128 ASCII symbols; constructors reject control characters and empty input",
+          "semantics": "Ephemeral purpose-bound secret; it has no String, text, JSON, logging or formatting implementation and MUST be cleared or released immediately after terminal verification."
+        },
+        {
+          "name": "authentication.PermanentAccountProof",
+          "declaration": "struct{Proof authentication.Proof; PermanentSubject string}",
+          "semantics": "Proof MUST be valid, unexpired and bound to the exact non-anonymous PermanentSubject, tenant, audience and permanent-account-upgrade purpose; it cannot be constructed from identifier existence."
+        },
+        {
+          "name": "authentication.Principal",
+          "declaration": "immutable value constructed by authentication.NewPrincipal(authentication.PrincipalSpec); zero value is explicitly anonymous",
+          "semantics": "The current pinned principal contract returns defensive copies of audiences, tenant hints, scopes and bounded claims; authentication data never constitutes an authorization decision."
+        },
+        {
+          "name": "authentication.Proof",
+          "declaration": "struct{ID authentication.ProofID; Tenant string; Subject string; Method string; Assurance authentication.Assurance; Purpose authentication.Purpose; Audience string; IssuedAt time.Time; ExpiresAt time.Time}",
+          "semantics": "All identifiers are required and bounded to 256 UTF-8 bytes, IssuedAt precedes ExpiresAt, lifetime is at most 24 hours, and the immutable proof grants only its exact subject, tenant, purpose and audience until exclusive expiry."
+        },
+        {
+          "name": "authentication.ProofID",
+          "declaration": "defined string; 22..128 canonical ASCII characters",
+          "semantics": "Stable non-secret proof identity; empty is invalid and equality has meaning only within the issuing authentication authority."
+        },
+        {
+          "name": "authentication.ProofKind",
+          "declaration": "enum{authentication.ProofKindUnspecified,authentication.ProofKindReauthentication,authentication.ProofKindRecovery}",
+          "semantics": "ProofKindUnspecified is invalid and the value selects exactly one ReauthenticationOrRecoveryProof arm."
+        },
+        {
+          "name": "authentication.ProofSpec",
+          "declaration": "struct{ID authentication.ProofID; Tenant string; Subject string; Method string; Assurance authentication.Assurance; Purpose authentication.Purpose; Audience string; IssuedAt time.Time; ExpiresAt time.Time}",
+          "semantics": "Mutable constructor input only; NewProof validates every bound and copies all retained values."
+        },
+        {
+          "name": "authentication.ProofUse",
+          "declaration": "struct{Tenant string; Subject string; Purpose authentication.Purpose; Audience string; Now time.Time}",
+          "semantics": "Complete validation context; all identity fields must equal the proof and Now comes from the caller-owned trusted clock."
+        },
+        {
+          "name": "authentication.Purpose",
+          "declaration": "defined string; 1..128 canonical ASCII characters",
+          "semantics": "Names one exact protected operation purpose; no prefix, wildcard, hierarchy or cross-purpose substitution is permitted."
+        },
+        {
+          "name": "authentication.ReauthenticationProof",
+          "declaration": "struct{Proof authentication.Proof; SessionID string; SessionVersion uint64; Action string}",
+          "semantics": "Proof MUST be fresh, SessionID and Action are required and bounded to 128 ASCII bytes, SessionVersion is positive, and every field is checked against the current tenant, subject, session version, action, purpose and audience."
+        },
+        {
+          "name": "authentication.ReauthenticationUse",
+          "declaration": "struct{ProofUse authentication.ProofUse; SessionID string; SessionVersion uint64; Action string; MaximumAge time.Duration}",
+          "semantics": "Complete protected-action validation context; MaximumAge is positive and no greater than 24 hours, and all session and action fields must equal the proof."
+        },
+        {
+          "name": "authentication.ReauthenticationOrRecoveryProof",
+          "declaration": "tagged_union{Kind authentication.ProofKind; Reauthentication authentication.ReauthenticationProof; Recovery authentication.Proof}; variants exactly Reauthentication and Recovery",
+          "semantics": "Exactly one arm matching Kind is present; the recovery arm is accepted only by operations that explicitly authorize recovery and remains bound to the operation purpose, audience, subject and tenant."
+        },
+        {
+          "name": "authentication.RecoveryCode",
+          "declaration": "defined string; 8..256 canonical ASCII symbols",
+          "semantics": "Single-use secret returned only at issuance and burned atomically on successful verification; it has no String, text, JSON, logging or formatting implementation."
+        },
+        {
+          "name": "authentication.RecoveryPath",
+          "declaration": "enum{authentication.RecoveryPathUnspecified,authentication.RecoveryPathEmail,authentication.RecoveryPathPhone,authentication.RecoveryPathPasskey,authentication.RecoveryPathAdministrator}",
+          "semantics": "RecoveryPathUnspecified is invalid; challenge issuance selects one path and no fallback to another path is permitted after issuance."
+        },
+        {
+          "name": "authentication.SignInState",
+          "declaration": "enum{authentication.SignInStateUnspecified,authentication.SignInStateAuthenticated,authentication.SignInStateChallengeRequired,authentication.SignInStateRejected}",
+          "semantics": "SignInStateUnspecified is invalid; result arms form a closed union and exactly the arm selected by State may be populated."
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "authentication.Authenticator",
+          "methods": [
+            "Authenticate(context.Context, authentication.Credential) (authentication.Result, error)"
+          ],
+          "semantics": "The current pinned authenticator contract; invalid, ambiguous, rejected or unavailable credentials never produce an authenticated principal."
+        }
+      ],
+      "methods": [
+        "authentication.NewOneTimeCode(string) (authentication.OneTimeCode, error)",
+        "authentication.NewProof(authentication.ProofSpec) (authentication.Proof, error)",
+        "authentication.NewPurpose(string) (authentication.Purpose, error)",
+        "authentication.NewRecoveryCode(string) (authentication.RecoveryCode, error)",
+        "authentication.Proof.Validate(authentication.ProofUse) error",
+        "authentication.ReauthenticationProof.Validate(authentication.ReauthenticationUse) error"
+      ],
+      "errors": [
+        "authentication.ErrAmbiguousCredentials",
+        "authentication.ErrAuthenticationUnavailable",
+        "authentication.ErrCredentialsAbsent",
+        "authentication.ErrCredentialsInvalid",
+        "authentication.ErrCredentialsRejected",
+        "authentication.ErrExpiredProof",
+        "authentication.ErrInvalidConfiguration",
+        "authentication.ErrInvalidPrincipal",
+        "authentication.ErrInvalidProof",
+        "authentication.ErrProofAudienceMismatch",
+        "authentication.ErrProofPurposeMismatch"
+      ]
+    },
+    {
+      "owner": "authorization",
+      "package_path": "github.com/faustbrian/golib/pkg/authorization",
+      "current_api_status": "requires-extension",
+      "required_contract_sha256": "sha256:2b6ad43b43cbd75c8f6bb5c81d6290bdb87bcbc2a70e8152165f7802dfea004d",
+      "types": [
+        {
+          "name": "authorization.AssignmentDisposition",
+          "declaration": "enum{authorization.AssignmentDispositionUnspecified,authorization.AssignmentDispositionReject,authorization.AssignmentDispositionRemove,authorization.AssignmentDispositionReassign}",
+          "semantics": "Unspecified is invalid; Remove deletes every affected assignment and Reassign requires one explicit replacement role, with at most 10000 affected assignments."
+        },
+        {
+          "name": "authorization.AssignmentImpact",
+          "declaration": "struct{AssignmentCount uint32; SubjectCount uint32; Truncated bool}",
+          "semantics": "Counts are bounded to 10000 and describe the exact pre-mutation impact; Truncated is forbidden for an authorized mutation decision."
+        },
+        {
+          "name": "authorization.Condition",
+          "declaration": "struct{Attribute authorization.AttributeName; Operator authorization.ConditionOperator; Value authorization.Value}",
+          "semantics": "Attribute and Operator are required; Value uses the existing bounded closed authorization value union, and evaluation never performs implicit string conversion."
+        },
+        {
+          "name": "authorization.ConditionOperator",
+          "declaration": "enum{authorization.ConditionOperatorUnspecified,authorization.ConditionOperatorEqual,authorization.ConditionOperatorNotEqual,authorization.ConditionOperatorContains,authorization.ConditionOperatorLess,authorization.ConditionOperatorGreater}",
+          "semantics": "Unspecified is invalid and operands must have the exact compatible authorization.Value kind."
+        },
+        {
+          "name": "authorization.Request",
+          "declaration": "struct{Subject authorization.Subject; Action authorization.Action; Resource authorization.Resource; Tenant authorization.TenantID; Environment authorization.Environment; Attributes authorization.Attributes}",
+          "semantics": "Subject kind and ID, action, and resource type are mandatory; an empty tenant is explicitly global and never implies authorization."
+        },
+        {
+          "name": "authorization.DecisionContext",
+          "declaration": "struct{Request authorization.Request; CorrelationID string; PolicyRevision authorization.Revision}",
+          "semantics": "Request is fully validated, CorrelationID is optional and bounded to 128 UTF-8 bytes, and a positive PolicyRevision binds the decision to one immutable policy snapshot."
+        },
+        {
+          "name": "authorization.Decision",
+          "declaration": "struct{Outcome authorization.Outcome; Reason authorization.ReasonCode; MatchedPolicyIDs []authorization.PolicyID; MatchedPolicyIDsTruncated bool; Revision authorization.Revision; Trace []authorization.TraceEntry; TraceTruncated bool}",
+          "semantics": "Outcome is exactly NotApplicable, Allow, or Deny; the decision records the policy revision and bounded/truncation-aware evidence without request attribute values."
+        },
+        {
+          "name": "authorization.PermissionID",
+          "declaration": "defined string; 1..128 canonical ASCII characters",
+          "semantics": "Stable permission identity; empty is invalid, comparison is bytewise, and no prefix or wildcard grants authority."
+        },
+        {
+          "name": "authorization.PermissionStatement",
+          "declaration": "struct{PermissionID authorization.PermissionID; ResourceType authorization.ResourceType; ResourceID authorization.ResourceID; Action authorization.Action; Conditions []authorization.Condition}",
+          "semantics": "PermissionID, ResourceType and Action are required; ResourceID may select the whole type; Conditions is canonically ordered, duplicate-free and limited to 64 entries."
+        },
+        {
+          "name": "authorization.RoleDisposition",
+          "declaration": "enum{authorization.RoleDispositionUnspecified,authorization.RoleDispositionReject,authorization.RoleDispositionDetach,authorization.RoleDispositionReplace}",
+          "semantics": "Unspecified is invalid; Detach removes at most 256 roles and Replace requires one explicit replacement role and preserves no hidden permissions."
+        },
+        {
+          "name": "authorization.StatementID",
+          "declaration": "defined string; exactly 22 canonical base64url characters",
+          "semantics": "Stable permission-statement identity scoped to the authorization authority; empty is invalid and it conveys no permission by itself."
+        },
+        {
+          "name": "authorization.SubjectProjection",
+          "declaration": "struct{Subject authorization.Subject; Roles []string; StatementIDs []authorization.StatementID; Revision authorization.Revision}",
+          "semantics": "Roles and StatementIDs are bytewise sorted and duplicate-free, bounded to 128 and 256 entries respectively, and Revision is positive; returned slices are defensive copies."
+        },
+        {
+          "name": "authorization.VersionedPermissionStatement",
+          "declaration": "struct{StatementID authorization.StatementID; Statement authorization.PermissionStatement; Version uint64}",
+          "semantics": "Version is positive and fences replacement or deletion; StatementID equals the immutable identity of Statement."
+        },
+        {
+          "name": "authorization.AdminPermissionCheckRequest",
+          "declaration": "struct{Principal authorization.Principal; Resource authorization.Resource; Action authorization.Action; Context authorization.DecisionContext}",
+          "semantics": "Principal, resource, registered action and bounded decision context are all required and validated before policy evaluation."
+        },
+        {
+          "name": "authorization.AdminPermissionCheckResult",
+          "declaration": "struct{Decision authorization.Decision}",
+          "semantics": "Decision is explicit allow or deny with policy identity and version; role-name inference is forbidden."
+        },
+        {
+          "name": "authorization.AdminPermissionCheckError",
+          "declaration": "closed union{InvalidInputError,UnauthenticatedError,ForbiddenError,ConflictError,RateLimitedError{RetryAfter time.Duration},UnavailableError,CancelledError,DeadlineExceededError,UnknownCommitError{CommandID CommandID}}",
+          "semantics": "The stable error set is closed; retry delay is 1..3600 seconds and unknown commit requires command reconciliation."
+        },
+        {
+          "name": "authorization.AdminUserRoleSetRequest",
+          "declaration": "struct{UserID identity.UserID; RoleIDs []authorization.RoleID; PermissionIDs []authorization.StatementID; ExpectedVersion uint64; IdempotencyKey IdempotencyKey}",
+          "semantics": "RoleIDs and PermissionIDs are ordered and duplicate-free with maxima 128 and 256; ExpectedVersion is positive and IdempotencyKey is the exact scoped keyed-operation identity."
+        },
+        {
+          "name": "authorization.AdminUserRoleSetResult",
+          "declaration": "struct{Decision authorization.Decision; Projection authorization.SubjectProjection; AuthorityVersion uint64}",
+          "semantics": "Returns the explicit decision, bounded updated subject projection and positive committed authority version."
+        },
+        {
+          "name": "authorization.AdminUserRoleSetError",
+          "declaration": "closed union{InvalidInputError,UnauthenticatedError,ForbiddenError,ConflictError,RateLimitedError{RetryAfter time.Duration},UnavailableError,CancelledError,DeadlineExceededError,UnknownCommitError{CommandID CommandID}}",
+          "semantics": "The stable error set is closed; retry delay is 1..3600 seconds and unknown commit requires command reconciliation."
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "authorization.Authorizer",
+          "methods": [
+            "Decide(context.Context, authorization.Request) (authorization.Decision, error)"
+          ],
+          "semantics": "The caller constructs the complete typed request; errors, NotApplicable, and invalid outcomes fail closed and MUST NOT be converted to Allow."
+        },
+        {
+          "name": "authorization.Service",
+          "methods": [
+            "Decide(context.Context, authorization.DecisionContext) (authorization.Decision, error)"
+          ],
+          "semantics": "Service is the consumer-oriented decision boundary; errors, stale revisions, NotApplicable and invalid outcomes deny authority."
+        },
+        {
+          "name": "authorization.AuthorizationService",
+          "methods": [
+            "AdminPermissionCheck(context.Context, authorization.AdminPermissionCheckRequest) (authorization.AdminPermissionCheckResult, error)",
+            "AdminUserRoleSet(context.Context, authorization.AdminUserRoleSetRequest) (authorization.AdminUserRoleSetResult, error)"
+          ],
+          "semantics": "The exact externally owned administrative operation boundary; every method uses its closed request, result and stable error contracts and preserves unknown outcomes."
+        }
+      ],
+      "methods": [
+        "authorization.NewPermissionID(string) (authorization.PermissionID, error)",
+        "authorization.NewStatementID(string) (authorization.StatementID, error)",
+        "authorization.PermissionStatement.Validate() error",
+        "authorization.Request.Validate() error"
+      ],
+      "errors": [
+        "authorization.ErrAssignmentLimit",
+        "authorization.ErrBatchLimitExceeded",
+        "authorization.ErrInvalidPermissionStatement",
+        "authorization.ErrInvalidOutcome",
+        "authorization.ErrInvalidRequest",
+        "authorization.ErrPolicyLimitExceeded",
+        "authorization.ErrPolicyPanic",
+        "authorization.ErrRevisionConflict",
+        "authorization.ErrStatementNotFound"
+      ]
+    },
+    {
+      "owner": "capability",
+      "package_path": "github.com/faustbrian/golib/pkg/capability",
+      "current_api_status": "requires-extension",
+      "required_contract_sha256": "sha256:6af858713d36ea5902174d067f0b63d95f4f620c183c777951b482aaff8b17e0",
+      "types": [
+        {
+          "name": "capability.CaveatEntry",
+          "declaration": "struct{Key string; Value string}",
+          "semantics": "Key is non-empty UTF-8 bounded by capability.Limits.MaxFieldBytes; Value is UTF-8 bounded by capability.Limits.MaxCaveatBytes; entries are bytewise key-sorted, keys are unique, and entry count is bounded by capability.Limits.MaxCaveats."
+        },
+        {
+          "name": "capability.Consumption",
+          "declaration": "struct{CapabilityID string; ExpiresAt time.Time; MaxUses uint32}",
+          "semantics": "CapabilityID, expiry, and signed maximum-use bound form one immutable atomic-use identity."
+        },
+        {
+          "name": "capability.ConsumptionResult",
+          "declaration": "struct{Use uint32; Remaining uint32; Reusable bool}",
+          "semantics": "Use is the committed ordinal; Remaining is the committed allowance; Reusable is true only when the signed grant requires no consumption store."
+        },
+        {
+          "name": "capability.Payload",
+          "declaration": "struct{Version int; Issuer string; Audiences []string; Subject string; Bearer bool; Resource string; Operation string; IssuedAt time.Time; NotBefore time.Time; ExpiresAt time.Time; ID string; Tenant string; CorrelationID string; MaxUses uint32; Caveats []capability.CaveatEntry}",
+          "semantics": "Version is exactly 1; Issuer, Resource, Operation and ID are required and bounded by capability.Limits.MaxFieldBytes; Subject and Bearer are mutually exclusive; Audiences are bytewise sorted, unique, non-empty and bounded by MaxAudiences and MaxFieldBytes; timestamps are UTC seconds with IssuedAt no later than NotBefore, NotBefore before ExpiresAt, and lifetime no greater than MaxLifetime; MaxUses is no greater than Limits.MaxUses; Caveats are the closed bounded CaveatEntry sequence."
+        },
+        {
+          "name": "capability.Proof",
+          "declaration": "defined string; 32..4096 canonical capability-token bytes",
+          "semantics": "Secret bearer or subject-bound proof; it has no String, text, JSON, logging or formatting implementation and is retained only through verification or one-time transfer."
+        },
+        {
+          "name": "capability.Purpose",
+          "declaration": "defined string; 1..128 canonical ASCII characters",
+          "semantics": "Names one exact capability operation purpose; no prefix, wildcard, hierarchy or cross-purpose substitution is permitted."
+        },
+        {
+          "name": "capability.Reference",
+          "declaration": "struct{CapabilityID string; Purpose capability.Purpose; Digest [32]byte; ExpiresAt time.Time}",
+          "semantics": "Non-bearer immutable reference; CapabilityID is 1..256 UTF-8 bytes, Digest is a domain-separated SHA-256 lookup digest, and the reference grants no authority without separately verified proof."
+        },
+        {
+          "name": "capability.RevocationQuery",
+          "declaration": "struct{Issuer string; Tenant string; CapabilityID string; KeyID string; Subject string; Resource string; IssuedAt time.Time}",
+          "semantics": "The query is the complete authenticated revocation identity checked after signature and time validation."
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "capability.ConsumptionStore",
+          "methods": [
+            "Consume(context.Context, capability.Consumption) (capability.ConsumptionResult, error)"
+          ],
+          "semantics": "Consume atomically increments only below MaxUses; replay exhaustion and conflict are terminal, and every other store error is classified as capability.ErrConsumptionUnknown."
+        },
+        {
+          "name": "capability.Resolver",
+          "methods": [
+            "Resolve(context.Context, string, capability.Algorithm) (capability.ResolvedKey, error)"
+          ],
+          "semantics": "Resolver returns trusted verifier and key lifecycle policy; unresolved or dependency failures grant no authority."
+        },
+        {
+          "name": "capability.RevocationChecker",
+          "methods": [
+            "Check(context.Context, capability.RevocationQuery) (bool, error)"
+          ],
+          "semantics": "A true result revokes the grant; error is capability.ErrRevocationUnknown and fails closed."
+        },
+        {
+          "name": "capability.Service",
+          "methods": [
+            "Issue(context.Context, capability.Payload) (capability.Proof, capability.Reference, error)",
+            "Verify(context.Context, capability.Proof, capability.Purpose, string) (capability.Grant, error)"
+          ],
+          "semantics": "Issue uses the service's pinned signer, limits and clock; Verify binds exact purpose and audience, checks signature, time, revocation and consumption, and every error fails closed."
+        }
+      ],
+      "methods": [
+        "capability.Grant.Authorize(capability.Use) error",
+        "capability.Grant.Consume(context.Context, capability.ConsumptionStore) (capability.ConsumptionResult, error)",
+        "capability.Issue(context.Context, capability.Payload, capability.Signer, capability.Limits) (string, error)",
+        "capability.NewPurpose(string) (capability.Purpose, error)",
+        "capability.NewReference(string, capability.Purpose, [32]byte, time.Time) (capability.Reference, error)",
+        "capability.Parse(string, capability.Limits) (capability.Parsed, error)",
+        "capability.Verify(context.Context, string, capability.Resolver, capability.VerifyOptions) (capability.Grant, error)"
+      ],
+      "errors": [
+        "capability.ErrAdapterProtocol",
+        "capability.ErrConsumptionUnknown",
+        "capability.ErrExpired",
+        "capability.ErrInvalidConfiguration",
+        "capability.ErrInvalidPayload",
+        "capability.ErrInvalidSignature",
+        "capability.ErrInvalidToken",
+        "capability.ErrNonCanonical",
+        "capability.ErrReplayConflict",
+        "capability.ErrReplayExhausted",
+        "capability.ErrRevocationUnknown",
+        "capability.ErrRevoked",
+        "capability.ErrUnauthorized"
+      ]
+    },
+    {
+      "owner": "capability/postgres",
+      "package_path": "github.com/faustbrian/golib/pkg/capability/postgres",
+      "current_api_status": "requires-extension",
+      "required_contract_sha256": "sha256:670937908b9793ccb7fae6865dbe35291a2474356829a27f19a8749bdd1ada7b",
+      "types": [
+        {
+          "name": "postgres.ConsumptionStore",
+          "declaration": "durable PostgreSQL implementation of capability.ConsumptionStore",
+          "semantics": "The store serializes one capability row and owns its local SQL transaction; commit errors remain capability.ErrConsumptionUnknown."
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "capabilitypostgres.Enlister",
+          "methods": [
+            "Enlist(context.Context, pgx.Tx) (capability.ConsumptionStore, error)"
+          ],
+          "semantics": "Enlist binds capability consumption to the caller-owned PostgreSQL transaction without committing, rolling back or escaping the transaction; nil, closed or foreign transactions fail before mutation."
+        }
+      ],
+      "methods": [
+        "postgres.NewConsumptionStore(*sql.DB) (*postgres.ConsumptionStore, error)",
+        "(*postgres.ConsumptionStore).Cleanup(context.Context, time.Time) (int64, error)",
+        "(*postgres.ConsumptionStore).Consume(context.Context, capability.Consumption) (capability.ConsumptionResult, error)"
+      ],
+      "errors": [
+        "capability.ErrConsumptionUnknown",
+        "capability.ErrInvalidConfiguration",
+        "capability.ErrReplayConflict",
+        "capability.ErrReplayExhausted"
+      ]
+    },
+    {
+      "owner": "clock",
+      "package_path": "github.com/faustbrian/golib/pkg/clock",
+      "current_api_status": "exact",
+      "types": [],
+      "interfaces": [
+        {
+          "name": "clock.Clock",
+          "methods": [
+            "Now() time.Time"
+          ],
+          "semantics": "Clock is the narrow caller-supplied wall-clock authority; Now may retain process-local monotonic data, implementations must be safe for concurrent use, and persisted values never substitute for elapsed-time measurement."
+        }
+      ],
+      "methods": [],
+      "errors": []
+    },
+    {
+      "owner": "httpclient",
+      "package_path": "github.com/faustbrian/golib/pkg/http-client",
+      "current_api_status": "exact",
+      "types": [
+        {
+          "name": "httpclient.Client",
+          "declaration": "pointer-owned client constructed by httpclient.New(httpclient.Config) (*httpclient.Client, error)",
+          "semantics": "Client owns its operation context and configured owned transport, is safe for concurrent requests, returns caller-owned response bodies, rejects use after Close, and must never be copied after first use."
+        }
+      ],
+      "interfaces": [],
+      "methods": [
+        "httpclient.New(httpclient.Config) (*httpclient.Client, error)",
+        "(*httpclient.Client).Do(*http.Request) (*http.Response, error)",
+        "(*httpclient.Client).Close() error"
+      ],
+      "errors": [
+        "httpclient.ErrClientClosed",
+        "httpclient.ErrInvalidConfig",
+        "httpclient.ErrNilRequest"
+      ]
+    },
+    {
+      "owner": "idempotency",
+      "package_path": "github.com/faustbrian/golib/pkg/idempotency",
+      "current_api_status": "exact",
+      "types": [],
+      "interfaces": [
+        {
+          "name": "idempotency.Store",
+          "methods": [
+            "Acquire(context.Context, idempotency.AcquireRequest) (idempotency.AcquireResult, error)",
+            "Inspect(context.Context, idempotency.Key) (idempotency.Record, error)",
+            "Heartbeat(context.Context, idempotency.HeartbeatRequest) (idempotency.Record, error)",
+            "Complete(context.Context, idempotency.CompleteRequest) (idempotency.Record, error)",
+            "Fail(context.Context, idempotency.FailRequest) (idempotency.Record, error)",
+            "Release(context.Context, idempotency.Ownership) (idempotency.Record, error)",
+            "Expire(context.Context, idempotency.Key) (idempotency.Record, error)"
+          ],
+          "semantics": "Store is the atomic durable state-machine authority for acquisition, fencing, heartbeat, terminal replay, release and expiry; implementations preserve backend-authoritative time and never infer a committed result from an unavailable outcome."
+        }
+      ],
+      "methods": [],
+      "errors": []
+    },
+    {
+      "owner": "identifier",
+      "package_path": "github.com/faustbrian/golib/pkg/identifier",
+      "current_api_status": "requires-extension",
+      "required_contract_sha256": "sha256:c683662a1c639d6dfc5751fe0ea297b5bb1bfeaefdfa111ed32f8a5c7df9cbbd",
+      "types": [
+        {
+          "name": "identifier.Canonical",
+          "declaration": "defined string; 1..4096 valid UTF-8 bytes accepted only from identifier.Normalize",
+          "semantics": "Deterministic canonical lookup form under one NormalizationProfile; it is not a display value and equality is valid only under the same profile."
+        },
+        {
+          "name": "identifier.Input",
+          "declaration": "defined string; 1..4096 valid UTF-8 bytes",
+          "semantics": "Enumeration-sensitive caller input retained only through canonicalization; it is never logged and no normalization occurs before the owning profile is selected."
+        },
+        {
+          "name": "identifier.NormalizationProfile",
+          "declaration": "struct{Unicode identifier.UnicodeNormalization; CaseFold bool; TrimSpace bool; IDNA bool; MaximumBytes uint32}",
+          "semantics": "Unicode is explicit, MaximumBytes is 1..4096, and the immutable profile completely determines normalization; profile changes require a migration rather than silent reinterpretation."
+        },
+        {
+          "name": "identifier.Reference",
+          "declaration": "struct{Kind string; Canonical identifier.Canonical; Display string}",
+          "semantics": "Kind is 1..64 canonical ASCII bytes, Canonical is required, Display is optional and bounded to 4096 UTF-8 bytes, and the reference carries identity only, never authentication or authorization."
+        },
+        {
+          "name": "identifier.UnicodeNormalization",
+          "declaration": "enum{identifier.UnicodeNormalizationUnspecified,identifier.UnicodeNormalizationNone,identifier.UnicodeNormalizationNFC,identifier.UnicodeNormalizationNFKC}",
+          "semantics": "Unspecified is invalid; the selected normalization form is immutable profile data and no other Unicode form is accepted."
+        }
+      ],
+      "interfaces": [],
+      "methods": [
+        "identifier.NewInput(string) (identifier.Input, error)",
+        "identifier.NewNormalizationProfile(identifier.NormalizationProfile) (identifier.NormalizationProfile, error)",
+        "identifier.NewReference(string, identifier.Canonical, string) (identifier.Reference, error)",
+        "identifier.Normalize(identifier.Input, identifier.NormalizationProfile) (identifier.Canonical, error)"
+      ],
+      "errors": [
+        "identifier.ErrInvalid",
+        "identifier.ErrNormalization",
+        "identifier.ErrUnsupported"
+      ]
+    },
+    {
+      "owner": "outbox",
+      "package_path": "github.com/faustbrian/golib/pkg/outbox",
+      "current_api_status": "exact",
+      "types": [
+        {
+          "name": "outbox.MetadataEntry",
+          "declaration": "struct{Key string; Value string}",
+          "semantics": "Key and Value are UTF-8; entries are bytewise key-sorted and key-unique; count is bounded by outbox.Limits.MaxMetadataEntries and aggregate key plus value bytes by outbox.Limits.MaxMetadataBytes."
+        },
+        {
+          "name": "outbox.Envelope",
+          "declaration": "struct{ID string; Topic string; Payload []byte; PayloadVersion uint16; Metadata []outbox.MetadataEntry; OrderingKey string; IdempotencyKey string; Attempts int; AvailableAt time.Time; CreatedAt time.Time}",
+          "semantics": "Payload is an explicitly versioned protocol blob bounded by outbox.Limits.MaxPayloadBytes and interpreted only by the Topic plus PayloadVersion contract; Metadata is the closed sorted MetadataEntry sequence; Envelope is validated against outbox.Limits, Attempts is zero on insert, CanonicalJSON is deterministic, and publishing is at least once."
+        },
+        {
+          "name": "outbox.Limits",
+          "declaration": "struct{MaxIDBytes int; MaxTopicBytes int; MaxPayloadBytes int; MaxMetadataEntries int; MaxMetadataBytes int; MaxOrderingKeyBytes int; MaxIdempotencyKeyBytes int}",
+          "semantics": "Every member is positive and bounds the corresponding caller-controlled envelope field."
+        }
+      ],
+      "interfaces": [],
+      "methods": [
+        "outbox.Envelope.CanonicalJSON() []byte",
+        "outbox.Envelope.ValidateForInsert(outbox.Limits) error",
+        "postgres.NewWriter(postgres.WriterConfig) (*postgres.Writer, error)",
+        "(*postgres.Writer).Insert(context.Context, pgx.Tx, outbox.Envelope) error",
+        "(*postgres.Writer).InsertBatch(context.Context, pgx.Tx, []outbox.Envelope) error"
+      ],
+      "errors": [
+        "outbox.ErrAttemptsInvalid",
+        "outbox.ErrIDRequired",
+        "outbox.ErrInvalidLimits",
+        "outbox.ErrPayloadTooLarge",
+        "postgres.ErrBatchTooLarge",
+        "postgres.ErrEmptyBatch",
+        "postgres.ErrTransactionRequired"
+      ]
+    },
+    {
+      "owner": "password",
+      "package_path": "github.com/faustbrian/golib/pkg/password",
+      "current_api_status": "requires-extension",
+      "required_contract_sha256": "sha256:d16e6923889a4a30acc0a22e489815ecac57e913213d0bad51010b97c18b20b9",
+      "types": [
+        {
+          "name": "golibpassword.Parameters",
+          "declaration": "struct{Algorithm golibpassword.Algorithm; Argon2id golibpassword.Argon2idParameters; BcryptCost int}",
+          "semantics": "Exactly the arm selected by Algorithm is populated; Argon2id uses version 19 and every work, memory, parallelism, salt and output value remains within the enclosing Policy limits, while BcryptCost is 4..31."
+        },
+        {
+          "name": "golibpassword.Secret",
+          "declaration": "struct with unexported owned []byte; constructed by golibpassword.NewSecret; maximum 1048576 bytes",
+          "semantics": "Ephemeral mutable secret owner; construction copies input, Use exposes bytes only for one synchronous callback, Destroy clears owned bytes idempotently, and the type has no String, text, JSON, logging or formatting implementation."
+        }
+      ],
+      "interfaces": [],
+      "methods": [
+        "golibpassword.NewParameters(golibpassword.Parameters) (golibpassword.Parameters, error)",
+        "golibpassword.NewSecret([]byte) (golibpassword.Secret, error)",
+        "golibpassword.Secret.Destroy()",
+        "golibpassword.Secret.Len() int",
+        "golibpassword.Secret.Use(func([]byte) error) error"
+      ],
+      "errors": [
+        "golibpassword.ErrAdmission",
+        "golibpassword.ErrCanceled",
+        "golibpassword.ErrClosed",
+        "golibpassword.ErrEntropy",
+        "golibpassword.ErrInvalidPolicy",
+        "golibpassword.ErrInvalidSecret",
+        "golibpassword.ErrMalformedHash",
+        "golibpassword.ErrMismatch",
+        "golibpassword.ErrResourceRejected",
+        "golibpassword.ErrUnsupportedAlgorithm",
+        "golibpassword.ErrUnsupportedVersion"
+      ]
+    },
+    {
+      "owner": "rate-limit",
+      "package_path": "github.com/faustbrian/golib/pkg/rate-limit",
+      "current_api_status": "exact",
+      "types": [
+        {
+          "name": "ratelimit.Request",
+          "declaration": "struct{Policy ratelimit.Policy; Key ratelimit.Key; Cost uint64; Now time.Time}",
+          "semantics": "Policy, key, positive bounded cost, and explicit representable time are mandatory."
+        },
+        {
+          "name": "ratelimit.Decision",
+          "declaration": "struct{Allowed bool; Remaining uint64; Limit uint64; Reset time.Time; RetryAfter time.Duration; Reason ratelimit.Reason; Backend string; PolicyRevision string}",
+          "semantics": "Decision exposes exact admission, remaining capacity, reset and Retry-After behavior plus the backend and policy revision."
+        },
+        {
+          "name": "ratelimit.LeaseRequest",
+          "declaration": "struct{Request ratelimit.Request; LeaseID string}",
+          "semantics": "Request uses a concurrency policy and LeaseID is a non-empty idempotent identifier bounded by ratelimit.MaxLeaseIDBytes."
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "ratelimit.Backend",
+          "methods": [
+            "Admit(context.Context, ratelimit.Request) (ratelimit.Decision, error)",
+            "Name() string"
+          ],
+          "semantics": "Admit is one atomic capacity decision; Name is stable and non-empty."
+        },
+        {
+          "name": "ratelimit.LeaseBackend",
+          "methods": [
+            "Acquire(context.Context, ratelimit.LeaseRequest) (ratelimit.Lease, ratelimit.Decision, error)",
+            "Release(context.Context, ratelimit.Lease) error"
+          ],
+          "semantics": "Acquire is atomic and idempotent by LeaseID; Release checks policy, key, backend, and lease ownership."
+        }
+      ],
+      "methods": [
+        "ratelimit.NewService(ratelimit.Backend, ...ratelimit.Observer) (*ratelimit.Service, error)",
+        "(*ratelimit.Service).Acquire(context.Context, ratelimit.LeaseRequest) (ratelimit.Lease, ratelimit.Decision, error)",
+        "(*ratelimit.Service).Admit(context.Context, ratelimit.Request) (ratelimit.Decision, error)",
+        "(*ratelimit.Service).Release(context.Context, ratelimit.Lease) error"
+      ],
+      "errors": [
+        "ratelimit.ErrCorrupt",
+        "ratelimit.ErrDeadline",
+        "ratelimit.ErrInvalidKey",
+        "ratelimit.ErrInvalidPolicy",
+        "ratelimit.ErrInvalidRequest",
+        "ratelimit.ErrLeaseNotFound",
+        "ratelimit.ErrLeaseNotOwned",
+        "ratelimit.ErrOverflow",
+        "ratelimit.ErrRejected",
+        "ratelimit.ErrUnavailable",
+        "ratelimit.ErrUnsupported"
+      ]
+    },
+    {
+      "owner": "secret-envelope",
+      "package_path": "github.com/faustbrian/golib/pkg/secret-envelope",
+      "current_api_status": "exact",
+      "types": [
+        {
+          "name": "secretenvelope.Envelope",
+          "declaration": "immutable encrypted payload and wrapped data key with stable versioned binary encoding bounded by secretenvelope.MaxEnvelopeSize",
+          "semantics": "Envelope owns copied key reference, wrapped key, nonce and ciphertext; accessors return defensive copies, text/JSON/log formatting is redacted, and the zero value is invalid."
+        },
+        {
+          "name": "secretenvelope.Service",
+          "declaration": "pointer-owned AES-256-GCM service constructed by secretenvelope.NewService(secretenvelope.KeyProvider, ...secretenvelope.Option) (*secretenvelope.Service, error)",
+          "semantics": "Service owns its nonce reader, borrows the concurrency-safe key provider, zeroizes plaintext data keys, authenticates the exact encryption context, and is safe for concurrent Encrypt and Decrypt calls."
+        }
+      ],
+      "interfaces": [],
+      "methods": [
+        "secretenvelope.NewService(secretenvelope.KeyProvider, ...secretenvelope.Option) (*secretenvelope.Service, error)",
+        "(*secretenvelope.Service).Encrypt(context.Context, secretenvelope.EncryptRequest) (secretenvelope.Envelope, error)",
+        "(*secretenvelope.Service).Decrypt(context.Context, secretenvelope.DecryptRequest) ([]byte, error)",
+        "secretenvelope.ParseEnvelope([]byte) (secretenvelope.Envelope, error)"
+      ],
+      "errors": [
+        "secretenvelope.ErrAuthentication",
+        "secretenvelope.ErrEntropy",
+        "secretenvelope.ErrInvalidContext",
+        "secretenvelope.ErrInvalidEnvelope",
+        "secretenvelope.ErrInvalidRequest",
+        "secretenvelope.ErrKeyProvider",
+        "secretenvelope.ErrServiceRequired"
+      ]
+    },
+    {
+      "owner": "tenancy",
+      "package_path": "github.com/faustbrian/golib/pkg/tenancy",
+      "current_api_status": "exact",
+      "types": [
+        {
+          "name": "tenancy.TenantID",
+          "declaration": "validated case-sensitive ASCII identifier with maximum tenancy.MaxTenantIDBytes",
+          "semantics": "The zero value is invalid; String, GoString, and LogValue are redacted; Value and marshal methods are explicit trusted-boundary disclosures."
+        },
+        {
+          "name": "tenancy.Scope",
+          "declaration": "closed scope with kind tenancy.ScopeTenant, tenancy.ScopeSystem, or tenancy.ScopeUnscoped",
+          "semantics": "Scope is explicit routing isolation, never proof of authentication, membership, or authorization."
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "tenancy.TenantAsserter",
+          "methods": [
+            "AssertTenant(context.Context, tenancy.TenantID) error"
+          ],
+          "semantics": "Assertion fails closed unless the context contains the same valid tenant."
+        }
+      ],
+      "methods": [
+        "tenancy.AssertScope(context.Context, tenancy.Scope) error",
+        "tenancy.AssertTenant(context.Context, tenancy.TenantID) error",
+        "tenancy.ParseTenantID(string) (tenancy.TenantID, error)",
+        "tenancy.RequireScope(context.Context) (tenancy.Scope, error)",
+        "tenancy.RequireTenant(context.Context) (tenancy.TenantID, error)",
+        "tenancy.WithScope(context.Context, tenancy.Scope) (context.Context, error)"
+      ],
+      "errors": [
+        "tenancy.ErrConflictingScope",
+        "tenancy.ErrInvalidContext",
+        "tenancy.ErrInvalidTenantID",
+        "tenancy.ErrScopeRequired",
+        "tenancy.ErrTenantMismatch",
+        "tenancy.ErrTenantScopeRequired"
+      ]
+    },
+    {
+      "owner": "workflow",
+      "package_path": "github.com/faustbrian/golib/pkg/workflow",
+      "current_api_status": "exact",
+      "types": [
+        {
+          "name": "workflow.StoreCommitOutcome",
+          "declaration": "enum{workflow.StoreCommitUnknown,workflow.StoreCommitNotCommitted,workflow.StoreCommitCommitted}",
+          "semantics": "Unknown requires reconciliation before retry; NotCommitted permits replay of the same transition; Committed is terminal for that transition identity."
+        },
+        {
+          "name": "workflow.Transition",
+          "declaration": "immutable transition constructed from workflow.TransitionSpec",
+          "semantics": "Transition binds stable ID, instance, expected sequence, definition, bounded history events and due work in one atomic append."
+        }
+      ],
+      "interfaces": [
+        {
+          "name": "workflow.TransitionStore",
+          "methods": [
+            "Commit(context.Context, workflow.Transition) error",
+            "History(context.Context, workflow.HistoryQuery) (workflow.HistoryPage, error)"
+          ],
+          "semantics": "Commit atomically appends history and creates due work, enforces expected sequence and transition-ID idempotency, and classifies possible commit errors."
+        },
+        {
+          "name": "workflow.WorkStore",
+          "methods": [
+            "Claim(context.Context, workflow.WorkClaimRequest) ([]workflow.WorkLease, error)",
+            "Complete(context.Context, workflow.WorkCompletion) error",
+            "Fail(context.Context, workflow.WorkFailure) error",
+            "Renew(context.Context, workflow.WorkLeaseRenewal) (workflow.WorkLease, error)"
+          ],
+          "semantics": "Claim is bounded and atomic; renewal and terminal mutations reject stale owner or fencing token."
+        },
+        {
+          "name": "workflow.AdministrationStore",
+          "methods": [
+            "ListInstances(context.Context, workflow.InstanceListQuery) (workflow.InstanceListPage, error)",
+            "ReconcileTransition(context.Context, workflow.TransitionReconciliation) (workflow.TransitionReconciliationOutcome, error)"
+          ],
+          "semantics": "Listing is stable and bounded; reconciliation returns exactly missing, committed, or conflicting for one transition ID and fingerprint."
+        }
+      ],
+      "methods": [
+        "workflow.NewHistoryQuery(workflow.HistoryQuerySpec) (workflow.HistoryQuery, error)",
+        "workflow.NewTransition(workflow.TransitionSpec) (workflow.Transition, error)",
+        "workflow.StoreCommitOutcomeOf(error) workflow.StoreCommitOutcome"
+      ],
+      "errors": [
+        "workflow.ErrDuplicateTransition",
+        "workflow.ErrInvalidStoreRequest",
+        "workflow.ErrInvalidTransitionPlan",
+        "workflow.ErrStaleWorkLease",
+        "workflow.ErrStoreConflict",
+        "workflow.ErrStoreNotFound"
+      ]
+    }
+  ],
+  "validation_rules": [
+    "The validator MUST reject every top-level key not listed in allowed_top_level_keys and every missing required top-level key.",
+    "The validator MUST accept only the exact type_kinds vocabulary; defined denotes a Go defined type with an exact named underlying type, while opaque and sealed_interface MUST be rejected and closed polymorphism MUST use interface or tagged_union.",
+    "The validator MUST require exactly 61 unit rows and byte-for-byte equality of unit, module_path, package_name, goal_sha256 and unit order with GOAL_MANIFEST.json.",
+    "The validator MUST require exact equality between operation IDs and API_OPERATIONS.md, and MUST reject missing, extra, duplicated, silently deduplicated, or malformed catalog rows.",
+    "The validator MUST require every operation to have one exact request type, one exact result type, and a non-empty closed set of stable typed errors; prose and names alone are insufficient schemas.",
+    "The validator MUST require declared_owners to equal the API_OPERATIONS.md owner cell in order and MUST require owner to equal the first declared owner.",
+    "The validator MUST permit an external first owner only when external_contracts contains the exact owner and referenced symbols; it MUST NOT remap that operation to a 61-unit owner.",
+    "The validator MUST require every operation declared by API_OPERATIONS.md to have an authoritative OPERATION_SEMANTICS.json row and MUST reject fallback transport, authorization, rate-policy, idempotency, or route derivation.",
+    "The validator MUST compare every operation transport field and semantic digest to OPERATION_SEMANTICS.json and MUST compare HTTP route ownership to the closed route tables in API_OPERATIONS.md.",
+    "The validator MUST validate every type, field, interface method, constructor, function, error, reference, bound, zero value, ownership rule, callback rule, and secret rule structurally.",
+    "The validator MUST require every numeric field to declare zero_valid as a Boolean, zero_value as exactly 0 is valid or 0 is invalid according to that Boolean, and a non-empty zero_value_detail; non-numeric fields MUST NOT declare numeric zero-validity metadata.",
+    "The validator MUST require every interface to declare a fully qualified name, a duplicate-free method set, and for every method an exported name, exact ordered parameter and result types, variadic state, error-result state and semantic contract; prose-only method signatures MUST be rejected.",
+    "The validator MUST require every constructor and function to declare a stable fully qualified symbol, exact ordered parameter and result types, variadic state and error behavior, and every stable error to declare a unique identity, concrete Go symbol or typed error shape, matching and wrapping semantics, fields and redaction behavior.",
+    "The validator MUST require each operation error variant to contain identity, semantics and type, MUST permit only schema-declared optional keys such as structurally validated fields, MUST require identity values to be unique within the operation, and MUST resolve each type to the operation's closed stable error declarations.",
+    "The validator MUST resolve every local and external type, interface, constructor, function, method, field and error reference to exactly one declared authority and MUST reject unresolved, ambiguous, orphan or forbidden cyclic references.",
+    "The validator MUST identify every set-like array from the schema, require bytewise canonical order and duplicate freedom for each such array, and MUST require every behaviorally ordered array to declare ordered=true and preserve that declared order.",
+    "The validator MUST reject a unit whose goal requires a public contract symbol that is absent from its fragment, including adapter repository, transaction, migration, cleanup, reconciliation, provider, or lifecycle contracts.",
+    "The validator MUST reject generic Service aggregation when consumer-oriented interfaces are required and MUST reject empty contract roots for every unit.",
+    "The validator MUST require each external contract entry to match the current public API baseline of package_path and MUST fail when a named type, signature, stable error, bound, or semantic guarantee drifts.",
+    "The validator MUST require every external contract and authority alias to satisfy external_contract_pin_rules, MUST resolve each referenced symbol to exactly one pinned package contract, and MUST reject pseudo-authorities such as standard library, declared-in-fragment or github.com/faustbrian/golib/pkg and every wildcard symbol declaration.",
+    "The validator MUST require required_primitive_extensions to equal the requires-extension external-contract rows and digests, MUST schedule every extension before its identity-platform consumers, and MUST reject a consumer as ready while any required symbol remains absent from the pinned current API.",
+    "The validator MUST require product_exclusions to equal the complete applicable PARITY_DISPOSITIONS.json exclusion set by stable ID, disposition, authority and authority-derived scope, and MUST reject missing, extra, duplicated, prose-only or newly invented exclusions.",
+    "The validator MUST reject every type declaration or reference containing map[, the token any, interface{}, an unqualified Payload symbol, or a Payload field whose named protocol, version and positive byte bound are absent.",
+    "The validator MUST recompute all source digests and canonical bytes, MUST attest public_contracts.rb and public_contracts_meta.json with their own SHA-256 source digests, and MUST include PUBLIC_CONTRACTS.json and every generator input in coordinator artifacts, worker read scope, gate fingerprints and clean-consumer proof.",
+    "Negative fixtures MUST prove rejection after deleting or duplicating a unit, operation, type, field, required marker, union variant, error, external owner, bound, exclusion or source digest; changing ownership; adding a placeholder; breaking canonical order; or introducing an unbounded reference cycle."
+  ],
+  "product_exclusions": [
+    {
+      "id": "divergence.additional-databases.v1",
+      "disposition": "deployment-profile",
+      "authority": "PARITY_DISPOSITIONS.json:divergence.additional-databases.v1",
+      "scope": "Database engines beyond the selected PostgreSQL and Valkey profiles are not selected; this does not exclude the selected adapters or their complete contracts."
+    },
+    {
+      "id": "divergence.backup-code-review.v1",
+      "disposition": "superseded",
+      "authority": "PARITY_DISPOSITIONS.json:divergence.backup-code-review.v1",
+      "scope": "Backup-code review is superseded by the canonical recovery-code lifecycle owned by identity/mfa."
+    },
+    {
+      "id": "divergence.community-plugin-catalog.v1",
+      "disposition": "non-capability-catalog",
+      "authority": "PARITY_DISPOSITIONS.json:divergence.community-plugin-catalog.v1",
+      "scope": "Community catalog enumeration is not a backend identity capability."
+    },
+    {
+      "id": "divergence.javascript-tooling.v1",
+      "disposition": "non-capability-tooling",
+      "authority": "PARITY_DISPOSITIONS.json:divergence.javascript-tooling.v1",
+      "scope": "JavaScript project initialization, dependency mutation and TypeScript inference are tooling rather than backend identity contracts."
+    },
+    {
+      "id": "divergence.personal-scim.v1",
+      "disposition": "deployment-profile",
+      "authority": "PARITY_DISPOSITIONS.json:divergence.personal-scim.v1",
+      "scope": "Personal SCIM is not selected; organization-scoped SCIM remains fully in scope."
+    },
+    {
+      "id": "divergence.provider-token-cookies.v1",
+      "disposition": "security",
+      "authority": "PARITY_DISPOSITIONS.json:divergence.provider-token-cookies.v1",
+      "scope": "Database-less OAuth state and provider-token cookies are prohibited; durable server-side state and vault-backed credentials remain required."
+    },
+    {
+      "id": "exclusion.agent-authentication.v1",
+      "disposition": "excluded",
+      "authority": "PARITY_DISPOSITIONS.json:exclusion.agent-authentication.v1",
+      "scope": "Agent-specific authentication products are excluded; standards-generic OAuth and OIDC behavior remains in scope."
+    },
+    {
+      "id": "exclusion.billing.v1",
+      "disposition": "excluded",
+      "authority": "PARITY_DISPOSITIONS.json:exclusion.billing.v1",
+      "scope": "Billing and payment plugins are excluded from identity correctness."
+    },
+    {
+      "id": "exclusion.javascript-framework-clients.v1",
+      "disposition": "excluded",
+      "authority": "PARITY_DISPOSITIONS.json:exclusion.javascript-framework-clients.v1",
+      "scope": "JavaScript framework clients, reactive atoms and fetch plugins are excluded; the standard net/http server and OpenAPI document remain required."
+    },
+    {
+      "id": "exclusion.lead-tracking-analytics.v1",
+      "disposition": "excluded",
+      "authority": "PARITY_DISPOSITIONS.json:exclusion.lead-tracking-analytics.v1",
+      "scope": "Lead-tracking analytics is excluded and MUST NOT become an identity event or audit substitute."
+    },
+    {
+      "id": "exclusion.mcp-authentication.v1",
+      "disposition": "excluded",
+      "authority": "PARITY_DISPOSITIONS.json:exclusion.mcp-authentication.v1",
+      "scope": "MCP-specific discovery, session and adapter products are excluded; standards-generic protected-resource metadata and OAuth resource verification remain in scope."
+    },
+    {
+      "id": "exclusion.siwe.v1",
+      "disposition": "excluded",
+      "authority": "PARITY_DISPOSITIONS.json:exclusion.siwe.v1",
+      "scope": "Wallet-signature SIWE identity is not a selected product profile."
+    }
+  ]
+}

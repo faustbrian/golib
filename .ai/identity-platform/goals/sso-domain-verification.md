@@ -11,7 +11,8 @@ shown here.
 - Unit: `sso/domain-verification`
 - Canonical module: `pkg/sso/domain-verification`
 - Canonical goal after scaffolding: `pkg/sso/domain-verification/.ai/GOAL.md`
-- Requires: `sso`, `organization`
+- Public contracts: unit ID `contract:unit:sso/domain-verification:v1`; owned operation IDs: none
+- Requires: `sso`, `organization`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `http-client`, `capability`, `audit`, `rate-limit`, `telemetry`
 - Unlocks after verification: `identity/http`, `identity/reference`
 
@@ -30,8 +31,11 @@ This module owns domain canonicalization for proof lookup, cryptographic
 challenge generation, DNS/HTTPS proof retrieval, bounded validation, evidence
 classification, re-verification and expiry signals. `organization` owns the
 claim lifecycle and uniqueness; `sso` owns routing and enforcement. This module
-MUST NOT own organizations, provider registration, DNS records, certificates,
-generic web crawling, HTTP handlers or persistence schemas.
+MUST implement the proof-engine collaborator for `identity.sso.domain-challenge`
+and `identity.sso.domain-verify`, while `sso` remains their sole callable API,
+HTTP and OpenAPI owner. It MUST NOT own organizations, provider registration,
+DNS records, certificates, generic web crawling, HTTP handlers or persistence
+schemas or publish competing operation definitions.
 
 ## Required public contract
 

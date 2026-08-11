@@ -2,91 +2,91 @@
   "schema_version": 1,
   "authority": "BETTER_AUTH_PARITY.md",
   "digest_algorithm": "sha256",
-  "digest_input": "RFC 8785-style JSON with recursively bytewise-sorted object keys over every row field except semantic_digest",
+  "digest_input": "sha256 of RFC 8785-style canonical row JSON excluding semantic_digest, LF, then exact authoritative artifact bytes selected by source_anchor or artifact",
   "dispositions": [
     {
       "id": "exclusion.billing.v1",
       "kind": "excluded",
       "owner": "identity/reference",
       "artifact": "BETTER_AUTH_PARITY.md#explicit-baseline-dispositions-outside-the-selected-backend-capability-set",
-      "semantic_digest": "37003052e17cd439fee9a1519f69f6015007205d47a08236bc43348523e8dba2"
+      "semantic_digest": "7805d61bd9236be7de002bf13107d2e334d907c49a9377dbb3fea575f9c8f05c"
     },
     {
       "id": "exclusion.siwe.v1",
       "kind": "excluded",
       "owner": "identity/reference",
       "artifact": "UPSTREAM_DISPOSITIONS.md",
-      "semantic_digest": "427475f224af13e78c8423cd05830552475940a1e513badd6fc9d0e4feed2b73"
+      "semantic_digest": "21e501d4844b2c7d63ac51ed5107d3a9917d4317581b152122655e52890cc72d"
     },
     {
       "id": "exclusion.mcp-authentication.v1",
       "kind": "excluded",
       "owner": "oauth-server",
       "artifact": "UPSTREAM_DISPOSITIONS.md",
-      "semantic_digest": "63be8adec52bb02f77fc4ed65cbe970306d451c2813d5d330cb3b1d3e9a86878"
+      "semantic_digest": "66d157a54d2029b8d97487a78243b1c4ce7823a74508c6de34a320dfa6fe8c4a"
     },
     {
       "id": "exclusion.agent-authentication.v1",
       "kind": "excluded",
       "owner": "oauth-server",
       "artifact": "UPSTREAM_DISPOSITIONS.md",
-      "semantic_digest": "85cd440b349079c51b997b69506e5c85e0429eb7a1d5ffe5a37851533627eef1"
+      "semantic_digest": "05a3275bfb81df98b6b9205a58af514ee72f8e7b6695659d48f6b89b031af312"
     },
     {
       "id": "divergence.additional-databases.v1",
       "kind": "deployment-profile",
       "owner": "identity/reference",
       "artifact": "CONFIGURATION_CATALOGS.json",
-      "semantic_digest": "1ef29fd7848a6dcc5e081a3384ffbd07d25490db630aca1c11798d26cd17ad03"
+      "semantic_digest": "bad64003f3eb40b095932dfdb9f4234abeb1e0c2cd56ca94ee39697ac3369840"
     },
     {
       "id": "divergence.javascript-tooling.v1",
       "kind": "non-capability-tooling",
       "owner": "identity/reference",
       "artifact": "BETTER_AUTH_PARITY.md",
-      "semantic_digest": "419970585457bff536bf29ca317c191c03093a404a0eb09f695fcc7ff83f93aa"
+      "semantic_digest": "86882fc3410a5c5e6ec4f5282c8bd9c40a250e6e92635df242bab8c4eed1a809"
     },
     {
       "id": "divergence.community-plugin-catalog.v1",
       "kind": "non-capability-catalog",
       "owner": "identity/http",
       "artifact": "BETTER_AUTH_PARITY.md",
-      "semantic_digest": "a5765d27cb3786226d2d8b1b017a3e352b0ab1f10af9054c2f6ced9457a2a94a"
+      "semantic_digest": "826fdd1e95ec5a586dd6f7a3f40cd432241f1bee2e2d31d9fbcd04de9b798465"
     },
     {
       "id": "divergence.personal-scim.v1",
       "kind": "deployment-profile",
       "owner": "scim/organization",
       "artifact": "API_OPERATIONS.md",
-      "semantic_digest": "83bd01bacd63c30d2d3269ec751c000d04f94d4d37cce5cc95021a2413111a9f"
+      "semantic_digest": "ce3108293ee571a763d2237a621c9251943d825e518e21d87656f4aa992365bc"
     },
     {
       "id": "divergence.provider-token-cookies.v1",
       "kind": "security",
       "owner": "identity/oauth/postgres",
       "artifact": "CONFIGURATION_CATALOGS.json",
-      "semantic_digest": "e75fccbb76c53bafbbddfc73667971dbdbdf48d44c4f07e6cd3325343a5824b1"
+      "semantic_digest": "897166d725375cbe30350cee6f6b73c4e58845c6536342f27d338b7cb50c22e9"
     },
     {
       "id": "divergence.backup-code-review.v1",
       "kind": "superseded",
       "owner": "identity/mfa",
       "artifact": "BETTER_AUTH_PARITY.md",
-      "semantic_digest": "fc07a6df90c410b5850b05fad196201db8c1201d474b996ce7e4b03a29ab5822"
+      "semantic_digest": "ad736533df336a8153f087886d1b0493deb9151731843df378e12bfecd569a15"
     },
     {
       "id": "exclusion.lead-tracking-analytics.v1",
       "kind": "excluded",
       "owner": "identity/reference",
       "artifact": "BETTER_AUTH_PARITY.md",
-      "semantic_digest": "b6b655ab4da74b612d18a1285be07f07c8040e7f9d433fd2559ffdaa2349e602"
+      "semantic_digest": "93f049ef076904777ba2055360d714b2d6f0fb51f874182cd19a68e48f27cf9a"
     },
     {
       "id": "exclusion.javascript-framework-clients.v1",
       "kind": "excluded",
       "owner": "identity/http",
       "artifact": "BETTER_AUTH_PARITY.md",
-      "semantic_digest": "d585c2fc47b1e4436d9d839da7e38231a891f89a9c3e3d2867c056edafcdde6d"
+      "semantic_digest": "fd821ecb666137428fbe1c3c93858240ecb052d9698dd3f128b2dc1eb84dd4cc"
     }
   ],
   "ownership_reclassifications": [
@@ -96,7 +96,7 @@
       "owner": "oauth-server/oidc",
       "interface": "oauth-server/oidc.Signer",
       "artifact": "CONFIGURATION_CATALOGS.json",
-      "semantic_digest": "6962564f6adad499388ba11f6af9f642694d7117dab84491bfbd81fe0353f426"
+      "semantic_digest": "4fc80f591099fe000914856f4faf37f895609c430cdac55600a950d08ec436be"
     },
     {
       "id": "reclassification.hosted-jwks.v1",
@@ -104,7 +104,7 @@
       "owner": "authentication/jwt",
       "interface": "authentication/jwt.KeySource",
       "artifact": "CONFIGURATION_CATALOGS.json",
-      "semantic_digest": "49c295cf632c3a662fe1a420db21df43421dd70287a8e098ae340e6b97125f14"
+      "semantic_digest": "333c2c2dcfc72f72c35a990bbdf2b017434af9b9a403c08ec01efc9e7f676a6d"
     }
   ],
   "provider_native_token_modes": {

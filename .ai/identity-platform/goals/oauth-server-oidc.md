@@ -11,7 +11,8 @@ shown here.
 - Unit: `oauth-server/oidc`
 - Canonical module: `pkg/oauth-server/oidc`
 - Canonical goal after scaffolding: `pkg/oauth-server/oidc/.ai/GOAL.md`
-- Requires: `oauth-server`
+- Public contracts: unit ID `contract:unit:oauth-server/oidc:v1`; owned operation IDs: `contract:operation:identity.oauth-server.discovery-oidc:v1`, `contract:operation:identity.oauth-server.end-session:v1`, `contract:operation:identity.oauth-server.jwks:v1`, `contract:operation:identity.oauth-server.session-token:v1`, `contract:operation:identity.oauth-server.userinfo:v1`
+- Requires: `oauth-server`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `authentication/jwt`, `identifier`, `audit`
 - Unlocks after verification: `identity/http`
 
@@ -101,7 +102,11 @@ involved.
   every valid token expires unless compromise policy explicitly revokes it.
 - OIDC logout MUST validate issuer, ID-token hint when required, client,
   initiating session, post-logout redirect and state, then return a typed
-  termination result. `identity/session` alone owns session invalidation and
+  termination result with exactly one closed outcome variant: redirect,
+  local-only, provider-complete, provider-error, timeout, or
+  unknown-reconciliation. Required Boolean sentinel fields are forbidden and
+  variant-specific data is valid only for its selected outcome.
+  `identity/session` alone owns session invalidation and
   cookie clearing. Front-channel, back-channel or RP-initiated logout metadata
   MUST be advertised only for implemented interoperable profiles; cross-client
   or subject-wide logout MUST require explicit authority.
@@ -134,8 +139,12 @@ match [`API_OPERATIONS.md`](../API_OPERATIONS.md); session/key/logout cascades
 MUST match [`LIFECYCLE_CASCADES.md`](../LIFECYCLE_CASCADES.md); and algorithms,
 lifetimes, exchange enablement and logout profiles MUST be explicit in
 [`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
-Session exchange, key compromise and logout security events MUST use the field,
-redaction and delivery contract in
+This module emits exactly `identity.oauth_server.exchange_session` for session
+exchange and `identity.oauth_server.end_session` for OIDC logout.
+`oauth-server` alone owns add, retire and compromise signing-key events; OIDC
+consumes the resulting signing authority and compromise versions without
+becoming a parallel lifecycle or event owner. All emitted records use the
+field, redaction and delivery contract in
 [`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
 
 ## Acceptance evidence

@@ -86,6 +86,13 @@ protocol or security property whose selected baseline no longer proves it.
   non-persistent uses a browser-session cookie and a 24-hour absolute server
   lifetime. Risk, MFA, OAuth/SSO state and callbacks preserve that value and
   cannot upgrade it.
+- Session bearer delivery uses only `struct:ref.session.bearer_issuance`.
+  Authorization returns a 60-second reveal-once continuation, not a bearer;
+  the issue route accepts that continuation only in its bounded JSON body,
+  ignores cookies, rejects a request `Authorization` credential, and cannot
+  change the bound audience, origin, lifetime or JSON/header transport. The
+  issue transaction consumes the continuation with bearer creation and emits
+  one `no-store` response; unknown or replayed outcomes return no credential.
 - Standalone current-password verification requires the authenticated session,
   exact purpose and audience and the configured five-minute freshness window.
   It returns a short-lived proof only, creates or extends no session, and
@@ -126,6 +133,14 @@ protocol or security property whose selected baseline no longer proves it.
   consume a credential or create a session. Email
   verification, magic-link, password-reset and invitation URLs render a
   no-store/no-referrer confirmation and consume only through the bound POST.
+- Apple and SAML cross-site HTTP-POST callbacks use a separate
+  `__Secure-identity_frontchannel` correlation cookie with `Secure`,
+  `HttpOnly`, `SameSite=None`, no `Domain`, an exact Apple or SAML callback
+  `Path`, a five-minute maximum lifetime and one-time flow binding. It is
+  issued only for the selected cross-site POST flow and deleted with the exact
+  issuance tuple after reservation. It never authenticates a session. The
+  normal `__Host-identity_session` and `__Host-identity_flow` cookies remain
+  `SameSite=Lax`; this exception MUST NOT weaken or reuse either cookie.
 - Bearer-authenticated requests MUST ignore ambient session cookies, reject
   multiple Authorization headers or credentials in query parameters, and use
   bearer-specific `Cache-Control: no-store` and CORS policy.
@@ -234,10 +249,12 @@ protocol or security property whose selected baseline no longer proves it.
 - Discoverable credentials are required for passkey-first registration and
   usernameless signin. Removing the final configured recovery path is denied.
 - Backup eligibility is immutable; `BS=1` with `BE=0` is rejected. Backup state
-  is persisted on every assertion. Counter non-increase for a backup-eligible
-  credential produces risk evidence. For a non-backup-eligible credential with
-  a stored positive counter, an equal or decreased received counter denies
-  authentication and requires recovery or an independently verified factor.
+  is persisted on every assertion. For a backup-eligible credential, zero,
+  equal or decreased counters produce risk evidence and persistence retains the
+  larger stored value. For a non-backup credential, zero/zero is accepted as
+  unsupported counting and a positive increase advances; once the stored value
+  is positive, an equal, decreased or zero received value denies authentication
+  and requires recovery or an independently verified factor.
 
 ## OAuth, OIDC, and federation
 
@@ -247,9 +264,35 @@ protocol or security property whose selected baseline no longer proves it.
   allowlists. Redirects containing fragments, userinfo, wildcards, backslashes,
   or normalization-dependent matches are rejected; invalid redirects never
   receive an OAuth error redirect.
+- Social and enterprise relying-party transactions retain the raw PKCE verifier
+  only as envelope-AEAD ciphertext for the one bound token exchange. Exact AAD
+  binds tenant, provider/issuer, client, transaction/state digest, redirect,
+  response mode, operation and configuration version. A separate keyed
+  commitment is the only lookup/replay value. Decrypt requires the reserved
+  callback capability; terminal outcomes erase ciphertext, while an ambiguous
+  exchange retains it only for authoritative recovery without resubmission.
 - Provider tokens and client secrets MUST use envelope encryption with provider,
   client, tenant and account context. Refresh is single-flight with no blind
   retry after an ambiguous exchange.
+- Native provider-token signin is the closed `native-token-modes-v1` matrix:
+  Apple accepts `id_token`; Facebook accepts `opaque_access_token`; Google and
+  LINE accept either; every other `provider-catalog-v1` ID accepts neither.
+  An unsupported provider/mode pair is rejected before token parsing or
+  provider I/O. ID tokens use the catalog's offline issuer/signature/audience/
+  authorized-party/nonce checks; opaque tokens use only the catalog's bounded
+  introspection or UserInfo proof with platform-client and subject binding.
+- Apple redirect signin alone fixes `response_type=code id_token` and
+  `response_mode=form_post`. Its callback requires the bound code, ID token and
+  state success tuple, validates nonce and `c_hash`, exchanges the code, and
+  requires the same subject across both proofs. This does not enable hybrid or
+  `form_post` behavior for another social provider, enterprise OIDC or the
+  reference authorization server.
+- Every one-time capability uses the closed HMAC-SHA-256 signing/verification
+  and independent HMAC-SHA-256 replay-digest key sets in
+  `struct:ref.capability.crypto`. New issuance uses newest active versions;
+  retained versions remain verification/lookup authority until no bearer,
+  unresolved reservation or tombstone depends on them. Missing required key
+  material fails readiness.
 - Social signup is enabled only for providers whose profile supplies a stable
   subject and acceptable identifier proof. Implicit account linking requires a
   provider-verified email from a provider explicitly allowlisted as authoritative
@@ -265,14 +308,22 @@ protocol or security property whose selected baseline no longer proves it.
   codes are 32 random bytes, unpadded-base64url encoded, digest-stored and live
   10 minutes with a 5-second initial polling interval; every RFC 8628
   `slow_down` increases that device code's interval by exactly 5 seconds.
+  Device flow is explicitly enabled in the reference profile; its
+  `verification_uri` is the external URL for the registered
+  `identity.oauth-server.device-inspect` operation, and a complete URI larger
+  than 512 bytes is never emitted.
 - Every social/generic provider profile MUST prove S256 support. A provider that
   cannot complete S256 is disabled in the reference profile and MUST NOT
   downgrade to state-only protection.
 - Public clients use `token_endpoint_auth_method=none` and PKCE; confidential
   clients use `client_secret_basic` with constant-time digested-secret
   verification. Multiple credential channels are rejected. Dynamic registration
-  is disabled until an administrator enables the typed initial-access-token
-  profile with immutable client ownership, bounded metadata, and requested
+  is disabled until startup configuration selects the typed initial-access-token
+  profile, one immutable owner and its versioned secret-provider token; startup
+  must establish the owner/audience/version-scoped digest and expiry in
+  `oauth-server/postgres` before registering the route or becoming ready. The
+  token is consumed atomically with one client creation. Disabling the profile
+  removes the route without deleting registered clients. Requested
   scopes contained in `oauth_server.dynamic_registration.allowed_scopes`.
   The authorization-server catalog is the exact `oauth_server.scopes` set, and
   RFC 9728 metadata advertises only the exact
@@ -306,10 +357,12 @@ protocol or security property whose selected baseline no longer proves it.
   but is not required. JIT role mapping is deny-by-default. IdP-initiated SAML
   is the explicit Boolean `false`; setting it to `true` requires the configured
   unsolicited-response and login-CSRF/confirmation policy. SP-initiated login uses the exact configured HTTP-POST ACS and
-  requires Destination/Recipient/InResponseTo plus one-time RelayState.
+  requires Destination/Recipient/InResponseTo; RelayState is optional and,
+  when present, uses one-time binding.
   IdP-initiated login, if enabled, uses a distinct configured HTTP-POST URL,
-  exact Destination/Recipient and one-time RelayState without a fabricated
-  request ID. Outbound HTTP-Redirect requests use the exact configured
+  exact Destination/Recipient without a fabricated request ID or required
+  RelayState. An optional RelayState is untrusted for authority. Outbound
+  HTTP-Redirect requests use the exact configured
   `saml.redirect_signature_algorithm` and sign the encoded SAMLRequest, optional
   RelayState, and SigAlg fields in protocol order before appending Signature.
   SAML requires signed responses/assertions, timestamps, audience
@@ -321,6 +374,18 @@ protocol or security property whose selected baseline no longer proves it.
   claim provenance before session issuance. Missing/null claims, authoritative
   removals, local-owned fields, downgrades, replay and unknown outcomes are
   explicit; no stale mapping may restore privilege or overwrite local data.
+- Enterprise providers are created disabled. Enable, disable, credential
+  rotation and enforcement update are distinct versioned commands; generic
+  update/delete cannot substitute for them. Enable requires current verified
+  domain, credential and lockout-safety checkpoints. Disable denies new starts
+  immediately, credential rotation has no default overlap, and every ambiguous
+  provider-side result remains reconciliation-required. Break-glass issuance
+  reveals one 15-minute organization/policy-bound capability; only its separate
+  one-use consumption establishes bounded recovery authority.
+- Enterprise domain challenge and verification are callable SSO operations.
+  `sso/domain-verification` owns only bounded proof retrieval/classification,
+  and `organization` remains the sole durable claim/uniqueness authority; no
+  verifier or routing cache may become a second ownership source.
 
 ## API keys, SCIM, and administration
 
@@ -345,6 +410,11 @@ protocol or security property whose selected baseline no longer proves it.
   tokens, mappings and external IDs are organization/provider scoped; legacy
   personal records require an explicit migrate-to-organization, disable or
   delete disposition before readiness.
+- Connection update, individual bearer-token revoke and bounded reconciliation
+  are distinct administrator operations. Update is versioned, revocation never
+  reveals bearer material, and reconciliation reports attributable bounded
+  drift/conflict counts and preserves an unknown-outcome cursor without
+  overwriting concurrent local authority.
 - SCIM list count defaults to 100 and is capped at 1,000; filters are capped at
   depth 16 and 256 AST nodes; PATCH is capped at 100 operations. Bulk is capped
   at 1,000 operations and 1 MiB decoded body, with `failOnErrors` capped at 100.
@@ -352,6 +422,13 @@ protocol or security property whose selected baseline no longer proves it.
   collisions. Below-one `startIndex` is 1, negative `count` is zero, absent
   sort uses server `id` ascending, and `itemsPerPage` is the actual returned
   count from the same snapshot as `totalResults`.
+- SCIM Bulk persists every ordered child before execution. After a positive
+  `failOnErrors` threshold is reached by durable failed results, each remaining
+  not-started child becomes durably `skipped`; zero or omitted threshold means
+  no cutoff. A skipped child is unprocessed, emits
+  `identity.scim.bulk_skip_child`, and is omitted from BulkResponse
+  `Operations` without a wire status, location, version, Error or private
+  `scimType`. Replay does not convert it into a failed child.
 - Active organization is session/container state, never a user-global row. A
   switch requires current membership and increments the session version;
   membership removal, organization archive, or role invalidation clears it.
@@ -373,14 +450,27 @@ protocol or security property whose selected baseline no longer proves it.
 - Production audit uses `audit/postgres`, the event profile in
   `SECURITY_EVENTS.md`, and atomic or durable-outbox delivery. Missing mandatory
   audit readiness blocks startup; logs, metrics and traces are not substitutes.
-- Privacy export uses the contributor set and immutable version-vector
-  watermark in `LIFECYCLE_CONSUMERS.md`. Shared PostgreSQL contributors use one
-  exported `REPEATABLE READ` snapshot; other authorities MUST reproduce their
-  recorded checkpoint from a versioned journal. Export artifacts remain
-  encrypted and non-downloadable until every fragment and final identity/privacy
+- Privacy export uses `identity-portable-json-v1`: one uncompressed UTF-8 JSON
+  document with a schema/version manifest, RFC 3339 UTC timestamps, opaque IDs,
+  stable section ordering and fragment/whole-artifact SHA-256 digests. Its exact
+  portable sections are identity, accounts, identifiers, session metadata,
+  devices, organizations, memberships and consents; credential verifiers,
+  recovery material, bearers, provider tokens/raw payloads, risk signals and
+  internal audit payloads are excluded. The asynchronous states are exactly
+  `queued`, `running`, `ready`, `failed`, `cancelled`, and `expired`.
+  Privacy export uses the contributor set and immutable version-vector
+  watermark in `LIFECYCLE_CONSUMERS.md`. PostgreSQL contributors MUST read from
+  an append-only/versioned projection at the recorded checkpoint or use an
+  immutable bounded fragment staged during the request transaction. Other
+  authorities MUST reproduce their recorded checkpoint from a versioned
+  journal. Export artifacts remain
+  envelope-encrypted at rest and non-downloadable until every fragment and final identity/privacy
   epoch check succeeds. Anonymization/deletion atomically cancels unpublished
   exports, revokes issued or reserved download capabilities, and denies every
-  later download before artifact erasure completes.
+  later download before artifact erasure completes. An authorized download
+  decrypts only into the bounded HTTPS `application/json` response stream with
+  `no-store`; legal holds and provider-held data appear only as manifest
+  limitations and never extend a download capability.
 
 ## Risk, delivery, and localization
 

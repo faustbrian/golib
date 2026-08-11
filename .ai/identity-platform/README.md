@@ -45,29 +45,32 @@ exactly, is:
 4. `COMMON_REQUIREMENTS.md`;
 5. `END_STATE.md`;
 6. `END_STATE_ACCEPTANCE.json`;
-7. `REFERENCE_PROFILE.md`;
-8. `BETTER_AUTH_PARITY.md`;
-9. `PARITY_DISPOSITIONS.json`;
-10. `API_OPERATIONS.md`;
-11. `OPERATION_SEMANTICS.json`;
-12. `UPSTREAM_DISPOSITIONS.md`;
-13. `UPSTREAM_SURFACE.json`;
-14. `PROTOCOL_BASELINES.md`;
-15. `PROTOCOL_CONFORMANCE_MANIFEST.json`;
-16. `SECURITY_EVENTS.md`;
-17. `TRANSACTION_CONTRACT.md`;
-18. `LIFECYCLE_CASCADES.md`;
-19. `LIFECYCLE_CONSUMERS.md`;
-20. `REFERENCE_CONFIGURATION.md`;
-21. `CONFIGURATION_CATALOGS.json`;
-22. `VERIFICATION_APPLICABILITY.json`;
-23. `PREFLIGHT_EVIDENCE.md`;
-24. `DEPENDENCIES.md`;
-25. `INVENTORY.md`;
-26. `EXECUTION_LEDGER.md`;
-27. `WORKER_PROMPT.md`;
-28. `GOAL_MANIFEST.json`;
-29. the exact goal assigned to that worker.
+7. `ACCEPTANCE_ARTIFACTS.json`;
+8. `REFERENCE_PROFILE.md`;
+9. `BETTER_AUTH_PARITY.md`;
+10. `PARITY_DISPOSITIONS.json`;
+11. `API_OPERATIONS.md`;
+12. `OPERATION_SEMANTICS.json`;
+13. `PUBLIC_CONTRACTS.json`;
+14. `public_contracts.rb`;
+15. `UPSTREAM_DISPOSITIONS.md`;
+16. `UPSTREAM_SURFACE.json`;
+17. `PROTOCOL_BASELINES.md`;
+18. `PROTOCOL_CONFORMANCE_MANIFEST.json`;
+19. `SECURITY_EVENTS.md`;
+20. `TRANSACTION_CONTRACT.md`;
+21. `LIFECYCLE_CASCADES.md`;
+22. `LIFECYCLE_CONSUMERS.md`;
+23. `REFERENCE_CONFIGURATION.md`;
+24. `CONFIGURATION_CATALOGS.json`;
+25. `VERIFICATION_APPLICABILITY.json`;
+26. `PREFLIGHT_EVIDENCE.md`;
+27. `DEPENDENCIES.md`;
+28. `INVENTORY.md`;
+29. `EXECUTION_LEDGER.md`;
+30. `WORKER_PROMPT.md`;
+31. `GOAL_MANIFEST.json`;
+32. the exact goal assigned to that worker.
 
 ## Computed execution waves
 
@@ -77,19 +80,26 @@ are `verified`; a wave is not a barrier.
 
 ### Wave 0
 
-- `identity`
+- `primitive/authentication-identity-contracts`
+- `primitive/authorization-identity-contracts`
+- `primitive/capability-identity-contracts`
+- `primitive/identifier-identity-contracts`
+- `primitive/password-secret-contracts`
 - `identity/delivery`
-- `webauthn`
 
 ### Wave 1
+
+- `identity`
+- `webauthn`
+
+### Wave 2
 
 - `identity/postgres`
 - `identity/session`
 - `identity/risk`
-- `identity/apikey`
 - `identity/i18n`
 
-### Wave 2
+### Wave 3
 
 - `identity/session/postgres`
 - `identity/session/valkey`
@@ -98,26 +108,22 @@ are `verified`; a wave is not a barrier.
 - `identity/risk/valkey`
 - `identity/risk/captcha`
 - `identity/risk/hibp`
-- `identity/password`
 - `identity/otp`
 - `identity/anonymous`
 - `webauthn/postgres`
 - `passkey`
 - `identity/oauth`
-- `identity/apikey/postgres`
-- `identity/apikey/valkey`
 - `identity/impersonation`
 - `organization`
 - `oauth-server`
 
-### Wave 3
+### Wave 4
 
 - `identity/risk/captcha/recaptcha`
 - `identity/risk/captcha/turnstile`
 - `identity/risk/captcha/hcaptcha`
 - `identity/risk/captcha/captchafox`
-- `identity/password/postgres`
-- `identity/username`
+- `identity/password`
 - `identity/email`
 - `identity/otp/postgres`
 - `identity/phone`
@@ -129,16 +135,21 @@ are `verified`; a wave is not a barrier.
 - `identity/oauth/proxy`
 - `identity/impersonation/postgres`
 - `organization/postgres`
+- `identity/apikey`
 - `sso`
 - `scim`
 - `oauth-server/oidc`
 - `oauth-server/device`
 
-### Wave 4
+### Wave 5
 
+- `identity/password/postgres`
+- `identity/username`
 - `identity/magiclink`
 - `identity/mfa/postgres`
 - `identity/oauth/onetap`
+- `identity/apikey/postgres`
+- `identity/apikey/valkey`
 - `sso/domain-verification`
 - `sso/oidc`
 - `sso/oauth2`
@@ -146,24 +157,26 @@ are `verified`; a wave is not a barrier.
 - `scim/organization`
 - `oauth-server/postgres`
 
-### Wave 5
+### Wave 6
 
 - `sso/postgres`
 - `scim/postgres`
 - `identity/http`
 
-### Wave 6
+### Wave 7
 
 - `identity/reference`
 
-### Wave 7
+### Wave 8
 
 - `identity/identitytest`
+
 ## Readiness and completion
 
 Only dependency-free units begin `ready`. The coordinator changes a proposed
 unit to `ready` only after all its prerequisites are integrated and `verified`.
 Implementation on a worker branch is not verification. Program completion
-requires all 61 units verified, every in-scope parity row proved, every
+requires all 61 identity-platform units and all five primitive-extension
+prerequisite units verified (66 schedulable units total), every in-scope parity row proved, every
 `END_STATE.md` journey passing without undocumented application glue, and all
 final repository gates current.

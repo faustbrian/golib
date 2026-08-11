@@ -11,6 +11,7 @@ shown here.
 - Unit: `scim`
 - Canonical module: `pkg/scim`
 - Canonical goal after scaffolding: `pkg/scim/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:scim:v1`; owned operation IDs: `contract:operation:identity.scim.bulk:v1`, `contract:operation:identity.scim.connection-create:v1`, `contract:operation:identity.scim.connection-delete:v1`, `contract:operation:identity.scim.connection-get:v1`, `contract:operation:identity.scim.connection-list:v1`, `contract:operation:identity.scim.connection-reconcile:v1`, `contract:operation:identity.scim.connection-rotate:v1`, `contract:operation:identity.scim.connection-token-revoke:v1`, `contract:operation:identity.scim.connection-update:v1`, `contract:operation:identity.scim.group-create:v1`, `contract:operation:identity.scim.group-delete:v1`, `contract:operation:identity.scim.group-get:v1`, `contract:operation:identity.scim.group-list:v1`, `contract:operation:identity.scim.group-patch:v1`, `contract:operation:identity.scim.group-replace:v1`, `contract:operation:identity.scim.group-search:v1`, `contract:operation:identity.scim.resource-type-get:v1`, `contract:operation:identity.scim.resource-types-list:v1`, `contract:operation:identity.scim.schema-get:v1`, `contract:operation:identity.scim.schemas-list:v1`, `contract:operation:identity.scim.search:v1`, `contract:operation:identity.scim.service-provider-config:v1`, `contract:operation:identity.scim.user-create:v1`, `contract:operation:identity.scim.user-delete:v1`, `contract:operation:identity.scim.user-get:v1`, `contract:operation:identity.scim.user-list:v1`, `contract:operation:identity.scim.user-patch:v1`, `contract:operation:identity.scim.user-replace:v1`, `contract:operation:identity.scim.user-search:v1`
 - Requires: `identity`, `organization`
 - Consumes existing primitives: `authentication`, `authorization`, `identifier`, `audit`, `openapi`
 - Unlocks after verification: `scim/postgres`, `scim/organization`, `identity/http`
@@ -54,10 +55,14 @@ involved.
   PATCH, Bulk and authentication capabilities. Discovery collections and
   documents MUST be bounded by `scim.resource_depth`,
   `scim.resource_attributes` and `scim.string_bytes`;
-  ServiceProviderConfig MUST publish the effective manifest values for
-  `scim.page_max`, `scim.bulk.operations` and `scim.bulk.bytes`, including the
-  decoded Bulk byte limit, and MUST NOT advertise a configured maximum that the
-  runtime cannot enforce.
+  ServiceProviderConfig MUST publish `filter.maxResults` from effective
+  `scim.page_max`, `bulk.maxOperations` from effective
+  `scim.bulk.operations`, and `bulk.maxPayloadSize` from the effective decoded
+  `scim.bulk.bytes` limit, and MUST NOT advertise a configured maximum that the
+  runtime cannot enforce or substitute a different byte boundary.
+  Schemas and ResourceTypes collection operations MUST return RFC ListResponse
+  messages with the ListResponse schema URN, exact `totalResults`, `Resources`,
+  `startIndex`, and `itemsPerPage`; bare arrays are forbidden.
 - The decoder MUST reject duplicate JSON member names and any pair of member
   names equal under SCIM's case-insensitive attribute-name comparison in every
   core, extension, Bulk, PATCH, complex and multi-valued object before mapping,
@@ -67,6 +72,15 @@ involved.
 - User and Group operations MUST include create, get, list/filter/page/sort,
   replace, atomic PATCH and delete/deactivate with SCIM content types, canonical
   schemas and location/version metadata.
+- RFC 7644 POST search MUST be independently exposed at `.search`,
+  `Users/.search`, and `Groups/.search`. Each operation MUST accept the exact
+  SearchRequest message schema and return the same bounded RFC ListResponse,
+  filter, sort, projection, authorization and pagination semantics as its GET
+  list scope; all three routes and OpenAPI operations are mandatory.
+- Writable User and Group input contracts MUST contain only client-writable
+  schemas, externalId and attributes. Create, replace and Bulk resource inputs
+  MUST NOT require or accept server-generated `id` or `meta`; response Resource
+  contracts remain distinct and MUST include authoritative `id` and `meta`.
 - List behavior MUST follow the SCIM baseline exactly: pagination is 1-based;
   omitted or below-one `startIndex` is 1; omitted `count` is
   `scim.page_default`; negative count is zero; count is capped at
@@ -118,15 +132,22 @@ involved.
 - Provider connections MUST support create/list/get/delete, ownership policy,
   safe provider metadata, attribute mappings and hooks. A default connection
   MUST NOT bypass organization scope.
+- Provider connections MUST additionally expose distinct
+  `identity.scim.connection-update`,
+  `identity.scim.connection-token-revoke` and
+  `identity.scim.connection-reconcile` operations with exactly the access,
+  CSRF, rate, idempotency and bounded result semantics in
+  `API_OPERATIONS.md`; rotate and delete MUST NOT substitute for token revoke.
 - Connection deletion MUST define disable-first behavior and disposition of
   tokens, mappings, external-ID links, pending bulk work and provisioned users/
   groups. It MUST NOT silently delete personal identities or organization
   memberships owned by another module.
-- `externalId` uniqueness and lookup MUST use the exact tuple `(tenant,
-  organization, provider connection, resource type, externalId)` and the
-  resource schema's exact `caseExact` comparison. The same upstream value MAY
-  exist outside that tuple; collation or generic identifier canonicalization
-  MUST NOT widen, fold or otherwise alter it.
+- `externalId` MUST retain RFC 7643 `uniqueness: none`. Lookup MUST remain
+  partitioned by tenant, organization, provider connection and resource type
+  and honor schema `caseExact`, but equal values MAY identify multiple
+  resources and MUST NOT create a server uniqueness conflict. Mapping MUST use
+  authoritative SCIM `id` or return an explicit mapping conflict rather than
+  taking over an account from `externalId` alone.
 - Bulk, if advertised, MUST enforce maximum operations, payload and per-
   operation resource limits before execution; validate unique `bulkId` values;
   resolve bounded prior, forward, and circular in-request `bulkId` dependencies
@@ -155,17 +176,33 @@ involved.
   `identity.scim.bulk_skip_child` audit event remain mandatory. The SCIM reason
   extension `identity.scim.fail_on_errors_cutoff` is reserved exclusively for
   that audit event and MUST NOT appear as an unregistered SCIM `scimType`.
+  The implementation MUST consume `struct:ref.scim.bulk_execution` and expose
+  `skipped` only as the persisted unprocessed child state; status projections,
+  recovery and replay MUST NOT convert it into a failed child or synthesize a
+  wire status.
+  Every returned BulkResponse operation MUST include its method and MUST echo
+  `bulkId` exactly when the request operation supplied it; POST operations MUST
+  supply unique request-local bulk IDs. The request `failOnErrors` value MUST be
+  zero/omitted or 1..the exact configured maximum 100 and MUST be rejected
+  before admission when larger.
 - Every SCIM mutation MUST consume the HTTP/SCIM idempotency-admission contract
   in `.ai/identity-platform/TRANSACTION_CONTRACT.md`. Server-owned command
   identity and a canonical request fingerprint are mandatory; `Idempotency-Key`
   is an optional extension rather than a protocol prerequisite. When supplied,
   a matching scoped key and fingerprint MUST recover the same command and
   semantic result, a mismatch MUST conflict without mutation, and an in-progress
-  or unknown mapping MUST remain blocked. DELETE MUST retain and replay its original result for the
-  `scim.delete_tombstone_retention` and `scim.idempotency_retention` contracts;
-  a different key follows normal precondition/not-found behavior.
-- Error responses MUST use stable SCIM status/scimType/detail with enumeration
-  and provider diagnostics redacted. Opaque resource versions MUST produce
+  or unknown mapping MUST remain blocked. DELETE with the same scoped key and
+  fingerprint MUST replay the original successful response without evaluating
+  `If-Match` against its tombstone; the same key with a changed body or
+  precondition MUST conflict. For DELETE, the canonical connection, target and
+  precondition fingerprint MUST recover the same server-owned command and
+  result even when the optional header is absent. A different target or
+  precondition fingerprint follows current-state behavior. The original result remains replayable for
+  `scim.idempotency_retention` even if `scim.delete_tombstone_retention` expires
+  first.
+- Error responses MUST use stable SCIM status/detail with enumeration and
+  provider diagnostics redacted. `scimType` is optional and MUST be present only
+  when the RFC registers one for that exact condition. Opaque resource versions MUST produce
   stable ETags; GET/list/write responses MUST expose the version required for
   the next mutation. Replace and PATCH MUST require and atomically evaluate
   `If-Match` in the reference profile; missing or stale preconditions MUST fail
@@ -175,7 +212,9 @@ involved.
   `.ai/identity-platform/REFERENCE_PROFILE.md`, and deletion/redaction
   boundaries in `.ai/identity-platform/COMMON_REQUIREMENTS.md`.
 - RFC examples plus at least one independent SCIM client/conformance suite MUST
-  prove discovery and every advertised operation.
+  prove every advertised ServiceProviderConfig, Schemas, ResourceTypes, User,
+  Group, GET-list, POST-search, PATCH, delete and Bulk operation and every exact
+  capability, limit, error, ETag, pagination, filter and sort claim.
 
 ## Security and abuse requirements
 

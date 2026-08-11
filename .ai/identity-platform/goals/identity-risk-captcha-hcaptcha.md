@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/risk/captcha/hcaptcha`
 - Canonical module: `pkg/identity/risk/captcha/hcaptcha`
 - Canonical goal after scaffolding: `pkg/identity/risk/captcha/hcaptcha/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/risk/captcha/hcaptcha:v1`; owned operation IDs: none
 - Requires: `identity/risk/captcha`
 - Consumes existing primitives: `http-client`, `audit`, `telemetry`
 - Unlocks after verification: `identity/reference`
@@ -33,10 +34,11 @@ rate limits, fail-open/fail-closed policy, or another CAPTCHA provider.
 
 The public API MUST expose validated configuration, a bounded verifier, typed
 provider evidence, provider reason codes and stable redacted failures. Site
-secret, endpoint override, expected hostname/action, minimum score when the
-selected hCaptcha product returns one, remote-IP disclosure and provider-outcome
-classification MUST be explicit. Endpoint overrides MUST be opt-in and
-SSRF-safe.
+secret, endpoint override, expected hostname/action, remote-IP disclosure and
+provider-outcome classification MUST be explicit. The adapter MAY validate a
+returned score's syntax and range but MUST NOT configure or apply a minimum;
+`identity/risk` alone owns `captcha.score_threshold`. Endpoint overrides MUST
+be opt-in and SSRF-safe.
 
 Configuration MUST select the hCaptcha Siteverify API using
 `POST https://api.hcaptcha.com/siteverify` with form fields `secret`,
@@ -80,10 +82,11 @@ deterministic denial tests.
 
 Each request and evidence result MUST bind the trusted operation, tenant,
 action, purpose, subject scope, challenge, selected tier/site key and replay
-identifier. Token or evidence replay under another binding MUST fail. CAPTCHA
-verification, rejection, replay, provider-unavailable and binding-mismatch
-events MUST use `.ai/identity-platform/SECURITY_EVENTS.md`; challenge expiry,
-tenant/site disablement and secret rotation MUST follow
+identifier. Token or evidence replay under another binding MUST fail. The
+adapter MUST NOT emit the canonical verification, rejection, replay or
+binding-mismatch records; `identity/risk/captcha` owns those records after it
+consumes the normalized evidence. Provider telemetry remains adapter-owned.
+Challenge expiry, tenant/site disablement and secret rotation MUST follow
 `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 
 The adapter MUST NOT derive or return the authoritative replay fingerprint. It

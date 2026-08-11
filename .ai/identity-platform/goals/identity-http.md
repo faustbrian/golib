@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/http`
 - Canonical module: `pkg/identity/http`
 - Canonical goal after scaffolding: `pkg/identity/http/.ai/GOAL.md`
-- Requires: every feature/protocol contract listed explicitly in `INVENTORY.md`
+- Public contracts: unit ID `contract:unit:identity/http:v1`; owned operation IDs: `contract:operation:identity.health:v1`, `contract:operation:identity.openapi.document:v1`
+- Requires: every feature/protocol contract listed explicitly in `INVENTORY.md`, plus `primitive/authorization-identity-contracts`
 - Consumes existing primitives: `authentication`, `authorization`, `openapi`, `audit`, `rate-limit`, `telemetry`
 - Unlocks after verification: `identity/reference`
 
@@ -83,6 +84,15 @@ device authorization; CAPTCHA/risk/HIBP interactions; localization; health and
 readiness limited to safe operational state; and one-time session-transfer
 generate/consume endpoints. No in-scope parity row may be
 omitted because an application could add a handler later.
+
+When API-key session authentication is enabled, HTTP MUST extract exactly the
+configured single header, reject duplicate/ambiguous credentials and cookie
+fallback, invoke `identity.apikey.session-authenticate` once, and attach its
+request-scoped session-compatible principal only to the current request. Route
+rate limiting, authorization and audit consume that result; no downstream
+handler may reverify or redebit the key. Disabled configuration MUST register
+no API-key session authenticator, and organization-owned keys MUST never enter
+the user-session authentication path.
 
 ## Extension, custom-field, and popup contract
 
@@ -222,11 +232,15 @@ base URL, issuer, callback and redirect construction MUST use that resolved
 value, not arbitrary request headers.
 
 The server and every provider/store call MUST derive bounded contexts. Public
-configuration MUST require positive header-read, read, write, idle, handler,
-shutdown and external-operation timeouts within reviewed bounds. Timeouts and
-cancellation MUST map to stable errors without continuing detached work,
-leaking a body/resource, committing an unreported transition or revealing
-whether an identifier exists.
+configuration MUST require positive `http.read_header_timeout`,
+`http.read_timeout`, `http.write_timeout`, `http.idle_timeout`,
+`http.handler_timeout`, `http.shutdown_drain` and
+`http.external_total_timeout` values within reviewed bounds. Provider
+connection and TLS deadlines MUST additionally use
+`http.external_connect_timeout` and `http.external_tls_handshake_timeout`.
+Timeouts and cancellation MUST map to stable errors without continuing
+detached work, leaking a body/resource, committing an unreported transition or
+revealing whether an identifier exists.
 `http.handler_timeout` MUST bound the complete handler, including domain calls,
 hooks, stores, providers and response streaming; it MUST NOT extend an inbound
 deadline or exceed `http.write_timeout`. Cancellation alone MUST NOT be treated
@@ -255,6 +269,16 @@ fixed bounded responses, methods, cache denial and content types. Liveness is
 process-only; readiness delegates to the composed dependency/migration/key
 snapshot, returns unavailable before startup and during drain, and exposes no
 tenant, dependency address, migration detail, secret or provider response.
+Their only routes are `GET /healthz` and `GET /readyz`; neither route may be
+generated beneath `/v1` or registered under an alias.
+
+Bearer issuance MUST implement `struct:ref.session.bearer_issuance` as two
+distinct boundaries. The cookie-authenticated authorize route returns only a
+reveal-once continuation under CSRF protection. The issue route accepts exactly
+that continuation in bounded JSON, ignores ambient cookies, rejects request
+`Authorization`, validates the exact bound Origin, and emits the bearer once in
+the selected no-store JSON or exact CORS-exposed response headers. A transport
+override, URL/query/cookie delivery, unknown outcome or replay emits no bearer.
 
 Verification applicability is exact for this unit: `race=required`,
 `fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,

@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/risk/captcha/turnstile`
 - Canonical module: `pkg/identity/risk/captcha/turnstile`
 - Canonical goal after scaffolding: `pkg/identity/risk/captcha/turnstile/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/risk/captcha/turnstile:v1`; owned operation IDs: none
 - Requires: `identity/risk/captcha`
 - Consumes existing primitives: `http-client`, `secret-envelope`, `telemetry`
 - Unlocks after verification: `identity/reference`
@@ -78,9 +79,11 @@ involved.
   `.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
 - The idempotency key and evidence MUST bind the trusted operation, tenant,
   action, purpose, subject scope, challenge, site key and token digest. Replay
-  under another binding MUST fail. Security events and lifecycle cascades MUST
-  use `.ai/identity-platform/SECURITY_EVENTS.md` and
-  `.ai/identity-platform/LIFECYCLE_CASCADES.md` respectively.
+  under another binding MUST fail. The adapter MUST NOT emit the canonical
+  verification, rejection, replay or binding-mismatch records;
+  `identity/risk/captcha` owns those records after it consumes the normalized
+  evidence. Provider telemetry remains adapter-owned. Lifecycle cascades MUST
+  use `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 - The adapter MUST NOT derive or return the authoritative replay fingerprint.
   Any provider request idempotency value is transport evidence only;
   `identity/risk` derives the durable keyed replay identity from the raw token

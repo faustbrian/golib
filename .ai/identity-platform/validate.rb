@@ -4,10 +4,13 @@
 require "json"
 require "digest"
 require "open3"
+require "rbconfig"
 require "set"
 require "time"
 require "tmpdir"
 require_relative "shared_contract_applicability"
+require_relative "acceptance/schema_validation"
+require_relative "acceptance/model"
 
 ROOT = File.expand_path(__dir__)
 REPOSITORY_ROOT = File.expand_path("../..", ROOT)
@@ -19,7 +22,10 @@ PRIMARY_WORKTREE_ROOT = begin
 rescue Errno::ENOENT
   REPOSITORY_ROOT
 end
-EXPECTED_UNITS = 61
+EXPECTED_IDENTITY_UNITS = 61
+EXPECTED_PRIMITIVE_EXTENSION_AUTHORITIES = 6
+EXPECTED_PRIMITIVE_EXTENSION_UNITS = 5
+EXPECTED_SCHEDULABLE_UNITS = EXPECTED_IDENTITY_UNITS + EXPECTED_PRIMITIVE_EXTENSION_UNITS
 BASELINE = "b8077b74ef9a80a7757220b72834349bd8de05c0"
 NORMATIVE_KEYWORD_PATTERN = /\b(?:MUST(?: NOT)?|REQUIRED|SHALL(?: NOT)?|SHOULD(?: NOT)?|RECOMMENDED|NOT RECOMMENDED|MAY|OPTIONAL)\b/
 BCP14_NOTICE = <<~NOTICE.chomp.freeze
@@ -29,12 +35,18 @@ BCP14_NOTICE = <<~NOTICE.chomp.freeze
   [RFC2119] [RFC8174] when, and only when, they appear in all capitals, as
   shown here.
 NOTICE
-EXPECTED_UPSTREAM_CLOSURE_SHA256 = "74e5c3a25e892c11c0fc209985966a2cce9b0e3564bc1baf3b0d94286e378712"
-EXPECTED_UPSTREAM_LEAVES_SHA256 = "c4bcee8d387d0a95556252a4e1823d0943bd8ed91b8ba97f502f4473b7ea2659"
-EXPECTED_PROGRAM_SEMANTIC_ROOT = "ec67c5eb3e357c8a9510c69da219328f8b0ed2a2ca33228f1e3554aa929e455b"
+EXPECTED_UPSTREAM_CLOSURE_SHA256 = "88f43accab0304344209b4af592b16c785de42880d766a362e0d9e72538b7a37"
+EXPECTED_UPSTREAM_LEAVES_SHA256 = "f0d20d17408ee143edf8614713641d2beb99159065c697b16ac505401111e2a9"
+EXPECTED_PROGRAM_SEMANTIC_ROOT = "65cc7e397731cb49bb17763bda29f3db542cc03a7eda90f126a8f67db70b6058"
 REQUIRED_ENVIRONMENT_INPUT_IDS = %w[
   environment:behavior-variables environment:external-profiles environment:go-toolchain
   environment:os-architecture environment:service-images
+].freeze
+NON_BEHAVIORAL_IDENTITY_PLATFORM_INPUTS = [
+  ".ai/identity-platform/EXECUTION_LEDGER.md",
+  ".ai/identity-platform/INVENTORY.md",
+  ".ai/identity-platform/PREFLIGHT_EVIDENCE.md",
+  ".ai/identity-platform/evidence/"
 ].freeze
 EXPECTED_UPSTREAM_SOURCES = {
   "docs/content/docs/concepts" => ["tree", "9b98359e8415bc9a2f71617639cf2d61f15a0679", "Core documentation and route surface", "recursive_blobs"],
@@ -58,10 +70,11 @@ ALLOWED_STATUSES = Set[
   "blocked"
 ].freeze
 EXISTING_OWNERS = Set[
-  "authentication", "authentication/jwt", "authorization", "capability",
+  "audit", "authentication", "authentication/jwt", "authorization", "capability",
   "telemetry"
 ].freeze
 HTTP_FEATURES = Set[
+  "primitive/authorization-identity-contracts",
   "identity", "identity/session", "identity/delivery", "identity/risk",
   "identity/risk/captcha", "identity/password", "identity/username",
   "identity/email", "identity/magiclink", "identity/otp", "identity/phone",
@@ -88,16 +101,18 @@ REFERENCE_ADAPTERS = Set[
   "oauth-server/postgres"
 ].freeze
 COORDINATOR_ARTIFACTS = %w[
-  END_STATE_ACCEPTANCE.json OPERATION_SEMANTICS.json PARITY_DISPOSITIONS.json
+  END_STATE_ACCEPTANCE.json ACCEPTANCE_ARTIFACTS.json OPERATION_SEMANTICS.json PUBLIC_CONTRACTS.json PARITY_DISPOSITIONS.json
   VERIFICATION_APPLICABILITY.json
-  API_OPERATIONS.md UPSTREAM_DISPOSITIONS.md UPSTREAM_SURFACE.json PROTOCOL_BASELINES.md
+  API_OPERATIONS.md UPSTREAM_DISPOSITIONS.md UPSTREAM_SURFACE.json UPSTREAM_LEAVES.json PROTOCOL_BASELINES.md
   PROTOCOL_CONFORMANCE_MANIFEST.json CONFIGURATION_CATALOGS.json
   SECURITY_EVENTS.md TRANSACTION_CONTRACT.md LIFECYCLE_CASCADES.md
   LIFECYCLE_CONSUMERS.md REFERENCE_CONFIGURATION.md PREFLIGHT_EVIDENCE.md
 ].freeze
 REQUIRED_ARTIFACT_SECTIONS = {
   "END_STATE_ACCEPTANCE.json" => [],
+  "ACCEPTANCE_ARTIFACTS.json" => [],
   "OPERATION_SEMANTICS.json" => [],
+  "PUBLIC_CONTRACTS.json" => [],
   "PARITY_DISPOSITIONS.json" => [],
   "VERIFICATION_APPLICABILITY.json" => [],
   "API_OPERATIONS.md" => [
@@ -118,6 +133,7 @@ REQUIRED_ARTIFACT_SECTIONS = {
     "Provider catalog disposition", "Explicit divergences and exclusions", "Maintenance"
   ],
   "UPSTREAM_SURFACE.json" => [],
+  "UPSTREAM_LEAVES.json" => [],
   "CONFIGURATION_CATALOGS.json" => [],
   "PROTOCOL_BASELINES.md" => [
     "Purpose and change control", "OAuth authorization and protected resources",
@@ -158,13 +174,14 @@ REQUIRED_ARTIFACT_SECTIONS = {
   "PREFLIGHT_EVIDENCE.md" => [
     "Execution identity", "Worker assignment attestations", "Tool and environment lanes", "External evidence lanes",
     "Existing primitive contracts", "Task-owned resource registry",
-    "Acceptance evidence bindings", "Conflict-recovery baselines"
+    "Acceptance evidence bindings", "Goal digest revisions", "Conflict-recovery baselines"
   ]
 }.freeze
 READING_ORDER = [
   "repository `AGENTS.md`", "`README.md`", "`PROGRAM.md`",
-  "`COMMON_REQUIREMENTS.md`", "`END_STATE.md`", "`END_STATE_ACCEPTANCE.json`", "`REFERENCE_PROFILE.md`",
+  "`COMMON_REQUIREMENTS.md`", "`END_STATE.md`", "`END_STATE_ACCEPTANCE.json`", "`ACCEPTANCE_ARTIFACTS.json`", "`REFERENCE_PROFILE.md`",
   "`BETTER_AUTH_PARITY.md`", "`PARITY_DISPOSITIONS.json`", "`API_OPERATIONS.md`", "`OPERATION_SEMANTICS.json`",
+  "`PUBLIC_CONTRACTS.json`", "`public_contracts.rb`",
   "`UPSTREAM_DISPOSITIONS.md`", "`UPSTREAM_SURFACE.json`",
   "`PROTOCOL_BASELINES.md`", "`PROTOCOL_CONFORMANCE_MANIFEST.json`",
   "`SECURITY_EVENTS.md`", "`TRANSACTION_CONTRACT.md`",
@@ -251,7 +268,7 @@ EXPECTED_CONFORMANCE_TOOLS = [
     "consumers" => %w[sso/saml]
   }
 ].freeze
-EXPECTED_PROTOCOL_SOURCE_IDENTITY_SHA256 = "f119e9c611fa57f55660c86f046378f7566ae63d66474d7c47270833466beea4"
+EXPECTED_PROTOCOL_SOURCE_IDENTITY_SHA256 = "e55db6f638681a26c2d8228876724a22176ff9a813aeeb33fdd8fb9495c8148b"
 EXPECTED_PROTOCOL_SOURCE_CONSUMERS = {
   "oauth-form-post-response-mode-1.0-final" => %w[identity/oauth identity/oauth/providers oauth-server/oidc sso/oidc],
   "oauth-jarm-1.0-final" => %w[identity/oauth oauth-server/oidc sso/oidc],
@@ -259,6 +276,7 @@ EXPECTED_PROTOCOL_SOURCE_CONSUMERS = {
   "oidc-backchannel-logout-1.0-final" => %w[identity/oauth oauth-server/oidc sso/oidc],
   "oauth-2.1-draft-15" => %w[identity/oauth identity/oauth/providers oauth-server sso/oauth2 sso/oidc],
   "rfc-2119" => :all_units,
+  "rfc-3339" => %w[identity/reference],
   "rfc-4226" => %w[identity/mfa],
   "rfc-5280" => %w[webauthn],
   "rfc-5952" => %w[identity/http identity/reference identity/risk identity/risk/postgres identity/risk/valkey],
@@ -459,19 +477,232 @@ end
 def end_state_semantic_digest(row, end_state)
   section = end_state_acceptance_section(row, end_state)
   return nil if section.empty?
-  normalized = section.split.join(" ")
   payload = JSON.generate(canonical_json_value(row.reject { |key, _| key == "semantic_digest" }))
-  Digest::SHA256.hexdigest("#{payload}\n#{normalized}\n")
+  Digest::SHA256.hexdigest("#{payload}\n#{section}")
 end
 
-def program_semantic_root(goal_manifest:, acceptance:, operations:, parity:, verification:, configuration:, protocol:)
+END_STATE_ACCEPTANCE_IDENTITIES = {
+  "journeys" => [
+    "journey.identity-lifecycle.v1", "journey.email-password-username.v1", "journey.sessions.v1",
+    "journey.passwordless.v1", "journey.mfa-webauthn.v1", "journey.social-oauth.v1",
+    "journey.api-keys.v1", "journey.administration.v1", "journey.organizations.v1",
+    "journey.enterprise-federation.v1", "journey.scim.v1", "journey.oauth-oidc-provider.v1",
+    "journey.abuse-controls.v1", "journey.localization.v1", "journey.developer-use.v1",
+    "journey.extension-access-policy.v1", "journey.typed-modules-operations.v1", "journey.privacy-export.v1",
+    "journey.audit-investigation.v1"
+  ],
+  "cross_cutting" => %w[
+    cross.http-browser.v1 cross.persistence-recovery.v1 cross.security-privacy.v1
+    cross.operability-provider-proof.v1 cross.final-acceptance.v1
+  ]
+}.freeze
+
+PUBLIC_CONTRACT_OPERATION_CLOSURE_RULE =
+  "The validator MUST require every operation declared by API_OPERATIONS.md to have an authoritative OPERATION_SEMANTICS.json row and MUST reject fallback transport, authorization, rate-policy, idempotency, or route derivation."
+
+def end_state_journey_count_errors(document, count)
+  words = {19 => "nineteen"}
+  expected = "all #{words.fetch(count, count.to_s)} journeys"
+  document.include?(expected) ? [] : ["end-state journey count prose drifted"]
+end
+
+def program_journey_count_errors(document, count)
+  expected = "closes all #{count} journeys"
+  document.include?(expected) ? [] : ["program journey count prose drifted"]
+end
+
+def public_contract_operation_closure_rule_errors(document)
+  rules = document.fetch("validation_rules", [])
+  matches = rules.grep(/authoritative OPERATION_SEMANTICS\.json row/)
+  errors = []
+  errors << "public-contract operation closure rule drifted" unless matches == [PUBLIC_CONTRACT_OPERATION_CLOSURE_RULE]
+  errors << "public-contract operation closure rule hard-codes a stale count" if rules.any? { |rule| rule.match?(/\ball \d+ operations\b/) }
+  errors
+end
+
+def end_state_acceptance_identity_errors(document)
+  END_STATE_ACCEPTANCE_IDENTITIES.filter_map do |collection, expected_ids|
+    rows = document[collection]
+    actual = rows.is_a?(Array) ? rows.map { |row| row["id"] } : nil
+    "end-state #{collection} semantic identity drifted" unless actual == expected_ids
+  end
+end
+
+REQUIRED_ACCEPTANCE_OPERATION_EVIDENCE = {
+  "operational-api-redaction-report" => %w[identity.audit.export identity.audit.get identity.audit.list identity.audit.search],
+  "reference-http-password-journey" => %w[identity.email.address-get identity.email.address-list identity.email.address-remove identity.phone.password-signin],
+  "mfa-recovery-report" => %w[identity.admin.mfa-recovery-issue identity.admin.mfa-reset],
+  "api-key-http-lifecycle-report" => %w[identity.apikey.session-authenticate]
+}.freeze
+
+def required_acceptance_evidence_errors(document)
+  errors = []
+  audit_journey = document.fetch("journeys", []).find { |row| row["id"] == "journey.audit-investigation.v1" }
+  errors << "audit-investigation journey artifact drifted" unless audit_journey&.fetch("number") == 19 && audit_journey.fetch("artifacts") == ["operational-api-redaction-report"]
+  catalog = document.fetch("artifact_catalog", [])
+  REQUIRED_ACCEPTANCE_OPERATION_EVIDENCE.each do |artifact_id, required_operations|
+    row = catalog.find { |artifact| artifact["id"] == artifact_id }
+    errors << "#{artifact_id} omits required operation evidence" unless row && (required_operations - row.fetch("operation_claims", [])).empty?
+  end
+  errors
+end
+
+def authoritative_artifact_semantic_digest(row, artifact_documents)
+  artifact_path = row.fetch("artifact").split("#", 2).first
+  artifact = artifact_documents[artifact_path]
+  return nil unless artifact
+
+  payload = JSON.generate(canonical_json_value(row.reject { |key, _| key == "semantic_digest" }))
+  Digest::SHA256.hexdigest("#{payload}\n#{artifact}")
+end
+
+def program_semantic_root(goal_manifest:, acceptance:, acceptance_catalog:, acceptance_model:, acceptance_check:,
+                          acceptance_schema_validation:, acceptance_schemas:, operations:, public_contracts:,
+                          public_contracts_helper:, shared_applicability:, shared_applicability_helper:, parity:,
+                          verification:, configuration:, protocol:)
   payload = {
     "goal_digests" => goal_manifest.fetch("goals").map { |row| {"unit" => row.fetch("unit"), "sha256" => row.fetch("sha256")} },
     "acceptance" => acceptance, "operations" => operations, "parity" => parity,
+    "acceptance_contracts" => {
+      "catalog_sha256" => Digest::SHA256.hexdigest(acceptance_catalog),
+      "model_sha256" => Digest::SHA256.hexdigest(acceptance_model),
+      "check_sha256" => Digest::SHA256.hexdigest(acceptance_check),
+      "schema_validation_sha256" => Digest::SHA256.hexdigest(acceptance_schema_validation),
+      "schemas" => acceptance_schemas.transform_values { |source| Digest::SHA256.hexdigest(source) }
+    },
     "verification" => verification, "configuration" => configuration,
-    "protocol" => protocol
+    "protocol" => protocol,
+    "public_contracts_sha256" => Digest::SHA256.hexdigest(public_contracts),
+    "public_contracts_helper_sha256" => Digest::SHA256.hexdigest(public_contracts_helper),
+    "shared_applicability" => shared_applicability,
+    "shared_applicability_helper_sha256" => Digest::SHA256.hexdigest(shared_applicability_helper)
   }
   Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(payload)))
+end
+
+def public_contract_source_digest_errors(document, root:)
+  errors = []
+  source_digests = document["source_digests"]
+  return ["public contracts source digests are absent"] unless source_digests.is_a?(Hash)
+
+  paths = {
+    "API_OPERATIONS.md" => "API_OPERATIONS.md",
+    "GOAL_MANIFEST.json" => "GOAL_MANIFEST.json",
+    "OPERATION_SEMANTICS.json" => "OPERATION_SEMANTICS.json",
+    "PARITY_DISPOSITIONS.json" => "PARITY_DISPOSITIONS.json",
+    "public_contracts.rb" => "public_contracts.rb",
+    "public_contracts_meta.json" => "fragments/public_contracts_meta.json"
+  }
+  paths.each do |key, relative|
+    absolute = File.join(root, relative)
+    expected = File.file?(absolute) ? "sha256:#{Digest::SHA256.file(absolute).hexdigest}" : nil
+    errors << "public contracts source digest drifted for #{key}" unless source_digests[key] == expected
+  end
+  fragment_digests = source_digests["fragments"]
+  unless fragment_digests.is_a?(Hash)
+    errors << "public contracts fragment source digests are absent"
+    return errors
+  end
+  expected_fragments = Dir[File.join(root, "fragments", "public_contracts_*.json")]
+    .reject { |path| File.basename(path) == "public_contracts_meta.json" }
+    .sort_by { |path| File.basename(path).b }
+    .to_h { |path| [File.basename(path), "sha256:#{Digest::SHA256.file(path).hexdigest}"] }
+  errors << "public contracts fragment source digest closure drifted" unless fragment_digests == expected_fragments
+  errors
+end
+
+def public_contract_goal_binding_errors(document, program_rows, goal_bodies)
+  errors = []
+  units = document.fetch("units", [])
+  operations = document.fetch("operations", [])
+  types = document.fetch("types", [])
+  unit_ids = units.map { |row| row["contract_id"] }
+  operation_ids = operations.map { |row| row["contract_id"] }
+  unit_names = units.map { |row| row["unit"] }
+  operation_names = operations.map { |row| row["id"] }
+  expected_unit_names = program_rows.reject { |row| row[:unit].start_with?("primitive/") }.map { |row| row[:unit] }
+  unit_ids_valid = units.all? { |row| row["contract_id"] == "contract:unit:#{row['unit']}:v1" }
+  operation_ids_valid = operations.all? { |row| row["contract_id"] == "contract:operation:#{row['id']}:v1" }
+  errors << "public unit contract IDs are not exact and unique or unit rows are not canonical" unless unit_ids_valid && unit_ids.uniq.length == unit_ids.length && unit_names == expected_unit_names
+  errors << "public operation contract IDs are not exact and unique or operation rows are not canonical" unless operation_ids_valid && operation_ids.uniq.length == operation_ids.length && operation_names == operation_names.sort_by(&:b)
+
+  types_by_id = types.to_h { |row| [row["id"], row] }
+  operations.each do |operation|
+    method = operation.fetch("method", {})
+    interface = types_by_id[method["interface"]]
+    unless interface && interface["category"] == "interface"
+      errors << "public operation interface is unresolved for #{operation['id']}"
+      next
+    end
+    exact_method = interface.dig("definition", "methods").to_a.find do |candidate|
+      candidate["name"] == method["name"] && candidate["signature"] == method["signature"] &&
+        candidate["operation_semantics"] == operation["semantics"]
+    end
+    errors << "public operation method is absent from its interface for #{operation['id']}" unless exact_method
+    [operation["request_type"], operation["result_type"], *operation.fetch("error_types", [])].each do |type_id|
+      errors << "public operation schema is unresolved for #{operation['id']}: #{type_id}" unless types_by_id.key?(type_id)
+    end
+  end
+
+  units_by_name = units.to_h { |row| [row["unit"], row] }
+  extension_authorities = document.dig("manifest_schema", "required_primitive_extensions").to_a.group_by { |entry| entry.fetch("extension_unit") }
+  bound_operation_ids = []
+  program_rows.each do |row|
+    unit_contract = units_by_name[row[:unit]]
+    owned_authorities = extension_authorities.fetch(row[:unit], []).map { |entry| entry.fetch("unit") }
+    expected = []
+    expected << unit_contract["contract_id"] if unit_contract
+    expected.concat(operations.select { |operation| operation["owner"] == row[:unit] || owned_authorities.include?(operation["owner"]) }.map { |operation| operation["contract_id"] })
+    actual = metadata_values(goal_bodies.fetch(row[:unit], ""), "Public contracts")
+    errors << "public contract goal IDs drifted for #{row[:unit]}" unless actual == expected
+    bound_operation_ids.concat(expected.grep(/\Acontract:operation:/))
+  end
+  errors << "public operation goal bindings are incomplete or duplicated" unless bound_operation_ids.sort_by(&:b) == operation_ids.sort_by(&:b)
+  errors
+end
+
+def public_contract_symbol_occurs?(value, symbol)
+  case value
+  when Hash
+    value.any? { |key, nested| public_contract_symbol_occurs?(key, symbol) || public_contract_symbol_occurs?(nested, symbol) }
+  when Array
+    value.any? { |nested| public_contract_symbol_occurs?(nested, symbol) }
+  when String
+    value.match?(/(?<![A-Za-z0-9_])#{Regexp.escape(symbol)}(?![A-Za-z0-9_])/)
+  else
+    false
+  end
+end
+
+def derived_primitive_consumers(public_contracts, requirement)
+  symbols = requirement.fetch("required_symbols")
+  patterns = symbols.map { |symbol| /(?<![A-Za-z0-9_])#{Regexp.escape(symbol)}(?![A-Za-z0-9_])/ }
+  occurs = ->(value) do
+    text = JSON.generate(value)
+    patterns.any? { |pattern| text.match?(pattern) }
+  end
+  public_units = public_contracts.fetch("units").map { |row| row.fetch("unit") }.to_set
+  consumers = Set.new
+  symbol_contract_ids = Set.new
+  public_contracts.fetch("units").each do |unit|
+    consumers << unit.fetch("unit") if occurs.call(unit)
+  end
+  public_contracts.fetch("types").each do |contract|
+    owner = contract["owner"]
+    if occurs.call(contract)
+      consumers << owner if public_units.include?(owner)
+      symbol_contract_ids << contract.fetch("id")
+    end
+  end
+  public_contracts.fetch("operations").each do |operation|
+    referenced_contract_ids = [operation["request_type"], operation["result_type"], *operation.fetch("error_types", [])]
+    next unless occurs.call(operation) || referenced_contract_ids.any? { |id| symbol_contract_ids.include?(id) }
+
+    operation.fetch("declared_owners").each do |owner|
+      consumers << owner if public_units.include?(owner)
+    end
+  end
+  consumers.to_a.sort_by(&:b)
 end
 
 def evidence_revision_reuse_errors(tested_revision:, gate_execution_revision:, revalidation_revision:, input_manifest:, input_root:, module_roots: [], repository_root: nil)
@@ -502,7 +733,7 @@ def evidence_revision_reuse_errors(tested_revision:, gate_execution_revision:, r
   errors
 end
 
-def acceptance_evidence_errors(document, declaration:, revision:, input_fingerprint:, evidence_commit: nil, module_roots: [], repository_root: nil, record_path: nil)
+def acceptance_evidence_errors(document, declaration:, revision:, input_fingerprint:, evidence_commit: nil, module_roots: [], repository_root: nil, record_path: nil, artifact_payloads: nil, live_capture: nil, final_execution: false)
   errors = []
   expected_keys = %w[schema_version artifact_id result tested_revision gate_execution_revision revalidation_revision input_manifest input_root tool_environment observations artifact_hashes recorded_at]
   errors << "schema fields drifted" unless document.keys == expected_keys
@@ -544,6 +775,57 @@ def acceptance_evidence_errors(document, declaration:, revision:, input_fingerpr
       artifact_digests.include?(observation["artifact_sha256"])
   end
   errors << "artifact-specific behavioral observations drifted" unless observations_valid
+  if repository_root || artifact_payloads
+    acceptance_catalog = JSON.parse(File.read(File.join(ROOT, "ACCEPTANCE_ARTIFACTS.json")))
+    artifact_contract = acceptance_catalog.fetch("artifacts").find { |entry| entry.fetch("artifact_id") == declaration.fetch("id") }
+    if artifact_contract
+      exact_path = artifact_contract.fetch("artifact_evidence_output_path")
+      bound = document.fetch("artifact_hashes", []).find { |entry| entry.is_a?(Hash) && entry["path"] == exact_path }
+      bytes = artifact_payloads&.fetch(exact_path, nil)
+      bytes ||= git_blob_bytes(evidence_commit, exact_path, repository: repository_root) if repository_root
+      if !bound || !bytes
+        errors << "artifact-specific payload binding is absent"
+      else
+        digest = "sha256:#{Digest::SHA256.hexdigest(bytes)}"
+        errors << "artifact-specific payload hash drifted" unless bound["sha256"] == digest
+        begin
+          payload = JSON.parse(bytes)
+          schema_path = File.join(REPOSITORY_ROOT, artifact_contract.fetch("schema_path"))
+          acceptance_schema = JSON.parse(File.read(schema_path))
+          record_schema_errors = AcceptanceSchemaValidation.errors(document, acceptance_schema)
+          errors << "acceptance record schema drifted: #{record_schema_errors.first}" unless record_schema_errors.empty?
+          evidence_schema = acceptance_schema.dig("$defs", "artifact_evidence")
+          payload_errors = AcceptanceSchemaValidation.errors(payload, evidence_schema)
+          errors << "artifact-specific payload schema drifted: #{payload_errors.first}" unless payload_errors.empty?
+          execution = payload["execution"]
+          if execution.is_a?(Hash)
+            errors << "artifact execution revision is not record-bound" unless execution["tested_revision"] == document["tested_revision"]
+            errors << "artifact execution input root is not record-bound" unless execution["input_root"] == document["input_root"]
+            errors << "artifact execution tool is not record-bound" unless execution["tool"] == document.dig("tool_environment", "tool")
+            errors << "artifact execution environment is not record-bound" unless execution["environment"] == document.dig("tool_environment", "environment")
+            errors << "artifact execution output path is not record-bound" unless execution["output_artifact_path"] == exact_path
+            receipt_path = execution["execution_receipt_path"]
+            receipt_bound = document.fetch("artifact_hashes", []).find { |entry| entry.is_a?(Hash) && entry["path"] == receipt_path }
+            receipt_bytes = artifact_payloads&.fetch(receipt_path, nil)
+            receipt_bytes ||= git_blob_bytes(evidence_commit, receipt_path, repository: repository_root) if repository_root && receipt_path.is_a?(String)
+            errors << "separate execution receipt binding is absent" unless receipt_bound && receipt_bytes
+            if receipt_bound && receipt_bytes
+              receipt_digest = "sha256:#{Digest::SHA256.hexdigest(receipt_bytes)}"
+              errors << "separate execution receipt hash drifted" unless receipt_bound["sha256"] == receipt_digest
+              errors.concat(AcceptanceSchemaValidation.execution_receipt_errors(execution, receipt_bytes))
+            end
+            errors.concat(AcceptanceExecutionRunner.live_capture_errors(execution, live_capture, artifact_bytes: bytes)) if final_execution
+          else
+            errors << "artifact execution proof is absent"
+          end
+        rescue JSON::ParserError => e
+          errors << "artifact-specific payload is invalid JSON: #{e.message}"
+        end
+      end
+    else
+      errors << "artifact-specific acceptance contract is absent"
+    end
+  end
   errors << "recorded_at is invalid" unless rfc3339?(document["recorded_at"].to_s)
   if repository_root && evidence_commit&.match?(/\A[0-9a-f]{40}\z/)
     errors << "evidence commit does not exist" unless git_commit_exists?(evidence_commit)
@@ -562,33 +844,71 @@ def acceptance_evidence_errors(document, declaration:, revision:, input_fingerpr
   errors
 end
 
-def local_gate_evidence_errors(gate, unit:, revision:, fingerprint:, repository_root:, record_path: nil)
+def local_gate_evidence_errors(gate, unit:, revision:, fingerprint:, module_roots:, repository_root:, record_path: nil, evidence_commit: nil)
   errors = []
-  keys = %w[schema unit execution_revision complete_input_fingerprint outcome commands artifacts tool_identity environment_identity record_digest]
-  errors << "schema drifted" unless gate.keys == keys && gate["schema"] == "identity-platform.local-gate.v1"
+  keys = %w[schema_version schema unit tested_revision gate_execution_revision revalidation_revision input_manifest input_root evidence_record outcome commands artifacts tool_identity environment_identity record_digest]
+  errors << "schema drifted" unless gate.keys == keys && gate["schema_version"] == 2 && gate["schema"] == "identity-platform.local-gate.v2"
   errors << "unit drifted" unless gate["unit"] == unit
-  errors << "revision drifted" unless gate["execution_revision"] == revision
-  errors << "fingerprint drifted" unless gate["complete_input_fingerprint"] == fingerprint
+  errors << "gate execution revision drifted" unless gate["gate_execution_revision"] == revision
+  evidence_revision_reuse_errors(
+    tested_revision: gate["tested_revision"], gate_execution_revision: gate["gate_execution_revision"],
+    revalidation_revision: gate["revalidation_revision"], input_manifest: gate["input_manifest"],
+    input_root: gate["input_root"], module_roots: module_roots, repository_root: repository_root
+  ).each { |error| errors << error }
+  errors << "fingerprint drifted" unless gate["input_root"] == fingerprint
+  evidence_record = gate["evidence_record"]
+  record_path_value = evidence_record["path"] if evidence_record.is_a?(Hash) && evidence_record.keys == ["path"]
+  errors << "evidence record binding drifted" unless record_path_value&.match?(%r{\A\.ai/identity-platform/evidence/gates/[a-zA-Z0-9._/-]+\.json\z}) && !record_path_value.include?("..")
+  errors << "evidence record path drifted" if record_path && record_path_value != record_path
   errors << "outcome did not pass" unless gate["outcome"] == "pass"
   errors << "commands missing" unless gate["commands"].is_a?(Array) && gate["commands"].any? && gate["commands"].all? { |command| command.is_a?(String) && !command.empty? }
+  artifact_revision = evidence_commit || gate["tested_revision"]
   valid_artifacts = gate["artifacts"].is_a?(Array) && gate["artifacts"].any? && gate["artifacts"].all? do |artifact|
     next false unless artifact.is_a?(Hash) && artifact.keys == %w[path sha256]
     relative = artifact["path"]
-    next false unless relative.is_a?(String) && relative.match?(%r{\A\.ai/[a-zA-Z0-9._/-]+\z}) && !relative.include?("..")
+    next false unless relative.is_a?(String) && relative.match?(%r{\A\.ai/[a-zA-Z0-9._/-]+\z}) && !relative.include?("..") &&
+      artifact["sha256"].is_a?(String) && artifact["sha256"].match?(/\Asha256:[0-9a-f]{64}\z/)
+    next true unless repository_root
     absolute = File.expand_path(relative, repository_root)
-    committed = git_blob_bytes(revision, relative, repository: repository_root)
+    committed = git_blob_bytes(artifact_revision, relative, repository: repository_root)
     absolute.start_with?(repository_root + File::SEPARATOR) && File.file?(absolute) && committed &&
-      artifact["sha256"] == "sha256:#{Digest::SHA256.hexdigest(committed)}"
+      File.binread(absolute) == committed && artifact["sha256"] == "sha256:#{Digest::SHA256.hexdigest(committed)}"
   end
   errors << "artifact digests invalid" unless valid_artifacts
   errors << "tool/environment identity missing" unless [gate["tool_identity"], gate["environment_identity"]].all? { |identity| identity.is_a?(String) && !identity.empty? }
   if record_path
-    committed_record = git_blob_bytes("HEAD", record_path, repository: repository_root)
+    committed_record = git_blob_bytes(evidence_commit, record_path, repository: repository_root)
     absolute_record = File.expand_path(record_path, repository_root)
-    errors << "gate record is not committed exactly" unless committed_record && File.file?(absolute_record) && File.binread(absolute_record) == committed_record
+    expected_record = JSON.pretty_generate(gate) + "\n"
+    errors << "gate evidence commit is invalid" unless evidence_commit&.match?(/\A[0-9a-f]{40}\z/) && git_commit_exists?(evidence_commit)
+    errors << "gate evidence commit is not integrated" unless evidence_commit&.match?(/\A[0-9a-f]{40}\z/) && git_ancestor?(evidence_commit, "HEAD")
+    errors << "gate evidence commit excludes gate execution revision" unless evidence_commit&.match?(/\A[0-9a-f]{40}\z/) &&
+      git_commit_exists?(revision) && git_ancestor?(revision, evidence_commit)
+    errors << "gate record is not committed exactly" unless committed_record && File.file?(absolute_record) &&
+      File.binread(absolute_record) == committed_record && committed_record == expected_record
   end
   digest = Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(gate.reject { |key, _| key == "record_digest" })))
   errors << "record digest drifted" unless gate["record_digest"] == "sha256:#{digest}"
+  errors
+end
+
+def local_gate_binding_errors(binding, ledger_entry:, repository_root:)
+  errors = []
+  expected_path = ".ai/identity-platform/evidence/gates/#{ledger_entry[:unit].tr('/', '-')}.json"
+  errors << "binding identity drifted" unless binding.values_at(:unit, :generation, :gate_revision) ==
+    [ledger_entry[:unit], ledger_entry[:generation], ledger_entry[:gate_revision]]
+  errors << "binding path drifted" unless binding[:path] == expected_path
+  errors << "binding commit is unreachable" unless binding[:commit].to_s.match?(/\A[0-9a-f]{40}\z/) &&
+    git_commit_exists?(binding[:commit]) && git_ancestor?(binding[:commit], "HEAD")
+  errors << "gate execution revision is unreachable" unless git_commit_exists?(ledger_entry[:gate_revision])
+  errors << "binding commit excludes gate execution revision" unless git_commit_exists?(ledger_entry[:gate_revision]) &&
+    git_commit_exists?(binding[:commit]) && git_ancestor?(ledger_entry[:gate_revision], binding[:commit])
+  committed = git_blob_bytes(binding[:commit], binding[:path], repository: repository_root)
+  absolute = File.expand_path(binding[:path], repository_root)
+  exact = committed && absolute.start_with?(repository_root + File::SEPARATOR) && File.file?(absolute) &&
+    File.binread(absolute) == committed && binding[:digest] == "sha256:#{Digest::SHA256.hexdigest(committed)}"
+  errors << "binding does not prove exact local gate bytes" unless exact
+  errors << "binding timestamp is invalid" unless rfc3339?(binding[:bound_at].to_s)
   errors
 end
 
@@ -633,6 +953,106 @@ def recovery_epoch_identity_errors(history)
   errors
 end
 
+def recovery_transition_errors(previous_rows, current_rows)
+  errors = []
+  errors << "recovery history is not append-only" unless current_rows.first(previous_rows.length) == previous_rows
+  current_rows.drop(previous_rows.length).each do |row|
+    next if row[5] == "authorized"
+
+    identity = row.values_at(7, 0, 1, 2, 3)
+    preceding_authorization = previous_rows.any? do |candidate|
+      candidate[5] == "authorized" && candidate.values_at(7, 0, 1, 2, 3) == identity
+    end
+    errors << "recovery terminal lacks a preceding committed exact authorization" unless preceding_authorization
+  end
+  errors
+end
+
+def goal_revision_lifecycle_errors(history)
+  errors = []
+  history.group_by { |row| row.fetch(:revision_id) }.each_value do |rows|
+    statuses = rows.map { |row| row.fetch(:status) }
+    errors << "goal revision lacks preceding authorization" unless statuses.first == "authorized"
+    errors << "goal revision lifecycle drifted" unless statuses.length.between?(1, 2) &&
+      (statuses == ["authorized"] || [%w[authorized applied], %w[authorized superseded]].include?(statuses))
+    identity = rows.first.values_at(:unit, :previous_digest, :current_digest)
+    errors << "goal revision terminal identity drifted" unless rows.all? { |row| row.values_at(:unit, :previous_digest, :current_digest) == identity }
+    errors << "goal revision authorization drifted" unless rows.all? { |row| row[:authorized_by] == "coordinator" }
+    errors << "goal revision does not change a digest" unless identity[1] != identity[2]
+  end
+  history.select { |row| row[:status] == "authorized" }.group_by { |row| row[:unit] }.each do |unit, rows|
+    expected = (1..rows.length).to_a
+    actual = rows.map { |row| row[:revision_id][/:g(\d+)\z/, 1]&.to_i }
+    errors << "goal revision sequence drifted for #{unit}" unless actual == expected
+  end
+  errors
+end
+
+def goal_digest_change_errors(previous_manifest, current_manifest, previous_revisions, current_revisions)
+  errors = []
+  previous_by_unit = previous_manifest.fetch("goals").to_h { |row| [row.fetch("unit"), row.fetch("sha256")] }
+  current_by_unit = current_manifest.fetch("goals").to_h { |row| [row.fetch("unit"), row.fetch("sha256")] }
+  changed = current_by_unit.keys.select { |unit| previous_by_unit[unit] != current_by_unit[unit] }
+  new_rows = current_revisions.drop(previous_revisions.length)
+  new_rows.reject { |row| row[:status] == "authorized" }.each do |row|
+    preceding_authorization = previous_revisions.any? do |candidate|
+      candidate[:status] == "authorized" &&
+        candidate.values_at(:revision_id, :unit, :previous_digest, :current_digest) ==
+          row.values_at(:revision_id, :unit, :previous_digest, :current_digest)
+    end
+    errors << "goal revision terminal lacks a preceding committed exact authorization" unless preceding_authorization
+  end
+  changed.each do |unit|
+    previous_digest = "sha256:#{previous_by_unit[unit]}"
+    current_digest = "sha256:#{current_by_unit[unit]}"
+    authorization = previous_revisions.find do |row|
+      row[:unit] == unit && row[:previous_digest] == previous_digest &&
+        row[:current_digest] == current_digest && row[:status] == "authorized"
+    end
+    applied = new_rows.find do |row|
+      authorization && row[:revision_id] == authorization[:revision_id] && row[:unit] == unit &&
+        row[:previous_digest] == previous_digest && row[:current_digest] == current_digest && row[:status] == "applied"
+    end
+    errors << "goal digest change for #{unit} lacks prior authorized revision lifecycle" unless authorization && applied
+  end
+  new_rows.select { |row| row[:status] == "applied" }.each do |row|
+    errors << "goal revision applied without a matching digest change" unless changed.include?(row[:unit])
+  end
+  errors
+end
+
+def parity_closure_errors(document, configuration)
+  errors = []
+  native = {"artifact" => "CONFIGURATION_CATALOGS.json#native_token_modes", "closed_default" => configuration.dig("native_token_modes", "default")}
+  captcha = {"artifact" => "CONFIGURATION_CATALOGS.json#captcha.owners", "required_count" => configuration.dig("captcha", "owners").length}
+  errors << "parity native-token closure drifted" unless document["provider_native_token_modes"] == native
+  errors << "parity CAPTCHA-owner closure drifted" unless document["captcha_owners"] == captcha
+  errors
+end
+
+def username_verification_errors(selectors, goal_body: nil)
+  errors = %w[fuzz benchmark].filter_map do |selector|
+    "identity/username required #{selector} verification applicability drifted" unless selectors.dig(selector, "status") == "required"
+  end
+  if goal_body && !(goal_body.include?("Property/fuzz tests are\nREQUIRED") && goal_body.include?("race, benchmark"))
+    errors << "identity/username goal no longer requires property/fuzz and benchmark evidence"
+  end
+  errors
+end
+
+GOAL_VERIFICATION_REQUIREMENT_PATTERNS = {
+  "benchmark" => /(?:\bbenchmarks?\b[^.]{0,180}\b(?:MUST|REQUIRED)\b|\b(?:MUST|REQUIRED)\b[^.]{0,180}\bbenchmarks?\b)/,
+  "leak" => /(?:\b(?:leak tests?|leak gates?|race\/stress\/leak)\b[^.]{0,180}\b(?:MUST|REQUIRED)\b|\b(?:MUST|REQUIRED)\b[^.]{0,180}\b(?:leak tests?|leak gates?|race\/stress\/leak)\b)/
+}.freeze
+
+def goal_verification_selector_errors(unit:, selectors:, goal_body:)
+  normalized = goal_body.split.join(" ")
+  GOAL_VERIFICATION_REQUIREMENT_PATTERNS.filter_map do |selector, pattern|
+    next unless normalized.match?(pattern)
+    "#{unit} goal requires #{selector} verification" unless selectors.dig(selector, "status") == "required"
+  end
+end
+
 def eligible_frontier_rows(rows, start_gate_blocked_units = Set.new)
   rows.select do |row|
     row[:status] == "proposed" && !start_gate_blocked_units.include?(row[:unit]) &&
@@ -644,7 +1064,7 @@ def semantic_manifest_errors(document, kind:, collections:, known_owners:, diges
   errors = []
   errors << "#{kind} schema version drifted" unless document["schema_version"] == schema_version
   errors << "#{kind} digest algorithm drifted" unless document["digest_algorithm"] == "sha256"
-  expected_rule = "RFC 8785-style JSON with recursively bytewise-sorted object keys over every row field except semantic_digest"
+  expected_rule = "sha256 of RFC 8785-style canonical row JSON excluding semantic_digest, LF, then exact authoritative artifact bytes selected by source_anchor or artifact"
   errors << "#{kind} digest input drifted" unless document["digest_input"] == expected_rule
   ids = []
   collections.each do |name|
@@ -672,7 +1092,8 @@ end
 def operation_semantics_errors(document, contracts)
   errors = []
   errors << "operation semantics schema drifted" unless document.keys == %w[schema_version authority closed_fields operations]
-  errors << "operation semantics version drifted" unless document["schema_version"] == 1
+  errors << "operation semantics version drifted" unless document["schema_version"] == 2
+  errors << "operation semantics authority drifted" unless document["authority"] == "API_OPERATIONS.md#complete-operation-catalog"
   required_fields = %w[owners exposure access authorization csrf_origin risk_class rate_policy idempotency event_semantics http_method http_path openapi_operation_id]
   errors << "operation semantics closed fields drifted" unless document["closed_fields"] == required_fields
   rows = document["operations"]
@@ -684,10 +1105,18 @@ def operation_semantics_errors(document, contracts)
   errors << "operation semantics operation closure drifted" unless ids == contracts.keys.sort_by(&:b)
   rows.each do |row|
     expected = contracts[row["id"]]
+    unless expected
+      errors << "operation semantics has unknown operation #{row['id']}"
+      next
+    end
     explicit_authorization = row["authorization"]
     errors << "operation authorization is not explicit for #{row['id']}" unless explicit_authorization.is_a?(String) && !explicit_authorization.empty? && explicit_authorization != row["access"]
     errors << "operation authorization incorrectly absent for #{row['id']}" if explicit_authorization == "none" && row["access"] != "public"
-    errors << "operation semantics drifted for #{row['id']}" unless expected.merge("authorization" => explicit_authorization) == row
+    expected_row = expected.merge("authorization" => explicit_authorization)
+    unless expected_row == row
+      drifted_fields = (expected_row.keys | row.keys).select { |field| expected_row[field] != row[field] }
+      errors << "operation semantics drifted for #{row['id']}: #{drifted_fields.join(', ')}"
+    end
   end
   errors
 end
@@ -904,9 +1333,13 @@ def configuration_metadata(path, reference_value, semantics, source)
          elsif reference_value.start_with?("/")
            "path:absolute"
          elsif required
-           noun = text[/\b(URL|URI|string|list|handle)\b/, 1]
+           noun = text[/\b(URL|URI|string|list|handle|identifier|owner)\b/, 1]
            fail_check("reference configuration REQUIRED row is not typeable: #{source}") unless noun
-           {"URL" => "url:absolute-https", "URI" => "uri:absolute", "string" => "string:utf8", "list" => "list:string", "handle" => "handle:#{path.split('.').last}"}.fetch(noun)
+           {
+             "URL" => "url:absolute-https", "URI" => "uri:absolute", "string" => "string:utf8",
+             "list" => "list:string", "handle" => "handle:#{path.split('.').last}",
+             "identifier" => "string:utf8", "owner" => "string:utf8"
+           }.fetch(noun)
          elsif text.match?(/\b(?:list|allowlist|set)\b/i) || reference_value.include?(",")
            semantics.match?(/\bCIDR\b/i) ? "list:cidr" : semantics.match?(/\borigins?\b/i) ? "list:origin" : "list:string"
          elsif reference_value.match?(/\A\d/) && semantics.match?(/codepoints?/i)
@@ -954,7 +1387,7 @@ def identity_policy_set_errors(document)
   row = configuration_row(document, "struct:ref.identity.policy_set")
   member_cell = row.split("|").map(&:strip)[2].to_s
   expected_members = {
-    "Authorize" => "func(context.Context, AuthorizationPolicyInput) (AuthorizationPolicyDecision, error)",
+    "Authorize" => "authorization.Service",
     "AssessRisk" => "func(context.Context, RiskPolicyInput) (RiskPolicyDecision, error)",
     "MapClaims" => "func(context.Context, ClaimsPolicyInput) (ClaimsPolicyDecision, error)",
     "DecideRetention" => "func(context.Context, RetentionPolicyInput) (RetentionPolicyDecision, error)",
@@ -979,7 +1412,7 @@ def closed_list_value(document, path)
   match ? match[1].split(",") : []
 end
 
-def protocol_semantic_errors(configuration:, protocol:, conformance:, oauth_goal:, saml_goal:, api_operations:, reference_profile:, applicability:)
+def protocol_semantic_errors(configuration:, protocol:, conformance:, oauth_goal:, saml_goal:, api_operations:, reference_profile:, applicability:, public_contracts:)
   errors = []
   verified_errata = conformance["verified_errata"]
   errors << "SCIM verified errata manifest drifted" unless verified_errata == SCIM_VERIFIED_ERRATA
@@ -1017,7 +1450,7 @@ def protocol_semantic_errors(configuration:, protocol:, conformance:, oauth_goal
   resource_consumers = applicability.filter_map do |unit, entry|
     unit if entry.fetch("configuration").include?("ref.oauth_server.protected_resource.resource")
   end.sort
-  unless resource_consumers == %w[identity/reference oauth-server]
+  unless resource_consumers == %w[identity/reference oauth-server oauth-server/oidc]
     errors << "OAuth protected-resource identifier applicability drifted"
   end
   oauth_contract = [protocol, oauth_goal, api_operations, reference_profile].join("\n").split.join(" ")
@@ -1091,6 +1524,156 @@ def protocol_semantic_errors(configuration:, protocol:, conformance:, oauth_goal
   conflated_registration_selection = "Dynamic Client Registration, RFC 7591, and Client Registration Management, RFC 7592, only when the disabled-by-default registration profile is enabled"
   if normalized_protocol.include?(conflated_registration_selection)
     errors << "OAuth RFC 7591 and RFC 7592 selections are conflated"
+  end
+
+  contracts = JSON.parse(public_contracts)
+  operations = contracts.fetch("operations").to_h { |operation| [operation.fetch("id"), operation] }
+  operation = ->(id) { operations.fetch(id) }
+  field = lambda do |id, side, name|
+    operation.call(id).fetch(side).fetch("fields").find { |candidate| candidate.fetch("name") == name }
+  end
+
+  apple = operation.call("identity.oauth.callback-form-post")
+  apple_fields = apple.fetch("request").fetch("fields").map { |candidate| candidate.fetch("name") }
+  unless %w[Code IDToken State].all? { |name| apple_fields.include?(name) } &&
+         apple.fetch("semantics").include?("front-channel ID token") &&
+         apple.fetch("semantics").include?("issuer, audience, `azp`, nonce, `c_hash`, time and subject")
+    errors << "Apple form-post callback contract omits the bound code, ID token, state or front-channel validation"
+  end
+
+  enterprise_oauth = operation.call("identity.sso.oauth-callback")
+  issuer = field.call("identity.sso.oauth-callback", "request", "Issuer")
+  unless issuer && issuer.fetch("required") && enterprise_oauth.fetch("semantics").include?("RFC 9207") &&
+         enterprise_oauth.fetch("semantics").include?("expected issuer")
+    errors << "enterprise OAuth callback omits RFC 9207 issuer validation"
+  end
+
+  normalized_reference_profile = reference_profile.split.join(" ")
+  frontchannel_cookie_requirements = [
+    "Apple and SAML cross-site HTTP-POST callbacks use a separate `__Secure-identity_frontchannel` correlation cookie",
+    "with `Secure`, `HttpOnly`, `SameSite=None`, no `Domain`, an exact Apple or SAML callback `Path`, a five-minute maximum lifetime and one-time flow binding",
+    "issued only for the selected cross-site POST flow",
+    "It never authenticates a session",
+    "normal `__Host-identity_session` and `__Host-identity_flow` cookies remain `SameSite=Lax`"
+  ]
+  unless frontchannel_cookie_requirements.all? { |requirement| normalized_reference_profile.include?(requirement) }
+    errors << "cross-site POST flow correlation cookie contract is absent or weakens the normal session cookie"
+  end
+
+  %w[identity.oauth-server.dynamic-register identity.sso.saml-start].each do |id|
+    row = api_operations.lines.find do |line|
+      line.start_with?("| `#{id}` |") && line.split("|").length == 7
+    end.to_s
+    risk_and_replay = row.split("|").map(&:strip)[4].to_s
+    errors << "#{id} does not use protocol-command replay identity" unless risk_and_replay.split("/").map(&:strip).last == "protocol-command"
+  end
+  saml_start = operation.call("identity.sso.saml-start")
+  saml_start_command = field.call("identity.sso.saml-start", "request", "CommandID")
+  unless saml_start_command && saml_start_command.fetch("required") &&
+         saml_start_command.fetch("semantics").include?("server-owned protocol-command") &&
+         saml_start.fetch("semantics").include?("client `Idempotency-Key` is optional")
+    errors << "identity.sso.saml-start public contract omits protocol-command replay identity"
+  end
+
+  %w[identity.oauth-server.client-create identity.oauth-server.dynamic-register].each do |id|
+    public_field = field.call(id, "request", "Public")
+    unless public_field && public_field.fetch("type") == "bool" && public_field.fetch("required") &&
+           public_field.fetch("zero_value").include?("false selects confidential")
+      errors << "#{id} does not explicitly represent Public=false confidential clients"
+    end
+  end
+  oauth_server_unit = contracts.fetch("units").find { |unit| unit.fetch("unit") == "oauth-server" }
+  client_type = oauth_server_unit.fetch("types").find { |type| type.fetch("name") == "Client" }
+  client_public = client_type.fetch("fields").find { |candidate| candidate.fetch("name") == "Public" }
+  unless client_public && client_public.fetch("required") &&
+         client_public.fetch("semantics").include?("false selects a confidential client") &&
+         client_public.fetch("zero_value").include?("false is valid confidential")
+    errors << "oauthserver.Client.Public=false is not a valid confidential-client state"
+  end
+
+  introspection = operation.call("identity.oauth-server.introspect")
+  introspection_fields = introspection.fetch("result").fetch("fields").to_h { |candidate| [candidate.fetch("name"), candidate] }
+  expected_introspection_fields = %w[Active ClientID Subject Scopes Audience ExpiresAt]
+  unless introspection_fields.keys == expected_introspection_fields
+    errors << "OAuth introspection result field closure drifted"
+  end
+  active = introspection_fields.fetch("Active")
+  unless active.fetch("required") && active.fetch("type") == "bool" &&
+         active.fetch("zero_value").include?("false is RFC 7662 inactive") &&
+         introspection.fetch("semantics").include?("RFC 7662 inactive")
+    errors << "OAuth introspection cannot represent RFC 7662 Active=false"
+  end
+  (introspection_fields.keys - ["Active"]).each do |name|
+    candidate = introspection_fields.fetch(name)
+    unless !candidate.fetch("required") && candidate.fetch("zero_value").include?("absent") &&
+           candidate.fetch("semantics").include?("inactive token")
+      errors << "OAuth inactive introspection metadata is not optional: #{name}"
+    end
+  end
+  unless protocol.include?("inactive or unknown token as a normal\nsuccessful response with `active=false`") &&
+         oauth_goal.include?("with `Active=false`; client, subject, scopes, audience, expiry and every other") &&
+         api_operations.include?("RFC 7662 inactive returns `active=false` with token metadata absent")
+    errors << "OAuth RFC 7662 inactive-token acceptance semantics drifted"
+  end
+
+  %w[identity.sso.oidc-logout identity.sso.oidc-logout-complete].each do |id|
+    result_fields = operation.call(id).fetch("result").fetch("fields")
+    outcome = result_fields.find { |candidate| candidate.fetch("name") == "Outcome" }
+    required_bools = result_fields.select { |candidate| candidate.fetch("type") == "bool" && candidate.fetch("required") }
+    unless outcome && outcome.fetch("semantics").include?("closed mutually exclusive") && required_bools.empty?
+      errors << "#{id} does not use one exclusive logout outcome"
+    end
+  end
+
+  %w[identity.sso.saml-acs identity.sso.saml-idp-init identity.sso.saml-slo identity.sso.saml-start].each do |id|
+    relay_fields = operation.call(id).fetch("request").fetch("fields").select { |candidate| candidate.fetch("name") == "RelayState" }
+    errors << "#{id} incorrectly requires RelayState" if relay_fields.any? { |candidate| candidate.fetch("required") }
+  end
+  start_relay = field.call("identity.sso.saml-start", "result", "RelayState")
+  errors << "identity.sso.saml-start result incorrectly requires RelayState" if start_relay&.fetch("required")
+
+  saml_unit = contracts.fetch("units").find { |unit| unit.fetch("unit") == "sso/saml" }
+  saml_operations = contracts.fetch("operations").select { |candidate| candidate.fetch("owner") == "sso/saml" }
+  declared_contract_types = contracts.fetch("units").flat_map do |unit|
+    unit.fetch("types").map { |type| type.fetch("name") } + unit.fetch("interfaces").map { |interface| interface.fetch("name") }
+  end
+  declared_contract_types.concat(saml_operations.flat_map do |candidate|
+    [candidate.dig("request", "name"), candidate.dig("result", "name"), candidate.dig("errors", "name")] +
+      candidate.fetch("errors").fetch("variants").map { |variant| variant.fetch("type") }
+  end.compact)
+  referenced_type_strings = saml_unit.fetch("types").flat_map { |type| type.fetch("fields", []).map { |candidate| candidate.fetch("type") } }
+  referenced_type_strings.concat(saml_unit.fetch("interfaces").flat_map { |interface| interface.fetch("methods").map { |method| method.fetch("signature") } })
+  referenced_type_strings.concat(saml_unit.fetch("constructors").map { |constructor| constructor.fetch("signature") })
+  referenced_type_strings.concat(saml_operations.flat_map do |candidate|
+    [candidate.fetch("signature")] +
+      candidate.fetch("request").fetch("fields").map { |entry| entry.fetch("type") } +
+      candidate.fetch("result").fetch("fields").map { |entry| entry.fetch("type") } +
+      candidate.fetch("errors").fetch("variants").flat_map { |variant| variant.fetch("fields").map { |entry| entry.fetch("type") } }
+  end)
+  referenced_saml_types = referenced_type_strings.flat_map do |value|
+    value.sub(/\A[A-Za-z0-9_]+\(/, "(")
+         .gsub(/\b(?:[a-z][A-Za-z0-9_]*\/)*[a-z][A-Za-z0-9_]*\.[A-Z][A-Za-z0-9_]*\b/, "")
+         .scan(/\b[A-Z][A-Za-z0-9_]*\b/)
+  end.uniq
+  unresolved_saml_types = referenced_saml_types - declared_contract_types.uniq - %w[CommandID Completion]
+  errors << "SAML public contract references undeclared types" unless unresolved_saml_types.empty?
+  replay_method = saml_unit.fetch("interfaces").find { |interface| interface.fetch("name") == "ReplayStore" }.fetch("methods").first
+  unless replay_method.fetch("name") == "ReserveSet" && replay_method.fetch("signature").include?("ReplaySet") &&
+         replay_method.fetch("semantics").include?("Response ID and every consumed Assertion ID") &&
+         replay_method.fetch("semantics").include?("none are reserved")
+    errors << "SAML replay authority does not atomically reserve the complete response/assertion ID set"
+  end
+
+  idp_init = operation.call("identity.sso.saml-idp-init")
+  if idp_init.fetch("authorization").fetch("access").match?(/relay state|pre-auth/i) ||
+     idp_init.fetch("semantics").match?(/requires? .*RelayState/i)
+    errors << "SAML IdP-initiated login requires impossible pre-auth or RelayState"
+  end
+
+  clause_pins = conformance.fetch("clause_pins")
+  unless clause_pins.any? { |pin| pin.fetch("requirement_id") == "saml.single-logout-protocol" && pin.fetch("source_id") == "saml-core-2.0-os" && pin.fetch("locator") == "Section 3.7 Single Logout Protocol" } &&
+         clause_pins.any? { |pin| pin.fetch("requirement_id") == "saml.single-logout-profile" && pin.fetch("source_id") == "saml-profiles-2.0-os" && pin.fetch("locator") == "Section 4.4 Single Logout Profile" }
+    errors << "SAML Single Logout clause pins are incomplete"
   end
   errors
 end
@@ -1279,6 +1862,10 @@ def contradiction_resolution_errors(api_operations:, security_events:, configura
                                     parity:, http_goal:, reference_goal:, risk_goal:, risk_postgres_goal:, risk_valkey_goal:, applicability:)
   errors = []
   operation_event_map = {
+    "identity.oauth.onetap-callback" => "identity.oauth.verify_one_tap",
+    "identity.oauth.proxy-forward" => "identity.oauth.use_proxy",
+    "identity.oauth-server.device-authorize" => "identity.oauth_server.authorize_device",
+    "identity.oauth-server.device-approve" => "identity.oauth_server.approve_device",
     "identity.oauth-server.device-deny" => "identity.oauth_server.deny_device",
     "identity.oauth-server.device-token" => "identity.oauth_server.poll_device",
     "identity.oauth-server.session-token" => "identity.oauth_server.exchange_session",
@@ -1291,8 +1878,13 @@ def contradiction_resolution_errors(api_operations:, security_events:, configura
     errors << "#{operation_id} lacks exact security-event mapping" unless rows.include?("emits exactly `#{event_id}`")
   end
   {
-    "oauth-server" => operation_event_map.values,
+    "identity/oauth/onetap" => operation_event_map.values_at("identity.oauth.onetap-callback"),
+    "identity/oauth/proxy" => operation_event_map.values_at("identity.oauth.proxy-forward"),
+    "oauth-server" => operation_event_map.values_at(
+      "identity.oauth-server.session-token", "identity.oauth-server.end-session"
+    ),
     "oauth-server/device" => operation_event_map.values_at(
+      "identity.oauth-server.device-authorize", "identity.oauth-server.device-approve",
       "identity.oauth-server.device-deny", "identity.oauth-server.device-token"
     ),
     "oauth-server/oidc" => operation_event_map.values_at(
@@ -1303,6 +1895,17 @@ def contradiction_resolution_errors(api_operations:, security_events:, configura
     selected = applicability.fetch(unit).fetch("security_events")
     missing = required_events - selected
     errors << "#{unit} omits OAuth-server event applicability: #{missing.join(', ')}" unless missing.empty?
+  end
+  {
+    "identity.oauth.verify_one_tap" => "identity/oauth/onetap",
+    "identity.oauth.use_proxy" => "identity/oauth/proxy",
+    "identity.oauth_server.authorize_device" => "oauth-server/device",
+    "identity.oauth_server.approve_device" => "oauth-server/device",
+    "identity.oauth_server.deny_device" => "oauth-server/device",
+    "identity.oauth_server.poll_device" => "oauth-server/device"
+  }.each do |event_id, expected_owner|
+    owners = applicability.filter_map { |unit, selection| unit if selection.fetch("security_events").include?(event_id) }
+    errors << "#{event_id} event ownership drifted: #{owners.join(', ')}" unless owners == [expected_owner]
   end
 
   deletion_configuration = configuration_row(configuration, "struct:ref.identity.delete.proof")
@@ -1528,9 +2131,11 @@ def phone_contract_errors(configuration:, reference_profile:, api_operations:, p
   end
 
   normalized_phone_goal = phone_goal.split.join(" ")
-  unless normalized_phone_goal.include?("Public signup/signin initiation MUST create or use the canonical single-use pre-auth transaction") &&
+  unless normalized_phone_goal.include?("Public signup/OTP-signin initiation MUST create or use the canonical single-use pre-auth transaction") &&
          normalized_phone_goal.include?("tenant, purpose, canonical number and resolved `RememberPolicy`") &&
-         normalized_phone_goal.include?("Session-authenticated number-change challenges MUST NOT create or substitute a public pre-auth transaction")
+         normalized_phone_goal.include?("Session-authenticated number-change challenges MUST NOT create or substitute a public pre-auth transaction") &&
+         normalized_phone_goal.include?("Password signin MUST use the canonical password-signin pre-auth transaction") &&
+         normalized_phone_goal.include?("MUST NOT reuse an OTP-signin transaction")
     errors << "identity/phone goal lacks exact pre-auth ownership and binding"
   end
   unless normalized_phone_goal.include?("canonical reset capability, a purpose-bound phone OTP, one eligible independent factor") &&
@@ -1974,6 +2579,105 @@ def expect_scim_bulk_graph_fixture_rejection!(label, expected_error)
   fail_check("SCIM Bulk graph negative fixture #{label} missed #{expected_error}: #{errors.join('; ')}") unless errors.include?(expected_error)
 end
 
+def scim_rfc_contract_errors(api_operations:, protocol:, configuration:, transaction_contract:, scim_goal:, scim_postgres_goal:, applicability:, public_contract_fragment:, acceptance_profile:)
+  errors = []
+  normalized_api = api_operations.gsub(/\s+/, " ")
+  normalized_protocol = protocol.gsub(/\s+/, " ")
+  normalized_configuration = configuration.gsub(/\s+/, " ")
+  normalized_transaction = transaction_contract.gsub(/\s+/, " ")
+  normalized_goal = scim_goal.gsub(/\s+/, " ")
+  normalized_postgres = scim_postgres_goal.gsub(/\s+/, " ")
+
+  {
+    "| `identity.scim.search` | `POST` | `/scim/v2/.search` |" => "SCIM generic POST search route is missing",
+    "| `identity.scim.user-search` | `POST` | `/scim/v2/Users/.search` |" => "SCIM User POST search route is missing",
+    "| `identity.scim.group-search` | `POST` | `/scim/v2/Groups/.search` |" => "SCIM Group POST search route is missing"
+  }.each { |required, error| errors << error unless normalized_api.include?(required) }
+  errors << "SCIM discovery collections permit bare arrays" unless normalized_protocol.include?("The Schemas and ResourceTypes collection endpoints also return RFC ListResponse messages; bare arrays are not conforming responses")
+  errors << "SCIM scimType optionality is not exact" unless normalized_protocol.include?("`scimType` is OPTIONAL") && normalized_protocol.include?("errors such as not-found that have no registered type MUST omit it")
+  external_id_rule = "`externalId` has RFC 7643 `uniqueness: none`"
+  errors << "SCIM externalId protocol uniqueness drifted" unless normalized_protocol.include?(external_id_rule)
+  errors << "SCIM externalId goal permits uniqueness" unless normalized_goal.include?("`externalId` MUST retain RFC 7643 `uniqueness: none`")
+  errors << "SCIM PostgreSQL externalId constraint is not non-unique" unless normalized_postgres.include?("Equal values MAY identify multiple resources and MUST NOT be rejected by a unique constraint")
+  errors << "SCIM externalId configuration is not non-unique" unless normalized_configuration.include?("non-unique lookup partition: tenant + organization + provider connection + resource type") && normalized_configuration.include?("RFC `uniqueness: none`; no unique constraint")
+  errors << "SCIM failOnErrors maximum is not exactly 100" unless normalized_configuration.include?("exact request maximum 100") && normalized_protocol.include?("a larger value is rejected before admission")
+  errors << "SCIM DELETE configuration makes extension keys authoritative" unless normalized_configuration.include?("the same connection, route, target and precondition fingerprint replays the original DELETE result with no extension key or with any newly supplied extension key") && normalized_configuration.include?("reuse of one extension key with a changed fingerprint conflicts")
+  errors << "SCIM headerless DELETE replay is not server-owned" unless normalized_transaction.include?("For SCIM DELETE, admission MUST persist a server-owned replay lookup") && normalized_transaction.include?("A headerless retry with that identical lookup MUST recover the original terminal command")
+
+  core_events = applicability.fetch("scim").fetch("security_events")
+  organization_events = applicability.fetch("scim/organization").fetch("security_events")
+  bulk_events = %w[identity.scim.bulk_admit identity.scim.bulk_apply_child identity.scim.bulk_skip_child]
+  errors << "core SCIM does not own every Bulk audit action" unless (bulk_events - core_events).empty?
+  errors << "SCIM organization still owns Bulk audit actions" unless organization_events == ["none"]
+
+  scim_unit = public_contract_fragment.fetch("units").find { |row| row.fetch("package_name") == "scim" }
+  types = scim_unit.fetch("types").to_h { |row| [row.fetch("name"), row] }
+  operations = public_contract_fragment.fetch("operations").select { |row| row.fetch("id").start_with?("identity.scim.") }.to_h { |row| [row.fetch("id"), row] }
+  server_methods = scim_unit.fetch("interfaces").find { |row| row.fetch("name") == "Server" }.fetch("methods").map { |row| row.fetch("name") }
+
+  list_schemas = types.fetch("ListResponse").fetch("fields").find { |field| field.fetch("name") == "Schemas" }
+  errors << "SCIM ListResponse lacks its exact schema URN" unless list_schemas.fetch("required") && list_schemas.fetch("bounds").include?("urn:ietf:params:scim:api:messages:2.0:ListResponse")
+  writable_fields = types.fetch("WritableResource").fetch("fields").map { |field| field.fetch("name") }
+  errors << "SCIM writable resource includes server-generated fields" unless writable_fields == %w[Schemas ExternalID Attributes]
+  errors << "SCIM writable aliases are incomplete" unless types.dig("UserInput", "underlying") == "WritableResource" && types.dig("GroupInput", "underlying") == "WritableResource"
+  errors << "SCIM SearchRequest schema is not exact" unless types.fetch("SearchRequest").fetch("fields").any? { |field| field.fetch("name") == "Schemas" && field.fetch("bounds").include?("urn:ietf:params:scim:api:messages:2.0:SearchRequest") }
+
+  expected_search = {
+    "identity.scim.search" => ["Search", "/scim/v2/.search"],
+    "identity.scim.user-search" => ["UserSearch", "/scim/v2/Users/.search"],
+    "identity.scim.group-search" => ["GroupSearch", "/scim/v2/Groups/.search"]
+  }
+  expected_search.each do |id, (method, path)|
+    operation = operations[id]
+    errors << "SCIM public contract omits #{id}" unless operation && operation.dig("transport", "http_method") == "POST" && operation.dig("transport", "http_path") == path
+    errors << "SCIM Server omits #{method}" unless server_methods.include?(method)
+  end
+  errors << "SCIM Group search omits the organization mapping collaborator" unless operations.fetch("identity.scim.group-search").fetch("collaborators") == ["scim/organization"]
+
+  %w[identity.scim.user-create identity.scim.user-replace].each do |id|
+    field = operations.fetch(id).dig("request", "fields").find { |row| row.fetch("name") == "User" }
+    errors << "#{id} requires a response resource as input" unless field.fetch("type") == "scim.UserInput"
+  end
+  %w[identity.scim.group-create identity.scim.group-replace].each do |id|
+    field = operations.fetch(id).dig("request", "fields").find { |row| row.fetch("name") == "Group" }
+    errors << "#{id} requires a response resource as input" unless field.fetch("type") == "scim.GroupInput"
+  end
+  bulk_fields = types.fetch("BulkOperation").fetch("fields").to_h { |row| [row.fetch("name"), row] }
+  bulk_result_fields = types.fetch("BulkOperationResult").fetch("fields").to_h { |row| [row.fetch("name"), row] }
+  errors << "SCIM Bulk request does not enforce writable method-specific data" unless bulk_fields.dig("Data", "type") == "BulkData" && bulk_fields.dig("BulkID", "semantics").include?("Required")
+  errors << "SCIM BulkResponse operation omits method or conditional bulkId" unless bulk_result_fields.dig("Method", "required") && bulk_result_fields.dig("BulkID", "semantics").include?("Echoed exactly")
+  errors << "SCIM BulkResponse lacks its exact schema URN" unless types.fetch("BulkResponse").fetch("fields").any? { |field| field.fetch("name") == "Schemas" && field.fetch("bounds").include?("urn:ietf:params:scim:api:messages:2.0:BulkResponse") }
+  fail_on_errors = operations.fetch("identity.scim.bulk").dig("request", "fields").find { |row| row.fetch("name") == "FailOnErrors" }
+  errors << "SCIM Bulk public contract does not cap failOnErrors at 100" unless fail_on_errors.fetch("bounds").include?("exact configured maximum 100")
+  revoke_fields = operations.fetch("identity.scim.connection-token-revoke").dig("request", "fields")
+  errors << "SCIM token revocation request lacks durable Command identity" unless revoke_fields.any? { |row| row.fetch("name") == "Command" && row.fetch("type") == "identity.Command" && row.fetch("required") == true }
+  revoke_command_fields = types.fetch("ConnectionTokenRevokeCommand").fetch("fields")
+  errors << "SCIM token revocation command lacks durable Command identity" unless revoke_command_fields.any? { |row| row.fetch("name") == "Command" && row.fetch("type") == "identity.Command" && row.fetch("required") == true }
+  errors << "SCIM discovery result contracts are not ListResponse" unless %w[identity.scim.schemas-list identity.scim.resource-types-list].all? { |id| operations.fetch(id).dig("result", "fields").any? { |row| row.fetch("name") == "Response" && row.fetch("type") == "scim.ListResponse" } }
+  scim_type_fields = operations.values.flat_map { |operation| operation.dig("errors", "variants") || [] }.flat_map { |variant| variant.fetch("fields", []) }.select { |field| field.fetch("name") == "SCIMType" }
+  errors << "SCIM operation errors require scimType" unless scim_type_fields.any? && scim_type_fields.all? { |field| field.fetch("required") == false && field.fetch("zero_value") == "absent" }
+
+  expected_acceptance_operations = %w[
+    identity.scim.service-provider-config identity.scim.schemas-list identity.scim.schema-get
+    identity.scim.resource-types-list identity.scim.resource-type-get identity.scim.search
+    identity.scim.user-list identity.scim.user-search identity.scim.user-create identity.scim.user-get
+    identity.scim.user-replace identity.scim.user-patch identity.scim.user-delete identity.scim.group-list
+    identity.scim.group-search identity.scim.group-create identity.scim.group-get identity.scim.group-replace
+    identity.scim.group-patch identity.scim.group-delete identity.scim.bulk
+  ]
+  errors << "SCIM conformance acceptance does not cover every advertised protocol operation" unless acceptance_profile.fetch("operation_ids") == expected_acceptance_operations
+  required_claims = %w[ListResponse id meta externalId scimType method bulkId failOnErrors ETag filter sort pagination]
+  acceptance_text = [acceptance_profile.fetch("initial_state"), acceptance_profile.fetch("invariant")].join(" ")
+  errors << "SCIM conformance acceptance omits exact RFC claims" unless required_claims.all? { |claim| acceptance_text.include?(claim) }
+  errors
+end
+
+def expect_scim_rfc_fixture_rejection!(label, expected_error)
+  errors = yield
+  fail_check("SCIM RFC negative fixture #{label} was accepted") if errors.empty?
+  fail_check("SCIM RFC negative fixture #{label} missed #{expected_error}: #{errors.join('; ')}") unless errors.include?(expected_error)
+end
+
 def otp_contract_errors(transaction_contract:, otp_goal:, otp_postgres_goal:, workflow_goals:, end_state:, applicability:)
   errors = []
   normalized_transaction = transaction_contract.gsub(/\s+/, " ")
@@ -2012,7 +2716,7 @@ def otp_contract_errors(transaction_contract:, otp_goal:, otp_postgres_goal:, wo
 
   workflow_phrases = {
     "identity/email" => "When handling `identity.otp.email-verify`, `identity.otp.email-change-confirm`, or the optional current-address OTP branch of `identity.otp.email-change-request`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through the public `identity/otp` contributor contract in the same coordinator unit of work as its owning mutation. The core MUST NOT import, require, or name a concrete OTP persistence adapter; reference composition selects that adapter. Non-OTP email operations MUST NOT enlist an OTP participant",
-    "identity/password" => "When handling `identity.otp.password-reset` or `identity.phone.password-reset-complete`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through an injected OTP persistence contributor, supplied by `identity/otp/postgres` in the reference composition, in the same coordinator unit of work as its owning mutation. Signup, signin, password change, and capability-only reset MUST NOT enlist an OTP participant",
+    "identity/password" => "When handling `identity.otp.password-reset` or `identity.phone.password-reset-complete`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through the public `identity/otp` contributor contract in the same coordinator unit of work as its owning mutation. The core MUST NOT import, require, or name a concrete OTP persistence adapter; reference composition selects that adapter. Signup, signin, password change, and capability-only reset MUST NOT enlist an OTP participant",
     "identity/phone" => "When handling `identity.phone.verify`, `identity.phone.signin`, `identity.phone.update`, or `identity.phone.password-reset-complete`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through the injected OTP transaction contributor in the same coordinator unit of work as its owning mutation. Non-consuming initiation/removal operations MUST NOT enlist an OTP participant",
     "identity/mfa" => "When handling `identity.mfa.otp-verify`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through the public `identity/otp` contributor contract in the same coordinator unit of work as its owning mutation. The core MUST NOT import, require, or name a concrete OTP persistence adapter; reference composition selects that adapter. Other MFA methods and OTP-send initiation MUST NOT enlist an OTP consumption participant"
   }
@@ -2053,6 +2757,214 @@ def expect_otp_fixture_rejection!(label, expected_error)
   fail_check("OTP negative fixture #{label} missed #{expected_error}: #{errors.join('; ')}") unless errors.include?(expected_error)
 end
 
+def cross_cutting_remediation_errors(transaction_contract:, configuration:, reference_profile:, lifecycle_contract:,
+                                      api_operations:, security_events:, passkey_goal:, applicability:,
+                                      acceptance_catalog:, passkey_schema:, captcha_schema:, privacy_export_schema:, otp_schema:)
+  errors = []
+  normalized_transaction = transaction_contract.gsub(/\s+/, " ")
+  normalized_profile = reference_profile.gsub(/\s+/, " ")
+  normalized_lifecycle = lifecycle_contract.gsub(/\s+/, " ")
+  normalized_passkey_goal = passkey_goal.gsub(/\s+/, " ")
+
+  privacy_row = configuration_row(configuration, "struct:ref.identity.privacy_export")
+  if privacy_row.include?("one_exported_repeatable_read") || normalized_profile.include?("one exported `REPEATABLE READ` snapshot")
+    errors << "privacy export retains a non-restart-safe exported snapshot"
+  end
+  unless privacy_row.include?("postgres_snapshot = append_only_versioned_projection_or_transaction_staged_immutable_fragment")
+    errors << "privacy export configuration omits restart-safe PostgreSQL snapshot authority"
+  end
+  unless normalized_profile.include?("PostgreSQL contributors MUST read from an append-only/versioned projection at the recorded checkpoint or use an immutable bounded fragment staged during the request transaction")
+    errors << "reference profile omits restart-safe privacy-export reads"
+  end
+  unless normalized_lifecycle.include?("A restartable worker MUST NOT retain or depend on a long-lived exported PostgreSQL snapshot") &&
+         normalized_lifecycle.include?("append-only/versioned projection capable of reproducing its exact recorded checkpoint, or atomically stage an immutable bounded fragment during the request transaction")
+    errors << "privacy-export lifecycle authority is not restart-safe"
+  end
+  privacy_artifact = acceptance_catalog.fetch("artifacts").find do |artifact|
+    artifact.fetch("artifact_id") == "privacy-export-lifecycle-report"
+  end
+  privacy_evidence = %w[
+    contributor_checkpoint_count restart_resumed_contributor_count worker_restart_count
+    long_lived_postgres_snapshot_count mixed_cut_rejected snapshot_version_vector_digest
+    restart_reconstruction_digest
+  ]
+  unless privacy_artifact && (privacy_evidence - privacy_artifact.fetch("artifact_evidence_fields")).empty?
+    errors << "privacy-export acceptance omits restart-safe evidence"
+  end
+  privacy_outcomes = privacy_artifact&.fetch("required_observations", [])&.map { |row| row.fetch("expected_outcome") }.to_a.join(" ")
+  unless privacy_outcomes.include?("restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot")
+    errors << "privacy-export acceptance omits restart behavior"
+  end
+  privacy_schema_evidence = privacy_export_schema.dig("$defs", "artifact_evidence")
+  privacy_schema_properties = privacy_schema_evidence&.fetch("properties", {})&.keys.to_a
+  privacy_schema_required = privacy_schema_evidence&.fetch("required", []).to_a
+  unless privacy_evidence.all? { |field| privacy_schema_properties.include?(field) && privacy_schema_required.include?(field) }
+    errors << "privacy-export acceptance schema omits restart-safe evidence"
+  end
+  privacy_rules = privacy_schema_evidence&.fetch("x-semantic-rules", []).to_a
+  privacy_rules_exact =
+    privacy_rules.any? { |rule| rule["kind"] == "zero" && rule.fetch("fields", []).include?("long_lived_postgres_snapshot_count") } &&
+    privacy_rules.include?({"kind" => "const", "field" => "worker_restart_count", "value" => 1}) &&
+    privacy_rules.include?({"kind" => "equal", "left" => "restart_resumed_contributor_count", "right" => "contributor_checkpoint_count"}) &&
+    privacy_rules.any? { |rule| rule["kind"] == "true" && rule.fetch("fields", []).include?("mixed_cut_rejected") }
+  errors << "privacy-export acceptance semantic rules are incomplete" unless privacy_rules_exact
+
+  otp_requirements = {
+    "`tx.otp.attempt` MUST use a server-issued attempt ID bound to the tenant, purpose, challenge ID, consuming command ID, and canonical command fingerprint" =>
+      "OTP wrong-code attempt lacks server-issued retry identity",
+    "The wrong-code denial transaction is a narrow pre-reservation exception to `tx.uow.reserve`" =>
+      "OTP wrong-code denial is not a narrow pre-reservation exception",
+    "It MUST lock the command row and OTP row, verify the server-issued attempt ID and canonical command fingerprint, increment the durable attempt counter exactly once, transition to `exhausted` when the budget is reached, and store the stable `aborted` command result in the same commit" =>
+      "OTP wrong-code denial does not atomically persist attempt and result",
+    "After admission, the general `tx.uow.reserve` rule still rolls back every participant reservation on denial, error, or cancellation" =>
+      "OTP denial exception weakens normal reservation rollback",
+    "An ambiguous wrong-code denial commit MUST return `Unknown` and reconcile the same command and attempt ID on the primary before any retry" =>
+      "OTP wrong-code denial lacks ambiguous-commit recovery"
+  }
+  otp_requirements.each { |required, error| errors << error unless normalized_transaction.include?(required) }
+  otp_artifact = acceptance_catalog.fetch("artifacts").find do |artifact|
+    artifact.fetch("artifact_id") == "otp-reservation-report"
+  end
+  otp_evidence = %w[
+    attempt_id failed_attempt_count aborted_result_count duplicate_attempt_increment_count
+    exhausted unknown_reconciliation_digest
+  ]
+  unless otp_artifact && (otp_evidence - otp_artifact.fetch("artifact_evidence_fields")).empty?
+    errors << "OTP acceptance omits retry-safe denial evidence"
+  end
+  otp_outcomes = otp_artifact&.fetch("required_observations", [])&.map { |row| row.fetch("expected_outcome") }.to_a.join(" ")
+  unless otp_outcomes.include?("server-issued attempt identity") &&
+         otp_outcomes.include?("ambiguous denial commit returns unknown until primary reconciliation")
+    errors << "OTP acceptance omits retry and ambiguous-denial behavior"
+  end
+  otp_schema_evidence = otp_schema.dig("$defs", "artifact_evidence")
+  otp_schema_properties = otp_schema_evidence&.fetch("properties", {})&.keys.to_a
+  otp_schema_required = otp_schema_evidence&.fetch("required", []).to_a
+  unless otp_evidence.all? { |field| otp_schema_properties.include?(field) && otp_schema_required.include?(field) }
+    errors << "OTP acceptance schema omits retry-safe denial evidence"
+  end
+  otp_rules = otp_schema_evidence&.fetch("x-semantic-rules", []).to_a
+  otp_rules_exact =
+    otp_rules.any? { |rule| rule["kind"] == "zero" && rule.fetch("fields", []).include?("duplicate_attempt_increment_count") } &&
+    otp_rules.include?({"kind" => "equal", "left" => "aborted_result_count", "right" => "failed_attempt_count"}) &&
+    otp_rules.any? { |rule| rule["kind"] == "true" && rule.fetch("fields", []).include?("exhausted") }
+  errors << "OTP acceptance semantic rules are incomplete" unless otp_rules_exact
+
+  captcha_row = configuration_row(configuration, "struct:ref.captcha.evidence")
+  unless captcha_row.include?("flow_context = pre_auth_transaction_or_authenticated_subject_session_or_admin_actor")
+    errors << "CAPTCHA evidence configuration omits flow-context variants"
+  end
+  captcha_binding = "The durable evidence row MUST bind tenant, exact subject or anonymous-flow ID, a flow-context variant of pre-auth transaction for unauthenticated flows or authenticated subject/session or administrator actor context for authenticated or administrative flows"
+  errors << "CAPTCHA evidence mandates the wrong flow binding" unless normalized_transaction.include?(captcha_binding)
+  captcha_recheck = "`tx.captcha.apply` MUST recheck command/generation ownership, PostgreSQL expiry, exact action, subject or anonymous flow, the applicable pre-auth or authenticated subject/session or administrator actor context"
+  errors << "CAPTCHA apply omits flow-context recheck" unless normalized_transaction.include?(captcha_recheck)
+
+  stateless_roles = applicability.fetch("identity/risk/captcha").fetch("transaction")
+  durable_captcha_roles = %w[tx.captcha.apply tx.captcha.finalize tx.captcha.reserve]
+  unless (stateless_roles & durable_captcha_roles).empty?
+    errors << "stateless CAPTCHA verifier owns durable transaction roles"
+  end
+  postgres_roles = applicability.fetch("identity/risk/postgres").fetch("transaction")
+  unless (postgres_roles & durable_captcha_roles) == durable_captcha_roles
+    errors << "identity/risk/postgres omits durable CAPTCHA transaction roles"
+  end
+  captcha_artifact = acceptance_catalog.fetch("artifacts").find do |artifact|
+    artifact.fetch("artifact_id") == "captcha-four-provider-report"
+  end
+  captcha_evidence = %w[
+    protected_target_ids protected_target_results protected_target_count middleware_attached_target_count
+    durable_reservation_count durable_apply_count durable_finalize_count stateless_verifier_durable_write_count
+    flow_binding_digest durable_owner_digest provider_matrix_digest
+  ]
+  unless captcha_artifact && (captcha_evidence - captcha_artifact.fetch("artifact_evidence_fields")).empty?
+    errors << "CAPTCHA acceptance omits exhaustive target and durable-owner evidence"
+  end
+  captcha_outcomes = captcha_artifact&.fetch("required_observations", [])&.map { |row| row.fetch("expected_outcome") }.to_a.join(" ")
+  unless captcha_outcomes.include?("every configured CAPTCHA target from the canonical API attachment table has one middleware-attached result with its exact permitted flow contexts and attributable evidence") &&
+         captcha_outcomes.include?("identity/risk/postgres alone reserves, applies, and finalizes durable evidence for every target while the stateless verifier performs no durable write")
+    errors << "CAPTCHA acceptance omits exhaustive target and ownership cases"
+  end
+  captcha_schema_evidence = captcha_schema.dig("$defs", "artifact_evidence")
+  captcha_schema_properties = captcha_schema_evidence&.fetch("properties", {})&.keys.to_a
+  captcha_schema_required = captcha_schema_evidence&.fetch("required", []).to_a
+  unless captcha_evidence.all? { |field| captcha_schema_properties.include?(field) && captcha_schema_required.include?(field) }
+    errors << "CAPTCHA acceptance schema omits exhaustive target and durable-owner evidence"
+  end
+  captcha_target_row = api_operations.lines.find { |line| line.start_with?("| `identity.risk.captcha-verify` |") }
+  captcha_target_ids = captcha_target_row.to_s.scan(/`([^`]+)`/).flatten
+  captcha_target_ids.shift if captcha_target_ids.first == "identity.risk.captcha-verify"
+  captcha_target_schema = captcha_schema_evidence&.dig("properties", "protected_target_ids")
+  captcha_results_schema = captcha_schema_evidence&.dig("properties", "protected_target_results")
+  captcha_result_variants = captcha_results_schema&.dig("items", "oneOf").to_a
+  captcha_result_target_ids = captcha_result_variants.filter_map { |variant| variant.dig("properties", "target_id", "const") }
+  captcha_results_exact = !captcha_target_ids.empty? && captcha_target_schema == {"const" => captcha_target_ids} &&
+    captcha_results_schema&.fetch("minItems", nil) == captcha_target_ids.length &&
+    captcha_results_schema&.fetch("maxItems", nil) == captcha_target_ids.length &&
+    captcha_result_target_ids == captcha_target_ids &&
+    captcha_result_variants.all? { |variant| variant.dig("properties", "middleware_attached", "const") == true }
+  errors << "CAPTCHA acceptance schema target inventory is not exhaustive" unless captcha_results_exact
+  captcha_rules = captcha_schema_evidence&.fetch("x-semantic-rules", []).to_a
+  captcha_rules_exact =
+    captcha_rules.any? { |rule| rule["kind"] == "zero" && rule.fetch("fields", []).include?("stateless_verifier_durable_write_count") } &&
+    captcha_rules.include?({"kind" => "const", "field" => "protected_target_count", "value" => captcha_target_ids.length}) &&
+    %w[middleware_attached_target_count durable_reservation_count durable_apply_count durable_finalize_count].all? do |field|
+      captcha_rules.include?({"kind" => "equal", "left" => "protected_target_count", "right" => field})
+    end
+  errors << "CAPTCHA acceptance semantic rules are incomplete" unless captcha_rules_exact
+
+  passkey_actions = %w[identity.passkey.create_credential identity.passkey.mark_compromised]
+  passkey_actions.each do |action|
+    errors << "passkey security taxonomy omits #{action}" unless security_events.include?("`#{action}`")
+  end
+  passkey_events = applicability.fetch("passkey").fetch("security_events")
+  missing_passkey_actions = passkey_actions - passkey_events
+  errors << "passkey applicability omits security actions: #{missing_passkey_actions.join(', ')}" unless missing_passkey_actions.empty?
+  register_row = api_operations.lines.find { |line| line.start_with?("| `identity.passkey.register-verify` |") }.to_s
+  signin_row = api_operations.lines.find { |line| line.start_with?("| `identity.passkey.signin-verify` |") }.to_s
+  unless register_row.include?("emits exactly `identity.passkey.create_credential` when credential creation commits")
+    errors << "passkey registration operation omits exact creation action"
+  end
+  unless signin_row.include?("emits exactly `identity.passkey.mark_compromised` when clone or counter evidence durably marks the credential compromised")
+    errors << "passkey sign-in operation omits exact compromise action"
+  end
+  goal_mapping = "Creation MUST emit exactly `identity.passkey.create_credential`, compromise MUST emit exactly `identity.passkey.mark_compromised`"
+  errors << "passkey goal omits exact creation and compromise actions" unless normalized_passkey_goal.include?(goal_mapping)
+
+  passkey_artifact = acceptance_catalog.fetch("artifacts").find do |artifact|
+    artifact.fetch("artifact_id") == "passkey-browser-ceremony-report"
+  end
+  required_evidence = %w[creation_event_count compromise_event_count ordinary_failure_compromise_event_count security_event_digest]
+  unless passkey_artifact && (required_evidence - passkey_artifact.fetch("artifact_evidence_fields")).empty?
+    errors << "passkey acceptance evidence omits security actions"
+  end
+  expected_outcomes = passkey_artifact&.fetch("required_observations", [])&.map { |row| row.fetch("expected_outcome") }.to_a.join(" ")
+  unless passkey_actions.all? { |action| expected_outcomes.include?(action) }
+    errors << "passkey acceptance invariant omits security-action mapping"
+  end
+  schema_evidence = passkey_schema.dig("$defs", "artifact_evidence")
+  schema_properties = schema_evidence&.fetch("properties", {})&.keys.to_a
+  schema_required = schema_evidence&.fetch("required", []).to_a
+  unless required_evidence.all? { |field| schema_properties.include?(field) && schema_required.include?(field) }
+    errors << "passkey acceptance schema omits security-action evidence"
+  end
+  passkey_rules = schema_evidence&.fetch("x-semantic-rules", []).to_a
+  passkey_rules_exact =
+    passkey_rules.any? { |rule| rule["kind"] == "zero" && rule.fetch("fields", []).include?("ordinary_failure_compromise_event_count") } &&
+    %w[creation_event_count compromise_event_count].all? do |field|
+      passkey_rules.include?({"kind" => "const", "field" => field, "value" => 1})
+    end
+  errors << "passkey acceptance semantic rules are incomplete" unless passkey_rules_exact
+  errors
+end
+
+def expect_cross_cutting_fixture_rejection!(label, expected_error)
+  errors = yield
+  fail_check("cross-cutting remediation negative fixture #{label} was accepted") if errors.empty?
+  unless errors.include?(expected_error)
+    fail_check("cross-cutting remediation negative fixture #{label} missed #{expected_error}: #{errors.join('; ')}")
+  end
+end
+
 def canonical_inventory_digest(items)
   Digest::SHA256.hexdigest(items.join("\n") + "\n")
 end
@@ -2087,7 +2999,8 @@ def goal_manifest_resolution(rows, manifest, bodies)
     planning = entry["planning_path"]
     canonical = entry["canonical_path"]
     errors << "goal manifest planning path is invalid for #{row[:unit]}" unless planning&.match?(%r{\Agoals/[a-z0-9-]+\.md\z})
-    errors << "goal manifest canonical path drifted for #{row[:unit]}" unless canonical == "#{row[:module]}/.ai/GOAL.md"
+    canonical_name = row[:unit].start_with?("primitive/") ? "GOAL_IDENTITY_CONTRACTS.md" : "GOAL.md"
+    errors << "goal manifest canonical path drifted for #{row[:unit]}" unless canonical == "#{row[:module]}/.ai/#{canonical_name}"
     errors << "inventory goal path is not a canonical manifest location for #{row[:unit]}" unless [planning, canonical].include?(row[:goal])
     present = [planning, canonical].select { |path| bodies.key?(path) }
     errors << "goal is missing or duplicated for #{row[:unit]}" unless present == [row[:goal]]
@@ -2099,6 +3012,107 @@ def goal_manifest_resolution(rows, manifest, bodies)
   orphans = bodies.keys - allowed_paths
   errors << "orphan goal paths: #{orphans.sort.join(', ')}" unless orphans.empty?
   [errors, resolved]
+end
+
+def primitive_extension_inventory_errors(public_contracts:, rows:, goal_bodies:, ledger_units: nil)
+  errors = []
+  public_units = public_contracts.fetch("units", []).map { |row| row["unit"] }
+  primitive_rows = rows.select { |row| row[:unit].start_with?("primitive/") }
+  identity_rows = rows.reject { |row| row[:unit].start_with?("primitive/") }
+  extension_requirements = public_contracts.dig("manifest_schema", "required_primitive_extensions")
+  unless extension_requirements.is_a?(Array)
+    return errors << "public contracts required primitive extensions are absent"
+  end
+
+  errors << "identity public-contract unit count drifted" unless public_units.length == EXPECTED_IDENTITY_UNITS
+  errors << "identity inventory unit count drifted" unless identity_rows.length == EXPECTED_IDENTITY_UNITS
+  errors << "primitive extensions leaked into the identity public-contract unit catalog" if public_units.any? { |unit| unit.to_s.start_with?("primitive/") }
+  errors << "identity inventory/public-contract unit order drifted" unless identity_rows.map { |row| row[:unit] } == public_units
+  errors << "required primitive-extension authority count drifted" unless extension_requirements.length == EXPECTED_PRIMITIVE_EXTENSION_AUTHORITIES
+
+  required_keys = %w[unit extension_unit package_path depends_on consumers required_contract_sha256 required_symbols]
+  derived_consumers_by_authority = {}
+  extension_requirements.each do |requirement|
+    authority = requirement["unit"]
+    errors << "primitive extension authority schema drifted for #{authority}" unless requirement.keys == required_keys.sort
+    errors << "primitive extension authority is invalid for #{authority}" unless authority.to_s.match?(%r{\A[a-z0-9-]+(?:/[a-z0-9-]+)*\z})
+    extension_unit = requirement["extension_unit"]
+    errors << "primitive extension scheduling unit is invalid for #{authority}" unless extension_unit.to_s.match?(%r{\Aprimitive/[a-z0-9-]+\z})
+    errors << "primitive extension package path is invalid for #{authority}" unless requirement["package_path"].to_s.match?(%r{\Agithub\.com/faustbrian/golib/pkg/[a-z0-9/-]+\z})
+    %w[depends_on consumers required_symbols].each do |field|
+      values = requirement[field]
+      errors << "primitive extension #{authority} #{field} is not sorted and unique" unless values.is_a?(Array) && values == values.sort_by(&:b).uniq
+    end
+    errors << "primitive extension #{authority} required digest is invalid" unless requirement["required_contract_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
+    derived_consumers = derived_primitive_consumers(public_contracts, requirement)
+    derived_consumers_by_authority[authority] = derived_consumers
+    errors << "primitive extension #{authority} consumer derivation drifted" unless requirement["consumers"] == derived_consumers
+  end
+
+  authority_units = extension_requirements.map { |row| row["unit"] }
+  errors << "primitive extension authorities are not sorted and unique" unless authority_units == authority_units.sort_by(&:b).uniq
+  extension_units = extension_requirements.map { |row| row["extension_unit"] }.uniq
+  errors << "primitive extension scheduling-unit count drifted" unless extension_units.length == EXPECTED_PRIMITIVE_EXTENSION_UNITS
+  errors << "primitive extension inventory closure drifted" unless primitive_rows.map { |row| row[:unit] }.to_set == extension_units.to_set
+  errors << "schedulable inventory count drifted" unless rows.length == EXPECTED_SCHEDULABLE_UNITS
+
+  external_by_owner = public_contracts.fetch("external_contracts", []).to_h { |row| [row["owner"], row] }
+  required_external_owners = public_contracts.fetch("external_contracts", []).select do |row|
+    row["current_api_status"] == "requires-extension"
+  end.map { |row| row["owner"] }
+  errors << "requires-extension external-authority closure drifted" unless required_external_owners == authority_units
+
+  authority_to_extension = extension_requirements.to_h { |row| [row["unit"], row["extension_unit"]] }
+  extension_requirements.each do |requirement|
+    authority = requirement["unit"]
+    external = external_by_owner[authority]
+    unless external
+      errors << "primitive extension external authority is absent for #{authority}"
+      next
+    end
+    errors << "primitive extension package path drifted for #{authority}" unless external["package_path"] == requirement["package_path"]
+    errors << "primitive extension current digest is invalid for #{authority}" unless external["api_baseline_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
+    errors << "primitive extension required digest drifted for #{authority}" unless external["required_contract_sha256"] == requirement["required_contract_sha256"]
+    errors << "primitive extension current API status drifted for #{authority}" unless external["current_api_status"] == "requires-extension"
+  end
+
+  extension_units.each do |extension_unit|
+    row = primitive_rows.find { |candidate| candidate[:unit] == extension_unit }
+    next errors << "primitive extension inventory omits #{extension_unit}" unless row
+
+    requirements = extension_requirements.select { |requirement| requirement["extension_unit"] == extension_unit }
+    expected_modules = requirements.map { |requirement| requirement["package_path"].delete_prefix("github.com/faustbrian/golib/") }
+    expected_module = expected_modules.min_by { |candidate| [candidate.count("/"), candidate.b] }
+    errors << "primitive extension canonical module drifted for #{extension_unit}" unless row[:module] == expected_module
+    expected_requires = requirements.flat_map { |requirement| requirement["depends_on"] }
+      .filter_map { |authority| authority_to_extension[authority] }
+      .reject { |dependency| dependency == extension_unit }.sort_by(&:b).uniq
+    errors << "primitive extension prerequisite closure drifted for #{extension_unit}" unless row[:requires] == expected_requires
+
+    expected_consumers = requirements.flat_map { |requirement| derived_consumers_by_authority.fetch(requirement["unit"], []) }.sort_by(&:b).uniq
+    actual_consumers = identity_rows.select { |candidate| candidate[:requires].include?(extension_unit) }.map { |candidate| candidate[:unit] }.sort_by(&:b)
+    errors << "primitive extension consumer prerequisite closure drifted for #{extension_unit}" unless actual_consumers == expected_consumers
+
+    body = goal_bodies[extension_unit]
+    unless body
+      errors << "primitive extension goal is absent for #{extension_unit}"
+      next
+    end
+    declared_consumer_line = body[/^- Exact identity-platform consumers(?: \([^\n]+\))?:.*$/]
+    declared_consumers = declared_consumer_line.to_s.split(":", 2).last.to_s.scan(/`([^`]+)`/).flatten
+    errors << "primitive extension goal consumer closure drifted for #{extension_unit}" unless declared_consumers == expected_consumers
+    expected_digests = requirements.flat_map do |requirement|
+      external = external_by_owner[requirement["unit"]]
+      [external && external["api_baseline_sha256"], requirement["required_contract_sha256"]]
+    end.compact.sort_by(&:b)
+    actual_digests = body.scan(/sha256:[0-9a-f]{64}/).sort_by(&:b)
+    errors << "primitive extension goal digest pins drifted for #{extension_unit}" unless actual_digests == expected_digests
+  end
+
+  if ledger_units
+    errors << "primitive extension ledger closure drifted" unless ledger_units.to_set == rows.map { |row| row[:unit] }.to_set && ledger_units.length == EXPECTED_SCHEDULABLE_UNITS
+  end
+  errors
 end
 
 def worker_assignment_envelope_errors(attestation, expected, prompt_bytes, expected_prompt)
@@ -2326,9 +3340,9 @@ def ledger_transition_errors(previous_row, previous_entry, row, entry, abandonme
               when %w[blocked in-progress], %w[implemented-unverified in-progress]
                 Set.new
               when %w[implemented-unverified implemented-unverified], %w[verified verified]
-                Set[:gate_revision, :fingerprint, :external]
-              when %w[implemented-unverified verified]
                 Set[:external]
+              when %w[implemented-unverified verified]
+                Set[:gate_revision, :fingerprint, :external]
               when %w[verified implemented-unverified]
                 Set[:gate_revision, :fingerprint, :external]
               else
@@ -2350,12 +3364,177 @@ def ledger_transition_errors(previous_row, previous_entry, row, entry, abandonme
   if edge == %w[in-progress blocked] && changed.include?(:worker_commit)
     errors << "blocked checkpoint finalization requires a worker commit" unless entry[:worker_commit].match?(/\A[0-9a-f]{40}\z/)
   end
+  if edge == %w[implemented-unverified verified]
+    previous_gate_empty = previous_entry[:gate_revision] == "—" && previous_entry[:fingerprint] == "—"
+    current_gate_complete = entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/) && entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
+    errors << "verification transition did not atomically bind a fresh gate revision and input root" unless previous_gate_empty && current_gate_complete
+  end
   if abandonment
     cleared = entry.values_at(:task, :branch, :worktree, :assignment, :worker_commit, :checkpoint, :gate_revision, :fingerprint, :external).all? { |value| value == "—" }
     errors << "abandoned assignment did not clear every assignment/evidence field" unless cleared
     errors << "assignment abandonment lacks identity-bound disposition evidence" unless abandonment_evidence
   end
   errors
+end
+
+def execution_history_required?(entries:, recovery_rows:, goal_revision_rows:, dependency_revisions:, dependency_dispositions:, local_gate_bindings:)
+  entries.any? { |entry| entry[:transition] != "initial" } || recovery_rows.any? || goal_revision_rows.any? ||
+    dependency_revisions.any? || dependency_dispositions.any? || local_gate_bindings.any?
+end
+
+def previous_snapshot_binding_errors(
+  previous_sources:, history_required:, candidate_fixture_mode:,
+  resolve_parent: -> { git_output("rev-parse", "HEAD^1") },
+  read_blob: ->(revision, path) { git_blob_bytes(revision, path) }
+)
+  required_paths = %w[
+    .ai/identity-platform/INVENTORY.md
+    .ai/identity-platform/EXECUTION_LEDGER.md
+    .ai/identity-platform/PREFLIGHT_EVIDENCE.md
+    .ai/identity-platform/GOAL_MANIFEST.json
+  ]
+  errors = []
+  if history_required && previous_sources.keys.to_set != required_paths.to_set
+    errors << "post-initial execution validation requires the complete previous artifact quartet"
+  end
+  return errors if previous_sources.empty? && !history_required
+
+  expected_revision = candidate_fixture_mode ? "HEAD" : resolve_parent.call
+  unless expected_revision
+    errors << "previous execution fixtures cannot be bound because the current commit has no first parent"
+    return errors
+  end
+  return errors if previous_sources.empty?
+
+  required_paths.each do |path|
+    unless previous_sources.key?(path)
+      errors << "previous execution fixture is missing #{path}"
+      next
+    end
+    committed = read_blob.call(expected_revision, path)
+    if committed.nil?
+      errors << "expected previous artifact object is missing at #{expected_revision}:#{path}"
+    elsif previous_sources.fetch(path) != committed
+      errors << "previous fixture bytes do not match exact expected parent #{expected_revision}:#{path}"
+    end
+  end
+  errors
+end
+
+def integrated_commit_ancestry_errors(entry, head: "HEAD", commit_exists: method(:git_commit_exists?), ancestor: method(:git_ancestor?))
+  errors = []
+  assignment_exists = commit_exists.call(entry[:assignment])
+  worker_exists = commit_exists.call(entry[:worker_commit])
+  checkpoint_exists = commit_exists.call(entry[:checkpoint])
+  errors << "assignment commit does not exist" unless assignment_exists
+  errors << "worker commit does not exist" unless worker_exists
+  errors << "integration checkpoint does not exist" unless checkpoint_exists
+  errors << "worker commit excludes assignment" if assignment_exists && worker_exists && !ancestor.call(entry[:assignment], entry[:worker_commit])
+  errors << "integration checkpoint excludes worker commit" if worker_exists && checkpoint_exists && !ancestor.call(entry[:worker_commit], entry[:checkpoint])
+  errors << "integration checkpoint is not integrated" if checkpoint_exists && !ancestor.call(entry[:checkpoint], head)
+  errors
+end
+
+gate_transition_row = {unit: "fixture", module: "pkg/fixture", requires: [], owner: "—", goal: "goals/fixture.md"}
+gate_transition_previous_row = gate_transition_row.merge(status: "implemented-unverified")
+gate_transition_row = gate_transition_row.merge(status: "verified")
+gate_transition_previous_entry = {
+  generation: "1", task: "fixture-worker", branch: "feature/fixture", worktree: "/fixture/worker",
+  assignment: "a" * 40, worker_commit: "b" * 40, checkpoint: "c" * 40,
+  gate_revision: "—", fingerprint: "—", external: "not-needed",
+  transition: "v1 implemented-unverified owner=— at=2026-08-11T00:00:00Z"
+}
+gate_transition_entry = gate_transition_previous_entry.merge(
+  gate_revision: "d" * 40, fingerprint: "sha256:#{'e' * 64}",
+  transition: "v2 verified owner=— at=2026-08-11T00:00:01Z"
+)
+unless ledger_transition_errors(gate_transition_previous_row, gate_transition_previous_entry, gate_transition_row, gate_transition_entry).empty?
+  fail_check("atomic local gate verification transition fixture was rejected")
+end
+partial_gate_transition = gate_transition_entry.merge(fingerprint: "—")
+if ledger_transition_errors(gate_transition_previous_row, gate_transition_previous_entry, gate_transition_row, partial_gate_transition).empty?
+  fail_check("partial local gate verification transition fixture was accepted")
+end
+history_initial_entry = gate_transition_previous_entry.merge(transition: "initial")
+if execution_history_required?(
+  entries: [history_initial_entry], recovery_rows: [], goal_revision_rows: [],
+  dependency_revisions: [], dependency_dispositions: [], local_gate_bindings: []
+)
+  fail_check("initial execution history fixture unexpectedly requires prior snapshots")
+end
+unless execution_history_required?(
+  entries: [gate_transition_previous_entry], recovery_rows: [], goal_revision_rows: [],
+  dependency_revisions: [], dependency_dispositions: [], local_gate_bindings: []
+)
+  fail_check("post-initial execution history fixture omitted prior snapshots")
+end
+previous_artifact_fixture = {
+  ".ai/identity-platform/INVENTORY.md" => "committed inventory\n",
+  ".ai/identity-platform/EXECUTION_LEDGER.md" => "committed ledger\n",
+  ".ai/identity-platform/PREFLIGHT_EVIDENCE.md" => "committed preflight\n",
+  ".ai/identity-platform/GOAL_MANIFEST.json" => "{\"committed\":true}\n"
+}
+fabricated_previous_artifact_fixture = previous_artifact_fixture.transform_values { |bytes| "fabricated #{bytes}" }
+if previous_snapshot_binding_errors(
+  previous_sources: fabricated_previous_artifact_fixture, history_required: true, candidate_fixture_mode: true,
+  resolve_parent: -> { raise "candidate fixture must bind to HEAD" },
+  read_blob: ->(revision, path) { revision == "HEAD" ? previous_artifact_fixture[path] : nil }
+).empty?
+  fail_check("coherent fabricated previous snapshot negative fixture was accepted")
+end
+unless previous_snapshot_binding_errors(
+  previous_sources: previous_artifact_fixture, history_required: true, candidate_fixture_mode: true,
+  resolve_parent: -> { raise "candidate fixture must bind to HEAD" },
+  read_blob: ->(revision, path) { revision == "HEAD" ? previous_artifact_fixture[path] : nil }
+).empty?
+  fail_check("exact candidate-parent previous snapshot fixture was rejected")
+end
+unless previous_snapshot_binding_errors(
+  previous_sources: previous_artifact_fixture, history_required: true, candidate_fixture_mode: false,
+  resolve_parent: -> { "parent-commit" },
+  read_blob: ->(revision, path) { revision == "parent-commit" ? previous_artifact_fixture[path] : nil }
+).empty?
+  fail_check("exact committed first-parent previous snapshot fixture was rejected")
+end
+if previous_snapshot_binding_errors(
+  previous_sources: previous_artifact_fixture, history_required: true, candidate_fixture_mode: false,
+  resolve_parent: -> { nil }, read_blob: ->(_revision, _path) { nil }
+).empty?
+  fail_check("root commit previous snapshot negative fixture was accepted")
+end
+missing_previous_artifact_fixture = previous_artifact_fixture.dup
+if previous_snapshot_binding_errors(
+  previous_sources: missing_previous_artifact_fixture, history_required: true, candidate_fixture_mode: false,
+  resolve_parent: -> { "parent-commit" },
+  read_blob: ->(_revision, path) { path.end_with?("GOAL_MANIFEST.json") ? nil : previous_artifact_fixture[path] }
+).empty?
+  fail_check("missing committed previous artifact negative fixture was accepted")
+end
+unless previous_snapshot_binding_errors(
+  previous_sources: {}, history_required: false, candidate_fixture_mode: false,
+  resolve_parent: -> { raise "initial history must not require a parent" }, read_blob: ->(_revision, _path) { nil }
+).empty?
+  fail_check("parentless initial execution snapshot fixture was rejected")
+end
+root_history_errors = previous_snapshot_binding_errors(
+  previous_sources: {}, history_required: true, candidate_fixture_mode: false,
+  resolve_parent: -> { nil }, read_blob: ->(_revision, _path) { nil }
+)
+unless root_history_errors.any? { |error| error.include?("no first parent") }
+  fail_check("parentless post-initial execution history did not fail at the root boundary")
+end
+fake_integrated_entry = gate_transition_previous_entry.merge(unit: "fixture")
+if integrated_commit_ancestry_errors(
+  fake_integrated_entry,
+  commit_exists: ->(_revision) { false }, ancestor: ->(_ancestor, _descendant) { false }
+).empty?
+  fail_check("unreachable implemented-unverified commit chain negative fixture was accepted")
+end
+unless integrated_commit_ancestry_errors(
+  fake_integrated_entry,
+  commit_exists: ->(_revision) { true }, ancestor: ->(_ancestor, _descendant) { true }
+).empty?
+  fail_check("reachable implemented-unverified commit chain fixture was rejected")
 end
 
 def ordinary_abandonment_errors(disposition, previous_entry, previous_resources, resources)
@@ -2435,6 +3614,9 @@ def ledger_row_shape_errors(row, entry)
       errors << "pre-integration in-progress row has gate evidence" unless entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
     else
       errors << "integrated repair row is incomplete" if integrated.any? { |value| value == "—" }
+      gate_empty = entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
+      gate_complete = entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/) && entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
+      errors << "integrated repair gate evidence is partial" unless gate_empty || gate_complete
     end
   when "blocked"
     errors << "blocked owner is unsafe" unless row[:owner].match?(/\Ablocker:[a-zA-Z0-9._-]+\z/)
@@ -2443,15 +3625,14 @@ def ledger_row_shape_errors(row, entry)
       errors << "pre-integration blocked row has gate evidence" unless entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
     else
       errors << "integrated blocked row lacks worker commit" if entry[:worker_commit] == "—"
-      errors << "integrated blocked gate revision is invalid" unless entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/)
-      errors << "integrated blocked gate fingerprint is invalid" unless entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
+      gate_empty = entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
+      gate_complete = entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/) && entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
+      errors << "integrated blocked gate evidence is partial" unless gate_empty || gate_complete
     end
   when "implemented-unverified"
     errors << "integrated row retains owner" unless row[:owner] == "—"
     errors << "integrated row is incomplete" if (assignment + integrated).any? { |value| value == "—" || value == "pending" }
-    gate_empty = entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
-    gate_complete = entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/) && entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
-    errors << "implemented-unverified gate evidence is partial" unless gate_empty || gate_complete
+    errors << "implemented-unverified row prematurely records gate evidence" unless entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
     errors << "integrated external evidence disposition is missing" if entry[:external] == "—"
   when "verified"
     errors << "integrated row retains owner" unless row[:owner] == "—"
@@ -3059,7 +4240,7 @@ def orchestration_policy_errors(orchestrator, worker)
   errors = []
   errors << "coordinator-only policy digest drifted" unless Digest::SHA256.hexdigest(coordinator_section) == "bc9277b2d53aee15339a6d53394a5197412233e9c4ce1b3a3b71ffbf0eec6140"
   errors << "dependency-revision policy digest drifted" unless Digest::SHA256.hexdigest(dependency_revision_section) == "564cb53e19c5de9ee04cde3788fae20b812d7873a656ea8b086cbfb848ddea28"
-  errors << "worker assignment policy digest drifted" unless Digest::SHA256.hexdigest(worker_assignment) == "d1070bfa600086e7a4266e1c2b47d2e475af9aaae2bab88f41fa9a74a73d1c6e"
+  errors << "worker assignment policy digest drifted" unless Digest::SHA256.hexdigest(worker_assignment) == "9aaa618de16ae3e5e97801117d55a57f5a0c5190a5b54dea314fc4c94104a175"
   errors << "coordinator implementation prohibition drifted" unless orchestrator.gsub(/\s+/, " ").include?(required_orchestrator)
   required_worker.each do |required|
     errors << "worker ownership restriction drifted: #{required}" unless worker.gsub(/\s+/, " ").include?(required)
@@ -3185,6 +4366,9 @@ def tracked_behavior_input_manifest(revision, module_roots, repository: REPOSITO
     next unless match
 
     path = match[3]
+    next if NON_BEHAVIORAL_IDENTITY_PLATFORM_INPUTS.any? do |excluded|
+      excluded.end_with?("/") ? path.start_with?(excluded) : path == excluded
+    end
     owner = module_roots.select { |root| path == root || path.start_with?("#{root}/") }.max_by(&:length) || "coordinator"
     reason = path.start_with?(".ai/identity-platform/") ? "normative identity-platform input" : "behavior-affecting repository input"
     {
@@ -3241,7 +4425,23 @@ def base_tree_identity_errors(base, recorded_tree, recorded_digest)
   errors
 end
 
-def execution_identity_errors(identity_rows)
+def integration_cleanliness_errors(status_output:, status_success:, current_root: nil, integration_root: nil)
+  errors = []
+  errors << "execution integration worktree status is unavailable" unless status_success
+  errors << "execution integration worktree is dirty" unless status_output.empty?
+  if current_root && integration_root
+    errors << "execution validator is not running from the registered integration worktree" unless current_root == integration_root
+  end
+  errors
+end
+
+def completion_mode_errors(execution_mode:, fixture_mode:, all_verified:, clean_integration_mode:)
+  return [] unless execution_mode && !fixture_mode && all_verified
+
+  clean_integration_mode ? [] : ["all-verified execution requires --clean-integration"]
+end
+
+def execution_identity_errors(identity_rows, require_clean: false)
   errors = []
   base = plain_cell(identity_rows.fetch("Recorded committed `main` base", ""))
   input_revision = plain_cell(identity_rows.fetch("Preflight input revision before the record commit", ""))
@@ -3267,6 +4467,15 @@ def execution_identity_errors(identity_rows)
   errors << "execution integration HEAD does not descend from exact base" unless worktree_head && git_ancestor?(base, worktree_head)
   errors << "execution preflight input does not descend from exact base" unless git_ancestor?(base, input_revision)
   errors << "execution preflight input is not on integration history" unless worktree_head && git_ancestor?(input_revision, worktree_head)
+  if require_clean
+    status_output, _status_error, status = Open3.capture3(
+      "git", "-C", integration_worktree, "status", "--porcelain", "--untracked-files=all"
+    )
+    errors.concat(integration_cleanliness_errors(
+      status_output: status_output, status_success: status.success?,
+      current_root: File.realpath(REPOSITORY_ROOT), integration_root: File.realpath(integration_worktree)
+    ))
+  end
   errors.concat(base_tree_identity_errors(base, recorded_tree, recorded_digest))
   errors
 end
@@ -3288,6 +4497,25 @@ fail_check("current identity-platform tree fixture is unavailable") unless curre
 if base_tree_identity_errors("HEAD", "0" * 40, "sha256:#{'0' * 64}").empty?
   fail_check("divergent identity-platform tree negative fixture was accepted")
 end
+fail_check("clean integration fixture was rejected") unless integration_cleanliness_errors(status_output: "", status_success: true, current_root: "/fixture", integration_root: "/fixture").empty?
+if integration_cleanliness_errors(status_output: " M pkg/identity/file.go\n", status_success: true).empty?
+  fail_check("dirty integration worktree fixture was accepted")
+end
+if integration_cleanliness_errors(status_output: "", status_success: false).empty?
+  fail_check("unreadable integration worktree status fixture was accepted")
+end
+if integration_cleanliness_errors(status_output: "", status_success: true, current_root: "/primary", integration_root: "/integration").empty?
+  fail_check("clean integration validation from the wrong worktree was accepted")
+end
+if completion_mode_errors(execution_mode: true, fixture_mode: false, all_verified: true, clean_integration_mode: false).empty?
+  fail_check("all-verified execution without clean integration mode was accepted")
+end
+unless completion_mode_errors(execution_mode: true, fixture_mode: false, all_verified: true, clean_integration_mode: true).empty?
+  fail_check("all-verified clean integration fixture was rejected")
+end
+unless completion_mode_errors(execution_mode: true, fixture_mode: true, all_verified: true, clean_integration_mode: false).empty?
+  fail_check("all-verified proposed-snapshot fixture incorrectly required clean integration mode")
+end
 
 def first_parent_commit_adding_line(line, path)
   output, _error, status = Open3.capture3(
@@ -3302,6 +4530,15 @@ def first_parent_commit_adding_line(line, path)
     )
     diff_status.success? && diff.lines.any? { |candidate| candidate.chomp == "+#{line}" }
   end
+end
+
+def first_parent_commit_with_blob(path, bytes)
+  output, _error, status = Open3.capture3(
+    "git", "-C", REPOSITORY_ROOT, "log", "--first-parent", "--reverse", "--format=%H", "--", path
+  )
+  return unless status.success?
+
+  output.lines.map(&:strip).find { |commit| git_blob_bytes(commit, path) == bytes }
 end
 
 audit_authority_fixture_index = ARGV.index("--audit-retention-authority-fixture")
@@ -3349,10 +4586,17 @@ ledger_fixture_path = take_path_option!(ARGV, "--ledger-fixture")
 previous_inventory_path = take_path_option!(ARGV, "--previous-inventory-fixture")
 previous_ledger_path = take_path_option!(ARGV, "--previous-ledger-fixture")
 goal_manifest_fixture_path = take_path_option!(ARGV, "--goal-manifest-fixture")
+previous_goal_manifest_fixture_path = take_path_option!(ARGV, "--previous-goal-manifest-fixture")
 upstream_leaves_fixture_path = take_path_option!(ARGV, "--upstream-leaves-fixture")
 fail_check("previous transition fixtures must be supplied together") unless previous_inventory_path.nil? == previous_ledger_path.nil?
 fail_check("previous execution fixture requires previous transition fixtures") if previous_execution_fixture_path && previous_inventory_path.nil?
+fail_check("previous goal manifest fixture requires previous execution fixture") if previous_goal_manifest_fixture_path && !previous_execution_fixture_path
+if previous_inventory_path && (!previous_execution_fixture_path || !previous_goal_manifest_fixture_path)
+  fail_check("prior/current transition validation requires previous execution and goal manifest fixtures")
+end
 execution_mode = ARGV.delete("--execution") || execution_fixture_path
+clean_integration_mode = ARGV.delete("--clean-integration")
+fail_check("--clean-integration requires --execution or --execution-fixture") if clean_integration_mode && !execution_mode
 fail_check("unknown arguments: #{ARGV.join(' ')}") unless ARGV.empty?
 if execution_identity_fixture_path
   fixture_identity_rows = markdown_table(File.read(execution_identity_fixture_path), "Execution identity", "| Field | Value |").to_h
@@ -3363,6 +4607,11 @@ if execution_identity_fixture_path
 end
 validate_normative_markdown_notices!
 end_state = File.read(File.join(ROOT, "END_STATE.md"))
+end_state_journey_count_errors(end_state, 19).each { |error| fail_check(error) }
+stale_end_state_count = end_state.sub("all nineteen journeys", "all eighteen journeys")
+if end_state_journey_count_errors(stale_end_state_count, 19).empty?
+  fail_check("stale end-state journey count negative fixture was accepted")
+end
 validate_administration_journey!(end_state)
 validate_phone_recovery_journey!(end_state)
 request_journey_row = end_state.lines.find do |line|
@@ -3433,6 +4682,9 @@ external_lanes = []
 external_records = {}
 worker_attestations = []
 acceptance_evidence_bindings = []
+local_gate_evidence_bindings = []
+goal_revision_rows = []
+primitive_module_roots_by_consumer = Hash.new { |hash, key| hash[key] = Set.new }
 resource_registry_header = "| Resource ID | Type | Owning unit/task | Exact path or safe external ID | State | Cleanup trigger | Last reconciled at | Cleanup evidence or attestation |"
 parse_dependency_resource_snapshot = lambda do |body|
   markdown_table(body, "Task-owned resource registry", resource_registry_header).map do |resource_id, type, owner, target, state, _cleanup_trigger, _reconciled_at, cleanup_evidence|
@@ -3450,6 +4702,247 @@ if execution_mode
 end
 
 inventory = File.read(inventory_fixture_path || File.join(ROOT, "INVENTORY.md"))
+public_contracts_source = File.read(File.join(ROOT, "PUBLIC_CONTRACTS.json"))
+public_contracts = JSON.parse(public_contracts_source)
+public_contracts_helper = File.binread(File.join(ROOT, "public_contracts.rb"))
+fail_check("PUBLIC_CONTRACTS.json is not canonical JSON") unless public_contracts_source == JSON.pretty_generate(public_contracts) + "\n"
+public_contract_source_digest_errors(public_contracts, root: ROOT).each { |error| fail_check(error) }
+public_contract_operation_closure_rule_errors(public_contracts).each { |error| fail_check(error) }
+stale_operation_rule_fixture = JSON.parse(JSON.generate(public_contracts))
+stale_operation_rule_fixture.fetch("validation_rules").map! do |rule|
+  rule == PUBLIC_CONTRACT_OPERATION_CLOSURE_RULE ? rule.sub("every operation declared by API_OPERATIONS.md", "all 323 operations") : rule
+end
+if public_contract_operation_closure_rule_errors(stale_operation_rule_fixture).empty?
+  fail_check("stale public-contract operation count negative fixture was accepted")
+end
+_contract_output, contract_error, contract_status = Open3.capture3(
+  RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--check"
+)
+fail_check("public-contract helper check failed: #{contract_error.lines.first.to_s.strip}") unless contract_status.success?
+Dir.mktmpdir("identity-public-contract-fragments-") do |directory|
+  fixtures = {
+    "duplicate-key.json" => [
+      %({"units":[{"name":"first","\\u006eame":"second"}],"operations":[]}\n),
+      "duplicate JSON object key \"name\""
+    ],
+    "noncanonical.json" => [
+      %({"units":[],"operations":[]}\n),
+      "is not canonical pretty JSON"
+    ],
+    "canonical-scalar.json" => [
+      "1\n",
+      "must be a JSON object"
+    ],
+    "canonical-empty-object.json" => [
+      "{}\n",
+      "has unexpected top-level keys"
+    ]
+  }
+  fixtures.each do |name, (source, expected_error)|
+    path = File.join(directory, name)
+    File.binwrite(path, source)
+    _output, error, status = Open3.capture3(
+      RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", path
+    )
+    unless !status.success? && error.include?(expected_error)
+      fail_check("public-contract #{name.delete_suffix('.json')} negative fixture was not rejected exactly")
+    end
+  end
+  {
+    "authn-bool-zero.json" => ["public_contracts_authn.json", "identity.mfa.otp-verify", "request", "TrustDevice"],
+    "oauth-bool-zero.json" => ["public_contracts_oauth.json", nil, "Provider", "PKCERequired"]
+  }.each do |name, (source_name, operation_id, owner_name, field_name)|
+    fixture = JSON.parse(File.read(File.join(ROOT, "fragments", source_name)))
+    field = if operation_id
+              operation = fixture.fetch("operations").find { |row| row.fetch("id") == operation_id }
+              operation.fetch(owner_name).fetch("fields").find { |row| row.fetch("name") == field_name }
+            else
+              owner = fixture.fetch("units").flat_map { |unit| unit.fetch("types") }.find { |row| row.fetch("name") == owner_name }
+              owner.fetch("fields").find { |row| row.fetch("name") == field_name }
+            end
+    field["zero_value"] = "invalid or rejected when zero"
+    path = File.join(directory, name)
+    File.binwrite(path, JSON.pretty_generate(fixture) + "\n")
+    _output, error, status = Open3.capture3(
+      RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", path
+    )
+    expected_error = "documents false as valid but rejects its zero value"
+    unless !status.success? && error.include?(expected_error)
+      fail_check("public-contract #{name.delete_suffix('.json')} negative fixture was not rejected exactly")
+    end
+  end
+  false_prose_bypass = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_authn.json")))
+  false_prose_field = false_prose_bypass.fetch("operations").find { |row| row.fetch("id") == "identity.mfa.otp-verify" }
+    .fetch("request").fetch("fields").find { |row| row.fetch("name") == "TrustDevice" }
+  false_prose_field["semantics"] = "False denotes the disabled state."
+  false_prose_field["zero_value"] = "invalid when zero"
+  false_prose_path = File.join(directory, "false-valid-prose-bypass.json")
+  File.binwrite(false_prose_path, JSON.pretty_generate(false_prose_bypass) + "\n")
+  _output, false_prose_error, false_prose_status = Open3.capture3(
+    RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", false_prose_path
+  )
+  unless !false_prose_status.success? && false_prose_error.include?("documents false as valid but rejects its zero value")
+    fail_check("public-contract false-valid prose bypass negative fixture was not rejected exactly")
+  end
+  nonboolean_false_valid = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_risk_delivery.json")))
+  nonboolean_field = nonboolean_false_valid.fetch("units").flat_map { |unit| unit.fetch("types") }
+    .flat_map { |type| type.fetch("fields", []) }.find { |field| field.fetch("type") != "bool" }
+  nonboolean_field["false_valid"] = false
+  nonboolean_path = File.join(directory, "nonboolean-false-valid.json")
+  File.binwrite(nonboolean_path, JSON.pretty_generate(nonboolean_false_valid) + "\n")
+  _output, nonboolean_error, nonboolean_status = Open3.capture3(
+    RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", nonboolean_path
+  )
+  unless !nonboolean_status.success? && nonboolean_error.include?("non-boolean field #{nonboolean_field.fetch('name')} declares false-validity")
+    fail_check("public-contract non-boolean false-valid negative fixture was not rejected exactly")
+  end
+  numeric_zero_fixture = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_authn.json")))
+  numeric_zero_field = numeric_zero_fixture.fetch("units").flat_map { |unit| unit.fetch("types") }
+    .flat_map { |type| type.fetch("fields", []) }
+    .find { |field| field.fetch("type").match?(/\A(?:u?int(?:8|16|32|64)?|float(?:32|64)|time\.Duration)\z/) && field["zero_valid"] == true }
+  fail_check("public-contract numeric zero-valid fixture source is missing") unless numeric_zero_field
+  numeric_zero_field["zero_value"] = "0 is invalid"
+  numeric_zero_path = File.join(directory, "numeric-zero-valid-contradiction.json")
+  File.binwrite(numeric_zero_path, JSON.pretty_generate(numeric_zero_fixture) + "\n")
+  _output, numeric_zero_error, numeric_zero_status = Open3.capture3(
+    RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", numeric_zero_path
+  )
+  expected_numeric_zero_error = "numeric field #{numeric_zero_field.fetch('name')} zero_value must equal \"0 is valid\" when zero_valid=true"
+  unless !numeric_zero_status.success? && numeric_zero_error.include?(expected_numeric_zero_error)
+    fail_check("public-contract numeric zero-valid contradiction fixture was not rejected exactly")
+  end
+  numeric_zero_wording_fixture = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_authn.json")))
+  numeric_zero_wording_field = numeric_zero_wording_fixture.fetch("units").flat_map { |unit| unit.fetch("types") }
+    .flat_map { |type| type.fetch("fields", []) }
+    .find { |field| field["zero_valid"] == true }
+  numeric_zero_wording_field["zero_value"] = "zero is prohibited"
+  numeric_zero_wording_path = File.join(directory, "numeric-zero-valid-alternate-wording.json")
+  File.binwrite(numeric_zero_wording_path, JSON.pretty_generate(numeric_zero_wording_fixture) + "\n")
+  _output, numeric_zero_wording_error, numeric_zero_wording_status = Open3.capture3(
+    RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", numeric_zero_wording_path
+  )
+  unless !numeric_zero_wording_status.success? && numeric_zero_wording_error.include?(expected_numeric_zero_error)
+    fail_check("public-contract numeric zero-valid alternate-wording fixture was not rejected exactly")
+  end
+  numeric_zero_inverse_fixture = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_authn.json")))
+  numeric_zero_inverse_field = numeric_zero_inverse_fixture.fetch("units").flat_map { |unit| unit.fetch("types") }
+    .flat_map { |type| type.fetch("fields", []) }
+    .find { |field| field["zero_valid"] == false }
+  fail_check("public-contract numeric zero-invalid fixture source is missing") unless numeric_zero_inverse_field
+  numeric_zero_inverse_field["zero_value"] = "0 is valid"
+  numeric_zero_inverse_path = File.join(directory, "numeric-zero-invalid-accepting-zero.json")
+  File.binwrite(numeric_zero_inverse_path, JSON.pretty_generate(numeric_zero_inverse_fixture) + "\n")
+  _output, numeric_zero_inverse_error, numeric_zero_inverse_status = Open3.capture3(
+    RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", numeric_zero_inverse_path
+  )
+  expected_numeric_inverse_error = "numeric field #{numeric_zero_inverse_field.fetch('name')} zero_value must equal \"0 is invalid\" when zero_valid=false"
+  unless !numeric_zero_inverse_status.success? && numeric_zero_inverse_error.include?(expected_numeric_inverse_error)
+    fail_check("public-contract numeric zero-invalid inverse fixture was not rejected exactly")
+  end
+  nonnumeric_zero_valid = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_risk_delivery.json")))
+  nonnumeric_zero_field = nonnumeric_zero_valid.fetch("units").flat_map { |unit| unit.fetch("types") }
+    .flat_map { |type| type.fetch("fields", []) }
+    .find { |field| !field.fetch("type").match?(/\A(?:u?int(?:8|16|32|64)?|float(?:32|64)|time\.Duration)\z/) }
+  nonnumeric_zero_field["zero_valid"] = false
+  nonnumeric_zero_path = File.join(directory, "nonnumeric-zero-valid.json")
+  File.binwrite(nonnumeric_zero_path, JSON.pretty_generate(nonnumeric_zero_valid) + "\n")
+  _output, nonnumeric_zero_error, nonnumeric_zero_status = Open3.capture3(
+    RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", nonnumeric_zero_path
+  )
+  unless !nonnumeric_zero_status.success? && nonnumeric_zero_error.include?("non-numeric field #{nonnumeric_zero_field.fetch('name')} declares numeric zero-validity")
+    fail_check("public-contract non-numeric zero-valid negative fixture was not rejected exactly")
+  end
+  {
+    "nonboolean-required.json" => ["required", "yes", "required must be boolean"],
+    "null-zero-value.json" => ["zero_value", nil, "zero_value must be a non-empty string"]
+  }.each do |name, (key, value, expected_error)|
+    fixture = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_risk_delivery.json")))
+    field = fixture.fetch("units").flat_map { |unit| unit.fetch("types") }
+      .flat_map { |type| type.fetch("fields", []) }.first
+    fail_check("public-contract structural field fixture source is missing") unless field
+    field[key] = value
+    path = File.join(directory, name)
+    File.binwrite(path, JSON.pretty_generate(fixture) + "\n")
+    _output, error, status = Open3.capture3(
+      RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", path
+    )
+    unless !status.success? && error.include?(expected_error)
+      fail_check("public-contract #{name.delete_suffix('.json')} negative fixture was not rejected exactly")
+    end
+  end
+  closed_shape_mutations = {
+    "metadata-extra-key.json" => lambda { |fixture| fixture.fetch("meta")["unexpected"] = true },
+    "metadata-rule-extra-key.json" => lambda { |fixture| fixture.fetch("meta").fetch("validation_rules").first["unexpected"] = true },
+    "unit-extra-key.json" => lambda { |fixture| fixture.fetch("units").first["unexpected"] = true },
+    "type-extra-key.json" => lambda { |fixture| fixture.fetch("units").first.fetch("types").first["unexpected"] = true },
+    "type-method-extra-key.json" => lambda do |fixture|
+      fixture.fetch("units").first.fetch("types").first["methods"] = [{
+        "name" => "Probe", "signature" => "Probe()", "semantics" => "Fixture-only exact method.", "unexpected" => true
+      }]
+    end,
+    "field-extra-key.json" => lambda do |fixture|
+      fixture.fetch("units").flat_map { |unit| unit.fetch("types") }.flat_map { |type| type.fetch("fields", []) }.first["unexpected"] = true
+    end,
+    "operation-extra-key.json" => lambda { |fixture| fixture.fetch("operations").first["unexpected"] = true }
+  }
+  closed_shape_mutations.each do |name, mutation|
+    fixture = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_authn.json")))
+    mutation.call(fixture)
+    path = File.join(directory, name)
+    File.binwrite(path, JSON.pretty_generate(fixture) + "\n")
+    _output, error, status = Open3.capture3(
+      RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", path
+    )
+    unless !status.success? && error.include?("has unexpected keys unexpected")
+      fail_check("public-contract #{name.delete_suffix('.json')} negative fixture was not rejected exactly")
+    end
+  end
+  {
+    "backup-eligibility-invariant.json" => ["BackupEligible", "False is valid without any sibling invariant."],
+    "backup-state-invariant.json" => ["BackupState", "False is valid and true is accepted without eligibility binding."]
+  }.each do |name, (field_name, weakened_semantics)|
+    fixture = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_authn.json")))
+    verified_assertion = fixture.fetch("units").find { |unit| unit.fetch("unit") == "webauthn" }
+      .fetch("types").find { |type| type.fetch("name") == "VerifiedAssertion" }
+    verified_assertion.fetch("fields").find { |field| field.fetch("name") == field_name }["semantics"] = weakened_semantics
+    path = File.join(directory, name)
+    File.binwrite(path, JSON.pretty_generate(fixture) + "\n")
+    _output, error, status = Open3.capture3(
+      RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", path
+    )
+    expected_error = "backup flags omit the BE=false/BS=false validity and BS implies BE invariant"
+    unless !status.success? && error.include?(expected_error)
+      fail_check("public-contract #{name.delete_suffix('.json')} negative fixture was not rejected exactly")
+    end
+  end
+  %w[BackupEligible BackupState].each do |field_name|
+    fixture = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_authn.json")))
+    credential = fixture.fetch("units").find { |unit| unit.fetch("unit") == "webauthn" }
+      .fetch("types").find { |type| type.fetch("name") == "Credential" }
+    credential.fetch("fields").delete_if { |field| field.fetch("name") == field_name }
+    path = File.join(directory, "missing-#{field_name.downcase}.json")
+    File.binwrite(path, JSON.pretty_generate(fixture) + "\n")
+    _output, error, status = Open3.capture3(
+      RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", path
+    )
+    expected_error = "backup flags omit the BE=false/BS=false validity and BS implies BE invariant"
+    unless !status.success? && error.include?(expected_error)
+      fail_check("public-contract missing #{field_name} negative fixture was not rejected exactly")
+    end
+  end
+  passkey_state_fixture = JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_authn.json")))
+  passkey_state = passkey_state_fixture.fetch("units").find { |unit| unit.fetch("unit") == "passkey" }
+    .fetch("types").find { |type| type.fetch("name") == "BackupState" }
+  passkey_state["constants"] = %w[Pending Committed Aborted Expired Revoked]
+  passkey_state_path = File.join(directory, "passkey-transaction-backup-state.json")
+  File.binwrite(passkey_state_path, JSON.pretty_generate(passkey_state_fixture) + "\n")
+  _output, passkey_state_error, passkey_state_status = Open3.capture3(
+    RbConfig.ruby, File.join(ROOT, "public_contracts.rb"), "--fragment-fixture", passkey_state_path
+  )
+  unless !passkey_state_status.success? && passkey_state_error.include?("passkey.BackupState does not represent the closed authenticator backup state")
+    fail_check("public-contract passkey backup-state negative fixture was not rejected exactly")
+  end
+end
 inventory_header = "| Unit | Canonical module | Requires verified | Status | Owner/blocker | Goal |"
 fail_check("inventory table header drifted") unless inventory.lines.any? { |line| line.chomp == inventory_header }
 rows = inventory.lines.filter_map do |line|
@@ -3469,8 +4962,11 @@ rows = inventory.lines.filter_map do |line|
     goal: cells[6][/`([^`]+)`/, 1]
   }
 end
-fail_check("expected #{EXPECTED_UNITS} inventory rows, found #{rows.length}") unless rows.length == EXPECTED_UNITS
+fail_check("expected #{EXPECTED_SCHEDULABLE_UNITS} inventory rows, found #{rows.length}") unless rows.length == EXPECTED_SCHEDULABLE_UNITS
 units = rows.map { |row| row[:unit] }
+primitive_extension_rows = rows.select { |row| row[:unit].start_with?("primitive/") }
+identity_rows = rows.reject { |row| row[:unit].start_with?("primitive/") }
+identity_units = identity_rows.map { |row| row[:unit] }
 fail_check("duplicate inventory unit") unless units.uniq.length == units.length
 modules = rows.map { |row| row[:module] }
 goals = rows.map { |row| row[:goal] }
@@ -3482,9 +4978,74 @@ end
 known = units.to_set
 
 begin
-  SharedContractApplicability.load_and_validate!(root: ROOT, units: units)
+  applicability_document = SharedContractApplicability.load_and_validate!(root: ROOT, units: units)
   unless SharedContractApplicability.canonical?(root: ROOT, units: units)
     fail_check("shared-contract applicability manifest is not canonical JSON")
+  end
+  missing_primitive_fixture = JSON.parse(JSON.generate(applicability_document))
+  missing_primitive_unit = primitive_extension_rows.first.fetch(:unit)
+  missing_primitive_fixture.fetch("units").delete(missing_primitive_unit)
+  begin
+    SharedContractApplicability.load_and_validate!(
+      root: ROOT, units: units, document: missing_primitive_fixture
+    )
+    fail_check("missing primitive shared-contract applicability negative fixture was accepted")
+  rescue ArgumentError => e
+    unless e.message.include?("unit drift") && e.message.include?(missing_primitive_unit)
+      fail_check("missing primitive shared-contract applicability negative fixture failed for the wrong reason")
+    end
+  end
+  selected_primitive_fixture = JSON.parse(JSON.generate(applicability_document))
+  selected_primitive_fixture.fetch("units").fetch(missing_primitive_unit)["transaction"] = ["tx.foundation"]
+  begin
+    SharedContractApplicability.load_and_validate!(
+      root: ROOT, units: units, document: selected_primitive_fixture
+    )
+    fail_check("selected primitive shared-contract applicability negative fixture was accepted")
+  rescue ArgumentError => e
+    unless e.message.include?("primitive selectors must all be none")
+      fail_check("selected primitive shared-contract applicability negative fixture failed for the wrong reason")
+    end
+  end
+  %w[
+    ref.frontchannel_post.cookie
+    ref.oauth.rp.shared_redirect_issuer
+    ref.oauth_server.client_class
+    ref.saml.relay_state
+    ref.saml.replay_set
+    ref.struct:ref.frontchannel_post_cookie
+    ref.struct:ref.oauth_server.client_class
+    ref.struct:ref.oidc.logout_outcome
+    ref.struct:ref.saml.replay_set
+  ].each do |configuration_id|
+    missing_configuration_owner = JSON.parse(JSON.generate(applicability_document))
+    missing_configuration_owner.fetch("units").each_value do |entry|
+      entry.fetch("configuration").delete(configuration_id)
+    end
+    begin
+      SharedContractApplicability.load_and_validate!(
+        root: ROOT, units: units, document: missing_configuration_owner
+      )
+      fail_check("unowned federation configuration negative fixture was accepted: #{configuration_id}")
+    rescue ArgumentError => e
+      expected = "configuration catalog rows have no applicable unit: #{configuration_id}"
+      unless e.message.include?(expected)
+        fail_check("unowned federation configuration negative fixture failed for the wrong reason: #{configuration_id}")
+      end
+    end
+  end
+  unexpected_configuration_owner = JSON.parse(JSON.generate(applicability_document))
+  unexpected_configuration_owner.fetch("units").fetch("identity/session").fetch("configuration") << "ref.oauth_server.client_class"
+  unexpected_configuration_owner.fetch("units").fetch("identity/session").fetch("configuration").sort!
+  begin
+    SharedContractApplicability.load_and_validate!(
+      root: ROOT, units: units, document: unexpected_configuration_owner
+    )
+    fail_check("unexpected federation configuration owner negative fixture was accepted")
+  rescue ArgumentError => e
+    unless e.message.include?("configuration owner drift for ref.oauth_server.client_class")
+      fail_check("unexpected federation configuration owner negative fixture failed for the wrong reason")
+    end
   end
 rescue ArgumentError => e
   fail_check(e.message)
@@ -3499,7 +5060,9 @@ end
 http_row = rows.find { |row| row[:unit] == "identity/http" }
 reference_row = rows.find { |row| row[:unit] == "identity/reference" }
 fail_check("identity/http feature dependency set drifted") unless http_row[:requires].to_set == HTTP_FEATURES
-expected_reference = REFERENCE_ADAPTERS | Set["identity/http", "sso/domain-verification"]
+expected_reference = REFERENCE_ADAPTERS | Set[
+  "identity/http", "sso/domain-verification", "primitive/authorization-identity-contracts"
+]
 fail_check("identity/reference adapter dependency set drifted") unless reference_row[:requires].to_set == expected_reference
 fail_check("identity/http imports a concrete reference adapter") unless (http_row[:requires].to_set & REFERENCE_ADAPTERS).empty?
 
@@ -3541,19 +5104,21 @@ goal_manifest.fetch("goals").each do |entry|
   canonical_path = entry.fetch("canonical_path")
   planning_absolute = File.join(ROOT, planning_path)
   canonical_absolute = File.join(REPOSITORY_ROOT, canonical_path)
-  goal_path_bodies[planning_path] = File.binread(planning_absolute) if File.file?(planning_absolute)
-  goal_path_bodies[canonical_path] = File.binread(canonical_absolute) if File.file?(canonical_absolute)
+  goal_path_bodies[planning_path] = File.binread(planning_absolute).force_encoding(Encoding::UTF_8) if File.file?(planning_absolute)
+  goal_path_bodies[canonical_path] = File.binread(canonical_absolute).force_encoding(Encoding::UTF_8) if File.file?(canonical_absolute)
 end
-canonical_program_roots = goal_manifest.fetch("goals").map { |entry| entry.fetch("canonical_path").split("/")[0, 2].join("/") }.uniq
+canonical_program_roots = goal_manifest.fetch("goals")
+  .reject { |entry| entry.fetch("unit").start_with?("primitive/") }
+  .map { |entry| entry.fetch("canonical_path").split("/")[0, 2].join("/") }.uniq
 canonical_program_roots.each do |program_root|
   Dir[File.join(REPOSITORY_ROOT, program_root, "**", ".ai", "GOAL.md")].each do |path|
     relative = path.delete_prefix("#{REPOSITORY_ROOT}/")
-    goal_path_bodies[relative] ||= File.binread(path)
+    goal_path_bodies[relative] ||= File.binread(path).force_encoding(Encoding::UTF_8)
   end
 end
 Dir[File.join(ROOT, "goals", "*.md")].each do |path|
   relative = path.delete_prefix("#{ROOT}/")
-  goal_path_bodies[relative] ||= File.binread(path)
+  goal_path_bodies[relative] ||= File.binread(path).force_encoding(Encoding::UTF_8)
 end
 goal_resolution_errors, goal_bodies = goal_manifest_resolution(rows, goal_manifest, goal_path_bodies)
 fail_check(goal_resolution_errors.join("; ")) unless goal_resolution_errors.empty?
@@ -3579,10 +5144,11 @@ rows.each do |row|
   body = goal_bodies.fetch(row[:unit])
   actual_unit = body[/^- Unit: `([^`]+)`/, 1]
   actual_module = body[/^- Canonical module: `([^`]+)`/, 1]
-  actual_goal = body[/^- Canonical goal after scaffolding: `([^`]+)`/, 1]
+  actual_goal = body[/^- Canonical goal after (?:scaffolding|scheduling): `([^`]+)`/, 1]
   fail_check("goal unit mismatch for #{row[:goal]}") unless actual_unit == row[:unit]
   fail_check("goal module mismatch for #{row[:unit]}") unless actual_module == row[:module]
-  expected_goal = "#{row[:module]}/.ai/GOAL.md"
+  canonical_name = row[:unit].start_with?("primitive/") ? "GOAL_IDENTITY_CONTRACTS.md" : "GOAL.md"
+  expected_goal = "#{row[:module]}/.ai/#{canonical_name}"
   fail_check("canonical goal mismatch for #{row[:unit]}") unless actual_goal == expected_goal
   requires_line = body[/^- Requires:.*$/].to_s
   if row[:unit] == "identity/http"
@@ -3593,17 +5159,19 @@ rows.each do |row|
     actual_requires = metadata_values(body, "Requires")
     fail_check("requires mismatch for #{row[:unit]}: expected #{row[:requires]}, got #{actual_requires}") unless actual_requires == row[:requires]
   end
-  consumes = metadata_values(body, "Consumes existing primitives")
-  fail_check("#{row[:unit]} goal lacks consumed primitives") if consumes.empty?
-  fail_check("#{row[:unit]} goal has duplicate consumed primitives") unless consumes.uniq == consumes
-  planned_consumes = consumes.select { |name| known.include?(name) }
-  unless planned_consumes.empty?
-    fail_check("#{row[:unit]} consumes planned inventory units instead of declaring Requires: #{planned_consumes.join(', ')}")
+  unless row[:unit].start_with?("primitive/")
+    consumes = metadata_values(body, "Consumes existing primitives")
+    fail_check("#{row[:unit]} goal lacks consumed primitives") if consumes.empty?
+    fail_check("#{row[:unit]} goal has duplicate consumed primitives") unless consumes.uniq == consumes
+    planned_consumes = consumes.select { |name| known.include?(name) }
+    unless planned_consumes.empty?
+      fail_check("#{row[:unit]} consumes planned inventory units instead of declaring Requires: #{planned_consumes.join(', ')}")
+    end
+    unresolved_consumes = consumes.reject { |name| resolvable_consumables.include?(name) }
+    fail_check("#{row[:unit]} consumes unregistered primitives: #{unresolved_consumes.join(', ')}") unless unresolved_consumes.empty?
+    consumed_primitives.merge(consumes)
+    consumes.each { |primitive| primitive_consumers[primitive] << row[:unit] }
   end
-  unresolved_consumes = consumes.reject { |name| resolvable_consumables.include?(name) }
-  fail_check("#{row[:unit]} consumes unregistered primitives: #{unresolved_consumes.join(', ')}") unless unresolved_consumes.empty?
-  consumed_primitives.merge(consumes)
-  consumes.each { |primitive| primitive_consumers[primitive] << row[:unit] }
   fail_check("#{row[:unit]} retains ambiguous delegation language") if body.include?("where not delegated")
   fail_check("#{row[:unit]} goal lacks common-requirements start gate") unless body.include?("COMMON_REQUIREMENTS.md")
   fail_check("#{row[:unit]} goal has move-unsafe relative program references") if body.match?(%r{`\.\./(?:COMMON_REQUIREMENTS|INVENTORY)\.md`})
@@ -3613,6 +5181,7 @@ rows.each do |row|
   unexpected_start_units = named_start_units - row[:requires]
   fail_check("#{row[:unit]} start gate names non-prerequisites: #{unexpected_start_units.join(', ')}") unless unexpected_start_units.empty?
   expected_unlocks = reverse[row[:unit]]
+  expected_unlocks = expected_unlocks.sort_by(&:b) if row[:unit].start_with?("primitive/")
   unlock_line = body[/^- Unlocks after verification:.*$/]
   actual_unlocks = unlock_line.to_s.scan(/`([^`]+)`/).flatten
   fail_check("unlock mismatch for #{row[:unit]}: expected #{expected_unlocks}, got #{actual_unlocks}") unless actual_unlocks == expected_unlocks
@@ -3620,7 +5189,88 @@ rows.each do |row|
   normative_count = body.scan(/\b(?:MUST|MUST NOT|REQUIRED|SHALL|SHALL NOT)\b/).length
   fail_check("#{row[:unit]} goal is too thin: #{normative_count} normative requirements") if normative_count < 15
 end
-fail_check("expected #{EXPECTED_UNITS} resolved inventory goals, found #{seen_goals.length}") unless seen_goals.length == EXPECTED_UNITS
+fail_check("expected #{EXPECTED_SCHEDULABLE_UNITS} resolved inventory goals, found #{seen_goals.length}") unless seen_goals.length == EXPECTED_SCHEDULABLE_UNITS
+primitive_extension_inventory_errors(
+  public_contracts: public_contracts, rows: rows, goal_bodies: goal_bodies
+).each { |error| fail_check(error) }
+unit_order_fixture = JSON.parse(JSON.generate(public_contracts))
+unit_order_fixture.fetch("units")[0], unit_order_fixture.fetch("units")[1] =
+  unit_order_fixture.fetch("units")[1], unit_order_fixture.fetch("units")[0]
+unless primitive_extension_inventory_errors(
+  public_contracts: unit_order_fixture, rows: rows, goal_bodies: goal_bodies
+).include?("identity inventory/public-contract unit order drifted")
+  fail_check("public-contract unit-order negative fixture was accepted")
+end
+public_contract_goal_binding_errors(public_contracts, rows, goal_bodies).each { |error| fail_check(error) }
+
+primitive_fixture_rows = Marshal.load(Marshal.dump(rows))
+primitive_fixture_rows.reject! { |row| row[:unit] == primitive_extension_rows.first[:unit] }
+if primitive_extension_inventory_errors(public_contracts: public_contracts, rows: primitive_fixture_rows, goal_bodies: goal_bodies).empty?
+  fail_check("primitive-extension row deletion negative fixture was accepted")
+end
+consumer_fixture_rows = Marshal.load(Marshal.dump(rows))
+extension_requirement_fixture = public_contracts.dig("manifest_schema", "required_primitive_extensions").first
+consumer_fixture_unit = extension_requirement_fixture.fetch("consumers").first
+consumer_fixture_rows.find { |row| row[:unit] == consumer_fixture_unit }[:requires].delete(extension_requirement_fixture.fetch("extension_unit"))
+if primitive_extension_inventory_errors(public_contracts: public_contracts, rows: consumer_fixture_rows, goal_bodies: goal_bodies).empty?
+  fail_check("primitive-extension consumer prerequisite negative fixture was accepted")
+end
+consumer_catalog_fixture = JSON.parse(JSON.generate(public_contracts))
+consumer_catalog_fixture.dig("manifest_schema", "required_primitive_extensions").first.fetch("consumers").pop
+if primitive_extension_inventory_errors(public_contracts: consumer_catalog_fixture, rows: rows, goal_bodies: goal_bodies).empty?
+  fail_check("primitive-extension derived consumer negative fixture was accepted")
+end
+digest_fixture_contracts = JSON.parse(JSON.generate(public_contracts))
+digest_fixture_contracts.dig("manifest_schema", "required_primitive_extensions").first["required_contract_sha256"] = "sha256:#{'0' * 64}"
+if primitive_extension_inventory_errors(public_contracts: digest_fixture_contracts, rows: rows, goal_bodies: goal_bodies).empty?
+  fail_check("primitive-extension digest negative fixture was accepted")
+end
+identity_leak_fixture = JSON.parse(JSON.generate(public_contracts))
+identity_leak_fixture.fetch("units") << {"unit" => primitive_extension_rows.first[:unit]}
+if primitive_extension_inventory_errors(public_contracts: identity_leak_fixture, rows: rows, goal_bodies: goal_bodies).empty?
+  fail_check("primitive-extension identity-unit leak negative fixture was accepted")
+end
+contract_id_fixture = JSON.parse(JSON.generate(public_contracts))
+contract_id_fixture.fetch("units").first["contract_id"] = "contract:unit:forged:v1"
+if public_contract_goal_binding_errors(contract_id_fixture, rows, goal_bodies).empty?
+  fail_check("public-contract unit ID negative fixture was accepted")
+end
+operation_contract_id_fixture = JSON.parse(JSON.generate(public_contracts))
+operation_contract_id_fixture.fetch("operations").first["contract_id"] = "contract:operation:forged:v1"
+if public_contract_goal_binding_errors(operation_contract_id_fixture, rows, goal_bodies).empty?
+  fail_check("public-contract operation ID negative fixture was accepted")
+end
+operation_interface_fixture = JSON.parse(JSON.generate(public_contracts))
+operation_interface_fixture.fetch("operations").first.fetch("method")["interface"] = "go:forged:MissingService"
+if public_contract_goal_binding_errors(operation_interface_fixture, rows, goal_bodies).empty?
+  fail_check("public-contract operation interface negative fixture was accepted")
+end
+operation_method_fixture = JSON.parse(JSON.generate(public_contracts))
+operation_method_fixture.fetch("operations").first.fetch("method")["signature"] = "Forged() error"
+if public_contract_goal_binding_errors(operation_method_fixture, rows, goal_bodies).empty?
+  fail_check("public-contract operation method negative fixture was accepted")
+end
+goal_contract_fixture_bodies = goal_bodies.dup
+goal_contract_fixture_unit = identity_rows.first[:unit]
+goal_contract_fixture_bodies[goal_contract_fixture_unit] = goal_contract_fixture_bodies.fetch(goal_contract_fixture_unit).sub(
+  "contract:unit:#{goal_contract_fixture_unit}:v1", "contract:unit:forged:v1"
+)
+if public_contract_goal_binding_errors(public_contracts, rows, goal_contract_fixture_bodies).empty?
+  fail_check("goal public-contract ID negative fixture was accepted")
+end
+external_goal_contract_fixture_bodies = goal_bodies.dup
+external_goal_contract_unit = "primitive/authorization-identity-contracts"
+external_goal_contract_fixture_bodies[external_goal_contract_unit] = external_goal_contract_fixture_bodies.fetch(external_goal_contract_unit).sub(
+  "contract:operation:identity.admin.permission-check:v1", "contract:operation:forged:v1"
+)
+if public_contract_goal_binding_errors(public_contracts, rows, external_goal_contract_fixture_bodies).empty?
+  fail_check("external-owner goal public-contract ID negative fixture was accepted")
+end
+source_digest_fixture = JSON.parse(JSON.generate(public_contracts))
+source_digest_fixture.fetch("source_digests")["public_contracts.rb"] = "sha256:#{'0' * 64}"
+if public_contract_source_digest_errors(source_digest_fixture, root: ROOT).empty?
+  fail_check("public-contract helper digest negative fixture was accepted")
+end
 
 dependencies = File.read(File.join(ROOT, "DEPENDENCIES.md"))
 aliases = {}
@@ -3643,6 +5293,11 @@ fail_check("Mermaid mismatch; missing=#{missing_edges.to_a} extra=#{extra_edges.
 
 readme = File.read(File.join(ROOT, "README.md"))
 program = File.read(File.join(ROOT, "PROGRAM.md"))
+program_journey_count_errors(program, 19).each { |error| fail_check(error) }
+stale_program_count = program.sub("closes all 19 journeys", "closes the 18 journeys")
+if program_journey_count_errors(stale_program_count, 19).empty?
+  fail_check("stale program journey count negative fixture was accepted")
+end
 artifacts = {}
 COORDINATOR_ARTIFACTS.each do |artifact|
   artifact_path = File.join(ROOT, artifact)
@@ -3659,7 +5314,7 @@ COORDINATOR_ARTIFACTS.grep(/\.json\z/).each do |artifact|
   fail_check("#{artifact} is not canonical JSON") unless artifacts.fetch(artifact) == JSON.pretty_generate(document) + "\n"
 end
 
-semantic_owners = units.to_set | EXISTING_OWNERS | Set["audit"]
+semantic_owners = identity_units.to_set | EXISTING_OWNERS | Set["audit"]
 end_state_acceptance = JSON.parse(artifacts.fetch("END_STATE_ACCEPTANCE.json"))
 fail_check("end-state acceptance authority drifted") unless end_state_acceptance.fetch("authority") == "END_STATE.md"
 expected_acceptance_keys = %w[schema_version authority digest_algorithm digest_input evidence_record_contract artifact_observation_contract input_identity_contract journeys cross_cutting artifact_catalog]
@@ -3674,7 +5329,12 @@ input_identity_contract = end_state_acceptance.fetch("input_identity_contract")
 expected_manifest_fields = %w[path_or_environment_id kind content_identity owner reason]
 fail_check("end-state input-manifest schema drifted") unless input_identity_contract.fetch("manifest_entry_fields") == expected_manifest_fields
 fail_check("end-state input-manifest class closure is incomplete") unless input_identity_contract.fetch("required_input_classes").length == 5
-fail_check("end-state journey closure drifted") unless end_state_acceptance.fetch("journeys").map { |row| row.fetch("number") } == (1..18).to_a
+fail_check("end-state non-behavioral provenance exclusions drifted") unless input_identity_contract.fetch("non_behavioral_provenance_exclusions") == NON_BEHAVIORAL_IDENTITY_PLATFORM_INPUTS
+unless input_identity_contract.fetch("provenance_rule").include?("DEPENDENCIES.md remains a behavior input")
+  fail_check("end-state input provenance rule omits dependency invalidation")
+end
+fail_check("end-state journey closure drifted") unless end_state_acceptance.fetch("journeys").map { |row| row.fetch("number") } == (1..19).to_a
+end_state_acceptance_identity_errors(end_state_acceptance).each { |error| fail_check(error) }
 acceptance_digest_resolver = ->(row) { end_state_semantic_digest(row, end_state) }
 semantic_manifest_errors(end_state_acceptance, kind: "end-state acceptance", collections: %w[journeys cross_cutting], known_owners: semantic_owners, digest_resolver: acceptance_digest_resolver, schema_version: 2).each { |error| fail_check(error) }
 acceptance_rows = end_state_acceptance.fetch("journeys") + end_state_acceptance.fetch("cross_cutting")
@@ -3684,6 +5344,11 @@ artifact_ids = artifact_catalog.map { |row| row.fetch("id") }
 fail_check("end-state artifact catalog is not sorted and unique") unless artifact_ids == artifact_ids.sort_by(&:b).uniq
 fail_check("end-state artifact catalog closure drifted") unless artifact_ids.to_set == referenced_acceptance_artifacts.to_set
 fail_check("end-state acceptance artifact references are duplicated") unless referenced_acceptance_artifacts.uniq == referenced_acceptance_artifacts
+required_acceptance_evidence_errors(end_state_acceptance).each { |error| fail_check(error) }
+acceptance_checker_output, acceptance_checker_status = Open3.capture2e(
+  "ruby", File.join(ROOT, "acceptance", "check.rb"), chdir: REPOSITORY_ROOT
+)
+fail_check("artifact-specific acceptance checker failed: #{acceptance_checker_output.strip}") unless acceptance_checker_status.success?
 artifact_paths = artifact_catalog.map { |row| row.fetch("path") }
 artifact_schemas = artifact_catalog.map { |row| row.fetch("schema") }
 fail_check("end-state artifact paths are not unique") unless artifact_paths.uniq == artifact_paths
@@ -3706,20 +5371,57 @@ artifact_catalog.each do |artifact|
   if id == "audit-retention-plan-confirm-report"
     expected_operations = %w[identity.audit-retention.deletion.plan identity.audit-retention.deletion.confirm]
     fail_check("audit-retention acceptance artifact omits plan/confirm operations") unless artifact.fetch("operation_claims") == expected_operations
+  elsif id == "phone-reset-risk-evidence-report"
+    expected_operations = %w[
+      identity.phone.password-reset-request identity.phone.password-reset-complete identity.risk.evaluate
+    ]
+    fail_check("phone-reset acceptance artifact operation closure drifted") unless artifact.fetch("operation_claims") == expected_operations
   end
 end
 deleted_journey = JSON.parse(JSON.generate(end_state_acceptance))
 deleted_journey.fetch("journeys").pop
 deleted_errors = semantic_manifest_errors(deleted_journey, kind: "end-state acceptance", collections: %w[journeys cross_cutting], known_owners: semantic_owners, digest_resolver: acceptance_digest_resolver, schema_version: 2)
-deleted_errors << "journey closure" unless deleted_journey.fetch("journeys").map { |row| row.fetch("number") } == (1..18).to_a
+deleted_errors.concat(end_state_acceptance_identity_errors(deleted_journey))
+deleted_errors.concat(required_acceptance_evidence_errors(deleted_journey))
 fail_check("end-state journey deletion mutation was accepted") if deleted_errors.empty?
+REQUIRED_ACCEPTANCE_OPERATION_EVIDENCE.each do |artifact_id, required_operations|
+  required_operations.each do |operation_id|
+    missing_operation = JSON.parse(JSON.generate(end_state_acceptance))
+    artifact = missing_operation.fetch("artifact_catalog").find { |row| row.fetch("id") == artifact_id }
+    artifact.fetch("operation_claims").delete(operation_id)
+    fail_check("#{artifact_id} missing #{operation_id} evidence mutation was accepted") if required_acceptance_evidence_errors(missing_operation).empty?
+  end
+end
 drifted_journey = JSON.parse(JSON.generate(end_state_acceptance))
 drifted_journey.fetch("journeys").first.fetch("artifacts")[0] = "weakened-artifact"
 fail_check("end-state journey semantic mutation was accepted") if semantic_manifest_errors(drifted_journey, kind: "end-state acceptance", collections: %w[journeys cross_cutting], known_owners: semantic_owners, digest_resolver: acceptance_digest_resolver, schema_version: 2).empty?
+byte_drifted_end_state = end_state.sub("1. **Identity lifecycle:**", "1.  **Identity lifecycle:**")
+byte_drifted_resolver = ->(row) { end_state_semantic_digest(row, byte_drifted_end_state) }
+if semantic_manifest_errors(end_state_acceptance, kind: "end-state acceptance", collections: %w[journeys cross_cutting], known_owners: semantic_owners, digest_resolver: byte_drifted_resolver, schema_version: 2).empty?
+  fail_check("end-state authoritative byte mutation was accepted")
+end
+swapped_acceptance_identity = JSON.parse(JSON.generate(end_state_acceptance))
+first_identity = swapped_acceptance_identity.fetch("journeys")[0].fetch("id")
+second_identity = swapped_acceptance_identity.fetch("journeys")[1].fetch("id")
+swapped_acceptance_identity.fetch("journeys")[0]["id"] = second_identity
+swapped_acceptance_identity.fetch("journeys")[1]["id"] = first_identity
+swapped_acceptance_identity.fetch("journeys").first(2).each do |row|
+  row["semantic_digest"] = end_state_semantic_digest(row, end_state)
+end
+swapped_identity_errors = semantic_manifest_errors(
+  swapped_acceptance_identity, kind: "end-state acceptance", collections: %w[journeys cross_cutting],
+  known_owners: semantic_owners, digest_resolver: acceptance_digest_resolver, schema_version: 2
+)
+swapped_identity_errors.concat(end_state_acceptance_identity_errors(swapped_acceptance_identity))
+fail_check("self-authenticated end-state semantic identity mutation was accepted") if swapped_identity_errors.empty?
 
 parity_dispositions = JSON.parse(artifacts.fetch("PARITY_DISPOSITIONS.json"))
 fail_check("parity disposition authority drifted") unless parity_dispositions.fetch("authority") == "BETTER_AUTH_PARITY.md"
-semantic_manifest_errors(parity_dispositions, kind: "parity dispositions", collections: %w[dispositions ownership_reclassifications], known_owners: semantic_owners).each { |error| fail_check(error) }
+parity_artifact_documents = artifacts.merge(
+  "BETTER_AUTH_PARITY.md" => File.read(File.join(ROOT, "BETTER_AUTH_PARITY.md"))
+)
+parity_digest_resolver = ->(row) { authoritative_artifact_semantic_digest(row, parity_artifact_documents) }
+semantic_manifest_errors(parity_dispositions, kind: "parity dispositions", collections: %w[dispositions ownership_reclassifications], known_owners: semantic_owners, digest_resolver: parity_digest_resolver).each { |error| fail_check(error) }
 expected_parity_keys = %w[schema_version authority digest_algorithm digest_input dispositions ownership_reclassifications provider_native_token_modes captcha_owners]
 fail_check("parity disposition schema drifted") unless parity_dispositions.keys == expected_parity_keys
 expected_disposition_ids = %w[
@@ -3732,8 +5434,16 @@ fail_check("parity disposition closure drifted") unless parity_dispositions.fetc
 required_exclusions = %w[exclusion.billing.v1 exclusion.siwe.v1 exclusion.mcp-authentication.v1 exclusion.agent-authentication.v1]
 fail_check("parity exact exclusion closure drifted") unless required_exclusions.all? { |id| parity_dispositions.fetch("dispositions").any? { |row| row.fetch("id") == id && row.fetch("kind") == "excluded" } }
 configuration_catalog_document = JSON.parse(artifacts.fetch("CONFIGURATION_CATALOGS.json"))
-fail_check("parity native-token closure drifted") unless parity_dispositions.fetch("provider_native_token_modes") == {"artifact" => "CONFIGURATION_CATALOGS.json#native_token_modes", "closed_default" => configuration_catalog_document.dig("native_token_modes", "default")}
-fail_check("parity CAPTCHA-owner closure drifted") unless parity_dispositions.fetch("captcha_owners") == {"artifact" => "CONFIGURATION_CATALOGS.json#captcha.owners", "required_count" => configuration_catalog_document.dig("captcha", "owners").length}
+parity_closure_errors(parity_dispositions, configuration_catalog_document).each { |error| fail_check(error) }
+{
+  "closed_default" => lambda { |fixture| fixture.fetch("provider_native_token_modes")["closed_default"] = ["forged"] },
+  "required_count" => lambda { |fixture| fixture.fetch("captcha_owners")["required_count"] += 1 },
+  "missing closure field" => lambda { |fixture| fixture.fetch("provider_native_token_modes").delete("closed_default") }
+}.each do |label, mutate|
+  fixture = JSON.parse(JSON.generate(parity_dispositions))
+  mutate.call(fixture)
+  fail_check("parity #{label} negative fixture was accepted") if parity_closure_errors(fixture, configuration_catalog_document).empty?
+end
 expected_reclassifications = [
   ["reclassification.remote-signing.v1", configuration_catalog_document.dig("jwt_profile_ownership", "remote_signing")],
   ["reclassification.hosted-jwks.v1", configuration_catalog_document.dig("jwt_profile_ownership", "hosted_jwks")]
@@ -3744,7 +5454,14 @@ expected_reclassifications.each do |id, expected|
 end
 drifted_disposition = JSON.parse(JSON.generate(parity_dispositions))
 drifted_disposition.fetch("dispositions").first["owner"] = "identity/http"
-fail_check("parity semantic mutation was accepted") if semantic_manifest_errors(drifted_disposition, kind: "parity dispositions", collections: %w[dispositions ownership_reclassifications], known_owners: semantic_owners).empty?
+fail_check("parity semantic mutation was accepted") if semantic_manifest_errors(drifted_disposition, kind: "parity dispositions", collections: %w[dispositions ownership_reclassifications], known_owners: semantic_owners, digest_resolver: parity_digest_resolver).empty?
+meaning_insensitive_disposition = JSON.parse(JSON.generate(parity_dispositions))
+meaning_insensitive_row = meaning_insensitive_disposition.fetch("dispositions").first
+meaning_insensitive_row["artifact"] = "CONFIGURATION_CATALOGS.json"
+meaning_insensitive_row["semantic_digest"] = semantic_row_digest(meaning_insensitive_row)
+if semantic_manifest_errors(meaning_insensitive_disposition, kind: "parity dispositions", collections: %w[dispositions ownership_reclassifications], known_owners: semantic_owners, digest_resolver: parity_digest_resolver).empty?
+  fail_check("meaning-insensitive parity semantic digest fixture was accepted")
+end
 
 verification = JSON.parse(artifacts.fetch("VERIFICATION_APPLICABILITY.json"))
 verification_selectors = %w[race fuzz hostile leak benchmark infrastructure provider_interoperability]
@@ -3753,6 +5470,13 @@ fail_check("verification applicability authority drifted") unless verification.f
 fail_check("verification applicability selectors drifted") unless verification.fetch("selectors") == verification_selectors
 verification_rows = verification.fetch("units")
 fail_check("verification applicability unit closure drifted") unless verification_rows.map { |row| row.fetch("unit") } == units
+username_verification = verification_rows.find { |row| row.fetch("unit") == "identity/username" }.fetch("selectors")
+username_verification_errors(username_verification, goal_body: goal_bodies.fetch("identity/username")).each { |error| fail_check(error) }
+username_downgrade = JSON.parse(JSON.generate(username_verification))
+username_downgrade["fuzz"] = {"status" => "not_applicable", "reviewed_reason" => "identity/username fixture incorrectly waives required property evidence"}
+if username_verification_errors(username_downgrade).empty?
+  fail_check("identity/username verification downgrade negative fixture was accepted")
+end
 verification_rows.each do |row|
   unit = row.fetch("unit")
   selectors = row.fetch("selectors")
@@ -3767,11 +5491,26 @@ verification_rows.each do |row|
     end
   end
   goal_body = goal_bodies.fetch(unit)
+  goal_verification_selector_errors(unit: unit, selectors: selectors, goal_body: goal_body).each { |error| fail_check(error) }
   inline = goal_body[/Verification applicability is exact for this unit:.*?provider_interoperability=(required|not_applicable)/m]
   next unless inline
   inline_values = inline.scan(/`?(race|fuzz|hostile|leak|benchmark|infrastructure|provider_interoperability)=(required|not_applicable)`?/).to_h
   manifest_values = selectors.transform_values { |value| value.fetch("status") }
   fail_check("#{unit} inline verification applicability contradicts canonical manifest") unless inline_values == manifest_values
+end
+goal_selector_fixture_unit = "identity/identitytest"
+goal_selector_fixture = JSON.parse(JSON.generate(
+  verification_rows.find { |row| row.fetch("unit") == goal_selector_fixture_unit }.fetch("selectors")
+))
+goal_selector_fixture["benchmark"] = {
+  "status" => "not_applicable",
+  "reviewed_reason" => "#{goal_selector_fixture_unit} fixture incorrectly waives its explicit benchmark gate"
+}
+if goal_verification_selector_errors(
+  unit: goal_selector_fixture_unit, selectors: goal_selector_fixture,
+  goal_body: goal_bodies.fetch(goal_selector_fixture_unit)
+).empty?
+  fail_check("goal-required verification selector downgrade negative fixture was accepted")
 end
 weakened_verification = JSON.parse(JSON.generate(verification))
 weakened_verification.fetch("units").first.fetch("selectors").delete("race")
@@ -3779,13 +5518,51 @@ fail_check("verification applicability selector deletion mutation was accepted")
 
 semantic_root_inputs = {
   goal_manifest: goal_manifest, acceptance: end_state_acceptance,
+  acceptance_catalog: artifacts.fetch("ACCEPTANCE_ARTIFACTS.json"),
+  acceptance_model: File.binread(File.join(ROOT, "acceptance/model.rb")),
+  acceptance_check: File.binread(File.join(ROOT, "acceptance/check.rb")),
+  acceptance_schema_validation: File.binread(File.join(ROOT, "acceptance/schema_validation.rb")),
+  acceptance_schemas: Dir[File.join(ROOT, "acceptance/v1/schemas/*.json")].sort.to_h do |path|
+    [path.delete_prefix("#{ROOT}/"), File.binread(path)]
+  end,
   operations: JSON.parse(artifacts.fetch("OPERATION_SEMANTICS.json")),
+  public_contracts: public_contracts_source,
+  public_contracts_helper: public_contracts_helper,
+  shared_applicability: applicability_document,
+  shared_applicability_helper: File.binread(File.join(ROOT, "shared_contract_applicability.rb")),
   parity: parity_dispositions, verification: verification,
   configuration: configuration_catalog_document,
   protocol: JSON.parse(artifacts.fetch("PROTOCOL_CONFORMANCE_MANIFEST.json"))
 }
 semantic_root = program_semantic_root(**semantic_root_inputs)
 fail_check("program semantic root drifted: #{semantic_root}") unless semantic_root == EXPECTED_PROGRAM_SEMANTIC_ROOT
+if program_semantic_root(**semantic_root_inputs.merge(public_contracts: public_contracts_source.sub("\"schema_version\"", "\"schema_version_drift\""))) == EXPECTED_PROGRAM_SEMANTIC_ROOT
+  fail_check("public-contract aggregate mutation bypassed program semantic root")
+end
+if program_semantic_root(**semantic_root_inputs.merge(public_contracts_helper: public_contracts_helper + "\n")) == EXPECTED_PROGRAM_SEMANTIC_ROOT
+  fail_check("public-contract helper mutation bypassed program semantic root")
+end
+acceptance_schema_path, acceptance_schema_source = semantic_root_inputs.fetch(:acceptance_schemas).first
+acceptance_contract_mutation = semantic_root_inputs.merge(
+  acceptance_catalog: semantic_root_inputs.fetch(:acceptance_catalog) + "\n",
+  acceptance_model: semantic_root_inputs.fetch(:acceptance_model) + "\n",
+  acceptance_check: semantic_root_inputs.fetch(:acceptance_check) + "\n",
+  acceptance_schema_validation: semantic_root_inputs.fetch(:acceptance_schema_validation) + "\n",
+  acceptance_schemas: semantic_root_inputs.fetch(:acceptance_schemas).merge(acceptance_schema_path => acceptance_schema_source + "\n")
+)
+if program_semantic_root(**acceptance_contract_mutation) == EXPECTED_PROGRAM_SEMANTIC_ROOT
+  fail_check("paired acceptance contract mutation bypassed program semantic root")
+end
+shared_applicability_mutation = JSON.parse(JSON.generate(applicability_document))
+shared_applicability_mutation.fetch("units").fetch("identity/i18n").fetch("configuration").delete("ref.i18n.default")
+shared_applicability_mutation.fetch("units").fetch("identity/http").fetch("configuration") << "ref.i18n.default"
+shared_applicability_mutation.fetch("units").fetch("identity/http").fetch("configuration").sort!
+if program_semantic_root(**semantic_root_inputs.merge(shared_applicability: shared_applicability_mutation)) == EXPECTED_PROGRAM_SEMANTIC_ROOT
+  fail_check("shared-contract applicability ownership mutation bypassed program semantic root")
+end
+if program_semantic_root(**semantic_root_inputs.merge(shared_applicability_helper: semantic_root_inputs.fetch(:shared_applicability_helper) + "\n")) == EXPECTED_PROGRAM_SEMANTIC_ROOT
+  fail_check("shared-contract applicability helper mutation bypassed program semantic root")
+end
 paired_acceptance_mutation = JSON.parse(JSON.generate(end_state_acceptance))
 paired_row = paired_acceptance_mutation.fetch("journeys").first
 paired_row.fetch("artifacts")[0] = "paired-weakened-artifact"
@@ -3814,7 +5591,33 @@ fixture_environment_inputs = REQUIRED_ENVIRONMENT_INPUT_IDS.map do |identity|
 end
 fixture_manifest = (tracked_behavior_input_manifest(fixture_revision, modules) + fixture_environment_inputs).sort_by { |entry| entry.fetch("path_or_environment_id").b }
 fixture_input = behavior_input_fingerprint(fixture_manifest)
-fixture_artifact_digest = "sha256:#{Digest::SHA256.file(File.join(REPOSITORY_ROOT, '.ai/identity-platform/fixtures/local-gate-artifact.txt')).hexdigest}"
+fixture_acceptance_contract = IdentityPlatformAcceptance.catalog_document.fetch("artifacts").find { |entry| entry.fetch("artifact_id") == fixture_declaration.fetch("id") }
+fixture_schema = IdentityPlatformAcceptance.schema_document(fixture_acceptance_contract)
+fixture_artifact_payload = AcceptanceSchemaValidation.sample(fixture_schema.dig("$defs", "artifact_evidence"))
+fixture_schema.dig("$defs", "artifact_evidence", "x-semantic-rules").each do |rule|
+  case rule.fetch("kind")
+  when "positive" then rule.fetch("fields").each { |field| fixture_artifact_payload[field] = 1 }
+  when "zero" then rule.fetch("fields").each { |field| fixture_artifact_payload[field] = 0 }
+  when "true" then rule.fetch("fields").each { |field| fixture_artifact_payload[field] = true }
+  when "equal" then fixture_artifact_payload[rule.fetch("right")] = fixture_artifact_payload.fetch(rule.fetch("left"))
+  when "const" then fixture_artifact_payload[rule.fetch("field")] = rule.fetch("value")
+  end
+end
+fixture_execution = fixture_artifact_payload.fetch("execution")
+fixture_execution.merge!(
+  "tested_revision" => fixture_revision, "input_root" => fixture_input,
+  "tool" => "fixture-tool@1", "environment" => "fixture-environment",
+  "started_at" => "2026-08-11T00:00:00Z", "completed_at" => "2026-08-11T00:00:01Z",
+  "stdout" => "affected acceptance gate completed with attributable evidence\n", "stderr" => ""
+)
+AcceptanceSchemaValidation.bind_execution_proof!(fixture_execution)
+fixture_receipt_bytes = AcceptanceSchemaValidation.execution_receipt_bytes(fixture_execution)
+fixture_receipt_path = fixture_execution.fetch("execution_receipt_path")
+fixture_receipt_digest = "sha256:#{Digest::SHA256.hexdigest(fixture_receipt_bytes)}"
+fixture_artifact_bytes = JSON.pretty_generate(fixture_artifact_payload) + "\n"
+fixture_artifact_path = fixture_acceptance_contract.fetch("artifact_evidence_output_path")
+fixture_artifact_digest = "sha256:#{Digest::SHA256.hexdigest(fixture_artifact_bytes)}"
+fixture_artifact_payloads = {fixture_artifact_path => fixture_artifact_bytes, fixture_receipt_path => fixture_receipt_bytes}
 fixture_evidence = {
   "schema_version" => 2, "artifact_id" => fixture_declaration.fetch("id"),
   "result" => {"status" => "pass", "gate" => fixture_declaration.fetch("gate")},
@@ -3822,69 +5625,189 @@ fixture_evidence = {
   "revalidation_revision" => nil,
   "input_manifest" => fixture_manifest, "input_root" => fixture_input,
   "tool_environment" => {"tool" => "fixture-tool@1", "environment" => "fixture-environment"},
-  "observations" => (fixture_declaration.fetch("claims") + fixture_declaration.fetch("operation_claims", [])).sort_by(&:b).map do |claim|
-    {"observation_id" => "#{fixture_declaration.fetch('id')}.#{claim}.behavior", "claim_id" => claim,
-     "contract_reference" => fixture_declaration.fetch("schema"), "scenario" => "fixture scenario",
-     "preconditions" => "fixture preconditions", "stimulus" => "fixture stimulus",
-     "expected_outcome" => "fixture outcome", "actual_outcome" => "fixture outcome", "result" => "pass",
-     "artifact_sha256" => fixture_artifact_digest}
+  "observations" => fixture_acceptance_contract.fetch("required_observations").map do |observation|
+    observation.merge("artifact_sha256" => fixture_artifact_digest)
   end,
-  "artifact_hashes" => [{"path" => ".ai/identity-platform/fixtures/local-gate-artifact.txt", "sha256" => fixture_artifact_digest}],
+  "artifact_hashes" => [
+    {"path" => fixture_artifact_path, "sha256" => fixture_artifact_digest},
+    {"path" => fixture_receipt_path, "sha256" => fixture_receipt_digest}
+  ],
   "recorded_at" => "2026-08-11T00:00:00Z"
 }
-fail_check("valid acceptance evidence fixture was rejected") unless acceptance_evidence_errors(fixture_evidence, declaration: fixture_declaration, revision: fixture_revision, input_fingerprint: fixture_input).empty?
+fixture_acceptance_errors = lambda do |evidence, payloads = fixture_artifact_payloads|
+  acceptance_evidence_errors(
+    evidence, declaration: fixture_declaration, revision: fixture_revision,
+    input_fingerprint: fixture_input, artifact_payloads: payloads
+  )
+end
+fail_check("valid acceptance evidence fixture was rejected") unless fixture_acceptance_errors.call(fixture_evidence).empty?
 acceptance_reuse_fixture = JSON.parse(JSON.generate(fixture_evidence))
 acceptance_reuse_fixture["gate_execution_revision"] = "1" * 40
 acceptance_reuse_fixture["revalidation_revision"] = "1" * 40
-fail_check("valid acceptance fingerprint-reuse fixture was rejected") unless acceptance_evidence_errors(acceptance_reuse_fixture, declaration: fixture_declaration, revision: fixture_revision, input_fingerprint: fixture_input).empty?
+fail_check("valid acceptance fingerprint-reuse fixture was rejected") unless fixture_acceptance_errors.call(acceptance_reuse_fixture).empty?
 %w[result tested_revision revalidation_revision input_manifest input_root observations artifact_hashes].each do |field|
   mutation = JSON.parse(JSON.generate(fixture_evidence))
   mutation[field] = %w[input_manifest observations artifact_hashes].include?(field) ? [] : "invalid"
-  fail_check("acceptance evidence #{field} mutation was accepted") if acceptance_evidence_errors(mutation, declaration: fixture_declaration, revision: fixture_revision, input_fingerprint: fixture_input).empty?
+  fail_check("acceptance evidence #{field} mutation was accepted") if fixture_acceptance_errors.call(mutation).empty?
 end
 acceptance_reuse_without_marker = JSON.parse(JSON.generate(fixture_evidence))
 acceptance_reuse_without_marker["gate_execution_revision"] = "1" * 40
-fail_check("acceptance reuse without revalidation revision was accepted") if acceptance_evidence_errors(acceptance_reuse_without_marker, declaration: fixture_declaration, revision: fixture_revision, input_fingerprint: fixture_input).empty?
+fail_check("acceptance reuse without revalidation revision was accepted") if fixture_acceptance_errors.call(acceptance_reuse_without_marker).empty?
 acceptance_marker_without_reuse = JSON.parse(JSON.generate(fixture_evidence))
 acceptance_marker_without_reuse["revalidation_revision"] = fixture_revision
-fail_check("acceptance revalidation revision without reuse was accepted") if acceptance_evidence_errors(acceptance_marker_without_reuse, declaration: fixture_declaration, revision: fixture_revision, input_fingerprint: fixture_input).empty?
+fail_check("acceptance revalidation revision without reuse was accepted") if fixture_acceptance_errors.call(acceptance_marker_without_reuse).empty?
 forged_claim_only = JSON.parse(JSON.generate(fixture_evidence)); forged_claim_only["artifact_hashes"] = []
-fail_check("forged claim-only acceptance evidence was accepted") if acceptance_evidence_errors(forged_claim_only, declaration: fixture_declaration, revision: fixture_revision, input_fingerprint: fixture_input).empty?
+fail_check("forged claim-only acceptance evidence was accepted") if fixture_acceptance_errors.call(forged_claim_only).empty?
 {
   "foreign observation" => lambda { |evidence| evidence["observations"][0]["observation_id"] = "other-artifact.foreign.behavior" },
-  "missing expected outcome" => lambda { |evidence| evidence["observations"][0]["expected_outcome"] = "" },
+  "foreign claim" => lambda { |evidence| evidence["observations"][0]["claim_id"] = "identity.foreign.operation" },
+  "foreign artifact" => lambda { |evidence| evidence["artifact_id"] = "foreign-artifact" },
+  "missing expected outcome" => lambda { |evidence| evidence["observations"][0].delete("expected_outcome") },
+  "missing actual outcome" => lambda { |evidence| evidence["observations"][0].delete("actual_outcome") },
   "non-pass observation" => lambda { |evidence| evidence["observations"][0]["result"] = "failed" },
   "unbound observation artifact" => lambda { |evidence| evidence["observations"][0]["artifact_sha256"] = "sha256:#{'f' * 64}" }
 }.each do |label, mutate|
   mutation = JSON.parse(JSON.generate(fixture_evidence))
   mutate.call(mutation)
-  if acceptance_evidence_errors(mutation, declaration: fixture_declaration, revision: fixture_revision, input_fingerprint: fixture_input).empty?
+  if fixture_acceptance_errors.call(mutation).empty?
     fail_check("acceptance evidence #{label} mutation was accepted")
   end
+end
+invalid_artifact_payload = JSON.parse(JSON.generate(fixture_artifact_payload))
+invalid_artifact_payload.delete(fixture_acceptance_contract.fetch("artifact_evidence_fields").first)
+invalid_artifact_bytes = JSON.pretty_generate(invalid_artifact_payload) + "\n"
+invalid_artifact_digest = "sha256:#{Digest::SHA256.hexdigest(invalid_artifact_bytes)}"
+invalid_artifact_record = JSON.parse(JSON.generate(fixture_evidence))
+invalid_artifact_record["artifact_hashes"][0]["sha256"] = invalid_artifact_digest
+invalid_artifact_record["observations"].each { |observation| observation["artifact_sha256"] = invalid_artifact_digest }
+if fixture_acceptance_errors.call(invalid_artifact_record, fixture_artifact_payloads.merge(fixture_artifact_path => invalid_artifact_bytes)).empty?
+  fail_check("acceptance evidence invalid artifact payload schema mutation was accepted")
+end
+wrong_artifact_path_record = JSON.parse(JSON.generate(fixture_evidence))
+wrong_artifact_path_record["artifact_hashes"][0]["path"] = ".ai/identity-platform/evidence/artifacts/wrong-artifact.json"
+if fixture_acceptance_errors.call(wrong_artifact_path_record).empty?
+  fail_check("acceptance evidence wrong artifact payload path mutation was accepted")
+end
+if fixture_acceptance_errors.call(fixture_evidence, {}).empty?
+  fail_check("acceptance evidence absent artifact payload bytes mutation was accepted")
+end
+if fixture_acceptance_errors.call(fixture_evidence, {fixture_artifact_path => fixture_artifact_bytes}).empty?
+  fail_check("acceptance evidence absent execution receipt bytes mutation was accepted")
+end
+digest_mismatch_bytes = fixture_artifact_bytes + "\n"
+if fixture_acceptance_errors.call(fixture_evidence, fixture_artifact_payloads.merge(fixture_artifact_path => digest_mismatch_bytes)).empty?
+  fail_check("acceptance evidence artifact digest-versus-bytes mutation was accepted")
+end
+malformed_artifact_bytes = "{\n"
+malformed_artifact_digest = "sha256:#{Digest::SHA256.hexdigest(malformed_artifact_bytes)}"
+malformed_artifact_record = JSON.parse(JSON.generate(fixture_evidence))
+malformed_artifact_record["artifact_hashes"][0]["sha256"] = malformed_artifact_digest
+malformed_artifact_record["observations"].each { |observation| observation["artifact_sha256"] = malformed_artifact_digest }
+if fixture_acceptance_errors.call(malformed_artifact_record, fixture_artifact_payloads.merge(fixture_artifact_path => malformed_artifact_bytes)).empty?
+  fail_check("acceptance evidence malformed artifact JSON mutation was accepted")
+end
+forged_pass_payload = JSON.parse(JSON.generate(fixture_artifact_payload))
+forged_pass_payload["execution"]["exit_status"] = 1
+AcceptanceSchemaValidation.bind_execution_proof!(forged_pass_payload.fetch("execution"))
+forged_pass_bytes = JSON.pretty_generate(forged_pass_payload) + "\n"
+forged_pass_digest = "sha256:#{Digest::SHA256.hexdigest(forged_pass_bytes)}"
+forged_pass_record = JSON.parse(JSON.generate(fixture_evidence))
+forged_pass_record["artifact_hashes"][0]["sha256"] = forged_pass_digest
+forged_pass_record["observations"].each { |observation| observation["artifact_sha256"] = forged_pass_digest }
+if fixture_acceptance_errors.call(forged_pass_record, fixture_artifact_payloads.merge(fixture_artifact_path => forged_pass_bytes)).empty?
+  fail_check("acceptance evidence accepted self-declared pass after failed command")
+end
+coherent_forged_payload = JSON.parse(JSON.generate(fixture_artifact_payload))
+coherent_forged_payload["execution"]["stdout"] = "FABRICATED: command was never executed\n"
+AcceptanceSchemaValidation.bind_execution_proof!(coherent_forged_payload.fetch("execution"))
+coherent_forged_bytes = JSON.pretty_generate(coherent_forged_payload) + "\n"
+coherent_forged_digest = "sha256:#{Digest::SHA256.hexdigest(coherent_forged_bytes)}"
+coherent_forged_record = JSON.parse(JSON.generate(fixture_evidence))
+coherent_forged_record["artifact_hashes"].find { |row| row["path"] == fixture_artifact_path }["sha256"] = coherent_forged_digest
+coherent_forged_record["observations"].each { |observation| observation["artifact_sha256"] = coherent_forged_digest }
+coherent_forged_receipt = AcceptanceSchemaValidation.execution_receipt_bytes(coherent_forged_payload.fetch("execution"))
+coherent_forged_receipt_digest = "sha256:#{Digest::SHA256.hexdigest(coherent_forged_receipt)}"
+coherent_forged_record["artifact_hashes"].find { |row| row["path"] == fixture_receipt_path }["sha256"] = coherent_forged_receipt_digest
+coherent_forged_payloads = fixture_artifact_payloads.merge(
+  fixture_artifact_path => coherent_forged_bytes,
+  fixture_receipt_path => coherent_forged_receipt
+)
+unless fixture_acceptance_errors.call(coherent_forged_record, coherent_forged_payloads).empty?
+  fail_check("coherently recomputed synthetic provenance fixture is malformed")
+end
+if acceptance_evidence_errors(
+  coherent_forged_record, declaration: fixture_declaration, revision: fixture_revision,
+  input_fingerprint: fixture_input, artifact_payloads: coherent_forged_payloads, final_execution: true
+).empty?
+  fail_check("acceptance evidence accepted coherently recomputed synthetic execution without live runner capture")
+end
+zero_work_payload = JSON.parse(JSON.generate(fixture_artifact_payload))
+progress_rule = fixture_schema.dig("$defs", "artifact_evidence", "x-semantic-rules").find { |rule| rule.fetch("kind") == "positive" } ||
+  fixture_schema.dig("$defs", "artifact_evidence", "x-semantic-rules").find { |rule| rule.fetch("kind") == "true" }
+fail_check("acceptance evidence fixture lacks non-zero semantic work rule") unless progress_rule
+progress_rule.fetch("fields").each { |field| zero_work_payload[field] = progress_rule.fetch("kind") == "positive" ? 0 : false }
+zero_work_bytes = JSON.pretty_generate(zero_work_payload) + "\n"
+zero_work_digest = "sha256:#{Digest::SHA256.hexdigest(zero_work_bytes)}"
+zero_work_record = JSON.parse(JSON.generate(fixture_evidence))
+zero_work_record["artifact_hashes"][0]["sha256"] = zero_work_digest
+zero_work_record["observations"].each { |observation| observation["artifact_sha256"] = zero_work_digest }
+if fixture_acceptance_errors.call(zero_work_record, fixture_artifact_payloads.merge(fixture_artifact_path => zero_work_bytes)).empty?
+  fail_check("acceptance evidence accepted zero-work artifact payload")
 end
 working_only_acceptance = JSON.parse(JSON.generate(fixture_evidence))
 fail_check("working-tree-only acceptance artifact was accepted") if acceptance_evidence_errors(working_only_acceptance, declaration: fixture_declaration, revision: fixture_revision, input_fingerprint: fixture_input, repository_root: REPOSITORY_ROOT).empty?
 
 gate_fixture_revision = git_output("rev-parse", "HEAD")
 gate_fixture_artifact = ".ai/identity-platform/COMMON_REQUIREMENTS.md"
+gate_fixture_manifest = (tracked_behavior_input_manifest(gate_fixture_revision, ["pkg/identity"]) + fixture_environment_inputs).sort_by { |entry| entry.fetch("path_or_environment_id").b }
+gate_fixture_root = behavior_input_fingerprint(gate_fixture_manifest)
+excluded_gate_inputs = gate_fixture_manifest.select do |entry|
+  NON_BEHAVIORAL_IDENTITY_PLATFORM_INPUTS.any? do |excluded|
+    path = entry.fetch("path_or_environment_id")
+    excluded.end_with?("/") ? path.start_with?(excluded) : path == excluded
+  end
+end
+fail_check("local gate manifest retained non-behavioral bookkeeping") unless excluded_gate_inputs.empty?
+unless gate_fixture_manifest.any? { |entry| entry.fetch("path_or_environment_id") == ".ai/identity-platform/ORCHESTRATOR_GOAL.md" }
+  fail_check("local gate manifest omitted a normative identity-platform input")
+end
+weakened_gate_manifest = gate_fixture_manifest.reject { |entry| entry.fetch("path_or_environment_id") == ".ai/identity-platform/ORCHESTRATOR_GOAL.md" }
+if behavior_input_manifest_errors(weakened_gate_manifest, revision: gate_fixture_revision, module_roots: ["pkg/identity"], repository: REPOSITORY_ROOT).empty?
+  fail_check("local gate manifest accepted a missing normative input")
+end
 gate_fixture = {
-  "schema" => "identity-platform.local-gate.v1", "unit" => "identity",
-  "execution_revision" => gate_fixture_revision, "complete_input_fingerprint" => "sha256:#{'3' * 64}",
+  "schema_version" => 2, "schema" => "identity-platform.local-gate.v2", "unit" => "identity",
+  "tested_revision" => gate_fixture_revision, "gate_execution_revision" => gate_fixture_revision,
+  "revalidation_revision" => nil, "input_manifest" => gate_fixture_manifest, "input_root" => gate_fixture_root,
+  "evidence_record" => {"path" => ".ai/identity-platform/evidence/gates/identity.json"},
   "outcome" => "pass", "commands" => ["make check MODULES=pkg/identity"],
   "artifacts" => [{"path" => gate_fixture_artifact, "sha256" => "sha256:#{Digest::SHA256.file(File.join(REPOSITORY_ROOT, gate_fixture_artifact)).hexdigest}"}],
   "tool_identity" => "go1.fixture", "environment_identity" => "fixture-environment", "record_digest" => nil
 }
 gate_fixture["record_digest"] = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(gate_fixture.reject { |key, _| key == 'record_digest' })))}"
-gate_fixture_args = {unit: "identity", revision: gate_fixture_revision, fingerprint: "sha256:#{'3' * 64}", repository_root: REPOSITORY_ROOT}
+refresh_gate_fixture_digest = lambda do |record|
+  record["record_digest"] = "sha256:#{Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(record.reject { |key, _| key == 'record_digest' })))}"
+end
+gate_fixture_args = {unit: "identity", revision: gate_fixture_revision, fingerprint: gate_fixture_root, module_roots: ["pkg/identity"], repository_root: REPOSITORY_ROOT}
 fail_check("valid local gate evidence fixture was rejected") unless local_gate_evidence_errors(gate_fixture, **gate_fixture_args).empty?
-%w[outcome execution_revision complete_input_fingerprint record_digest].each do |field|
+%w[outcome tested_revision gate_execution_revision revalidation_revision input_manifest input_root evidence_record record_digest].each do |field|
   mutation = JSON.parse(JSON.generate(gate_fixture)); mutation[field] = "invalid"
+  refresh_gate_fixture_digest.call(mutation) unless field == "record_digest"
   fail_check("local gate evidence #{field} mutation was accepted") if local_gate_evidence_errors(mutation, **gate_fixture_args).empty?
 end
+gate_reuse_fixture = JSON.parse(JSON.generate(gate_fixture))
+gate_reuse_fixture["gate_execution_revision"] = "1" * 40
+gate_reuse_fixture["revalidation_revision"] = "1" * 40
+refresh_gate_fixture_digest.call(gate_reuse_fixture)
+fail_check("valid local gate fingerprint-reuse fixture was rejected") unless local_gate_evidence_errors(gate_reuse_fixture, **gate_fixture_args.merge(revision: "1" * 40, repository_root: nil)).empty?
+gate_reuse_without_marker = JSON.parse(JSON.generate(gate_fixture))
+gate_reuse_without_marker["gate_execution_revision"] = "1" * 40
+refresh_gate_fixture_digest.call(gate_reuse_without_marker)
+fail_check("local gate reuse without revalidation revision was accepted") if local_gate_evidence_errors(gate_reuse_without_marker, **gate_fixture_args.merge(revision: "1" * 40, repository_root: nil)).empty?
 [
   [],
   [{"path" => ".ai/identity-platform/fixtures/missing-artifact.txt", "sha256" => "sha256:#{'4' * 64}"}],
-  [{"path" => ".ai/identity-platform/fixtures/local-gate-artifact.txt", "sha256" => "sha256:#{Digest::SHA256.file(File.join(REPOSITORY_ROOT, '.ai/identity-platform/fixtures/local-gate-artifact.txt')).hexdigest}"}],
+  [{"path" => ".ai/identity-platform/../identity-platform/COMMON_REQUIREMENTS.md", "sha256" => "sha256:#{'4' * 64}"}],
   [{"path" => gate_fixture_artifact, "sha256" => "sha256:#{'4' * 64}"}]
 ].each do |artifacts_mutation|
   mutation = JSON.parse(JSON.generate(gate_fixture)); mutation["artifacts"] = artifacts_mutation
@@ -3892,6 +5815,15 @@ end
   fail_check("local gate artifact mutation was accepted") if local_gate_evidence_errors(mutation, **gate_fixture_args).empty?
 end
 fail_check("working-tree-only local gate record was accepted") if local_gate_evidence_errors(gate_fixture, **gate_fixture_args, record_path: ".ai/identity-platform/fixtures/fake-execution-identity.md").empty?
+forged_ledger_entry = {unit: "identity", generation: "1", gate_revision: "0" * 40}
+forged_binding = {
+  unit: "identity", generation: "1", gate_revision: "0" * 40,
+  path: ".ai/identity-platform/evidence/gates/identity.json", commit: "1" * 40,
+  digest: "sha256:#{'2' * 64}", bound_at: "2026-08-11T00:00:00Z"
+}
+if local_gate_binding_errors(forged_binding, ledger_entry: forged_ledger_entry, repository_root: REPOSITORY_ROOT).empty?
+  fail_check("hash-only verified ledger evidence negative fixture was accepted")
+end
 [
   [{"status" => "authorized"}, {"status" => "completed"}],
   [{"status" => "authorized"}, {"status" => "superseded"}, {"status" => "authorized"}],
@@ -3911,6 +5843,39 @@ fail_check("refreshed recovery epoch fixture was rejected") unless recovery_epoc
 drifted_recovery_fixture = JSON.parse(JSON.generate(refreshed_recovery_fixture))
 drifted_recovery_fixture.last["identity"] = %w[unit 1 integration-a checkpoint-a]
 fail_check("recovery terminal from a prior epoch was accepted") if recovery_epoch_identity_errors(drifted_recovery_fixture).empty?
+recovery_authorized_row = ["identity", "1", "a" * 40, "b" * 40, ".ai/evidence/recovery.json", "authorized", "2026-08-11T00:00:00Z", "recovery:identity:g1:e1"]
+recovery_completed_row = recovery_authorized_row.dup.tap { |row| row[5] = "completed"; row[6] = "2026-08-11T00:00:01Z" }
+if recovery_transition_errors([], [recovery_authorized_row, recovery_completed_row]).empty?
+  fail_check("same-snapshot recovery authorization and terminal negative fixture was accepted")
+end
+unless recovery_transition_errors([recovery_authorized_row], [recovery_authorized_row, recovery_completed_row]).empty?
+  fail_check("preceded recovery terminal fixture was rejected")
+end
+goal_revision_authorized = {
+  revision_id: "goal:identity-username:g1", unit: "identity/username",
+  previous_digest: "sha256:#{'1' * 64}", current_digest: "sha256:#{'2' * 64}",
+  status: "authorized", authorized_by: "coordinator"
+}
+goal_revision_applied = goal_revision_authorized.merge(status: "applied")
+fail_check("valid goal revision lifecycle fixture was rejected") unless goal_revision_lifecycle_errors([goal_revision_authorized, goal_revision_applied]).empty?
+if goal_revision_lifecycle_errors([goal_revision_applied]).empty?
+  fail_check("goal revision terminal without authorization negative fixture was accepted")
+end
+previous_goal_fixture = {"goals" => [{"unit" => "identity/username", "sha256" => "1" * 64}]}
+current_goal_fixture = {"goals" => [{"unit" => "identity/username", "sha256" => "2" * 64}]}
+if goal_digest_change_errors(previous_goal_fixture, current_goal_fixture, [], [goal_revision_applied]).empty?
+  fail_check("unauthorized goal digest change negative fixture was accepted")
+end
+goal_revision_superseded = goal_revision_authorized.merge(status: "superseded")
+if goal_digest_change_errors(previous_goal_fixture, previous_goal_fixture, [], [goal_revision_authorized, goal_revision_superseded]).empty?
+  fail_check("same-snapshot goal authorization and superseded terminal negative fixture was accepted")
+end
+unless goal_digest_change_errors(
+  previous_goal_fixture, previous_goal_fixture,
+  [goal_revision_authorized], [goal_revision_authorized, goal_revision_superseded]
+).empty?
+  fail_check("preceded goal superseded terminal fixture was rejected")
+end
 frontier_fixture = [{unit: "a", status: "verified", requires: []}, {unit: "b", status: "proposed", requires: ["a"]}]
 frontier_eligible = eligible_frontier_rows(frontier_fixture)
 fail_check("eligible-frontier mutation fixture was accepted") if frontier_eligible.empty?
@@ -3918,7 +5883,14 @@ unless eligible_frontier_rows(frontier_fixture, Set["b"]).empty?
   fail_check("primitive-blocked frontier fixture was promoted")
 end
 
+completion_mode_errors(
+  execution_mode: execution_mode, fixture_mode: !execution_fixture_path.nil?,
+  all_verified: rows.all? { |row| row[:status] == "verified" },
+  clean_integration_mode: clean_integration_mode
+).each { |error| fail_check(error) }
+
 if execution_mode && rows.all? { |row| row[:status] == "verified" }
+  final_validation_revision = git_output("rev-parse", "HEAD")
   acceptance_execution_revisions = Set.new
   expected_binding_ids = artifact_catalog.map { |declaration| declaration.fetch("id") }
   fail_check("acceptance evidence binding closure drifted") unless acceptance_evidence_bindings.map { |binding| binding[:artifact_id] } == expected_binding_ids
@@ -3933,13 +5905,28 @@ if execution_mode && rows.all? { |row| row[:status] == "verified" }
     tested_revision = document["tested_revision"]
     tested_input = behavior_input_fingerprint(document["input_manifest"])
     fail_check("acceptance evidence #{declaration.fetch('id')} input manifest cannot be fingerprinted") unless tested_input
+    behavior_input_manifest_errors(
+      document["input_manifest"], revision: final_validation_revision,
+      module_roots: modules, repository: REPOSITORY_ROOT
+    ).each { |error| fail_check("acceptance evidence #{declaration.fetch('id')} current-input #{error}") }
     acceptance_execution_revisions << document["gate_execution_revision"]
-    acceptance_evidence_errors(
-      document, declaration: declaration, revision: tested_revision, input_fingerprint: tested_input,
-      evidence_commit: binding[:commit], module_roots: modules, repository_root: REPOSITORY_ROOT,
-      record_path: declaration.fetch("path")
-    ).each do |error|
-      fail_check("acceptance evidence #{declaration.fetch('id')} #{error}")
+    artifact_contract = IdentityPlatformAcceptance.catalog_document.fetch("artifacts").find { |row| row.fetch("artifact_id") == declaration.fetch("id") }
+    Dir.mktmpdir("identity-acceptance-execution-") do |directory|
+      live_capture = AcceptanceExecutionRunner.run(
+        command: declaration.fetch("gate"), chdir: REPOSITORY_ROOT,
+        receipt_path: File.join(directory, "execution-receipt.json"),
+        artifact_capture_path: File.join(directory, "artifact.json"), artifact_id: declaration.fetch("id"),
+        tested_revision: tested_revision, input_root: tested_input,
+        tool: document.dig("tool_environment", "tool"), environment: document.dig("tool_environment", "environment"),
+        output_artifact_path: artifact_contract.fetch("artifact_evidence_output_path")
+      )
+      acceptance_evidence_errors(
+        document, declaration: declaration, revision: tested_revision, input_fingerprint: tested_input,
+        evidence_commit: binding[:commit], module_roots: modules, repository_root: REPOSITORY_ROOT,
+        record_path: declaration.fetch("path"), live_capture: live_capture, final_execution: true
+      ).each do |error|
+        fail_check("acceptance evidence #{declaration.fetch('id')} #{error}")
+      end
     end
   end
   fail_check("final acceptance evidence spans multiple execution revisions") unless acceptance_execution_revisions.length == 1
@@ -4107,7 +6094,7 @@ end
 if execution_mode
   preflight = execution_fixture_path ? File.read(execution_fixture_path) : artifacts.fetch("PREFLIGHT_EVIDENCE.md")
   identity_rows = markdown_table(preflight, "Execution identity", "| Field | Value |").to_h
-  execution_identity_errors(identity_rows).each { |error| fail_check(error) }
+  execution_identity_errors(identity_rows, require_clean: clean_integration_mode).each { |error| fail_check(error) }
   branch = plain_cell(identity_rows.fetch("Integration branch", ""))
   integration_worktree = plain_cell(identity_rows.fetch("Integration worktree", ""))
   worktree_parent = plain_cell(identity_rows.fetch("Task-owned worktree parent", ""))
@@ -4248,6 +6235,7 @@ if execution_mode
     registered_name = plain_cell(registered).delete_prefix("pkg/")
     fail_check("primitive #{name} registered module/package was substituted") unless registered_name == name
     fail_check("primitive #{name} is not registered") unless resolvable_consumables.include?(registered_name)
+    consumer_units.each { |unit| primitive_module_roots_by_consumer[unit] << "pkg/#{registered_name}" }
     fail_check("primitive #{name} API fingerprint is invalid") unless plain_cell(api_fingerprint).match?(/\Asha256:[0-9a-f]{64}\z/)
     gate_match = plain_cell(gate_result).match(/\Asha256:[0-9a-f]{64} (pass|failed|blocked|stale)\z/)
     fail_check("primitive #{name} gate fingerprint/result is invalid") unless gate_match
@@ -4406,6 +6394,27 @@ if execution_mode
     end
   end
 
+  goal_revision_rows = markdown_table(
+    preflight,
+    "Goal digest revisions",
+    "| Revision ID | Unit | Previous goal digest | Current goal digest | Status | Authorized by | Recorded at |"
+  ).map do |revision_id, unit, previous_digest, current_digest, status, authorized_by, recorded_at|
+    row = {
+      revision_id: plain_cell(revision_id), unit: plain_cell(unit),
+      previous_digest: plain_cell(previous_digest), current_digest: plain_cell(current_digest),
+      status: plain_cell(status), authorized_by: plain_cell(authorized_by), recorded_at: plain_cell(recorded_at)
+    }
+    expected_revision_prefix = "goal:#{row[:unit].tr('/', '-')}:g"
+    fail_check("goal revision ID is unsafe or belongs to another unit") unless row[:revision_id].match?(/\A#{Regexp.escape(expected_revision_prefix)}[1-9]\d*\z/)
+    fail_check("goal revision unit is unknown") unless known.include?(row[:unit])
+    fail_check("goal revision previous digest is invalid") unless row[:previous_digest].match?(/\Asha256:[0-9a-f]{64}\z/)
+    fail_check("goal revision current digest is invalid") unless row[:current_digest].match?(/\Asha256:[0-9a-f]{64}\z/)
+    fail_check("goal revision status is invalid") unless %w[authorized applied superseded].include?(row[:status])
+    fail_check("goal revision timestamp is invalid") unless rfc3339?(row[:recorded_at])
+    row
+  end
+  goal_revision_lifecycle_errors(goal_revision_rows).each { |error| fail_check(error) }
+
   recovery_rows = markdown_table(
     preflight,
     "Conflict-recovery baselines",
@@ -4546,7 +6555,7 @@ expected_rate_override_policies = Set[
 ]
 fail_check("rate override policy closure drifted") unless rate_override_rows.map(&:first).to_set == expected_rate_override_policies
 rate_override_pairs = rate_override_rows.flat_map { |policy_id, operation_ids| operation_ids.map { |operation_id| [operation_id, policy_id] } }
-fail_check("rate override operation closure drifted") unless rate_override_pairs.length == 45 && rate_override_pairs.map(&:first).uniq.length == 45
+fail_check("rate override operation closure drifted") unless rate_override_pairs.length == 46 && rate_override_pairs.map(&:first).uniq.length == 46
 rate_overrides = rate_override_pairs.to_h
 unknown_rate_override_operations = rate_overrides.keys - operation_ids
 fail_check("rate overrides name unknown operations: #{unknown_rate_override_operations}") unless unknown_rate_override_operations.empty?
@@ -4658,10 +6667,13 @@ direct_ids_in_routes = exposure_ids.fetch("direct") & route_records.map(&:first)
 fail_check("direct operations gained routes: #{direct_ids_in_routes.to_a}") unless direct_ids_in_routes.empty?
 
 route_by_id = route_records.to_h { |operation_id, method, path, openapi_id| [operation_id, [method, path, openapi_id]] }
+semantic_previous_owners = []
 operation_semantic_contracts = operations.to_h do |operation_id, owner_cell, risk_class, exposure, idempotency, access_cell, event_semantics|
   access, csrf_origin = access_cell.split(" / ", 2)
   route = route_by_id[operation_id]
   owners = owner_cell.scan(/`([^`]+)`/).flatten
+  owners = semantic_previous_owners if owners.empty? && owner_cell.start_with?("same ")
+  semantic_previous_owners = owners
   [operation_id, {
     "id" => operation_id, "owners" => owners, "exposure" => exposure,
     "access" => access, "authorization" => nil, "csrf_origin" => csrf_origin,
@@ -4680,13 +6692,38 @@ fail_check("operation contract inventory fields drifted") unless contract_invent
 fail_check("operation contract inventory count drifted") unless contract_inventory.fetch("count") == contract_lines.length
 fail_check("operation contract inventory digest drifted") unless contract_inventory.fetch("sha256") == canonical_inventory_digest(contract_lines)
 
-%w[access csrf_origin risk_class rate_policy idempotency http_path].each do |field|
+%w[owners access csrf_origin risk_class rate_policy idempotency http_path].each do |field|
   mutated = JSON.parse(JSON.generate(operation_semantics_document))
   row = mutated.fetch("operations").find { |candidate| candidate.fetch("exposure") == "both" }
-  row[field] = field == "http_path" ? "/v1/semantic-drift" : "valid-vocabulary-substitution"
+  row[field] = if field == "http_path"
+                 "/v1/semantic-drift"
+               elsif field == "owners"
+                 ["identity/reference"]
+               else
+                 "valid-vocabulary-substitution"
+               end
   errors = operation_semantics_errors(mutated, operation_semantic_contracts)
   fail_check("operation semantic mutation #{field} was accepted") if errors.empty?
 end
+deleted_operation_semantic = JSON.parse(JSON.generate(operation_semantics_document))
+deleted_operation_semantic.fetch("operations").pop
+if operation_semantics_errors(deleted_operation_semantic, operation_semantic_contracts).empty?
+  fail_check("operation semantic deletion fixture was accepted")
+end
+extra_operation_semantic = JSON.parse(JSON.generate(operation_semantics_document))
+extra_operation_semantic.fetch("operations") << JSON.parse(JSON.generate(extra_operation_semantic.fetch("operations").last)).merge("id" => "identity.z-extra")
+if operation_semantics_errors(extra_operation_semantic, operation_semantic_contracts).empty?
+  fail_check("operation semantic addition fixture was accepted")
+end
+legacy_readiness_id = "identity." + "ready"
+legacy_readiness_surfaces = [
+  artifacts.fetch("API_OPERATIONS.md"), File.read(File.join(ROOT, "END_STATE.md")),
+  artifacts.fetch("OPERATION_SEMANTICS.json"), artifacts.fetch("UPSTREAM_SURFACE.json"),
+  artifacts.fetch("UPSTREAM_LEAVES.json"), artifacts.fetch("REFERENCE_CONFIGURATION.md")
+]
+legacy_readiness_pattern = /#{Regexp.escape(legacy_readiness_id)}(?![a-z])/
+fail_check("obsolete readiness operation ID remains selected") if legacy_readiness_surfaces.any? { |body| body.match?(legacy_readiness_pattern) }
+fail_check("canonical readiness operation ID is missing") unless operation_semantic_contracts.key?("identity.readiness")
 override_rate_mutation = JSON.parse(JSON.generate(operation_semantics_document))
 override_rate_mutation.fetch("operations").find { |row| row.fetch("id") == "identity.password.signup" }["rate_policy"] = "rate.auth"
 if operation_semantics_errors(override_rate_mutation, operation_semantic_contracts).empty?
@@ -4812,13 +6849,17 @@ configuration_paths = configuration_rows.map { |row| row.fetch("row_id").delete_
 missing_configuration_paths = required_configuration_paths - configuration_paths
 fail_check("protocol configuration closure drift: #{missing_configuration_paths.to_a.sort}") unless missing_configuration_paths.empty?
 
+combined_protocol_decisions = [
+  artifacts.fetch("REFERENCE_CONFIGURATION.md"),
+  File.read(File.join(ROOT, "REFERENCE_PROFILE.md")),
+  protocol
+].join("\n").split.join(" ")
 [
   "fixed at exactly 5 seconds per RFC 8628 `slow_down`",
   "issuer path MUST be empty or `/`", "exact `http://localhost`",
-  "equal or decreased received counter", "saml.sp_idp_initiated_url"
+  "any received value equal to or less than it is a suspected clone or reset", "saml.sp_idp_initiated_url"
 ].each do |required|
-  combined = artifacts.fetch("REFERENCE_CONFIGURATION.md") + File.read(File.join(ROOT, "REFERENCE_PROFILE.md")) + protocol
-  fail_check("protocol semantic decision missing: #{required}") unless combined.include?(required)
+  fail_check("protocol semantic decision missing: #{required}") unless combined_protocol_decisions.include?(required)
 end
 
 rp_transaction_row = artifacts.fetch("REFERENCE_CONFIGURATION.md").lines.find do |line|
@@ -4826,7 +6867,7 @@ rp_transaction_row = artifacts.fetch("REFERENCE_CONFIGURATION.md").lines.find do
 end.to_s
 actual_rp_bindings = rp_transaction_row[/binding = ([^`;]+)/, 1].to_s.split(",")
 expected_rp_bindings = %w[
-  issuer provider client_id redirect_uri response_mode pkce nonce requested_scopes
+  issuer provider client_id redirect_uri response_mode pkce_commitment nonce requested_scopes
   tenant operation preauth_transaction initiating_subject popup_opener_origin
   popup_channel_id continuation_ref remember_policy
 ]
@@ -5161,6 +7202,98 @@ scim_without_atomic_scc = without_normalized_phrase(
 expect_scim_bulk_graph_fixture_rejection!("partial circular component", "SCIM Bulk circular component can partially commit") do
   scim_bulk_graph_contract_errors(**scim_bulk_graph_inputs.merge(transaction_contract: scim_without_atomic_scc))
 end
+scim_rfc_contract_inputs = {
+  api_operations: artifacts.fetch("API_OPERATIONS.md"),
+  protocol: artifacts.fetch("PROTOCOL_BASELINES.md"),
+  configuration: artifacts.fetch("REFERENCE_CONFIGURATION.md"),
+  transaction_contract: artifacts.fetch("TRANSACTION_CONTRACT.md"),
+  scim_goal: goal_bodies.fetch("scim"),
+  scim_postgres_goal: goal_bodies.fetch("scim/postgres"),
+  applicability: applicability,
+  public_contract_fragment: JSON.parse(File.read(File.join(ROOT, "fragments", "public_contracts_org_scim.json"))),
+  acceptance_profile: IdentityPlatformAcceptance.profiles.fetch("scim-rfc-conformance-report")
+}
+scim_rfc_contract_errors(**scim_rfc_contract_inputs).each { |error| fail_check(error) }
+
+scim_without_generic_search = scim_rfc_contract_inputs.fetch(:api_operations).sub(
+  "| `identity.scim.search` | `POST` | `/scim/v2/.search` |", "| removed generic search |"
+)
+expect_scim_rfc_fixture_rejection!("missing generic search route", "SCIM generic POST search route is missing") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(api_operations: scim_without_generic_search))
+end
+scim_without_list_response = scim_rfc_contract_inputs.fetch(:protocol).sub(
+  "The Schemas and ResourceTypes collection endpoints\nalso return RFC ListResponse messages; bare arrays are not conforming responses", "The Schemas and ResourceTypes collection endpoints return collections"
+)
+expect_scim_rfc_fixture_rejection!("bare discovery arrays", "SCIM discovery collections permit bare arrays") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(protocol: scim_without_list_response))
+end
+scim_required_type = scim_rfc_contract_inputs.fetch(:protocol).sub("`scimType` is OPTIONAL", "`scimType` is REQUIRED")
+expect_scim_rfc_fixture_rejection!("required scimType", "SCIM scimType optionality is not exact") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(protocol: scim_required_type))
+end
+scim_unique_external_id = scim_rfc_contract_inputs.fetch(:scim_postgres_goal).sub(
+  "Equal values MAY identify multiple resources and MUST NOT be\n  rejected by a unique constraint",
+  "Equal values are rejected by a unique constraint"
+)
+expect_scim_rfc_fixture_rejection!("unique externalId", "SCIM PostgreSQL externalId constraint is not non-unique") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(scim_postgres_goal: scim_unique_external_id))
+end
+scim_unbounded_fail_on_errors = scim_rfc_contract_inputs.fetch(:configuration).sub("exact request maximum 100", "request maximum follows operation count")
+expect_scim_rfc_fixture_rejection!("unbounded failOnErrors", "SCIM failOnErrors maximum is not exactly 100") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(configuration: scim_unbounded_fail_on_errors))
+end
+scim_without_headerless_replay = scim_rfc_contract_inputs.fetch(:transaction_contract).sub("A headerless retry with that identical lookup MUST", "A headerless retry MAY")
+expect_scim_rfc_fixture_rejection!("headerless DELETE without replay", "SCIM headerless DELETE replay is not server-owned") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(transaction_contract: scim_without_headerless_replay))
+end
+scim_key_authoritative_delete = scim_rfc_contract_inputs.fetch(:configuration).sub(
+  "with no extension key or with any newly supplied extension key",
+  "only when the same extension key is supplied"
+)
+expect_scim_rfc_fixture_rejection!("extension-key-authoritative DELETE replay", "SCIM DELETE configuration makes extension keys authoritative") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(configuration: scim_key_authoritative_delete))
+end
+scim_misowned_bulk_events = JSON.parse(JSON.generate(scim_rfc_contract_inputs.fetch(:applicability)))
+scim_misowned_bulk_events.fetch("scim").fetch("security_events").delete("identity.scim.bulk_admit")
+scim_misowned_bulk_events.fetch("scim/organization")["security_events"] = ["identity.scim.bulk_admit"]
+expect_scim_rfc_fixture_rejection!("organization-owned Bulk audit", "core SCIM does not own every Bulk audit action") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(applicability: scim_misowned_bulk_events))
+end
+scim_response_input = JSON.parse(JSON.generate(scim_rfc_contract_inputs.fetch(:public_contract_fragment)))
+scim_response_input.fetch("units").find { |row| row.fetch("package_name") == "scim" }.fetch("types").find { |row| row.fetch("name") == "WritableResource" }.fetch("fields") << {"name" => "ID"}
+expect_scim_rfc_fixture_rejection!("server-generated writable ID", "SCIM writable resource includes server-generated fields") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(public_contract_fragment: scim_response_input))
+end
+scim_bulk_without_method = JSON.parse(JSON.generate(scim_rfc_contract_inputs.fetch(:public_contract_fragment)))
+scim_bulk_without_method.fetch("units").find { |row| row.fetch("package_name") == "scim" }.fetch("types").find { |row| row.fetch("name") == "BulkOperationResult" }.fetch("fields").delete_if { |row| row.fetch("name") == "Method" }
+expect_scim_rfc_fixture_rejection!("BulkResponse without method", "SCIM BulkResponse operation omits method or conditional bulkId") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(public_contract_fragment: scim_bulk_without_method))
+end
+scim_revoke_without_command = JSON.parse(JSON.generate(scim_rfc_contract_inputs.fetch(:public_contract_fragment)))
+scim_revoke_without_command.fetch("operations").find { |row| row.fetch("id") == "identity.scim.connection-token-revoke" }.dig("request", "fields").delete_if { |row| row.fetch("name") == "Command" }
+expect_scim_rfc_fixture_rejection!("token revoke without Command", "SCIM token revocation request lacks durable Command identity") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(public_contract_fragment: scim_revoke_without_command))
+end
+scim_revoke_type_without_command = JSON.parse(JSON.generate(scim_rfc_contract_inputs.fetch(:public_contract_fragment)))
+scim_revoke_type_without_command.fetch("units").find { |row| row.fetch("package_name") == "scim" }.fetch("types").find { |row| row.fetch("name") == "ConnectionTokenRevokeCommand" }.fetch("fields").delete_if { |row| row.fetch("name") == "Command" }
+expect_scim_rfc_fixture_rejection!("token revoke command type without Command", "SCIM token revocation command lacks durable Command identity") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(public_contract_fragment: scim_revoke_type_without_command))
+end
+scim_revoke_optional_command = JSON.parse(JSON.generate(scim_rfc_contract_inputs.fetch(:public_contract_fragment)))
+scim_revoke_optional_command.fetch("operations").find { |row| row.fetch("id") == "identity.scim.connection-token-revoke" }.dig("request", "fields").find { |row| row.fetch("name") == "Command" }["required"] = false
+expect_scim_rfc_fixture_rejection!("token revoke with optional Command", "SCIM token revocation request lacks durable Command identity") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(public_contract_fragment: scim_revoke_optional_command))
+end
+scim_revoke_type_optional_command = JSON.parse(JSON.generate(scim_rfc_contract_inputs.fetch(:public_contract_fragment)))
+scim_revoke_type_optional_command.fetch("units").find { |row| row.fetch("package_name") == "scim" }.fetch("types").find { |row| row.fetch("name") == "ConnectionTokenRevokeCommand" }.fetch("fields").find { |row| row.fetch("name") == "Command" }["required"] = false
+expect_scim_rfc_fixture_rejection!("token revoke command type with optional Command", "SCIM token revocation command lacks durable Command identity") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(public_contract_fragment: scim_revoke_type_optional_command))
+end
+scim_incomplete_acceptance = JSON.parse(JSON.generate(scim_rfc_contract_inputs.fetch(:acceptance_profile)))
+scim_incomplete_acceptance.fetch("operation_ids").delete("identity.scim.group-search")
+expect_scim_rfc_fixture_rejection!("incomplete conformance operation set", "SCIM conformance acceptance does not cover every advertised protocol operation") do
+  scim_rfc_contract_errors(**scim_rfc_contract_inputs.merge(acceptance_profile: scim_incomplete_acceptance))
+end
 risk_evidence_contract_errors(**risk_evidence_contract_inputs).each { |error| fail_check(error) }
 reference_without_phone_composition = without_normalized_phrase(
   risk_evidence_contract_inputs.fetch(:reference_goal),
@@ -5277,7 +7410,7 @@ end
 otp_contract_inputs.fetch(:workflow_goals).each do |unit, goal|
   workflow_phrases = {
     "identity/email" => "When handling `identity.otp.email-verify`, `identity.otp.email-change-confirm`, or the optional current-address OTP branch of `identity.otp.email-change-request`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through the public `identity/otp` contributor contract in the same coordinator unit of work as its owning mutation. The core MUST NOT import, require, or name a concrete OTP persistence adapter; reference composition selects that adapter. Non-OTP email operations MUST NOT enlist an OTP participant",
-    "identity/password" => "When handling `identity.otp.password-reset` or `identity.phone.password-reset-complete`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through an injected OTP persistence contributor, supplied by `identity/otp/postgres` in the reference composition, in the same coordinator unit of work as its owning mutation. Signup, signin, password change, and capability-only reset MUST NOT enlist an OTP participant",
+    "identity/password" => "When handling `identity.otp.password-reset` or `identity.phone.password-reset-complete`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through the public `identity/otp` contributor contract in the same coordinator unit of work as its owning mutation. The core MUST NOT import, require, or name a concrete OTP persistence adapter; reference composition selects that adapter. Signup, signin, password change, and capability-only reset MUST NOT enlist an OTP participant",
     "identity/phone" => "When handling `identity.phone.verify`, `identity.phone.signin`, `identity.phone.update`, or `identity.phone.password-reset-complete`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through the injected OTP transaction contributor in the same coordinator unit of work as its owning mutation. Non-consuming initiation/removal operations MUST NOT enlist an OTP participant",
     "identity/mfa" => "When handling `identity.mfa.otp-verify`, this workflow MUST reserve/apply/finalize the purpose-bound OTP through the public `identity/otp` contributor contract in the same coordinator unit of work as its owning mutation. The core MUST NOT import, require, or name a concrete OTP persistence adapter; reference composition selects that adapter. Other MFA methods and OTP-send initiation MUST NOT enlist an OTP consumption participant"
   }
@@ -5312,6 +7445,215 @@ otp_end_state_without_atomicity = without_normalized_phrase(
 )
 expect_otp_fixture_rejection!("END_STATE without OTP atomicity", "END_STATE omits atomic OTP workflow closure") do
   otp_contract_errors(**otp_contract_inputs.merge(end_state: otp_end_state_without_atomicity))
+end
+
+passkey_schema_path = File.join(ROOT, "acceptance/v1/schemas/passkey-browser-ceremony-report.schema.json")
+captcha_schema_path = File.join(ROOT, "acceptance/v1/schemas/captcha-four-provider-report.schema.json")
+privacy_export_schema_path = File.join(ROOT, "acceptance/v1/schemas/privacy-export-lifecycle-report.schema.json")
+otp_schema_path = File.join(ROOT, "acceptance/v1/schemas/otp-reservation-report.schema.json")
+cross_cutting_inputs = {
+  transaction_contract: artifacts.fetch("TRANSACTION_CONTRACT.md"),
+  configuration: artifacts.fetch("REFERENCE_CONFIGURATION.md"),
+  reference_profile: File.read(File.join(ROOT, "REFERENCE_PROFILE.md")),
+  lifecycle_contract: artifacts.fetch("LIFECYCLE_CASCADES.md"),
+  api_operations: artifacts.fetch("API_OPERATIONS.md"),
+  security_events: artifacts.fetch("SECURITY_EVENTS.md"),
+  passkey_goal: goal_bodies.fetch("passkey"),
+  applicability: applicability,
+  acceptance_catalog: JSON.parse(artifacts.fetch("ACCEPTANCE_ARTIFACTS.json")),
+  passkey_schema: JSON.parse(File.read(passkey_schema_path)),
+  captcha_schema: JSON.parse(File.read(captcha_schema_path)),
+  privacy_export_schema: JSON.parse(File.read(privacy_export_schema_path)),
+  otp_schema: JSON.parse(File.read(otp_schema_path))
+}
+cross_cutting_remediation_errors(**cross_cutting_inputs).each { |error| fail_check(error) }
+
+privacy_snapshot_restored = cross_cutting_inputs.fetch(:configuration).sub(
+  "postgres_snapshot = append_only_versioned_projection_or_transaction_staged_immutable_fragment",
+  "postgres_snapshot = one_exported_repeatable_read"
+)
+expect_cross_cutting_fixture_rejection!("exported PostgreSQL snapshot", "privacy export retains a non-restart-safe exported snapshot") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(configuration: privacy_snapshot_restored))
+end
+privacy_restart_rule_removed = without_normalized_phrase(
+  cross_cutting_inputs.fetch(:lifecycle_contract),
+  "A restartable worker MUST NOT retain or depend on a long-lived exported PostgreSQL snapshot"
+)
+expect_cross_cutting_fixture_rejection!("privacy restart rule removed", "privacy-export lifecycle authority is not restart-safe") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(lifecycle_contract: privacy_restart_rule_removed))
+end
+privacy_acceptance_without_restart = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:acceptance_catalog)))
+privacy_acceptance = privacy_acceptance_without_restart.fetch("artifacts").find { |row| row.fetch("artifact_id") == "privacy-export-lifecycle-report" }
+privacy_acceptance.fetch("artifact_evidence_fields").delete("worker_restart_count")
+expect_cross_cutting_fixture_rejection!("privacy acceptance restart evidence removed", "privacy-export acceptance omits restart-safe evidence") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(acceptance_catalog: privacy_acceptance_without_restart))
+end
+privacy_acceptance_without_behavior = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:acceptance_catalog)))
+privacy_acceptance_without_behavior.fetch("artifacts").find { |row| row.fetch("artifact_id") == "privacy-export-lifecycle-report" }
+  .fetch("required_observations").each do |row|
+    row["expected_outcome"] = row.fetch("expected_outcome").gsub(
+      "restart reconstructs every contributor at the recorded checkpoint without a long-lived exported PostgreSQL snapshot",
+      "restart continues the job"
+    )
+  end
+expect_cross_cutting_fixture_rejection!("privacy acceptance restart behavior removed", "privacy-export acceptance omits restart behavior") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(acceptance_catalog: privacy_acceptance_without_behavior))
+end
+privacy_schema_without_checkpoint = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:privacy_export_schema)))
+privacy_schema_without_checkpoint.fetch("$defs").fetch("artifact_evidence").fetch("properties").delete("contributor_checkpoint_count")
+expect_cross_cutting_fixture_rejection!("privacy schema checkpoint evidence removed", "privacy-export acceptance schema omits restart-safe evidence") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(privacy_export_schema: privacy_schema_without_checkpoint))
+end
+privacy_schema_without_restart_equality = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:privacy_export_schema)))
+privacy_schema_without_restart_equality.fetch("$defs").fetch("artifact_evidence").fetch("x-semantic-rules").delete_if do |rule|
+  rule["kind"] == "equal" && rule["left"] == "restart_resumed_contributor_count"
+end
+expect_cross_cutting_fixture_rejection!("privacy restart equality removed", "privacy-export acceptance semantic rules are incomplete") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(privacy_export_schema: privacy_schema_without_restart_equality))
+end
+
+{
+  "OTP attempt identity removed" => [
+    "`tx.otp.attempt` MUST use a server-issued attempt ID bound to the tenant, purpose, challenge ID, consuming command ID, and canonical command fingerprint",
+    "OTP wrong-code attempt lacks server-issued retry identity"
+  ],
+  "OTP denial atomicity removed" => [
+    "It MUST lock the command row and OTP row, verify the server-issued attempt ID and canonical command fingerprint, increment the durable attempt counter exactly once, transition to `exhausted` when the budget is reached, and store the stable `aborted` command result in the same commit",
+    "OTP wrong-code denial does not atomically persist attempt and result"
+  ],
+  "OTP denial forced through normal rollback" => [
+    "The wrong-code denial transaction is a narrow pre-reservation exception to `tx.uow.reserve`",
+    "OTP wrong-code denial is not a narrow pre-reservation exception"
+  ],
+  "OTP denial ambiguity removed" => [
+    "An ambiguous wrong-code denial commit MUST return `Unknown` and reconcile the same command and attempt ID on the primary before any retry",
+    "OTP wrong-code denial lacks ambiguous-commit recovery"
+  ]
+}.each do |label, (phrase, expected_error)|
+  mutated = without_normalized_phrase(cross_cutting_inputs.fetch(:transaction_contract), phrase)
+  expect_cross_cutting_fixture_rejection!(label, expected_error) do
+    cross_cutting_remediation_errors(**cross_cutting_inputs.merge(transaction_contract: mutated))
+  end
+end
+otp_acceptance_without_attempt = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:acceptance_catalog)))
+otp_acceptance_without_attempt.fetch("artifacts").find { |row| row.fetch("artifact_id") == "otp-reservation-report" }
+  .fetch("artifact_evidence_fields").delete("attempt_id")
+expect_cross_cutting_fixture_rejection!("OTP acceptance attempt evidence removed", "OTP acceptance omits retry-safe denial evidence") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(acceptance_catalog: otp_acceptance_without_attempt))
+end
+otp_schema_without_attempt_equality = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:otp_schema)))
+otp_schema_without_attempt_equality.fetch("$defs").fetch("artifact_evidence").fetch("x-semantic-rules").delete_if do |rule|
+  rule["kind"] == "equal" && rule["left"] == "aborted_result_count"
+end
+expect_cross_cutting_fixture_rejection!("OTP attempt equality removed", "OTP acceptance semantic rules are incomplete") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(otp_schema: otp_schema_without_attempt_equality))
+end
+
+captcha_preauth_only = without_normalized_phrase(
+  cross_cutting_inputs.fetch(:transaction_contract),
+  "a flow-context variant of pre-auth transaction for unauthenticated flows or authenticated subject/session or administrator actor context for authenticated or administrative flows",
+)
+captcha_preauth_only << "\nThe durable evidence row binds a pre-auth transaction for every flow.\n"
+expect_cross_cutting_fixture_rejection!("CAPTCHA pre-auth-only binding", "CAPTCHA evidence mandates the wrong flow binding") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(transaction_contract: captcha_preauth_only))
+end
+captcha_without_authenticated_recheck = without_normalized_phrase(
+  cross_cutting_inputs.fetch(:transaction_contract),
+  "`tx.captcha.apply` MUST recheck command/generation ownership, PostgreSQL expiry, exact action, subject or anonymous flow, the applicable pre-auth or authenticated subject/session or administrator actor context"
+)
+expect_cross_cutting_fixture_rejection!("CAPTCHA authenticated recheck removed", "CAPTCHA apply omits flow-context recheck") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(transaction_contract: captcha_without_authenticated_recheck))
+end
+captcha_with_durable_roles = JSON.parse(JSON.generate(applicability))
+captcha_role_fixture = captcha_with_durable_roles.fetch("identity/risk/captcha").fetch("transaction")
+captcha_role_fixture.concat(%w[tx.captcha.apply tx.captcha.finalize tx.captcha.reserve])
+captcha_role_fixture.replace(captcha_role_fixture.uniq.sort)
+expect_cross_cutting_fixture_rejection!("stateless CAPTCHA durable ownership", "stateless CAPTCHA verifier owns durable transaction roles") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(applicability: captcha_with_durable_roles))
+end
+captcha_acceptance_without_flow = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:acceptance_catalog)))
+captcha_acceptance = captcha_acceptance_without_flow.fetch("artifacts").find { |row| row.fetch("artifact_id") == "captcha-four-provider-report" }
+captcha_acceptance.fetch("artifact_evidence_fields").delete("protected_target_results")
+expect_cross_cutting_fixture_rejection!("CAPTCHA acceptance target results removed", "CAPTCHA acceptance omits exhaustive target and durable-owner evidence") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(acceptance_catalog: captcha_acceptance_without_flow))
+end
+captcha_acceptance_without_admin = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:acceptance_catalog)))
+captcha_acceptance_without_admin.fetch("artifacts").find { |row| row.fetch("artifact_id") == "captcha-four-provider-report" }
+  .fetch("required_observations").each do |row|
+    row["expected_outcome"] = row.fetch("expected_outcome").gsub(
+      "every configured CAPTCHA target from the canonical API attachment table has one middleware-attached result with its exact permitted flow contexts and attributable evidence",
+      "configured CAPTCHA targets are verified"
+    )
+  end
+expect_cross_cutting_fixture_rejection!("CAPTCHA exhaustive target outcome removed", "CAPTCHA acceptance omits exhaustive target and ownership cases") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(acceptance_catalog: captcha_acceptance_without_admin))
+end
+captcha_schema_without_owner = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:captcha_schema)))
+captcha_schema_without_owner.fetch("$defs").fetch("artifact_evidence").fetch("properties").delete("durable_owner_digest")
+expect_cross_cutting_fixture_rejection!("CAPTCHA schema owner evidence removed", "CAPTCHA acceptance schema omits exhaustive target and durable-owner evidence") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(captcha_schema: captcha_schema_without_owner))
+end
+captcha_schema_without_context_count = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:captcha_schema)))
+captcha_schema_without_context_count.fetch("$defs").fetch("artifact_evidence").fetch("x-semantic-rules").delete_if do |rule|
+  rule["kind"] == "equal" && rule["left"] == "protected_target_count" && rule["right"] == "middleware_attached_target_count"
+end
+expect_cross_cutting_fixture_rejection!("CAPTCHA middleware attachment equality removed", "CAPTCHA acceptance semantic rules are incomplete") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(captcha_schema: captcha_schema_without_context_count))
+end
+captcha_schema_without_target = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:captcha_schema)))
+captcha_schema_without_target.fetch("$defs").fetch("artifact_evidence").fetch("properties").fetch("protected_target_results")
+  .fetch("items").fetch("oneOf").pop
+expect_cross_cutting_fixture_rejection!("CAPTCHA target result removed", "CAPTCHA acceptance schema target inventory is not exhaustive") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(captcha_schema: captcha_schema_without_target))
+end
+
+%w[identity.passkey.create_credential identity.passkey.mark_compromised].each do |action|
+  taxonomy_without_action = cross_cutting_inputs.fetch(:security_events).gsub("`#{action}`, ", "").gsub(", `#{action}`", "")
+  expect_cross_cutting_fixture_rejection!("taxonomy without #{action}", "passkey security taxonomy omits #{action}") do
+    cross_cutting_remediation_errors(**cross_cutting_inputs.merge(security_events: taxonomy_without_action))
+  end
+  applicability_without_action = JSON.parse(JSON.generate(applicability))
+  applicability_without_action.fetch("passkey").fetch("security_events").delete(action)
+  expect_cross_cutting_fixture_rejection!("applicability without #{action}", "passkey applicability omits security actions: #{action}") do
+    cross_cutting_remediation_errors(**cross_cutting_inputs.merge(applicability: applicability_without_action))
+  end
+end
+
+register_mapping_removed = cross_cutting_inputs.fetch(:api_operations).sub(
+  "emits exactly `identity.passkey.create_credential` when credential creation commits", "records credential creation"
+)
+expect_cross_cutting_fixture_rejection!("passkey creation API mapping removed", "passkey registration operation omits exact creation action") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(api_operations: register_mapping_removed))
+end
+compromise_mapping_removed = cross_cutting_inputs.fetch(:api_operations).sub(
+  "emits exactly `identity.passkey.mark_compromised` when clone or counter evidence durably marks the credential compromised", "records suspected clone evidence"
+)
+expect_cross_cutting_fixture_rejection!("passkey compromise API mapping removed", "passkey sign-in operation omits exact compromise action") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(api_operations: compromise_mapping_removed))
+end
+acceptance_without_event_field = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:acceptance_catalog)))
+acceptance_without_event_field.fetch("artifacts").find { |row| row.fetch("artifact_id") == "passkey-browser-ceremony-report" }
+  .fetch("artifact_evidence_fields").delete("creation_event_count")
+expect_cross_cutting_fixture_rejection!("passkey acceptance evidence removed", "passkey acceptance evidence omits security actions") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(acceptance_catalog: acceptance_without_event_field))
+end
+schema_without_event_field = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:passkey_schema)))
+schema_without_event_field.fetch("$defs").fetch("artifact_evidence").fetch("properties").delete("compromise_event_count")
+expect_cross_cutting_fixture_rejection!("passkey acceptance schema evidence removed", "passkey acceptance schema omits security-action evidence") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(passkey_schema: schema_without_event_field))
+end
+passkey_schema_without_failure_zero = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:passkey_schema)))
+passkey_schema_without_failure_zero.fetch("$defs").fetch("artifact_evidence").fetch("x-semantic-rules").each do |rule|
+  rule.fetch("fields", []).delete("ordinary_failure_compromise_event_count") if rule["kind"] == "zero"
+end
+expect_cross_cutting_fixture_rejection!("passkey ordinary-failure zero rule removed", "passkey acceptance semantic rules are incomplete") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(passkey_schema: passkey_schema_without_failure_zero))
+end
+acceptance_without_event_mapping = JSON.parse(JSON.generate(cross_cutting_inputs.fetch(:acceptance_catalog)))
+acceptance_without_event_mapping.fetch("artifacts").find { |row| row.fetch("artifact_id") == "passkey-browser-ceremony-report" }
+  .fetch("required_observations").each { |row| row["expected_outcome"] = row.fetch("expected_outcome").gsub("identity.passkey.mark_compromised", "credential compromise event") }
+expect_cross_cutting_fixture_rejection!("passkey acceptance mapping removed", "passkey acceptance invariant omits security-action mapping") do
+  cross_cutting_remediation_errors(**cross_cutting_inputs.merge(acceptance_catalog: acceptance_without_event_mapping))
 end
 
 risk_evidence_without_reservation_transition = without_normalized_phrase(
@@ -5843,9 +8185,10 @@ expect_phone_contract_fixture_rejection!(
   phone_contract_errors(**phone_contract_inputs.merge(applicability: missing_phone_risk_event_applicability))
 end
 optional_phone_session_suppression = phone_contract_inputs.fetch(:phone_goal).sub(
-  "purpose separation. Phone operations do not expose session suppression.",
+  /purpose separation\.\s+Phone operations do not\s+expose session suppression\./,
   "purpose separation and optional session suppression."
 )
+fail_check("phone contract optional-session-suppression fixture setup drifted") if optional_phone_session_suppression == phone_contract_inputs.fetch(:phone_goal)
 expect_phone_contract_fixture_rejection!(
   "optional session suppression", "identity/phone retains a session-suppression input"
 ) do
@@ -5930,8 +8273,8 @@ sources.each do |source|
   fail_check("protocol source #{source['id']} lacks consumers") unless source.fetch("consumers").is_a?(Array) && !source.fetch("consumers").empty?
 end
 protocol_source_identity_errors(source_identity, sources).each { |error| fail_check(error) }
-protocol_source_consumer_errors(sources, units.to_set).each { |error| fail_check(error) }
-conformance_tool_errors(conformance.fetch("tools"), units.to_set).each { |error| fail_check(error) }
+protocol_source_consumer_errors(sources, identity_units.to_set).each { |error| fail_check(error) }
+conformance_tool_errors(conformance.fetch("tools"), identity_units.to_set).each { |error| fail_check(error) }
 clause_pins = conformance.fetch("clause_pins")
 clause_ids = clause_pins.map { |pin| pin.fetch("requirement_id") }
 fail_check("protocol clause pin IDs are not unique") unless clause_ids.uniq == clause_ids
@@ -5946,7 +8289,7 @@ clause_pins.each do |pin|
   fail_check("protocol clause pin locator is empty: #{pin['requirement_id']}") unless pin.fetch("locator").is_a?(String) && !pin.fetch("locator").empty?
   fail_check("protocol clause pin disposition is invalid: #{pin['requirement_id']}") unless %w[required profile-decision unsupported].include?(pin.fetch("disposition"))
   consumers = pin.fetch("consumers")
-  fail_check("protocol clause pin consumers drifted: #{pin['requirement_id']}") unless consumers.is_a?(Array) && consumers.any? && consumers == consumers.sort.uniq && consumers.all? { |unit| units.include?(unit) }
+  fail_check("protocol clause pin consumers drifted: #{pin['requirement_id']}") unless consumers.is_a?(Array) && consumers.any? && consumers == consumers.sort.uniq && consumers.all? { |unit| identity_units.include?(unit) }
 end
 expected_protocol_decisions = {
   "oidc.implicit-unsupported" => ["oidc-core-1.0-errata-2", "Sections 3.2 and 15.1 implicit flow", "unsupported"],
@@ -5989,7 +8332,7 @@ tool_fixture = lambda do |label, expected_error, &mutate|
   tools = JSON.parse(JSON.generate(EXPECTED_CONFORMANCE_TOOLS))
   mutate.call(tools)
   expect_protocol_fixture_rejection!(label, expected_error) do
-    conformance_tool_errors(tools, units.to_set)
+    conformance_tool_errors(tools, identity_units.to_set)
   end
 end
 tool_fixture.call("missing retrieved digest", "protocol conformance tool openid-conformance-suite has invalid retrieved digest") do |tools|
@@ -6039,12 +8382,12 @@ end
 source_consumer_fixture = JSON.parse(JSON.generate(sources))
 source_consumer_fixture.find { |source| source.fetch("id") == "rfc-5952" }.fetch("consumers").delete("identity/risk")
 expect_protocol_fixture_rejection!("missing RFC source consumer", "protocol source rfc-5952 consumer set drifted") do
-  protocol_source_consumer_errors(source_consumer_fixture, units.to_set)
+  protocol_source_consumer_errors(source_consumer_fixture, identity_units.to_set)
 end
 source_consumer_fixture = JSON.parse(JSON.generate(sources))
 source_consumer_fixture.find { |source| source.fetch("id") == "rfc-7239" }.fetch("consumers") << "identity/risk"
 expect_protocol_fixture_rejection!("extra RFC source consumer", "protocol source rfc-7239 consumer set drifted") do
-  protocol_source_consumer_errors(source_consumer_fixture, units.to_set)
+  protocol_source_consumer_errors(source_consumer_fixture, identity_units.to_set)
 end
 source_identity_fixture = lambda do |label, &mutate|
   fixture_identity = JSON.parse(JSON.generate(source_identity))
@@ -6078,7 +8421,8 @@ semantic_inputs = {
   saml_goal: goal_bodies.fetch("sso/saml"),
   api_operations: artifacts.fetch("API_OPERATIONS.md"),
   reference_profile: File.read(File.join(ROOT, "REFERENCE_PROFILE.md")),
-  applicability: applicability
+  applicability: applicability,
+  public_contracts: File.read(File.join(ROOT, "fragments/public_contracts_oauth.json"))
 }
 protocol_semantic_errors(**semantic_inputs).each { |error| fail_check(error) }
 
@@ -6197,6 +8541,186 @@ expect_protocol_fixture_rejection!("unsupported SAML Redirect SigAlg", "SAML HTT
   protocol_semantic_errors(**semantic_inputs.merge(configuration: unsupported_redirect_sigalg))
 end
 
+mutate_public_contract = lambda do |id, &mutation|
+  fixture = JSON.parse(semantic_inputs.fetch(:public_contracts))
+  mutation.call(fixture.fetch("operations").find { |operation| operation.fetch("id") == id }, fixture)
+  JSON.generate(fixture)
+end
+apple_missing_id_token = mutate_public_contract.call("identity.oauth.callback-form-post") do |operation|
+  operation.fetch("request").fetch("fields").reject! { |field| field.fetch("name") == "IDToken" }
+end
+expect_protocol_fixture_rejection!("Apple callback missing ID token", "Apple form-post callback contract omits the bound code, ID token, state or front-channel validation") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: apple_missing_id_token))
+end
+apple_without_frontchannel_validation = mutate_public_contract.call("identity.oauth.callback-form-post") do |operation|
+  operation["semantics"] = "Apple Form Post code, ID token and state without front-channel claim validation."
+end
+expect_protocol_fixture_rejection!("Apple callback without front-channel validation", "Apple form-post callback contract omits the bound code, ID token, state or front-channel validation") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: apple_without_frontchannel_validation))
+end
+oauth_missing_issuer = mutate_public_contract.call("identity.sso.oauth-callback") do |operation|
+  operation.fetch("request").fetch("fields").reject! { |field| field.fetch("name") == "Issuer" }
+end
+expect_protocol_fixture_rejection!("enterprise OAuth callback missing issuer", "enterprise OAuth callback omits RFC 9207 issuer validation") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: oauth_missing_issuer))
+end
+oauth_without_expected_issuer_comparison = mutate_public_contract.call("identity.sso.oauth-callback") do |operation|
+  operation["semantics"] = "Code/error/state plus RFC 9207 issuer without transaction comparison."
+end
+expect_protocol_fixture_rejection!("enterprise OAuth callback without expected issuer comparison", "enterprise OAuth callback omits RFC 9207 issuer validation") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: oauth_without_expected_issuer_comparison))
+end
+{
+  "front-channel cookie without Secure" => ["with `Secure`,\n  `HttpOnly`", "with `HttpOnly`"],
+  "front-channel cookie without HttpOnly" => ["`Secure`,\n  `HttpOnly`, `SameSite=None`", "`Secure`, `SameSite=None`"],
+  "front-channel cookie without SameSite=None" => ["`SameSite=None`", "`SameSite=Lax`"],
+  "front-channel cookie with Domain" => ["`SameSite=None`, no `Domain`, an exact Apple or SAML callback", "`SameSite=None`, shared `Domain`, an exact Apple or SAML callback"],
+  "front-channel cookie without exact callback Path" => ["an exact Apple or SAML callback\n  `Path`", "`Path=/`"],
+  "front-channel cookie without bounded lifetime" => ["a five-minute maximum lifetime", "an unbounded lifetime"],
+  "front-channel cookie without one-use binding" => ["one-time flow binding", "reusable flow binding"],
+  "front-channel cookie reused for normal flows" => ["issued only for the selected cross-site POST flow", "issued for every flow"],
+  "front-channel cookie authenticates a session" => ["It never authenticates a session", "It authenticates a session"],
+  "normal session cookie weakened" => ["cookies remain\n  `SameSite=Lax`", "cookies use `SameSite=None`"]
+}.each do |label, (selected, weakened)|
+  fixture = semantic_inputs.fetch(:reference_profile).sub(selected, weakened)
+  expect_protocol_fixture_rejection!(label, "cross-site POST flow correlation cookie contract is absent or weakens the normal session cookie") do
+    protocol_semantic_errors(**semantic_inputs.merge(reference_profile: fixture))
+  end
+end
+keyed_dynamic_registration = semantic_inputs.fetch(:api_operations).sub(
+  /^(\| `identity\.oauth-server\.dynamic-register` \|.*?\| protocol \/ )protocol-command( \|.*)$/,
+  '\\1keyed\\2'
+)
+expect_protocol_fixture_rejection!("client-keyed RFC 7591 registration", "identity.oauth-server.dynamic-register does not use protocol-command replay identity") do
+  protocol_semantic_errors(**semantic_inputs.merge(api_operations: keyed_dynamic_registration))
+end
+keyed_saml_start = semantic_inputs.fetch(:api_operations).sub(
+  /^(\| `identity\.sso\.saml-start` \|.*?\| provider \/ )protocol-command( \|.*)$/,
+  '\\1keyed\\2'
+)
+expect_protocol_fixture_rejection!("client-keyed browser SAML start", "identity.sso.saml-start does not use protocol-command replay identity") do
+  protocol_semantic_errors(**semantic_inputs.merge(api_operations: keyed_saml_start))
+end
+missing_saml_start_command = mutate_public_contract.call("identity.sso.saml-start") do |operation|
+  operation.fetch("request").fetch("fields").reject! { |field| field.fetch("name") == "CommandID" }
+end
+expect_protocol_fixture_rejection!("SAML start public contract missing protocol command", "identity.sso.saml-start public contract omits protocol-command replay identity") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: missing_saml_start_command))
+end
+missing_public_false = mutate_public_contract.call("identity.oauth-server.client-create") do |operation|
+  operation.fetch("request").fetch("fields").reject! { |field| field.fetch("name") == "Public" }
+end
+expect_protocol_fixture_rejection!("confidential client discriminator omitted", "identity.oauth-server.client-create does not explicitly represent Public=false confidential clients") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: missing_public_false))
+end
+invalid_client_public_false = mutate_public_contract.call("identity.oauth-server.client-create") do |_operation, fixture|
+  unit = fixture.fetch("units").find { |candidate| candidate.fetch("unit") == "oauth-server" }
+  public_field = unit.fetch("types").find { |type| type.fetch("name") == "Client" }.fetch("fields").find { |field| field.fetch("name") == "Public" }
+  public_field["zero_value"] = "invalid false"
+end
+expect_protocol_fixture_rejection!("oauthserver Client rejects confidential false", "oauthserver.Client.Public=false is not a valid confidential-client state") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: invalid_client_public_false))
+end
+inactive_introspection_rejected = mutate_public_contract.call("identity.oauth-server.introspect") do |operation|
+  operation.fetch("result").fetch("fields").find { |field| field.fetch("name") == "Active" }["zero_value"] = "invalid false"
+end
+expect_protocol_fixture_rejection!("introspection rejects inactive false", "OAuth introspection cannot represent RFC 7662 Active=false") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: inactive_introspection_rejected))
+end
+extra_introspection_metadata = mutate_public_contract.call("identity.oauth-server.introspect") do |operation|
+  operation.fetch("result").fetch("fields") << {
+    "name" => "TokenMetadata", "type" => "string", "required" => false,
+    "semantics" => "Additional token metadata.", "zero_value" => "absent when zero"
+  }
+end
+expect_protocol_fixture_rejection!("introspection adds unclosed metadata", "OAuth introspection result field closure drifted") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: extra_introspection_metadata))
+end
+%w[ClientID Subject Scopes Audience ExpiresAt].each do |field_name|
+  required_inactive_metadata = mutate_public_contract.call("identity.oauth-server.introspect") do |operation|
+    field = operation.fetch("result").fetch("fields").find { |candidate| candidate.fetch("name") == field_name }
+    field["required"] = true
+    field["zero_value"] = "invalid when absent"
+  end
+  expect_protocol_fixture_rejection!("inactive introspection requires #{field_name}", "OAuth inactive introspection metadata is not optional: #{field_name}") do
+    protocol_semantic_errors(**semantic_inputs.merge(public_contracts: required_inactive_metadata))
+  end
+  inactive_disclosure_undefined = mutate_public_contract.call("identity.oauth-server.introspect") do |operation|
+    field = operation.fetch("result").fetch("fields").find { |candidate| candidate.fetch("name") == field_name }
+    field["semantics"] = "Optional metadata without inactive-token disclosure policy."
+  end
+  expect_protocol_fixture_rejection!("inactive introspection disclosure undefined for #{field_name}", "OAuth inactive introspection metadata is not optional: #{field_name}") do
+    protocol_semantic_errors(**semantic_inputs.merge(public_contracts: inactive_disclosure_undefined))
+  end
+end
+weakened_inactive_acceptance = semantic_inputs.fetch(:protocol).sub(
+  "inactive or unknown token as a normal\nsuccessful response with `active=false`",
+  "inactive or unknown token as an error"
+)
+expect_protocol_fixture_rejection!("inactive introspection acceptance weakened", "OAuth RFC 7662 inactive-token acceptance semantics drifted") do
+  protocol_semantic_errors(**semantic_inputs.merge(protocol: weakened_inactive_acceptance))
+end
+logout_boolean_contradiction = mutate_public_contract.call("identity.sso.oidc-logout") do |operation|
+  operation.fetch("result").fetch("fields") << {"name" => "Succeeded", "type" => "bool", "required" => true, "semantics" => "contradictory", "zero_value" => "invalid"}
+end
+expect_protocol_fixture_rejection!("OIDC logout required Boolean", "identity.sso.oidc-logout does not use one exclusive logout outcome") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: logout_boolean_contradiction))
+end
+%w[identity.sso.oidc-logout identity.sso.oidc-logout-complete].each do |id|
+  missing_exclusive_outcome = mutate_public_contract.call(id) do |operation|
+    operation.fetch("result").fetch("fields").find { |field| field.fetch("name") == "Outcome" }["semantics"] = "Ambiguous outcome."
+  end
+  expect_protocol_fixture_rejection!("#{id} ambiguous outcome", "#{id} does not use one exclusive logout outcome") do
+    protocol_semantic_errors(**semantic_inputs.merge(public_contracts: missing_exclusive_outcome))
+  end
+end
+required_relay_state = mutate_public_contract.call("identity.sso.saml-idp-init") do |operation|
+  operation.fetch("request").fetch("fields").find { |field| field.fetch("name") == "RelayState" }["required"] = true
+end
+expect_protocol_fixture_rejection!("required SAML RelayState", "identity.sso.saml-idp-init incorrectly requires RelayState") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: required_relay_state))
+end
+%w[identity.sso.saml-acs identity.sso.saml-slo identity.sso.saml-start].each do |id|
+  required_relay = mutate_public_contract.call(id) do |operation|
+    operation.fetch("request").fetch("fields").find { |field| field.fetch("name") == "RelayState" }["required"] = true
+  end
+  expect_protocol_fixture_rejection!("#{id} required RelayState", "#{id} incorrectly requires RelayState") do
+    protocol_semantic_errors(**semantic_inputs.merge(public_contracts: required_relay))
+  end
+end
+required_start_result_relay = mutate_public_contract.call("identity.sso.saml-start") do |operation|
+  operation.fetch("result").fetch("fields").find { |field| field.fetch("name") == "RelayState" }["required"] = true
+end
+expect_protocol_fixture_rejection!("SAML start result required RelayState", "identity.sso.saml-start result incorrectly requires RelayState") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: required_start_result_relay))
+end
+single_replay_consume = mutate_public_contract.call("identity.sso.saml-acs") do |_operation, fixture|
+  unit = fixture.fetch("units").find { |candidate| candidate.fetch("unit") == "sso/saml" }
+  method = unit.fetch("interfaces").find { |interface| interface.fetch("name") == "ReplayStore" }.fetch("methods").first
+  method["name"] = "Consume"
+end
+expect_protocol_fixture_rejection!("non-atomic SAML replay consume", "SAML replay authority does not atomically reserve the complete response/assertion ID set") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: single_replay_consume))
+end
+undeclared_saml_type = mutate_public_contract.call("identity.sso.saml-acs") do |_operation, fixture|
+  operation = fixture.fetch("operations").find { |candidate| candidate.fetch("id") == "identity.sso.saml-idp-init" }
+  operation.fetch("request").fetch("fields").find { |field| field.fetch("name") == "Confirmation" }["type"] = "UndeclaredLoginConfirmation"
+end
+expect_protocol_fixture_rejection!("undeclared SAML public type", "SAML public contract references undeclared types") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: undeclared_saml_type))
+end
+impossible_idp_init = mutate_public_contract.call("identity.sso.saml-idp-init") do |operation|
+  operation.fetch("authorization")["access"] = "pre-auth-bound RelayState"
+end
+expect_protocol_fixture_rejection!("IdP-init pre-auth requirement", "SAML IdP-initiated login requires impossible pre-auth or RelayState") do
+  protocol_semantic_errors(**semantic_inputs.merge(public_contracts: impossible_idp_init))
+end
+missing_slo_clause = JSON.parse(JSON.generate(semantic_inputs.fetch(:conformance)))
+missing_slo_clause.fetch("clause_pins").reject! { |pin| pin.fetch("requirement_id") == "saml.single-logout-protocol" }
+expect_protocol_fixture_rejection!("missing SAML SLO clause pin", "SAML Single Logout clause pins are incomplete") do
+  protocol_semantic_errors(**semantic_inputs.merge(conformance: missing_slo_clause))
+end
+
 preflight = artifacts.fetch("PREFLIGHT_EVIDENCE.md")
 [
   "| Field | Value |",
@@ -6204,6 +8728,7 @@ preflight = artifacts.fetch("PREFLIGHT_EVIDENCE.md")
   "| Safe profile ID | Consuming units | Exact acceptance claim IDs | Classification | Credential source metadata | Evidence path or blocker | Evidence record commit | Evidence digest or blocker |",
   "| Primitive | Consuming units | Registered module/package | API input fingerprint | Gate fingerprint and result | Evidence path |",
   "| Resource ID | Type | Owning unit/task | Exact path or safe external ID | State | Cleanup trigger | Last reconciled at | Cleanup evidence or attestation |",
+  "| Revision ID | Unit | Previous goal digest | Current goal digest | Status | Authorized by | Recorded at |",
   "| Recovery epoch | Unit | Generation | Integration commit | Worker checkpoint | Conflict evidence path | Status | Recorded at |"
 ].each do |header|
   fail_check("preflight evidence schema missing: #{header}") unless preflight.lines.any? { |line| line.chomp == header }
@@ -6494,7 +9019,9 @@ operation_owner_edges = operation_owner_map.sort.flat_map do |operation_id, owne
 end
 fail_check("upstream operation-owner edge count drifted") unless item_closure.fetch("operation_owner_edge_count") == operation_owner_edges.length
 closure_digest = canonical_inventory_digest(canonical_closure_rows + capability_operation_edges.sort + operation_owner_edges + owner_goal_edges)
-fail_check("upstream item closure digest drifted") unless item_closure.fetch("sha256") == EXPECTED_UPSTREAM_CLOSURE_SHA256 && closure_digest == EXPECTED_UPSTREAM_CLOSURE_SHA256
+unless item_closure.fetch("sha256") == EXPECTED_UPSTREAM_CLOSURE_SHA256 && closure_digest == EXPECTED_UPSTREAM_CLOSURE_SHA256
+  fail_check("upstream item closure digest drifted: #{closure_digest}")
+end
 parity_capabilities = parity.lines.filter_map do |line|
   cells = line.split("|").map(&:strip)
   cells[1] if cells.length >= 6 && cells[2] == "In"
@@ -6576,6 +9103,15 @@ unknown_placeholders = worker_placeholders - ALLOWED_WORKER_PLACEHOLDERS
 missing_placeholders = ALLOWED_WORKER_PLACEHOLDERS - worker_placeholders
 fail_check("worker placeholder mismatch; unknown=#{unknown_placeholders.to_a} missing=#{missing_placeholders.to_a}") unless unknown_placeholders.empty? && missing_placeholders.empty?
 fail_check("worker does not read reference profile") unless worker.include?("REFERENCE_PROFILE.md")
+worker_contract_read_order = %w[
+  END_STATE_ACCEPTANCE.json ACCEPTANCE_ARTIFACTS.json API_OPERATIONS.md
+  OPERATION_SEMANTICS.json PUBLIC_CONTRACTS.json public_contracts.rb
+]
+worker_contract_positions = worker_contract_read_order.map { |artifact| worker.index(artifact) }
+fail_check("worker public-contract reading order drifted") unless worker_contract_positions.all? && worker_contract_positions == worker_contract_positions.sort
+unless worker.include?("MUST NOT infer, add, broaden, substitute, or") && worker.include?("expose any public API beyond those exact contracts")
+  fail_check("worker prompt permits inferred or additional public APIs")
+end
 
 reference_profile = File.read(File.join(ROOT, "REFERENCE_PROFILE.md"))
 [
@@ -6703,6 +9239,32 @@ dependency_dispositions.each do |disposition|
   fail_check("dependency assignment preservation commit excludes its assignment") unless git_ancestor?(disposition[:assignment], disposition[:preserved_commit])
   fail_check("dependency assignment disposition timestamp is invalid") unless rfc3339?(disposition[:recorded_at])
 end
+local_gate_binding_header = "| Unit | Generation | Gate execution revision | Evidence path | Evidence record commit | Evidence blob digest | Bound at |"
+parse_local_gate_bindings = lambda do |body|
+  markdown_table(body, "Local gate evidence bindings", local_gate_binding_header).map do |unit, generation, gate_revision, path, commit, digest, bound_at|
+    binding = {
+      unit: plain_cell(unit), generation: plain_cell(generation), gate_revision: plain_cell(gate_revision), path: plain_cell(path),
+      commit: plain_cell(commit), digest: plain_cell(digest), bound_at: plain_cell(bound_at)
+    }
+    fail_check("local gate binding has unknown unit") unless known.include?(binding[:unit])
+    fail_check("#{binding[:unit]} local gate binding generation is invalid") unless binding[:generation].match?(/\A\d+\z/)
+    fail_check("#{binding[:unit]} local gate execution revision is invalid") unless binding[:gate_revision].match?(/\A[0-9a-f]{40}\z/) && git_commit_exists?(binding[:gate_revision])
+    expected_path = ".ai/identity-platform/evidence/gates/#{binding[:unit].tr('/', '-')}.json"
+    fail_check("#{binding[:unit]} local gate binding path drifted") unless binding[:path] == expected_path
+    fail_check("#{binding[:unit]} local gate binding commit is invalid") unless binding[:commit].match?(/\A[0-9a-f]{40}\z/) && git_commit_exists?(binding[:commit])
+    committed = git_blob_bytes(binding[:commit], binding[:path])
+    fail_check("#{binding[:unit]} local gate binding commit lacks its record") unless committed
+    fail_check("#{binding[:unit]} local gate binding commit is not integrated") unless git_ancestor?(binding[:commit], "HEAD")
+    fail_check("#{binding[:unit]} local gate binding does not name the first exact record commit") unless committed && first_parent_commit_with_blob(binding[:path], committed) == binding[:commit]
+    fail_check("#{binding[:unit]} local gate binding commit excludes its gate execution revision") unless git_ancestor?(binding[:gate_revision], binding[:commit])
+    fail_check("#{binding[:unit]} local gate binding digest drifted") unless committed && binding[:digest] == "sha256:#{Digest::SHA256.hexdigest(committed)}"
+    fail_check("#{binding[:unit]} local gate binding timestamp is invalid") unless rfc3339?(binding[:bound_at])
+    binding
+  end
+end
+local_gate_evidence_bindings = parse_local_gate_bindings.call(ledger)
+local_gate_binding_keys = local_gate_evidence_bindings.map { |binding| [binding[:unit], binding[:generation], binding[:gate_revision]] }
+fail_check("local gate evidence bindings contain duplicate unit/generation/revision rows") unless local_gate_binding_keys == local_gate_binding_keys.uniq
 ledger_header = "| Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Worker commit | Integration checkpoint | Gate execution revision | Gate fingerprint | External evidence | Last transition |"
 ledger_rows = parse_execution_ledger(ledger, ledger_header)
 if execution_mode
@@ -6791,7 +9353,32 @@ fail_check("execution ledger parser leaked a dependency revision row") if ledger
 ledger_units = ledger_rows.map { |row| row[:unit] }
 fail_check("execution ledger units do not exactly match inventory") unless ledger_units == units
 fail_check("execution ledger contains duplicate units") unless ledger_units.uniq.length == ledger_units.length
+primitive_extension_inventory_errors(
+  public_contracts: public_contracts, rows: rows, goal_bodies: goal_bodies, ledger_units: ledger_units
+).each { |error| fail_check(error) }
 fail_check("execution ledger lacks status/owner mirror rule") unless ledger.include?("mirror")
+history_required = execution_mode && execution_history_required?(
+  entries: ledger_rows, recovery_rows: recovery_rows_for_validation, goal_revision_rows: goal_revision_rows,
+  dependency_revisions: dependency_revisions, dependency_dispositions: dependency_dispositions,
+  local_gate_bindings: local_gate_evidence_bindings
+)
+previous_sources = if previous_inventory_path
+                     {
+                       ".ai/identity-platform/INVENTORY.md" => File.binread(previous_inventory_path),
+                       ".ai/identity-platform/EXECUTION_LEDGER.md" => File.binread(previous_ledger_path),
+                       ".ai/identity-platform/PREFLIGHT_EVIDENCE.md" => File.binread(previous_execution_fixture_path),
+                       ".ai/identity-platform/GOAL_MANIFEST.json" => File.binread(previous_goal_manifest_fixture_path)
+                     }
+                   else
+                     {}
+                   end
+current_snapshot_fixture_mode = [
+  inventory_fixture_path, ledger_fixture_path, execution_fixture_path, goal_manifest_fixture_path
+].any?
+previous_snapshot_binding_errors(
+  previous_sources: previous_sources, history_required: history_required,
+  candidate_fixture_mode: current_snapshot_fixture_mode
+).each { |error| fail_check(error) }
 
 effective_recoveries = recovery_rows_for_validation.each_with_object({}) do |row, latest|
   key = row.values_at(0, 1, 2, 3).map { |value| plain_cell(value) }
@@ -6830,7 +9417,7 @@ if historical_proposed_entries.any? && previous_inventory_path.nil?
 end
 
 if previous_inventory_path
-  previous_inventory = File.read(previous_inventory_path)
+  previous_inventory = previous_sources.fetch(".ai/identity-platform/INVENTORY.md")
   previous_inventory_rows = previous_inventory.lines.filter_map do |line|
     next unless line.start_with?("| `")
     cells = line.split("|").map(&:strip)
@@ -6842,12 +9429,51 @@ if previous_inventory_path
       status: cells[4], owner: cells[5], goal: cells[6][/`([^`]+)`/, 1]
     } if unit
   end
-  previous_ledger = File.read(previous_ledger_path)
-  if previous_execution_fixture_path
-    previous_task_owned_resource_rows = parse_dependency_resource_snapshot.call(File.read(previous_execution_fixture_path))
-    previous_resource_ids = previous_task_owned_resource_rows.map { |resource| resource[:id] }
-    fail_check("previous task-owned resource registry contains duplicate resource IDs") unless previous_resource_ids == previous_resource_ids.uniq
+  previous_ledger = previous_sources.fetch(".ai/identity-platform/EXECUTION_LEDGER.md")
+  previous_preflight = previous_sources.fetch(".ai/identity-platform/PREFLIGHT_EVIDENCE.md")
+  goal_revision_header = "| Revision ID | Unit | Previous goal digest | Current goal digest | Status | Authorized by | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Goal digest revisions", goal_revision_header)
+    fail_check("goal digest revision history rows are not preserved exactly")
   end
+  previous_goal_revisions = markdown_table(previous_preflight, "Goal digest revisions", goal_revision_header).map do |revision_id, unit, previous_digest, current_digest, status, authorized_by, recorded_at|
+    {
+      revision_id: plain_cell(revision_id), unit: plain_cell(unit),
+      previous_digest: plain_cell(previous_digest), current_digest: plain_cell(current_digest),
+      status: plain_cell(status), authorized_by: plain_cell(authorized_by), recorded_at: plain_cell(recorded_at)
+    }
+  end
+  previous_goal_manifest = JSON.parse(previous_sources.fetch(".ai/identity-platform/GOAL_MANIFEST.json"))
+  goal_digest_change_errors(previous_goal_manifest, goal_manifest, previous_goal_revisions, goal_revision_rows).each do |error|
+    fail_check(error)
+  end
+  recovery_header = "| Recovery epoch | Unit | Generation | Integration commit | Worker checkpoint | Conflict evidence path | Status | Recorded at |"
+  unless markdown_table_append_only?(previous_preflight, preflight_snapshot, "Conflict-recovery baselines", recovery_header)
+    fail_check("conflict-recovery history rows are not preserved exactly")
+  end
+  previous_recoveries = markdown_table(previous_preflight, "Conflict-recovery baselines", recovery_header).map do |epoch, unit, generation, integration_commit, worker_checkpoint, evidence, status, recorded_at|
+    [plain_cell(unit), plain_cell(generation), plain_cell(integration_commit), plain_cell(worker_checkpoint),
+     plain_cell(evidence), plain_cell(status), plain_cell(recorded_at), plain_cell(epoch)]
+  end
+  recovery_transition_errors(previous_recoveries, recovery_rows_for_validation).each { |error| fail_check(error) }
+  previous_recovery_raw_rows = markdown_table_raw_rows(previous_preflight, "Conflict-recovery baselines", recovery_header)
+  recovery_rows_for_validation.drop(previous_recoveries.length).reject { |row| row[5] == "authorized" }.each do |terminal|
+    identity = terminal.values_at(7, 0, 1, 2, 3)
+    authorization_index = previous_recoveries.index do |candidate|
+      candidate[5] == "authorized" && candidate.values_at(7, 0, 1, 2, 3) == identity
+    end
+    next unless authorization_index
+
+    authorization_commit = first_parent_commit_adding_line(
+      previous_recovery_raw_rows.fetch(authorization_index).chomp,
+      ".ai/identity-platform/PREFLIGHT_EVIDENCE.md"
+    )
+    unless authorization_commit && git_ancestor?(authorization_commit, "HEAD")
+      fail_check("recovery terminal authorization is not a preceding first-parent commit")
+    end
+  end
+  previous_task_owned_resource_rows = parse_dependency_resource_snapshot.call(previous_preflight)
+  previous_resource_ids = previous_task_owned_resource_rows.map { |resource| resource[:id] }
+  fail_check("previous task-owned resource registry contains duplicate resource IDs") unless previous_resource_ids == previous_resource_ids.uniq
   previous_dependency_revisions = parse_dependency_revisions.call(previous_ledger)
   unless markdown_table_append_only?(previous_ledger, ledger, "Dependency revisions", dependency_revision_header)
     fail_check("dependency revision history rows are not preserved exactly")
@@ -6869,10 +9495,28 @@ if previous_inventory_path
   new_assignment_dispositions = dependency_dispositions.drop(previous_dependency_dispositions.length)
   new_dependency_dispositions = new_assignment_dispositions.reject { |disposition| disposition[:ordinary_abandonment] }
   new_ordinary_abandonments = new_assignment_dispositions.select { |disposition| disposition[:ordinary_abandonment] }
+  previous_local_gate_bindings = parse_local_gate_bindings.call(previous_ledger)
+  unless markdown_table_append_only?(previous_ledger, ledger, "Local gate evidence bindings", local_gate_binding_header)
+    fail_check("local gate evidence binding history rows are not preserved exactly")
+  end
+  unless local_gate_evidence_bindings.first(previous_local_gate_bindings.length) == previous_local_gate_bindings
+    fail_check("local gate evidence binding history is not append-only")
+  end
+  new_local_gate_bindings = local_gate_evidence_bindings.drop(previous_local_gate_bindings.length)
   previous_ledger_rows = parse_execution_ledger(previous_ledger, ledger_header)
   fail_check("previous transition fixture units do not match inventory") unless previous_inventory_rows.map { |row| row[:unit] } == units && previous_ledger_rows.map { |row| row[:unit] } == units
   previous_statuses = previous_inventory_rows.to_h { |row| [row[:unit], row[:status]] }
   previous_generations = previous_ledger_rows.to_h { |row| [row[:unit], row[:generation]] }
+  verified_gate_bindings = rows.filter_map do |row|
+    previous_row = previous_inventory_rows.find { |candidate| candidate[:unit] == row[:unit] }
+    next unless previous_row[:status] == "implemented-unverified" && row[:status] == "verified"
+
+    entry = ledger_rows.find { |candidate| candidate[:unit] == row[:unit] }
+    [row[:unit], entry[:generation], entry[:gate_revision]]
+  end
+  unless new_local_gate_bindings.map { |binding| [binding[:unit], binding[:generation], binding[:gate_revision]] }.sort == verified_gate_bindings.sort
+    fail_check("new local gate evidence bindings do not exactly match implemented-unverified to verified transitions")
+  end
   previous_ledger_rows.each do |entry|
     inventory_row = previous_inventory_rows.find { |row| row[:unit] == entry[:unit] }
     fail_check("previous #{entry[:unit]} ledger generation is invalid") unless entry[:generation].match?(/\A\d+\z/)
@@ -6968,11 +9612,11 @@ eligible_proposed = eligible_frontier_rows(rows, start_gate_blocked_units)
 fail_check("eligible proposed units were not promoted to ready: #{eligible_proposed.map { |row| row[:unit] }.join(', ')}") unless eligible_proposed.empty?
 
 if execution_mode
-  recovery_rows_for_validation.group_by { |row| [plain_cell(row[0]), plain_cell(row[1])] }.each do |(unit, generation), history|
+  recovery_rows_for_validation.group_by { |row| row.values_at(0, 1) }.each do |(unit, generation), history|
     statuses = history.map { |row| plain_cell(row[5]) }
     recovery_lifecycle_errors(statuses.map { |status| {"status" => status} }).each { |error| fail_check("recovery #{unit} generation #{generation} #{error}") }
     epoch_history = history.map do |row|
-      {"status" => plain_cell(row[5]), "identity" => row.values_at(0, 1, 2, 3).map { |value| plain_cell(value) }}
+      {"status" => plain_cell(row[5]), "identity" => row.values_at(7, 0, 1, 2, 3).map { |value| plain_cell(value) }}
     end
     recovery_epoch_identity_errors(epoch_history).each { |error| fail_check("recovery #{unit} generation #{generation} #{error}") }
   end
@@ -6981,6 +9625,19 @@ end
 active_ledger_rows = ledger_rows.select do |entry|
   status = rows.find { |row| row[:unit] == entry[:unit] }[:status]
   ["in-progress", "blocked"].include?(status)
+end
+gate_module_roots_for = lambda do |unit|
+  closure = Set.new
+  visit = lambda do |candidate|
+    next if closure.include?(candidate)
+
+    closure << candidate
+    rows.find { |row| row[:unit] == candidate }.fetch(:requires).each { |required| visit.call(required) }
+  end
+  visit.call(unit)
+  inventory_roots = closure.map { |candidate| rows.find { |row| row[:unit] == candidate }.fetch(:module) }
+  primitive_roots = closure.flat_map { |candidate| primitive_module_roots_by_consumer[candidate].to_a }
+  (inventory_roots + primitive_roots).uniq.sort_by(&:b)
 end
 if execution_mode
   ledger_rows.reject { |entry| entry[:task] == "—" }.each do |entry|
@@ -7043,8 +9700,9 @@ ledger_rows.each do |entry|
       end
     else
       fail_check("#{entry[:unit]} integrated repair lacks worker commit") if entry[:worker_commit] == "—"
-      fail_check("#{entry[:unit]} integrated repair gate revision is invalid") unless entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/)
-      fail_check("#{entry[:unit]} integrated repair gate fingerprint is invalid") unless entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
+      gate_empty = entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
+      gate_complete = entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/) && entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
+      fail_check("#{entry[:unit]} integrated repair gate evidence is partial") unless gate_empty || gate_complete
     end
   when "blocked"
     fail_check("#{entry[:unit]} blocked owner must be a safe blocker ID") unless inventory_row[:owner].match?(/\Ablocker:[a-zA-Z0-9._-]+\z/)
@@ -7053,15 +9711,14 @@ ledger_rows.each do |entry|
       fail_check("#{entry[:unit]} pre-integration blocked row has gate evidence") unless entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
     else
       fail_check("#{entry[:unit]} integrated blocked row lacks worker commit") if entry[:worker_commit] == "—"
-      fail_check("#{entry[:unit]} integrated blocked gate revision is invalid") unless entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/)
-      fail_check("#{entry[:unit]} integrated blocked gate fingerprint is invalid") unless entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
+      gate_empty = entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
+      gate_complete = entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/) && entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
+      fail_check("#{entry[:unit]} integrated blocked gate evidence is partial") unless gate_empty || gate_complete
     end
   when "implemented-unverified"
     fail_check("#{entry[:unit]} integrated owner is not empty") unless inventory_row[:owner] == "—"
     fail_check("#{entry[:unit]} integrated fields are incomplete") if (assignment_fields + integrated_fields).any? { |value| value == "—" || value == "pending" }
-    gate_empty = entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
-    gate_complete = entry[:gate_revision].match?(/\A[0-9a-f]{40}\z/) && entry[:fingerprint].match?(/\Asha256:[0-9a-f]{64}\z/)
-    fail_check("#{entry[:unit]} implemented-unverified gate evidence is partial") unless gate_empty || gate_complete
+    fail_check("#{entry[:unit]} implemented-unverified row prematurely records gate evidence") unless entry[:gate_revision] == "—" && entry[:fingerprint] == "—"
     fail_check("#{entry[:unit]} integrated external evidence disposition is missing") if entry[:external] == "—"
   when "verified"
     fail_check("#{entry[:unit]} integrated owner is not empty") unless inventory_row[:owner] == "—"
@@ -7091,36 +9748,38 @@ ledger_rows.each do |entry|
     fail_check("#{entry[:unit]} external evidence binding commit does not contain the record") unless committed
     fail_check("#{entry[:unit]} external evidence binding differs from working bytes") unless committed == File.binread(evidence_path)
   end
+  if execution_mode && %w[implemented-unverified verified].include?(inventory_row[:status])
+    integrated_commit_ancestry_errors(entry).each do |error|
+      fail_check("#{entry[:unit]} #{inventory_row[:status]} #{error}")
+    end
+  end
   if inventory_row[:status] == "verified"
     if execution_mode
-      fail_check("#{entry[:unit]} verified assignment commit does not exist") unless git_commit_exists?(entry[:assignment])
-      fail_check("#{entry[:unit]} verified worker commit does not exist") unless git_commit_exists?(entry[:worker_commit])
-      fail_check("#{entry[:unit]} verified checkpoint does not exist") unless git_commit_exists?(entry[:checkpoint])
       fail_check("#{entry[:unit]} verified gate execution revision does not exist") unless git_commit_exists?(entry[:gate_revision])
-      fail_check("#{entry[:unit]} verified worker commit excludes assignment") unless git_ancestor?(entry[:assignment], entry[:worker_commit])
-      fail_check("#{entry[:unit]} verified checkpoint excludes worker commit") unless git_ancestor?(entry[:worker_commit], entry[:checkpoint])
-      fail_check("#{entry[:unit]} verified checkpoint is not integrated") unless git_ancestor?(entry[:checkpoint], "HEAD")
       fail_check("#{entry[:unit]} gate execution revision excludes integration checkpoint") unless git_ancestor?(entry[:checkpoint], entry[:gate_revision])
       fail_check("#{entry[:unit]} gate execution revision is not integrated") unless git_ancestor?(entry[:gate_revision], "HEAD")
       gate_path = File.join(REPOSITORY_ROOT, ".ai/identity-platform/evidence/gates/#{entry[:unit].tr('/', '-')}.json")
+      gate_binding = local_gate_evidence_bindings.find do |binding|
+        binding[:unit] == entry[:unit] && binding[:generation] == entry[:generation] &&
+          binding[:gate_revision] == entry[:gate_revision]
+      end
+      fail_check("#{entry[:unit]} verified local gate evidence lacks an attributable binding") unless gate_binding
+      local_gate_binding_errors(gate_binding, ledger_entry: entry, repository_root: REPOSITORY_ROOT).each do |error|
+        fail_check("#{entry[:unit]} local gate binding #{error}")
+      end if gate_binding
       fail_check("#{entry[:unit]} verified local gate evidence is missing") unless File.file?(gate_path)
       gate_source = File.read(gate_path)
       gate = JSON.parse(gate_source)
       fail_check("#{entry[:unit]} local gate evidence is not canonical JSON") unless gate_source == JSON.pretty_generate(gate) + "\n"
-      local_gate_evidence_errors(gate, unit: entry[:unit], revision: entry[:gate_revision], fingerprint: entry[:fingerprint], repository_root: REPOSITORY_ROOT, record_path: ".ai/identity-platform/evidence/gates/#{entry[:unit].tr('/', '-')}.json").each do |error|
+      local_gate_evidence_errors(
+        gate, unit: entry[:unit], revision: entry[:gate_revision], fingerprint: entry[:fingerprint],
+        module_roots: gate_module_roots_for.call(entry[:unit]), repository_root: REPOSITORY_ROOT,
+        record_path: ".ai/identity-platform/evidence/gates/#{entry[:unit].tr('/', '-')}.json",
+        evidence_commit: gate_binding&.fetch(:commit)
+      ).each do |error|
         fail_check("#{entry[:unit]} local gate evidence #{error}")
       end
-      gate_keys = %w[schema unit execution_revision complete_input_fingerprint outcome commands artifacts tool_identity environment_identity record_digest]
-      fail_check("#{entry[:unit]} local gate evidence schema drifted") unless gate.keys == gate_keys && gate["schema"] == "identity-platform.local-gate.v1"
-      fail_check("#{entry[:unit]} local gate evidence unit drifted") unless gate["unit"] == entry[:unit]
-      fail_check("#{entry[:unit]} local gate evidence revision drifted") unless gate["execution_revision"] == entry[:gate_revision]
-      fail_check("#{entry[:unit]} local gate evidence fingerprint drifted") unless gate["complete_input_fingerprint"] == entry[:fingerprint]
-      fail_check("#{entry[:unit]} local gate evidence did not pass") unless gate["outcome"] == "pass"
-      fail_check("#{entry[:unit]} local gate evidence lacks commands") unless gate["commands"].is_a?(Array) && gate["commands"].any? && gate["commands"].all? { |command| command.is_a?(String) && !command.empty? }
-      fail_check("#{entry[:unit]} local gate evidence lacks artifact digests") unless gate["artifacts"].is_a?(Array) && gate["artifacts"].all? { |artifact| artifact.is_a?(Hash) && artifact.keys == %w[path sha256] && artifact["sha256"].match?(/\Asha256:[0-9a-f]{64}\z/) }
-      fail_check("#{entry[:unit]} local gate evidence lacks tool/environment identity") unless [gate["tool_identity"], gate["environment_identity"]].all? { |identity| identity.is_a?(String) && !identity.empty? }
-      record_digest = Digest::SHA256.hexdigest(JSON.generate(canonical_json_value(gate.reject { |key, _| key == "record_digest" })))
-      fail_check("#{entry[:unit]} local gate evidence digest drifted") unless gate["record_digest"] == "sha256:#{record_digest}"
+      fail_check("#{entry[:unit]} local gate binding differs from record bytes") unless gate_binding && gate_binding[:digest] == "sha256:#{Digest::SHA256.hexdigest(gate_source)}"
     end
     required_lanes = external_lanes.select { |lane| lane[:consumers].include?(entry[:unit]) }
     if required_lanes.empty?
@@ -7144,4 +9803,4 @@ ledger_rows.each do |entry|
   end
 end
 
-puts "identity-platform validation: #{rows.length} units, #{inventory_edges.length} edges, #{depth.values.max + 1} waves, #{operation_ids.length} operations, #{route_records.length} HTTP mappings, #{openapi_owners.length} OpenAPI operations, parity baseline #{BASELINE}"
+puts "identity-platform validation: #{rows.length} schedulable units (#{identity_rows.length} identity public-contract units plus #{primitive_extension_rows.length} primitive extensions), #{inventory_edges.length} edges, #{depth.values.max + 1} waves, #{operation_ids.length} operations, #{route_records.length} HTTP mappings, #{openapi_owners.length} OpenAPI operations, parity baseline #{BASELINE}"

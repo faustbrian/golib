@@ -11,6 +11,7 @@ shown here.
 - Unit: `scim/postgres`
 - Canonical module: `pkg/scim/postgres`
 - Canonical goal after scaffolding: `pkg/scim/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:scim/postgres:v1`; owned operation IDs: none
 - Requires: `scim`, `scim/organization`, `identity/postgres`, `organization/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
@@ -45,9 +46,9 @@ limits, and extension points MUST have explicit semantics.
 
 ## Required behavior
 
-The implementation and tests MUST enforce external-ID uniqueness by tenant,
+The implementation and tests MUST preserve non-unique external-ID lookup by tenant,
 organization, provider connection, resource type and schema-exact `caseExact`
-comparison; compare versions atomically; translate safe indexed filters and
+comparison without a unique constraint; compare versions atomically; translate safe indexed filters and
 bounded fallbacks; apply patches and outbox atomically; replay idempotently;
 preserve tombstones and retention; and verify plans and mixed-binary migrations. Every state transition MUST
 define authorization, audit, idempotency, cancellation, cleanup, and
@@ -64,11 +65,18 @@ involved.
 - Token creation/rotation MUST reveal once, store only lookup digest/prefix and
   atomically revoke prior material according to overlap policy. Unknown commits
   MUST NOT cause the same secret to be reissued.
-- `externalId` uniqueness and lookup MUST use the exact key `(tenant_id,
-  organization_id, provider_connection_id, resource_type, external_id)` and
-  the resource schema's exact `caseExact` rule. Indexes and comparisons MUST
-  use protocol-defined bytes/folding explicitly; database collation and generic
-  identifier canonicalization MUST NOT alter or widen that tuple. Other schema
+- Connection update, individual token revoke and bounded reconciliation MUST be
+  separate versioned durable commands. Each MUST atomically persist its command
+  result, audit/outbox state and affected connection/token/reconciliation
+  version; unknown outcomes remain reserved and resumable rather than being
+  converted to success or retried as a new command.
+- `externalId` has RFC `uniqueness: none`. Its non-unique lookup index MUST be
+  partitioned by `(tenant_id, organization_id, provider_connection_id,
+  resource_type)` and compare `external_id` with the resource schema's exact
+  `caseExact` rule. Equal values MAY identify multiple resources and MUST NOT be
+  rejected by a unique constraint. The provider connection is the lookup
+  partition, not authoritative resource identity; database collation and generic
+  identifier canonicalization MUST NOT alter or widen that comparison. Other schema
   uniqueness constraints MUST likewise honor their declared scope and
   `caseExact` semantics.
 - Admission and projection writes MUST reject exact duplicate JSON members,
@@ -113,12 +121,19 @@ involved.
   `skipped-fail-on-errors` child as unprocessed; skipped children retain no wire
   status/location/version/Error body.
 - The adapter MUST implement the HTTP/SCIM idempotency mapping and command
-  ledger as one authority with each mutation. Matching key/fingerprint retries
-  recover the same command/result, mismatches conflict without mutation, and
+  ledger as one authority with each mutation. The mapping uniqueness scope is
+  tenant, actor, method, canonical route, and keyed idempotency-key digest;
+  request fingerprint is stored separately and MUST NOT be part of lookup or
+  uniqueness. Matching key/fingerprint retries recover the same command/result,
+  the same key with a changed body or precondition conflicts without mutation, and
   pending or unknown mappings remain reserved. DELETE tombstones and original
-  results MUST support same-key/fingerprint replay according to
-  `scim.delete_tombstone_retention` and `scim.idempotency_retention`; different
-  keys receive normal precondition/not-found outcomes. Cleanup MUST remove only
+  results MUST support same-key/fingerprint replay without re-evaluating
+  `If-Match`; original success remains available through
+  `scim.idempotency_retention` even if the resource tombstone expires first.
+  Headerless DELETE retries with the same canonical connection, target and
+  precondition fingerprint MUST recover the same server-owned command and
+  original result; a different target or precondition observes current state.
+  Cleanup MUST remove only
   bounded expired evidence and MUST NOT time-release unresolved mappings.
 - Migration and restore evidence MUST include active connections/tokens,
   custom mappings, large groups, mixed binaries and resumption of a partially

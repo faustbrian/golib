@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/oauth/postgres`
 - Canonical module: `pkg/identity/oauth/postgres`
 - Canonical goal after scaffolding: `pkg/identity/oauth/postgres/.ai/GOAL.md`
-- Requires: `identity/oauth`, `identity/postgres`
+- Public contracts: unit ID `contract:unit:identity/oauth/postgres:v1`; owned operation IDs: none
+- Requires: `identity/oauth`, `identity/postgres`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `postgres`, `migrations`, `capability/postgres`, `secret-envelope`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 
@@ -36,6 +37,11 @@ authority version. It owns token-vault metadata and the
 social-link changes MUST enlist `identity/postgres` to mutate its authoritative
 row and version in the same unit of work. It does not perform OAuth requests,
 validate identity proof, choose linking policy or issue sessions.
+The adapter MUST store the RP transaction's PKCE verifier only as authenticated
+ciphertext under `struct:ref.oauth.rp_transaction`, never as plaintext or as a
+non-recoverable substitute for the verifier. Its keyed commitment is the sole
+lookup/replay value. Reservation, decrypt authority, terminal erasure and
+ambiguous-exchange recovery MUST use the exact shared transaction profile.
 Authorization state signing, expiry, revocation and replay consumption belong
 exclusively to `capability` and the `identity/oauth` workflow. This adapter MUST
 NOT create an authorization-state token format, replay table or fallback

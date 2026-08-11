@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/risk/hibp`
 - Canonical module: `pkg/identity/risk/hibp`
 - Canonical goal after scaffolding: `pkg/identity/risk/hibp/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/risk/hibp:v1`; owned operation IDs: `contract:operation:identity.risk.hibp-check:v1`
 - Requires: `identity/risk`
 - Consumes existing primitives: `http-client`, `password`, `audit`,
   `telemetry`

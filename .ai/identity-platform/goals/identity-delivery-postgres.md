@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/delivery/postgres`
 - Canonical module: `pkg/identity/delivery/postgres`
 - Canonical goal after scaffolding: `pkg/identity/delivery/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/delivery/postgres:v1`; owned operation IDs: none
 - Requires: `identity/delivery`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `workflow`, `secret-envelope`, `audit`
 - Unlocks after verification: `identity/reference`
@@ -64,6 +65,12 @@ second workflow engine, or treat queue admission as provider delivery.
   classifications, not additional states. An unknown send MUST enter
   reconciliation and MUST NOT be retried blindly when the provider lacks
   idempotency.
+- The adapter MUST persist authenticated provider receipt identities under a
+  unique `(tenant, provider, provider_event_id)` constraint, redacted receipt
+  evidence, cancellation state, reconciliation generation/checkpoint and
+  monotonic status version. Receipt, cancellation and reconciliation updates
+  MUST generation-CAS against the leased effect and return the recorded result
+  on replay without reissuing provider work.
 - Retry scheduling MUST apply the delivery contract's bounded backoff,
   maximum-attempt, expiry and provider-idempotency policy. It MUST preserve the
   original one-time credential rather than generating a different secret

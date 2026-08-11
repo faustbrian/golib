@@ -1,0 +1,4154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "identity-platform.acceptance.mfa-recovery-report.v1",
+  "title": "mfa-recovery-report acceptance evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "result",
+    "tested_revision",
+    "gate_execution_revision",
+    "revalidation_revision",
+    "input_manifest",
+    "input_root",
+    "tool_environment",
+    "observations",
+    "artifact_hashes",
+    "recorded_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "artifact_id": {
+      "const": "mfa-recovery-report"
+    },
+    "result": {
+      "const": {
+        "status": "pass",
+        "gate": "make check MODULES=pkg/identity/reference"
+      }
+    },
+    "tested_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "gate_execution_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "revalidation_revision": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "input_manifest": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path_or_environment_id",
+          "kind",
+          "content_identity",
+          "owner",
+          "reason"
+        ],
+        "properties": {
+          "path_or_environment_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "content_identity": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "input_root": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "tool_environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "environment"
+      ],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.mfa-recovery-issue"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.mfa-recovery-report.v1"
+              },
+              "scenario": {
+                "const": "success,denial,failure,outage,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.mfa-recovery-issue; exact inputs: tenant_id, user_id, reset_generation, approval_id, approved_recovery_channel, reason; initial state: MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.mfa-recovery-issue for success, denial, failure, outage, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, user_id, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, outage=unavailable/unavailable, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+              },
+              "claim_id": {
+                "const": "identity.admin.mfa-reset"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.mfa-recovery-report.v1"
+              },
+              "scenario": {
+                "const": "success,denial,failure,replay,concurrency,cleanup,unknown-outcome"
+              },
+              "preconditions": {
+                "const": "Operations: identity.admin.mfa-reset; exact inputs: tenant_id, user_id, reset_generation, approval_id, reason; initial state: MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+              },
+              "stimulus": {
+                "const": "Run identity.admin.mfa-reset for success, denial, failure, replay, concurrency, cleanup, unknown-outcome cases using tenant_id, user_id, reset_generation, approval_id, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, denial=denied/forbidden, failure=failed/internal, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none, unknown-outcome=reconciled/unknown_commit; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          },
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+              },
+              "claim_id": {
+                "const": "journey.mfa-webauthn.v1"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.mfa-recovery-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,concurrency,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.mfa.recovery-regenerate, identity.mfa.recovery-use, identity.admin.mfa-recovery-issue, identity.admin.mfa-reset; exact inputs: tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason; initial state: MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+              },
+              "stimulus": {
+                "const": "Run identity.mfa.recovery-regenerate then identity.mfa.recovery-use then identity.admin.mfa-recovery-issue then identity.admin.mfa-reset for success, failure, denial, replay, concurrency, cleanup cases using tenant_id, user_id, recovery_code, reauthentication_proof, reset_generation, approval_id, approved_recovery_channel, reason and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, concurrency=pass/conflict, cleanup=pass/none; required artifact fields: recovery_set_id, generated_code_count, consumed_code_count, old_code_rejected, reset_generation, independent_approval_count, recovery_capability_id, audit_event_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "artifact_hashes": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^\\.ai/[A-Za-z0-9._/-]+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      },
+      "contains": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "const": ".ai/identity-platform/evidence/artifacts/mfa-recovery-report.json"
+          }
+        }
+      },
+      "minContains": 1
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "artifact_hashes": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "path"
+            ],
+            "properties": {
+              "path": {
+                "const": ".ai/identity-platform/evidence/executions/mfa-recovery-report.json"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    }
+  ],
+  "x-cross-field-rules": [
+    "every observations[].artifact_sha256 value must equal one artifact_hashes[].sha256 value",
+    "artifact_hashes must bind the artifact-specific evidence object at .ai/identity-platform/evidence/artifacts/mfa-recovery-report.json",
+    "artifact_hashes must bind the separately captured coordinator execution receipt at .ai/identity-platform/evidence/executions/mfa-recovery-report.json",
+    "revalidation_revision is null exactly when tested_revision equals gate_execution_revision; otherwise it equals gate_execution_revision",
+    "input_root is SHA-256 over RFC 8785 canonical JSON of input_manifest"
+  ],
+  "$defs": {
+    "artifact_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "operation_ids",
+        "input_digest",
+        "execution",
+        "scenario_cases",
+        "recovery_set_id",
+        "generated_code_count",
+        "consumed_code_count",
+        "old_code_rejected",
+        "reset_generation",
+        "independent_approval_count",
+        "recovery_capability_id",
+        "audit_event_digest"
+      ],
+      "properties": {
+        "artifact_id": {
+          "const": "mfa-recovery-report"
+        },
+        "operation_ids": {
+          "const": [
+            "identity.mfa.recovery-regenerate",
+            "identity.mfa.recovery-use",
+            "identity.admin.mfa-recovery-issue",
+            "identity.admin.mfa-reset"
+          ]
+        },
+        "input_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "execution_identity",
+            "execution_receipt_path",
+            "execution_receipt_sha256",
+            "capture_authority",
+            "command",
+            "tested_revision",
+            "input_root",
+            "tool",
+            "environment",
+            "started_at",
+            "completed_at",
+            "exit_status",
+            "stdout",
+            "stdout_byte_length",
+            "stdout_sha256",
+            "stderr",
+            "stderr_byte_length",
+            "stderr_sha256",
+            "captured_output_sha256",
+            "output_artifact_path",
+            "artifact_payload_binding"
+          ],
+          "properties": {
+            "execution_identity": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "execution_receipt_path": {
+              "const": ".ai/identity-platform/evidence/executions/mfa-recovery-report.json"
+            },
+            "execution_receipt_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "capture_authority": {
+              "const": "coordinator-owned-execution-runner/v1"
+            },
+            "command": {
+              "const": "make check MODULES=pkg/identity/reference"
+            },
+            "tested_revision": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "input_root": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "tool": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "environment": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "started_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "completed_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "exit_status": {
+              "const": 0
+            },
+            "stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1048576
+            },
+            "stdout_byte_length": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1048576
+            },
+            "stdout_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "stderr_byte_length": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1048576
+            },
+            "stderr_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "output_artifact_path": {
+              "const": ".ai/identity-platform/evidence/artifacts/mfa-recovery-report.json"
+            },
+            "artifact_payload_binding": {
+              "const": "record.artifact_hashes[path,sha256]"
+            }
+          },
+          "x-execution-proof": 2
+        },
+        "scenario_cases": {
+          "type": "array",
+          "minItems": 21,
+          "maxItems": 21,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#success"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "success"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#denial"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "denial"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "forbidden"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#failure"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "failure"
+                  },
+                  "status": {
+                    "const": "failed"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "internal"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#outage"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "outage"
+                  },
+                  "status": {
+                    "const": "unavailable"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "unavailable"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#replay"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "replay"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#concurrency"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "concurrency"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#cleanup"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "cleanup"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#unknown-outcome"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "unknown-outcome"
+                  },
+                  "status": {
+                    "const": "reconciled"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "unknown_commit"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#success"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "success"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#denial"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "denial"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "forbidden"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#failure"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "failure"
+                  },
+                  "status": {
+                    "const": "failed"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "internal"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#replay"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "replay"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#concurrency"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "concurrency"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#cleanup"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "cleanup"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#unknown-outcome"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "unknown-outcome"
+                  },
+                  "status": {
+                    "const": "reconciled"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "unknown_commit"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#success"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "success"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#failure"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "failure"
+                  },
+                  "status": {
+                    "const": "failed"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "internal"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#denial"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "denial"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "forbidden"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#replay"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "replay"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#concurrency"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "concurrency"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#cleanup"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "cleanup"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "recovery_set_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+        },
+        "generated_code_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "consumed_code_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "old_code_rejected": {
+          "type": "boolean"
+        },
+        "reset_generation": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9223372036854775807
+        },
+        "independent_approval_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "recovery_capability_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+        },
+        "audit_event_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      },
+      "x-semantic-rules": [
+        {
+          "kind": "positive",
+          "fields": [
+            "generated_code_count",
+            "consumed_code_count",
+            "reset_generation",
+            "independent_approval_count"
+          ]
+        },
+        {
+          "kind": "true",
+          "fields": [
+            "old_code_rejected"
+          ]
+        }
+      ],
+      "allOf": [
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#success"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "success"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#denial"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "denial"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "forbidden"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#failure"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "failure"
+                  },
+                  "status": {
+                    "const": "failed"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "internal"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#outage"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "outage"
+                  },
+                  "status": {
+                    "const": "unavailable"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "unavailable"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#replay"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "replay"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#concurrency"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "concurrency"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#cleanup"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "cleanup"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior#unknown-outcome"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-recovery-issue"
+                  },
+                  "scenario": {
+                    "const": "unknown-outcome"
+                  },
+                  "status": {
+                    "const": "reconciled"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-recovery-issue"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "unknown_commit"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#success"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "success"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#denial"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "denial"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "forbidden"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#failure"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "failure"
+                  },
+                  "status": {
+                    "const": "failed"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "internal"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#replay"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "replay"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#concurrency"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "concurrency"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#cleanup"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "cleanup"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior#unknown-outcome"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.identity.admin.mfa-reset.behavior"
+                  },
+                  "claim_id": {
+                    "const": "identity.admin.mfa-reset"
+                  },
+                  "scenario": {
+                    "const": "unknown-outcome"
+                  },
+                  "status": {
+                    "const": "reconciled"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "reset_generation",
+                      "approval_id",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "unknown_commit"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#success"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "success"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#failure"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "failure"
+                  },
+                  "status": {
+                    "const": "failed"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "internal"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#denial"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "denial"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "forbidden"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#replay"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "replay"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#concurrency"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "concurrency"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior#cleanup"
+                  },
+                  "observation_id": {
+                    "const": "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "cleanup"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.recovery-regenerate",
+                      "identity.mfa.recovery-use",
+                      "identity.admin.mfa-recovery-issue",
+                      "identity.admin.mfa-reset"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "tenant_id",
+                      "user_id",
+                      "recovery_code",
+                      "reauthentication_proof",
+                      "reset_generation",
+                      "approval_id",
+                      "approved_recovery_channel",
+                      "reason"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "MFA user has an existing recovery-code set and administrative reset requires a fresh recovery administrator plus independent approval"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "regeneration invalidates every old code, one new code is consumed once, administrative reset removes factors and advances one generation only after approval, and recovery issuance binds that completed generation and approval while revealing no factor secret"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "recovery_set_id",
+                      "generated_code_count",
+                      "consumed_code_count",
+                      "old_code_rejected",
+                      "reset_generation",
+                      "independent_approval_count",
+                      "recovery_capability_id",
+                      "audit_event_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}

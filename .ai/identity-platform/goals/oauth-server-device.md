@@ -11,7 +11,8 @@ shown here.
 - Unit: `oauth-server/device`
 - Canonical module: `pkg/oauth-server/device`
 - Canonical goal after scaffolding: `pkg/oauth-server/device/.ai/GOAL.md`
-- Requires: `oauth-server`
+- Public contracts: unit ID `contract:unit:oauth-server/device:v1`; owned operation IDs: `contract:operation:identity.oauth-server.device-approve:v1`, `contract:operation:identity.oauth-server.device-authorize:v1`, `contract:operation:identity.oauth-server.device-deny:v1`, `contract:operation:identity.oauth-server.device-inspect:v1`, `contract:operation:identity.oauth-server.device-token:v1`
+- Requires: `oauth-server`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `capability`, `capability/postgres`, `rate-limit`, `audit`
 - Unlocks after verification: `oauth-server/postgres`, `identity/http`
 
@@ -65,6 +66,12 @@ involved.
   issue `verification_uri_complete` only when the complete URI remains bounded
   and does not leak a bearer-equivalent device code. Discovery MUST advertise
   the endpoint only when the entire device profile is enabled.
+- Device construction MUST consume `oauth_server.device.enabled`,
+  `oauth_server.device.verification_uri` and
+  `oauth_server.device.verification_uri_complete_bytes`. Disabled composition
+  MUST advertise and register no device endpoint. The configured verification
+  URI is the sole public URI authority; a request, proxy header or client MUST
+  NOT replace its origin or path.
 - Device codes MUST contain exactly 32 random bytes, use canonical
   43-character unpadded base64url, and have digest-at-rest lookup through the
   versioned domain-separated key configured by the reference profile; user
@@ -116,8 +123,12 @@ subject disablement and consent revocation MUST follow
 [`LIFECYCLE_CASCADES.md`](../LIFECYCLE_CASCADES.md); and code entropy,
 lifetimes, interval and verification base URL MUST be explicit in
 [`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
-Approval, denial and security-relevant polling outcomes MUST emit the bounded
-records defined by [`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
+Authorization issuance MUST emit exactly
+`identity.oauth_server.authorize_device`; approval MUST emit exactly
+`identity.oauth_server.approve_device`; denial and security-relevant polling
+MUST emit exactly `identity.oauth_server.deny_device` and
+`identity.oauth_server.poll_device` respectively. Inspection is read-only and
+emits none.
 
 ## Security and abuse requirements
 

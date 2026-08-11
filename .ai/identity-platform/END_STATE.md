@@ -21,7 +21,7 @@ Consumers MUST NOT supply domain stores, workflow orchestration, handlers,
 migrations or security middleware.
 
 `END_STATE_ACCEPTANCE.json` is the closed machine-readable acceptance index
-for all eighteen journeys and every cross-cutting section in this document.
+for all nineteen journeys and every cross-cutting section in this document.
 Its stable IDs, accountable owners, required evidence artifacts and semantic
 digests MUST be present before a journey can be assigned, and an implementation
 MUST prove every listed artifact against the digest-bearing acceptance contract.
@@ -47,11 +47,13 @@ consumer-written workflow substitute is permitted:
   email/SMS delivery. The platform owns intent construction, persistence,
   idempotency, retry classification and outcome recovery.
 - `identity.PolicySet` is the exact immutable five-member contract in
-  `struct:ref.identity.policy_set`: `Authorize`, `AssessRisk`, `MapClaims`,
+  `struct:ref.identity.policy_set`: `Authorize` is the exact upstream
+  `authorization.Service`, while `AssessRisk`, `MapClaims`,
   `DecideRetention`, and `Redact` use the exact typed function signatures and
   fail-closed semantics declared there. It MUST reject a nil member and MUST
   NOT own stores, transactions, routing, workflow continuation, or unbounded
-  callbacks.
+  callbacks. Identity MUST NOT wrap authorization with a parallel service,
+  input, decision, or function type.
 
 The exact operation descriptors and transport semantics are closed by
 `OPERATION_SEMANTICS.json`. Any dependency not expressible through these
@@ -100,6 +102,17 @@ Its handlers MUST call public package contracts exactly as a consumer would.
    directly: it returns only a short-lived purpose/audience-bound proof, never
    creates or extends a session, and denies expiry, replay and cross-purpose
    use without account enumeration.
+   The same subject MUST list and get safe versioned email-address records,
+   remove a non-primary address, and be denied when removing the last permitted
+   signin/recovery address. An authorized email administrator MUST exercise the
+   same operations against an explicit target without gaining verification
+   bearers or learning cross-tenant existence; removal proves replacement-
+   primary policy, lifecycle invalidation and stale-version denial.
+   Phone authentication MUST exercise OTP signin and the distinct
+   `identity.phone.password-signin` journey. Password+phone signin canonicalizes
+   E.164, resolves only the tenant credential account, preserves remember/MFA/
+   risk behavior, and gives absent phone, absent credential account and wrong
+   password the same public denial without consuming an OTP.
 3. **Sessions:** secure cookie issuance, validation, freshness, rotation,
    absolute/idle expiry, device labels, multiple simultaneous accounts in one
    client, active-account switching, configured maximum, list/revoke one/all,
@@ -165,6 +178,14 @@ Its handlers MUST call public package contracts exactly as a consumer would.
    Recovery-code plaintext MUST be returned only at creation or full
    regeneration; later reads expose status/count only, and regeneration
    atomically invalidates the prior set.
+   An administrative recovery journey MUST require a fresh recovery
+   administrator and independent approver, reset one target's factor authority
+   through `identity.admin.mfa-reset`, prove factor/trusted-device/recovery-code/
+   pending-proof and affected-session invalidation, then invoke the distinct
+   `identity.admin.mfa-recovery-issue` operation. The administrator receives no
+   factor or recovery secret; the user receives one short-lived single-use
+   recovery capability only after the reset generation commits. Replay,
+   self-approval, stale generation and cross-tenant targets fail closed.
 6. **Social OAuth:** generic authorization-code/PKCE provider registration,
    every built-in provider profile, callback and token refresh, safe account
    linking/unlinking, Google One Tap prompt/button modes, and preview OAuth
@@ -175,7 +196,13 @@ Its handlers MUST call public package contracts exactly as a consumer would.
    audience/authorized-party, nonce, expiry, signature/key rotation, replay,
    token-substitution, unverified-email and collision handling.
 7. **API keys:** create a scoped user or organization key, reveal once,
-   authenticate, list metadata, rename, rotate, expire and revoke it.
+   authenticate, list metadata, rename, rotate, expire and revoke it. The suite
+   MUST prove disabled API-key session authentication gives its header no
+   meaning, then enable the exact single-header profile and use one user-owned
+   key as a request-scoped session-compatible principal. It observes exactly
+   one verification/quota debit, creates no durable session/cookie, rejects
+   duplicate/ambiguous headers and organization-owned keys, and denies the next
+   request after revocation, owner suspension, expiry or permission removal.
 8. **Administration:** explicitly authorized user search/management, bans,
    role/permission decisions, session control, credential reset and bounded
    impersonation with actor chain and immutable audit.
@@ -245,6 +272,11 @@ Its handlers MUST call public package contracts exactly as a consumer would.
    The proof MUST also observe one protected bootstrap initialization event
    `identity.audit_retention.change_policy` committed atomically with version 1
    and no duplicate event after restart.
+   Delivery administration MUST query a durable delivery status, cancel queued
+   and in-flight effects, authenticate/deduplicate a provider receipt, and
+   reconcile cancellation-pending/outcome-unknown states without blind
+   resubmission. It MUST prove generation fencing, monotonic terminal
+   transitions, redacted receipt storage and restart-safe checkpoints.
 9. **Organizations:** create/update/archive/restore/delete,
    invite/accept/reject/cancel/resend/expire, member
    lifecycle, roles and permissions, teams, ownership transfer, active
@@ -317,6 +349,15 @@ Its handlers MUST call public package contracts exactly as a consumer would.
     Download MUST first call the separately authorized capability-issuance
     operation and then consume that capability once; status responses MUST NOT
     contain a download credential.
+19. **Audit investigation:** a permissioned investigator gets one record,
+    searches exact indexed predicates, lists a bounded chronological page and
+    exports the immutable query under one investigation ID. The suite MUST
+    prove event-class and field grants, redaction before projection, stable
+    cursors, time/record/byte bounds, indistinguishable absent/forbidden and
+    cross-tenant denials, immutable access/export events, tamper-evident content
+    digest and denial of raw free-text, provider payload, secret and credential
+    material. A narrower investigator observes the same records with fewer
+    fields and cannot infer redacted values from result counts or access audit.
 
 ## HTTP and browser-facing contract
 
@@ -355,7 +396,7 @@ server/handler/provider/store timeouts; deterministic secret-free OpenAPI
 export; and separate process-only liveness and dependency/migration/key-aware
 readiness probes through startup and drain. The only probe routes are
 `GET /healthz` (`identity.health`) and `GET /readyz`
-(`identity.ready`); aliases and feature-local probe routes are forbidden.
+(`identity.readiness`); aliases and feature-local probe routes are forbidden.
 
 Every client HTTP route MUST have an explicit default, endpoint or extension
 rate rule. The complete profile MUST prove trusted-proxy derivation,
@@ -449,6 +490,22 @@ normative identity-platform contracts, gate code/configuration, pinned tools,
 service profiles and behavior-affecting environment identity. The canonical
 SHA-256 root of that manifest is the acceptance input root; the semantic digest
 of a shortlist of planning files is not a complete-input fingerprint.
+The integration worktree MUST pass
+`validate.rb --execution --clean-integration` immediately before that capture.
+Local package and reverse-dependant gates use
+`identity-platform.local-gate.v2` and apply the same tested revision, gate
+execution revision, revalidation revision, manifest, root, artifact, and later
+record-binding semantics as final acceptance evidence. The exact clean committed
+integration `HEAD` captured immediately before execution is both tested and gate
+execution revision when the gate actually runs.
+
+`INVENTORY.md`, `EXECUTION_LEDGER.md`, `PREFLIGHT_EVIDENCE.md`, and files beneath
+`.ai/identity-platform/evidence/` are execution/evidence provenance rather than
+behavior inputs and are the only identity-platform paths excluded from the
+behavior-input manifest. They remain commit- and digest-bound provenance. The
+authoritative current `Requires` closure still selects complete module roots and
+`DEPENDENCIES.md` remains included. Every other selected identity-platform
+contract remains in the manifest.
 
 Evidence records MUST name that tested revision, the distinct gate execution
 revision, and a nullable revalidation revision. The revalidation revision MUST

@@ -140,23 +140,34 @@ or any value other than the baseline/required override is invalid.
 | Social OAuth | `identity.oauth.start_authorization`, `identity.oauth.handle_callback`, `identity.oauth.link_account`, `identity.oauth.unlink_account`, `identity.oauth.refresh_grant`, `identity.oauth.revoke_grant`, `identity.oauth.deliver_popup`, `identity.oauth.use_proxy`, `identity.oauth.verify_one_tap` | `standard` |
 | Organization invitation | `identity.organization.create_invitation`, `identity.organization.accept_invitation`, `identity.organization.reject_invitation`, `identity.organization.cancel_invitation`, `identity.organization.resend_invitation`, `identity.organization.expire_invitation` | `standard` |
 | Password | `identity.password.register`, `identity.password.change`, `identity.password.remove`, `identity.password.request_reset`, `identity.password.reset`, `identity.password.rehash`, `identity.password.mark_compromised` | `protected` |
-| MFA | `identity.mfa.start_enrollment`, `identity.mfa.add_factor`, `identity.mfa.remove_factor`, `identity.mfa.verify_challenge`, `identity.mfa.use_recovery`, `identity.mfa.regenerate_recovery`, `identity.mfa.add_trusted_device`, `identity.mfa.rotate_trusted_device`, `identity.mfa.revoke_trusted_device`, `identity.mfa.reset` | `protected` |
-| WebAuthn/passkey | `identity.webauthn.register_credential`, `identity.webauthn.verify_assertion`, `identity.webauthn.detect_suspected_clone`, `identity.passkey.rename_credential`, `identity.passkey.remove_credential` | `protected` |
-| API key | `identity.api_key.create`, `identity.api_key.update`, `identity.api_key.rotate`, `identity.api_key.revoke`, `identity.api_key.authenticate` | `protected` |
+| MFA | `identity.mfa.start_enrollment`, `identity.mfa.add_factor`, `identity.mfa.remove_factor`, `identity.mfa.verify_challenge`, `identity.mfa.use_recovery`, `identity.mfa.regenerate_recovery`, `identity.mfa.add_trusted_device`, `identity.mfa.rotate_trusted_device`, `identity.mfa.revoke_trusted_device`, `identity.mfa.reset`, `identity.mfa.issue_administrative_recovery` | `protected` |
+| WebAuthn/passkey | `identity.webauthn.register_credential`, `identity.webauthn.verify_assertion`, `identity.webauthn.detect_suspected_clone`, `identity.passkey.create_credential`, `identity.passkey.rename_credential`, `identity.passkey.remove_credential`, `identity.passkey.mark_compromised` | `protected` |
+| API key | `identity.api_key.create`, `identity.api_key.update`, `identity.api_key.rotate`, `identity.api_key.revoke`, `identity.api_key.authenticate`, `identity.api_key.authenticate_session` | `protected` |
 | Impersonation | `identity.impersonation.request`, `identity.impersonation.approve`, `identity.impersonation.deny`, `identity.impersonation.start`, `identity.impersonation.stop`, `identity.impersonation.revoke` | `protected` |
 | Organization | `identity.organization.create`, `identity.organization.update`, `identity.organization.archive`, `identity.organization.restore`, `identity.organization.delete`, `identity.organization.change_active`, `identity.organization.add_member`, `identity.organization.remove_member`, `identity.organization.change_member_role`, `identity.organization.transfer_ownership`, `identity.organization.create_team`, `identity.organization.update_team`, `identity.organization.delete_team`, `identity.organization.add_team_member`, `identity.organization.remove_team_member`, `identity.organization.create_role`, `identity.organization.update_role`, `identity.organization.delete_role`, `identity.organization.verify_domain`, `identity.organization.revoke_domain` | `protected` |
 | Enterprise SSO | `identity.sso.register_provider`, `identity.sso.update_provider`, `identity.sso.enable_provider`, `identity.sso.disable_provider`, `identity.sso.delete_provider`, `identity.sso.rotate_provider_credential`, `identity.sso.login`, `identity.sso.logout_oidc`, `identity.sso.provision_jit`, `identity.sso.change_enforcement`, `identity.sso.issue_break_glass`, `identity.sso.use_break_glass` | `protected` |
 | Directory sync | `identity.sso.start_directory_sync`, `identity.sso.apply_directory_sync`, `identity.sso.cancel_directory_sync`, `identity.sso.reconcile_directory_sync` | `protected` |
 | SCIM | `identity.scim.create_connection`, `identity.scim.update_connection`, `identity.scim.delete_connection`, `identity.scim.create_token`, `identity.scim.rotate_token`, `identity.scim.revoke_token`, `identity.scim.create_resource`, `identity.scim.update_resource`, `identity.scim.deprovision_resource`, `identity.scim.bulk_admit`, `identity.scim.bulk_apply_child`, `identity.scim.bulk_skip_child`, `identity.scim.reconcile` | `protected` |
-| OAuth server | `identity.oauth_server.create_client`, `identity.oauth_server.update_client`, `identity.oauth_server.delete_client`, `identity.oauth_server.rotate_client_secret`, `identity.oauth_server.add_signing_key`, `identity.oauth_server.retire_signing_key`, `identity.oauth_server.compromise_signing_key`, `identity.oauth_server.grant_consent`, `identity.oauth_server.revoke_consent`, `identity.oauth_server.authorize`, `identity.oauth_server.exchange_code`, `identity.oauth_server.rotate_refresh`, `identity.oauth_server.detect_refresh_reuse`, `identity.oauth_server.revoke_token`, `identity.oauth_server.approve_device`, `identity.oauth_server.deny_device`, `identity.oauth_server.poll_device`, `identity.oauth_server.exchange_session`, `identity.oauth_server.end_session` | `protected` |
+| OAuth server | `identity.oauth_server.create_client`, `identity.oauth_server.update_client`, `identity.oauth_server.delete_client`, `identity.oauth_server.rotate_client_secret`, `identity.oauth_server.add_signing_key`, `identity.oauth_server.retire_signing_key`, `identity.oauth_server.compromise_signing_key`, `identity.oauth_server.grant_consent`, `identity.oauth_server.revoke_consent`, `identity.oauth_server.authorize`, `identity.oauth_server.exchange_code`, `identity.oauth_server.rotate_refresh`, `identity.oauth_server.detect_refresh_reuse`, `identity.oauth_server.revoke_token`, `identity.oauth_server.authorize_device`, `identity.oauth_server.approve_device`, `identity.oauth_server.deny_device`, `identity.oauth_server.poll_device`, `identity.oauth_server.exchange_session`, `identity.oauth_server.end_session` | `protected` |
 | Risk | `identity.risk.decide`, `identity.risk.start_lockout`, `identity.risk.end_lockout`, `identity.risk.create_override`, `identity.risk.revoke_override`, `identity.risk.query_provider`, `identity.risk.reconcile`, `identity.risk.expire_evidence`, `identity.risk.anonymize_evidence` | `protected` |
 | CAPTCHA | `identity.captcha.verify`, `identity.captcha.reject`, `identity.captcha.detect_replay`, `identity.captcha.detect_binding_mismatch` | `protected` |
 | HIBP | `identity.hibp.query_range`, `identity.hibp.detect_match`, `identity.hibp.reject_range` | `protected` |
-| Delivery | `identity.delivery.enqueue`, `identity.delivery.attempt`, `identity.delivery.confirm`, `identity.delivery.reject`, `identity.delivery.cancel`, `identity.delivery.mark_unknown`, `identity.delivery.reconcile` | `protected` |
+| Delivery | `identity.delivery.enqueue`, `identity.delivery.attempt`, `identity.delivery.confirm`, `identity.delivery.reject`, `identity.delivery.cancel`, `identity.delivery.record_receipt`, `identity.delivery.mark_unknown`, `identity.delivery.reconcile` | `protected` |
 | Ephemeral risk authority | `identity.risk_valkey.exhaust_window`, `identity.risk_valkey.replay`, `identity.risk_valkey.mark_unavailable`, `identity.risk_valkey.publish_epoch` | `protected` |
 | Platform authority | `identity.platform.bootstrap_administrator`, `identity.platform.create_role`, `identity.platform.update_role`, `identity.platform.delete_role`, `identity.platform.assign_role`, `identity.platform.revoke_role`, `identity.platform.compromise_global_authority` | `protected` |
 | Platform permission statements | `identity.platform.create_permission_statement`, `identity.platform.update_permission_statement`, `identity.platform.delete_permission_statement` | `protected` |
 | Audit retention | `identity.audit_retention.change_policy`, `identity.audit_retention.create_legal_hold`, `identity.audit_retention.update_legal_hold`, `identity.audit_retention.release_legal_hold`, `identity.audit_retention.confirm_deletion`, `identity.audit_retention.delete_records` | `protected` |
+| Audit investigation | `identity.audit.get`, `identity.audit.search`, `identity.audit.list`, `identity.audit.export` | `protected` |
+
+The callable enterprise domain operations are owned by `sso`, but their
+durable claim transitions remain `identity.organization.verify_domain` or
+`identity.organization.revoke_domain` events emitted through the organization
+authority. Proof retrieval/classification by `sso/domain-verification` MUST NOT
+emit a competing successful ownership event. Likewise, provider credential
+rotation, enforcement change, OIDC logout, break-glass issuance/use, SCIM
+connection update/token revoke/reconcile and invitation resend/expire use only
+the exact actions in the table above; generic update/delete actions MUST NOT be
+used as aliases.
 
 Expiration is an outcome only when an operation encounters expired material.
 Scheduled lifecycle expiry uses its owning imperative operation, such as
@@ -277,6 +288,14 @@ The reference policy is:
 Every unknown result MUST create or preserve a reconciliation item keyed by
 `command_id`. Reconciliation emits a new event with its own ID and the original
 event or command as `causation_id`; it never edits an immutable prior record.
+
+Audit read and export are privileged security events, not invisible reads.
+Their audit records contain only investigator identity, tenant, operation,
+bounded query/projection digest, result count/bytes, reason and investigation
+ID. They MUST NOT include returned record payloads, raw predicates or a value
+that lets a less-privileged reader reconstruct a redacted field. Recursive
+auditing is suppressed only for the storage write of that one access event,
+never for authorization, integrity chaining or failure reporting.
 
 ## Privacy, integrity, and operations
 

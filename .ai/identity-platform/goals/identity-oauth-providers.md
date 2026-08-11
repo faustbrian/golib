@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/oauth/providers`
 - Canonical module: `pkg/identity/oauth/providers`
 - Canonical goal after scaffolding: `pkg/identity/oauth/providers/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/oauth/providers:v1`; owned operation IDs: `contract:operation:identity.oauth.provider-list:v1`
 - Requires: `identity/oauth`
 - Consumes existing primitives: `authentication/oidc`, `http-client`, `secret-envelope`, `telemetry`
 - Unlocks after verification: `identity/oauth/onetap`, `identity/http`
@@ -57,6 +58,13 @@ unlink; and known incompatibilities. Every cell MUST be an explicit supported,
 unsupported, conditional or unknown decision; absence MUST NOT inherit a
 generic success default.
 
+Its native-token capability projection MUST equal `native-token-modes-v1`
+exactly: Apple=`id_token`; Facebook=`opaque_access_token`;
+Google=`id_token,opaque_access_token`; LINE=`id_token,opaque_access_token`; and
+every other provider ID has no native-token capability. The matrix MUST also
+pin the corresponding offline ID-token or bounded opaque-token proof boundary;
+an absent mode is unsupported, not conditional or inferred.
+
 Every profile mapping MUST identify the stable provider subject field, email
 field and verification rule, display name components, username or handle,
 avatar URL and size variants, tenant or organization fields, locale and any
@@ -66,8 +74,11 @@ authoritative, mutable, security-sensitive or display-only. Unknown claims
 MUST NOT flow into identity metadata without a bounded declared extension
 mapping.
 
-Apple MUST select `form_post` under the pinned OAuth 2.0 Form Post Response Mode
-and bind it into authorization state with the exact HTTPS callback. Every other
+Apple MUST select `response_type=code id_token` and `form_post` under the pinned
+OAuth 2.0 Form Post Response Mode and bind both into authorization state with
+the exact HTTPS callback. Success requires code, ID token and state plus
+front-channel issuer, audience, `azp`, nonce, time and `c_hash` validation
+before code exchange and cross-proof subject validation. Every other
 provider defaults to `query`; a provider may not inherit, advertise, or accept
 `form_post` unless a later named profile adds an exact clause pin, configuration
 catalog decision, and interoperability evidence.

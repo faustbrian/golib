@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/risk/postgres`
 - Canonical module: `pkg/identity/risk/postgres`
 - Canonical goal after scaffolding: `pkg/identity/risk/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/risk/postgres:v1`; owned operation IDs: none
 - Requires: `identity/risk`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `audit`
 - Unlocks after verification: `identity/reference`
@@ -57,7 +58,10 @@ This adapter owns the durable CAPTCHA evidence participant and implements
 `tx.captcha.issue`, `tx.captcha.reserve`, `tx.captcha.apply`,
 `tx.captcha.finalize`, and `tx.captcha.reconcile`. Ambiguous insertion MUST
 reconcile the same command and fingerprint on the primary and MUST NOT create a
-second evidence row or reference.
+second evidence row or reference. Reserve/apply/finalize MUST bind and recheck
+the exact subject or anonymous flow plus the selected unauthenticated pre-auth
+or authenticated subject/session or administrator actor context; the stateless
+CAPTCHA verifier MUST NOT own these durable roles.
 The adapter MUST enforce one durable replay-fingerprint winner across all
 issuance commands using the exact tenant/provider/site/profile/configuration
 scope. It MUST retain the keyed fingerprint, key version and terminal tombstone

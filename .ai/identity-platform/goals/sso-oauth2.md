@@ -11,6 +11,7 @@ shown here.
 - Unit: `sso/oauth2`
 - Canonical module: `pkg/sso/oauth2`
 - Canonical goal after scaffolding: `pkg/sso/oauth2/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:sso/oauth2:v1`; owned operation IDs: `contract:operation:identity.sso.oauth-callback:v1`
 - Requires: `sso`
 - Consumes existing primitives: `http-client`, `capability`, `secret-envelope`, `audit`
 - Unlocks after verification: `sso/postgres`, `identity/http`
@@ -52,9 +53,22 @@ involved.
 - Static provider configuration MUST define authorization/token/identity/
   refresh/revocation endpoints, stable subject extraction, client
   authentication, scopes, PKCE, redirect and explicit email-verification policy.
+- Every start/callback/token request MUST bind the activated provider credential
+  generation selected by `identity.sso.provider.credentials-rotate`; overlap,
+  disable and unknown activation behavior belong to `sso`, and this adapter
+  MUST NOT select or persist an independent credential lifecycle.
 - Authorization/callback MUST bind provider, organization, tenant, state,
   redirect and PKCE and MUST reject mix-up, code substitution and callback
   replay under shared redirect URIs.
+- A shared callback URI MUST require the RFC 9207 `iss` authorization-response
+  parameter. The callback MUST compare it byte-for-byte with the expected
+  issuer stored in the reserved transaction before any code exchange; missing,
+  duplicate, malformed or mismatched `iss` is a terminal mix-up denial.
+- The raw PKCE verifier MUST use the recoverable encrypted storage contract in
+  `struct:ref.oauth.rp_transaction`: exact AAD/lifetime, keyed commitment only
+  for lookup/replay, decrypt only after callback capability reservation, erase
+  on every declared terminal outcome, and retain without resubmission while an
+  exchange outcome is ambiguous and under authoritative recovery.
 - An access token alone MUST NOT be identity proof. The adapter MUST call the
   configured authenticated identity endpoint and validate a stable provider
   subject and organization/domain evidence required by SSO policy.
@@ -104,6 +118,10 @@ name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
 
 ## Release blockers
+
+This unit owns applicability for `ref.oauth.rp.shared_redirect_issuer`; the
+shared-redirect callback MUST consume that exact policy and MUST NOT define an
+adapter-local issuer rule.
 
 The unit MUST remain `implemented-unverified` or `blocked` if any prerequisite
 is not `verified`, any ownership boundary is unresolved, a protocol claim

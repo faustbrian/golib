@@ -11,8 +11,9 @@ shown here.
 - Unit: `identity`
 - Canonical module: `pkg/identity`
 - Canonical goal after scaffolding: `pkg/identity/.ai/GOAL.md`
-- Requires: None; this root execution unit may be claimed when its existing primitive audit is current.
-- Consumes existing primitives: `authentication`, `authorization`, `identifier`, `tenancy`, `audit`
+- Public contracts: unit ID `contract:unit:identity:v1`; owned operation IDs: `contract:operation:identity.account.list:v1`, `contract:operation:identity.account.unlink:v1`, `contract:operation:identity.admin.user-ban:v1`, `contract:operation:identity.admin.user-delete:v1`, `contract:operation:identity.admin.user-unban:v1`, `contract:operation:identity.deletion.confirm:v1`, `contract:operation:identity.deletion.request:v1`, `contract:operation:identity.hooks.after:v1`, `contract:operation:identity.hooks.before:v1`, `contract:operation:identity.privacy-export.cancel:v1`, `contract:operation:identity.privacy-export.download:v1`, `contract:operation:identity.privacy-export.download-capability-issue:v1`, `contract:operation:identity.privacy-export.request:v1`, `contract:operation:identity.privacy-export.status:v1`, `contract:operation:identity.profile.get:v1`, `contract:operation:identity.profile.update:v1`, `contract:operation:identity.user.anonymize:v1`, `contract:operation:identity.user.create:v1`, `contract:operation:identity.user.get:v1`, `contract:operation:identity.user.list:v1`, `contract:operation:identity.user.restore:v1`, `contract:operation:identity.user.suspend:v1`, `contract:operation:identity.user.update-admin:v1`
+- Requires: `primitive/authorization-identity-contracts`, `primitive/capability-identity-contracts`
+- Consumes existing primitives: `authentication`, `authorization`, `capability`, `identifier`, `tenancy`, `audit`
 - Unlocks after verification: `identity/postgres`, `identity/session`, `identity/risk`, `identity/password`, `identity/username`, `identity/email`, `identity/magiclink`, `identity/otp`, `identity/phone`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/apikey`, `identity/impersonation`, `organization`, `sso`, `scim`, `scim/organization`, `oauth-server`, `identity/i18n`, `identity/http`
 
 ## Start gate
@@ -35,7 +36,7 @@ outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define User, Account, Identifier, CredentialRef, Verification, StatusPolicy, AttributeSchema, AttributeValue, FieldPolicy, Repository, UnitOfWork, PrivacyExportContributor, PrivacyExportArtifact, PrivacyExportCapability, PolicySet, AuthorizationPolicyInput, AuthorizationPolicyDecision, RiskPolicyInput, RiskPolicyDecision, ClaimsPolicyInput, ClaimsPolicyDecision, RetentionPolicyInput, RetentionPolicyDecision, RedactionPolicyInput, RedactionPolicyDecision, Hook, and Event contracts. Public errors MUST be typed, stable,
+The design MUST define User, Account, Identifier, CredentialRef, Verification, StatusPolicy, AttributeSchema, AttributeValue, FieldPolicy, Repository, UnitOfWork, PrivacyExportContributor, PrivacyExportArtifact, PrivacyExportCapability, PolicySet, RiskPolicyInput, RiskPolicyDecision, ClaimsPolicyInput, ClaimsPolicyDecision, RetentionPolicyInput, RetentionPolicyDecision, RedactionPolicyInput, RedactionPolicyDecision, Hook, and Event contracts. Authorization decisions MUST use the exact upstream `authorization.Service` and `authorization.DecisionContext` contracts without an identity-owned facade, adapter, input, decision, or function type. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -73,8 +74,9 @@ may persist it, but neither becomes a parallel semantic owner.
 - `PolicySet` MUST expose exactly `Authorize`, `AssessRisk`, `MapClaims`,
   `DecideRetention`, and `Redact` with the signatures, immutable binding fields,
   policy identity/version results, registered reasons and fail-closed behavior
-  in `struct:ref.identity.policy_set`. Construction MUST reject nil callbacks;
-  callbacks MUST be bounded and side-effect-free and MUST NOT own stores,
+  in `struct:ref.identity.policy_set`. `Authorize` MUST be the exact upstream
+  `authorization.Service`; construction MUST reject a nil service or callback.
+  Callbacks MUST be bounded and side-effect-free and MUST NOT own stores,
   transactions, routing or workflow continuation.
 - Repository queries MUST define tenant scope, status filters, pagination,
   ordering, consistency and redaction. Search MUST be bounded and MUST NOT
@@ -102,6 +104,15 @@ may persist it, but neither becomes a parallel semantic owner.
   completed export. Download MUST reserve and finalize an identity-owned,
   purpose-bound, one-use `PrivacyExportCapability`; Validate is read-only, and
   unknown reserve/finalize outcomes remain fail-closed and reconcilable.
+  The only reference artifact is the uncompressed UTF-8
+  `identity-portable-json-v1` document and exact included/excluded sections in
+  `struct:ref.identity.privacy_export`. The job state is exactly queued,
+  running, ready, failed, cancelled or expired. Publication requires every
+  required contributor, the shared snapshot/version-vector contract, the final
+  identity/privacy epoch check, bounded envelope-encrypted storage and an
+  immutable whole-artifact digest. Download decrypts only into the authorized
+  bounded HTTPS no-store stream; deletion/anonymization cancels, revokes and
+  erases without treating provider-held or legal-hold limitations as success.
 - Self-service deletion MUST consume the closed proof policy from
   `.ai/identity-platform/REFERENCE_CONFIGURATION.md`: current password plus a
   fresh session, fresh UV passkey, or a purpose/subject/session/version-bound

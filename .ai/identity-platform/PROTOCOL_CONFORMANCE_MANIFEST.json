@@ -43,10 +43,51 @@
       ]
     },
     {
+      "requirement_id": "oauth.rp-pkce-verifier-custody",
+      "source_id": "rfc-7636",
+      "locator": "Sections 4.1, 4.2, and 4.6",
+      "disposition": "profile-decision",
+      "consumers": [
+        "identity/oauth",
+        "sso/oauth2",
+        "sso/oidc"
+      ]
+    },
+    {
       "requirement_id": "oauth.protected-resource-metadata",
       "source_id": "rfc-9728",
-      "locator": "Sections 2 and 3",
+      "locator": "Section 2 metadata members",
       "disposition": "required",
+      "consumers": [
+        "identity/http",
+        "oauth-server"
+      ]
+    },
+    {
+      "requirement_id": "oauth.protected-resource-metadata-location",
+      "source_id": "rfc-9728",
+      "locator": "Sections 3, 3.1, and 3.2 default well-known GET and JSON response",
+      "disposition": "required",
+      "consumers": [
+        "identity/http",
+        "oauth-server"
+      ]
+    },
+    {
+      "requirement_id": "oauth.protected-resource-metadata-validation",
+      "source_id": "rfc-9728",
+      "locator": "Section 3.3 exact resource identifier validation",
+      "disposition": "required",
+      "consumers": [
+        "identity/http",
+        "oauth-server"
+      ]
+    },
+    {
+      "requirement_id": "oauth.protected-resource-path-identifiers-unsupported",
+      "source_id": "rfc-9728",
+      "locator": "Section 3.1 path-bearing resource identifier construction",
+      "disposition": "unsupported",
       "consumers": [
         "identity/http",
         "oauth-server"
@@ -110,6 +151,24 @@
       "requirement_id": "saml.binding-selection",
       "source_id": "saml-bindings-2.0-os",
       "locator": "Sections 3.4 and 3.5",
+      "disposition": "profile-decision",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "saml.single-logout-protocol",
+      "source_id": "saml-core-2.0-os",
+      "locator": "Section 3.7 Single Logout Protocol",
+      "disposition": "required",
+      "consumers": [
+        "sso/saml"
+      ]
+    },
+    {
+      "requirement_id": "saml.single-logout-profile",
+      "source_id": "saml-profiles-2.0-os",
+      "locator": "Section 4.4 Single Logout Profile",
       "disposition": "profile-decision",
       "consumers": [
         "sso/saml"
@@ -332,6 +391,15 @@
       "disposition": "required",
       "consumers": [
         "identity/mfa"
+      ]
+    },
+    {
+      "requirement_id": "source.rfc-3339",
+      "source_id": "rfc-3339",
+      "locator": "Complete selected normative source",
+      "disposition": "required",
+      "consumers": [
+        "identity/reference"
       ]
     },
     {
@@ -925,6 +993,10 @@
       "title": "Key words for use in RFCs to Indicate Requirement Levels",
       "revision": "RFC 2119"
     },
+    "rfc-3339": {
+      "title": "Date and Time on the Internet: Timestamps",
+      "revision": "RFC 3339"
+    },
     "rfc-4226": {
       "title": "HOTP: An HMAC-Based One-Time Password Algorithm",
       "revision": "RFC 4226"
@@ -1232,6 +1304,15 @@
       "license": "IETF Trust Legal Provisions",
       "consumers": [
         "identity/mfa"
+      ]
+    },
+    {
+      "id": "rfc-3339",
+      "url": "https://www.rfc-editor.org/rfc/rfc3339.txt",
+      "sha256": "9ab2b8864a85dca73a88f49b0927bc7bc85f596926e4fd1890905777924e700a",
+      "license": "IETF Trust Legal Provisions",
+      "consumers": [
+        "identity/reference"
       ]
     },
     {

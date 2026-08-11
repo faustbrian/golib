@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/risk`
 - Canonical module: `pkg/identity/risk`
 - Canonical goal after scaffolding: `pkg/identity/risk/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/risk:v1`; owned operation IDs: `contract:operation:identity.risk.evaluate:v1`
 - Requires: `identity`
 - Consumes existing primitives: `rate-limit`, `audit`, `telemetry`, `identifier`
 - Unlocks after verification: `identity/risk/postgres`, `identity/risk/valkey`, `identity/risk/captcha`, `identity/risk/hibp`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/phone`, `identity/anonymous`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`, `identity/http`
@@ -61,7 +62,10 @@ involved.
   `.ai/identity-platform/REFERENCE_CONFIGURATION.md`. Every evaluation MUST
   receive exactly one canonical listed action; aliases, category-only values,
   unlisted actions and caller-selected fail behavior MUST deny before signal
-  access. A package MUST NOT add a local action or exception.
+  access. Construction MUST validate every canonical public-operation ID
+  against `struct:ref.risk.operation_matrix` completeness metadata and its
+  closed default; no operation may be silently omitted. A package MUST NOT add
+  a local action or exception.
 - Signals MUST distinguish trusted server facts from spoofable request hints.
   The public contract MUST accept transport-neutral verified network facts;
   it MUST NOT import or depend on `identity/http`. The later HTTP composition
@@ -95,6 +99,11 @@ involved.
 - Counters and evidence MUST have controlled cardinality, per-tenant namespace,
   bounded fan-out and deterministic clock/window boundaries. Attackers MUST
   not create unlimited keys through arbitrary identifiers, headers or actions.
+  Construction MUST enforce `risk.velocity.max_dimensions`,
+  `risk.velocity.max_counters`, `risk.velocity.max_window`,
+  `risk.velocity.max_limit`, `risk.velocity.key_bytes` and
+  `risk.velocity.retry_after_max`; each operation profile's lower exact bounds
+  also apply and a caller cannot add a dimension or counter.
 - Stored keys MUST use a versioned keyed digest with domain separation over the
   canonical tenant, operation, dimension kind and dimension value. Unkeyed
   hashes, cross-tenant digest reuse and raw subject/network/provider values in

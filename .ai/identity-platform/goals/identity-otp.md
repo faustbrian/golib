@@ -11,9 +11,10 @@ shown here.
 - Unit: `identity/otp`
 - Canonical module: `pkg/identity/otp`
 - Canonical goal after scaffolding: `pkg/identity/otp/.ai/GOAL.md`
-- Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`
+- Public contracts: unit ID `contract:unit:identity/otp:v1`; owned operation IDs: `contract:operation:identity.otp.check:v1`, `contract:operation:identity.otp.email-change-confirm:v1`, `contract:operation:identity.otp.email-change-request:v1`, `contract:operation:identity.otp.email-verify:v1`, `contract:operation:identity.otp.password-reset:v1`, `contract:operation:identity.otp.send:v1`, `contract:operation:identity.otp.signin:v1`
+- Requires: `identity`, `identity/session`, `identity/risk`, `identity/delivery`, `primitive/authentication-identity-contracts`, `primitive/identifier-identity-contracts`, `primitive/password-secret-contracts`
 - Consumes existing primitives: `capability`, `capability/postgres`, `password`, `rate-limit`, `audit`
-- Unlocks after verification: `identity/email`, `identity/otp/postgres`, `identity/phone`, `identity/mfa`, `identity/http`
+- Unlocks after verification: `identity/password`, `identity/email`, `identity/otp/postgres`, `identity/phone`, `identity/mfa`, `identity/http`
 
 ## Start gate
 
@@ -77,7 +78,11 @@ involved.
 - Every consuming workflow MUST treat OTP precheck as non-authoritative and use
   the durable issue/attempt/reserve/apply/finalize/release/recover protocol.
   This unit owns purpose and attempt policy; `identity/otp/postgres` owns the
-  authoritative state transitions and replay record.
+  authoritative state transitions and replay record. The server MUST issue an
+  unpredictable attempt ID for each logical code submission. Wrong-code retries
+  MUST use that identity so the dedicated denial transaction increments exactly
+  once, stores the aborted command result atomically, and reconciles an
+  ambiguous commit before retry.
 - Signin challenges MUST bind and preserve the session-owned persistent or non-
   persistent remember policy through risk/MFA continuation and SessionIssuer
   input. Verification, resend or fallback MUST NOT upgrade persistence or

@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/risk/captcha`
 - Canonical module: `pkg/identity/risk/captcha`
 - Canonical goal after scaffolding: `pkg/identity/risk/captcha/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/risk/captcha:v1`; owned operation IDs: `contract:operation:identity.risk.captcha-verify:v1`
 - Requires: `identity/risk`
 - Consumes existing primitives: `http-client`, `audit`, `telemetry`
 - Unlocks after verification: `identity/risk/captcha/recaptcha`, `identity/risk/captcha/turnstile`, `identity/risk/captcha/hcaptcha`, `identity/risk/captcha/captchafox`, `identity/http`
@@ -34,13 +35,15 @@ This module owns provider-neutral server-side CAPTCHA verification and
 normalized evidence shared by reCAPTCHA, Turnstile, hCaptcha and CaptchaFox
 adapters. It does not own browser widgets, provider account management,
 provider-specific wire fields, risk decisions, fail-open/fail-closed choices,
-or deciding when a challenge is required. Provider-specific fields MAY survive
-only in a bounded, typed evidence envelope. Those exclusions MUST remain
-outside its public API and dependency graph.
+or deciding when a challenge is required. It is a stateless verifier and MUST
+NOT own `tx.captcha.reserve`, `tx.captcha.apply`, or `tx.captcha.finalize`;
+`identity/risk/postgres` owns those durable roles. Provider-specific fields MAY
+survive only in a bounded, typed evidence envelope. Those exclusions MUST
+remain outside its public API and dependency graph.
 
 ## Required public contract
 
-The design MUST define Verifier, Request, Result, Failure, ProviderEvidence, provider capability metadata, hostname/origin/action/site binding, optional score policy, clock, retry classification, and redaction contracts. It MUST represent unavailable provider fields without fabricating generic values. Public errors MUST be typed, stable,
+The design MUST define Verifier, Request, Result, Failure, ProviderEvidence, provider capability metadata, hostname/origin/action/site binding, the exact subject or anonymous flow, the selected unauthenticated pre-auth or authenticated subject/session or administrator actor context, optional score policy, clock, retry classification, and redaction contracts. It MUST represent unavailable provider fields without fabricating generic values. Public errors MUST be typed, stable,
 redacted, and useful for policy decisions without exposing enumeration or
 secret state. Zero values, clocks, randomness, identifier canonicalization,
 limits, and extension points MUST have explicit semantics.
@@ -66,9 +69,14 @@ involved.
   NOT replace trusted server configuration.
 - No caller or provider adapter may supply, override, or select the
   authoritative replay fingerprint. The `identity/risk` issuance authority
-  derives it from the raw token and trusted provider/site/profile scope; this
-  package passes the token only through the bounded verification request and
-  returns no reusable replay identity.
+  derives it as the domain-separated HMAC-SHA-256
+  `identity-captcha-replay-v1` fingerprint from the raw token and trusted
+  provider/site/API-profile/configuration-version scope; this package passes
+  the token only through the bounded verification request and returns no
+  reusable replay identity. Durable storage MUST enforce the exact
+  tenant/provider/site/profile/configuration/fingerprint unique constraint so
+  one provider token cannot authorize a second issuance command, including
+  under races or after evidence payload erasure.
 - Normalized evidence MUST retain provider, API/version, tier, site binding,
   action/hostname/origin availability and match status, challenge timestamp,
   score availability/value, provider reason codes and transport outcome. It

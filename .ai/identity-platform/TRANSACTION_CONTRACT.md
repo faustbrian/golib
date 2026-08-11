@@ -138,6 +138,19 @@ durability or survive a root rollback. Delete results and unresolved mappings
 remain replayable through the configured terminal/unknown retention even after
 the resource tombstone ages.
 
+For SCIM DELETE, admission MUST persist a server-owned replay lookup keyed by
+connection scope, canonical route and the canonical target/precondition request
+fingerprint before mutation. A headerless retry with that identical lookup MUST
+recover the original terminal command and replay its original successful DELETE
+response without evaluating `If-Match` against the tombstone or allocating
+another command. When `Idempotency-Key` is supplied, its scoped digest is an
+additional lookup for the same command; reuse with any changed body,
+precondition, target, or other fingerprint input MUST return `Conflict` without
+mutation. A request with a different target or precondition fingerprint is a
+new protocol request and observes current resource state. The original result remains recoverable through
+`scim.idempotency_retention` even if `scim.delete_tombstone_retention` expires
+first. Pending and unknown mappings have no time-based release.
+
 Before the first child mutation, admission MUST compute a conservative
 worst-case terminal BulkResponse size from every admitted child, including the
 maximum status, location, version, `bulkId`, and bounded SCIM Error
@@ -205,9 +218,10 @@ and fail closed, not guess rollback.
    capability, and OTP
    reservation before `Begin`. It locks command row, tenant, then one-time keys
    ordered as RiskEvidence, CaptchaEvidence, capability, and OTP; keys within a class sort
-   lexicographically. Any participant denial, error, or cancellation rolls back
-   every reservation write; a separate or private participant reservation is
-   forbidden. When an expired `pending` command is taken over, this same
+   lexicographically. After admission, the general `tx.uow.reserve` rule still
+   rolls back every participant reservation on denial, error, or cancellation;
+   a separate or private participant reservation is forbidden. When an expired
+   `pending` command is taken over, this same
    transaction MUST first increment the command generation and then CAS-rebind
    every already-`reserved` one-time participant from the exact prior generation
    to the new generation under the same command ID and fingerprint. A missing,
@@ -283,11 +297,13 @@ fingerprint as exactly `committed` with its recorded safe result, `aborted`
 with proof no evidence row committed, or still `pending` and outcome-unknown.
 An ambiguous insert MUST use `tx.captcha.reconcile` for
 the same command and fingerprint on the primary and MUST NOT issue a second
-reference. The
-durable evidence row MUST bind tenant, subject or anonymous-flow ID, pre-auth
-transaction, exact registered action, canonical request fingerprint,
-provider/site/configuration version, hostname, decision, database-issued time,
-expiry, keyed-digest key version, and proof fingerprint. Raw response tokens,
+reference. The durable evidence row MUST bind tenant, exact subject or
+anonymous-flow ID, a flow-context variant of pre-auth transaction for
+unauthenticated flows or authenticated subject/session or administrator actor
+context for authenticated or administrative flows, exact registered action,
+canonical request fingerprint, provider/site/configuration version, hostname,
+decision, database-issued time, expiry, keyed-digest key version, and proof
+fingerprint. Raw response tokens,
 remote IP, provider payloads, scores, `cdata`, and provider error text MUST NOT
 enter the command, journal result, audit event, or caller-visible result.
 
@@ -321,8 +337,10 @@ precheck grants no authority, and the contributor MUST NOT open a private
 transaction or call the provider.
 
 `tx.captcha.apply` MUST recheck command/generation ownership, PostgreSQL expiry,
-exact action, subject/flow, request fingerprint, provider/site/configuration
-versions, and the current risk-policy version inside the domain transaction.
+exact action, subject or anonymous flow, the applicable pre-auth or authenticated
+subject/session or administrator actor context, request fingerprint,
+provider/site/configuration versions, and the current risk-policy version inside
+the domain transaction.
 `tx.captcha.finalize` MUST transition the reservation to `finalized` in the
 same commit as the protected mutation, authority-version changes, session
 transition, audit/outbox records, and command result. Any reservation denial,
@@ -512,14 +530,25 @@ durable failed-attempt increment, `issued` to `reserved`, `issued` to `expired`,
 2. **`tx.otp.check`: Check:** a configured scanner-safe or user-initiated
    precheck MAY compare the exact binding and digest under a separately bounded
    attempt policy, but grants no authority and MUST NOT reserve or consume.
-3. **`tx.otp.attempt`: Attempt:** an incorrect submitted code MUST atomically
-   increment the one durable attempt counter exactly once under the consuming
-   command ID and canonical command fingerprint, persist the stable aborted
-   command result, and replay that result without another increment. A different
-   fingerprint for the same command conflicts without mutation. Reaching
-   the budget transitions `issued` to terminal `exhausted`. Cross-purpose,
-   cross-subject, cross-channel, or unknown challenges receive the same
-   constant-work denial and MUST NOT mutate another row.
+3. **`tx.otp.attempt`: Attempt:** before accepting a code-bearing verification
+   submission, the server MUST issue one unpredictable attempt ID for that
+   logical submission. `tx.otp.attempt` MUST use a server-issued attempt ID bound
+   to the tenant, purpose, challenge ID, consuming command ID, and canonical
+   command fingerprint; callers MUST NOT select or reuse an attempt ID across
+   logical submissions. An incorrect code uses a dedicated atomic denial
+   transaction. The wrong-code denial transaction is a narrow pre-reservation
+   exception to `tx.uow.reserve`. It MUST lock the command row and OTP row,
+   verify the server-issued attempt ID and canonical command fingerprint,
+   increment the durable attempt counter exactly once, transition to
+   `exhausted` when the budget is reached, and store the stable `aborted` command
+   result in the same commit. Replaying the same attempt ID returns that result
+   without another increment; a different attempt ID or fingerprint for the same
+   command conflicts without mutation. An ambiguous wrong-code denial commit
+   MUST return `Unknown` and reconcile the same command and attempt ID on the
+   primary before any retry. Once code verification admits the command, normal
+   reservation, apply, finalize, rollback, and recovery rules apply without this
+   exception. Cross-purpose, cross-subject, cross-channel, or unknown challenges
+   receive the same constant-work denial and MUST NOT mutate another row.
 4. **`tx.otp.reserve`: Reserve:** the predeclared `identity/otp/postgres`
    contributor MUST lock the exact `issued` row and verify the code digest inside
    the coordinator's single `tx.uow.reserve` transaction, then bind consuming
@@ -651,6 +680,16 @@ one-time capability MUST use these steps. A protocol adapter MAY validate the
 opaque bearer, but `capability/postgres` is REQUIRED for durable reserve,
 apply, finalize and recovery before a callback can issue authority:
 
+Every issuer, validator, repository and reference composition MUST consume
+`struct:ref.capability.crypto`. Capability signing/verification keys and keyed
+replay-digest keys are independent, purpose/domain-separated versioned key
+sets. New issuance uses only the newest active versions; validation and lookup
+accept only the explicitly retained versions. Startup/readiness MUST fail when
+an active key or any key still required by an unexpired bearer, pending/unknown
+reservation, terminal record, or replay tombstone is unavailable. Retirement
+is permitted only after the closed configuration predicate proves that bearer
+validation fails before lookup and no unresolved authority references the key.
+
 1. **`tx.capability.issue`: Issue:** persist the replay record through the shared transaction. The
    `tx.capability.issue` transition is `absent` to `issued`; `issued` is the sole
    unconsumed capability state. Bind
@@ -705,6 +744,33 @@ standalone-ledger fallback. When the reference retention policy crypto-shreds
 an old unknown payload, its keyed digest, tenant, purpose, command binding, and
 `reserved` denial state MUST remain in the primary restricted archive and MUST
 participate in every reserve/query decision until authoritative resolution.
+
+## Composed lifecycle and reconciliation commands
+
+Email-address removal and administrative MFA reset are coordinator commands,
+not sequential service calls. Before their first write they MUST enlist the
+identity/email or identity/mfa authority, identity/session when authority is
+invalidated, capability state for address/recovery bearers, audit, outbox and
+the command-result journal. The same commit changes the identifier/factor
+version, writes the lifecycle event and command result, and applies every local
+invalidation. Unknown commit remains generation-reserved until authoritative
+query/recovery; retry MUST NOT remove another address/factor or issue a second
+administrative recovery capability.
+
+Administrative MFA recovery issuance is a separate command whose input binds a
+terminal `factor.reset.v1` cascade generation. It may enqueue one encrypted
+single-use recovery capability only after that generation committed; it cannot
+participate in, race ahead of or reinterpret the reset transaction.
+
+Provider delivery receipts, cancellation and status reconciliation use the
+provider-effect state machine above. A receipt or status query runs outside
+database transactions, authenticates provider evidence, then applies one
+generation-CAS transition with the dedupe identity and reconciliation
+checkpoint. Local cancellation prevents new leases immediately, but remote
+cancellation remains `outcome-unknown` until authenticated provider evidence
+proves a terminal outcome. No status query, webhook replay or worker takeover
+may resubmit a delivery unless the persisted provider idempotency identity and
+pinned provider contract permit it.
 
 ## Required proof
 

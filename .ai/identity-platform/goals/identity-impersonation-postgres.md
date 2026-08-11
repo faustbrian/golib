@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/impersonation/postgres`
 - Canonical module: `pkg/identity/impersonation/postgres`
 - Canonical goal after scaffolding: `pkg/identity/impersonation/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/impersonation/postgres:v1`; owned operation IDs: none
 - Requires: `identity/impersonation`, `identity/postgres`, `identity/session/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`

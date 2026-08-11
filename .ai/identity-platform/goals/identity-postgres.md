@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/postgres`
 - Canonical module: `pkg/identity/postgres`
 - Canonical goal after scaffolding: `pkg/identity/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/postgres:v1`; owned operation IDs: none
 - Requires: `identity`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
 - Unlocks after verification: `identity/session/postgres`, `identity/delivery/postgres`, `identity/risk/postgres`, `identity/password/postgres`, `identity/otp/postgres`, `identity/anonymous/postgres`, `identity/mfa/postgres`, `webauthn/postgres`, `passkey/postgres`, `identity/oauth/postgres`, `identity/apikey/postgres`, `identity/impersonation/postgres`, `organization/postgres`, `sso/postgres`, `scim/postgres`, `oauth-server/postgres`, `identity/reference`

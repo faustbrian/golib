@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/identitytest`
 - Canonical module: `pkg/identity/identitytest`
 - Canonical goal after scaffolding: `pkg/identity/identitytest/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/identitytest:v1`; owned operation IDs: `contract:operation:identity.identitytest.auth-headers:v1`, `contract:operation:identity.identitytest.cookie-create:v1`, `contract:operation:identity.identitytest.cookie-headers:v1`, `contract:operation:identity.identitytest.cookies:v1`, `contract:operation:identity.identitytest.delivery-capture:v1`, `contract:operation:identity.identitytest.login:v1`, `contract:operation:identity.identitytest.member-add:v1`, `contract:operation:identity.identitytest.organization-create:v1`, `contract:operation:identity.identitytest.organization-delete:v1`, `contract:operation:identity.identitytest.organization-save:v1`, `contract:operation:identity.identitytest.otp-clear:v1`, `contract:operation:identity.identitytest.otp-get:v1`, `contract:operation:identity.identitytest.reset:v1`, `contract:operation:identity.identitytest.store-conformance:v1`, `contract:operation:identity.identitytest.user-create:v1`, `contract:operation:identity.identitytest.user-delete:v1`, `contract:operation:identity.identitytest.user-save:v1`
 - Requires: `identity/reference`
 - Consumes existing primitives: `postgres`, `migrations`, `identifier`
 - Unlocks after verification: No program unit.

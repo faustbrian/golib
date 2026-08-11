@@ -11,7 +11,8 @@ shown here.
 - Unit: `passkey`
 - Canonical module: `pkg/passkey`
 - Canonical goal after scaffolding: `pkg/passkey/.ai/GOAL.md`
-- Requires: `identity`, `identity/session`, `identity/risk`, `webauthn`
+- Public contracts: unit ID `contract:unit:passkey:v1`; owned operation IDs: `contract:operation:identity.passkey.delete:v1`, `contract:operation:identity.passkey.list:v1`, `contract:operation:identity.passkey.register-options:v1`, `contract:operation:identity.passkey.register-verify:v1`, `contract:operation:identity.passkey.signin-options:v1`, `contract:operation:identity.passkey.signin-verify:v1`, `contract:operation:identity.passkey.update:v1`
+- Requires: `identity`, `identity/session`, `identity/risk`, `webauthn`, `primitive/authentication-identity-contracts`, `primitive/identifier-identity-contracts`
 - Consumes existing primitives: `audit`, `identifier`
 - Unlocks after verification: `passkey/postgres`, `identity/http`
 
@@ -100,8 +101,14 @@ involved.
 - Register, sign-in, list, rename and delete MUST use the exact authorization,
   idempotency and continuation contracts in `API_OPERATIONS.md`. Creation,
   rename, removal and compromise MUST emit passkey-owned lifecycle and security
-  events. Removal MUST bump the passkey authority version and the credential
-  version when primary; compromise MUST bump both. Factor reset, global
+  events. Creation MUST emit exactly `identity.passkey.create_credential`,
+  compromise MUST emit exactly `identity.passkey.mark_compromised`, rename MUST
+  emit exactly `identity.passkey.rename_credential`, and removal MUST emit
+  exactly `identity.passkey.remove_credential`; WebAuthn ceremony verification
+  and clone-detection facts remain owned by `webauthn`. Ordinary failed
+  assertions MUST NOT claim compromise. Removal MUST
+  bump the passkey authority version and the credential version when primary;
+  compromise MUST bump both. Factor reset, global
   compromise, identity anonymization and deletion cascades MUST be acknowledged
   before affected sessions remain valid; unknown acknowledgement denies.
 

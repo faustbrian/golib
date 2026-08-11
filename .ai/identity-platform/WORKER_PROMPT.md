@@ -32,12 +32,15 @@ Read completely before editing:
 4. .ai/identity-platform/DEPENDENCIES.md;
 5. .ai/identity-platform/END_STATE.md sections referenced by the goal;
 5a. .ai/identity-platform/END_STATE_ACCEPTANCE.json acceptance rows and artifact catalog owned or consumed by this unit;
+5b. .ai/identity-platform/ACCEPTANCE_ARTIFACTS.json exact artifact contracts owned or consumed by this unit;
 6. .ai/identity-platform/REFERENCE_PROFILE.md sections owned by this unit;
 7. .ai/identity-platform/BETTER_AUTH_PARITY.md rows owned by this unit;
 7a. .ai/identity-platform/PARITY_DISPOSITIONS.json exact exclusions, divergences and ownership reclassifications;
 8. .ai/identity-platform/API_OPERATIONS.md operations owned or consumed by this
    unit;
 8a. .ai/identity-platform/OPERATION_SEMANTICS.json exact semantic rows owned or consumed by this unit;
+8b. .ai/identity-platform/PUBLIC_CONTRACTS.json exact unit and operation contracts assigned to this unit;
+8c. .ai/identity-platform/public_contracts.rb canonical contract validation and generation rules;
 9. .ai/identity-platform/UPSTREAM_DISPOSITIONS.md rows owned by this unit;
 10. .ai/identity-platform/UPSTREAM_SURFACE.json pinned upstream objects and
     operation IDs owned or consumed by this unit;
@@ -77,6 +80,9 @@ Scope:
   beneath it; generated files, tests and documentation for a descendant remain
   reserved to that descendant worker;
 - implement every requirement in the assigned goal;
+- implement exactly the public unit and operation contract IDs assigned in the
+  goal and `PUBLIC_CONTRACTS.json`; MUST NOT infer, add, broaden, substitute, or
+  expose any public API beyond those exact contracts;
 - implement every in-scope parity row assigned to this unit;
 - produce package-local production code, tests, fixtures, migrations,
   documentation, examples, go.mod, go.sum, README.md, and CHANGELOG.md;

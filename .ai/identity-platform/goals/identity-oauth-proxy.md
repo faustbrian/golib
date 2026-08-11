@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/oauth/proxy`
 - Canonical module: `pkg/identity/oauth/proxy`
 - Canonical goal after scaffolding: `pkg/identity/oauth/proxy/.ai/GOAL.md`
-- Requires: `identity/oauth`
+- Public contracts: unit ID `contract:unit:identity/oauth/proxy:v1`; owned operation IDs: `contract:operation:identity.oauth.proxy-forward:v1`
+- Requires: `identity/oauth`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `capability`, `secret-envelope`, `http-client`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/http`
 
@@ -79,8 +80,16 @@ token and envelope expiry/revocation MUST match
 [`LIFECYCLE_CASCADES.md`](../LIFECYCLE_CASCADES.md), and preview origins, keys,
 lifetimes and size limits MUST be explicit in
 [`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
-Every forwarded or denied proxy transaction MUST emit the bounded record
-defined by [`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
+Pending and reserved proxy transactions and envelopes MUST consume and fail
+closed on `lifecycle.cascade.global_compromise`,
+`lifecycle.cascade.identity_anonymize`, `lifecycle.cascade.identity_delete`,
+`lifecycle.cascade.social_provider_disable` and
+`lifecycle.cascade.social_provider_unlink`; this module acknowledges those
+versions but does not own the underlying identity or provider-link authority.
+Every forwarded or denied proxy transaction MUST emit exactly
+`identity.oauth.use_proxy`. Generic OAuth start/callback/link/account records
+remain owned by `identity/oauth`, and session records remain owned by
+`identity/session`.
 
 Verification applicability is exact for this unit: `race=required`,
 `fuzz=required`, `hostile=required`, `leak=required`, `benchmark=required`,

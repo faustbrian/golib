@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/session/valkey`
 - Canonical module: `pkg/identity/session/valkey`
 - Canonical goal after scaffolding: `pkg/identity/session/valkey/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/session/valkey:v1`; owned operation IDs: none
 - Requires: `identity/session`
 - Consumes existing primitives: `cache`, `identifier`, `audit`
 - Unlocks after verification: `identity/reference`

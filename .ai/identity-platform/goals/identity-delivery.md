@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/delivery`
 - Canonical module: `pkg/identity/delivery`
 - Canonical goal after scaffolding: `pkg/identity/delivery/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/delivery:v1`; owned operation IDs: `contract:operation:identity.delivery.cancel:v1`, `contract:operation:identity.delivery.enqueue:v1`, `contract:operation:identity.delivery.receipt-record:v1`, `contract:operation:identity.delivery.reconcile:v1`, `contract:operation:identity.delivery.status-get:v1`
 - Requires: None; this root execution unit may be claimed when its existing primitive audit is current.
 - Consumes existing primitives: `workflow`, `outbox`, `audit`, `telemetry`
 - Unlocks after verification: `identity/delivery/postgres`, `identity/password`, `identity/email`, `identity/otp`, `identity/phone`, `organization`, `identity/http`
@@ -72,6 +73,18 @@ involved.
 - Sender adapters MUST define timeout, retry, provider idempotency, throttling,
   accepted/delivered/bounced classification and unknown outcome. Retries MUST
   not duplicate one-time credentials beyond documented workflow policy.
+- `identity.delivery.status-get` MUST expose the durable bounded state and
+  attempt generation without recipient, rendered content or raw receipts.
+  `identity.delivery.cancel` MUST stop unsent/retry work and distinguish local
+  cancellation, already-terminal and remote-cancellation-unknown; provider
+  cancellation is attempted only under a pinned supported contract.
+- `identity.delivery.receipt-record` MUST authenticate provider callbacks,
+  bind provider/tenant/effect, deduplicate the provider event identity, retain
+  only bounded redacted evidence and enforce monotonic transitions.
+  `identity.delivery.reconcile` MUST query outcome-unknown and
+  cancellation-pending effects with generation fencing, checkpoint each result,
+  and never resubmit unless the pinned provider idempotency profile makes that
+  safe.
 - Recipient addresses and rendered bodies are sensitive; retention, audit,
   tracing and delivery-provider deletion boundaries MUST be explicit.
 - Test capture MUST use the public Sender/Queue contracts and be impossible to

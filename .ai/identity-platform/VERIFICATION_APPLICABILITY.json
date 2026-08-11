@@ -12,6 +12,153 @@
   ],
   "units": [
     {
+      "unit": "primitive/authentication-identity-contracts",
+      "selectors": {
+        "race": {
+          "status": "required"
+        },
+        "fuzz": {
+          "status": "required"
+        },
+        "hostile": {
+          "status": "required"
+        },
+        "leak": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/authentication-identity-contracts owns no leak boundary; composed consumers own that evidence"
+        },
+        "benchmark": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/authentication-identity-contracts owns no benchmark boundary; composed consumers own that evidence"
+        },
+        "infrastructure": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/authentication-identity-contracts owns no infrastructure boundary; composed consumers own that evidence"
+        },
+        "provider_interoperability": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/authentication-identity-contracts owns no provider interoperability boundary; composed consumers own that evidence"
+        }
+      }
+    },
+    {
+      "unit": "primitive/authorization-identity-contracts",
+      "selectors": {
+        "race": {
+          "status": "required"
+        },
+        "fuzz": {
+          "status": "required"
+        },
+        "hostile": {
+          "status": "required"
+        },
+        "leak": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/authorization-identity-contracts owns no leak boundary; composed consumers own that evidence"
+        },
+        "benchmark": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/authorization-identity-contracts owns no benchmark boundary; composed consumers own that evidence"
+        },
+        "infrastructure": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/authorization-identity-contracts owns no infrastructure boundary; composed consumers own that evidence"
+        },
+        "provider_interoperability": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/authorization-identity-contracts owns no provider interoperability boundary; composed consumers own that evidence"
+        }
+      }
+    },
+    {
+      "unit": "primitive/capability-identity-contracts",
+      "selectors": {
+        "race": {
+          "status": "required"
+        },
+        "fuzz": {
+          "status": "required"
+        },
+        "hostile": {
+          "status": "required"
+        },
+        "leak": {
+          "status": "required"
+        },
+        "benchmark": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/capability-identity-contracts owns no benchmark boundary; composed consumers own that evidence"
+        },
+        "infrastructure": {
+          "status": "required"
+        },
+        "provider_interoperability": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/capability-identity-contracts owns no provider interoperability boundary; composed consumers own that evidence"
+        }
+      }
+    },
+    {
+      "unit": "primitive/identifier-identity-contracts",
+      "selectors": {
+        "race": {
+          "status": "required"
+        },
+        "fuzz": {
+          "status": "required"
+        },
+        "hostile": {
+          "status": "required"
+        },
+        "leak": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/identifier-identity-contracts owns no leak boundary; composed consumers own that evidence"
+        },
+        "benchmark": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/identifier-identity-contracts owns no benchmark boundary; composed consumers own that evidence"
+        },
+        "infrastructure": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/identifier-identity-contracts owns no infrastructure boundary; composed consumers own that evidence"
+        },
+        "provider_interoperability": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/identifier-identity-contracts owns no provider interoperability boundary; composed consumers own that evidence"
+        }
+      }
+    },
+    {
+      "unit": "primitive/password-secret-contracts",
+      "selectors": {
+        "race": {
+          "status": "required"
+        },
+        "fuzz": {
+          "status": "required"
+        },
+        "hostile": {
+          "status": "required"
+        },
+        "leak": {
+          "status": "required"
+        },
+        "benchmark": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/password-secret-contracts owns no benchmark boundary; composed consumers own that evidence"
+        },
+        "infrastructure": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/password-secret-contracts owns no infrastructure boundary; composed consumers own that evidence"
+        },
+        "provider_interoperability": {
+          "status": "not_applicable",
+          "reviewed_reason": "primitive/password-secret-contracts owns no provider interoperability boundary; composed consumers own that evidence"
+        }
+      }
+    },
+    {
       "unit": "identity",
       "selectors": {
         "race": {
@@ -948,8 +1095,7 @@
           "status": "required"
         },
         "benchmark": {
-          "status": "not_applicable",
-          "reviewed_reason": "identity/oauth/providers owns no benchmark boundary; composed consumers own that evidence"
+          "status": "required"
         },
         "infrastructure": {
           "status": "required"
@@ -1257,8 +1403,7 @@
           "status": "required"
         },
         "benchmark": {
-          "status": "not_applicable",
-          "reviewed_reason": "sso/domain-verification owns no benchmark boundary; composed consumers own that evidence"
+          "status": "required"
         },
         "infrastructure": {
           "status": "required"
@@ -1578,8 +1723,7 @@
           "reviewed_reason": "identity/i18n owns no leak boundary; composed consumers own that evidence"
         },
         "benchmark": {
-          "status": "not_applicable",
-          "reviewed_reason": "identity/i18n owns no benchmark boundary; composed consumers own that evidence"
+          "status": "required"
         },
         "infrastructure": {
           "status": "not_applicable",
@@ -1657,12 +1801,10 @@
           "status": "required"
         },
         "leak": {
-          "status": "not_applicable",
-          "reviewed_reason": "identity/identitytest owns no leak boundary; composed consumers own that evidence"
+          "status": "required"
         },
         "benchmark": {
-          "status": "not_applicable",
-          "reviewed_reason": "identity/identitytest owns no benchmark boundary; composed consumers own that evidence"
+          "status": "required"
         },
         "infrastructure": {
           "status": "not_applicable",

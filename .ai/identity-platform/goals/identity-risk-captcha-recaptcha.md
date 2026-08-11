@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/risk/captcha/recaptcha`
 - Canonical module: `pkg/identity/risk/captcha/recaptcha`
 - Canonical goal after scaffolding: `pkg/identity/risk/captcha/recaptcha/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/risk/captcha/recaptcha:v1`; owned operation IDs: none
 - Requires: `identity/risk/captcha`
 - Consumes existing primitives: `http-client`, `secret-envelope`, `telemetry`
 - Unlocks after verification: `identity/reference`
@@ -88,9 +89,11 @@ involved.
   handling MUST come from `.ai/identity-platform/REFERENCE_CONFIGURATION.md`.
 - Verification MUST bind the trusted operation, tenant, action, purpose,
   subject scope, challenge, configured site/profile and replay identifier.
-  Token or evidence replay under another binding MUST fail. Security events and
-  lifecycle cascades MUST use `.ai/identity-platform/SECURITY_EVENTS.md` and
-  `.ai/identity-platform/LIFECYCLE_CASCADES.md` respectively.
+  Token or evidence replay under another binding MUST fail. The adapter MUST
+  NOT emit the canonical verification, rejection, replay or binding-mismatch
+  records; `identity/risk/captcha` owns those records after it consumes the
+  normalized evidence. Provider telemetry remains adapter-owned. Lifecycle
+  cascades MUST use `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 - The adapter MUST NOT derive or return the authoritative replay fingerprint.
   It accepts the raw token only for the bounded Siteverify call; `identity/risk`
   derives the durable keyed replay identity from that token and trusted scope.

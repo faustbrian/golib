@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/reference`
 - Canonical module: `pkg/identity/reference`
 - Canonical goal after scaffolding: `pkg/identity/reference/.ai/GOAL.md`
-- Requires: `identity/http` and every concrete adapter listed explicitly in `INVENTORY.md`
+- Public contracts: unit ID `contract:unit:identity/reference:v1`; owned operation IDs: `contract:operation:identity.audit-retention.deletion.confirm:v1`, `contract:operation:identity.audit-retention.deletion.plan:v1`, `contract:operation:identity.audit-retention.legal-hold.create:v1`, `contract:operation:identity.audit-retention.legal-hold.release:v1`, `contract:operation:identity.audit-retention.legal-hold.update:v1`, `contract:operation:identity.audit-retention.policy.update:v1`, `contract:operation:identity.audit-retention.records.delete:v1`, `contract:operation:identity.audit.export:v1`, `contract:operation:identity.audit.get:v1`, `contract:operation:identity.audit.list:v1`, `contract:operation:identity.audit.search:v1`, `contract:operation:identity.platform.bootstrap-administrator:v1`, `contract:operation:identity.platform.permission-statement.create:v1`, `contract:operation:identity.platform.permission-statement.delete:v1`, `contract:operation:identity.platform.permission-statement.update:v1`, `contract:operation:identity.platform.role.create:v1`, `contract:operation:identity.platform.role.delete:v1`, `contract:operation:identity.platform.role.update:v1`, `contract:operation:identity.readiness:v1`, `contract:operation:identity.reference.config-validate:v1`, `contract:operation:identity.reference.diagnostics:v1`, `contract:operation:identity.reference.migration-apply:v1`, `contract:operation:identity.reference.migration-plan:v1`, `contract:operation:identity.reference.migration-status:v1`, `contract:operation:identity.reference.schema-generate:v1`, `contract:operation:identity.reference.secret-generate:v1`
+- Requires: `identity/http` and every concrete adapter listed explicitly in `INVENTORY.md`, plus `primitive/authorization-identity-contracts`
 - Consumes existing primitives: `postgres`, `migrations`, `capability/postgres`, `capability/valkey`, `audit/postgres`, `authorization/postgres`, `authorization/valkey`, `rate-limit/postgres`, `rate-limit/valkey`, `idempotency/postgres`, `idempotency/valkey`, `outbox/postgres`, `workflow/postgres`, `secret-envelope`, `outbox`, `workflow`, `telemetry`
 - Unlocks after verification: `identity/identitytest`
 
@@ -41,8 +42,9 @@ entry points. Zero/default behavior MUST be secure and explicit. Configuration
 MUST distinguish required, optional and mutually exclusive settings and return
 all safe validation failures before starting listeners or migrations.
 `ReferenceConfig` MUST require the exact immutable `identity.PolicySet` from
-`struct:ref.identity.policy_set`; composition validates all five members before
-exposing a handler and MUST NOT wrap, replace or silently default a callback.
+`struct:ref.identity.policy_set`; composition validates the upstream
+`authorization.Service` and all four identity callbacks before exposing a
+handler and MUST NOT wrap, replace or silently default any member.
 
 ## Selected complete profile
 
@@ -83,9 +85,36 @@ exposing a handler and MUST NOT wrap, replace or silently default a callback.
 - Delivery, social providers, One Tap, OAuth proxy, enterprise SSO, SCIM and
   OAuth/OIDC signing/client keys MUST have validated configuration, secret
   ownership, rotation and safe readiness semantics.
+- SCIM composition MUST bind ServiceProviderConfig `filter.maxResults`,
+  `bulk.maxOperations`, and `bulk.maxPayloadSize` to the effective selected
+  runtime limits. It MUST install the reference write-only credential decision
+  seam that rejects every SCIM password write before Mapper, Store, or generic
+  identity mutation, while non-password attributes continue through their
+  declared mapping contracts.
 - `identity/http` MUST receive only public feature/protocol interfaces. The
   reference package is the sole place where concrete adapter imports become a
   mandatory all-features dependency.
+- The API-key session-authentication profile MUST default disabled. When
+  enabled, composition MUST wire the exact configured header through
+  `identity/http` to `identity.apikey.session-authenticate`, reuse its one-debit
+  request-scoped principal through authorization/audit, and reject
+  organization-owned keys, duplicate credentials and durable session/cookie
+  creation.
+- Audit investigation MUST wire `identity.audit.get/search/list/export` to
+  `audit/postgres` with exact event-class/field authorization and redaction
+  before projection. Access/export events, bounded range/page/byte enforcement,
+  stable cursor/digest and cross-tenant denial belong to the reference HTTP
+  journey; raw database access is not a substitute.
+- Privacy-export composition MUST wire the exact contributor set, shared
+  PostgreSQL snapshot/non-PostgreSQL journal checkpoints, bounded workflow
+  worker, envelope-encrypted atomic artifact store, capability issuer and
+  deletion/anonymization revocation-erasure consumer required by
+  `struct:ref.identity.privacy_export`. Readiness MUST fail when a selected
+  contributor, retained decryption key or required worker/store is absent.
+- Delivery composition MUST expose direct status/cancel/receipt/reconcile
+  contracts to owning workflows/operators and provider adapters, authenticate
+  provider receipts before persistence, and run generation-fenced workers for
+  cancellation-pending and outcome-unknown effects.
 - Core HTTP rate state MUST use `rate-limit/postgres` as authority with the
   declared outage semantics. `rate-limit/valkey` MAY cache only permitted
   positive metadata; neither Valkey nor process memory may become the
@@ -236,6 +265,8 @@ aware readiness probes through `identity/http`. Readiness MUST cover mandatory
 PostgreSQL, selected authoritative Valkey-backed contracts, migration
 compatibility, active signing/envelope keys and required worker admission;
 optional provider degradation is reported only as bounded non-secret status.
+The only probe routes are `GET /healthz` and `GET /readyz`; composition MUST
+reject `/v1` probe aliases or any manifest/OpenAPI mapping that differs.
 Startup, drain and shutdown transitions MUST be observable and race-safe.
 
 Backup/restore rehearsals MUST use a production-shaped snapshot plus encrypted
@@ -284,6 +315,11 @@ owning package; the composition suite MUST additionally prove cross-feature
 effects such as password-change session revocation, SSO organization mapping,
 SCIM deprovisioning, MFA/passkey step-up, API-key ownership, consent and global
 compromise revocation.
+The same suite MUST cover email-address self/admin lifecycle, phone/password
+signin, API-key-derived request authentication, administrative MFA reset and
+recovery issuance, provider delivery cancellation/receipt reconciliation, and
+the permissioned audit-investigation journey exactly as specified in
+`END_STATE.md`.
 
 This package's own pre-verification suite MUST exercise those journeys directly
 through public package and HTTP contracts without importing

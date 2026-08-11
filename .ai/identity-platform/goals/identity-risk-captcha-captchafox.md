@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/risk/captcha/captchafox`
 - Canonical module: `pkg/identity/risk/captcha/captchafox`
 - Canonical goal after scaffolding: `pkg/identity/risk/captcha/captchafox/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/risk/captcha/captchafox:v1`; owned operation IDs: none
 - Requires: `identity/risk/captcha`
 - Consumes existing primitives: `http-client`, `audit`, `telemetry`
 - Unlocks after verification: `identity/reference`
@@ -76,9 +77,10 @@ partial reads, cancellation, timeouts, throttling and concurrent use.
 Each request and evidence result MUST bind the trusted operation, tenant,
 action, purpose, subject scope, challenge, selected tier/site key and replay
 identifier. Token or evidence replay under another binding MUST fail. CAPTCHA
-verification, rejection, replay, provider-unavailable and binding-mismatch
-events MUST use `.ai/identity-platform/SECURITY_EVENTS.md`; challenge expiry,
-tenant/site disablement and secret rotation MUST follow
+verification, rejection, replay and binding-mismatch records MUST NOT be
+emitted by this adapter; `identity/risk/captcha` owns those records after it
+consumes the normalized evidence. Provider telemetry remains adapter-owned.
+Challenge expiry, tenant/site disablement and secret rotation MUST follow
 `.ai/identity-platform/LIFECYCLE_CASCADES.md`.
 
 The adapter MUST NOT derive or return the authoritative replay fingerprint. It

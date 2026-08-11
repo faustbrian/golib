@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/apikey`
 - Canonical module: `pkg/identity/apikey`
 - Canonical goal after scaffolding: `pkg/identity/apikey/.ai/GOAL.md`
-- Requires: `identity`
+- Public contracts: unit ID `contract:unit:identity/apikey:v1`; owned operation IDs: `contract:operation:identity.apikey.create:v1`, `contract:operation:identity.apikey.delete:v1`, `contract:operation:identity.apikey.delete-expired:v1`, `contract:operation:identity.apikey.get:v1`, `contract:operation:identity.apikey.list:v1`, `contract:operation:identity.apikey.rotate:v1`, `contract:operation:identity.apikey.session-authenticate:v1`, `contract:operation:identity.apikey.update:v1`, `contract:operation:identity.apikey.verify:v1`
+- Requires: `identity`, `organization`, `primitive/authorization-identity-contracts`
 - Consumes existing primitives: `authentication`, `authorization`, `secret-envelope`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/apikey/postgres`, `identity/apikey/valkey`, `identity/http`
 
@@ -87,8 +88,21 @@ involved.
   constant-work contracts; unsafe configurations MUST fail construction.
 - Metadata MUST be schema-validated, size/depth bounded, authorization-filtered
   on read/write and excluded from unbounded telemetry labels.
-- API-key-derived sessions, when enabled, MUST preserve the key's owner,
-  permissions, expiry and revocation and MUST never outlive or broaden the key.
+- API-key-derived request authentication is selected only by the exact
+  `api_key.session_authentication.enabled` and
+  `api_key.session_authentication.header` configuration. When disabled, the
+  configured header has no authentication meaning. When enabled, exactly one
+  case-insensitive header occurrence is accepted; duplicate, multiple-name,
+  cookie-fallback and ambiguous credentials fail before lookup.
+- `identity.apikey.session-authenticate` MUST perform exactly one authoritative
+  verification and quota debit per admitted request and return a request-scoped
+  session-compatible principal only for a user-owned key. The result MUST bind
+  tenant, owner, immutable key grant, current owner authority, permissions,
+  expiry, key/owner/revocation versions and the verification decision so every
+  downstream authorization check reuses it without a second debit. It MUST NOT
+  create a durable session or browser cookie; organization-owned keys cannot
+  impersonate a user; revocation, expiry, owner suspension or permission
+  removal denies the next request and positive caches are version-bounded.
 - Reveal-once results MUST distinguish committed-and-revealed,
   committed-but-delivery-unknown, not-committed and commit-unknown outcomes.
   Plaintext MUST NOT be durably recoverable or returned by get/list after the

@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/impersonation`
 - Canonical module: `pkg/identity/impersonation`
 - Canonical goal after scaffolding: `pkg/identity/impersonation/.ai/GOAL.md`
-- Requires: `identity`, `identity/session`, `identity/risk`
+- Public contracts: unit ID `contract:unit:identity/impersonation:v1`; owned operation IDs: `contract:operation:identity.impersonation.approve:v1`, `contract:operation:identity.impersonation.deny:v1`, `contract:operation:identity.impersonation.quorum:v1`, `contract:operation:identity.impersonation.request:v1`, `contract:operation:identity.impersonation.revoke:v1`, `contract:operation:identity.impersonation.start:v1`, `contract:operation:identity.impersonation.stop:v1`
+- Requires: `identity`, `identity/session`, `identity/risk`, `primitive/authorization-identity-contracts`
 - Consumes existing primitives: `authorization`, `audit`, `capability`
 - Unlocks after verification: `identity/impersonation/postgres`, `identity/http`
 
@@ -49,6 +50,12 @@ involved.
 
 ## Package-specific acceptance checklist
 
+- The public contract MUST expose distinct `identity.impersonation.request`,
+  `identity.impersonation.approve`, `identity.impersonation.deny`,
+  `identity.impersonation.quorum` and `identity.impersonation.revoke`
+  operations with exactly the exposure, access, CSRF, rate, idempotency and
+  result semantics in `API_OPERATIONS.md`; start MUST NOT substitute for any
+  approval-lifecycle transition.
 - Start MUST require a named authorization decision, recent non-impersonated
   authentication, target eligibility, non-empty bounded reason and optional
   approval/reference according to policy.

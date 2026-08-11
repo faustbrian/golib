@@ -1,0 +1,2938 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "identity-platform.acceptance.webauthn-conformance-report.v1",
+  "title": "webauthn-conformance-report acceptance evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "result",
+    "tested_revision",
+    "gate_execution_revision",
+    "revalidation_revision",
+    "input_manifest",
+    "input_root",
+    "tool_environment",
+    "observations",
+    "artifact_hashes",
+    "recorded_at"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 2
+    },
+    "artifact_id": {
+      "const": "webauthn-conformance-report"
+    },
+    "result": {
+      "const": {
+        "status": "pass",
+        "gate": "make check MODULES=pkg/identity/reference"
+      }
+    },
+    "tested_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "gate_execution_revision": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "revalidation_revision": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "pattern": "^[0-9a-f]{40}$"
+    },
+    "input_manifest": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path_or_environment_id",
+          "kind",
+          "content_identity",
+          "owner",
+          "reason"
+        ],
+        "properties": {
+          "path_or_environment_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "kind": {
+            "type": "string",
+            "minLength": 1
+          },
+          "content_identity": {
+            "type": "string",
+            "minLength": 1
+          },
+          "owner": {
+            "type": "string",
+            "minLength": 1
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "input_root": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "tool_environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tool",
+        "environment"
+      ],
+      "properties": {
+        "tool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "environment": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "observations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "oneOf": [
+          {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "observation_id",
+              "claim_id",
+              "contract_reference",
+              "scenario",
+              "preconditions",
+              "stimulus",
+              "expected_outcome",
+              "actual_outcome",
+              "result",
+              "artifact_sha256"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+              },
+              "claim_id": {
+                "const": "journey.mfa-webauthn.v1"
+              },
+              "contract_reference": {
+                "const": "identity-platform.acceptance.webauthn-conformance-report.v1"
+              },
+              "scenario": {
+                "const": "success,failure,denial,replay,cleanup"
+              },
+              "preconditions": {
+                "const": "Operations: identity.mfa.security-key-register-options, identity.mfa.security-key-register-verify, identity.mfa.security-key-assert-options, identity.mfa.security-key-assert-verify, identity.passkey.register-verify, identity.passkey.signin-verify; exact inputs: rp_id, origin, challenge, credential_response, user_verification, backup_eligible, backup_state, stored_sign_count, received_sign_count; initial state: pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+              },
+              "stimulus": {
+                "const": "Run identity.mfa.security-key-register-options then identity.mfa.security-key-register-verify then identity.mfa.security-key-assert-options then identity.mfa.security-key-assert-verify then identity.passkey.register-verify then identity.passkey.signin-verify for success, failure, denial, replay, cleanup cases using rp_id, origin, challenge, credential_response, user_verification, backup_eligible, backup_state, stored_sign_count, received_sign_count and capture every required artifact field"
+              },
+              "expected_outcome": {
+                "const": "Invariant: exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, cleanup=pass/none; required artifact fields: backup_state_matrix, authenticator_path_ids, authenticator_path_results, signature_counter_matrix, backup_state_case_count, valid_backup_state_case_count, rejected_backup_state_case_count, authenticator_path_count, counter_case_count, conformance_case_count, passed_case_count, credential_id, sign_count, fixture_digest"
+              },
+              "actual_outcome": {
+                "const": "Invariant: exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase; stable outcomes: success=pass/none, failure=failed/internal, denial=denied/forbidden, replay=denied/conflict, cleanup=pass/none; required artifact fields: backup_state_matrix, authenticator_path_ids, authenticator_path_results, signature_counter_matrix, backup_state_case_count, valid_backup_state_case_count, rejected_backup_state_case_count, authenticator_path_count, counter_case_count, conformance_case_count, passed_case_count, credential_id, sign_count, fixture_digest"
+              },
+              "result": {
+                "const": "pass"
+              },
+              "artifact_sha256": {
+                "type": "string",
+                "pattern": "^sha256:[0-9a-f]{64}$"
+              }
+            }
+          }
+        ]
+      }
+    },
+    "artifact_hashes": {
+      "type": "array",
+      "minItems": 2,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "path",
+          "sha256"
+        ],
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^\\.ai/[A-Za-z0-9._/-]+$"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^sha256:[0-9a-f]{64}$"
+          }
+        }
+      },
+      "contains": {
+        "type": "object",
+        "required": [
+          "path"
+        ],
+        "properties": {
+          "path": {
+            "const": ".ai/identity-platform/evidence/artifacts/webauthn-conformance-report.json"
+          }
+        }
+      },
+      "minContains": 1
+    },
+    "recorded_at": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "properties": {
+        "observations": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "observation_id"
+            ],
+            "properties": {
+              "observation_id": {
+                "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    },
+    {
+      "properties": {
+        "artifact_hashes": {
+          "contains": {
+            "type": "object",
+            "required": [
+              "path"
+            ],
+            "properties": {
+              "path": {
+                "const": ".ai/identity-platform/evidence/executions/webauthn-conformance-report.json"
+              }
+            }
+          },
+          "minContains": 1
+        }
+      }
+    }
+  ],
+  "x-cross-field-rules": [
+    "every observations[].artifact_sha256 value must equal one artifact_hashes[].sha256 value",
+    "artifact_hashes must bind the artifact-specific evidence object at .ai/identity-platform/evidence/artifacts/webauthn-conformance-report.json",
+    "artifact_hashes must bind the separately captured coordinator execution receipt at .ai/identity-platform/evidence/executions/webauthn-conformance-report.json",
+    "revalidation_revision is null exactly when tested_revision equals gate_execution_revision; otherwise it equals gate_execution_revision",
+    "input_root is SHA-256 over RFC 8785 canonical JSON of input_manifest"
+  ],
+  "$defs": {
+    "artifact_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "artifact_id",
+        "operation_ids",
+        "input_digest",
+        "execution",
+        "scenario_cases",
+        "backup_state_matrix",
+        "authenticator_path_ids",
+        "authenticator_path_results",
+        "signature_counter_matrix",
+        "backup_state_case_count",
+        "valid_backup_state_case_count",
+        "rejected_backup_state_case_count",
+        "authenticator_path_count",
+        "counter_case_count",
+        "conformance_case_count",
+        "passed_case_count",
+        "credential_id",
+        "sign_count",
+        "fixture_digest"
+      ],
+      "properties": {
+        "artifact_id": {
+          "const": "webauthn-conformance-report"
+        },
+        "operation_ids": {
+          "const": [
+            "identity.mfa.security-key-register-options",
+            "identity.mfa.security-key-register-verify",
+            "identity.mfa.security-key-assert-options",
+            "identity.mfa.security-key-assert-verify",
+            "identity.passkey.register-verify",
+            "identity.passkey.signin-verify"
+          ]
+        },
+        "input_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "execution": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "execution_identity",
+            "execution_receipt_path",
+            "execution_receipt_sha256",
+            "capture_authority",
+            "command",
+            "tested_revision",
+            "input_root",
+            "tool",
+            "environment",
+            "started_at",
+            "completed_at",
+            "exit_status",
+            "stdout",
+            "stdout_byte_length",
+            "stdout_sha256",
+            "stderr",
+            "stderr_byte_length",
+            "stderr_sha256",
+            "captured_output_sha256",
+            "output_artifact_path",
+            "artifact_payload_binding"
+          ],
+          "properties": {
+            "execution_identity": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "execution_receipt_path": {
+              "const": ".ai/identity-platform/evidence/executions/webauthn-conformance-report.json"
+            },
+            "execution_receipt_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "capture_authority": {
+              "const": "coordinator-owned-execution-runner/v1"
+            },
+            "command": {
+              "const": "make check MODULES=pkg/identity/reference"
+            },
+            "tested_revision": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{40}$"
+            },
+            "input_root": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "tool": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 256
+            },
+            "environment": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 512
+            },
+            "started_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "completed_at": {
+              "type": "string",
+              "format": "date-time"
+            },
+            "exit_status": {
+              "const": 0
+            },
+            "stdout": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 1048576
+            },
+            "stdout_byte_length": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 1048576
+            },
+            "stdout_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "stderr": {
+              "type": "string",
+              "maxLength": 1048576
+            },
+            "stderr_byte_length": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1048576
+            },
+            "stderr_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "captured_output_sha256": {
+              "type": "string",
+              "pattern": "^sha256:[0-9a-f]{64}$"
+            },
+            "output_artifact_path": {
+              "const": ".ai/identity-platform/evidence/artifacts/webauthn-conformance-report.json"
+            },
+            "artifact_payload_binding": {
+              "const": "record.artifact_hashes[path,sha256]"
+            }
+          },
+          "x-execution-proof": 2
+        },
+        "scenario_cases": {
+          "type": "array",
+          "minItems": 5,
+          "maxItems": 5,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#success"
+                  },
+                  "observation_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "success"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "rp_id",
+                      "origin",
+                      "challenge",
+                      "credential_response",
+                      "user_verification",
+                      "backup_eligible",
+                      "backup_state",
+                      "stored_sign_count",
+                      "received_sign_count"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "backup_state_matrix",
+                      "authenticator_path_ids",
+                      "authenticator_path_results",
+                      "signature_counter_matrix",
+                      "backup_state_case_count",
+                      "valid_backup_state_case_count",
+                      "rejected_backup_state_case_count",
+                      "authenticator_path_count",
+                      "counter_case_count",
+                      "conformance_case_count",
+                      "passed_case_count",
+                      "credential_id",
+                      "sign_count",
+                      "fixture_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#failure"
+                  },
+                  "observation_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "failure"
+                  },
+                  "status": {
+                    "const": "failed"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "rp_id",
+                      "origin",
+                      "challenge",
+                      "credential_response",
+                      "user_verification",
+                      "backup_eligible",
+                      "backup_state",
+                      "stored_sign_count",
+                      "received_sign_count"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  },
+                  "stable_error": {
+                    "const": "internal"
+                  },
+                  "expected_invariant": {
+                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "backup_state_matrix",
+                      "authenticator_path_ids",
+                      "authenticator_path_results",
+                      "signature_counter_matrix",
+                      "backup_state_case_count",
+                      "valid_backup_state_case_count",
+                      "rejected_backup_state_case_count",
+                      "authenticator_path_count",
+                      "counter_case_count",
+                      "conformance_case_count",
+                      "passed_case_count",
+                      "credential_id",
+                      "sign_count",
+                      "fixture_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#denial"
+                  },
+                  "observation_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "denial"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "rp_id",
+                      "origin",
+                      "challenge",
+                      "credential_response",
+                      "user_verification",
+                      "backup_eligible",
+                      "backup_state",
+                      "stored_sign_count",
+                      "received_sign_count"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  },
+                  "stable_error": {
+                    "const": "forbidden"
+                  },
+                  "expected_invariant": {
+                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "backup_state_matrix",
+                      "authenticator_path_ids",
+                      "authenticator_path_results",
+                      "signature_counter_matrix",
+                      "backup_state_case_count",
+                      "valid_backup_state_case_count",
+                      "rejected_backup_state_case_count",
+                      "authenticator_path_count",
+                      "counter_case_count",
+                      "conformance_case_count",
+                      "passed_case_count",
+                      "credential_id",
+                      "sign_count",
+                      "fixture_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#replay"
+                  },
+                  "observation_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "replay"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "rp_id",
+                      "origin",
+                      "challenge",
+                      "credential_response",
+                      "user_verification",
+                      "backup_eligible",
+                      "backup_state",
+                      "stored_sign_count",
+                      "received_sign_count"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "backup_state_matrix",
+                      "authenticator_path_ids",
+                      "authenticator_path_results",
+                      "signature_counter_matrix",
+                      "backup_state_case_count",
+                      "valid_backup_state_case_count",
+                      "rejected_backup_state_case_count",
+                      "authenticator_path_count",
+                      "counter_case_count",
+                      "conformance_case_count",
+                      "passed_case_count",
+                      "credential_id",
+                      "sign_count",
+                      "fixture_digest"
+                    ]
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#cleanup"
+                  },
+                  "observation_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "cleanup"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "rp_id",
+                      "origin",
+                      "challenge",
+                      "credential_response",
+                      "user_verification",
+                      "backup_eligible",
+                      "backup_state",
+                      "stored_sign_count",
+                      "received_sign_count"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "backup_state_matrix",
+                      "authenticator_path_ids",
+                      "authenticator_path_results",
+                      "signature_counter_matrix",
+                      "backup_state_case_count",
+                      "valid_backup_state_case_count",
+                      "rejected_backup_state_case_count",
+                      "authenticator_path_count",
+                      "counter_case_count",
+                      "conformance_case_count",
+                      "passed_case_count",
+                      "credential_id",
+                      "sign_count",
+                      "fixture_digest"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "backup_state_matrix": {
+          "type": "array",
+          "minItems": 4,
+          "maxItems": 4,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "backup_eligible",
+                  "backup_state",
+                  "accepted",
+                  "backup_state_persisted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-valid"
+                  },
+                  "backup_eligible": {
+                    "const": false
+                  },
+                  "backup_state": {
+                    "const": false
+                  },
+                  "accepted": {
+                    "const": true
+                  },
+                  "backup_state_persisted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "backup_eligible",
+                  "backup_state",
+                  "accepted",
+                  "backup_state_persisted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "invalid-bs-without-be"
+                  },
+                  "backup_eligible": {
+                    "const": false
+                  },
+                  "backup_state": {
+                    "const": true
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "backup_state_persisted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "backup_eligible",
+                  "backup_state",
+                  "accepted",
+                  "backup_state_persisted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-eligible-not-backed-up"
+                  },
+                  "backup_eligible": {
+                    "const": true
+                  },
+                  "backup_state": {
+                    "const": false
+                  },
+                  "accepted": {
+                    "const": true
+                  },
+                  "backup_state_persisted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "backup_eligible",
+                  "backup_state",
+                  "accepted",
+                  "backup_state_persisted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-eligible-backed-up"
+                  },
+                  "backup_eligible": {
+                    "const": true
+                  },
+                  "backup_state": {
+                    "const": true
+                  },
+                  "accepted": {
+                    "const": true
+                  },
+                  "backup_state_persisted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "backup_eligible",
+                  "backup_state",
+                  "accepted",
+                  "backup_state_persisted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-valid"
+                  },
+                  "backup_eligible": {
+                    "const": false
+                  },
+                  "backup_state": {
+                    "const": false
+                  },
+                  "accepted": {
+                    "const": true
+                  },
+                  "backup_state_persisted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "backup_eligible",
+                  "backup_state",
+                  "accepted",
+                  "backup_state_persisted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "invalid-bs-without-be"
+                  },
+                  "backup_eligible": {
+                    "const": false
+                  },
+                  "backup_state": {
+                    "const": true
+                  },
+                  "accepted": {
+                    "const": false
+                  },
+                  "backup_state_persisted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "backup_eligible",
+                  "backup_state",
+                  "accepted",
+                  "backup_state_persisted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-eligible-not-backed-up"
+                  },
+                  "backup_eligible": {
+                    "const": true
+                  },
+                  "backup_state": {
+                    "const": false
+                  },
+                  "accepted": {
+                    "const": true
+                  },
+                  "backup_state_persisted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "backup_eligible",
+                  "backup_state",
+                  "accepted",
+                  "backup_state_persisted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-eligible-backed-up"
+                  },
+                  "backup_eligible": {
+                    "const": true
+                  },
+                  "backup_state": {
+                    "const": true
+                  },
+                  "accepted": {
+                    "const": true
+                  },
+                  "backup_state_persisted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "authenticator_path_ids": {
+          "const": [
+            "non-backup",
+            "backup-eligible"
+          ]
+        },
+        "authenticator_path_results": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path_id",
+                  "registration_executed",
+                  "assertion_executed",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "registration_executed": {
+                    "const": true
+                  },
+                  "assertion_executed": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path_id",
+                  "registration_executed",
+                  "assertion_executed",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "registration_executed": {
+                    "const": true
+                  },
+                  "assertion_executed": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path_id",
+                  "registration_executed",
+                  "assertion_executed",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "registration_executed": {
+                    "const": true
+                  },
+                  "assertion_executed": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "path_id",
+                  "registration_executed",
+                  "assertion_executed",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "registration_executed": {
+                    "const": true
+                  },
+                  "assertion_executed": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "signature_counter_matrix": {
+          "type": "array",
+          "minItems": 11,
+          "maxItems": 11,
+          "uniqueItems": true,
+          "items": {
+            "oneOf": [
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-zero-zero"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 0
+                  },
+                  "received_count": {
+                    "const": 0
+                  },
+                  "disposition": {
+                    "const": "accept-unsupported-counter"
+                  },
+                  "persisted_count": {
+                    "const": 0
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-zero-positive"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 0
+                  },
+                  "received_count": {
+                    "const": 1
+                  },
+                  "disposition": {
+                    "const": "accept-and-advance"
+                  },
+                  "persisted_count": {
+                    "const": 1
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-positive-increase"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 1
+                  },
+                  "received_count": {
+                    "const": 2
+                  },
+                  "disposition": {
+                    "const": "accept-and-advance"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-positive-equal"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 2
+                  },
+                  "disposition": {
+                    "const": "deny-suspected-clone-or-reset"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": true
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-positive-decrease"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 1
+                  },
+                  "disposition": {
+                    "const": "deny-suspected-clone-or-reset"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": true
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-positive-received-zero"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 0
+                  },
+                  "disposition": {
+                    "const": "deny-suspected-clone-or-reset"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": true
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-zero-zero"
+                  },
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "stored_count": {
+                    "const": 0
+                  },
+                  "received_count": {
+                    "const": 0
+                  },
+                  "disposition": {
+                    "const": "risk-evidence"
+                  },
+                  "persisted_count": {
+                    "const": 0
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-positive-increase"
+                  },
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "stored_count": {
+                    "const": 1
+                  },
+                  "received_count": {
+                    "const": 2
+                  },
+                  "disposition": {
+                    "const": "accept-and-advance"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-positive-equal"
+                  },
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 2
+                  },
+                  "disposition": {
+                    "const": "risk-evidence"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-positive-decrease"
+                  },
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 1
+                  },
+                  "disposition": {
+                    "const": "risk-evidence"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-positive-received-zero"
+                  },
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 0
+                  },
+                  "disposition": {
+                    "const": "risk-evidence"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              }
+            ]
+          },
+          "allOf": [
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-zero-zero"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 0
+                  },
+                  "received_count": {
+                    "const": 0
+                  },
+                  "disposition": {
+                    "const": "accept-unsupported-counter"
+                  },
+                  "persisted_count": {
+                    "const": 0
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-zero-positive"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 0
+                  },
+                  "received_count": {
+                    "const": 1
+                  },
+                  "disposition": {
+                    "const": "accept-and-advance"
+                  },
+                  "persisted_count": {
+                    "const": 1
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-positive-increase"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 1
+                  },
+                  "received_count": {
+                    "const": 2
+                  },
+                  "disposition": {
+                    "const": "accept-and-advance"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-positive-equal"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 2
+                  },
+                  "disposition": {
+                    "const": "deny-suspected-clone-or-reset"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": true
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-positive-decrease"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 1
+                  },
+                  "disposition": {
+                    "const": "deny-suspected-clone-or-reset"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": true
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "non-backup-positive-received-zero"
+                  },
+                  "path_id": {
+                    "const": "non-backup"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 0
+                  },
+                  "disposition": {
+                    "const": "deny-suspected-clone-or-reset"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": true
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-zero-zero"
+                  },
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "stored_count": {
+                    "const": 0
+                  },
+                  "received_count": {
+                    "const": 0
+                  },
+                  "disposition": {
+                    "const": "risk-evidence"
+                  },
+                  "persisted_count": {
+                    "const": 0
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-positive-increase"
+                  },
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "stored_count": {
+                    "const": 1
+                  },
+                  "received_count": {
+                    "const": 2
+                  },
+                  "disposition": {
+                    "const": "accept-and-advance"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": false
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-positive-equal"
+                  },
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 2
+                  },
+                  "disposition": {
+                    "const": "risk-evidence"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-positive-decrease"
+                  },
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 1
+                  },
+                  "disposition": {
+                    "const": "risk-evidence"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            },
+            {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "path_id",
+                  "stored_count",
+                  "received_count",
+                  "disposition",
+                  "persisted_count",
+                  "denied",
+                  "risk_evidence_emitted",
+                  "evidence_digest"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "backup-positive-received-zero"
+                  },
+                  "path_id": {
+                    "const": "backup-eligible"
+                  },
+                  "stored_count": {
+                    "const": 2
+                  },
+                  "received_count": {
+                    "const": 0
+                  },
+                  "disposition": {
+                    "const": "risk-evidence"
+                  },
+                  "persisted_count": {
+                    "const": 2
+                  },
+                  "denied": {
+                    "const": false
+                  },
+                  "risk_evidence_emitted": {
+                    "const": true
+                  },
+                  "evidence_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          ]
+        },
+        "backup_state_case_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "valid_backup_state_case_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "rejected_backup_state_case_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "authenticator_path_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "counter_case_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "conformance_case_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "passed_case_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "credential_id": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,255}$"
+        },
+        "sign_count": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 2147483647
+        },
+        "fixture_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        }
+      },
+      "x-semantic-rules": [
+        {
+          "kind": "positive",
+          "fields": [
+            "backup_state_case_count",
+            "valid_backup_state_case_count",
+            "rejected_backup_state_case_count",
+            "authenticator_path_count",
+            "counter_case_count",
+            "conformance_case_count",
+            "passed_case_count",
+            "sign_count"
+          ]
+        },
+        {
+          "kind": "const",
+          "field": "backup_state_case_count",
+          "value": 4
+        },
+        {
+          "kind": "const",
+          "field": "valid_backup_state_case_count",
+          "value": 3
+        },
+        {
+          "kind": "const",
+          "field": "rejected_backup_state_case_count",
+          "value": 1
+        },
+        {
+          "kind": "const",
+          "field": "authenticator_path_count",
+          "value": 2
+        },
+        {
+          "kind": "const",
+          "field": "counter_case_count",
+          "value": 11
+        },
+        {
+          "kind": "equal",
+          "left": "passed_case_count",
+          "right": "conformance_case_count"
+        }
+      ],
+      "allOf": [
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#success"
+                  },
+                  "observation_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "success"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "rp_id",
+                      "origin",
+                      "challenge",
+                      "credential_response",
+                      "user_verification",
+                      "backup_eligible",
+                      "backup_state",
+                      "stored_sign_count",
+                      "received_sign_count"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "backup_state_matrix",
+                      "authenticator_path_ids",
+                      "authenticator_path_results",
+                      "signature_counter_matrix",
+                      "backup_state_case_count",
+                      "valid_backup_state_case_count",
+                      "rejected_backup_state_case_count",
+                      "authenticator_path_count",
+                      "counter_case_count",
+                      "conformance_case_count",
+                      "passed_case_count",
+                      "credential_id",
+                      "sign_count",
+                      "fixture_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#failure"
+                  },
+                  "observation_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "failure"
+                  },
+                  "status": {
+                    "const": "failed"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "rp_id",
+                      "origin",
+                      "challenge",
+                      "credential_response",
+                      "user_verification",
+                      "backup_eligible",
+                      "backup_state",
+                      "stored_sign_count",
+                      "received_sign_count"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  },
+                  "stable_error": {
+                    "const": "internal"
+                  },
+                  "expected_invariant": {
+                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "backup_state_matrix",
+                      "authenticator_path_ids",
+                      "authenticator_path_results",
+                      "signature_counter_matrix",
+                      "backup_state_case_count",
+                      "valid_backup_state_case_count",
+                      "rejected_backup_state_case_count",
+                      "authenticator_path_count",
+                      "counter_case_count",
+                      "conformance_case_count",
+                      "passed_case_count",
+                      "credential_id",
+                      "sign_count",
+                      "fixture_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#denial"
+                  },
+                  "observation_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "denial"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "rp_id",
+                      "origin",
+                      "challenge",
+                      "credential_response",
+                      "user_verification",
+                      "backup_eligible",
+                      "backup_state",
+                      "stored_sign_count",
+                      "received_sign_count"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  },
+                  "stable_error": {
+                    "const": "forbidden"
+                  },
+                  "expected_invariant": {
+                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "backup_state_matrix",
+                      "authenticator_path_ids",
+                      "authenticator_path_results",
+                      "signature_counter_matrix",
+                      "backup_state_case_count",
+                      "valid_backup_state_case_count",
+                      "rejected_backup_state_case_count",
+                      "authenticator_path_count",
+                      "counter_case_count",
+                      "conformance_case_count",
+                      "passed_case_count",
+                      "credential_id",
+                      "sign_count",
+                      "fixture_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#replay"
+                  },
+                  "observation_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "replay"
+                  },
+                  "status": {
+                    "const": "denied"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "rp_id",
+                      "origin",
+                      "challenge",
+                      "credential_response",
+                      "user_verification",
+                      "backup_eligible",
+                      "backup_state",
+                      "stored_sign_count",
+                      "received_sign_count"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  },
+                  "stable_error": {
+                    "const": "conflict"
+                  },
+                  "expected_invariant": {
+                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "backup_state_matrix",
+                      "authenticator_path_ids",
+                      "authenticator_path_results",
+                      "signature_counter_matrix",
+                      "backup_state_case_count",
+                      "valid_backup_state_case_count",
+                      "rejected_backup_state_case_count",
+                      "authenticator_path_count",
+                      "counter_case_count",
+                      "conformance_case_count",
+                      "passed_case_count",
+                      "credential_id",
+                      "sign_count",
+                      "fixture_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        },
+        {
+          "properties": {
+            "scenario_cases": {
+              "contains": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": [
+                  "case_id",
+                  "observation_id",
+                  "claim_id",
+                  "scenario",
+                  "operation_ids",
+                  "input_fields",
+                  "initial_state",
+                  "status",
+                  "stable_error",
+                  "expected_invariant",
+                  "observed_state_digest",
+                  "observed_event_digest",
+                  "observed_fields"
+                ],
+                "properties": {
+                  "case_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior#cleanup"
+                  },
+                  "observation_id": {
+                    "const": "webauthn-conformance-report.journey.mfa-webauthn.v1.behavior"
+                  },
+                  "claim_id": {
+                    "const": "journey.mfa-webauthn.v1"
+                  },
+                  "scenario": {
+                    "const": "cleanup"
+                  },
+                  "status": {
+                    "const": "pass"
+                  },
+                  "operation_ids": {
+                    "const": [
+                      "identity.mfa.security-key-register-options",
+                      "identity.mfa.security-key-register-verify",
+                      "identity.mfa.security-key-assert-options",
+                      "identity.mfa.security-key-assert-verify",
+                      "identity.passkey.register-verify",
+                      "identity.passkey.signin-verify"
+                    ]
+                  },
+                  "input_fields": {
+                    "const": [
+                      "rp_id",
+                      "origin",
+                      "challenge",
+                      "credential_response",
+                      "user_verification",
+                      "backup_eligible",
+                      "backup_state",
+                      "stored_sign_count",
+                      "received_sign_count"
+                    ]
+                  },
+                  "initial_state": {
+                    "const": "pinned WebAuthn fixtures cover valid and hostile authenticator data for non-backup security keys and backup-eligible passkeys"
+                  },
+                  "stable_error": {
+                    "const": "none"
+                  },
+                  "expected_invariant": {
+                    "const": "exact BE and BS execution accepts false/false, rejects false/true, and accepts true/false and true/true; both non-backup and backup-eligible authenticator paths execute; the exact zero, positive increase, equal, decrease, and received-zero counter matrix follows the selected policy, persists backup state on every valid assertion, never rolls counters back, emits bounded risk evidence for backup-eligible non-increase, and denies non-backup positive non-increase"
+                  },
+                  "observed_state_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_event_digest": {
+                    "type": "string",
+                    "pattern": "^sha256:[0-9a-f]{64}$"
+                  },
+                  "observed_fields": {
+                    "const": [
+                      "backup_state_matrix",
+                      "authenticator_path_ids",
+                      "authenticator_path_results",
+                      "signature_counter_matrix",
+                      "backup_state_case_count",
+                      "valid_backup_state_case_count",
+                      "rejected_backup_state_case_count",
+                      "authenticator_path_count",
+                      "counter_case_count",
+                      "conformance_case_count",
+                      "passed_case_count",
+                      "credential_id",
+                      "sign_count",
+                      "fixture_digest"
+                    ]
+                  }
+                }
+              },
+              "minContains": 1
+            }
+          }
+        }
+      ]
+    }
+  }
+}

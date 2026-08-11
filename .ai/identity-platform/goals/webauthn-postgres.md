@@ -11,6 +11,7 @@ shown here.
 - Unit: `webauthn/postgres`
 - Canonical module: `pkg/webauthn/postgres`
 - Canonical goal after scaffolding: `pkg/webauthn/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:webauthn/postgres:v1`; owned operation IDs: none
 - Requires: `webauthn`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
 - Unlocks after verification: `identity/mfa/postgres`, `passkey/postgres`, `identity/reference`

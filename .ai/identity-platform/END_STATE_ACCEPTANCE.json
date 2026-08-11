@@ -2,7 +2,7 @@
   "schema_version": 2,
   "authority": "END_STATE.md",
   "digest_algorithm": "sha256",
-  "digest_input": "RFC 8785-style JSON with recursively bytewise-sorted object keys over every row field except semantic_digest",
+  "digest_input": "sha256 of RFC 8785-style canonical row JSON excluding semantic_digest, LF, then exact authoritative artifact bytes selected by source_anchor or artifact",
   "evidence_record_contract": {
     "required_payload_fields": [
       "schema_version",
@@ -19,6 +19,8 @@
       "recorded_at"
     ],
     "revision_rule": "tested_revision identifies the original execution tree and gate_execution_revision identifies the ledger gate tree; when they are equal revalidation_revision MUST be null, and when they differ revalidation_revision MUST equal gate_execution_revision and the complete input manifest and input_root MUST validate identically at both revisions",
+    "execution_authority_rule": "final acceptance MUST use the coordinator-owned execution runner to launch each exact producer command itself after proving the committed tested_revision input manifest is identical at current HEAD, capture exit status and stdout/stderr bytes through the subprocess boundary, require the command to write a fresh artifact to the runner's previously absent task-owned output path, atomically write its receipt only after process completion, hash the live artifact bytes, and immediately compare their canonical semantic payload with the committed artifact; a preexisting, caller-supplied, artifact-supplied, or self-hashed receipt or artifact is provenance only and MUST NOT authorize pass",
+    "execution_receipt_rule": "each committed artifact payload binds the coordinator runner command, tested revision, current-identical input root, tool and environment identities, start and completion times, exit status, exact captured stdout/stderr bytes and digests, canonical output artifact path, execution identity, and a separately hashed receipt path; final execution mode MUST also compare those declared command results and artifact semantics with the fresh live in-memory coordinator runner capture and reject absent, stale, failed, artifact-missing, or coherently recomputed synthetic captures",
     "record_commit_rule": "the payload MUST NOT contain or predict the commit that contains itself; coordinator state binds the repository path, exact blob SHA-256 and later evidence-record commit, and that commit MUST be an ancestor of the verification/finalization commit",
     "committed_bytes_rule": "validation reads the blob from the bound evidence-record commit and requires it to equal both the declared digest and the bytes parsed; working-tree existence or bytes alone are insufficient"
   },
@@ -56,6 +58,13 @@
       "END_STATE.md, END_STATE_ACCEPTANCE.json, REFERENCE_PROFILE.md, API_OPERATIONS.md, OPERATION_SEMANTICS.json, SECURITY_EVENTS.md, TRANSACTION_CONTRACT.md, LIFECYCLE_CASCADES.md, LIFECYCLE_CONSUMERS.md, SHARED_CONTRACT_APPLICABILITY.json, PROTOCOL_BASELINES.md, PROTOCOL_CONFORMANCE_MANIFEST.json, REFERENCE_CONFIGURATION.md, CONFIGURATION_CATALOGS.json, VERIFICATION_APPLICABILITY.json, BETTER_AUTH_PARITY.md, PARITY_DISPOSITIONS.json, UPSTREAM_DISPOSITIONS.md, UPSTREAM_SURFACE.json, COMMON_REQUIREMENTS.md and every applicable goal",
       "toolchain, operating-system, architecture, behavior-affecting environment variables, external profile identities and required service-image identities"
     ],
+    "non_behavioral_provenance_exclusions": [
+      ".ai/identity-platform/EXECUTION_LEDGER.md",
+      ".ai/identity-platform/INVENTORY.md",
+      ".ai/identity-platform/PREFLIGHT_EVIDENCE.md",
+      ".ai/identity-platform/evidence/"
+    ],
+    "provenance_rule": "the exclusions contain execution and evidence bookkeeping only; their committed revisions and exact evidence bindings remain provenance, the authoritative current Requires closure still selects complete module roots, DEPENDENCIES.md remains a behavior input, and no other selected identity-platform input is excluded",
     "exhaustiveness_rule": "the manifest MUST enumerate every behavior-affecting input in the required classes, use sorted unique entries, and fail closed when ownership or input identity cannot be resolved; a fixed shortlist or semantic digest over planning manifests alone is insufficient",
     "input_root_rule": "input_root is sha256 over RFC 8785 canonical JSON of the complete manifest and is the acceptance fingerprint used for invalidation and reuse"
   },
@@ -69,7 +78,7 @@
         "postgres-lifecycle-cascade-report",
         "typed-fields-schema-report"
       ],
-      "semantic_digest": "b38db75af3fbe27ad18b3ab75206eeb38e9aed8fb66db5a9aa6abd27206a7edb",
+      "semantic_digest": "62e936b42ef30f11043be9031361fea4096364cd0b263c59b34d7ced43f7ce51",
       "source_anchor": "END_STATE.md#required-composed-journey-1"
     },
     {
@@ -81,7 +90,7 @@
         "hibp-interoperability-report",
         "reauthentication-proof-report"
       ],
-      "semantic_digest": "df7b3ebea5f40610348df2a1ae6544f476707e01e977d958656d633f221d0f5f",
+      "semantic_digest": "449e9317cb836914139416c85d35c46671beb8452dd2472de387dd5e91402c21",
       "source_anchor": "END_STATE.md#required-composed-journey-2"
     },
     {
@@ -94,7 +103,7 @@
         "remember-policy-propagation-report",
         "session-transfer-report"
       ],
-      "semantic_digest": "3facbeab2c8081681d35b45acfaaf453d50d64b53045ba4364cb01e0be9c8e0f",
+      "semantic_digest": "9612c482e3a4be93e9f074555ef5492dee303c41577218178c3773aca69c045e",
       "source_anchor": "END_STATE.md#required-composed-journey-3"
     },
     {
@@ -106,7 +115,7 @@
         "phone-reset-risk-evidence-report",
         "otp-reservation-report"
       ],
-      "semantic_digest": "2fd57782c920d3c9f84acf1e4a4bbeead6212dddf10972b48f3f3051229749c3",
+      "semantic_digest": "bbcb80d1aec84eeced28ec0567c58be96f956751377ca7bec4ece04b1849100c",
       "source_anchor": "END_STATE.md#required-composed-journey-4"
     },
     {
@@ -118,7 +127,7 @@
         "webauthn-conformance-report",
         "passkey-browser-ceremony-report"
       ],
-      "semantic_digest": "58f41fe6b06be97df389a8d1715351496e241d6acc07a24383584166a493240d",
+      "semantic_digest": "05a07b713cad0c2dc0d0950aa142b1e5f06b6d2da5f96c4c0d5c0cc62c887998",
       "source_anchor": "END_STATE.md#required-composed-journey-5"
     },
     {
@@ -131,7 +140,7 @@
         "oauth-popup-browser-report",
         "oauth-proxy-no-write-report"
       ],
-      "semantic_digest": "2c2d9339b3fcff2208973ec7ebef1d4e324450a86a783fdfbbf2fb96be040ca7",
+      "semantic_digest": "b458a1c45bc39c1e9c6aea4e101da9403c71847d8d1236453fe7e2d84a0e839a",
       "source_anchor": "END_STATE.md#required-composed-journey-6"
     },
     {
@@ -142,7 +151,7 @@
         "api-key-http-lifecycle-report",
         "api-key-postgres-valkey-race-report"
       ],
-      "semantic_digest": "907fdcd2b21045b722fc88f9e29a1239f4ed623406a7deea1f12a2dd92f468e3",
+      "semantic_digest": "d852e1175429286a564af5c437fbefb0b1aa86be9acdf84d0e27c530d243c728",
       "source_anchor": "END_STATE.md#required-composed-journey-7"
     },
     {
@@ -154,7 +163,7 @@
         "impersonation-quorum-report",
         "audit-retention-plan-confirm-report"
       ],
-      "semantic_digest": "e010ff4b08f128f363a3a59d243988749b6d331b12cdd956c6eda563f4864081",
+      "semantic_digest": "0ce006676135260adc4b3e2d8a4f022f3a9cb0ae711db88acbc7d0a16d43594d",
       "source_anchor": "END_STATE.md#required-composed-journey-8"
     },
     {
@@ -166,7 +175,7 @@
         "organization-invitation-lifecycle-report",
         "organization-concurrency-report"
       ],
-      "semantic_digest": "9c0e7934b3d6eb8db2c95a7b9cbe18e3fa30ac8f779c20331379a348d143550f",
+      "semantic_digest": "7efcb0f8243dff8f71c0511d07f01715efa6e5b1f6d4db2bf6f41771968b20f0",
       "source_anchor": "END_STATE.md#required-composed-journey-9"
     },
     {
@@ -179,7 +188,7 @@
         "enterprise-oidc-logout-report",
         "sso-enforcement-break-glass-report"
       ],
-      "semantic_digest": "50e1cae183f56795ebb002dae5d256cce9bf55c87ad0ed2a6c63815518350064",
+      "semantic_digest": "ef9f15f6c7e99c19d2e15ad879eba333897c063fc7290ac4cea2a12d128cbc43",
       "source_anchor": "END_STATE.md#required-composed-journey-10"
     },
     {
@@ -191,7 +200,7 @@
         "scim-connection-lifecycle-report",
         "scim-reconciliation-report"
       ],
-      "semantic_digest": "e695632292298f75dc3b944fad3c8e9fa8d6bdfac8c45fc58fc987665d0a17a6",
+      "semantic_digest": "d1c3bd2078bf0e3ab160211aaaaa2662c42c6700c7882b7cc3c08c5adabdc642",
       "source_anchor": "END_STATE.md#required-composed-journey-11"
     },
     {
@@ -203,7 +212,7 @@
         "device-authorization-report",
         "signer-jwks-profile-report"
       ],
-      "semantic_digest": "f2fba6a598d1cb2d291bf6d650a887b4221d1b8b20f08e7a61a6fd3fe245503d",
+      "semantic_digest": "f2ee81b5e6cd1e1e1ec4a4bdc1838a556dc7142f3c181288033490b3827abc6b",
       "source_anchor": "END_STATE.md#required-composed-journey-12"
     },
     {
@@ -215,7 +224,7 @@
         "captcha-four-provider-report",
         "distributed-rate-limit-report"
       ],
-      "semantic_digest": "aec8126069ecf75579ee5d325f16f1d7f91b88dea400563f6a46fce85143c0f5",
+      "semantic_digest": "e55f6a6cb48d65f1e0c58bc22681cf940f20a0d2055bbb094d6d7dc7330ce769",
       "source_anchor": "END_STATE.md#required-composed-journey-13"
     },
     {
@@ -226,7 +235,7 @@
         "locale-negotiation-report",
         "localized-error-identity-report"
       ],
-      "semantic_digest": "35e41a84402f1496defadc7a884d531ea3bfd0dccb2262299c3a3d824a965c04",
+      "semantic_digest": "ca46a4cf276bd890cdf69b004b1563db9cc8e55600e3b89960a438b995dc243f",
       "source_anchor": "END_STATE.md#required-composed-journey-14"
     },
     {
@@ -238,7 +247,7 @@
         "identitytest-cycle-free-report",
         "openapi-consumer-report"
       ],
-      "semantic_digest": "90b16a153752e5ee26c00529c528c12b8b8f65da3d9dd86a7d5c7360acb2b5da",
+      "semantic_digest": "22c27dcaecde6162f465a1cc145a4124860af12bf8aaae0cd2b49c03f812dc2a",
       "source_anchor": "END_STATE.md#required-composed-journey-15"
     },
     {
@@ -250,7 +259,7 @@
         "custom-fields-report",
         "authorization-cross-tenant-report"
       ],
-      "semantic_digest": "579b5cf1a36a30c7923892333c9f6d944c8d28132f8d53057bd121688dd84327",
+      "semantic_digest": "a2ec1e3133752837111ce41bc590ca278d11ce2d367b8a69014fd515422e42a8",
       "source_anchor": "END_STATE.md#required-composed-journey-16"
     },
     {
@@ -259,10 +268,9 @@
       "owner": "identity/reference",
       "artifacts": [
         "external-module-clean-consumer-report",
-        "composition-collision-report",
-        "operational-api-redaction-report"
+        "composition-collision-report"
       ],
-      "semantic_digest": "565d1c1edff1e348984bdd824f5c99f272ed3820baa954dd626aa69c969e49e3",
+      "semantic_digest": "70d91d4e1382b0886313879f61424382aec213e90e3ddbbb9bdcf3efd5f67d3a",
       "source_anchor": "END_STATE.md#required-composed-journey-17"
     },
     {
@@ -274,8 +282,18 @@
         "download-capability-report",
         "export-minimization-redaction-report"
       ],
-      "semantic_digest": "0284ca8b824d7e7a6350af641ef9af280e57dbadd3309d802bd4ab56097255a1",
+      "semantic_digest": "20ced6bdcd618961b7f9aa03605f0220327b7dd8d07644f0ae68ae95f154dea1",
       "source_anchor": "END_STATE.md#required-composed-journey-18"
+    },
+    {
+      "id": "journey.audit-investigation.v1",
+      "number": 19,
+      "owner": "identity/reference",
+      "artifacts": [
+        "operational-api-redaction-report"
+      ],
+      "semantic_digest": "e60905d62b1a26b35f81945b9dfbf778596fc16cc1148f8201436ac32a37eeba",
+      "source_anchor": "END_STATE.md#required-composed-journey-19"
     }
   ],
   "cross_cutting": [
@@ -287,7 +305,7 @@
         "browser-security-report",
         "health-readiness-route-report"
       ],
-      "semantic_digest": "834e37cf7ad4426d546f8e1990d09ba445dbfc454052a07c35bb48126b346274",
+      "semantic_digest": "25975f4b628d7df85764595122ad76b51681c816c100b60ae42d0037de47d368",
       "source_anchor": "END_STATE.md#http-and-browser-facing-contract"
     },
     {
@@ -298,7 +316,7 @@
         "unknown-outcome-reconciliation-report",
         "backup-restore-rehearsal"
       ],
-      "semantic_digest": "be83a7fc079894989355a8efcf528ef29396c91f5afc5a49ee9c5544de0af351",
+      "semantic_digest": "b2a81e0b0305833e1ccfe24fd8642a811a99e73d4e983d7a9bd22d300f77e1ac",
       "source_anchor": "END_STATE.md#persistence-and-failure-recovery"
     },
     {
@@ -309,7 +327,7 @@
         "secret-redaction-report",
         "privacy-boundary-report"
       ],
-      "semantic_digest": "105db254c27af41dfbb52894a72a5742b26b4a557e96ad41c068cf02a902e026",
+      "semantic_digest": "0a6d02d2c83665eba78f9eed597b2e6a6a1bb45450028efdc49ebf7f2b5025d9",
       "source_anchor": "END_STATE.md#security-and-privacy-properties"
     },
     {
@@ -320,7 +338,7 @@
         "instrumentation-report",
         "operations-runbook-index"
       ],
-      "semantic_digest": "c912a85a280869f76d274059d904e8f1409b61eb1a35b763c029378e555c8577",
+      "semantic_digest": "38b7b6f550d382232397bf6e072c5f486600d6510c87e56472b109307e37fb1d",
       "source_anchor": "END_STATE.md#operability-and-provider-proof"
     },
     {
@@ -331,7 +349,7 @@
         "coverage-mutation-report",
         "supply-chain-release-report"
       ],
-      "semantic_digest": "8b1714af1edba425e5e6cb3909481d80c47ec165ef7cc8e5ccec3e1d26e13334",
+      "semantic_digest": "8ba67e44f953dc0a356f7d04e822f94e730a9bbbea7963c1457657a8ddd3485a",
       "source_anchor": "END_STATE.md#final-acceptance-gates"
     }
   ],
@@ -361,7 +379,11 @@
       "gate": "make check MODULES=pkg/identity/reference",
       "producer_goal": "goals/identity-reference.md",
       "observation_ids": [
+        "api-key-http-lifecycle-report.identity.apikey.session-authenticate.behavior",
         "api-key-http-lifecycle-report.journey.api-keys.v1.behavior"
+      ],
+      "operation_claims": [
+        "identity.apikey.session-authenticate"
       ]
     },
     {
@@ -465,7 +487,59 @@
       "gate": "make check MODULES=pkg/identity/reference",
       "producer_goal": "goals/identity-reference.md",
       "observation_ids": [
+        "captcha-four-provider-report.identity.admin.user-password-set.behavior",
+        "captcha-four-provider-report.identity.anonymous.signin.behavior",
+        "captcha-four-provider-report.identity.magic-link.request.behavior",
+        "captcha-four-provider-report.identity.oauth.onetap-callback.behavior",
+        "captcha-four-provider-report.identity.oauth.signin-start.behavior",
+        "captcha-four-provider-report.identity.oauth.signin-token.behavior",
+        "captcha-four-provider-report.identity.otp.send.behavior",
+        "captcha-four-provider-report.identity.otp.signin.behavior",
+        "captcha-four-provider-report.identity.passkey.signin-options.behavior",
+        "captcha-four-provider-report.identity.passkey.signin-verify.behavior",
+        "captcha-four-provider-report.identity.password.change.behavior",
+        "captcha-four-provider-report.identity.password.reset-complete.behavior",
+        "captcha-four-provider-report.identity.password.reset-request.behavior",
+        "captcha-four-provider-report.identity.password.set.behavior",
+        "captcha-four-provider-report.identity.password.signin.behavior",
+        "captcha-four-provider-report.identity.password.signup.behavior",
+        "captcha-four-provider-report.identity.phone.password-reset-complete.behavior",
+        "captcha-four-provider-report.identity.phone.password-reset-request.behavior",
+        "captcha-four-provider-report.identity.phone.password-signin.behavior",
+        "captcha-four-provider-report.identity.phone.send-verification.behavior",
+        "captcha-four-provider-report.identity.phone.signin.behavior",
+        "captcha-four-provider-report.identity.sso.discover.behavior",
+        "captcha-four-provider-report.identity.sso.signin-start.behavior",
+        "captcha-four-provider-report.identity.username.signin.behavior",
+        "captcha-four-provider-report.identity.username.signup.behavior",
         "captcha-four-provider-report.journey.abuse-controls.v1.behavior"
+      ],
+      "operation_claims": [
+        "identity.password.signup",
+        "identity.password.signin",
+        "identity.password.change",
+        "identity.password.set",
+        "identity.password.reset-request",
+        "identity.password.reset-complete",
+        "identity.admin.user-password-set",
+        "identity.username.signup",
+        "identity.username.signin",
+        "identity.magic-link.request",
+        "identity.otp.send",
+        "identity.otp.signin",
+        "identity.phone.send-verification",
+        "identity.phone.signin",
+        "identity.phone.password-signin",
+        "identity.phone.password-reset-request",
+        "identity.phone.password-reset-complete",
+        "identity.anonymous.signin",
+        "identity.passkey.signin-options",
+        "identity.passkey.signin-verify",
+        "identity.oauth.signin-start",
+        "identity.oauth.signin-token",
+        "identity.oauth.onetap-callback",
+        "identity.sso.discover",
+        "identity.sso.signin-start"
       ]
     },
     {
@@ -745,7 +819,13 @@
       "gate": "make check MODULES=pkg/identity/reference",
       "producer_goal": "goals/identity-reference.md",
       "observation_ids": [
+        "mfa-recovery-report.identity.admin.mfa-recovery-issue.behavior",
+        "mfa-recovery-report.identity.admin.mfa-reset.behavior",
         "mfa-recovery-report.journey.mfa-webauthn.v1.behavior"
+      ],
+      "operation_claims": [
+        "identity.admin.mfa-recovery-issue",
+        "identity.admin.mfa-reset"
       ]
     },
     {
@@ -773,7 +853,35 @@
       "gate": "make check MODULES=pkg/identity/reference",
       "producer_goal": "goals/identity-reference.md",
       "observation_ids": [
+        "oauth-oidc-conformance-report.identity.oauth-server.authorize.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.continue.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.discovery-oauth.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.discovery-oidc.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.dynamic-register.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.end-session.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.introspect.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.jwks.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.protected-resource-metadata.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.revoke.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.session-token.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.token.behavior",
+        "oauth-oidc-conformance-report.identity.oauth-server.userinfo.behavior",
         "oauth-oidc-conformance-report.journey.oauth-oidc-provider.v1.behavior"
+      ],
+      "operation_claims": [
+        "identity.oauth-server.authorize",
+        "identity.oauth-server.continue",
+        "identity.oauth-server.token",
+        "identity.oauth-server.session-token",
+        "identity.oauth-server.userinfo",
+        "identity.oauth-server.introspect",
+        "identity.oauth-server.revoke",
+        "identity.oauth-server.dynamic-register",
+        "identity.oauth-server.discovery-oauth",
+        "identity.oauth-server.discovery-oidc",
+        "identity.oauth-server.jwks",
+        "identity.oauth-server.end-session",
+        "identity.oauth-server.protected-resource-metadata"
       ]
     },
     {
@@ -852,12 +960,22 @@
       "path": ".ai/identity-platform/evidence/operational-api-redaction-report.json",
       "schema": "identity-platform.acceptance.operational-api-redaction-report.v1",
       "claims": [
-        "journey.typed-modules-operations.v1"
+        "journey.audit-investigation.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
       "producer_goal": "goals/identity-reference.md",
       "observation_ids": [
-        "operational-api-redaction-report.journey.typed-modules-operations.v1.behavior"
+        "operational-api-redaction-report.identity.audit.export.behavior",
+        "operational-api-redaction-report.identity.audit.get.behavior",
+        "operational-api-redaction-report.identity.audit.list.behavior",
+        "operational-api-redaction-report.identity.audit.search.behavior",
+        "operational-api-redaction-report.journey.audit-investigation.v1.behavior"
+      ],
+      "operation_claims": [
+        "identity.audit.export",
+        "identity.audit.get",
+        "identity.audit.list",
+        "identity.audit.search"
       ]
     },
     {
@@ -941,7 +1059,23 @@
       "gate": "make check MODULES=pkg/identity/reference",
       "producer_goal": "goals/identity-reference.md",
       "observation_ids": [
+        "passkey-browser-ceremony-report.identity.passkey.delete.behavior",
+        "passkey-browser-ceremony-report.identity.passkey.list.behavior",
+        "passkey-browser-ceremony-report.identity.passkey.register-options.behavior",
+        "passkey-browser-ceremony-report.identity.passkey.register-verify.behavior",
+        "passkey-browser-ceremony-report.identity.passkey.signin-options.behavior",
+        "passkey-browser-ceremony-report.identity.passkey.signin-verify.behavior",
+        "passkey-browser-ceremony-report.identity.passkey.update.behavior",
         "passkey-browser-ceremony-report.journey.mfa-webauthn.v1.behavior"
+      ],
+      "operation_claims": [
+        "identity.passkey.register-options",
+        "identity.passkey.register-verify",
+        "identity.passkey.signin-options",
+        "identity.passkey.signin-verify",
+        "identity.passkey.list",
+        "identity.passkey.update",
+        "identity.passkey.delete"
       ]
     },
     {
@@ -967,8 +1101,16 @@
         "journey.passwordless.v1"
       ],
       "gate": "make check MODULES=pkg/identity/reference",
+      "operation_claims": [
+        "identity.phone.password-reset-request",
+        "identity.phone.password-reset-complete",
+        "identity.risk.evaluate"
+      ],
       "producer_goal": "goals/identity-reference.md",
       "observation_ids": [
+        "phone-reset-risk-evidence-report.identity.phone.password-reset-complete.behavior",
+        "phone-reset-risk-evidence-report.identity.phone.password-reset-request.behavior",
+        "phone-reset-risk-evidence-report.identity.risk.evaluate.behavior",
         "phone-reset-risk-evidence-report.journey.passwordless.v1.behavior"
       ]
     },
@@ -1095,7 +1237,17 @@
       "gate": "make check MODULES=pkg/identity/reference",
       "producer_goal": "goals/identity-reference.md",
       "observation_ids": [
+        "reference-http-password-journey.identity.email.address-get.behavior",
+        "reference-http-password-journey.identity.email.address-list.behavior",
+        "reference-http-password-journey.identity.email.address-remove.behavior",
+        "reference-http-password-journey.identity.phone.password-signin.behavior",
         "reference-http-password-journey.journey.email-password-username.v1.behavior"
+      ],
+      "operation_claims": [
+        "identity.email.address-get",
+        "identity.email.address-list",
+        "identity.email.address-remove",
+        "identity.phone.password-signin"
       ]
     },
     {
@@ -1249,7 +1401,25 @@
       "gate": "make check MODULES=pkg/identity/reference",
       "producer_goal": "goals/identity-reference.md",
       "observation_ids": [
+        "sso-provider-lifecycle-report.identity.sso.oauth-callback.behavior",
+        "sso-provider-lifecycle-report.identity.sso.oidc-callback.behavior",
+        "sso-provider-lifecycle-report.identity.sso.saml-acs.behavior",
+        "sso-provider-lifecycle-report.identity.sso.saml-idp-init.behavior",
+        "sso-provider-lifecycle-report.identity.sso.saml-logout-start.behavior",
+        "sso-provider-lifecycle-report.identity.sso.saml-metadata.behavior",
+        "sso-provider-lifecycle-report.identity.sso.saml-slo.behavior",
+        "sso-provider-lifecycle-report.identity.sso.saml-start.behavior",
         "sso-provider-lifecycle-report.journey.enterprise-federation.v1.behavior"
+      ],
+      "operation_claims": [
+        "identity.sso.oauth-callback",
+        "identity.sso.oidc-callback",
+        "identity.sso.saml-metadata",
+        "identity.sso.saml-start",
+        "identity.sso.saml-acs",
+        "identity.sso.saml-idp-init",
+        "identity.sso.saml-logout-start",
+        "identity.sso.saml-slo"
       ]
     },
     {

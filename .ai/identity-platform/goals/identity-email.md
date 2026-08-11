@@ -11,8 +11,9 @@ shown here.
 - Unit: `identity/email`
 - Canonical module: `pkg/identity/email`
 - Canonical goal after scaffolding: `pkg/identity/email/.ai/GOAL.md`
-- Requires: `identity`, `identity/delivery`, `identity/otp`
-- Consumes existing primitives: `capability`, `capability/postgres`, `workflow`, `audit`, `identifier`
+- Public contracts: unit ID `contract:unit:identity/email:v1`; owned operation IDs: `contract:operation:identity.email.address-get:v1`, `contract:operation:identity.email.address-list:v1`, `contract:operation:identity.email.address-remove:v1`, `contract:operation:identity.email.change-confirm:v1`, `contract:operation:identity.email.change-request:v1`, `contract:operation:identity.email.verification-confirm:v1`, `contract:operation:identity.email.verification-send:v1`
+- Requires: `identity`, `identity/delivery`, `identity/otp`, `primitive/authentication-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/identifier-identity-contracts`
+- Consumes existing primitives: `capability`, `workflow`, `audit`, `identifier`
 - Unlocks after verification: `identity/magiclink`, `identity/http`
 
 ## Start gate
@@ -54,6 +55,17 @@ The implementation and tests MUST send enumeration-safe verification; consume on
 define authorization, audit, idempotency, cancellation, cleanup, and
 not-committed/committed/unknown outcomes where external or durable state is
 involved.
+
+The public lifecycle MUST expose `identity.email.address-list`,
+`identity.email.address-get`, and `identity.email.address-remove` for the
+current subject and for an explicitly authorized email administrator. List/get
+return only safe versioned address projections and make absent, forbidden and
+cross-tenant targets indistinguishable. Removal requires fresh authentication,
+an expected address version, actor reason and an explicit primary/recovery
+disposition; it MUST refuse the last permitted signin or recovery path,
+atomically select any replacement primary, revoke address-bound capabilities,
+initiate `lifecycle.cascade.identifier_remove`, and retain required audit and
+privacy history without retaining verification bearers.
 
 ## Package-specific acceptance checklist
 

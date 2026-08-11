@@ -11,7 +11,8 @@ shown here.
 - Unit: `oauth-server`
 - Canonical module: `pkg/oauth-server`
 - Canonical goal after scaffolding: `pkg/oauth-server/.ai/GOAL.md`
-- Requires: `identity`, `identity/session`, `identity/risk`
+- Public contracts: unit ID `contract:unit:oauth-server:v1`; owned operation IDs: `contract:operation:identity.oauth-server.authorize:v1`, `contract:operation:identity.oauth-server.client-create:v1`, `contract:operation:identity.oauth-server.client-delete:v1`, `contract:operation:identity.oauth-server.client-get:v1`, `contract:operation:identity.oauth-server.client-get-public:v1`, `contract:operation:identity.oauth-server.client-get-public-prelogin:v1`, `contract:operation:identity.oauth-server.client-list:v1`, `contract:operation:identity.oauth-server.client-rotate-secret:v1`, `contract:operation:identity.oauth-server.client-update:v1`, `contract:operation:identity.oauth-server.consent-delete:v1`, `contract:operation:identity.oauth-server.consent-get:v1`, `contract:operation:identity.oauth-server.consent-list:v1`, `contract:operation:identity.oauth-server.consent-update:v1`, `contract:operation:identity.oauth-server.continue:v1`, `contract:operation:identity.oauth-server.discovery-oauth:v1`, `contract:operation:identity.oauth-server.dynamic-register:v1`, `contract:operation:identity.oauth-server.introspect:v1`, `contract:operation:identity.oauth-server.protected-resource-metadata:v1`, `contract:operation:identity.oauth-server.resource-verify:v1`, `contract:operation:identity.oauth-server.revoke:v1`, `contract:operation:identity.oauth-server.token:v1`
+- Requires: `identity`, `identity/session`, `identity/risk`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `authorization`, `authentication`, `capability`, `capability/postgres`, `secret-envelope`, `audit`, `rate-limit`, `http-client`
 - Unlocks after verification: `oauth-server/oidc`, `oauth-server/device`, `oauth-server/postgres`, `identity/http`
 
@@ -72,10 +73,26 @@ involved.
   `oauth_server.dynamic_registration.allowed_scopes` subset of the canonical
   `oauth_server.scopes` catalog; an unknown or out-of-policy scope rejects the
   complete registration without creating a client.
+  Reference enablement is startup-only through
+  `oauth_server.dynamic_registration.enabled=true`, one exact immutable owner,
+  and `secrets.oauth_server_dynamic_registration_initial_access_token`.
+  Readiness and `/oauth2/register` registration require the matching
+  owner/audience/version-scoped expiring digest in `oauth-server/postgres`; the
+  token is consumed atomically with one client creation. Disabling the profile
+  removes the route without deleting existing clients.
   Registration creates exactly one immutable tenant,
   organization or platform owner. The reference profile MUST omit every RFC
   7592 management endpoint, metadata value, URI, and token regardless of RFC
   7591 enablement.
+- Administrative creation and RFC 7591 registration MUST expose an explicit
+  `Public` Boolean. `Public=true` selects a no-secret public client;
+  `Public=false` is a valid confidential-client selection and MUST NOT be
+  rejected as a zero value. Authentication method and reveal-once secret
+  behavior MUST agree with that selection.
+- RFC 7591 registration MUST use a stable server-owned `protocol-command`
+  identity derived from the authenticated request and immutable preconditions.
+  A client `Idempotency-Key` MAY map to it but MUST NOT be required for
+  standards interoperability.
 - Every client MUST have an immutable owning tenant/organization or explicit
   platform owner. Client read, list, update, secret rotation, deletion,
   registration-token use, consent administration and trusted-client changes
@@ -106,6 +123,12 @@ involved.
   revocation and introspection for JWT and opaque profiles. Access-token
   audience/resource binding and API-server verification guidance MUST be
   executable, not documentation-only.
+- RFC 7662 inactive or unknown tokens MUST return a successful typed result
+  with `Active=false`; client, subject, scopes, audience, expiry and every other
+  token metadata member MUST be absent. For `Active=true`, those members remain
+  optional, present only when the token contains them and caller authorization
+  permits disclosure. `oauthserver.Client.Public=false` MUST be a valid
+  confidential-client projection consistent with create and RFC 7591 inputs.
 - Authorization responses MUST include and validate the authorization-server
   issuer identifier required by the selected security baseline. Authorization
   codes and continuations MUST bind that issuer and the exact token endpoint
@@ -187,6 +210,9 @@ lifetime defaults MUST be explicit in
 Client, consent, authorization, code, refresh and revocation transitions MUST
 emit the bounded records defined by
 [`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
+This unit owns applicability for `ref.oauth_server.client_class` and
+`ref.struct:ref.oauth_server.client_class`; administrative and RFC 7591 client
+creation MUST consume those exact public/confidential semantics.
 
 ## Acceptance evidence
 

@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/username`
 - Canonical module: `pkg/identity/username`
 - Canonical goal after scaffolding: `pkg/identity/username/.ai/GOAL.md`
-- Requires: `identity`, `identity/password`
+- Public contracts: unit ID `contract:unit:identity/username:v1`; owned operation IDs: `contract:operation:identity.username.available:v1`, `contract:operation:identity.username.signin:v1`, `contract:operation:identity.username.signup:v1`, `contract:operation:identity.username.update:v1`
+- Requires: `identity`, `identity/password`, `primitive/authentication-identity-contracts`, `primitive/identifier-identity-contracts`, `primitive/password-secret-contracts`
 - Consumes existing primitives: `identifier`, `authorization`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/http`
 

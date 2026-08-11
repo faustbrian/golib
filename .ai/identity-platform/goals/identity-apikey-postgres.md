@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/apikey/postgres`
 - Canonical module: `pkg/identity/apikey/postgres`
 - Canonical goal after scaffolding: `pkg/identity/apikey/postgres/.ai/GOAL.md`
-- Requires: `identity/apikey`, `identity/postgres`
+- Public contracts: unit ID `contract:unit:identity/apikey/postgres:v1`; owned operation IDs: none
+- Requires: `identity/apikey`, `identity/postgres`, `organization/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 

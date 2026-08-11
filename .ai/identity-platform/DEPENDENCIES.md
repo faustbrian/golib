@@ -71,6 +71,11 @@ only under repository blocked-audit rules and the stop conditions in
 
 ```mermaid
 flowchart TD
+  authentication[primitive/authentication-identity-contracts]
+  authorization[primitive/authorization-identity-contracts]
+  capability[primitive/capability-identity-contracts]
+  identifier[primitive/identifier-identity-contracts]
+  primitive_password[primitive/password-secret-contracts]
   session[identity/session]
   delivery[identity/delivery]
   delivery_pg[identity/delivery/postgres]
@@ -104,6 +109,51 @@ flowchart TD
   apikey_valkey[identity/apikey/valkey]
   impersonation[identity/impersonation]
   impersonation_pg[identity/impersonation/postgres]
+  authentication --> anonymous
+  authentication --> email
+  authentication --> magiclink
+  authentication --> mfa
+  authentication --> otp
+  authentication --> password
+  authentication --> phone
+  authentication --> username
+  authentication --> passkey
+  authentication --> webauthn
+  authorization --> identity
+  authorization --> apikey
+  authorization --> identity_http
+  authorization --> impersonation
+  authorization --> reference
+  authorization --> session
+  authorization --> organization
+  capability --> identity
+  capability --> email
+  capability --> magiclink
+  capability --> oauth
+  capability --> oauth_onetap
+  capability --> oauth_pg
+  capability --> oauth_proxy
+  capability --> password
+  capability --> session
+  capability --> organization
+  capability --> domain_verify
+  capability --> sso_saml
+  capability --> sso_pg
+  capability --> oauth_server_oidc
+  capability --> oauth_server_device
+  capability --> oauth_server
+  capability --> webauthn
+  identifier --> email
+  identifier --> magiclink
+  identifier --> otp
+  identifier --> password
+  identifier --> username
+  identifier --> passkey
+  identifier --> webauthn
+  primitive_password --> otp
+  primitive_password --> password
+  primitive_password --> phone
+  primitive_password --> username
   identity --> identity_pg[identity/postgres]
   identity --> session
   session --> session_pg[identity/session/postgres]
@@ -128,6 +178,7 @@ flowchart TD
   session --> password
   risk --> password
   delivery --> password
+  otp --> password
   password --> password_pg
   identity_pg --> password_pg
   identity --> username
@@ -178,8 +229,10 @@ flowchart TD
   oauth_providers --> oauth_onetap
   oauth --> oauth_proxy
   identity --> apikey
+  organization --> apikey
   apikey --> apikey_pg
   identity_pg --> apikey_pg
+  organization_pg --> apikey_pg
   apikey --> apikey_valkey
   identity --> impersonation
   session --> impersonation

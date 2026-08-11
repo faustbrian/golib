@@ -11,6 +11,7 @@ shown here.
 - Unit: `sso/oidc`
 - Canonical module: `pkg/sso/oidc`
 - Canonical goal after scaffolding: `pkg/sso/oidc/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:sso/oidc:v1`; owned operation IDs: `contract:operation:identity.sso.oidc-callback:v1`, `contract:operation:identity.sso.oidc-logout:v1`, `contract:operation:identity.sso.oidc-logout-complete:v1`
 - Requires: `sso`
 - Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `http-client`, `secret-envelope`, `audit`
 - Unlocks after verification: `sso/postgres`, `identity/http`
@@ -52,12 +53,25 @@ involved.
 - Registration MUST accept either pinned static metadata or HTTPS discovery
   with exact issuer matching. Discovery MUST enforce SSRF-safe resolution,
   redirect/IP policy, body/JSON limits, TLS and cache/refresh bounds.
+- Every authorization/callback/token request MUST bind the activated provider
+  credential generation selected by `identity.sso.provider.credentials-rotate`;
+  overlap, disable and unknown activation behavior belong to `sso`, and this
+  adapter MUST NOT select or persist an independent credential lifecycle.
 - Authorization requests MUST bind state, nonce, PKCE, redirect and requested
   organization/provider and support configured prompt, login hint and scopes
   without caller scope escalation.
+- The enterprise OIDC relying-party profile MUST use `query` response mode and
+  reject fragment, `form_post`, JWT-secured, and caller-selected response-mode
+  substitution as unsupported. Fragment parameters MUST never be treated as a
+  callback input.
 - Callback MUST validate issuer, audience/authorized party, signature/algorithm,
   times, nonce, state, PKCE and subject before optional bounded UserInfo merge.
   UserInfo MUST NOT override verified claims contrary to explicit policy.
+- The raw PKCE verifier MUST use the recoverable encrypted storage contract in
+  `struct:ref.oauth.rp_transaction`: exact AAD/lifetime, keyed commitment only
+  for lookup/replay, decrypt only after callback capability reservation, erase
+  on every declared terminal outcome, and retain without resubmission while an
+  exchange outcome is ambiguous and under authoritative recovery.
 - Access and refresh tokens returned by exchange, refresh or UserInfo-capable
   profiles MUST be handed directly to the SSO `EnterpriseTokenVault`; this
   adapter MUST NOT retain recoverable tokens or expose them to mapping, hooks,
@@ -78,6 +92,14 @@ involved.
   state exactly once, validate the provider outcome, and reconcile success,
   error, timeout, replay, and unknown provider outcome with local revocation,
   which remains authoritative on every path.
+- Start and completion MUST return exactly one closed outcome variant:
+  redirect, local-only, provider-complete, provider-error, timeout, or
+  unknown-reconciliation. Required Boolean sentinel fields are forbidden;
+  variant-specific fields are valid only for the selected outcome.
+- Those operations MUST be exactly `identity.sso.oidc-logout` and
+  `identity.sso.oidc-logout-complete`, including the fixed protocol paths,
+  exposure, access, CSRF/origin, provider rate class, idempotency and
+  `identity.sso.logout_oidc` event semantics in `API_OPERATIONS.md`.
 - Official fixtures plus at least one independent enterprise IdP profile MUST
   prove discovery, login, JWK rotation and mapping; provider-specific deviations
   MUST remain attributable.
@@ -112,6 +134,10 @@ name any non-applicable gate with a reviewed reason; absence of infrastructure
 or provider access is a blocker, not a pass.
 
 ## Release blockers
+
+This unit owns applicability for `ref.struct:ref.oidc.logout_outcome`; start
+and completion results MUST consume that exact closed outcome policy and MUST
+NOT define parallel Boolean sentinel semantics.
 
 The unit MUST remain `implemented-unverified` or `blocked` if any prerequisite
 is not `verified`, any ownership boundary is unresolved, a protocol claim

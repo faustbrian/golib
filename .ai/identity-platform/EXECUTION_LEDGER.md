@@ -66,6 +66,12 @@ and all other active rows. Immediately after committing, it MUST prove the new
 commit's first parent equals the recorded expected parent and that its actual
 file diff equals the checked candidate. The coordinator MUST stop before a
 worker spawn, merge, gate, or next state transition when either half fails.
+The post-commit half MUST include
+`validate.rb --execution --clean-integration` plus the required previous
+fixture quartet after the initial snapshot; the clean mode is also REQUIRED
+before spawn, merge, gate execution, restart recovery, and final acceptance.
+Pre-commit candidate fixtures omit that mode because their proposed bytes are
+not yet a committed executable checkpoint.
 
 Worker task and owner IDs MUST be whitespace-free safe identifiers. Worker
 branches MUST be conventional and worktrees absolute. Integrated gate
@@ -92,6 +98,26 @@ task-owned worktree parent; `/`, the repository root, the home directory
 itself, and unregistered absolute paths are forbidden. `pending` is valid only
 in the one assignment-state commit and MUST be finalized before a worker
 starts.
+
+Every local gate record MUST use schema `identity-platform.local-gate.v2` with
+ordered fields `schema_version`, `schema`, `unit`, `tested_revision`,
+`gate_execution_revision`, `revalidation_revision`, `input_manifest`,
+`input_root`, `evidence_record`, `outcome`, `commands`, `artifacts`,
+`tool_identity`, `environment_identity`, and `record_digest`. `schema_version`
+MUST be `2`; `evidence_record` MUST contain only the canonical record `path`.
+The exhaustive manifest and root MUST validate at the tested revision and,
+when reused, identically at the gate execution revision. Without reuse the two
+revisions are the exact clean committed integration `HEAD` captured immediately
+before execution and `revalidation_revision` is null. With reuse, the tested
+revision remains the original execution, the current clean committed `HEAD` is
+both gate execution and revalidation revision, and identical manifests are
+REQUIRED. `INVENTORY.md`, `EXECUTION_LEDGER.md`, `PREFLIGHT_EVIDENCE.md`, and
+files beneath `.ai/identity-platform/evidence/` are non-behavioral provenance excluded from
+the behavior-input manifest; their committed revisions and record bindings
+remain mandatory provenance. The current authoritative `Requires` closure
+still selects the complete module roots and `DEPENDENCIES.md` remains included,
+so a dependency revision invalidates affected inputs. No other
+identity-platform input is excluded.
 
 ## Per-status row schema
 
@@ -128,16 +154,18 @@ starts.
   are unchanged, the old checkpoint is an ancestor of the replacement on the
   exact registered worker branch, and a new recovery epoch authorizes the
   replacement. After
-  integration, worker commit, integration checkpoint, and gate fingerprint
-  MUST remain present. An abandoned assignment MUST transition to `ready`; a
+  integration, worker commit and integration checkpoint MUST remain present;
+  gate execution revision and fingerprint MUST remain exactly as inherited and
+  MAY both be absent before verification. A partial pair is invalid. An abandoned assignment MUST transition to `ready`; a
   blocked row with cleared assignment fields is invalid.
 - `implemented-unverified` and `verified` MUST have owner `—` and complete task,
   branch, worktree, assignment, worker commit, and integration checkpoint
   fields. In the initial `implemented-unverified` status commit, gate execution
-  revision and gate fingerprint MUST both be `—`; the immediately following
-  ledger-only same-status finalization MUST replace both with the now-known
-  status-commit revision and its complete input fingerprint before any gate
-  runs. A partial pair is invalid. `verified` MUST retain the complete pair.
+  revision and gate fingerprint MUST both be `—`. They remain empty until a
+  gate runs or is validly reused from an exact clean committed HEAD. The later
+  transition to `verified` MUST atomically record the captured gate execution
+  revision and input root and append its exact local gate evidence binding. A
+  partial pair is invalid. `verified` MUST retain the complete pair.
   `implemented-unverified` external evidence MUST be
   `available`, `unavailable:<safe-profile-id>`, `not-needed`, or an attributable
   path. `verified` external evidence follows the stricter rule above.
@@ -153,7 +181,9 @@ Prior/current ordinary validation authorizes only the edges in
 only additional transition family.
 Same-status updates are limited to assignment-commit finalization for
 `in-progress`, a clean worker checkpoint or evidence disposition for `blocked`,
-and evidence-record finalization for `implemented-unverified` or `verified`.
+and external-evidence disposition finalization for `implemented-unverified` or
+`verified`. Local gate revision, root, and record binding are added only by the
+atomic `implemented-unverified -> verified` transition.
 A blocked checkpoint finalization or later recovery-conflict replacement MUST
 satisfy the exact descendant and assignment-identity rules above; a sibling,
 rewritten, detached, or different-assignment commit is forbidden.
@@ -223,10 +253,13 @@ rows are append-only and prior rows MUST remain byte-for-byte unchanged.
 Each append-only row MUST record the SHA-256 digest of the canonical evidence
 file bytes; every later validation MUST recompute it, so historical resource
 identity, cleanup, authorization, and pre-removal proof cannot be rewritten.
-Prior/current transition validation MUST receive the previous committed
-`PREFLIGHT_EVIDENCE.md` snapshot as `--previous-execution-fixture` whenever an
-affected active assignment is cleared, so deleted or substituted registry rows
-cannot masquerade as cleanup.
+The first execution snapshot MAY omit prior fixtures only while every ledger
+row is `initial` and every append-only execution-history table is empty. Every
+later execution validation MUST receive the previous committed inventory,
+ledger, `PREFLIGHT_EVIDENCE.md`, and `GOAL_MANIFEST.json` together through the
+four `--previous-*-fixture` options. This requirement applies even when the
+candidate does not intend to change history, so deleted or substituted rows
+cannot masquerade as valid state.
 
 Disposition evidence MUST be canonical JSON with `schema_version: 1` and these
 ordered fields: `schema_version`, `disposition_id`, `revision_ids`, `unit`,
@@ -245,6 +278,12 @@ exact preserved commit for every removed worker worktree.
 
 | Revision ID | Unit | Previous Requires | Current Requires | Affected reverse closure | Reason | Change digest | Approver | Recorded at |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `dep-identity-apikey-organization-v1` | `identity/apikey` | `identity` | `identity`<br>`organization` | `identity/apikey`<br>`identity/apikey/postgres`<br>`identity/apikey/valkey`<br>`identity/http`<br>`identity/identitytest`<br>`identity/reference` | `reason:membership-authority` | `sha256:389d4330ca388af9829979a93d8011e2578b25a7a143db3ef83a95b7ddcbc219` | `coordinator` | `2026-08-11T18:09:01Z` |
+| `dep-identity-apikey-postgres-organization-v1` | `identity/apikey/postgres` | `identity/apikey`<br>`identity/postgres` | `identity/apikey`<br>`identity/postgres`<br>`organization/postgres` | `identity/apikey/postgres`<br>`identity/identitytest`<br>`identity/reference` | `reason:membership-authority` | `sha256:3b6874b6af4d41ffffc127876c393bb6e2dfc2aad2255e981abfcebeab33b7b4` | `coordinator` | `2026-08-11T18:09:01Z` |
+| `dep-identity-capability-v1` | `identity` | `primitive/authorization-identity-contracts` | `primitive/authorization-identity-contracts`<br>`primitive/capability-identity-contracts` | `identity`<br>`identity/anonymous`<br>`identity/anonymous/postgres`<br>`identity/apikey`<br>`identity/apikey/postgres`<br>`identity/apikey/valkey`<br>`identity/delivery/postgres`<br>`identity/email`<br>`identity/http`<br>`identity/i18n`<br>`identity/identitytest`<br>`identity/impersonation`<br>`identity/impersonation/postgres`<br>`identity/magiclink`<br>`identity/mfa`<br>`identity/mfa/postgres`<br>`identity/oauth`<br>`identity/oauth/onetap`<br>`identity/oauth/postgres`<br>`identity/oauth/providers`<br>`identity/oauth/proxy`<br>`identity/otp`<br>`identity/otp/postgres`<br>`identity/password`<br>`identity/password/postgres`<br>`identity/phone`<br>`identity/postgres`<br>`identity/reference`<br>`identity/risk`<br>`identity/risk/captcha`<br>`identity/risk/captcha/captchafox`<br>`identity/risk/captcha/hcaptcha`<br>`identity/risk/captcha/recaptcha`<br>`identity/risk/captcha/turnstile`<br>`identity/risk/hibp`<br>`identity/risk/postgres`<br>`identity/risk/valkey`<br>`identity/session`<br>`identity/session/postgres`<br>`identity/session/valkey`<br>`identity/username`<br>`oauth-server`<br>`oauth-server/device`<br>`oauth-server/oidc`<br>`oauth-server/postgres`<br>`organization`<br>`organization/postgres`<br>`passkey`<br>`passkey/postgres`<br>`scim`<br>`scim/organization`<br>`scim/postgres`<br>`sso`<br>`sso/domain-verification`<br>`sso/oauth2`<br>`sso/oidc`<br>`sso/postgres`<br>`sso/saml`<br>`webauthn/postgres` | `reason:capability-contract-closure` | `sha256:bbe08ea26f727e815e2cd440117a657e5446922e5fa3e3390b7c3fae3be3f16d` | `coordinator` | `2026-08-11T21:01:04Z` |
+| `dep-identity-session-capability-v1` | `identity/session` | `identity`<br>`primitive/authorization-identity-contracts` | `identity`<br>`primitive/authorization-identity-contracts`<br>`primitive/capability-identity-contracts` | `identity/anonymous`<br>`identity/anonymous/postgres`<br>`identity/apikey`<br>`identity/apikey/postgres`<br>`identity/apikey/valkey`<br>`identity/email`<br>`identity/http`<br>`identity/identitytest`<br>`identity/impersonation`<br>`identity/impersonation/postgres`<br>`identity/magiclink`<br>`identity/mfa`<br>`identity/mfa/postgres`<br>`identity/oauth`<br>`identity/oauth/onetap`<br>`identity/oauth/postgres`<br>`identity/oauth/providers`<br>`identity/oauth/proxy`<br>`identity/otp`<br>`identity/otp/postgres`<br>`identity/password`<br>`identity/password/postgres`<br>`identity/phone`<br>`identity/reference`<br>`identity/session`<br>`identity/session/postgres`<br>`identity/session/valkey`<br>`identity/username`<br>`oauth-server`<br>`oauth-server/device`<br>`oauth-server/oidc`<br>`oauth-server/postgres`<br>`organization`<br>`organization/postgres`<br>`passkey`<br>`passkey/postgres`<br>`scim`<br>`scim/organization`<br>`scim/postgres`<br>`sso`<br>`sso/domain-verification`<br>`sso/oauth2`<br>`sso/oidc`<br>`sso/postgres`<br>`sso/saml` | `reason:capability-contract-closure` | `sha256:d3b00a3de02636435fd32c22aab528503b1cae3c184cd85f79910443de374a04` | `coordinator` | `2026-08-11T21:01:04Z` |
+| `dep-oauth-server-capability-v1` | `oauth-server` | `identity`<br>`identity/session`<br>`identity/risk` | `identity`<br>`identity/session`<br>`identity/risk`<br>`primitive/capability-identity-contracts` | `identity/http`<br>`identity/identitytest`<br>`identity/reference`<br>`oauth-server`<br>`oauth-server/device`<br>`oauth-server/oidc`<br>`oauth-server/postgres` | `reason:capability-contract-closure` | `sha256:f69f51a29ab31722fe80d88783997488882d86904910cbc0bafd4c66d27f560e` | `coordinator` | `2026-08-11T21:01:04Z` |
+| `dep-webauthn-capability-v1` | `webauthn` | `primitive/authentication-identity-contracts`<br>`primitive/identifier-identity-contracts` | `primitive/authentication-identity-contracts`<br>`primitive/capability-identity-contracts`<br>`primitive/identifier-identity-contracts` | `identity/http`<br>`identity/identitytest`<br>`identity/mfa`<br>`identity/mfa/postgres`<br>`identity/reference`<br>`passkey`<br>`passkey/postgres`<br>`webauthn`<br>`webauthn/postgres` | `reason:capability-contract-closure` | `sha256:925edf0db02abfaeadc24d9b12a27076aa6c4f9eef15ee21378393d7b945229a` | `coordinator` | `2026-08-11T21:01:04Z` |
 
 ## Dependency assignment dispositions
 
@@ -255,10 +294,34 @@ This append-only table contains both dependency-revision dispositions and
 ordinary abandonment dispositions. `Revision IDs` MUST name exact dependency
 revision IDs or one `abandonment:<safe-id>` marker.
 
+## Local gate evidence bindings
+
+| Unit | Generation | Gate execution revision | Evidence path | Evidence record commit | Evidence blob digest | Bound at |
+| --- | --- | --- | --- | --- | --- | --- |
+
+This append-only table binds each local gate evidence v2 record after the
+record has been committed. The record cannot predict its own containing commit.
+The binding MUST use the unit's current generation, exact gate execution
+revision, the canonical path
+`.ai/identity-platform/evidence/gates/<unit-with-slashes-replaced-by-hyphens>.json`,
+the first committed record containing the exact canonical bytes, their SHA-256
+digest, and an RFC3339 timestamp. The record commit MUST descend from the gate
+execution revision and MUST be an ancestor of the later transition to
+`verified`. A hash-shaped ledger value is not evidence: validation MUST resolve
+the assignment, worker, checkpoint, gate-execution, and evidence-record commits
+on current integration history, read the exact record blob from its bound
+commit, match it byte-for-byte to the canonical local record, and validate that
+record's input root and artifacts before accepting `verified`.
+
 ## Unit execution ledger
 
 | Unit | Generation | Worker task | Branch | Worktree | Assignment commit | Worker commit | Integration checkpoint | Gate execution revision | Gate fingerprint | External evidence | Last transition |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| `primitive/authentication-identity-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `primitive/authorization-identity-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `primitive/capability-identity-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `primitive/identifier-identity-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
+| `primitive/password-secret-contracts` | 0 | — | — | — | — | — | — | — | — | — | initial |
 | `identity` | 0 | — | — | — | — | — | — | — | — | — | initial |
 | `identity/postgres` | 0 | — | — | — | — | — | — | — | — | — | initial |
 | `identity/session` | 0 | — | — | — | — | — | — | — | — | — | initial |

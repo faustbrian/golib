@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/phone`
 - Canonical module: `pkg/identity/phone`
 - Canonical goal after scaffolding: `pkg/identity/phone/.ai/GOAL.md`
-- Requires: `identity`, `identity/otp`, `identity/delivery`, `identity/risk`
+- Public contracts: unit ID `contract:unit:identity/phone:v1`; owned operation IDs: `contract:operation:identity.phone.password-reset-complete:v1`, `contract:operation:identity.phone.password-reset-request:v1`, `contract:operation:identity.phone.password-signin:v1`, `contract:operation:identity.phone.remove:v1`, `contract:operation:identity.phone.send-verification:v1`, `contract:operation:identity.phone.signin:v1`, `contract:operation:identity.phone.update:v1`, `contract:operation:identity.phone.verify:v1`
+- Requires: `identity`, `identity/otp`, `identity/delivery`, `identity/risk`, `primitive/authentication-identity-contracts`, `primitive/password-secret-contracts`
 - Consumes existing primitives: `identifier`, `audit`, `workflow`
 - Unlocks after verification: `identity/http`
 
@@ -59,8 +60,11 @@ involved.
 ## Package-specific acceptance checklist
 
 - Operations MUST include send verification OTP, verify, signup-on-verification
-  when enabled, signin, update, remove and request password-reset OTP with
-  purpose separation. Phone operations do not expose session suppression.
+  when enabled, OTP signin, distinct password signin, update, remove and
+  request password-reset OTP with purpose separation. Phone operations do not
+  expose session suppression. `identity.phone.password-signin` MUST NOT accept
+  or consume an OTP challenge, and `identity.phone.signin` MUST NOT accept a
+  password.
 - Number parsing MUST use pinned metadata, require explicit default region when
   national input is allowed, produce E.164 canonical form, preserve bounded
   display form and reject extensions/short codes/ambiguous inputs unless a
@@ -68,6 +72,14 @@ involved.
 - Verification and signin MUST enforce code attempts, send limits, number
   uniqueness, account status, risk and required-verification policy without
   revealing whether the number exists.
+- Password signin MUST canonicalize the bounded input to E.164 before lookup,
+  resolve only the tenant-bound credential account attached to that canonical
+  phone identifier, and pass the credential to `identity/password`'s normal
+  verifier. Absent phone, absent credential account, disabled/unverified phone,
+  wrong password and cross-tenant input MUST have the same public denial and
+  constant-work shape. Success MUST preserve the requested remember policy and
+  return the same risk, account-status and MFA continuation outcomes as
+  email/password signin.
 - Update/remove MUST require recent authentication, verify the new number,
   notify old channels where policy requires, resolve collision races and
   preserve a configured recovery method.
@@ -115,12 +127,15 @@ involved.
   non-persistent remember policy supplied to the owning OTP or session flow;
   fallback or MFA MUST NOT upgrade it. Password-reset continuations issue no
   session and therefore carry no remember or suppression choice.
-- Public signup/signin initiation MUST create or use the canonical single-use
+- Public signup/OTP-signin initiation MUST create or use the canonical single-use
   pre-auth transaction and bind tenant, purpose, canonical number and resolved
   `RememberPolicy`; later verification/signin MUST consume that exact binding.
   Session-authenticated number-change challenges MUST NOT create or substitute
   a public pre-auth transaction and instead bind the current subject, session
   and identifier version.
+- Password signin MUST use the canonical password-signin pre-auth transaction,
+  bind the canonical phone identifier and remember policy before credential
+  verification, and MUST NOT reuse an OTP-signin transaction.
 
 ## Security and abuse requirements
 

@@ -52,29 +52,32 @@ Before scheduling a worker, the coordinator MUST read completely:
 4. `COMMON_REQUIREMENTS.md`;
 5. `END_STATE.md`;
 6. `END_STATE_ACCEPTANCE.json`;
-7. `REFERENCE_PROFILE.md`;
-8. `BETTER_AUTH_PARITY.md`;
-9. `PARITY_DISPOSITIONS.json`;
-10. `API_OPERATIONS.md`;
-11. `OPERATION_SEMANTICS.json`;
-12. `UPSTREAM_DISPOSITIONS.md`;
-13. `UPSTREAM_SURFACE.json`;
-14. `PROTOCOL_BASELINES.md`;
-15. `PROTOCOL_CONFORMANCE_MANIFEST.json`;
-16. `SECURITY_EVENTS.md`;
-17. `TRANSACTION_CONTRACT.md`;
-18. `LIFECYCLE_CASCADES.md`;
-19. `LIFECYCLE_CONSUMERS.md`;
-20. `REFERENCE_CONFIGURATION.md`;
-21. `CONFIGURATION_CATALOGS.json`;
-22. `VERIFICATION_APPLICABILITY.json`;
-23. `PREFLIGHT_EVIDENCE.md`;
-24. `DEPENDENCIES.md`;
-25. `INVENTORY.md`;
-26. `EXECUTION_LEDGER.md`;
-27. `WORKER_PROMPT.md`;
-28. `GOAL_MANIFEST.json`;
-29. the exact goal assigned to that worker.
+7. `ACCEPTANCE_ARTIFACTS.json`;
+8. `REFERENCE_PROFILE.md`;
+9. `BETTER_AUTH_PARITY.md`;
+10. `PARITY_DISPOSITIONS.json`;
+11. `API_OPERATIONS.md`;
+12. `OPERATION_SEMANTICS.json`;
+13. `PUBLIC_CONTRACTS.json`;
+14. `public_contracts.rb`;
+15. `UPSTREAM_DISPOSITIONS.md`;
+16. `UPSTREAM_SURFACE.json`;
+17. `PROTOCOL_BASELINES.md`;
+18. `PROTOCOL_CONFORMANCE_MANIFEST.json`;
+19. `SECURITY_EVENTS.md`;
+20. `TRANSACTION_CONTRACT.md`;
+21. `LIFECYCLE_CASCADES.md`;
+22. `LIFECYCLE_CONSUMERS.md`;
+23. `REFERENCE_CONFIGURATION.md`;
+24. `CONFIGURATION_CATALOGS.json`;
+25. `VERIFICATION_APPLICABILITY.json`;
+26. `PREFLIGHT_EVIDENCE.md`;
+27. `DEPENDENCIES.md`;
+28. `INVENTORY.md`;
+29. `EXECUTION_LEDGER.md`;
+30. `WORKER_PROMPT.md`;
+31. `GOAL_MANIFEST.json`;
+32. the exact goal assigned to that worker.
 
 The coordinator MUST treat `INVENTORY.md` as the authoritative state and
 dependency record. The parity and end-state documents add acceptance
@@ -189,6 +192,12 @@ prior commit hashes and evidence pointers MAY use the explicitly defined
 ledger-only finalization commit. The ledger MUST contain no credential, token,
 provider body or secret-shaped value.
 
+Any goal-body digest change MUST use the append-only authorization lifecycle in
+`PREFLIGHT_EVIDENCE.md`. Authorization is recorded while the prior digest is
+still current; the later goal/manifest commit records the matching applied
+terminal row. Editing a goal and its digest together without that prior
+coordinator authorization is invalid and blocks assignment or continuation.
+
 ## Transition history validation
 
 Before every inventory state commit or ledger-only finalization, the
@@ -200,6 +209,21 @@ same-status field changes, commit ancestry, or live worktree uniqueness and
 MUST NOT substitute for this history check. A failed or unavailable pre-commit
 or post-commit half blocks worker spawn, merge, gate execution, and the next
 state transition until corrected.
+
+Every prior/current transition validation MUST supply the previous committed
+inventory, ledger, execution preflight, and goal manifest together. Omitting
+the previous execution or goal-manifest fixture is invalid even when the
+candidate does not intend to change a goal, because the validator must prove
+that no unauthorized goal or recovery-history transition entered the same
+snapshot.
+
+Immediately after every coordinator state or finalization commit, and before
+worker spawn, merge, gate execution, restart recovery, or final acceptance, the
+coordinator MUST run `validate.rb --execution --clean-integration` from the
+registered integration worktree with the required previous fixture quartet
+after the initial snapshot. Pre-commit proposed-snapshot validation MUST
+use fixture inputs without `--clean-integration`, so the candidate can be
+checked without pretending its uncommitted bytes are an executable checkpoint.
 
 ## Dependency revision ownership
 
@@ -230,8 +254,9 @@ metadata, or the dependency graph.
 Before the first assignment, the coordinator MUST:
 
 1. run `validate.rb` for planning-tree structure, complete and commit
-   `PREFLIGHT_EVIDENCE.md`, then run `validate.rb --execution` and stop on any
-   strict pre-assignment failure;
+   `PREFLIGHT_EVIDENCE.md`, then run
+   `validate.rb --execution --clean-integration` and stop on any strict
+   pre-assignment failure;
 2. record the committed base revision and its exact identity-platform Git tree
    object and digest; prove the base/input commits exist, the registered
    integration branch and worktree share one HEAD, and that HEAD descends from
@@ -281,25 +306,38 @@ MUST:
 6. regenerate only required catalogs through repository tooling;
 7. record the already-known worker merge commit as the integration checkpoint,
    mark the unit `implemented-unverified`, clear its active inventory owner,
-   and commit this recoverable state transition with gate execution revision
-   and fingerprint both `—`. The resulting commit is the distinct gate
-   execution revision; immediately follow it with one ledger-only
-   `implemented-unverified -> implemented-unverified` finalization that records
-   that now-known revision and its exhaustive sorted gate-input manifest root.
-   The integration checkpoint MUST remain the earlier worker merge commit;
-8. run structural validation, the package gate and only input-invalidated
-   reverse-dependant gates from the integration worktree;
+   and commit this recoverable state transition with gate execution revision,
+   gate fingerprint, and local gate evidence binding all absent. The integration
+   checkpoint MUST remain the earlier worker merge commit;
+8. run `validate.rb --execution --clean-integration` with the required previous
+   fixture quartet, capture that exact
+   committed integration `HEAD` immediately before execution as both the tested
+   and gate execution revision, derive and retain the exhaustive sorted gate
+   input manifest and canonical root from that revision, then run structural
+   validation, the package gate and only input-invalidated reverse-dependant
+   gates from the integration worktree. Execution bookkeeping under
+   `INVENTORY.md`, `EXECUTION_LEDGER.md`, `PREFLIGHT_EVIDENCE.md`, and
+   `.ai/identity-platform/evidence/` is explicit non-behavioral provenance and
+   is excluded from the behavioral input root. The authoritative current
+   `Requires` closure still selects the complete module-root set and
+   `DEPENDENCIES.md` remains a behavior input; every other selected input
+   remains included. For fingerprint reuse, capture the current clean committed
+   `HEAD` as the gate execution and revalidation revision, retain the original
+   tested revision, and prove the exhaustive manifest and root identical at
+   both revisions before accepting the prior result;
 9. for every confirmed package-local defect, commit an
    `implemented-unverified -> in-progress` transition that restores the same
    worker task as owner and retains its branch, worktree, assignment, and
    generation; merge that exact transition commit into the clean worker branch,
    re-render the repair prompt with the canonical goal path and current
    baseline, and return the finding to that worker;
-10. after every final-input gate passes, commit each attributable evidence
-    record against the captured gate execution revision, then commit the
-    ledger/status transition that binds its path and exact evidence-record
-    commit. Mark the unit `verified` only in that later transition; an evidence
-    record MUST NOT predict or embed the commit that contains itself; and
+10. after every final-input gate passes, commit each canonical local gate
+    evidence v2 record and its artifacts against the captured revisions and
+    exhaustive manifest, then commit the append-only local-gate binding plus
+    ledger/status transition that records the gate execution revision and input
+    root. Mark the unit `verified` only in that later transition; an evidence
+    record MUST name its canonical path but MUST NOT predict or embed the commit
+    that contains itself; and
 11. remove the worker's task-owned worktree and disposable resources only after
     the unit is `verified` or the assignment is safely abandoned. An
     `implemented-unverified` unit retains its clean repair worktree unless the
@@ -327,7 +365,9 @@ The coordinator MUST repeat this loop until completion:
    increment generation and clear active assignment fields.
 4. Mark every newly eligible unit `ready` and commit the complete newly ready
    frontier before assigning any of it. A unit MUST NOT jump directly from
-   `proposed` to `in-progress` in durable history.
+   `proposed` to `in-progress` in durable history. An eligible unit MUST NOT
+   remain `proposed` for a later scheduling cycle merely because worker slots
+   are full; readiness is durable independently of immediate assignment.
 5. Fill available worker slots with distinct `ready` units.
 6. Before spawning, complete the assignment-state/finalization protocol and
    render both exact commits plus generation into its worker prompt.
@@ -348,7 +388,16 @@ The coordinator MUST repeat this loop until completion:
 11. Continue unrelated ready work when one provider or environment is blocked.
 
 Initial scheduling MUST start only the currently ready roots:
-`identity`, `identity/delivery`, and `webauthn`.
+`primitive/authentication-identity-contracts`,
+`primitive/authorization-identity-contracts`,
+`primitive/capability-identity-contracts`,
+`primitive/identifier-identity-contracts`,
+`primitive/password-secret-contracts`, and `identity/delivery`. The first five are dependency-free primitive-extension
+prerequisites; the identity-platform scope remains 61 units, with 66
+schedulable units total. `identity` remains `proposed` until
+`primitive/authorization-identity-contracts` is verified; `webauthn` remains
+`proposed` until both `primitive/authentication-identity-contracts` and
+`primitive/identifier-identity-contracts` are verified.
 
 ## Interruption and worker-failure recovery
 

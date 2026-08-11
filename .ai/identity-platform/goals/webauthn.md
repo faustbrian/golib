@@ -11,8 +11,9 @@ shown here.
 - Unit: `webauthn`
 - Canonical module: `pkg/webauthn`
 - Canonical goal after scaffolding: `pkg/webauthn/.ai/GOAL.md`
-- Requires: None; this root execution unit may be claimed when its existing primitive audit is current.
-- Consumes existing primitives: `identifier`, `authentication`, `secret-envelope`, `audit`
+- Public contracts: unit ID `contract:unit:webauthn:v1`; owned operation IDs: none
+- Requires: `primitive/authentication-identity-contracts`, `primitive/capability-identity-contracts`, `primitive/identifier-identity-contracts`
+- Consumes existing primitives: `identifier`, `authentication`, `capability`, `secret-envelope`, `audit`
 - Unlocks after verification: `identity/mfa`, `webauthn/postgres`, `passkey`, `identity/http`
 
 ## Start gate
@@ -69,10 +70,12 @@ involved.
   allowed/discoverable credential rules, user handle and extensions before
   applying the counter/backup-state policy.
 - Backup eligibility (`BE`) is immutable after registration and `BS=1` with
-  `BE=0` MUST deny. For backup-eligible credentials, equal or decreasing
+  `BE=0` MUST deny. For backup-eligible credentials, zero, equal or decreasing
   counters MUST produce bounded risk evidence rather than an automatic clone
-  verdict. For non-backup credentials with a stored positive counter, an equal
-  or decreasing counter MUST deny and enter the documented recovery path.
+  verdict and persistence MUST retain `max(stored, received)`. For non-backup
+  credentials, zero/zero is accepted as unsupported counting and a positive
+  increase advances; once the stored counter is positive, an equal, decreased
+  or zero received counter MUST deny and enter the documented recovery path.
 - This module owns WebAuthn extension request construction, bounded parsing and
   validation. It MUST expose only outputs selected by the shared typed
   extension profile in the cryptographically verified result, with their

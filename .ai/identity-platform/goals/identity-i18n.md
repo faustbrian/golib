@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/i18n`
 - Canonical module: `pkg/identity/i18n`
 - Canonical goal after scaffolding: `pkg/identity/i18n/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/i18n:v1`; owned operation IDs: `contract:operation:identity.i18n.resolve:v1`
 - Requires: `identity`
 - Consumes existing primitives: `identifier`, `audit`
 - Unlocks after verification: `identity/http`

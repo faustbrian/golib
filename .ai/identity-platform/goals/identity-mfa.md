@@ -11,8 +11,9 @@ shown here.
 - Unit: `identity/mfa`
 - Canonical module: `pkg/identity/mfa`
 - Canonical goal after scaffolding: `pkg/identity/mfa/.ai/GOAL.md`
-- Requires: `identity`, `identity/session`, `identity/otp`, `identity/risk`, `webauthn`
-- Consumes existing primitives: `password`, `capability`, `capability/postgres`, `secret-envelope`, `audit`, `rate-limit`
+- Public contracts: unit ID `contract:unit:identity/mfa:v1`; owned operation IDs: `contract:operation:identity.admin.mfa-recovery-issue:v1`, `contract:operation:identity.admin.mfa-reset:v1`, `contract:operation:identity.mfa.disable:v1`, `contract:operation:identity.mfa.enable:v1`, `contract:operation:identity.mfa.factor-update:v1`, `contract:operation:identity.mfa.list:v1`, `contract:operation:identity.mfa.otp-send:v1`, `contract:operation:identity.mfa.otp-verify:v1`, `contract:operation:identity.mfa.recovery-regenerate:v1`, `contract:operation:identity.mfa.recovery-use:v1`, `contract:operation:identity.mfa.security-key-assert-options:v1`, `contract:operation:identity.mfa.security-key-assert-verify:v1`, `contract:operation:identity.mfa.security-key-register-options:v1`, `contract:operation:identity.mfa.security-key-register-verify:v1`, `contract:operation:identity.mfa.totp-uri:v1`, `contract:operation:identity.mfa.totp-verify:v1`, `contract:operation:identity.mfa.trusted-device-revoke:v1`
+- Requires: `identity`, `identity/session`, `identity/otp`, `identity/risk`, `webauthn`, `primitive/authentication-identity-contracts`
+- Consumes existing primitives: `password`, `capability`, `secret-envelope`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/mfa/postgres`, `identity/http`
 
 ## Start gate
@@ -61,6 +62,17 @@ involved.
 - Recovery MUST select exactly one canonical `authentication.recovery_path`;
   recovery-code, UV-passkey and administrator paths MUST remain distinct and a
   failed or unavailable path MUST NOT silently fall back to another.
+- Administrative recovery MUST use two distinct operations. A fresh recovery
+  administrator plus independent approval may invoke `identity.admin.mfa-reset`
+  with target, factor scope, expected factor version and reason; the reset MUST
+  atomically bump factor authority, erase selected factors/recovery codes,
+  revoke trusted devices and pending proofs, revoke affected sessions, emit
+  `factor.reset.v1`, and return no replacement secret. Only after that reset
+  generation commits may `identity.admin.mfa-recovery-issue` deliver one
+  short-lived single-use account-recovery capability through an approved
+  verified channel. Administrators MUST never receive a user's factor secret,
+  OTP or recovery code, self-approve, bypass policy, or turn reset into a new
+  authenticated session.
 
 - Enable/disable MUST require recent primary authentication and password or
   equivalent configured proof, create a pending enrollment, and activate only

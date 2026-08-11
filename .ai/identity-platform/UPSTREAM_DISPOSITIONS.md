@@ -82,11 +82,11 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | Pinned page | Disposition | Local owner or exact rationale |
 | --- | --- | --- |
 | `2fa` | In | `identity/mfa`, `identity/mfa/postgres`, `webauthn`; recovery-code re-view divergence below. |
-| `admin` | In | `identity`, `identity/password`, `identity/session`, `identity/impersonation`, `authorization`, `identity/http`; the documented irreversible remove-user route maps to `identity.admin.user-delete`. |
+| `admin` | In | `identity`, `identity/password`, `identity/email`, `identity/session`, `identity/mfa`, `identity/impersonation`, `authorization`, `identity/http`; the documented irreversible remove-user route maps to `identity.admin.user-delete`, and credential administration includes independently approved MFA reset/recovery without administrator-visible secrets. |
 | `agent-auth` | Excluded | No autonomous-agent capability-discovery, approval, or execution credential product is selected. Standard OAuth/OIDC remains in scope. |
 | `anonymous` | In | `identity/anonymous`. |
 | `api-key` | In | `identity/apikey`, PostgreSQL and Valkey adapters. |
-| `api-key advanced` | In | `identity/apikey`, PostgreSQL and Valkey adapters; multiple configuration IDs, organization-owned keys, storage profiles, quota/refill/expiry and metadata behavior are required. |
+| `api-key advanced` | In | `identity/apikey`, `identity/session`, `identity/http`, PostgreSQL and Valkey adapters; API-key-derived request authentication, exact header selection, one-debit user-only session-compatible principal, multiple configuration IDs, organization-owned keys, storage profiles, quota/refill/expiry and metadata behavior are required. |
 | `api-key reference` | In | `identity/apikey`, PostgreSQL and Valkey adapters; documented options, permissions and schema are part of the typed backend contract. |
 | `api-key metadata` | Non-capability | Navigation metadata only; it adds no API-key behavior. |
 | `autumn` | Excluded | Billing/payment integration; it does not define identity correctness. |
@@ -116,7 +116,7 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | `open-api` | In | `identity/http`; interactive Scalar UI is excluded, the OpenAPI document is required. |
 | `organization` | In | `organization`, `organization/postgres`, `authorization`. |
 | `passkey` | In | `passkey`, `passkey/postgres`, `webauthn`, `webauthn/postgres`. |
-| `phone-number` | In | `identity/phone`, `identity/otp`. |
+| `phone-number` | In | `identity/phone`, `identity/otp`, `identity/password`; OTP signin and password+phone signin are distinct operations, while caller-selected session suppression is superseded by the platform-wide remember/session-issuance policy. |
 | `polar` | Excluded | The plugin page is a billing/payment integration; Polar social OAuth remains a separate in-scope provider profile. |
 | `scim` | In with deployment-profile divergence | `scim`, `scim/organization`, `scim/postgres`; personal connections are an unselected deployment profile described below. |
 | `siwe` | Excluded | Wallet-signature identity is not a selected product profile. |
@@ -131,7 +131,7 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | Source export or internal module | Disposition | Local owner or rationale |
 | --- | --- | --- |
 | `access` | In | Existing `authorization`, `organization`, `identity/http`. |
-| `admin` | In | Administrative create/get/list/update/delete, role/permission, password, ban, session and impersonation operations in `API_OPERATIONS.md`; upstream `remove-user` maps to the explicit irreversible `identity.admin.user-delete` cascade. |
+| `admin` | In | Administrative create/get/list/update/delete, role/permission, password, email-address, MFA reset/recovery, ban, session and impersonation operations in `API_OPERATIONS.md`; upstream `remove-user` maps to the explicit irreversible `identity.admin.user-delete` cascade. |
 | `anonymous` | In | `identity/anonymous`. |
 | `bearer` | In | `identity.session.bearer-issue` and bearer-authenticated session operations. |
 | `captcha` | In | Provider-neutral risk middleware plus four adapters. |
@@ -152,7 +152,7 @@ Broad category exclusions MUST NOT conceal an unreviewed official item.
 | `one-time-token` | In | Session transfer, not a generic unowned token workflow. |
 | `open-api` | In | OpenAPI 3.1.1; reference UI excluded. |
 | `organization` | In | Organization lifecycle and access control. |
-| `phone-number` | In | Verified phone and recovery workflows. |
+| `phone-number` | In | Verified phone, distinct OTP/password signin and recovery workflows. |
 | `siwe` | Excluded | Wallet signature profile not selected. |
 | `test-utils` | In | `identity/identitytest`, including exact user/organization factory and persistence helpers, login/auth-header/cookie helpers, production-profile cookie signing, and instance-isolated OTP get/clear operations. |
 | `two-factor` | In | MFA/TOTP/OTP/recovery/trusted devices/security keys. |

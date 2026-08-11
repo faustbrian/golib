@@ -11,9 +11,10 @@ shown here.
 - Unit: `organization`
 - Canonical module: `pkg/organization`
 - Canonical goal after scaffolding: `pkg/organization/.ai/GOAL.md`
-- Requires: `identity`, `identity/session`, `identity/delivery`
+- Public contracts: unit ID `contract:unit:organization:v1`; owned operation IDs: `contract:operation:identity.organization.active-get:v1`, `contract:operation:identity.organization.active-set:v1`, `contract:operation:identity.organization.archive:v1`, `contract:operation:identity.organization.create:v1`, `contract:operation:identity.organization.delete:v1`, `contract:operation:identity.organization.get:v1`, `contract:operation:identity.organization.invitation-send:v1`, `contract:operation:identity.organization.invitation.accept:v1`, `contract:operation:identity.organization.invitation.cancel:v1`, `contract:operation:identity.organization.invitation.expire:v1`, `contract:operation:identity.organization.invitation.get:v1`, `contract:operation:identity.organization.invitation.list:v1`, `contract:operation:identity.organization.invitation.list-mine:v1`, `contract:operation:identity.organization.invitation.reject:v1`, `contract:operation:identity.organization.invitation.resend:v1`, `contract:operation:identity.organization.list:v1`, `contract:operation:identity.organization.member.active-get:v1`, `contract:operation:identity.organization.member.active-role-get:v1`, `contract:operation:identity.organization.member.add:v1`, `contract:operation:identity.organization.member.leave:v1`, `contract:operation:identity.organization.member.list:v1`, `contract:operation:identity.organization.member.remove:v1`, `contract:operation:identity.organization.member.update:v1`, `contract:operation:identity.organization.owner-transfer:v1`, `contract:operation:identity.organization.permission-check:v1`, `contract:operation:identity.organization.restore:v1`, `contract:operation:identity.organization.role.create:v1`, `contract:operation:identity.organization.role.delete:v1`, `contract:operation:identity.organization.role.get:v1`, `contract:operation:identity.organization.role.list:v1`, `contract:operation:identity.organization.role.update:v1`, `contract:operation:identity.organization.slug-available:v1`, `contract:operation:identity.organization.team.active-set:v1`, `contract:operation:identity.organization.team.create:v1`, `contract:operation:identity.organization.team.delete:v1`, `contract:operation:identity.organization.team.list:v1`, `contract:operation:identity.organization.team.list-mine:v1`, `contract:operation:identity.organization.team.member-add:v1`, `contract:operation:identity.organization.team.member-list:v1`, `contract:operation:identity.organization.team.member-remove:v1`, `contract:operation:identity.organization.team.update:v1`, `contract:operation:identity.organization.update:v1`
+- Requires: `identity`, `identity/session`, `identity/delivery`, `primitive/authorization-identity-contracts`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `tenancy`, `authorization`, `identifier`, `audit`, `capability`, `capability/postgres`
-- Unlocks after verification: `organization/postgres`, `sso`, `sso/domain-verification`, `scim`, `scim/organization`, `identity/http`
+- Unlocks after verification: `identity/apikey`, `organization/postgres`, `sso`, `sso/domain-verification`, `scim`, `scim/organization`, `identity/http`
 
 ## Start gate
 
@@ -54,8 +55,10 @@ involved.
 
 - Organization operations MUST include create with policy hook, check slug
   availability without reservation guarantees, list for user, get full bounded
-  view, update, archive/delete, set/get active organization and enforce
-  configured per-user/per-tenant organization limits.
+  view, update, and the separate `identity.organization.archive`,
+  `identity.organization.restore` and `identity.organization.delete`
+  transitions; archive or delete MUST NOT alias the other. They MUST also set/
+  get active organization and enforce configured per-user/per-tenant limits.
 - Active-organization selection MUST be owned by an exact authenticated session,
   not by the user globally. Simultaneous sessions MUST select and clear
   independently; every use MUST revalidate the session, tenant, membership and
@@ -65,6 +68,10 @@ involved.
   by organization, list by recipient, accept, reject, cancel and expire.
   Acceptance MUST bind the intended verified recipient and organization and
   handle existing membership and role changes explicitly.
+- `identity.organization.invitation.resend` MUST supersede the predecessor
+  proof and `identity.organization.invitation.expire` MUST terminally revoke
+  every outstanding proof, with exactly the callable-operation semantics and
+  audit events declared in `API_OPERATIONS.md`.
 - Invitation issuance and the delivery intent MUST have one idempotency key and
   an explicit transaction/outbox boundary. Results MUST distinguish not
   queued, queued, delivered, failed and unknown without rolling back a durable

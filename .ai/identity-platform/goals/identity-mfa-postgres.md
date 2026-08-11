@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/mfa/postgres`
 - Canonical module: `pkg/identity/mfa/postgres`
 - Canonical goal after scaffolding: `pkg/identity/mfa/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/mfa/postgres:v1`; owned operation IDs: none
 - Requires: `identity/mfa`, `identity/postgres`, `webauthn/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `capability/postgres`, `secret-envelope`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`

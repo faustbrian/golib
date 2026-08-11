@@ -38,6 +38,17 @@ module SharedContractApplicability
   EXPECTED_PROVIDER_RESPONSE_MODES = {
     "apple" => ["form_post"]
   }.freeze
+  EXPECTED_FEDERATION_CONFIGURATION_OWNERS = {
+    "ref.frontchannel_post.cookie" => %w[identity/oauth sso/saml],
+    "ref.oauth.rp.shared_redirect_issuer" => %w[identity/oauth sso/oauth2],
+    "ref.oauth_server.client_class" => %w[oauth-server],
+    "ref.saml.relay_state" => %w[sso/saml],
+    "ref.saml.replay_set" => %w[sso/saml],
+    "ref.struct:ref.frontchannel_post_cookie" => %w[identity/oauth sso/saml],
+    "ref.struct:ref.oauth_server.client_class" => %w[oauth-server],
+    "ref.struct:ref.oidc.logout_outcome" => %w[sso/oidc],
+    "ref.struct:ref.saml.replay_set" => %w[sso/saml]
+  }.freeze
   EXPECTED_JWT_PROFILE_OWNERSHIP = {
     "version" => "jwt-profile-ownership-v1",
     "issuance_policy_owner" => "oauth-server/oidc",
@@ -48,11 +59,13 @@ module SharedContractApplicability
 
   module_function
 
-  def load_and_validate!(root:, units:)
+  def load_and_validate!(root:, units:, document: nil)
     path = File.join(root, FILE)
     fail_contract("missing canonical manifest #{FILE}") unless File.file?(path)
-    document = JSON.parse(File.read(path))
-    fail_contract("#{FILE} is not canonical JSON") unless File.read(path) == JSON.pretty_generate(document) + "\n"
+    source = File.read(path)
+    from_file = document.nil?
+    document ||= JSON.parse(source)
+    fail_contract("#{FILE} is not canonical JSON") if from_file && source != JSON.pretty_generate(document) + "\n"
     fail_contract("manifest top-level keys must be version and units") unless document.keys == %w[version units]
     fail_contract("manifest version must be 1") unless document["version"] == 1
     selections = document["units"]
@@ -98,11 +111,22 @@ module SharedContractApplicability
       fail_contract("#{unit} lifecycle selection omits lifecycle.foundation") if lifecycle != ["none"] && !lifecycle.include?("lifecycle.foundation")
       missing_cascades = (entry.fetch("lifecycle_consumers") - ["none"]) - lifecycle
       fail_contract("#{unit} lifecycle omits selected consumer rows: #{missing_cascades.join(', ')}") unless missing_cascades.empty?
+      if unit.start_with?("primitive/") && KEYS.any? { |key| entry.fetch(key) != ["none"] }
+        fail_contract("#{unit} primitive selectors must all be none")
+      end
     end
     KEYS.each do |key|
       selected = selections.values.flat_map { |entry| entry.fetch(key) }.to_set
       omitted = known_catalogs.fetch(key).keys.to_set - selected
       fail_contract("#{key} catalog rows have no applicable unit: #{omitted.to_a.sort.join(', ')}") unless omitted.empty?
+    end
+    EXPECTED_FEDERATION_CONFIGURATION_OWNERS.each do |configuration_id, expected_owners|
+      actual_owners = selections.filter_map do |unit, entry|
+        unit if entry.fetch("configuration").include?(configuration_id)
+      end
+      unless actual_owners == expected_owners
+        fail_contract("configuration owner drift for #{configuration_id}: expected=#{expected_owners.join(',')} actual=#{actual_owners.join(',')}")
+      end
     end
     validate_consumer_bijection!(root, selections, expected_units)
     document

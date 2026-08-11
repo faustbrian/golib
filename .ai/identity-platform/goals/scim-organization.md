@@ -11,6 +11,7 @@ shown here.
 - Unit: `scim/organization`
 - Canonical module: `pkg/scim/organization`
 - Canonical goal after scaffolding: `pkg/scim/organization/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:scim/organization:v1`; owned operation IDs: none
 - Requires: `scim`, `identity`, `organization`
 - Consumes existing primitives: `authorization`, `audit`
 - Unlocks after verification: `scim/postgres`, `identity/http`
@@ -50,15 +51,19 @@ involved.
 ## Package-specific acceptance checklist
 
 - Connection ownership MUST bind tenant, organization and external provider;
-  list/get/delete/token rotation MUST require organization administration and
-  MUST NOT expose another provider's mappings or secrets.
+  list/get/update/delete, token rotation/revocation and reconciliation MUST
+  require their exact organization administration permissions and MUST NOT
+  expose another provider's mappings or secrets. Mapping updates and
+  reconciliation MUST preserve versioned source-of-truth and deprovision
+  policy; token revocation MUST never expose bearer material.
 - User mapping MUST define externalId, userName, emails, active, names and
   enterprise/custom attributes; matching order and collision behavior MUST be
   deterministic and MUST NOT take over a pre-existing account without policy.
   External-ID lookup MUST preserve the exact `(tenant, organization, provider
-  connection, resource type, externalId)` scope and schema `caseExact`
-  semantics supplied by `scim`; it MUST NOT independently normalize or widen
-  that lookup.
+  connection, resource type)` partition and schema `caseExact` semantics
+  supplied by `scim`, while retaining RFC `uniqueness: none`. Multiple matches
+  MUST produce explicit mapping policy/conflict handling; this package MUST NOT
+  independently normalize, widen, or treat externalId as account authority.
 - Group mapping MUST define organization membership, teams and optional role
   bindings. Unmapped/unknown group display names MUST NOT become roles or
   permissions automatically.
@@ -82,6 +87,10 @@ involved.
   its own idempotent command, committed results survive later child failures,
   and resume/reconciliation MUST use the durable child status rather than
   replaying already committed identity or organization transitions.
+  Core `scim`, not this mapping collaborator, owns Bulk admission, apply-child,
+  and skip-child protocol audit actions. This mapper MUST contribute its mapped
+  domain outcome to the core child result without emitting a competing Bulk
+  protocol event.
 - Every mutating child MUST enlist the public identity and organization
   contributors before the coordinator's first write and reserve, apply, commit
   or recover under one stable child command. This mapper owns mapping policy

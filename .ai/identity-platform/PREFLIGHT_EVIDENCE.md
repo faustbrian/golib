@@ -34,6 +34,12 @@ descend from the exact base and contain the preflight input. The integration wor
 task-owned parent MUST be absolute, distinct from the repository root and the
 home directory itself, registered by Git, and resolved before any destructive
 cleanup.
+Every post-commit execution check MUST use
+`validate.rb --execution --clean-integration` plus the required previous
+fixture quartet after the initial snapshot; a dirty, unreadable, detached,
+or branch-HEAD-divergent integration worktree blocks spawn, merge, gates,
+restart recovery, and final acceptance. Pre-commit proposed snapshots use
+explicit fixture paths without clean mode.
 
 ## Worker assignment attestations
 
@@ -159,6 +165,47 @@ predict its own containing commit. Rows are append-only; replacement evidence
 requires a new attributable artifact generation rather than rewriting a prior
 binding.
 
+Local package and reverse-dependant gate records use
+`identity-platform.local-gate.v2`. Each record MUST contain the exact tested
+revision, current gate execution revision, nullable revalidation revision,
+exhaustive sorted behavior-input manifest, canonical input root, canonical
+record path, commands, outcome, tool/environment identity, artifact hashes, and
+record digest. The coordinator captures the clean committed integration `HEAD`
+immediately before execution. On reuse, that current HEAD is both gate execution
+and revalidation revision while tested revision remains the original execution;
+the complete manifest and root MUST validate identically at both revisions.
+The later append-only `EXECUTION_LEDGER.md` binding supplies the record commit
+and exact canonical-byte digest without self-reference.
+
+Only `INVENTORY.md`, `EXECUTION_LEDGER.md`, this file, and files under
+`.ai/identity-platform/evidence/` are explicitly non-behavioral execution or
+evidence bookkeeping excluded from the behavior-input manifest. Their commit
+ancestry and evidence bindings remain provenance. The authoritative current
+`Requires` closure still selects module roots and `DEPENDENCIES.md` remains a
+behavior input. All other selected
+identity-platform files remain behavior inputs.
+
+## Goal digest revisions
+
+| Revision ID | Unit | Previous goal digest | Current goal digest | Status | Authorized by | Recorded at |
+| --- | --- | --- | --- | --- | --- | --- |
+
+Rows are append-only. Before changing any `GOAL_MANIFEST.json` digest, the
+coordinator MUST append an `authorized` row while the previous digest is still
+current. The later manifest-changing commit MUST append the matching `applied`
+row with identical revision ID, unit, and old/new digests; an abandoned change
+MUST instead append `superseded`. A terminal row without its preceding
+coordinator authorization is invalid. Revision IDs use
+`goal:<unit-with-slashes-replaced-by-hyphens>:g<positive-sequence>` and each
+digest is the exact `sha256:<hex>` identity of the goal body.
+The first execution snapshot MAY omit prior fixtures only while every ledger
+row is `initial` and every append-only execution-history table is empty. Every
+later execution validation MUST receive the previous committed inventory,
+ledger, execution snapshot, and goal manifest together through the four
+`--previous-*-fixture` options. This lets the validator prove append-only goal
+authorization and recovery lifecycles even when a candidate claims not to
+change them.
+
 ## Conflict-recovery baselines
 
 | Recovery epoch | Unit | Generation | Integration commit | Worker checkpoint | Conflict evidence path | Status | Recorded at |
@@ -172,7 +219,11 @@ of the same assignment generation. `Status` MUST be `authorized`,
 retained assignment's `blocked -> in-progress` transition and MUST name commits
 that exist with the required ancestry. A later integration-head change
 supersedes the row before another recovery merge is allowed. Successful integration marks
-the exact row completed. Completion is terminal only for that epoch, not for
+the exact row completed. Every `superseded` or `completed` row MUST be preceded
+by the matching `authorized` row for the same epoch and exact commit identity
+in an earlier committed preflight snapshot; authorization and its terminal row
+MUST NOT be appended together;
+a terminal row cannot create or inherit authorization. Completion is terminal only for that epoch, not for
 the assignment generation: if the retained assignment later re-enters
 `blocked` because a repaired tip conflicts again, the coordinator MUST append
 the next epoch and MAY authorize the new clean checkpoint only when the prior

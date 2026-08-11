@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/risk/valkey`
 - Canonical module: `pkg/identity/risk/valkey`
 - Canonical goal after scaffolding: `pkg/identity/risk/valkey/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/risk/valkey:v1`; owned operation IDs: none
 - Requires: `identity/risk`
 - Consumes existing primitives: `rate-limit`, `cache`, `audit`
 - Unlocks after verification: `identity/reference`

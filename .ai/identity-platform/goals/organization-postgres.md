@@ -11,9 +11,10 @@ shown here.
 - Unit: `organization/postgres`
 - Canonical module: `pkg/organization/postgres`
 - Canonical goal after scaffolding: `pkg/organization/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:organization/postgres:v1`; owned operation IDs: none
 - Requires: `organization`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
-- Unlocks after verification: `sso/postgres`, `scim/postgres`, `identity/reference`
+- Unlocks after verification: `identity/apikey/postgres`, `sso/postgres`, `scim/postgres`, `identity/reference`
 
 ## Start gate
 
@@ -62,8 +63,10 @@ involved.
 - Constraints/locking MUST enforce unique slugs in declared scope, unique
   membership, bounded active selection, invitation identity, last-owner safety,
   role/team limits and organization-compatible team membership under races.
-- Invitation accept/reject/cancel/expire and ownership transfer MUST be atomic
-  with events/outbox and idempotent by stable command identity.
+- Invitation accept/reject/cancel/expire/resend and ownership transfer MUST be
+  atomic with events/outbox and idempotent by stable command identity. Resend
+  MUST atomically supersede the prior proof; expiry MUST atomically make every
+  outstanding proof unusable.
 - Dynamic-role update/delete MUST lock affected bindings and produce a
   deterministic permission result for concurrent authorization checks.
 - Static/custom role, binding, team-membership and ownership mutations MUST
@@ -80,7 +83,8 @@ involved.
   bearer value and MUST atomically couple acceptance, single-use consumption,
   membership/role effects and outbox state. Resend/supersession races MUST
   leave at most one consumable invitation grant.
-- Archive/delete MUST have database-enforced, resumable disposition for active
+- Separate archive, restore and delete commands MUST have database-enforced,
+  resumable disposition for active
   selections, pending invitations, memberships, teams, role bindings, domain
   claims and integration references. Cleanup MUST follow the audit/legal-hold/
   outbox boundaries in `.ai/identity-platform/COMMON_REQUIREMENTS.md`; tests

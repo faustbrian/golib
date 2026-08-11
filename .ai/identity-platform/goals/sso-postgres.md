@@ -11,7 +11,8 @@ shown here.
 - Unit: `sso/postgres`
 - Canonical module: `pkg/sso/postgres`
 - Canonical goal after scaffolding: `pkg/sso/postgres/.ai/GOAL.md`
-- Requires: `sso`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `identity/postgres`, `organization/postgres`
+- Public contracts: unit ID `contract:unit:sso/postgres:v1`; owned operation IDs: none
+- Requires: `sso`, `sso/oidc`, `sso/oauth2`, `sso/saml`, `identity/postgres`, `organization/postgres`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `postgres`, `migrations`, `secret-envelope`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
 
@@ -63,6 +64,14 @@ involved.
 - Recoverable credentials/keys MUST use `secret-envelope` with provider/
   tenant/organization/protocol context and rotation. Metadata/list operations
   MUST never return secret material.
+- Provider enable/disable, credential rotation and enforcement update MUST be
+  separate versioned commands. Their readiness checkpoints, overlap/drain
+  policy, unknown outcomes and reconciliation records MUST commit atomically
+  with the provider and organization authority versions and outbox events.
+- OIDC logout state MUST bind provider, issuer, local session/version and the
+  allowlisted post-logout target, be consumed exactly once by completion, and
+  retain an unknown provider outcome only until authoritative reconciliation;
+  local session revocation remains committed on every provider outcome.
 - Enterprise provider tokens MUST be envelope-encrypted with tenant/
   organization/provider/subject/purpose/version context. The vault MUST
   serialize refresh per grant, atomically rotate token generations, detect
@@ -77,6 +86,11 @@ involved.
 - Login state/relay state, authorization codes where stored, SAML request/
   assertion IDs and provisioning commands MUST be digest-indexed, expiring and
   atomically single-use.
+- OAuth/OIDC RP transactions MUST retain a raw PKCE verifier only as
+  envelope-AEAD ciphertext under `struct:ref.oauth.rp_transaction`; its keyed
+  commitment alone is indexed. The exact AAD, transaction lifetime, reserved
+  decrypt authority, terminal erasure, and ambiguous exchange recovery are
+  mandatory and plaintext persistence is forbidden.
 - JIT identity/membership/provider-link updates and outbox state MUST be atomic
   through the public `identity/postgres` enlistment carrier; the adapter MUST
   NOT duplicate identity rows or carrier SQL. External or separately owned

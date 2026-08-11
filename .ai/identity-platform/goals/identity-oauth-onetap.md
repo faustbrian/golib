@@ -11,7 +11,8 @@ shown here.
 - Unit: `identity/oauth/onetap`
 - Canonical module: `pkg/identity/oauth/onetap`
 - Canonical goal after scaffolding: `pkg/identity/oauth/onetap/.ai/GOAL.md`
-- Requires: `identity/oauth`, `identity/oauth/providers`
+- Public contracts: unit ID `contract:unit:identity/oauth/onetap:v1`; owned operation IDs: `contract:operation:identity.oauth.onetap-callback:v1`, `contract:operation:identity.oauth.onetap-start:v1`
+- Requires: `identity/oauth`, `identity/oauth/providers`, `primitive/capability-identity-contracts`
 - Consumes existing primitives: `authentication/oidc`, `authentication/jwt`, `capability`, `audit`, `rate-limit`
 - Unlocks after verification: `identity/http`
 
@@ -46,6 +47,12 @@ subject when present, risk-policy version and the caller's exact
 completion MUST reserve, apply and finalize that transaction with the generic
 OAuth identity result and preserve RememberPolicy unchanged through MFA and
 session issuance. Unknown completion MUST recover before retry.
+Pending and reserved One Tap transactions MUST consume and fail closed on
+`lifecycle.cascade.global_compromise`,
+`lifecycle.cascade.identity_anonymize`, `lifecycle.cascade.identity_delete`,
+`lifecycle.cascade.social_provider_disable` and
+`lifecycle.cascade.social_provider_unlink`; this module acknowledges those
+versions but does not own the underlying identity or provider-link authority.
 
 The module MUST expose a transport-neutral browser seam that produces a typed,
 bounded Google Identity Services initialization/prompt/button configuration and
@@ -102,8 +109,10 @@ the atomic nonce/state and identity-result handoff MUST follow
 MUST follow [`PROTOCOL_BASELINES.md`](../PROTOCOL_BASELINES.md), and browser and
 origin defaults MUST be explicit in
 [`REFERENCE_CONFIGURATION.md`](../REFERENCE_CONFIGURATION.md).
-Success and denial MUST emit the One Tap records defined by
-[`SECURITY_EVENTS.md`](../SECURITY_EVENTS.md).
+This module emits exactly `identity.oauth.verify_one_tap` for One Tap
+verification outcomes. Generic OAuth start/callback/link/account records remain
+owned by `identity/oauth`, and session records remain owned by
+`identity/session`.
 
 The unit MUST remain unverified if it trusts email or hosted domain without
 pinned semantics, omits nonce/origin/audience validation, conflates dismissal

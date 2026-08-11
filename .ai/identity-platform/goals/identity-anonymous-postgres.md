@@ -11,6 +11,7 @@ shown here.
 - Unit: `identity/anonymous/postgres`
 - Canonical module: `pkg/identity/anonymous/postgres`
 - Canonical goal after scaffolding: `pkg/identity/anonymous/postgres/.ai/GOAL.md`
+- Public contracts: unit ID `contract:unit:identity/anonymous/postgres:v1`; owned operation IDs: none
 - Requires: `identity/anonymous`, `identity/postgres`
 - Consumes existing primitives: `postgres`, `migrations`, `outbox`, `audit`
 - Unlocks after verification: `identity/reference`
