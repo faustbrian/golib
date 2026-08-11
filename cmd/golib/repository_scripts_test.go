@@ -484,7 +484,7 @@ func TestGateInputDigestExcludesNonExecutableRepositoryMetadata(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	writeManifest := func(familyLabel string, testTags []string) {
+	writeManifest := func(familyLabel string, reverseDependencies, testTags []string) {
 		t.Helper()
 		manifest := map[string]any{
 			"modules": []map[string]any{
@@ -499,18 +499,20 @@ func TestGateInputDigestExcludesNonExecutableRepositoryMetadata(t *testing.T) {
 					"packages":           []any{},
 				},
 				{
-					"directory":          "pkg/example",
-					"module_path":        "example.test/example",
-					"owned_dependencies": []string{},
-					"required_services":  []string{},
-					"releasable":         true,
-					"family":             "foundations",
-					"family_label":       familyLabel,
-					"family_description": "Catalog navigation metadata.",
-					"family_order":       1,
-					"test_tags":          testTags,
-					"gates":              map[string]bool{"tests": true},
-					"packages":           []any{},
+					"directory":                  "pkg/example",
+					"module_path":                "example.test/example",
+					"owned_dependencies":         []string{},
+					"required_services":          []string{},
+					"releasable":                 true,
+					"family":                     "foundations",
+					"family_label":               familyLabel,
+					"family_description":         "Catalog navigation metadata.",
+					"family_order":               1,
+					"reverse_owned_dependencies": reverseDependencies,
+					"goal_status":                "implementation-evidence-inventoried",
+					"test_tags":                  testTags,
+					"gates":                      map[string]bool{"tests": true},
+					"packages":                   []any{},
 				},
 			},
 		}
@@ -521,7 +523,7 @@ func TestGateInputDigestExcludesNonExecutableRepositoryMetadata(t *testing.T) {
 		writeTestFile(t, filepath.Join(root, "modules.json"), string(contents))
 	}
 
-	writeManifest("Foundations", []string{})
+	writeManifest("Foundations", []string{"example.test/consumer"}, []string{})
 	writeTestFile(t, filepath.Join(root, "packages.json"), `{"packages":[]}`)
 	makefile := filepath.Join(root, "Makefile")
 	writeTestFile(t, makefile, "inventory:\n\t@true\n")
@@ -556,9 +558,13 @@ func TestGateInputDigestExcludesNonExecutableRepositoryMetadata(t *testing.T) {
 	}
 
 	before := digest("pkg/example")
-	writeManifest("Core Foundations", []string{})
+	writeManifest("Core Foundations", []string{"example.test/consumer"}, []string{})
 	if current := digest("pkg/example"); current != before {
 		t.Fatalf("catalog presentation metadata changed gate inputs: %s != %s", current, before)
+	}
+	writeManifest("Core Foundations", []string{"example.test/replacement"}, []string{})
+	if current := digest("pkg/example"); current != before {
+		t.Fatalf("reverse dependency metadata changed gate inputs: %s != %s", current, before)
 	}
 	rootBefore := digest(".")
 	writeTestFile(t, makefile, "cohesion:\n\t@true\n")
@@ -568,7 +574,7 @@ func TestGateInputDigestExcludesNonExecutableRepositoryMetadata(t *testing.T) {
 	if current := digest("."); current == rootBefore {
 		t.Fatal("root Makefile did not change root-module gate inputs")
 	}
-	writeManifest("Core Foundations", []string{"integration"})
+	writeManifest("Core Foundations", []string{"example.test/replacement"}, []string{"integration"})
 	if current := digest("pkg/example"); current == before {
 		t.Fatal("test tags did not change gate inputs")
 	}

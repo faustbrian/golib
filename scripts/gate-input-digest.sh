@@ -359,7 +359,15 @@ verification_module_policy() {
     jq -S -c --arg directory "${directory}" '
         .modules[]
         | select(.directory == $directory)
-        | del(.family, .family_label, .family_description, .family_order)
+        | {
+            directory,
+            module_path,
+            owned_dependencies,
+            required_services,
+            test_tags,
+            interoperability_tools,
+            gates
+        }
     ' "${root}/modules.json"
 }
 
