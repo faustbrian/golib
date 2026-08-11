@@ -73,7 +73,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 52 | Repository audit | `implemented-unverified` | `.ai/GOAL_COMPATIBILITY.md` | 3-51 |
 | 53 | Repository audit | `implemented-unverified` | `.ai/GOAL_SECURITY.md` | 3-52 |
 | 54 | Repository audit | `implemented-unverified` | `.ai/GOAL_SUPPLY_CHAIN.md` | 3-53 |
-| 55 | Repository audit | `pending-reexecution` | `.ai/GOAL_BENCHMARKS.md` | 3-54 |
+| 55 | Repository audit | `implemented-unverified` | `.ai/GOAL_BENCHMARKS.md` | 3-54 |
 | 56 | Repository audit | `pending-reexecution` | `.ai/GOAL_PERFORMANCE.md` | 55 |
 | 57 | Repository audit | `pending-reexecution` | `.ai/GOAL_CODE_DOCUMENTATION.md` | 3-56 |
 | 58 | Repository audit | `pending-reexecution` | `.ai/GOAL_DOCUMENTATION.md` | 50, 57 |
@@ -925,6 +925,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with pinned `go-licenses` and `cyclonedx-gomod` versions and task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
 | Observed | 2026-08-11T20:35:07Z |
 | Gaps | Final verification still requires a complete dependency-governance review, one root dependency-update system, closure of the known specification-provenance findings, and release-time signing, attestations, checksums, and public-proxy proof. Unreleased SBOMs currently have no component version, and CycloneDX warned that it could not detect license metadata for some fixture modules and dependencies even though the independent license gate passed; those warnings require explicit resolution or documented disposition before release. |
+
+### Repository benchmark audit
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_BENCHMARKS.md` |
+| Scope | Catalog-selected benchmark execution for all 107 modules that require the benchmark gate, together with an audit of repository-level comparison methodology, harnesses, results, and reporting. |
+| Status | `pending-reexecution` to `implemented-unverified` |
+| Evidence | Existing content-bound benchmark checkpoints for 50 modules and `./scripts/run-modules.sh benchmark --jobs 8 --modules <57-missing-modules>` for the previously missing modules. |
+| Result | All 107 benchmark-required modules now have passing benchmark evidence; no required module is missing or failed. The repository contains package-native benchmarks, dedicated comparison modules, and package-level performance documentation, but it does not yet provide the complete reviewed competitor/capability matrix, generated benchmark catalog, controlled-runner results, or statistical regression framework required by the goal. |
+| Environment | Go 1.26.5 on darwin/arm64 with gate-managed provider services and task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run. |
+| Observed | 2026-08-11T20:42:26Z |
+| Gaps | Final verification requires honest equivalent-work dispositions for every releasable package, a machine-readable benchmark catalog and linked methodology, pinned fixtures and competitor versions, raw reproducible results with statistical analysis, controlled-runner execution, explicit regression budgets, and resolution of the stale `docs/hardening-report.md` claim that a root `benchmarks.json` already exists. Passing package benchmark gates alone does not prove those repository-wide deliverables. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
