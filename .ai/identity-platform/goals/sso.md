@@ -1,0 +1,86 @@
+# Goal: pkg/sso
+
+The key words **MUST**, **MUST NOT**, **REQUIRED**, **SHALL**, **SHALL NOT**,
+**SHOULD**, **SHOULD NOT**, **RECOMMENDED**, **NOT RECOMMENDED**, **MAY**, and
+**OPTIONAL** in this document are to be interpreted as described in BCP 14
+[RFC 2119](https://www.rfc-editor.org/rfc/rfc2119) and
+[RFC 8174](https://www.rfc-editor.org/rfc/rfc8174) when, and only when, they
+appear in all capitals, as shown here.
+
+## Execution metadata
+
+- Unit: `sso`
+- Canonical module: `pkg/sso`
+- Canonical goal after scaffolding: `pkg/sso/.ai/GOAL.md`
+- Requires: `identity`, `identity/session`, `identity/risk`, `organization`
+- Consumes existing primitives: `authentication`, `authorization`, `capability`, `secret-envelope`, `audit`, `workflow`
+- Unlocks after verification: `sso/oidc`, `sso/oauth2`, `sso/saml`, `sso/postgres`
+
+## Start gate
+
+The agent MUST read and satisfy `../COMMON_REQUIREMENTS.md`. It MUST NOT begin
+until `../INVENTORY.md` marks `sso` as `ready` and every unit listed in
+Requires is `verified`. The agent MUST claim only this unit and record its
+owner before any implementation edit.
+
+## Objective and observable completion
+
+Build an independently releasable `pkg/sso` module that owns enterprise SSO provider registration, verified-domain routing, discovery policy, attribute mapping, JIT provisioning, organization membership provisioning, enforcement, and lifecycle. Completion
+requires executable proof of the behaviors below through its public API and,
+where applicable, real supported infrastructure or providers.
+
+## Ownership boundary
+
+This module owns enterprise SSO provider registration, verified-domain routing, discovery policy, attribute mapping, JIT provisioning, organization membership provisioning, enforcement, and lifecycle. It does not own protocol wire handling, consumer social login, SCIM, generic identity UI, and persistence adapters. Those exclusions MUST remain
+outside its public API and dependency graph.
+
+## Required public contract
+
+The design MUST define Provider, Protocol, DomainRoute, DiscoveryPolicy, AttributeMapping, JITPolicy, MembershipPolicy, EnforcementPolicy, LoginTransaction, SessionIssuer, Repository, and Hook contracts. Public errors MUST be typed, stable,
+redacted, and useful for policy decisions without exposing enumeration or
+secret state. Zero values, clocks, randomness, identifier canonicalization,
+limits, and extension points MUST have explicit semantics.
+
+## Required behavior
+
+The implementation and tests MUST register and enable providers safely; verify domains before routing; resolve deterministic routing conflicts; map claims without privilege escalation; JIT provision atomically; enforce SSO without locking out recovery admins; disable and rotate providers; bind login transactions and organization scope. Every state transition MUST
+define authorization, audit, idempotency, cancellation, cleanup, and
+not-committed/committed/unknown outcomes where external or durable state is
+involved.
+
+## Security and abuse requirements
+
+- Inputs MUST be bounded before parsing, allocation, storage, hashing, or
+  cryptographic work.
+- Subject, tenant, organization, purpose, audience, action, and redirect scope
+  MUST be bound wherever applicable and MUST fail closed on mismatch.
+- Enumeration, replay, fixation, confused-deputy, downgrade, race, and
+  cross-scope attacks MUST have deterministic regression cases.
+- Logs, traces, metrics, examples, fixtures, and errors MUST preserve the
+  redaction requirements in `../COMMON_REQUIREMENTS.md`.
+
+## Persistence, lifecycle, and compatibility
+
+The core MUST remain adapter-neutral unless this goal is itself an adapter.
+State ownership, consistency, retention, deletion, migration, key rotation,
+clock skew, concurrent callers, shutdown, and recovery MUST be documented and
+tested where applicable. Unsupported protocol or deployment profiles MUST be
+stated rather than silently approximated.
+
+## Acceptance evidence
+
+Before this unit becomes `verified`, the owner MUST satisfy every common gate,
+the package-specific behavior above, the module's exact coverage and mutation
+gates, race/fuzz/interoperability gates that apply, clean-consumer proof,
+manifests, public API baseline, security and supply-chain checks, documentation,
+changelog, and changed reverse-dependant gates. The final evidence record MUST
+name any non-applicable gate with a reviewed reason; absence of infrastructure
+or provider access is a blocker, not a pass.
+
+## Release blockers
+
+The unit MUST remain `implemented-unverified` or `blocked` if any prerequisite
+is not `verified`, any ownership boundary is unresolved, a protocol claim
+lacks pinned specification and interoperability evidence, a durable transition
+has unhandled ambiguity, a secret can escape redaction, or any required gate is
+stale, skipped, warning-only, or failing.
