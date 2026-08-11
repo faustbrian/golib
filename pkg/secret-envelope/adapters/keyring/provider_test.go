@@ -100,6 +100,21 @@ func TestProviderRejectsInvalidKeyrings(t *testing.T) {
 	}
 }
 
+func TestProviderAcceptsDocumentedKeyringBounds(t *testing.T) {
+	t.Parallel()
+
+	keys := make(map[string][]byte, maximumKeys)
+	for index := range maximumKeys {
+		keys[fmt.Sprintf("key-%d", index)] = bytes.Repeat([]byte{1}, 32)
+	}
+	keys[strings.Repeat("k", maximumKeyReferenceSize)] = keys["key-0"]
+	delete(keys, "key-0")
+
+	if _, err := New(keys); err != nil {
+		t.Fatalf("New() at documented bounds returned error: %v", err)
+	}
+}
+
 func TestProviderRejectsInvalidRequests(t *testing.T) {
 	t.Parallel()
 
@@ -277,6 +292,50 @@ func TestProviderRedactsWrappingKeys(t *testing.T) {
 	}
 }
 
+func TestProviderUsesExactBoundedWireAllocations(t *testing.T) {
+	provider := newProvider(t)
+	provider.entropy = zeroReader{}
+	plaintext := bytes.Repeat([]byte{2}, secretenvelope.DataKeySize)
+	additionalData := []byte("bounded-context")
+	key := provider.keys["key-v1"]
+
+	wrapped, err := provider.wrap(
+		key,
+		"key-v1",
+		plaintext,
+		additionalData,
+	)
+	if err != nil {
+		t.Fatalf("wrap data key: %v", err)
+	}
+	if cap(wrapped) != len(wrapped) {
+		t.Fatalf("wrapped key capacity = %d, want exact size %d", cap(wrapped), len(wrapped))
+	}
+	allocations := testing.AllocsPerRun(100, func() {
+		candidate, wrapErr := provider.wrap(
+			key,
+			"key-v1",
+			plaintext,
+			additionalData,
+		)
+		if wrapErr != nil || len(candidate) != len(wrapped) {
+			t.Fatal("repeated wrapping did not preserve the bounded wire contract")
+		}
+	})
+	if allocations > 5 {
+		t.Fatalf("wrap allocations = %.0f, want at most 5", allocations)
+	}
+
+	authenticated := authenticatedData("key-v1", additionalData)
+	if cap(authenticated) != len(authenticated) {
+		t.Fatalf(
+			"authenticated data capacity = %d, want exact size %d",
+			cap(authenticated),
+			len(authenticated),
+		)
+	}
+}
+
 func dataKeyPlaintext(
 	t *testing.T,
 	provider *Provider,
@@ -327,6 +386,14 @@ func newContext(t *testing.T, owner string) secretenvelope.Context {
 }
 
 type errorReader struct{}
+
+type zeroReader struct{}
+
+func (zeroReader) Read(value []byte) (int, error) {
+	clear(value)
+
+	return len(value), nil
+}
 
 func (errorReader) Read([]byte) (int, error) {
 	return 0, errors.New("entropy unavailable")
