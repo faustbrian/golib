@@ -12,7 +12,7 @@ observed absence and recorded the expiry. Storage errors reject closed.
 Implementations must honor context cancellation and provide tenant-separated
 namespaces. The contract deliberately does not promise exactly-once handling.
 
-`adapters/goidempotency` maps this contract to a fail-closed
+`adapters/idempotency` maps this contract to a fail-closed
 `idempotency.Service` lease. Scope includes namespace, tenant, operation,
 caller, and the already-hashed replay value. A lease acquisition is new;
 retained, in-progress, replay, and conflict outcomes are replay rejection.

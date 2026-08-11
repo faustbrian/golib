@@ -140,6 +140,8 @@ documented in each module's changelog.
 
 ### Changed
 
+- Rename the unpublished webhook adapter packages to target-oriented
+  `idempotency`, `slog`, `outbox`, `queue`, and `otel` paths before v1.
 - Rename the unpublished outbox OpenTelemetry adapter to the target-oriented
   `outbox/adapters/otel` module path before v1.
 - Rename the unpublished event-sourcing outbox and queue adapters and the

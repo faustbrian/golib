@@ -1,5 +1,5 @@
-// Package goqueue adapts bounded delivery requests to queue messages.
-package goqueue
+// Package webhookqueue adapts bounded delivery requests to queue messages.
+package webhookqueue
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	webhook "github.com/faustbrian/golib/pkg/webhook"
 )
 
-var ErrInvalidConfig = errors.New("goqueue: invalid configuration")
+var ErrInvalidConfig = errors.New("webhook/queue: invalid configuration")
 
 // Queue is the narrow synchronous producer surface implemented by queue.
 type Queue interface {
@@ -58,7 +58,7 @@ func (a *Adapter) Enqueue(ctx context.Context, delivery webhook.DeliveryRequest)
 		return err
 	}
 	if err := a.queue.Queue(message(encoded), a.jobOptions...); err != nil {
-		return fmt.Errorf("goqueue: enqueue delivery: %w", err)
+		return fmt.Errorf("webhook/queue: enqueue delivery: %w", err)
 	}
 
 	return nil

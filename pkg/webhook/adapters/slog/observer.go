@@ -1,6 +1,6 @@
-// Package golog adapts secret-safe webhook observations to log's standard
+// Package webhookslog adapts secret-safe webhook observations to log's standard
 // slog surface.
-package golog
+package webhookslog
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	webhook "github.com/faustbrian/golib/pkg/webhook"
 )
 
-var ErrInvalidConfig = errors.New("golog: logger is required")
+var ErrInvalidConfig = errors.New("webhook/slog: logger is required")
 
 // Observer emits a fixed structured record. Its schema intentionally has no
 // payload, URL, header, event ID, key ID, signature, nonce, or raw error field.

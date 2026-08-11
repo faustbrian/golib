@@ -1,5 +1,5 @@
-// Package goidempotency adapts idempotency leases to webhook replay checks.
-package goidempotency
+// Package webhookidempotency adapts idempotency leases to webhook replay checks.
+package webhookidempotency
 
 import (
 	"context"
@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	ErrInvalidConfig = errors.New("goidempotency: invalid configuration")
-	ErrInvalidExpiry = errors.New("goidempotency: expiry must be in the future")
+	ErrInvalidConfig = errors.New("webhook/idempotency: invalid configuration")
+	ErrInvalidExpiry = errors.New("webhook/idempotency: expiry must be in the future")
 )
 
 // Config supplies the durable service and full collision scope.
@@ -90,7 +90,7 @@ func (s *Store) CheckAndRecord(ctx context.Context, value string, expiresAt time
 	}
 	key, err := idempotency.NewKey(s.namespace, s.tenant, s.operation, s.caller, value)
 	if err != nil {
-		return false, fmt.Errorf("goidempotency: replay key: %w", err)
+		return false, fmt.Errorf("webhook/idempotency: replay key: %w", err)
 	}
 	// The version is a non-empty compile-time protocol constant, so this
 	// constructor cannot fail after dependency contract validation.
@@ -104,7 +104,7 @@ func (s *Store) CheckAndRecord(ctx context.Context, value string, expiresAt time
 		Availability: idempotency.AvailabilityFailClosed,
 	})
 	if err != nil {
-		return false, fmt.Errorf("goidempotency: acquire replay lease: %w", err)
+		return false, fmt.Errorf("webhook/idempotency: acquire replay lease: %w", err)
 	}
 
 	return result.Execute, nil

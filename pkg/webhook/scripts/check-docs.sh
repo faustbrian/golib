@@ -6,7 +6,7 @@ do
     test -s "$file" || { echo "missing documentation: $file" >&2; exit 1; }
 done
 go doc -all . >/dev/null
-for package in ./adapters/goidempotency ./adapters/golog ./adapters/gotelemetry ./adapters/goqueue ./adapters/gooutbox ./webhooktest
+for package in ./adapters/idempotency ./adapters/slog ./adapters/otel ./adapters/queue ./adapters/outbox ./webhooktest
 do
     go doc -all "$package" >/dev/null
 done

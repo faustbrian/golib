@@ -1,6 +1,6 @@
-// Package gooutbox adapts webhook deliveries to outbox envelopes and relay
+// Package webhookoutbox adapts webhook deliveries to outbox envelopes and relay
 // publishers.
-package gooutbox
+package webhookoutbox
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	webhook "github.com/faustbrian/golib/pkg/webhook"
 )
 
-var ErrInvalidConfig = errors.New("gooutbox: invalid configuration")
+var ErrInvalidConfig = errors.New("webhook/outbox: invalid configuration")
 
 // Build encodes a bounded delivery request into a validated outbox envelope.
 func Build(
@@ -36,7 +36,7 @@ func Build(
 		IdempotencyKey: delivery.IdempotencyKey,
 	})
 	if err != nil {
-		return outbox.Envelope{}, fmt.Errorf("gooutbox: build envelope: %w", err)
+		return outbox.Envelope{}, fmt.Errorf("webhook/outbox: build envelope: %w", err)
 	}
 
 	return envelope, nil
@@ -65,7 +65,7 @@ func (p *Publisher) Publish(ctx context.Context, envelope outbox.Envelope) error
 		return err
 	}
 	if _, err := p.deliverer.DeliverOnce(ctx, delivery); err != nil {
-		return fmt.Errorf("gooutbox: publish delivery: %w", err)
+		return fmt.Errorf("webhook/outbox: publish delivery: %w", err)
 	}
 
 	return nil

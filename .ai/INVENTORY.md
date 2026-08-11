@@ -848,6 +848,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Observed | 2026-08-11T17:50:41Z |
 | Gaps | NilAway remains advisory with pre-existing test-helper diagnostics; conformance is cataloged as not applicable. The accelerated soak proves its explicit deterministic workload and does not claim wall-clock production uptime. No mandatory workflow goal gap remains. |
 
+### Webhook adapter naming evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | Repository normalization goal, Phase 2 target-oriented package naming and Phase 8 hardening contract. |
+| Scope | The `pkg/webhook` adapter packages renamed from implementation-oriented `go*` labels to `idempotency`, `slog`, `outbox`, `queue`, and `otel`, including package identifiers, errors, API baseline, documentation, and the idempotency ecosystem consumer contract. |
+| Status | Naming debt resolved and the affected module reverified. |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/webhook`, `./scripts/run-modules.sh test --jobs 1 --modules pkg/idempotency/compatibility/ecosystem`, and `./scripts/run-modules.sh docs --jobs 1 --modules pkg/idempotency`. |
+| Result | Every mandatory webhook gate passed with exact 970/970 production statements and 463/463 viable mutants killed, plus race, six 10,000-execution fuzz targets, conformance, interoperability, API, documentation, security, supply-chain, and benchmark gates. The renamed idempotency consumer contract and adoption documentation also passed their affected gates. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; Python standard-library interoperability fixture; no external services. |
+| Observed | 2026-08-11T19:12:40Z |
+| Gaps | NilAway remains advisory and reported pre-existing constructor-result diagnostics; no mandatory affected gate remains unresolved. |
+
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
 or explicit audit finding moves them to `pending-reexecution` or

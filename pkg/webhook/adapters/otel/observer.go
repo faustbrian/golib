@@ -1,6 +1,6 @@
-// Package gotelemetry adapts secret-safe webhook observations to the
+// Package webhookotel adapts secret-safe webhook observations to the
 // telemetry runtime.
-package gotelemetry
+package webhookotel
 
 import (
 	"context"
@@ -14,9 +14,9 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-const scopeName = "github.com/faustbrian/golib/pkg/webhook/adapters/gotelemetry"
+const scopeName = "github.com/faustbrian/golib/pkg/webhook/adapters/otel"
 
-var ErrInvalidConfig = errors.New("gotelemetry: telemetry runtime is required")
+var ErrInvalidConfig = errors.New("webhook/otel: telemetry runtime is required")
 
 // Observer records one bounded counter and duration measurement per webhook
 // observation and adds an event to an already-active span. It never creates

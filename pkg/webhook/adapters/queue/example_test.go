@@ -1,4 +1,4 @@
-package goqueue_test
+package webhookqueue_test
 
 import (
 	"context"
@@ -8,12 +8,12 @@ import (
 	"github.com/faustbrian/golib/pkg/queue/core"
 	"github.com/faustbrian/golib/pkg/queue/job"
 	webhook "github.com/faustbrian/golib/pkg/webhook"
-	"github.com/faustbrian/golib/pkg/webhook/adapters/goqueue"
+	"github.com/faustbrian/golib/pkg/webhook/adapters/queue"
 )
 
 func ExampleAdapter_Enqueue() {
 	queue := &fixtureQueue{}
-	adapter, _ := goqueue.New(goqueue.Config{Queue: queue, MaxMessageBytes: 4096})
+	adapter, _ := webhookqueue.New(webhookqueue.Config{Queue: queue, MaxMessageBytes: 4096})
 	endpoint, _ := url.Parse("https://receiver.example/hooks")
 	_ = adapter.Enqueue(context.Background(), webhook.DeliveryRequest{
 		Endpoint: endpoint, Body: []byte(`{"order":123}`),

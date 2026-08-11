@@ -13,6 +13,8 @@ public API reaches its first stable version.
 
 ### Changed
 
+- Update the webhook ecosystem contract and adoption guide to the canonical
+  `webhook/adapters/idempotency` package path.
 - Refresh the ecosystem compatibility dependency graph for the patched gRPC
   release selected by telemetry.
 - Pinned unpublished owned `clock` and `migrations` dependencies to resolvable

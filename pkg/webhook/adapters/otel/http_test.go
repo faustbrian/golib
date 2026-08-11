@@ -1,4 +1,4 @@
-package gotelemetry
+package webhookotel
 
 import (
 	"context"

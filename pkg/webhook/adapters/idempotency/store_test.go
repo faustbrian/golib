@@ -1,4 +1,4 @@
-package goidempotency
+package webhookidempotency
 
 import (
 	"context"

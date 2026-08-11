@@ -162,6 +162,11 @@ specialist work has finished:
 | `rule-engine/adapters/gomeasurement` | `rule-engine/adapters/measurement` | Resolved before v1; no tags or Track, Postal, Location, Mono, or API consumers used the old path. |
 | `rule-engine/adapters/gotemporal` | `rule-engine/adapters/temporal` | Resolved before v1; no tags or Track, Postal, Location, Mono, or API consumers used the old path. |
 | `authentication/authotel` | `authentication/adapters/otel` | Layout debt |
+| `webhook/adapters/goidempotency` | `webhook/adapters/idempotency` | Resolved before v1; no published tag depended on the old path. |
+| `webhook/adapters/golog` | `webhook/adapters/slog` | Resolved before v1; no published tag depended on the old path. |
+| `webhook/adapters/gooutbox` | `webhook/adapters/outbox` | Resolved before v1; no published tag depended on the old path. |
+| `webhook/adapters/goqueue` | `webhook/adapters/queue` | Resolved before v1; no published tag depended on the old path. |
+| `webhook/adapters/gotelemetry` | `webhook/adapters/otel` | Resolved before v1; no published tag depended on the old path. |
 
 `cloudevents/adapters/golib` is not target-oriented. It spans several Golib
 contracts and must either be decomposed by actual target or retain a documented

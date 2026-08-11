@@ -75,7 +75,7 @@ from committing late.
 
 ## `webhook` replay store
 
-`webhook/adapters/goidempotency` implements its exact `webhook.ReplayStore`
+`webhook/adapters/idempotency` implements its exact `webhook.ReplayStore`
 contract with durable leases from this package:
 
 ```go

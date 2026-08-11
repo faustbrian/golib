@@ -1,4 +1,4 @@
-package gooutbox
+package webhookoutbox
 
 import (
 	"context"

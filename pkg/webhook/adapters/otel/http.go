@@ -1,4 +1,4 @@
-package gotelemetry
+package webhookotel
 
 import (
 	"errors"
@@ -10,7 +10,7 @@ import (
 
 // ErrInvalidHTTPClient means telemetry could not be composed without
 // discarding the caller's explicit transport policy.
-var ErrInvalidHTTPClient = errors.New("gotelemetry: runtime, client, and explicit transport are required")
+var ErrInvalidHTTPClient = errors.New("webhook/otel: runtime, client, and explicit transport are required")
 
 // InstrumentHTTPClient clones client and wraps its existing transport with
 // telemetry tracing, metrics, and propagation. Requiring an explicit base

@@ -11,8 +11,8 @@ ownership supplied by `NewSecureHTTPClient`.
 
 ## Queue and outbox
 
-`adapters/goqueue` encodes a bounded versioned delivery and defaults queue
-retry count to zero. Its handler performs one attempt. `adapters/gooutbox`
+`adapters/queue` encodes a bounded versioned delivery and defaults queue
+retry count to zero. Its handler performs one attempt. `adapters/outbox`
 builds an outbox envelope and its publisher likewise performs one attempt.
 Durable settlement, visibility, retries, and dead lettering remain owned by
 those systems.
@@ -25,11 +25,11 @@ metric or trace backend without adding event ID, URL, host, query, payload,
 signature, key ID, header, or raw error attributes.
 
 For `telemetry`, pass its initialized runtime to
-`adapters/gotelemetry.New`. The adapter records fixed metrics and adds an event
+`adapters/otel.New`. The adapter records fixed metrics and adds an event
 to the current span. `InstrumentHTTPClient` clones an existing explicit client
 and wraps its transport with tracing, metrics, and W3C propagation; use the
 client returned by `NewSecureHTTPClient` so SSRF and redirect policy remain the
-base transport. `adapters/golog.New` accepts the `*slog.Logger` returned by
+base transport. `adapters/slog.New` accepts the `*slog.Logger` returned by
 `log` and emits only the fixed observation schema. Its redaction handler is
 still recommended as defense in depth. Disabled telemetry is a nil `Observer`
 and has no business-path dependency.

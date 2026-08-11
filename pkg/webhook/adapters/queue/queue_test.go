@@ -1,4 +1,4 @@
-package goqueue
+package webhookqueue
 
 import (
 	"context"

@@ -12,6 +12,9 @@ and Semantic Versioning.
 
 ### Changed
 
+- Rename the unpublished adapter packages to target-oriented `idempotency`,
+  `slog`, `outbox`, `queue`, and `otel` paths with unambiguous `webhook*`
+  package identifiers.
 - Declare the unresolved-decision inventory explicitly so repository
   specification governance fails closed on any future open interpretation.
 - Link the specification source matrix directly to the canonical decision

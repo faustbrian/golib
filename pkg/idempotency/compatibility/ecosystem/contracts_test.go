@@ -22,7 +22,7 @@ import (
 	queuecore "github.com/faustbrian/golib/pkg/queue/core"
 	telemetry "github.com/faustbrian/golib/pkg/telemetry"
 	webhook "github.com/faustbrian/golib/pkg/webhook"
-	webhookidempotency "github.com/faustbrian/golib/pkg/webhook/adapters/goidempotency"
+	webhookidempotency "github.com/faustbrian/golib/pkg/webhook/adapters/idempotency"
 )
 
 func TestPublishedEcosystemContractsCompile(t *testing.T) {

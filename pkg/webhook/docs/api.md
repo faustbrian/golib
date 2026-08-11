@@ -11,7 +11,7 @@ records. Adapter packages integrate durable replay, logging, telemetry, queue,
 and outbox seams. `webhooktest` provides deterministic consumer fixtures.
 
 All exported declarations have Go documentation; run `go doc -all .` and
-`go doc -all ./adapters/goidempotency` (similarly for other adapters) for the
+`go doc -all ./adapters/idempotency` (similarly for other adapters) for the
 complete generated reference.
 
 `NonceGenerator`, clocks, delivery IDs, sleeps, and resolvers are injectable.
