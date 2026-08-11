@@ -55,6 +55,17 @@ Adapters must state one of these levels for each direction:
 3. **Loss reported**: every unrepresentable or collided field is listed and the
    caller decides whether to proceed.
 
+Core JSON, batch, HTTP, and Kafka encoders use the same rule. `EncodeJSON`,
+`EncodeJSONBatch`, `EncodeHTTP`, and `EncodeKafka` reject implicit changes with
+`ErrConversionLoss`. Their `Encode*WithReport` variants return a deterministic
+`ConversionReport` when a caller explicitly accepts a target-format
+normalization or metadata materialization. Present JSON, text, and binary data
+without a declared content type materialize `application/json`, `text/plain`,
+and `application/octet-stream`, respectively, when a binding needs that value
+to preserve the runtime data kind. An explicit content type that contradicts
+the runtime data kind is also a reported loss and is rejected by strict
+encoding.
+
 No adapter may claim an exact round trip when it reassigns an ID, substitutes a
 timestamp, infers a schema, coerces data kinds, overwrites reserved metadata,
 or drops transport or canonical-envelope state.

@@ -370,7 +370,7 @@ func TestInteroperabilityCatalogMetadata(t *testing.T) {
 	}{
 		{directory: "pkg/cloudevents", want: []string{
 			"cloudevents/sdk-go v2.16.2",
-			"cloudevents/sdk-javascript v10.0.0 on Node.js 24.13.0",
+			"cloudevents/sdk-javascript v10.0.0 on Node.js 24.19.0",
 		}},
 		{directory: "pkg/ecma-regexp", want: []string{"Node.js", "Test262"}},
 		{directory: "pkg/wsdl", want: []string{"Java", "Apache Woden"}},

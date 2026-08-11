@@ -45,7 +45,7 @@ fields. The compiling example in `example_test.go` shows the complete imports.
 | outbox | envelope to/from CloudEvent | Golib mapping, not an official binding; relay state remains out of band |
 | queue | job to/from CloudEvent | Golib mapping, not an official binding; callbacks, retry, settlement, and operational metadata remain out of band |
 | Kafka | producer/consumed record to/from official binding | CloudEvents headers/value use the parent binding; topic, partition, offset, timestamp, and non-CloudEvents headers remain transport-owned |
-| workflow | history event to/from CloudEvent | caller supplies the stable CloudEvents ID; durable workflow state remains retained |
+| workflow | history event to/from CloudEvent | caller supplies the stable CloudEvents ID; durable workflow state, including `DataWasNil`, remains retained |
 | correlation and tenancy | attach/extract | tenant extraction requires present, valid metadata and an explicit trust decision; tenant identity is not authorization |
 | telemetry | inject/extract | delegates W3C propagation to a caller-configured Golib policy; baggage is reported as loss |
 | audit | attach/extract selected metadata | never reconstructs or replaces the canonical audit record |
@@ -69,16 +69,31 @@ the retained envelope and CloudEvent contain the same malformed value.
 `Report.Losses` names every portable field deliberately not represented by the
 target. A successful conversion does not imply an exact CloudEvents round trip
 unless its adapter row above says so and the retained state is supplied back.
+For canonical event-sourcing and queue fields emitted by the forward mapping,
+the reverse mapping requires every non-empty retained portable value to remain
+present and equal; deletion is a metadata collision rather than an implicit
+fallback to retained state.
 
 ## Schema validation and cancellation
 
 `JSONSchemaValidator` accepts one already compiled Golib JSON Schema and an
-exact schema URI. `RegistryJSONSchemaValidator` additionally requires an
-explicit URI-to-lookup function, resolver, and JSON Schema adapter. Merely
-receiving, decoding, or converting an event never invokes either validator.
-Registry and validation errors preserve cancellation and resolver errors for
-caller policy while using `ErrSchemaMapping` and `ErrSchemaViolation` for
-stable classification.
+exact schema URI. `RegistryJSONSchemaValidator` is constructed with a bounded
+`ResolveCache`, a static `dataschema` URI-to-lookup map, a JSON Schema adapter,
+an explicit availability policy, and a positive timeout. Construction clones
+the map, so later caller mutation cannot redirect resolution. An unmapped URI
+fails before the cache or resolver is called; event-controlled schema values
+therefore cannot choose a provider endpoint or registry key.
+
+The derived timeout context is passed through cached resolution, schema
+compilation, and payload validation, and preserves an earlier caller
+cancellation or deadline. The configured cache owns concurrency, capacity,
+freshness, staleness, and negative-result policy.
+Provider endpoints, credentials, TLS, registry trust, and lookup construction
+remain caller-owned and must not be derived from event data. Merely receiving,
+decoding, or converting an event never invokes either validator. Registry and
+validation errors preserve cancellation and resolver errors for caller policy
+while using `ErrSchemaMapping` and `ErrSchemaViolation` for stable local
+classification.
 
 ## Concurrency and ownership
 
@@ -96,6 +111,15 @@ domain, event-store, outbox, queue, workflow, audit, and transport envelopes as
 the source of truth. During migration, persist or carry the returned retained
 state before replacing any bespoke envelope mapping, and reject unexpected
 losses or collisions explicitly.
+
+Registry-backed validation now requires construction instead of an exported
+field literal. Replace `RegistryJSONSchemaValidator{Resolver: ..., Adapter: ...,
+Lookup: ...}` with `NewRegistryJSONSchemaValidator(RegistryJSONSchemaConfig{...})`.
+Move the former lookup callback's accepted URIs into `SchemaLookups`, wrap the
+resolver in a bounded `ResolveCache`, and select an availability policy and
+positive timeout explicitly. Construction can fail with `ErrSchemaMapping`, so
+initialize the validator during application wiring rather than while handling
+an event.
 
 Do not use this module as an event bus, broker, store, dispatcher, schema
 registry, workflow engine, audit log, tenant authorization mechanism, or

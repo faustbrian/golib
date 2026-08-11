@@ -75,7 +75,7 @@ func TestGolibOutboxAndQueueMappingsRetainUnrepresentableState(t *testing.T) {
 		t.Fatalf("outbox mapping = %#v, %v", report, err)
 	}
 	roundTrip, reverseReport, err := golib.CloudEventToOutbox(event, state)
-	if err != nil || len(reverseReport.Losses) != 3 || !bytes.Equal(roundTrip.CanonicalJSON(), envelope.CanonicalJSON()) {
+	if err != nil || len(reverseReport.Losses) != 4 || !bytes.Equal(roundTrip.CanonicalJSON(), envelope.CanonicalJSON()) {
 		t.Fatalf("outbox round trip = %#v, %#v, %v", roundTrip, reverseReport, err)
 	}
 

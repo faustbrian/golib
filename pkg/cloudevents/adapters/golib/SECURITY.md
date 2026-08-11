@@ -24,11 +24,27 @@ trace context, audit contents, or registry responses in a public issue.
 
 ## Resource and I/O boundary
 
-The adapter starts no goroutines, registers no globals, and performs no broker,
-schema-registry, or network operation. Kafka decoding uses caller-selected
-CloudEvents limits. Schema-registry resolution happens only when a caller
-explicitly invokes validation with a configured resolver and context.
+The adapter starts no goroutines, registers no globals, and performs no broker
+operation. Kafka decoding uses caller-selected CloudEvents limits. Core event
+receipt, decode, and conversion perform no schema-registry or network I/O.
+Schema-registry resolution happens only when a caller explicitly invokes
+validation with a constructed registry validator.
+
+Registry validation uses an immutable snapshot of an exact `dataschema`
+URI-to-lookup allowlist, a caller-configured bounded cache, an explicit
+availability policy, and a required timeout. Unmapped event-controlled URIs
+fail before resolution, so they cannot select a network target. The caller owns
+provider endpoints, credentials, TLS, registry trust, lookup construction,
+cache sizing and freshness, and schema compiler limits; none may be derived
+from untrusted event data.
 
 Callers must bound transport records before constructing canonical Golib
 values, configure schema compiler and registry limits, honor cancellation, and
-avoid logging adapter errors together with secret-bearing payloads.
+avoid logging adapter errors together with secret-bearing payloads or registry
+credentials.
+
+The module-wide [security, privacy, and observability review](../../docs/security-review.md)
+defines the allowed emission, redaction, baggage, and metric-cardinality policy
+for CloudEvents fields, Golib metadata, payloads, and transport state. The
+adapter itself creates no logs, spans, baggage, or metrics; downstream
+consumers must apply that policy when handling returned values and errors.

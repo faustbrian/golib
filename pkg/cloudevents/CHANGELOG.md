@@ -20,6 +20,31 @@ versioning once released.
   ownership, interoperability, and benchmark coverage.
 - Bidirectional Go and JavaScript SDK interoperability fixtures for JSON,
   batch, HTTP, Kafka, tracing, partitioning, and unknown extensions.
+- Strict and loss-aware JSON, batch, HTTP, and Kafka encoders with deterministic
+  reports for metadata materialization, abstract extension-type normalization,
+  and unrepresentable JSON payload whitespace.
+- Requirement-level normative and explicit unsupported-surface matrices,
+  archived official-kit report, and checksum-pinned task-owned Node.js runtime
+  for independent JavaScript interoperability.
+
+### Changed
+
+- Preserve declared JSON payload bytes across structured JSON, HTTP, Kafka, and
+  batch round trips instead of compacting payloads during encoding.
+- Assert complete JavaScript SDK consumer context, extension, and semantic
+  payload results, including its explicit HTTP timestamp, null, empty-data, and
+  default-content-type normalizations.
+- Reject or ignore hostile HTTP headers without lowercasing unbounded unowned
+  names; CloudEvents attribute-name limits are enforced before case folding.
+- Treat `text/*` binary HTTP and Kafka payloads as text data, and require an
+  explicit loss report whenever encoding must materialize `application/json`,
+  `text/plain`, or `application/octet-stream` to preserve a runtime data kind.
+- Reject explicit content-type and data-kind conflicts from strict JSON, HTTP,
+  and Kafka encoders instead of allowing a later decoder to reinterpret or
+  reject the payload.
+- Compare official Go SDK decoding against the same canonical byte corpus and
+  retain provider-specific interoperability conflicts as explicit results,
+  including `SetData(nil)` normalization to absent data.
 
 ### Security
 
@@ -30,3 +55,7 @@ versioning once released.
 - Reject duplicate and conflicting metadata, invalid Unicode, malformed URI
   values, invalid media types, and non-canonical base64.
 - Reject non-ASCII distributed-tracing `tracestate` values.
+- Apply the configured attribute-value limit to unknown JSON extensions before
+  retaining decoded metadata.
+- Bound HTTP `Content-Type` before media-type parsing and reject excess or
+  duplicate binding metadata before retaining decoded attributes.

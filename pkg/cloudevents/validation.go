@@ -55,15 +55,12 @@ func validateAttributes(attributes Attributes) error {
 	}
 	for name, attribute := range attributes.Extensions {
 		field := "extensions." + name
-		if !validAttributeName(name) {
+		switch {
+		case !validAttributeName(name):
 			issues = append(issues, Issue{Field: field, Code: IssueInvalidName})
-			continue
-		}
-		if _, reserved := reservedAttributeNames[name]; reserved {
+		case isReservedAttributeName(name):
 			issues = append(issues, Issue{Field: field, Code: IssueReservedName})
-			continue
-		}
-		if !validAttribute(attribute) {
+		case !validAttribute(attribute):
 			issues = append(issues, Issue{Field: field, Code: IssueInvalidAttribute})
 		}
 	}
@@ -93,6 +90,11 @@ func validateAttributes(attributes Attributes) error {
 		return strings.Compare(string(left.Code), string(right.Code))
 	})
 	return &ValidationError{issues: issues}
+}
+
+func isReservedAttributeName(name string) bool {
+	_, reserved := reservedAttributeNames[name]
+	return reserved
 }
 
 func validAttribute(attribute Attribute) bool {

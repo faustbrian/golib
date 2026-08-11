@@ -98,5 +98,7 @@ func cloneBytes(value []byte) []byte {
 	if value == nil {
 		return nil
 	}
-	return append([]byte(nil), value...)
+	cloned := make([]byte, len(value))
+	copy(cloned, value)
+	return cloned
 }

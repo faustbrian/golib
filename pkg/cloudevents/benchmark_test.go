@@ -1,6 +1,7 @@
 package cloudevents
 
 import (
+	"bytes"
 	"encoding/json"
 	"testing"
 
@@ -8,37 +9,25 @@ import (
 )
 
 func BenchmarkJSONEquivalentEvent(b *testing.B) {
-	payload := map[string]any{"order": "A-123", "amount": 42}
-	data, err := json.Marshal(payload)
+	canonical := []byte(`{"specversion":"1.0","id":"1","source":"/orders","type":"com.example.order","datacontenttype":"application/json","data":{"amount":42,"order":"A-123"}}`)
+	golibEvent, err := DecodeJSON(canonical, DefaultLimits())
 	if err != nil {
 		b.Fatal(err)
 	}
-	golibData, err := NewJSONData(data)
-	if err != nil {
+	var sdkEvent sdkevent.Event
+	if err := json.Unmarshal(canonical, &sdkEvent); err != nil {
 		b.Fatal(err)
 	}
-	golibEvent, err := NewEvent(Attributes{
-		ID: "1", Source: "/orders", Type: "com.example.order", DataContentType: "application/json",
-	}, golibData)
-	if err != nil {
-		b.Fatal(err)
+	if err := sdkEvent.Validate(); err != nil {
+		b.Fatalf("SDK rejected shared canonical corpus: %v", err)
 	}
-	sdkEvent := sdkevent.New()
-	sdkEvent.SetID("1")
-	sdkEvent.SetSource("/orders")
-	sdkEvent.SetType("com.example.order")
-	if err := sdkEvent.SetData("application/json", payload); err != nil {
-		b.Fatal(err)
+	golibContentType, present := golibEvent.DataContentType()
+	if golibEvent.SpecVersion() != sdkEvent.SpecVersion() || golibEvent.ID() != sdkEvent.ID() ||
+		golibEvent.Source() != sdkEvent.Source() || golibEvent.Type() != sdkEvent.Type() ||
+		!present || golibContentType != sdkEvent.DataContentType() ||
+		!bytes.Equal(golibEvent.Data().Bytes(), sdkEvent.Data()) {
+		b.Fatalf("implementations decoded different events from the shared canonical corpus")
 	}
-	golibEncoded, err := EncodeJSON(golibEvent)
-	if err != nil {
-		b.Fatal(err)
-	}
-	sdkEncoded, err := json.Marshal(sdkEvent)
-	if err != nil {
-		b.Fatal(err)
-	}
-
 	b.Run("encode/golib", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
@@ -58,7 +47,7 @@ func BenchmarkJSONEquivalentEvent(b *testing.B) {
 	b.Run("decode/golib", func(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
-			if _, err := DecodeJSON(golibEncoded, DefaultLimits()); err != nil {
+			if _, err := DecodeJSON(canonical, DefaultLimits()); err != nil {
 				b.Fatal(err)
 			}
 		}
@@ -67,7 +56,7 @@ func BenchmarkJSONEquivalentEvent(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			var event sdkevent.Event
-			if err := json.Unmarshal(sdkEncoded, &event); err != nil {
+			if err := json.Unmarshal(canonical, &event); err != nil {
 				b.Fatal(err)
 			}
 		}

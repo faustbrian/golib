@@ -35,8 +35,23 @@ func TestAuditMetadataAdapterSelectsSafeFieldsAndRequiresTrust(t *testing.T) {
 		t.Fatal(err)
 	}
 	event, report, err := golib.AddAuditMetadata(baseEvent(t), record)
-	if err != nil || len(report.Losses) == 0 {
+	if err != nil {
 		t.Fatalf("add audit metadata = %#v, %v", report, err)
+	}
+	wantLosses := []string{
+		"audit.occurred_at", "audit.recorded_at", "audit.reason_code", "audit.description",
+		"audit.actor", "audit.subject", "audit.context.request_id", "audit.context.trace_id",
+		"audit.context.idempotency_id", "audit.context.source_service", "audit.context.source_version",
+		"audit.context.environment", "audit.context.network_origin", "audit.context.user_agent",
+		"audit.changes", "audit.policy", "audit.integrity", "audit.attributes", "audit.redaction_applied",
+	}
+	if len(report.Losses) != len(wantLosses) {
+		t.Fatalf("audit losses = %#v, want fields %#v", report.Losses, wantLosses)
+	}
+	for index, want := range wantLosses {
+		if report.Losses[index].Field != want {
+			t.Fatalf("audit loss %d = %#v, want %q", index, report.Losses[index], want)
+		}
 	}
 	if _, err := golib.ExtractAuditMetadata(event, false); !errors.Is(err, golib.ErrUntrustedMetadata) {
 		t.Fatalf("untrusted audit metadata error = %v", err)
@@ -52,6 +67,24 @@ func TestAuditMetadataAdapterSelectsSafeFieldsAndRequiresTrust(t *testing.T) {
 		if _, present := event.Extension(name); !present {
 			t.Fatalf("audit context extension %s is absent", name)
 		}
+	}
+}
+
+func TestAuditMetadataRoundTripAllowsAbsentTenant(t *testing.T) {
+	t.Parallel()
+
+	record := auditRecord(t)
+	event, _, err := golib.AddAuditMetadata(baseEvent(t), record)
+	if err != nil {
+		t.Fatal(err)
+	}
+	metadata, err := golib.ExtractAuditMetadata(event, true)
+	if err != nil {
+		t.Fatalf("extract tenantless audit metadata: %v", err)
+	}
+	if metadata.RecordID != record.ID() || metadata.Action != record.Action() ||
+		metadata.Outcome != record.Outcome() || metadata.Tenant.Value() != "" {
+		t.Fatalf("tenantless audit metadata = %#v", metadata)
 	}
 }
 
@@ -97,16 +130,18 @@ func TestSchemaAdaptersAreExplicitAndRegistryLookupIsCallerMapped(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	resolver := resolverStub{result: schemaregistry.ResolveResult{Schema: registrySchema}}
-	registry := golib.RegistryJSONSchemaValidator{
-		Resolver: &resolver, Adapter: canonicalizer,
-		Lookup: func(uri string) (schemaregistry.Lookup, error) {
-			if uri != "https://schemas.example/order.json" {
-				return schemaregistry.Lookup{}, errors.New("unknown URI")
-			}
-			return schemaregistry.Latest(schemaregistry.Subject{Name: "orders"}), nil
+	subject := schemaregistry.Subject{Name: "orders"}
+	resolver := resolverStub{result: schemaregistry.ResolveResult{
+		Schema: registrySchema, ID: schemaregistry.ProviderID{Provider: "test", Value: "orders-v1"},
+		Subject: subject, Version: schemaregistry.Version{Number: 1}, Lifecycle: schemaregistry.LifecycleAvailable,
+	}}
+	registry := newSchemaHardeningValidator(t, golib.RegistryJSONSchemaConfig{
+		Cache: newSchemaHardeningCache(t, &resolver),
+		SchemaLookups: map[string]schemaregistry.Lookup{
+			"https://schemas.example/order.json": schemaregistry.Latest(subject),
 		},
-	}
+		Adapter: canonicalizer, AvailabilityPolicy: schemaregistry.FailClosed, Timeout: time.Second,
+	})
 	if err := cloudevents.ValidateSchema(ctx, valid, registry); err != nil || resolver.calls != 1 {
 		t.Fatalf("registry validation = calls %d, %v", resolver.calls, err)
 	}

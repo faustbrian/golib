@@ -3,6 +3,7 @@ package cloudevents
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"net/http"
 	"testing"
 )
@@ -28,6 +29,45 @@ func FuzzDecodeJSON(f *testing.F) {
 		}
 		if _, err := DecodeJSON(encoded, limits); err != nil {
 			t.Fatalf("DecodeJSON(re-encoded event) error = %v", err)
+		}
+	})
+}
+
+func FuzzDecodeJSONBatch(f *testing.F) {
+	f.Add([]byte(`[]`))
+	f.Add([]byte(`[
+		{"specversion":"1.0","id":"1","source":"/source","type":"example","data":null},
+		{"specversion":"1.0","id":"2","source":"/source","type":"example","data_base64":"AAE="}
+	]`))
+	f.Add([]byte(`[{"specversion":"1.0","id":"1","source":"/source","type":"example"},null]`))
+	limits := DefaultLimits()
+	limits.MaxEventBytes = 64 << 10
+	limits.MaxDataBytes = 64 << 10
+	f.Fuzz(func(t *testing.T, value []byte) {
+		if int64(len(value)) > limits.MaxEventBytes {
+			t.Skip()
+		}
+		events, err := DecodeJSONBatch(value, limits)
+		if err != nil {
+			return
+		}
+		var rawEvents []json.RawMessage
+		if err := json.Unmarshal(value, &rawEvents); err != nil {
+			t.Fatalf("successful batch decode rejected by encoding/json: %v", err)
+		}
+		if len(events) != len(rawEvents) {
+			t.Fatalf("decoded batch event count = %d, want %d", len(events), len(rawEvents))
+		}
+		encoded, err := EncodeJSONBatch(events)
+		if err != nil {
+			t.Fatalf("EncodeJSONBatch(decoded batch) error = %v", err)
+		}
+		roundTrip, err := DecodeJSONBatch(encoded, limits)
+		if err != nil {
+			t.Fatalf("DecodeJSONBatch(re-encoded batch) error = %v", err)
+		}
+		if len(roundTrip) != len(events) {
+			t.Fatalf("re-encoded batch event count = %d, want %d", len(roundTrip), len(events))
 		}
 	})
 }

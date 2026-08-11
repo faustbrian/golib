@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -47,9 +48,9 @@ func TestEncodeHTTPRejectsUnsupportedCountsAndMapsOptionalBinaryFields(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	header, body, err := EncodeHTTP([]Event{event}, BinaryMode)
-	if err != nil {
-		t.Fatal(err)
+	header, body, report, err := EncodeHTTPWithReport([]Event{event}, BinaryMode)
+	if err != nil || len(report.Losses) != 1 || report.Losses[0].Field != "datacontenttype" {
+		t.Fatalf("binary report = %#v, %v", report, err)
 	}
 	if header.Get("Content-Type") != "application/json" || header.Get("Ce-Dataschema") == "" ||
 		header.Get("Ce-Subject") != "subject" || header.Get("Ce-Time") == "" ||
@@ -73,6 +74,116 @@ func TestHTTPAttributeEncodingPreservesAndEscapesExactOctetBoundaries(t *testing
 	value := string([]byte{0x21, 0x7e, 0x20, '"', '%', 0x7f})
 	if got := encodeHTTPAttribute(value); got != "!~%20%22%25%7F" {
 		t.Fatalf("encodeHTTPAttribute() = %q", got)
+	}
+}
+
+func TestDecodeHTTPBoundsContentTypeAndRejectsDuplicateHeadersWithoutCopying(t *testing.T) {
+	limits := DefaultLimits()
+	limits.MaxAttributeValueBytes = len(JSONMediaType)
+	oversizedContentType := strings.Repeat("a", 1<<20)
+	duplicateValues := make([]string, 1<<16)
+	for index := range duplicateValues {
+		duplicateValues[index] = "1"
+	}
+
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	for _, header := range []http.Header{
+		{"Content-Type": {oversizedContentType}},
+		{"Content-Type": {"application/octet-stream"}, "Ce-Id": duplicateValues},
+	} {
+		if _, err := DecodeHTTP(context.Background(), header, nil, limits); !errors.Is(err, ErrLimitExceeded) &&
+			!errors.Is(err, ErrInvalidEvent) {
+			t.Fatalf("hostile header error = %v", err)
+		}
+	}
+	runtime.ReadMemStats(&after)
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 256<<10 {
+		t.Fatalf("hostile header allocation = %d bytes, want at most %d", allocated, 256<<10)
+	}
+}
+
+func TestDecodeHTTPIgnoresOversizedUnownedHeaderNamesWithoutAllocating(t *testing.T) {
+	hugeName := strings.Repeat("X", 1<<20)
+	structuredBody := `{"specversion":"1.0","id":"1","source":"/source","type":"example"}`
+	cases := []struct {
+		header http.Header
+		body   string
+	}{
+		{
+			header: http.Header{
+				hugeName:         {"ignored"},
+				"Ce-Specversion": {specVersion},
+				"Ce-Id":          {"1"},
+				"Ce-Source":      {"/source"},
+				"Ce-Type":        {"example"},
+			},
+		},
+		{
+			header: http.Header{hugeName: {"ignored"}, "Content-Type": {JSONMediaType}},
+			body:   structuredBody,
+		},
+		{
+			header: http.Header{hugeName: {"ignored"}, "Content-Type": {JSONBatchMediaType}},
+			body:   "[]",
+		},
+	}
+
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	for _, test := range cases {
+		if _, err := DecodeHTTP(context.Background(), test.header, strings.NewReader(test.body), DefaultLimits()); err != nil {
+			t.Fatalf("unowned hostile header error = %v", err)
+		}
+	}
+	runtime.ReadMemStats(&after)
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 256<<10 {
+		t.Fatalf("unowned hostile header allocation = %d bytes, want at most %d", allocated, 256<<10)
+	}
+}
+
+func TestHTTPPreflightDistinguishesExactHeaderBoundaries(t *testing.T) {
+	t.Parallel()
+
+	limits := DefaultLimits()
+	mode, contentType, err := detectHTTPMode(http.Header{"Content-Type": {""}}, limits)
+	if err != nil || mode != BinaryMode || contentType != "" {
+		t.Fatalf("empty content type = mode %v, value %q, error %v", mode, contentType, err)
+	}
+
+	limits.MaxAttributeValueBytes = len(JSONMediaType)
+	mode, contentType, err = detectHTTPMode(http.Header{"Content-Type": {JSONMediaType}}, limits)
+	if err != nil || mode != StructuredMode || contentType != JSONMediaType {
+		t.Fatalf("exact content type limit = mode %v, value %q, error %v", mode, contentType, err)
+	}
+	limits.MaxAttributeValueBytes--
+	if _, _, err := detectHTTPMode(http.Header{"Content-Type": {JSONMediaType}}, limits); !errors.Is(err, ErrLimitExceeded) {
+		t.Fatalf("over-limit content type error = %v", err)
+	}
+
+	value, count := singleHeaderValue(http.Header{
+		"Content-Type": {JSONMediaType, JSONMediaType},
+	}, "Content-Type")
+	if value != "" || count != 2 {
+		t.Fatalf("duplicate content type = value %q, count %d", value, count)
+	}
+
+	binaryHeader := http.Header{
+		"Ce-Specversion": {specVersion},
+		"Ce-Id":          {"1"},
+		"Ce-Source":      {"/source"},
+		"Ce-Type":        {"example"},
+	}
+	limits = DefaultLimits()
+	limits.MaxAttributes = len(binaryHeader)
+	if _, err := decodeHTTPBinary(binaryHeader, "", nil, limits); err != nil {
+		t.Fatalf("exact attribute limit error = %v", err)
+	}
+	binaryHeader["Ce-Extra"] = []string{"value"}
+	if _, err := decodeHTTPBinary(binaryHeader, "", nil, limits); !errors.Is(err, ErrLimitExceeded) {
+		t.Fatalf("over-limit attribute error = %v", err)
 	}
 }
 
@@ -253,7 +364,9 @@ func TestDecodeHTTPBinaryRejectsMalformedAttributesAndData(t *testing.T) {
 		{name: "invalid extension Unicode", header: func() http.Header { h := clone(); h["Ce-X"] = []string{string([]byte{0xff})}; return h }()},
 		{name: "invalid extension control", header: func() http.Header { h := clone(); h.Set("Ce-X", "%0A"); return h }()},
 		{name: "invalid JSON body", header: func() http.Header { h := clone(); h.Set("Content-Type", "application/json"); return h }(), body: "{"},
+		{name: "invalid text body", header: func() http.Header { h := clone(); h.Set("Content-Type", "text/plain"); return h }(), body: string([]byte{0xff})},
 		{name: "duplicate", header: func() http.Header { h := clone(); h["Ce-Id"] = []string{"1", "1"}; return h }()},
+		{name: "duplicate aliases", header: func() http.Header { h := clone(); h["ce-id"] = []string{"1"}; return h }()},
 		{name: "encoded over limit", header: func() http.Header { h := clone(); h.Set("Ce-Id", "%41%41"); return h }(), limits: func() Limits { l := DefaultLimits(); l.MaxAttributeValueBytes = 1; return l }},
 		{name: "too many", header: func() http.Header { h := clone(); h.Set("Ce-X", "x"); return h }(), limits: func() Limits { l := DefaultLimits(); l.MaxAttributes = 4; return l }},
 	}

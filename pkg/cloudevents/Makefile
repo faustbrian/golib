@@ -1,9 +1,12 @@
 GO ?= go
 BENCH_TIME ?= 100ms
 
-.PHONY: benchmark conformance interoperability
+.PHONY: benchmark conformance interoperability specification-evidence
 
-conformance:
+specification-evidence:
+	./scripts/check-specification-evidence.sh
+
+conformance: specification-evidence
 	$(GO) test . -run '^TestOfficialConformance' -count=1
 
 interoperability:

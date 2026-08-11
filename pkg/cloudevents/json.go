@@ -22,13 +22,34 @@ type jsonMember struct {
 	value []byte
 }
 
-// EncodeJSON serializes event using the CloudEvents JSON event format. Member
-// names are sorted lexicographically as a package determinism policy; that
-// ordering is not required by CloudEvents conformance.
+// EncodeJSON serializes event without implicit representation loss. Use
+// EncodeJSONWithReport when the target JSON format cannot retain every declared
+// in-memory distinction.
 func EncodeJSON(event Event) ([]byte, error) {
-	if err := event.Validate(); err != nil {
+	encoded, report, err := EncodeJSONWithReport(event)
+	if err != nil {
 		return nil, err
 	}
+	if err := rejectConversionLoss(report); err != nil {
+		return nil, err
+	}
+	return encoded, nil
+}
+
+// EncodeJSONWithReport serializes event using the CloudEvents JSON event
+// format and reports every representation change. Member names are sorted
+// lexicographically as a package determinism policy; CloudEvents does not
+// require that ordering.
+func EncodeJSONWithReport(event Event) ([]byte, ConversionReport, error) {
+	if err := event.Validate(); err != nil {
+		return nil, ConversionReport{}, err
+	}
+	report := jsonConversionReport(event)
+	encoded, err := encodeJSON(event)
+	return encoded, report, err
+}
+
+func encodeJSON(event Event) ([]byte, error) {
 	members := make([]jsonMember, 0)
 	appendString := func(name, value string) {
 		encoded, _ := json.Marshal(value)
@@ -41,6 +62,8 @@ func EncodeJSON(event Event) ([]byte, error) {
 	appendString("type", event.eventType)
 	if event.dataContentType != "" {
 		appendString("datacontenttype", event.dataContentType)
+	} else if event.data.present && event.data.kind == DataText {
+		appendString("datacontenttype", implicitDataContentType(DataText))
 	}
 	if event.dataSchema != "" {
 		appendString("dataschema", event.dataSchema)
@@ -62,9 +85,7 @@ func EncodeJSON(event Event) ([]byte, error) {
 	if event.data.present {
 		switch event.data.kind {
 		case DataJSON:
-			var compact bytes.Buffer
-			_ = json.Compact(&compact, event.data.bytes)
-			members = append(members, jsonMember{name: "data", value: compact.Bytes()})
+			members = append(members, jsonMember{name: "data", value: event.data.bytes})
 		case DataText:
 			encoded, _ := json.Marshal(string(event.data.bytes))
 			members = append(members, jsonMember{name: "data", value: encoded})
@@ -92,22 +113,37 @@ func EncodeJSON(event Event) ([]byte, error) {
 	return encoded.Bytes(), nil
 }
 
-// EncodeJSONBatch serializes events using the normative JSON batch format.
+// EncodeJSONBatch serializes events without implicit representation loss.
 func EncodeJSONBatch(events []Event) ([]byte, error) {
+	encoded, report, err := EncodeJSONBatchWithReport(events)
+	if err != nil {
+		return nil, err
+	}
+	if err := rejectConversionLoss(report); err != nil {
+		return nil, err
+	}
+	return encoded, nil
+}
+
+// EncodeJSONBatchWithReport serializes events using the normative JSON batch
+// format and reports every per-event representation change.
+func EncodeJSONBatchWithReport(events []Event) ([]byte, ConversionReport, error) {
 	var encoded bytes.Buffer
+	report := ConversionReport{}
 	encoded.WriteByte('[')
 	for index, event := range events {
 		if index > 0 {
 			encoded.WriteByte(',')
 		}
-		value, err := EncodeJSON(event)
+		value, eventReport, err := EncodeJSONWithReport(event)
 		if err != nil {
-			return nil, err
+			return nil, ConversionReport{}, err
 		}
+		report.Losses = append(report.Losses, prefixConversionReport(eventReport, fmt.Sprintf("events[%d].", index)).Losses...)
 		encoded.Write(value)
 	}
 	encoded.WriteByte(']')
-	return encoded.Bytes(), nil
+	return encoded.Bytes(), canonicalConversionReport(report), nil
 }
 
 func newBinaryString(value []byte) string {
@@ -206,9 +242,23 @@ func DecodeJSON(value []byte, limits Limits) (Event, error) {
 			return Event{}, ErrLimitExceeded
 		}
 		if !bytes.Equal(bytes.TrimSpace(raw), []byte("null")) {
+			trimmed := bytes.TrimSpace(raw)
+			switch trimmed[0] {
+			case '"':
+				if exceedsJSONEncodedStringLimit(trimmed, int64(limits.MaxAttributeValueBytes)) {
+					return Event{}, ErrLimitExceeded
+				}
+			default:
+				if len(trimmed) > limits.MaxAttributeValueBytes {
+					return Event{}, ErrLimitExceeded
+				}
+			}
 			attribute, parseErr := decodeJSONAttribute(raw)
 			if parseErr != nil {
 				return Event{}, fmt.Errorf("%w: extension %s", ErrInvalidEvent, name)
+			}
+			if len(attribute.String()) > limits.MaxAttributeValueBytes {
+				return Event{}, ErrLimitExceeded
 			}
 			extensions[name] = attribute
 		}
@@ -426,4 +476,9 @@ func isJSONMediaType(value string) bool {
 	}
 	parts := strings.SplitN(strings.ToLower(mediaType), "/", 2)
 	return len(parts) == 2 && (parts[1] == "json" || strings.HasSuffix(parts[1], "+json"))
+}
+
+func isTextMediaType(value string) bool {
+	mediaType, _, err := mime.ParseMediaType(value)
+	return err == nil && strings.HasPrefix(strings.ToLower(mediaType), "text/")
 }

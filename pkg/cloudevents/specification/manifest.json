@@ -1,6 +1,6 @@
 {
-  "schema": 1,
-  "reviewed_at": "2026-08-09",
+  "schema": 2,
+  "reviewed_at": "2026-08-11",
   "sources": [
     {
       "name": "CloudEvents specification",
@@ -8,16 +8,44 @@
       "version": "v1.0.2",
       "revision": "fc1f6f31f5f011a72183f1bcea20c987cb683ade",
       "license": "Apache-2.0",
-      "use": "core specification, JSON event and batch formats, HTTP and Kafka bindings, distributed tracing and partitioning extensions",
+      "use": "complete stable format, binding, extension, and documented-extension inventory",
       "files": [
         {"path":"cloudevents/spec.md","sha256":"e327435c858d19fd171e4ab9781a01fc22dfa949d23c4220976529ebd16a1aa3"},
         {"path":"cloudevents/formats/json-format.md","sha256":"30778f995a2c82f3ac6c4f7cd56415d675111990151c9ab67bd0a2de1d0e1ce5"},
         {"path":"cloudevents/formats/cloudevents.json","sha256":"e28a6d252d7b7238d176618f6bbf6cde570b26a867bc5241563aed34c9dd1d83"},
+        {"path":"cloudevents/formats/avro-format.md","sha256":"31b9804cb27e2278925662c14619859c59ed6367573068a62f95b5c0bf598af3"},
+        {"path":"cloudevents/formats/cloudevents.avsc","sha256":"e00355124197530cdc2ab9b506890f2157cfa1bba4112e7d9c06e83d424d0ab6"},
+        {"path":"cloudevents/formats/protobuf-format.md","sha256":"40613c262319a0fe7942120f2a1fe86632f3a3271064fb3c6862c91625850877"},
+        {"path":"cloudevents/formats/cloudevents.proto","sha256":"2bc1e82754cc8b7abb08fa8329e50a7643f6da18f6d60479ecbe403ae6e5fecc"},
         {"path":"cloudevents/bindings/http-protocol-binding.md","sha256":"35b0bc7949dd95e1134867c0f3854d97f7d7f3adcfe7a9b378705489ccc65e83"},
         {"path":"cloudevents/bindings/kafka-protocol-binding.md","sha256":"2935a0d3c01f61b66580a15cd2a7ebc7663919bfe0a9e97b7f0428cbe9fa2d8c"},
+        {"path":"cloudevents/bindings/amqp-protocol-binding.md","sha256":"e1a7974f25f813c85656426ccdaf35c4545fc8bc70ec605d3c23c31569ef8029"},
+        {"path":"cloudevents/bindings/mqtt-protocol-binding.md","sha256":"fec5b15a6fbb2019393aa970e5bed466e3bd83832c6fc87813d2dd042e177c9d"},
+        {"path":"cloudevents/bindings/nats-protocol-binding.md","sha256":"42b82b99acf0b3e90e069cb640c805e19c3ea83d3605292def487c5ad1d48961"},
+        {"path":"cloudevents/bindings/websockets-protocol-binding.md","sha256":"b401503e43f07f8ae45cf4aaf3faeb180d1191653d5e6742e741a2d7ae8109a9"},
         {"path":"cloudevents/extensions/distributed-tracing.md","sha256":"bf6cef7bc1a72c59eee126f5f5a3047f58d9961899fbfa9625c3ade3f28980a5"},
         {"path":"cloudevents/extensions/partitioning.md","sha256":"38b5bf2b9e46a52917710f5ca2bba3cc3b5d91649f7a463293b6cd67634fa94e"},
+        {"path":"cloudevents/extensions/dataref.md","sha256":"bc5533cd155115f3bf96cece126d7e2d2d7e675bc11aaadc643d12e55163548b"},
+        {"path":"cloudevents/extensions/sampledrate.md","sha256":"81df6bed82ab43a6818c573382025db8fd6578d1601141ef824e28cd0836f55c"},
+        {"path":"cloudevents/extensions/sequence.md","sha256":"3813806343d2f35d3cef5a355e9d2840d2e7d041cd8e4fdd330a1f48b2836f12"},
         {"path":"cloudevents/documented-extensions.md","sha256":"349f5ce2eaac0415cb9ba8e92ca59813831ccf9638f79560e460b372d6b88c90"}
+      ],
+      "surfaces": [
+        {"id":"format-json","kind":"format","status":"supported","documents":["cloudevents/formats/json-format.md","cloudevents/formats/cloudevents.json"]},
+        {"id":"format-avro","kind":"format","status":"unsupported","documents":["cloudevents/formats/avro-format.md","cloudevents/formats/cloudevents.avsc"]},
+        {"id":"format-protobuf","kind":"format","status":"unsupported","documents":["cloudevents/formats/protobuf-format.md","cloudevents/formats/cloudevents.proto"]},
+        {"id":"binding-http","kind":"binding","status":"supported","documents":["cloudevents/bindings/http-protocol-binding.md"]},
+        {"id":"binding-kafka","kind":"binding","status":"supported","documents":["cloudevents/bindings/kafka-protocol-binding.md"]},
+        {"id":"binding-amqp","kind":"binding","status":"unsupported","documents":["cloudevents/bindings/amqp-protocol-binding.md"]},
+        {"id":"binding-mqtt","kind":"binding","status":"unsupported","documents":["cloudevents/bindings/mqtt-protocol-binding.md"]},
+        {"id":"binding-nats","kind":"binding","status":"unsupported","documents":["cloudevents/bindings/nats-protocol-binding.md"]},
+        {"id":"binding-websockets","kind":"binding","status":"unsupported","documents":["cloudevents/bindings/websockets-protocol-binding.md"]},
+        {"id":"extension-distributed-tracing","kind":"extension","status":"supported-subset","documents":["cloudevents/extensions/distributed-tracing.md"]},
+        {"id":"extension-partitioning","kind":"extension","status":"supported","documents":["cloudevents/extensions/partitioning.md"]},
+        {"id":"extension-dataref","kind":"extension","status":"unsupported","documents":["cloudevents/extensions/dataref.md"]},
+        {"id":"extension-sampledrate","kind":"extension","status":"unsupported","documents":["cloudevents/extensions/sampledrate.md"]},
+        {"id":"extension-sequence","kind":"extension","status":"unsupported","documents":["cloudevents/extensions/sequence.md"]},
+        {"id":"extension-registry","kind":"registry","status":"inventory-only","documents":["cloudevents/documented-extensions.md"]}
       ]
     },
     {
@@ -26,7 +54,7 @@
       "version": "v0.4.1",
       "revision": "7a8ee0ac0e782bba1ba30e58c62d24d2e6c337e5",
       "license": "Apache-2.0",
-      "use": "official HTTP and Kafka receiver scenarios",
+      "use": "archived HTTP and Kafka receiver scenario provenance; not a complete conformance oracle",
       "files": [
         {"path":"features/http-protocol-binding.feature","sha256":"d24dc8f28cb529b77377216a4f2015dbb93644980a09dfd8f3bdd1705a23c40c","vendored_path":"testdata/conformance/http-protocol-binding.feature","vendored_sha256":"71654ab1de4b363e6cb433e2c4b77f950f39659fe0182de2e50f5ffd4195fd05","normalization":"final newline added"},
         {"path":"features/kafka-protocol-binding.feature","sha256":"a3e6f08bde13e4b219f13036ef4da168f2e797e525c05f244c80767939251865","vendored_path":"testdata/conformance/kafka-protocol-binding.feature","vendored_sha256":"1c8286a82a1fc458bd51147f41d5a1cc58bc294b7360d744df35421593df5285","normalization":"final newline added"},
@@ -34,12 +62,22 @@
       ]
     },
     {
-      "name": "CloudEvents Go SDK",
+      "name": "CloudEvents Go SDK core",
       "repository": "https://github.com/cloudevents/sdk-go",
+      "module": "github.com/cloudevents/sdk-go/v2",
       "version": "v2.16.2",
       "revision": "af3e8599b3316ab6b4b73ff69aa8ec0efddbb5bb",
       "license": "Apache-2.0",
-      "use": "independent bidirectional JSON, HTTP, and Kafka interoperability"
+      "use": "bidirectional JSON and HTTP interoperability, including selected edge-data cases"
+    },
+    {
+      "name": "CloudEvents Go SDK Kafka Sarama",
+      "repository": "https://github.com/cloudevents/sdk-go",
+      "module": "github.com/cloudevents/sdk-go/protocol/kafka_sarama/v2",
+      "version": "protocol/kafka_sarama/v2.16.2",
+      "revision": "bee0ebe38fde4cecb92dc51aab7acddc951cbd70",
+      "license": "Apache-2.0",
+      "use": "bidirectional Kafka interoperability with the SDK inbound-key limitation recorded"
     },
     {
       "name": "CloudEvents JavaScript SDK",
@@ -47,15 +85,35 @@
       "version": "v10.0.0",
       "revision": "c23895145a2f055e8e90714401fc67252a0edf21",
       "package_integrity": "sha512-uyzC+PpMMRawbouHO+3mlisr3QfEDObmo2pN4oTTF6dZncZgpIzdasZx0tRBFI1dMsqCLZZXMtz8cUuvYqHdbw==",
-      "lockfile_sha256": "81fb6cf67158ecb0fcf05299fa7bad3dbcfc04c9cae6737030b9df8444541a6d",
+      "lockfile_path": "scripts/javascript/package-lock.json",
+      "lockfile_sha256": "fc99415c67b0f2eec6c91f1362f9387e3b664f65f244828e270910654c49ac71",
+      "edge_fixture_path": "testdata/interoperability/javascript-edge-batch.json",
+      "edge_fixture_sha256": "622bba22412b35d695b0517515dcefcdd3770953b347d9d7616e5c7cfdf51163",
       "license": "Apache-2.0",
-      "use": "independent non-Go JSON, HTTP, Kafka, batch, and extension interoperability"
+      "use": "selected non-Go bidirectional JSON, batch, HTTP, and Kafka interoperability with explicit binary-Kafka limitations"
     },
     {
       "name": "Node.js npm runtime",
       "repository": "https://github.com/nodejs/node",
-      "version": "v24.13.0",
-      "darwin_arm64_sha256": "d595961e563fcae057d4a0fb992f175a54d97fcc4a14dc2d474d92ddeea3b9f8",
+      "version": "v24.19.0",
+      "archives": {
+        "darwin-arm64": {
+          "filename": "node-v24.19.0-darwin-arm64.tar.gz",
+          "sha256": "8294b7aa9b03997481c06babf1e8b270c859358f27da57a11509afe537ac381d"
+        },
+        "darwin-x64": {
+          "filename": "node-v24.19.0-darwin-x64.tar.gz",
+          "sha256": "d1b5e999db158c62fe8f7267a4476b035d8bd93b1a605bac24a3f0dd166e3316"
+        },
+        "linux-arm64": {
+          "filename": "node-v24.19.0-linux-arm64.tar.xz",
+          "sha256": "01443c1e1a29e531ccad5a46fefa6df490d2189c49f7955904aecdbb0fe86fdc"
+        },
+        "linux-x64": {
+          "filename": "node-v24.19.0-linux-x64.tar.xz",
+          "sha256": "14b342e71204f811bde6153be8e04b62aef63c236fef92b55f9c83154b409647"
+        }
+      },
       "license": "MIT AND other licenses",
       "use": "pinned supported runtime for the JavaScript interoperability gate"
     },

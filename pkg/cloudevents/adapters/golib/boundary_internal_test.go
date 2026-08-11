@@ -42,8 +42,8 @@ func TestAdapterHelpersCoverOwnedBoundarySemantics(t *testing.T) {
 		t.Fatalf("invalid extension error = %v", err)
 	}
 	event := helperEvent(t, extensions, false)
-	if value, err := mappedString(event, "missing", "retained", false); err != nil || value != "retained" {
-		t.Fatalf("absent mapped value = %q, %v", value, err)
+	if _, err := mappedString(event, "missing", "retained", false); !errors.Is(err, ErrMetadataCollision) {
+		t.Fatalf("absent retained mapped value error = %v", err)
 	}
 	if value, err := mappedString(event, "value", "ok", false); err != nil || value != "ok" {
 		t.Fatalf("matching retained value = %q, %v", value, err)
@@ -111,10 +111,6 @@ func TestAdapterHelpersCoverOwnedBoundarySemantics(t *testing.T) {
 	if keys := carrier.Keys(); len(keys) != 2 || keys[0] != "a" || keys[1] != "z" {
 		t.Fatalf("carrier keys = %v", keys)
 	}
-	var pointer *int
-	if !interfaceIsNil(nil) || !interfaceIsNil(pointer) || interfaceIsNil(1) {
-		t.Fatal("interface nil classification failed")
-	}
 	if !isJSONContentType("application/problem+json") || isJSONContentType(";") || isJSONContentType("text/plain") {
 		t.Fatal("JSON content type classification failed")
 	}
@@ -154,6 +150,57 @@ func TestAdapterHelpersReportOptionalAndExtensionLoss(t *testing.T) {
 	for _, value := range []string{"other", "golib.workflow.history.bad"} {
 		if _, err := parseWorkflowEventType(value); !errors.Is(err, ErrInvalidAdapterInput) {
 			t.Fatalf("workflow type %q error = %v", value, err)
+		}
+	}
+}
+
+func TestAppendDataKindLossIgnoresAbsentData(t *testing.T) {
+	t.Parallel()
+
+	report := Report{}
+	appendDataKindLoss(helperEvent(t, nil, false), &report, "target", false)
+	if len(report.Losses) != 0 {
+		t.Fatalf("absent data losses = %#v, want none", report.Losses)
+	}
+}
+
+func TestExtensionLossesAreSortedByField(t *testing.T) {
+	t.Parallel()
+
+	attribute, err := cloudevents.NewStringAttribute("value")
+	if err != nil {
+		t.Fatal(err)
+	}
+	event := helperEvent(t, map[string]cloudevents.Attribute{
+		"hotel":   attribute,
+		"alpha":   attribute,
+		"golf":    attribute,
+		"bravo":   attribute,
+		"foxtrot": attribute,
+		"charlie": attribute,
+		"echo":    attribute,
+		"delta":   attribute,
+	}, false)
+	want := []string{
+		"extensions.alpha",
+		"extensions.bravo",
+		"extensions.charlie",
+		"extensions.delta",
+		"extensions.echo",
+		"extensions.foxtrot",
+		"extensions.golf",
+		"extensions.hotel",
+	}
+	for attempt := 0; attempt < 64; attempt++ {
+		report := Report{}
+		appendExtensionLosses(event, &report, "target", nil)
+		if len(report.Losses) != len(want) {
+			t.Fatalf("loss count = %d, want %d", len(report.Losses), len(want))
+		}
+		for index, field := range want {
+			if report.Losses[index].Field != field {
+				t.Fatalf("loss fields = %#v, want sorted fields %#v", report.Losses, want)
+			}
 		}
 	}
 }
@@ -220,7 +267,9 @@ func TestVerifyQueueExtensionsDetectsMalformedAndCollidingValues(t *testing.T) {
 	if err := verifyQueueExtensions(helperEvent(t, map[string]cloudevents.Attribute{"tenantid": different}, false), metadata); !errors.Is(err, ErrMetadataCollision) {
 		t.Fatalf("queue collision error = %v", err)
 	}
-	if err := verifyQueueExtensions(helperEvent(t, map[string]cloudevents.Attribute{"tenantid": cloudevents.NewBooleanAttribute(true)}, false), metadata); !errors.Is(err, ErrInvalidAdapterInput) {
+	if err := verifyQueueExtensions(helperEvent(t, map[string]cloudevents.Attribute{
+		"tenantid": cloudevents.NewBooleanAttribute(true), correlationIDExtension: correlation,
+	}, false), metadata); !errors.Is(err, ErrInvalidAdapterInput) {
 		t.Fatalf("queue invalid extension error = %v", err)
 	}
 }

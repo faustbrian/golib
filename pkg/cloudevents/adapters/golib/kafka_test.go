@@ -23,7 +23,7 @@ func TestKafkaAdapterPreservesTransportOwnershipAndBindingRoundTrip(t *testing.T
 		t.Fatal(err)
 	}
 	event, err := cloudevents.NewEvent(cloudevents.Attributes{
-		ID: "event-1", Source: "/source", Type: "example.created",
+		ID: "event-1", Source: "/source", Type: "example.created", DataContentType: "application/json",
 		Extensions: map[string]cloudevents.Attribute{"partitionkey": partitionKey},
 	}, data)
 	if err != nil {

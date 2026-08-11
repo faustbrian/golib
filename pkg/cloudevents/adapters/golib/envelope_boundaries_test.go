@@ -48,6 +48,27 @@ func TestEventSourcingAdapterRejectsEveryUnrepresentableBoundary(t *testing.T) {
 	if _, _, err := golib.CloudEventToEventSourcing(withoutSchema, state); !errors.Is(err, golib.ErrMetadataCollision) {
 		t.Fatalf("missing event schema error = %v", err)
 	}
+	withoutSubject := eventForEnvelope(
+		t, event.ID(), event.Type(), "", "application/octet-stream", event.Extensions(),
+		cloudevents.NewBinaryData([]byte("body")),
+	)
+	if _, _, err := golib.CloudEventToEventSourcing(withoutSubject, state); !errors.Is(err, golib.ErrMetadataCollision) {
+		t.Fatalf("missing subject error = %v", err)
+	}
+	for _, name := range []string{"correlationid", "causationid", "tenantid", "partitionkey"} {
+		name := name
+		t.Run("missing "+name, func(t *testing.T) {
+			extensions := event.Extensions()
+			delete(extensions, name)
+			missing := eventForEnvelope(
+				t, event.ID(), event.Type(), eventSubject(event), "application/octet-stream", extensions,
+				cloudevents.NewBinaryData([]byte("body")),
+			)
+			if _, _, err := golib.CloudEventToEventSourcing(missing, state); !errors.Is(err, golib.ErrMetadataCollision) {
+				t.Fatalf("missing retained extension error = %v", err)
+			}
+		})
+	}
 
 	for _, test := range []struct {
 		name   string
@@ -73,9 +94,11 @@ func TestEventSourcingAdapterRejectsEveryUnrepresentableBoundary(t *testing.T) {
 		t.Fatalf("absent event data error = %v", err)
 	}
 	invalidTenant, _ := cloudevents.NewStringAttribute("bad?tenant")
+	invalidTenantExtensions := event.Extensions()
+	invalidTenantExtensions["tenantid"] = invalidTenant
 	invalidTenantEvent := eventForEnvelope(
 		t, event.ID(), event.Type(), eventSubject(event), "application/octet-stream",
-		map[string]cloudevents.Attribute{"eventschema": event.Extensions()["eventschema"], "tenantid": invalidTenant},
+		invalidTenantExtensions,
 		cloudevents.NewBinaryData([]byte("body")),
 	)
 	invalidTenantState := state
@@ -120,6 +143,48 @@ func TestOutboxAdapterRejectsEveryInvalidBoundary(t *testing.T) {
 	withoutID.ID = ""
 	if _, _, err := golib.CloudEventToOutbox(withoutData, withoutID); !errors.Is(err, golib.ErrInvalidAdapterInput) {
 		t.Fatalf("absent target payload error = %v", err)
+	}
+}
+
+func TestOutboxAdapterPreservesNilPayload(t *testing.T) {
+	t.Parallel()
+
+	envelope := outbox.Envelope{
+		ID: "outbox-1", Topic: "orders", PayloadVersion: 1,
+	}
+	event, retained, _, err := golib.OutboxToCloudEvent(envelope, golib.OutboxOptions{
+		Source: "/outbox", Type: "order.created",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roundTrip, _, err := golib.CloudEventToOutbox(event, retained)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roundTrip.Payload != nil {
+		t.Fatalf("round-trip payload = %#v, want nil", roundTrip.Payload)
+	}
+}
+
+func TestOutboxAdapterPreservesNonNilEmptyPayload(t *testing.T) {
+	t.Parallel()
+
+	envelope := outbox.Envelope{
+		ID: "outbox-1", Topic: "orders", Payload: []byte{}, PayloadVersion: 1,
+	}
+	event, retained, _, err := golib.OutboxToCloudEvent(envelope, golib.OutboxOptions{
+		Source: "/outbox", Type: "order.created",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roundTrip, _, err := golib.CloudEventToOutbox(event, retained)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roundTrip.Payload == nil || len(roundTrip.Payload) != 0 {
+		t.Fatalf("round-trip payload = %#v, want non-nil empty", roundTrip.Payload)
 	}
 }
 
@@ -203,6 +268,118 @@ func TestQueueAdapterRejectsEveryInvalidBoundary(t *testing.T) {
 	}
 }
 
+func TestQueueAdapterPreservesNilBody(t *testing.T) {
+	t.Parallel()
+
+	message := job.Message{
+		Timeout:  time.Second,
+		Metadata: &job.Metadata{OriginalID: "job-1", JobType: "order.notify"},
+	}
+	event, retained, _, err := golib.QueueToCloudEvent(message, golib.QueueOptions{Source: "/queue"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roundTrip, _, err := golib.CloudEventToQueue(event, retained)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roundTrip.Body != nil {
+		t.Fatalf("round-trip body = %#v, want nil", roundTrip.Body)
+	}
+}
+
+func TestQueueAdapterPreservesNonNilEmptyBody(t *testing.T) {
+	t.Parallel()
+
+	message := job.Message{
+		Timeout:  time.Second,
+		Body:     []byte{},
+		Metadata: &job.Metadata{OriginalID: "job-1", JobType: "order.notify"},
+	}
+	event, retained, _, err := golib.QueueToCloudEvent(message, golib.QueueOptions{Source: "/queue"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	roundTrip, _, err := golib.CloudEventToQueue(event, retained)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roundTrip.Body == nil || len(roundTrip.Body) != 0 {
+		t.Fatalf("round-trip body = %#v, want non-nil empty", roundTrip.Body)
+	}
+}
+
+func TestCloudEventToQueueRejectsRetainedContentTypeCollision(t *testing.T) {
+	t.Parallel()
+
+	event := eventForEnvelope(
+		t,
+		"id",
+		"type",
+		"application/octet-stream",
+		"",
+		nil,
+		cloudevents.NewBinaryData([]byte("body")),
+	)
+	retained := job.Message{
+		Timeout: time.Second,
+		Body:    []byte("body"),
+		Metadata: &job.Metadata{
+			OriginalID:  "id",
+			JobType:     "type",
+			ContentType: "text/plain",
+		},
+	}
+	if _, _, err := golib.CloudEventToQueue(event, retained); !errors.Is(err, golib.ErrMetadataCollision) {
+		t.Fatalf("retained content type collision error = %v", err)
+	}
+}
+
+func TestCloudEventToQueueRejectsDeletedRetainedPortableExtensions(t *testing.T) {
+	t.Parallel()
+
+	message := job.Message{
+		Timeout: time.Second,
+		Body:    []byte("body"),
+		Metadata: &job.Metadata{
+			OriginalID:  "id",
+			JobType:     "type",
+			ContentType: "application/octet-stream",
+			TenantID:    "tenant-a",
+			Correlation: map[string]string{
+				"correlationid": "correlation-a",
+				"requestid":     "request-a",
+				"causationid":   "causation-a",
+			},
+			TraceContext: map[string]string{
+				"traceparent": "00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01",
+				"tracestate":  "vendor=value",
+			},
+		},
+	}
+	event, retained, _, err := golib.QueueToCloudEvent(message, golib.QueueOptions{Source: "/source"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, name := range []string{"correlationid", "requestid", "causationid", "traceparent", "tracestate", "tenantid"} {
+		name := name
+		t.Run(name, func(t *testing.T) {
+			extensions := event.Extensions()
+			delete(extensions, name)
+			if name == "traceparent" {
+				delete(extensions, "tracestate")
+			}
+			missing := eventForEnvelope(
+				t, event.ID(), event.Type(), "", "application/octet-stream", extensions,
+				cloudevents.NewBinaryData([]byte("body")),
+			)
+			if _, _, err := golib.CloudEventToQueue(missing, retained); !errors.Is(err, golib.ErrMetadataCollision) {
+				t.Fatalf("missing retained extension error = %v", err)
+			}
+		})
+	}
+}
+
 func TestWorkflowAdapterRejectsEveryInvalidBoundary(t *testing.T) {
 	t.Parallel()
 
@@ -260,6 +437,186 @@ func TestWorkflowAdapterRejectsEveryInvalidBoundary(t *testing.T) {
 	if _, _, err := golib.CloudEventToWorkflow(invalidKind, state); err == nil {
 		t.Fatal("invalid target workflow history error = nil")
 	}
+}
+
+func TestWorkflowAdapterPreservesNilData(t *testing.T) {
+	t.Parallel()
+
+	reference, err := workflow.NewDefinitionReference(
+		"orders", "v1", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	history, err := workflow.NewHistoryEvent(workflow.HistoryEventSpec{
+		Sequence: 1, InstanceID: "workflow-1", Kind: workflow.EventInstanceStarted,
+		OccurredAt: time.Now(), Definition: reference,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, retained, _, err := golib.WorkflowToCloudEvent(history, golib.WorkflowOptions{
+		StableID: "workflow-event", Source: "/workflow",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !retained.DataWasNil {
+		t.Fatal("retained workflow data presence = non-nil, want nil")
+	}
+	roundTrip, _, err := golib.CloudEventToWorkflow(event, retained)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roundTrip.Data() != nil {
+		t.Fatalf("round-trip data = %#v, want nil", roundTrip.Data())
+	}
+}
+
+func TestWorkflowAdapterPreservesNonNilEmptyData(t *testing.T) {
+	t.Parallel()
+
+	reference, err := workflow.NewDefinitionReference(
+		"orders", "v1", "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	history, err := workflow.NewHistoryEvent(workflow.HistoryEventSpec{
+		Sequence: 1, InstanceID: "workflow-1", Kind: workflow.EventInstanceStarted,
+		OccurredAt: time.Now(), Definition: reference, Data: []byte{},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	event, retained, _, err := golib.WorkflowToCloudEvent(history, golib.WorkflowOptions{
+		StableID: "workflow-event", Source: "/workflow",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if retained.DataWasNil {
+		t.Fatal("retained workflow data presence = nil, want non-nil")
+	}
+	roundTrip, _, err := golib.CloudEventToWorkflow(event, retained)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if roundTrip.Data() == nil || len(roundTrip.Data()) != 0 {
+		t.Fatalf("round-trip data = %#v, want non-nil empty", roundTrip.Data())
+	}
+}
+
+func TestWorkflowAdapterRejectsNonCanonicalEventTypes(t *testing.T) {
+	t.Parallel()
+
+	event, retained, _, err := golib.WorkflowToCloudEvent(workflowHistory(t), golib.WorkflowOptions{
+		StableID: "workflow-event", Source: "/workflow",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	occurredAt, _ := event.Time()
+	for _, eventType := range []string{
+		"golib.workflow.history.01",
+		"golib.workflow.history.+1",
+	} {
+		candidate := workflowPortableEvent(
+			t, event.ID(), eventType, eventSubject(event), &occurredAt, event.Data(),
+		)
+		if _, _, err := golib.CloudEventToWorkflow(candidate, retained); !errors.Is(err, golib.ErrInvalidAdapterInput) {
+			t.Fatalf("non-canonical type %q error = %v", eventType, err)
+		}
+	}
+}
+
+func TestWorkflowAdapterReportsEveryDiscardedPayloadDeclaration(t *testing.T) {
+	t.Parallel()
+
+	_, state, _, err := golib.WorkflowToCloudEvent(workflowHistory(t), golib.WorkflowOptions{
+		StableID: "workflow-event", Source: "/workflow",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := cloudevents.NewJSONData([]byte(`{"order":"A-123"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	occurredAt := time.Now()
+	event, err := cloudevents.NewEvent(cloudevents.Attributes{
+		ID: "workflow-event", Source: "/source", Type: "golib.workflow.history.1",
+		DataContentType: "application/json", DataSchema: "https://schemas.example/order.json",
+		Subject: "workflow-1", Time: &occurredAt,
+	}, data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, report, err := golib.CloudEventToWorkflow(event, state); err != nil {
+		t.Fatal(err)
+	} else {
+		want := map[string]bool{
+			"source": true, "datacontenttype": true, "dataschema": true, "data.kind": true,
+		}
+		for _, loss := range report.Losses {
+			delete(want, loss.Field)
+		}
+		if len(want) != 0 {
+			t.Fatalf("workflow losses omit fields %#v: %#v", want, report.Losses)
+		}
+	}
+}
+
+func TestEnvelopeAdaptersReportEveryPayloadKindTheyCannotReconstruct(t *testing.T) {
+	t.Parallel()
+
+	jsonData, err := cloudevents.NewJSONData([]byte(`{"value":1}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	assertDataKindLoss := func(t *testing.T, report golib.Report, err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, loss := range report.Losses {
+			if loss.Field == "data.kind" {
+				return
+			}
+		}
+		t.Fatalf("conversion losses omit data.kind: %#v", report.Losses)
+	}
+
+	message := eventSourcingMessage(t, "application/octet-stream", []byte("body"), true)
+	eventSourcingEvent, eventState, _, err := golib.EventSourcingToCloudEvent(message, golib.EventSourcingOptions{Source: "/source"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	event := eventForEnvelope(
+		t, message.ID().String(), message.Event().Name().String(), eventSubject(eventSourcingEvent), "application/octet-stream",
+		eventSourcingEvent.Extensions(), jsonData,
+	)
+	if event.Data().Kind() != cloudevents.DataJSON {
+		t.Fatalf("event data kind = %v, want JSON", event.Data().Kind())
+	}
+	_, report, err := golib.CloudEventToEventSourcing(event, eventState)
+	assertDataKindLoss(t, report, err)
+
+	outboxState := outbox.Envelope{Topic: "events", PayloadVersion: 1}
+	event = eventForEnvelope(t, "outbox-1", "event.type", "", "", nil, jsonData)
+	_, report, err = golib.CloudEventToOutbox(event, outboxState)
+	assertDataKindLoss(t, report, err)
+
+	queueEvent, queueState, _, err := golib.QueueToCloudEvent(
+		job.Message{Timeout: time.Second, Body: []byte("body")},
+		golib.QueueOptions{Source: "/source", StableID: "job-1", Type: "job.type"},
+	)
+	if err != nil {
+		t.Fatal(err)
+	}
+	event = eventForEnvelope(t, queueEvent.ID(), queueEvent.Type(), "", "", queueEvent.Extensions(), jsonData)
+	_, report, err = golib.CloudEventToQueue(event, queueState)
+	assertDataKindLoss(t, report, err)
 }
 
 func workflowPortableEvent(t *testing.T, id, eventType, subject string, occurredAt *time.Time, data cloudevents.Data) cloudevents.Event {

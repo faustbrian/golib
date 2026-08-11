@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sync"
 	"testing"
+	"testing/iotest"
 )
 
 func TestConcurrentEncodingAndDecodingIsIsolated(t *testing.T) {
@@ -89,5 +90,40 @@ func TestHTTPDecodePropagatesBodyFailureWithoutClosingCallerResource(t *testing.
 	}
 	if _, err := DecodeHTTP(context.Background(), header, failingReader{err: want}, DefaultLimits()); !errors.Is(err, want) {
 		t.Fatalf("DecodeHTTP() error = %v, want injected failure", err)
+	}
+}
+
+func TestHTTPDecodeConsumesChunkedShortReads(t *testing.T) {
+	t.Parallel()
+
+	want := []byte("payload split across short reads")
+	header := http.Header{
+		"Ce-Specversion": {"1.0"},
+		"Ce-Id":          {"1"},
+		"Ce-Source":      {"/source"},
+		"Ce-Type":        {"example"},
+		"Content-Type":   {"application/octet-stream"},
+	}
+	message, err := DecodeHTTP(context.Background(), header, iotest.OneByteReader(bytes.NewReader(want)), DefaultLimits())
+	if err != nil {
+		t.Fatalf("DecodeHTTP() error = %v", err)
+	}
+	if len(message.Events) != 1 || !bytes.Equal(message.Events[0].Data().Bytes(), want) {
+		t.Fatalf("decoded short-read payload = %q, want %q", message.Events[0].Data().Bytes(), want)
+	}
+}
+
+func TestOversizedKafkaKeyIsRejectedWithoutAllocation(t *testing.T) {
+	record := KafkaRecord{Key: make([]byte, 1<<20)}
+	limits := DefaultLimits()
+	limits.MaxKafkaKeyBytes = 1
+
+	allocations := testing.AllocsPerRun(100, func() {
+		if _, err := DecodeKafka(record, limits); !errors.Is(err, ErrLimitExceeded) {
+			panic("oversized Kafka key was not rejected")
+		}
+	})
+	if allocations != 0 {
+		t.Fatalf("oversized Kafka key allocations = %v, want 0", allocations)
 	}
 }

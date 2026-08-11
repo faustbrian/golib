@@ -1102,7 +1102,7 @@ func interoperabilityTools(directory string) []string {
 	if directory == "pkg/cloudevents" {
 		return []string{
 			"cloudevents/sdk-go v2.16.2",
-			"cloudevents/sdk-javascript v10.0.0 on Node.js 24.13.0",
+			"cloudevents/sdk-javascript v10.0.0 on Node.js 24.19.0",
 		}
 	}
 	if directory == "pkg/barcode" {

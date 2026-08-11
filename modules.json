@@ -4955,7 +4955,7 @@
       "test_tags": [],
       "interoperability_tools": [
         "cloudevents/sdk-go v2.16.2",
-        "cloudevents/sdk-javascript v10.0.0 on Node.js 24.13.0"
+        "cloudevents/sdk-javascript v10.0.0 on Node.js 24.19.0"
       ],
       "specifications": [
         "CloudEvents specification 1.0.2",

@@ -44,7 +44,9 @@ func TestEncodeKafkaBinaryPreservesKeyAndTombstoneSemantics(t *testing.T) {
 		t.Fatal("partition key mapper modified the event")
 	}
 
-	emptyEvent, err := NewEvent(Attributes{ID: "evt-2", Source: "/orders", Type: "empty"}, NewBinaryData(nil))
+	emptyEvent, err := NewEvent(Attributes{
+		ID: "evt-2", Source: "/orders", Type: "empty", DataContentType: "application/octet-stream",
+	}, NewBinaryData(nil))
 	if err != nil {
 		t.Fatalf("create empty-data event: %v", err)
 	}

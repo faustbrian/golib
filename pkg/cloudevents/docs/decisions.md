@@ -16,8 +16,12 @@ groups the same policies by adoption concern; it does not override the register.
 - The core stores payload bytes and runtime data kind. It never fetches a schema,
   resolves a URI, opens a broker connection, or starts a goroutine.
 - JSON input without `datacontenttype` implies JSON while it remains in the JSON
-  format. Conversion to a binary binding materializes `application/json` so the
-  meaning is not lost.
+  format. When a target representation needs an explicit type to retain JSON,
+  text, or binary semantics, strict conversion rejects the required
+  `application/json`, `text/plain`, or `application/octet-stream`
+  materialization; loss-aware encoding returns the mapping and names the
+  change. Explicit content-type and runtime-kind conflicts are reported rather
+  than normalized silently.
 
 ## Attributes and unknown extensions
 
@@ -26,8 +30,8 @@ groups the same policies by adoption concern; it does not override the register.
   extension's URI, URI-reference, Timestamp, or Binary semantics cannot be
   inferred without its specification.
 - Callers constructing a known extension may retain its stronger abstract type.
-  A JSON round trip guarantees the canonical extension value, not an
-  unregistered semantic type that JSON cannot identify.
+  Strict encoding rejects a format or binding that cannot recover that type;
+  loss-aware encoding returns the normalized string with an explicit report.
 - Duplicate context attributes are rejected even when their values are equal.
   Null optional attributes are treated as absent. Null required attributes are
   invalid.
@@ -39,10 +43,11 @@ groups the same policies by adoption concern; it does not override the register.
 
 ## JSON determinism
 
-JSON object members are emitted in lexicographic order, insignificant
-whitespace is removed, timestamps use UTC RFC 3339 with only necessary
-fractional digits, integers use base 10, and binary values use padded RFC 4648
-base64. This is Golib policy, not a CloudEvents conformance requirement.
+JSON context members are emitted in lexicographic order, timestamps use UTC RFC
+3339 with only necessary fractional digits, integers use base 10, and binary
+values use padded RFC 4648 base64. Declared JSON payload bytes are preserved;
+unrepresentable leading or trailing payload whitespace requires an explicit
+loss report. This is Golib policy, not a CloudEvents conformance requirement.
 
 ## Binding conflicts
 

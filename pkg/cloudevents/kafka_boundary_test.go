@@ -27,9 +27,9 @@ func TestEncodeKafkaCoversModesOptionalHeadersAndPartitionMapping(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	record, err := EncodeKafka(event, BinaryMode, []byte("key"))
-	if err != nil {
-		t.Fatal(err)
+	record, report, err := EncodeKafkaWithReport(event, BinaryMode, []byte("key"))
+	if err != nil || len(report.Losses) != 1 || report.Losses[0].Field != "datacontenttype" {
+		t.Fatalf("binary report = %#v, %v", report, err)
 	}
 	if string(kafkaHeaderValue(record.Headers, "content-type")) != "application/json" ||
 		kafkaHeaderValue(record.Headers, "ce_dataschema") == nil ||
@@ -272,6 +272,9 @@ func TestKafkaAcceptsExactRecordHeaderAndDataLimits(t *testing.T) {
 	binaryLimits.MaxDataBytes = 1
 	if _, err := decodeKafkaBinary([]byte("x"), "application/octet-stream", binaryHeaders, binaryLimits); err != nil {
 		t.Fatalf("exact binary limits error = %v", err)
+	}
+	if _, err := decodeKafkaBinary([]byte{0xff}, "text/plain", binaryHeaders, DefaultLimits()); err == nil {
+		t.Fatal("invalid text Kafka data error = nil")
 	}
 	emptyLimits := DefaultLimits()
 	emptyLimits.MaxAttributeNameBytes = 0

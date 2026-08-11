@@ -27,8 +27,8 @@ type AuditMetadata struct {
 }
 
 // AddAuditMetadata attaches a deliberately small safe subset of an audit
-// record. Actor, subject, changes, policy, integrity, attributes, descriptions,
-// and recording time stay owned by the canonical audit record and are reported.
+// record. Every unselected canonical audit field stays owned by the record and
+// is reported explicitly.
 func AddAuditMetadata(
 	event cloudevents.Event,
 	record audit.Record,
@@ -60,13 +60,25 @@ func AddAuditMetadata(
 		return cloudevents.Event{}, Report{}, err
 	}
 	return converted, Report{Losses: []Loss{
+		{Field: "audit.occurred_at", Reason: "canonical audit ownership"},
 		{Field: "audit.recorded_at", Reason: "canonical audit ownership"},
+		{Field: "audit.reason_code", Reason: "not flattened into CloudEvents"},
+		{Field: "audit.description", Reason: "not flattened into CloudEvents"},
 		{Field: "audit.actor", Reason: "not flattened into CloudEvents"},
 		{Field: "audit.subject", Reason: "not flattened into CloudEvents"},
+		{Field: "audit.context.request_id", Reason: "not flattened into CloudEvents"},
+		{Field: "audit.context.trace_id", Reason: "not flattened into CloudEvents"},
+		{Field: "audit.context.idempotency_id", Reason: "not flattened into CloudEvents"},
+		{Field: "audit.context.source_service", Reason: "not flattened into CloudEvents"},
+		{Field: "audit.context.source_version", Reason: "not flattened into CloudEvents"},
+		{Field: "audit.context.environment", Reason: "not flattened into CloudEvents"},
+		{Field: "audit.context.network_origin", Reason: "not flattened into CloudEvents"},
+		{Field: "audit.context.user_agent", Reason: "not flattened into CloudEvents"},
 		{Field: "audit.changes", Reason: "not flattened into CloudEvents"},
 		{Field: "audit.policy", Reason: "not flattened into CloudEvents"},
 		{Field: "audit.integrity", Reason: "not flattened into CloudEvents"},
 		{Field: "audit.attributes", Reason: "not flattened into CloudEvents"},
+		{Field: "audit.redaction_applied", Reason: "not flattened into CloudEvents"},
 	}}, nil
 }
 
@@ -107,9 +119,12 @@ func ExtractAuditMetadata(event cloudevents.Event, trusted bool) (AuditMetadata,
 	if err != nil {
 		return AuditMetadata{}, err
 	}
-	tenant, err := ExtractTenant(event, true)
-	if err != nil {
-		return AuditMetadata{}, err
+	var tenant tenancy.TenantID
+	if _, present := event.Extension(tenantIDExtension); present {
+		tenant, err = ExtractTenant(event, true)
+		if err != nil {
+			return AuditMetadata{}, err
+		}
 	}
 	return AuditMetadata{
 		RecordID: recordID, Action: action, Outcome: audit.Outcome(parsed),

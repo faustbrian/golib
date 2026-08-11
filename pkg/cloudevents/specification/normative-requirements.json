@@ -1,0 +1,3028 @@
+{
+  "schema": 1,
+  "authority": {
+    "repository": "https://github.com/cloudevents/spec",
+    "version": "v1.0.2",
+    "revision": "fc1f6f31f5f011a72183f1bcea20c987cb683ade",
+    "manifest": "specification/manifest.json"
+  },
+  "description": "Requirement-level inventory of every BCP 14 statement in the pinned supported CloudEvents core, JSON format, HTTP binding, Kafka binding, distributed-tracing subset, and partitioning extension. Conformance-boilerplate keyword definitions are excluded; keyword_lines provides a machine-checkable occurrence inventory.",
+  "supported_documents": [
+    "cloudevents/spec.md",
+    "cloudevents/formats/json-format.md",
+    "cloudevents/bindings/http-protocol-binding.md",
+    "cloudevents/bindings/kafka-protocol-binding.md",
+    "cloudevents/extensions/distributed-tracing.md",
+    "cloudevents/extensions/partitioning.md"
+  ],
+  "requirements": [
+    {
+      "id": "CE-CORE-001",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Overview",
+        "line": 33,
+        "keyword_lines": [
+          33
+        ]
+      },
+      "text": "Implementations supporting an encoding MUST adhere to that event format's encoding rules.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "http_test.go",
+        "kafka_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-002",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Overview",
+        "line": 35,
+        "keyword_lines": [
+          35
+        ]
+      },
+      "text": "All implementations MUST support the JSON format.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-003",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Notational Conventions",
+        "line": 48,
+        "keyword_lines": [
+          48,
+          49
+        ]
+      },
+      "text": "An OPTIONAL feature is OPTIONAL for both producer and consumer.",
+      "applicability": "specification-semantics",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "This defines how specification options are interpreted; it is not a package behavior."
+    },
+    {
+      "id": "CE-CORE-004",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Notational Conventions",
+        "line": 55,
+        "keyword_lines": [
+          55
+        ]
+      },
+      "text": "An intermediary SHOULD forward OPTIONAL attributes.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go",
+        "attribute.go",
+        "json.go",
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "http_boundary_test.go",
+        "kafka_boundary_test.go",
+        "interoperability_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-005",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Event",
+        "line": 78,
+        "keyword_lines": [
+          78
+        ]
+      },
+      "text": "A single occurrence MAY result in more than one event.",
+      "applicability": "domain-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Occurrence-to-event cardinality is chosen by producers."
+    },
+    {
+      "id": "CE-CORE-006",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Event Format",
+        "line": 123,
+        "keyword_lines": [
+          123
+        ]
+      },
+      "text": "Protocol bindings MAY define protocol-dependent formats.",
+      "applicability": "specification-design",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "This permission applies to protocol-binding specifications, not this implementation."
+    },
+    {
+      "id": "CE-CORE-007",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Protocol Binding",
+        "line": 146,
+        "keyword_lines": [
+          146,
+          147
+        ]
+      },
+      "text": "Protocol bindings MAY map an event format directly to the envelope body or MAY add formatting and structure.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "kafka_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-008",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Context Attributes",
+        "line": 154,
+        "keyword_lines": [
+          154,
+          155,
+          156
+        ]
+      },
+      "text": "Every CloudEvent MUST contain REQUIRED context attributes and MAY contain OPTIONAL and extension attributes.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-009",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Attribute Naming Convention",
+        "line": 173,
+        "keyword_lines": [
+          173
+        ]
+      },
+      "text": "Attribute names MUST contain only lower-case ASCII letters or digits.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "attribute.go"
+      ],
+      "artifacts": [
+        "boundary_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-010",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Attribute Naming Convention",
+        "line": 174,
+        "keyword_lines": [
+          174,
+          175
+        ]
+      },
+      "text": "Attribute names SHOULD be descriptive and terse and SHOULD NOT exceed 20 characters.",
+      "applicability": "producer-guidance",
+      "status": "unsupported",
+      "implementation": [
+        "attribute.go"
+      ],
+      "artifacts": [
+        "boundary_test.go"
+      ],
+      "limitation": "The stable v1.0.2 validity rule permits longer names; the package bounds them by configurable resource limits rather than rejecting names over 20 characters."
+    },
+    {
+      "id": "CE-CORE-011",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Type System",
+        "line": 180,
+        "keyword_lines": [
+          180,
+          182
+        ]
+      },
+      "text": "Formats MAY represent abstract types differently, but every implementation MUST support each canonical string encoding.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "attribute.go",
+        "json.go",
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go",
+        "http_test.go",
+        "kafka_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-012",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Type System",
+        "line": 188,
+        "keyword_lines": [
+          188
+        ]
+      },
+      "text": "Event formats MUST use Integer values only in the signed 32-bit range.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "attribute.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-013",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Type System",
+        "line": 216,
+        "keyword_lines": [
+          216
+        ]
+      },
+      "text": "All context attribute values MUST use a CloudEvents abstract type.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "attribute.go",
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-014",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Type System",
+        "line": 217,
+        "keyword_lines": [
+          217
+        ]
+      },
+      "text": "Attribute values MAY be represented as native types or canonical strings.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "attribute.go",
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-015",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Type System",
+        "line": 220,
+        "keyword_lines": [
+          220
+        ]
+      },
+      "text": "A strongly typed model MUST convert between canonical strings and corresponding native types.",
+      "applicability": "implementation",
+      "status": "unsupported",
+      "implementation": [
+        "attribute.go",
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ],
+      "limitation": "Typed attributes have native constructors and format or binding decoders accept canonical strings, but the public strongly typed Attribute API does not expose canonical-string constructors for every abstract type."
+    },
+    {
+      "id": "CE-CORE-016",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Type System",
+        "line": 224,
+        "keyword_lines": [
+          224,
+          225
+        ]
+      },
+      "text": "Timestamp values MUST be settable from RFC 3339 strings and MUST convert to RFC 3339 strings for protocol metadata.",
+      "applicability": "implementation",
+      "status": "unsupported",
+      "implementation": [
+        "attribute.go",
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "boundary_test.go",
+        "http_test.go",
+        "kafka_test.go"
+      ],
+      "limitation": "Timestamp decoding accepts RFC 3339 and encoding returns RFC 3339, but the public timestamp constructor accepts time.Time rather than an RFC 3339 string."
+    },
+    {
+      "id": "CE-CORE-017",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Type System",
+        "line": 228,
+        "keyword_lines": [
+          228
+        ]
+      },
+      "text": "A protocol binding or event format implementation MUST convert between canonical string encodings and corresponding encoded types.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "http_test.go",
+        "kafka_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-018",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "REQUIRED Attributes",
+        "line": 246,
+        "keyword_lines": [
+          246
+        ]
+      },
+      "text": "The id, source, specversion, and type attributes are REQUIRED in every CloudEvent.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-019",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "id",
+        "line": 251,
+        "keyword_lines": [
+          251
+        ]
+      },
+      "text": "Producers MUST ensure source plus id is unique for each distinct event.",
+      "applicability": "producer-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Cross-event producer uniqueness cannot be established by a value codec."
+    },
+    {
+      "id": "CE-CORE-020",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "id",
+        "line": 253,
+        "keyword_lines": [
+          253
+        ]
+      },
+      "text": "A retransmitted duplicate MAY reuse id, and consumers MAY treat identical source plus id values as duplicates.",
+      "applicability": "application-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Retry identity and deduplication are caller-owned policies."
+    },
+    {
+      "id": "CE-CORE-021",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "id",
+        "line": 256,
+        "keyword_lines": [
+          256
+        ]
+      },
+      "text": "id is REQUIRED.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-022",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "id",
+        "line": 257,
+        "keyword_lines": [
+          257
+        ]
+      },
+      "text": "id MUST be a non-empty string.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-023",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "id",
+        "line": 258,
+        "keyword_lines": [
+          258
+        ]
+      },
+      "text": "id MUST be unique within the producer's scope.",
+      "applicability": "producer-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "The package has no producer identity store."
+    },
+    {
+      "id": "CE-CORE-024",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "source",
+        "line": 272,
+        "keyword_lines": [
+          272
+        ]
+      },
+      "text": "Producers MUST ensure source plus id is unique for each distinct event.",
+      "applicability": "producer-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Cross-event producer uniqueness cannot be established by a value codec."
+    },
+    {
+      "id": "CE-CORE-025",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "source",
+        "line": 274,
+        "keyword_lines": [
+          274,
+          276
+        ]
+      },
+      "text": "An application MAY assign each producer a unique source and MAY use UUIDs, URNs, DNS authorities, or an application-specific scheme.",
+      "applicability": "producer-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Source assignment is caller-owned."
+    },
+    {
+      "id": "CE-CORE-026",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "source",
+        "line": 279,
+        "keyword_lines": [
+          279
+        ]
+      },
+      "text": "A source MAY contain multiple producers; those producers MUST collaborate to keep source plus id unique.",
+      "applicability": "producer-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Producer coordination is outside the package."
+    },
+    {
+      "id": "CE-CORE-027",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "source",
+        "line": 283,
+        "keyword_lines": [
+          283
+        ]
+      },
+      "text": "source is REQUIRED.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-028",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "source",
+        "line": 284,
+        "keyword_lines": [
+          284
+        ]
+      },
+      "text": "source MUST be a non-empty URI-reference.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-029",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "source",
+        "line": 285,
+        "keyword_lines": [
+          285
+        ]
+      },
+      "text": "An absolute source URI is RECOMMENDED.",
+      "applicability": "producer-guidance",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Relative URI-references are valid and source selection belongs to the producer."
+    },
+    {
+      "id": "CE-CORE-030",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "specversion",
+        "line": 302,
+        "keyword_lines": [
+          302
+        ]
+      },
+      "text": "Compliant producers MUST use specversion 1.0 for this specification version.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-031",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "specversion",
+        "line": 312,
+        "keyword_lines": [
+          312
+        ]
+      },
+      "text": "specversion is REQUIRED.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go",
+        "json.go",
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go",
+        "json_test.go",
+        "http_test.go",
+        "kafka_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-032",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "specversion",
+        "line": 313,
+        "keyword_lines": [
+          313
+        ]
+      },
+      "text": "specversion MUST be a non-empty string.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-033",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "type",
+        "line": 326,
+        "keyword_lines": [
+          326
+        ]
+      },
+      "text": "type is REQUIRED.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-034",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "type",
+        "line": 327,
+        "keyword_lines": [
+          327
+        ]
+      },
+      "text": "type MUST be a non-empty string.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-035",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "type",
+        "line": 328,
+        "keyword_lines": [
+          328
+        ]
+      },
+      "text": "type SHOULD use a reverse-DNS prefix.",
+      "applicability": "producer-guidance",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "The recommendation governs producer naming and is not a validity constraint."
+    },
+    {
+      "id": "CE-CORE-036",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "OPTIONAL Attributes",
+        "line": 336,
+        "keyword_lines": [
+          336,
+          338
+        ]
+      },
+      "text": "datacontenttype, dataschema, subject, and time are OPTIONAL.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_boundary_test.go",
+        "http_boundary_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-037",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "datacontenttype",
+        "line": 358,
+        "keyword_lines": [
+          358
+        ]
+      },
+      "text": "An event format MAY omit datacontenttype when it defines an implied content type.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-038",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "datacontenttype",
+        "line": 365,
+        "keyword_lines": [
+          365
+        ]
+      },
+      "text": "When translating an event with implied datacontenttype, the target SHOULD set that type explicitly.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "conversion.go",
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "lossless_boundary_test.go",
+        "http_boundary_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-039",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "datacontenttype",
+        "line": 369,
+        "keyword_lines": [
+          369
+        ]
+      },
+      "text": "datacontenttype is OPTIONAL.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-040",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "datacontenttype",
+        "line": 370,
+        "keyword_lines": [
+          370
+        ]
+      },
+      "text": "When present, datacontenttype MUST be an RFC 2046 media type.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-041",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "dataschema",
+        "line": 379,
+        "keyword_lines": [
+          379
+        ]
+      },
+      "text": "Incompatible schema changes SHOULD use a different dataschema URI.",
+      "applicability": "schema-governance",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Schema versioning is owned by event producers and schema publishers."
+    },
+    {
+      "id": "CE-CORE-042",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "dataschema",
+        "line": 383,
+        "keyword_lines": [
+          383
+        ]
+      },
+      "text": "dataschema is OPTIONAL.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-043",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "dataschema",
+        "line": 384,
+        "keyword_lines": [
+          384
+        ]
+      },
+      "text": "When present, dataschema MUST be a non-empty URI.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-044",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "subject",
+        "line": 404,
+        "keyword_lines": [
+          404
+        ]
+      },
+      "text": "subject is OPTIONAL.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-045",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "subject",
+        "line": 405,
+        "keyword_lines": [
+          405
+        ]
+      },
+      "text": "When present, subject MUST be a non-empty string.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-046",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "time",
+        "line": 420,
+        "keyword_lines": [
+          420,
+          422
+        ]
+      },
+      "text": "A producer MAY substitute another time when occurrence time is unknown, but producers sharing a source MUST use a consistent policy.",
+      "applicability": "producer-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Timestamp selection and cross-producer consistency are caller-owned."
+    },
+    {
+      "id": "CE-CORE-047",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "time",
+        "line": 426,
+        "keyword_lines": [
+          426
+        ]
+      },
+      "text": "time is OPTIONAL.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-048",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "time",
+        "line": 427,
+        "keyword_lines": [
+          427
+        ]
+      },
+      "text": "When present, time MUST follow RFC 3339.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go",
+        "attribute.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-049",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Extension Context Attributes",
+        "line": 432,
+        "keyword_lines": [
+          432,
+          433
+        ]
+      },
+      "text": "A CloudEvent MAY contain distinct extension attributes; extensions MUST follow core naming and type-system rules.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go",
+        "attribute.go"
+      ],
+      "artifacts": [
+        "extensions_test.go",
+        "boundary_test.go",
+        "json_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-050",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Extension Context Attributes",
+        "line": 443,
+        "keyword_lines": [
+          443
+        ]
+      },
+      "text": "An extension with a secondary transport mapping SHOULD define how receivers handle conflicting copied values.",
+      "applicability": "extension-specification",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "This governs extension specification authors."
+    },
+    {
+      "id": "CE-CORE-051",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Defining Extensions",
+        "line": 452,
+        "keyword_lines": [
+          452
+        ]
+      },
+      "text": "An extension definition SHOULD fully define each attribute.",
+      "applicability": "extension-specification",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "This governs extension specification authors."
+    },
+    {
+      "id": "CE-CORE-052",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Defining Extensions",
+        "line": 454,
+        "keyword_lines": [
+          454
+        ]
+      },
+      "text": "New extension definitions SHOULD use descriptive collision-resistant names.",
+      "applicability": "extension-specification",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "This governs extension specification authors."
+    },
+    {
+      "id": "CE-CORE-053",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Defining Extensions",
+        "line": 456,
+        "keyword_lines": [
+          456
+        ]
+      },
+      "text": "Extension authors SHOULD check the documented-extension registry.",
+      "applicability": "extension-specification",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "This governs extension specification authors."
+    },
+    {
+      "id": "CE-CORE-054",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Defining Extensions",
+        "line": 462,
+        "keyword_lines": [
+          462
+        ]
+      },
+      "text": "Receivers are RECOMMENDED to preserve non-CloudEvents protocol metadata through a distinguishable mechanism.",
+      "applicability": "receiver-behavior",
+      "status": "unsupported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_boundary_test.go"
+      ],
+      "limitation": "Kafka decoding returns unowned transport headers; HTTP decoding intentionally does not return unrelated HTTP headers."
+    },
+    {
+      "id": "CE-CORE-055",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Event Data",
+        "line": 479,
+        "keyword_lines": [
+          479
+        ]
+      },
+      "text": "A CloudEvent MAY contain domain-specific event data.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-056",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Event Data",
+        "line": 490,
+        "keyword_lines": [
+          490
+        ]
+      },
+      "text": "Event data is OPTIONAL.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-057",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Size Limits",
+        "line": 507,
+        "keyword_lines": [
+          507
+        ]
+      },
+      "text": "Applications crossing encodings or protocols SHOULD account for the least efficient representation.",
+      "applicability": "deployment-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Routing topology and protocol selection are caller-owned."
+    },
+    {
+      "id": "CE-CORE-058",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Size Limits",
+        "line": 510,
+        "keyword_lines": [
+          510
+        ]
+      },
+      "text": "Intermediaries MUST forward events of 64 KByte or less.",
+      "applicability": "intermediary-role",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "The module is a codec and does not operate an intermediary."
+    },
+    {
+      "id": "CE-CORE-059",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Size Limits",
+        "line": 511,
+        "keyword_lines": [
+          511
+        ]
+      },
+      "text": "Consumers SHOULD accept events of at least 64 KByte.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "limits.go",
+        "json.go",
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "json_boundary_test.go",
+        "http_boundary_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-CORE-060",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Size Limits",
+        "line": 519,
+        "keyword_lines": [
+          519
+        ]
+      },
+      "text": "Publishers SHOULD keep events compact and link to large data instead of embedding it.",
+      "applicability": "producer-guidance",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Payload design is caller-owned."
+    },
+    {
+      "id": "CE-CORE-061",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Privacy and Security",
+        "line": 538,
+        "keyword_lines": [
+          538
+        ]
+      },
+      "text": "Sensitive information SHOULD NOT be carried in context attributes.",
+      "applicability": "application-policy",
+      "status": "unsupported",
+      "implementation": [
+        "event.go"
+      ],
+      "artifacts": [
+        "adapters/golib/audit_schema_test.go",
+        "adapters/golib/public_boundaries_test.go"
+      ],
+      "limitation": "The generic model cannot identify sensitive values; selected adapters apply explicit trust and audit policies."
+    },
+    {
+      "id": "CE-CORE-062",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Privacy and Security",
+        "line": 541,
+        "keyword_lines": [
+          541
+        ]
+      },
+      "text": "Producers, consumers, and intermediaries MAY inspect and log context attributes.",
+      "applicability": "observability-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "The package performs no logging."
+    },
+    {
+      "id": "CE-CORE-063",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Privacy and Security",
+        "line": 546,
+        "keyword_lines": [
+          546
+        ]
+      },
+      "text": "Domain event data SHOULD be encrypted to restrict visibility to trusted parties.",
+      "applicability": "application-security",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Payload encryption is an agreement between producer and consumer."
+    },
+    {
+      "id": "CE-CORE-064",
+      "source": {
+        "path": "cloudevents/spec.md",
+        "section": "Privacy and Security",
+        "line": 553,
+        "keyword_lines": [
+          553
+        ]
+      },
+      "text": "Protocol-level security SHOULD protect CloudEvents in transit.",
+      "applicability": "deployment-security",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "The transport-neutral codecs do not establish network connections."
+    },
+    {
+      "id": "CE-JSON-001",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "2. Attributes",
+        "line": 45,
+        "keyword_lines": [
+          45
+        ]
+      },
+      "text": "Extension attributes MUST be serialized as top-level JSON properties.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "event.go",
+        "attribute.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go",
+        "lossless_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-002",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "2.2. Type System Mapping",
+        "line": 56,
+        "keyword_lines": [
+          56
+        ]
+      },
+      "text": "The CloudEvents type system MUST map to the specified JSON types.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "event.go",
+        "attribute.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go",
+        "event_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-003",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "2.2. Type System Mapping",
+        "line": 69,
+        "keyword_lines": [
+          69
+        ]
+      },
+      "text": "Unset attributes MAY be encoded as JSON null.",
+      "applicability": "decoder-capability",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go"
+      ],
+      "limitation": "The encoder omits unset attributes; the decoder accepts null as permitted."
+    },
+    {
+      "id": "CE-JSON-004",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "2.2. Type System Mapping",
+        "line": 70,
+        "keyword_lines": [
+          70
+        ]
+      },
+      "text": "A null attribute value MUST be treated as unset or omitted.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-005",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "2.2. Type System Mapping",
+        "line": 73,
+        "keyword_lines": [
+          73,
+          74
+        ]
+      },
+      "text": "Extension specifications MAY add secondary JSON mappings but MUST retain the primary mapping.",
+      "applicability": "extension-specification",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "This governs extension specification authors."
+    },
+    {
+      "id": "CE-JSON-006",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "2.2. Type System Mapping",
+        "line": 83,
+        "keyword_lines": [
+          83
+        ]
+      },
+      "text": "A secondary JSON mapping MUST define mappings for every other core event format.",
+      "applicability": "extension-specification",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "This governs extension specification authors."
+    },
+    {
+      "id": "CE-JSON-007",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3. Envelope",
+        "line": 118,
+        "keyword_lines": [
+          118
+        ]
+      },
+      "text": "A JSON event representation MUST use application/cloudevents+json.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "kafka_test.go",
+        "interoperability_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-008",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3. Envelope",
+        "line": 120,
+        "keyword_lines": [
+          120
+        ]
+      },
+      "text": "Every REQUIRED and present OPTIONAL attribute MUST become a correctly named and typed JSON object member.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "event.go",
+        "attribute.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go",
+        "lossless_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-009",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3. Envelope",
+        "line": 125,
+        "keyword_lines": [
+          125
+        ]
+      },
+      "text": "A present OPTIONAL attribute MAY be represented by JSON null.",
+      "applicability": "decoder-capability",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go"
+      ],
+      "limitation": "Encoding uses the equivalent omission form."
+    },
+    {
+      "id": "CE-JSON-010",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.1. Payload Serialization",
+        "line": 135,
+        "keyword_lines": [
+          135
+        ]
+      },
+      "text": "A JSON serializer MUST first determine the runtime data type.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-011",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.1. Payload Serialization",
+        "line": 139,
+        "keyword_lines": [
+          139
+        ]
+      },
+      "text": "Binary data MUST be a Base64 JSON string in data_base64.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-012",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.1. Payload Serialization",
+        "line": 141,
+        "keyword_lines": [
+          141
+        ]
+      },
+      "text": "When present for binary data, datacontenttype MUST describe the original binary format.",
+      "applicability": "loss-aware-implementation",
+      "status": "supported",
+      "implementation": [
+        "conversion.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "lossless_boundary_test.go"
+      ],
+      "limitation": "The package preserves an explicit media type and reports implicit representation changes."
+    },
+    {
+      "id": "CE-JSON-013",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.1. Payload Serialization",
+        "line": 150,
+        "keyword_lines": [
+          150
+        ]
+      },
+      "text": "Absent datacontenttype SHOULD be processed as application/json.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-014",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.1. Payload Serialization",
+        "line": 154,
+        "keyword_lines": [
+          154,
+          156
+        ]
+      },
+      "text": "JSON-formatted data MUST be translated to data and stored directly as a JSON value.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "lossless_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-015",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.1. Payload Serialization",
+        "line": 157,
+        "keyword_lines": [
+          157
+        ]
+      },
+      "text": "Serialization MAY fail when runtime data cannot be translated to JSON.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-016",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.1. Payload Serialization",
+        "line": 161,
+        "keyword_lines": [
+          161
+        ]
+      },
+      "text": "Non-JSON text data MUST be stored as a correctly encoded string in data.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-017",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.1. Payload Serialization",
+        "line": 163,
+        "keyword_lines": [
+          163
+        ]
+      },
+      "text": "Serialization MAY fail when a runtime value cannot be represented as a correctly encoded string.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-018",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.1. Payload Serialization",
+        "line": 171,
+        "keyword_lines": [
+          171,
+          173
+        ]
+      },
+      "text": "JSON-formatted data MAY contain any JSON value, including explicit null distinct from absent data.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "event.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "event_test.go",
+        "json_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-019",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.2. Payload Deserialization",
+        "line": 180,
+        "keyword_lines": [
+          180,
+          181
+        ]
+      },
+      "text": "data_base64 MUST decode to binary runtime data and MAY be interpreted further using datacontenttype.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go"
+      ],
+      "limitation": "The package returns owned binary bytes and does not perform optional media-type-specific interpretation."
+    },
+    {
+      "id": "CE-JSON-020",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.2. Payload Deserialization",
+        "line": 186,
+        "keyword_lines": [
+          186
+        ]
+      },
+      "text": "JSON-formatted data MUST be treated directly as a JSON value.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "lossless_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-021",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.2. Payload Deserialization",
+        "line": 188,
+        "keyword_lines": [
+          188,
+          189
+        ]
+      },
+      "text": "A JSON string data value MUST remain a string and MUST NOT be reparsed as a JSON document.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-022",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.2. Payload Deserialization",
+        "line": 193,
+        "keyword_lines": [
+          193,
+          194
+        ]
+      },
+      "text": "Non-JSON data SHOULD be an encoded content string; decoding MAY fail for a non-string or uninterpretable value.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-023",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.2. Payload Deserialization",
+        "line": 198,
+        "keyword_lines": [
+          198,
+          199
+        ]
+      },
+      "text": "When datacontenttype is absent, a data member SHOULD be processed directly as application/json.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-024",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "3.1.2. Payload Deserialization",
+        "line": 203,
+        "keyword_lines": [
+          203
+        ]
+      },
+      "text": "When converting implicit JSON data to another format or binding, datacontenttype SHOULD be set explicitly to application/json.",
+      "applicability": "loss-aware-implementation",
+      "status": "supported",
+      "implementation": [
+        "conversion.go",
+        "http.go",
+        "kafka.go"
+      ],
+      "artifacts": [
+        "lossless_boundary_test.go",
+        "http_boundary_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-JSON-025",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "4. JSON Batch Format",
+        "line": 360,
+        "keyword_lines": [
+          360
+        ]
+      },
+      "text": "JSON Batch MUST NOT be used when only JSON Event Format support was indicated.",
+      "applicability": "content-negotiation",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "The codec exposes batch as a distinct explicit mode; negotiation remains caller-owned."
+    },
+    {
+      "id": "CE-JSON-026",
+      "source": {
+        "path": "cloudevents/formats/json-format.md",
+        "section": "4.2. Envelope",
+        "line": 373,
+        "keyword_lines": [
+          373
+        ]
+      },
+      "text": "A JSON batch MUST use application/cloudevents-batch+json.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "http.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "http_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-001",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "1.3. Content Modes",
+        "line": 65,
+        "keyword_lines": [
+          65
+        ]
+      },
+      "text": "A compliant HTTP implementation SHOULD support structured and binary modes.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "http_boundary_test.go",
+        "conformance_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-002",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "1.4. Event Formats",
+        "line": 87,
+        "keyword_lines": [
+          87,
+          88
+        ]
+      },
+      "text": "Structured mode MUST support non-batch JSON and MAY support additional formats.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "http_boundary_test.go",
+        "conformance_test.go"
+      ],
+      "limitation": "Only JSON event and JSON batch formats are implemented."
+    },
+    {
+      "id": "CE-HTTP-003",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "1.4. Event Formats",
+        "line": 91,
+        "keyword_lines": [
+          91
+        ]
+      },
+      "text": "Event formats MAY define a batch representation for HTTP batch mode.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "http.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "http_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-004",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3. HTTP Message Mapping",
+        "line": 135,
+        "keyword_lines": [
+          135,
+          136
+        ]
+      },
+      "text": "Batch mode MUST NOT be used unless solicited, and solicitation SHOULD let the receiver choose a maximum batch size.",
+      "applicability": "content-negotiation",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "The explicit BatchMode codec has no negotiation layer; callers own solicitation and negotiated size."
+    },
+    {
+      "id": "CE-HTTP-005",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3. HTTP Message Mapping",
+        "line": 146,
+        "keyword_lines": [
+          146
+        ]
+      },
+      "text": "A receiver MAY treat an unsupported structured event format as binary and forward it unchanged.",
+      "applicability": "optional-behavior",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_boundary_test.go"
+      ],
+      "limitation": "The package elects the other permitted behavior and returns ErrUnsupportedMode."
+    },
+    {
+      "id": "CE-HTTP-006",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.1. HTTP Content-Type",
+        "line": 167,
+        "keyword_lines": [
+          167
+        ]
+      },
+      "text": "In binary mode, HTTP Content-Type MUST map to datacontenttype.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-007",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.1. HTTP Content-Type",
+        "line": 168,
+        "keyword_lines": [
+          168
+        ]
+      },
+      "text": "Binary mode MUST NOT also carry ce-datacontenttype.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-008",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3. Metadata Headers",
+        "line": 177,
+        "keyword_lines": [
+          177
+        ]
+      },
+      "text": "Every non-data attribute, including extensions, MUST map individually to a distinct HTTP header.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-009",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3. Metadata Headers",
+        "line": 180,
+        "keyword_lines": [
+          180,
+          183
+        ]
+      },
+      "text": "Extensions MAY define secondary HTTP mappings, but the primary ce- mapping MUST remain present.",
+      "applicability": "primary-mapping",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "http_boundary_test.go"
+      ],
+      "limitation": "No specialized secondary HTTP mappings are emitted."
+    },
+    {
+      "id": "CE-HTTP-010",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.1. HTTP Header Names",
+        "line": 190,
+        "keyword_lines": [
+          190
+        ]
+      },
+      "text": "Context attributes MUST map to ce- followed by the attribute name.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-011",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.2. HTTP Header Values",
+        "line": 208,
+        "keyword_lines": [
+          208,
+          210
+        ]
+      },
+      "text": "HTTP header values MUST use printable US-ASCII and may have OPTIONAL surrounding whitespace after CRLF.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-012",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.2. HTTP Header Values",
+        "line": 213,
+        "keyword_lines": [
+          213,
+          216
+        ]
+      },
+      "text": "String attribute header values MUST be percent-encoded once and SHOULD NOT be further encoded.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-013",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.2. HTTP Header Values",
+        "line": 221,
+        "keyword_lines": [
+          221,
+          223
+        ]
+      },
+      "text": "Inbound attribute header values MUST be unescaped as quoted strings and then percent-decoded exactly once.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-014",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.2. HTTP Header Values",
+        "line": 229,
+        "keyword_lines": [
+          229
+        ]
+      },
+      "text": "Receivers MUST accept legacy double-quoted attribute header values.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-015",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.2. HTTP Header Values",
+        "line": 236,
+        "keyword_lines": [
+          236
+        ]
+      },
+      "text": "A Unicode surrogate pair MUST be treated as one Unicode character.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_boundary_test.go"
+      ],
+      "limitation": "Go strings are processed as UTF-8 bytes after scalar-value validation; valid supplementary characters round-trip as one UTF-8 sequence."
+    },
+    {
+      "id": "CE-HTTP-016",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.2. HTTP Header Values",
+        "line": 237,
+        "keyword_lines": [
+          237
+        ]
+      },
+      "text": "Space, double quote, percent, and non-printable-ASCII characters MUST be percent-encoded.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-017",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.2. HTTP Header Values",
+        "line": 248,
+        "keyword_lines": [
+          248
+        ]
+      },
+      "text": "Header encoders are RECOMMENDED to percent-encode prohibited control characters defensively.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go",
+        "attribute.go"
+      ],
+      "artifacts": [
+        "boundary_test.go",
+        "http_boundary_test.go"
+      ],
+      "limitation": "The event model rejects prohibited controls before encoding and the encoder percent-encodes every byte outside printable ASCII."
+    },
+    {
+      "id": "CE-HTTP-018",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.2. HTTP Header Values",
+        "line": 263,
+        "keyword_lines": [
+          263,
+          264
+        ]
+      },
+      "text": "Percent encoding SHOULD use uppercase hex; decoders MUST accept lowercase hex.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-019",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.2. HTTP Header Values",
+        "line": 267,
+        "keyword_lines": [
+          267,
+          268,
+          270
+        ]
+      },
+      "text": "Decoders MUST accept unnecessary percent encoding and MUST reject invalid UTF-8 encoded byte sequences, including overlong forms.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-020",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.1.3.2. HTTP Header Values",
+        "line": 272,
+        "keyword_lines": [
+          272
+        ]
+      },
+      "text": "The normative Unicode example SHOULD encode space, euro, and emoji using the specified UTF-8 percent sequences.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-021",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.2.1. HTTP Content-Type",
+        "line": 330,
+        "keyword_lines": [
+          330
+        ]
+      },
+      "text": "Structured HTTP Content-Type MUST be an event-format media type.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "conformance_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-022",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.2.3. Metadata Headers",
+        "line": 349,
+        "keyword_lines": [
+          349
+        ]
+      },
+      "text": "Structured mode MAY repeat binary-mode ce- headers.",
+      "applicability": "optional-behavior",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_boundary_test.go"
+      ],
+      "limitation": "The encoder omits redundant headers; the decoder accepts matching copies and rejects conflicts."
+    },
+    {
+      "id": "CE-HTTP-023",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.2.3. Metadata Headers",
+        "line": 352,
+        "keyword_lines": [
+          352
+        ]
+      },
+      "text": "All CloudEvents metadata MUST remain in the structured payload even when repeated in HTTP headers.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "http_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-024",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.3. Batched Content Mode",
+        "line": 403,
+        "keyword_lines": [
+          403
+        ]
+      },
+      "text": "The event format used in batch mode MUST define a batch representation.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "http.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "http_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-025",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.3. Batched Content Mode",
+        "line": 405,
+        "keyword_lines": [
+          405
+        ]
+      },
+      "text": "Every compliant implementation MUST support JSON Batch for HTTP batch mode.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "http.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "http_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-026",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.3.1. HTTP Content-Type",
+        "line": 410,
+        "keyword_lines": [
+          410
+        ]
+      },
+      "text": "Batched HTTP Content-Type MUST be an event-format media type.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "http.go"
+      ],
+      "artifacts": [
+        "http_test.go",
+        "conformance_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-027",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.3.2. Event Data Encoding",
+        "line": 427,
+        "keyword_lines": [
+          427
+        ]
+      },
+      "text": "An HTTP batch MAY be empty and every event in it MUST share specversion.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "http.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "json_boundary_test.go",
+        "http_test.go"
+      ]
+    },
+    {
+      "id": "CE-HTTP-028",
+      "source": {
+        "path": "cloudevents/bindings/http-protocol-binding.md",
+        "section": "3.3.2. Event Data Encoding",
+        "line": 428,
+        "keyword_lines": [
+          428
+        ]
+      },
+      "text": "Other attributes in an HTTP batch MAY differ, including datacontenttype.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "json.go",
+        "http.go"
+      ],
+      "artifacts": [
+        "json_test.go",
+        "http_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-001",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "1.2. Relation to Kafka",
+        "line": 60,
+        "keyword_lines": [
+          60
+        ]
+      },
+      "text": "Users SHOULD configure record key or partition according to their application.",
+      "applicability": "application-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "Topic partitioning policy is caller-owned."
+    },
+    {
+      "id": "CE-KAFKA-002",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "1.2. Relation to Kafka",
+        "line": 63,
+        "keyword_lines": [
+          63
+        ]
+      },
+      "text": "The binding provides an OPTIONAL record-key mapping without requiring its use.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-003",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "1.3. Content Modes",
+        "line": 80,
+        "keyword_lines": [
+          80,
+          82
+        ]
+      },
+      "text": "Binary mode MUST place data bytes unchanged in the record value and MUST map every other attribute to headers.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "kafka_test.go",
+        "kafka_boundary_test.go",
+        "conformance_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-004",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "1.3. Content Modes",
+        "line": 85,
+        "keyword_lines": [
+          85,
+          86
+        ]
+      },
+      "text": "Kafka 0.11 or newer MAY use binary or structured mode; older Kafka MUST use structured JSON.",
+      "applicability": "broker-version-policy",
+      "status": "not-applicable",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "The transport-neutral record codec targets header-capable Kafka records and does not negotiate broker versions."
+    },
+    {
+      "id": "CE-KAFKA-005",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "1.4. Event Formats",
+        "line": 94,
+        "keyword_lines": [
+          94
+        ]
+      },
+      "text": "Structured Kafka implementations MUST support JSON event format.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go",
+        "json.go"
+      ],
+      "artifacts": [
+        "kafka_test.go",
+        "kafka_boundary_test.go",
+        "conformance_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-006",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "3. Kafka Message Mapping",
+        "line": 136,
+        "keyword_lines": [
+          136
+        ]
+      },
+      "text": "A receiver MAY treat an unsupported structured event format as binary and forward it unchanged.",
+      "applicability": "optional-behavior",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_boundary_test.go"
+      ],
+      "limitation": "The package elects the other permitted behavior and returns ErrUnsupportedMode."
+    },
+    {
+      "id": "CE-KAFKA-007",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "3.1. Key Mapping",
+        "line": 149,
+        "keyword_lines": [
+          149
+        ]
+      },
+      "text": "By default, an implementation MUST copy the user-provided record key to the Kafka record key.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-008",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "3.1. Key Mapping",
+        "line": 152,
+        "keyword_lines": [
+          152
+        ]
+      },
+      "text": "A key mapper MAY populate the record key from event or application information.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_test.go"
+      ],
+      "limitation": "KafkaPartitionKey supplies the selected event-attribute mapper; arbitrary mapping can be applied by the caller before encoding."
+    },
+    {
+      "id": "CE-KAFKA-009",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "3.1. Key Mapping",
+        "line": 160,
+        "keyword_lines": [
+          160
+        ]
+      },
+      "text": "An implementation SHOULD offer an opt-in mapper from partitionkey to record key unchanged.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-010",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "3.1. Key Mapping",
+        "line": 164,
+        "keyword_lines": [
+          164,
+          165,
+          168
+        ]
+      },
+      "text": "A key mapper MUST NOT modify the CloudEvent, MUST retain partitionkey in the event, and MUST NOT add out-of-band key data as an attribute.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-011",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "3.2.1. Content Type",
+        "line": 177,
+        "keyword_lines": [
+          177
+        ]
+      },
+      "text": "Binary Kafka content-type MUST map directly to datacontenttype.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-012",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "3.2.2. Event Data Encoding",
+        "line": 182,
+        "keyword_lines": [
+          182
+        ]
+      },
+      "text": "Binary data bytes MUST be the Kafka record value.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-013",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "3.2.3. Metadata Headers",
+        "line": 189,
+        "keyword_lines": [
+          189,
+          190
+        ]
+      },
+      "text": "Every non-data attribute MUST map individually to Kafka headers, and keys and values MUST be UTF-8 strings.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_test.go",
+        "kafka_boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-014",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "3.3.1. Kafka Content-Type",
+        "line": 253,
+        "keyword_lines": [
+          253
+        ]
+      },
+      "text": "When present in structured mode, content-type MUST identify an event format.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_test.go",
+        "conformance_test.go"
+      ]
+    },
+    {
+      "id": "CE-KAFKA-015",
+      "source": {
+        "path": "cloudevents/bindings/kafka-protocol-binding.md",
+        "section": "3.3.3. Metadata Headers",
+        "line": 273,
+        "keyword_lines": [
+          273
+        ]
+      },
+      "text": "Structured mode MAY repeat binary-mode Kafka headers.",
+      "applicability": "optional-behavior",
+      "status": "supported",
+      "implementation": [
+        "kafka.go"
+      ],
+      "artifacts": [
+        "kafka_boundary_test.go"
+      ],
+      "limitation": "The encoder omits redundant headers; the decoder accepts matching copies and rejects conflicts."
+    },
+    {
+      "id": "CE-TRACE-001",
+      "source": {
+        "path": "cloudevents/extensions/distributed-tracing.md",
+        "section": "traceparent",
+        "line": 18,
+        "keyword_lines": [
+          18
+        ]
+      },
+      "text": "When the distributed-tracing extension is used, traceparent is REQUIRED.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "extensions.go",
+        "event.go"
+      ],
+      "artifacts": [
+        "extensions_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-TRACE-002",
+      "source": {
+        "path": "cloudevents/extensions/distributed-tracing.md",
+        "section": "tracestate",
+        "line": 26,
+        "keyword_lines": [
+          26
+        ]
+      },
+      "text": "tracestate is OPTIONAL.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "extensions.go",
+        "event.go"
+      ],
+      "artifacts": [
+        "extensions_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-TRACE-003",
+      "source": {
+        "path": "cloudevents/extensions/distributed-tracing.md",
+        "section": "Using the Distributed Tracing Extension",
+        "line": 34,
+        "keyword_lines": [
+          34
+        ]
+      },
+      "text": "For a single-hop transmission, the extension MUST carry the same trace information as protocol-specific tracing headers.",
+      "applicability": "adapter-policy",
+      "status": "supported",
+      "implementation": [
+        "adapters/golib/metadata.go"
+      ],
+      "artifacts": [
+        "adapters/golib/metadata_test.go"
+      ],
+      "limitation": "Equality is established only when callers use the explicit Golib propagation-policy adapter; core codecs do not inspect protocol-specific trace headers."
+    },
+    {
+      "id": "CE-TRACE-004",
+      "source": {
+        "path": "cloudevents/extensions/distributed-tracing.md",
+        "section": "Using the Distributed Tracing Extension",
+        "line": 36,
+        "keyword_lines": [
+          36
+        ]
+      },
+      "text": "For a multi-hop transmission, the extension MUST retain the starting trace.",
+      "applicability": "lifecycle-semantics",
+      "status": "unsupported",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "The stateless codecs cannot identify the starting hop; callers must preserve the original extension."
+    },
+    {
+      "id": "CE-TRACE-005",
+      "source": {
+        "path": "cloudevents/extensions/distributed-tracing.md",
+        "section": "Using the Distributed Tracing Extension",
+        "line": 38,
+        "keyword_lines": [
+          38
+        ]
+      },
+      "text": "The extension MUST NOT be rewritten with trace information for each individual hop.",
+      "applicability": "lifecycle-semantics",
+      "status": "unsupported",
+      "implementation": [],
+      "artifacts": [],
+      "limitation": "The stateless codecs neither create spans nor control intermediary rewriting."
+    },
+    {
+      "id": "CE-PARTITION-001",
+      "source": {
+        "path": "cloudevents/extensions/partitioning.md",
+        "section": "partitionkey",
+        "line": 27,
+        "keyword_lines": [
+          27
+        ]
+      },
+      "text": "When the partitioning extension is used, partitionkey is REQUIRED.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "extensions.go",
+        "event.go"
+      ],
+      "artifacts": [
+        "extensions_test.go",
+        "boundary_test.go"
+      ]
+    },
+    {
+      "id": "CE-PARTITION-002",
+      "source": {
+        "path": "cloudevents/extensions/partitioning.md",
+        "section": "partitionkey",
+        "line": 28,
+        "keyword_lines": [
+          28
+        ]
+      },
+      "text": "partitionkey MUST be a non-empty string.",
+      "applicability": "implementation",
+      "status": "supported",
+      "implementation": [
+        "extensions.go",
+        "event.go"
+      ],
+      "artifacts": [
+        "extensions_test.go",
+        "boundary_test.go",
+        "kafka_test.go"
+      ]
+    }
+  ],
+  "unsupported_surfaces": [
+    {
+      "id": "format-avro",
+      "documents": [
+        "cloudevents/formats/avro-format.md",
+        "cloudevents/formats/cloudevents.avsc"
+      ],
+      "status": "unsupported",
+      "limitation": "No Avro parser, serializer, schema registration, or media-type implementation is exposed."
+    },
+    {
+      "id": "format-protobuf",
+      "documents": [
+        "cloudevents/formats/protobuf-format.md",
+        "cloudevents/formats/cloudevents.proto"
+      ],
+      "status": "unsupported",
+      "limitation": "No Protobuf parser, serializer, schema registration, or media-type implementation is exposed."
+    },
+    {
+      "id": "binding-amqp",
+      "documents": [
+        "cloudevents/bindings/amqp-protocol-binding.md"
+      ],
+      "status": "unsupported",
+      "limitation": "No AMQP binding or adapter is exposed."
+    },
+    {
+      "id": "binding-mqtt",
+      "documents": [
+        "cloudevents/bindings/mqtt-protocol-binding.md"
+      ],
+      "status": "unsupported",
+      "limitation": "No MQTT binding or adapter is exposed."
+    },
+    {
+      "id": "binding-nats",
+      "documents": [
+        "cloudevents/bindings/nats-protocol-binding.md"
+      ],
+      "status": "unsupported",
+      "limitation": "No NATS binding or adapter is exposed."
+    },
+    {
+      "id": "binding-websockets",
+      "documents": [
+        "cloudevents/bindings/websockets-protocol-binding.md"
+      ],
+      "status": "unsupported",
+      "limitation": "No WebSockets binding or adapter is exposed."
+    },
+    {
+      "id": "extension-dataref",
+      "documents": [
+        "cloudevents/extensions/dataref.md"
+      ],
+      "status": "unsupported",
+      "limitation": "Generic attribute retention is not dataref dereference, integrity, lifetime, or claim-check semantics."
+    },
+    {
+      "id": "extension-sampledrate",
+      "documents": [
+        "cloudevents/extensions/sampledrate.md"
+      ],
+      "status": "unsupported",
+      "limitation": "Generic attribute retention is not sampling-rate validation or sampling policy."
+    },
+    {
+      "id": "extension-sequence",
+      "documents": [
+        "cloudevents/extensions/sequence.md"
+      ],
+      "status": "unsupported",
+      "limitation": "Generic attribute retention is not sequence validation, ordering, wraparound, or gap semantics."
+    }
+  ]
+}

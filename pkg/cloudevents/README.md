@@ -30,6 +30,14 @@ if err != nil {
 wire, err := cloudevents.EncodeJSON(event)
 ```
 
+`EncodeJSON`, `EncodeJSONBatch`, `EncodeHTTP`, and `EncodeKafka` are strict:
+they return `ErrConversionLoss` when a target representation would normalize a
+declared extension type, materialize metadata, or discard payload-byte
+distinctions. The corresponding `Encode*WithReport` functions return the
+encoded value plus a deterministic `ConversionReport` when the caller has an
+explicit policy for those changes. JSON payload bytes, including significant
+internal whitespace, otherwise remain exact across structured round trips.
+
 Use `DecodeJSON`, `DecodeJSONBatch`, `DecodeHTTP`, or `DecodeKafka` with an
 explicit `Limits` value for untrusted input. `DefaultLimits` is conservative;
 applications remain responsible for choosing limits appropriate to their
@@ -76,6 +84,7 @@ policy, schema registry, audit log, or replacement for application validation.
 
 See the canonical [specification decision register](docs/specification-decisions.md),
 [interoperability overview](docs/decisions.md), [security policy](SECURITY.md),
+[security and cardinality review](docs/security-review.md),
 [fixture provenance](docs/provenance.md), [benchmark baseline](docs/benchmarks.md),
 and [changelog](CHANGELOG.md). Interoperability evidence covers the official Go
 SDK and the independent JavaScript SDK; importing the package never invokes

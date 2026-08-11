@@ -194,35 +194,48 @@ func TestSchemaValidatorsRejectEveryConfigurationResolutionAndPayloadFailure(t *
 
 	adapter, _ := registryjsonschema.New(registryjsonschema.Config{MaxSchemaBytes: 1024, MaxTotalSchemaBytes: 2048, MaxPayloadBytes: 1024, MaxResources: 1})
 	validSchema := registrySchema(t, adapter, `{"type":"object","required":["id"]}`)
-	lookup := func(string) (schemaregistry.Lookup, error) {
-		return schemaregistry.Latest(schemaregistry.Subject{Name: "subject"}), nil
+	subject := schemaregistry.Subject{Name: "subject"}
+	lookup := schemaregistry.Latest(subject)
+	if err := (golib.RegistryJSONSchemaValidator{}).Validate(ctx, "schema", "application/json", []byte(`{}`)); !errors.Is(err, golib.ErrSchemaMapping) {
+		t.Fatalf("zero-value registry config error = %v", err)
 	}
-	var typedNil *resolverStub
-	for _, validator := range []golib.RegistryJSONSchemaValidator{{}, {Resolver: typedNil, Adapter: adapter, Lookup: lookup}} {
-		if err := validator.Validate(ctx, "schema", "application/json", []byte(`{}`)); !errors.Is(err, golib.ErrSchemaMapping) {
-			t.Fatalf("registry config error = %v", err)
-		}
+	if _, err := golib.NewRegistryJSONSchemaValidator(golib.RegistryJSONSchemaConfig{
+		SchemaLookups: map[string]schemaregistry.Lookup{"schema": lookup}, Adapter: adapter,
+		AvailabilityPolicy: schemaregistry.FailClosed, Timeout: time.Second,
+	}); !errors.Is(err, golib.ErrSchemaMapping) {
+		t.Fatalf("nil-cache registry config error = %v", err)
 	}
-	resolver := &resolverStub{result: schemaregistry.ResolveResult{Schema: validSchema}}
-	registry := golib.RegistryJSONSchemaValidator{Resolver: resolver, Adapter: adapter, Lookup: lookup}
+	validResult := schemaregistry.ResolveResult{
+		Schema: validSchema, ID: schemaregistry.ProviderID{Provider: "test", Value: "subject-v1"},
+		Subject: subject, Version: schemaregistry.Version{Number: 1}, Lifecycle: schemaregistry.LifecycleAvailable,
+	}
+	resolver := &resolverStub{result: validResult}
+	newRegistry := func(mappings map[string]schemaregistry.Lookup) golib.RegistryJSONSchemaValidator {
+		return newSchemaHardeningValidator(t, golib.RegistryJSONSchemaConfig{
+			Cache: newSchemaHardeningCache(t, resolver), SchemaLookups: mappings, Adapter: adapter,
+			AvailabilityPolicy: schemaregistry.FailClosed, Timeout: time.Second,
+		})
+	}
+	registry := newRegistry(map[string]schemaregistry.Lookup{"schema": lookup})
 	if err := registry.Validate(ctx, "schema", "text/plain", []byte(`{}`)); !errors.Is(err, golib.ErrSchemaMapping) {
 		t.Fatalf("registry content type error = %v", err)
 	}
-	registry.Lookup = func(string) (schemaregistry.Lookup, error) { return schemaregistry.Lookup{}, errors.New("lookup") }
-	if err := registry.Validate(ctx, "schema", "application/json", []byte(`{}`)); !errors.Is(err, golib.ErrSchemaMapping) {
+	if err := registry.Validate(ctx, "other", "application/json", []byte(`{}`)); !errors.Is(err, golib.ErrSchemaMapping) {
 		t.Fatalf("registry lookup error = %v", err)
 	}
 	resolver.err = errors.New("resolve")
-	registry.Lookup = lookup
+	registry = newRegistry(map[string]schemaregistry.Lookup{"schema": lookup})
 	if err := registry.Validate(ctx, "schema", "application/json", []byte(`{}`)); !errors.Is(err, resolver.err) {
 		t.Fatalf("registry resolver error = %v", err)
 	}
 	resolver.err = nil
 	resolver.result = schemaregistry.ResolveResult{}
-	if err := registry.Validate(ctx, "schema", "application/json", []byte(`{}`)); !errors.Is(err, golib.ErrSchemaMapping) {
-		t.Fatalf("registry format error = %v", err)
+	registry = newRegistry(map[string]schemaregistry.Lookup{"schema": lookup})
+	if err := registry.Validate(ctx, "schema", "application/json", []byte(`{}`)); !errors.Is(err, schemaregistry.ErrResolutionMismatch) {
+		t.Fatalf("registry identity error = %v", err)
 	}
-	resolver.result = schemaregistry.ResolveResult{Schema: validSchema}
+	resolver.result = validResult
+	registry = newRegistry(map[string]schemaregistry.Lookup{"schema": lookup})
 	if err := registry.Validate(ctx, "schema", "application/json", []byte(`{}`)); !errors.Is(err, golib.ErrSchemaViolation) {
 		t.Fatalf("registry violation error = %v", err)
 	}
@@ -301,7 +314,8 @@ func traceContext() context.Context {
 func eventWithExtensions(t *testing.T, extensions map[string]cloudevents.Attribute) cloudevents.Event {
 	t.Helper()
 	event, err := cloudevents.NewEvent(cloudevents.Attributes{
-		ID: "event-1", Source: "/source", Type: "example.created", Extensions: extensions,
+		ID: "event-1", Source: "/source", Type: "example.created",
+		DataContentType: "application/octet-stream", Extensions: extensions,
 	}, cloudevents.NewBinaryData([]byte("body")))
 	if err != nil {
 		t.Fatal(err)

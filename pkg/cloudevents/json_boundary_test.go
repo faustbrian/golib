@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"runtime"
+	"strings"
 	"testing"
 	"time"
 )
@@ -106,6 +108,23 @@ func TestDecodeJSONEnforcesDecodedAndExactResourceBoundaries(t *testing.T) {
 	}
 }
 
+func TestDecodeJSONRejectsOversizedStringExtensionWithinAllocationBudget(t *testing.T) {
+	limits := DefaultLimits()
+	limits.MaxAttributeValueBytes = 3
+	input := []byte(`{"specversion":"1.0","id":"1","source":"/","type":"x","extra":"` +
+		strings.Repeat("a", 256<<10) + `"}`)
+	runtime.GC()
+	var before, after runtime.MemStats
+	runtime.ReadMemStats(&before)
+	if _, err := DecodeJSON(input, limits); !errors.Is(err, ErrLimitExceeded) {
+		t.Fatalf("DecodeJSON() error = %v", err)
+	}
+	runtime.ReadMemStats(&after)
+	if allocated := after.TotalAlloc - before.TotalAlloc; allocated > 2<<20 {
+		t.Fatalf("oversized extension allocation = %d bytes, want at most %d", allocated, 2<<20)
+	}
+}
+
 func TestDecodeJSONBatchAndDepthAcceptExactLimits(t *testing.T) {
 	t.Parallel()
 
@@ -162,14 +181,16 @@ func TestEncodeJSONCoversOptionalAttributesAndEveryDataRepresentation(t *testing
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := EncodeJSON(event); err != nil {
-		t.Fatalf("binary EncodeJSON() error = %v", err)
+	if _, report, err := EncodeJSONWithReport(event); err != nil || len(report.Losses) != 3 {
+		t.Fatalf("binary EncodeJSONWithReport() = %#v, %v", report, err)
 	}
 	text, err := NewTextData("text")
 	if err != nil {
 		t.Fatal(err)
 	}
-	event, err = NewEvent(Attributes{ID: "2", Source: "/source", Type: "example"}, text)
+	event, err = NewEvent(Attributes{
+		ID: "2", Source: "/source", Type: "example", DataContentType: "text/plain",
+	}, text)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -206,6 +227,9 @@ func TestDecodeJSONRejectsEveryContextAndExtensionBoundary(t *testing.T) {
 		{name: "numeric time", input: `{"specversion":"1.0","id":"1","source":"/source","type":"example","time":1}`, want: ErrInvalidEvent},
 		{name: "invalid time", input: `{"specversion":"1.0","id":"1","source":"/source","type":"example","time":"today"}`, want: ErrInvalidEvent},
 		{name: "attribute value limit", input: base, limits: func() Limits { l := DefaultLimits(); l.MaxAttributeValueBytes = 0; return l }, want: ErrLimitExceeded},
+		{name: "exact string extension limit", input: `{"specversion":"1.0","id":"1","source":"/","type":"x","extra":"abc"}`, limits: func() Limits { l := DefaultLimits(); l.MaxAttributeValueBytes = 3; return l }},
+		{name: "exact boolean extension token limit", input: `{"specversion":"1.0","id":"1","source":"/","type":"x","extra":true}`, limits: func() Limits { l := DefaultLimits(); l.MaxAttributeValueBytes = 4; return l }},
+		{name: "oversized numeric extension token", input: `{"specversion":"1.0","id":"1","source":"/","type":"x","attempt":999999999999999999999999999999}`, limits: func() Limits { l := DefaultLimits(); l.MaxAttributeValueBytes = 3; return l }, want: ErrLimitExceeded},
 		{name: "extension name limit", input: `{"specversion":"1.0","id":"1","source":"/source","type":"example","extension":"x"}`, limits: func() Limits { l := DefaultLimits(); l.MaxAttributeNameBytes = 1; return l }, want: ErrLimitExceeded},
 		{name: "fraction extension", input: `{"specversion":"1.0","id":"1","source":"/source","type":"example","attempt":1.5}`, want: ErrInvalidEvent},
 		{name: "integer overflow extension", input: `{"specversion":"1.0","id":"1","source":"/source","type":"example","attempt":2147483648}`, want: ErrInvalidEvent},

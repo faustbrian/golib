@@ -34,30 +34,44 @@ type KafkaMessage struct {
 	TransportHeaders []KafkaHeader
 }
 
-// EncodeKafka maps one Event to the stable Kafka protocol binding. Kafka does
-// not define batch mode. The supplied key is copied unchanged.
+// EncodeKafka maps one Event without implicit representation loss. Use
+// EncodeKafkaWithReport to accept and inspect target-binding changes.
 func EncodeKafka(event Event, mode ContentMode, key []byte) (KafkaRecord, error) {
+	record, report, err := EncodeKafkaWithReport(event, mode, key)
+	if err != nil {
+		return KafkaRecord{}, err
+	}
+	if err := rejectConversionLoss(report); err != nil {
+		return KafkaRecord{}, err
+	}
+	return record, nil
+}
+
+// EncodeKafkaWithReport maps one Event to the stable Kafka protocol binding
+// while reporting every representation change. Kafka does not define batch
+// mode. The supplied key is copied unchanged.
+func EncodeKafkaWithReport(event Event, mode ContentMode, key []byte) (KafkaRecord, ConversionReport, error) {
 	switch mode {
 	case BinaryMode:
 		if err := event.Validate(); err != nil {
-			return KafkaRecord{}, err
+			return KafkaRecord{}, ConversionReport{}, err
 		}
 		record := KafkaRecord{Key: cloneBytesPreservingNil(key), Headers: encodeKafkaBinaryHeaders(event)}
 		if event.data.present {
 			record.Value = cloneBytesPreservingEmpty(event.data.bytes)
 		}
-		return record, nil
+		return record, binaryConversionReport(event), nil
 	case StructuredMode:
-		value, err := EncodeJSON(event)
+		value, report, err := EncodeJSONWithReport(event)
 		if err != nil {
-			return KafkaRecord{}, err
+			return KafkaRecord{}, ConversionReport{}, err
 		}
 		return KafkaRecord{
 			Key: cloneBytesPreservingNil(key), Value: value,
 			Headers: []KafkaHeader{{Key: "content-type", Value: []byte(JSONMediaType)}},
-		}, nil
+		}, report, nil
 	default:
-		return KafkaRecord{}, ErrUnsupportedMode
+		return KafkaRecord{}, ConversionReport{}, ErrUnsupportedMode
 	}
 }
 
@@ -95,9 +109,7 @@ func encodeKafkaBinaryHeaders(event Event) []KafkaHeader {
 	if event.dataContentType != "" {
 		headers = append(headers, KafkaHeader{Key: "content-type", Value: []byte(event.dataContentType)})
 	} else if event.data.present {
-		if event.data.kind == DataJSON {
-			headers = append(headers, KafkaHeader{Key: "content-type", Value: []byte("application/json")})
-		}
+		headers = append(headers, KafkaHeader{Key: "content-type", Value: []byte(implicitDataContentType(event.data.kind))})
 	}
 	slices.SortFunc(headers, func(left, right KafkaHeader) int {
 		return strings.Compare(left.Key, right.Key)
@@ -293,13 +305,20 @@ func decodeKafkaBinary(value []byte, contentType string, headers map[string][][]
 		if int64(len(value)) > limits.MaxDataBytes {
 			return Event{}, ErrLimitExceeded
 		}
-		if isJSONMediaType(contentType) {
+		switch {
+		case isJSONMediaType(contentType):
 			jsonData, err := NewJSONData(value)
 			if err != nil {
 				return Event{}, err
 			}
 			data = jsonData
-		} else {
+		case isTextMediaType(contentType):
+			textData, err := NewTextData(string(value))
+			if err != nil {
+				return Event{}, err
+			}
+			data = textData
+		default:
 			data = NewBinaryData(value)
 		}
 	}

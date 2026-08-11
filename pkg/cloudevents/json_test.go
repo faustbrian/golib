@@ -14,7 +14,7 @@ func TestEncodeJSONIsDeterministicAndNormative(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create integer attribute: %v", err)
 	}
-	data, err := NewJSONData([]byte(" { \"order\" : \"A-123\" } \n"))
+	data, err := NewJSONData([]byte(`{"order":"A-123"}`))
 	if err != nil {
 		t.Fatalf("create JSON data: %v", err)
 	}
@@ -37,9 +37,9 @@ func TestEncodeJSONIsDeterministicAndNormative(t *testing.T) {
 
 	want := []byte(`{"attempt":2,"blob":"AP8=","data":{"order":"A-123"},"datacontenttype":"application/json","id":"evt-123","source":"/orders","specversion":"1.0","time":"2026-08-09T01:05:06.12Z","type":"com.example.order.created.v1","zeta":true}`)
 	for range 10 {
-		got, err := EncodeJSON(event)
-		if err != nil {
-			t.Fatalf("EncodeJSON() error = %v", err)
+		got, report, err := EncodeJSONWithReport(event)
+		if err != nil || len(report.Losses) != 1 || report.Losses[0].Field != "extensions.blob" {
+			t.Fatalf("EncodeJSONWithReport() = %#v, %v", report, err)
 		}
 		if !bytes.Equal(got, want) {
 			t.Fatalf("EncodeJSON() = %s, want %s", got, want)
@@ -198,7 +198,9 @@ func TestJSONBatchRoundTripAndLimits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("create first data: %v", err)
 	}
-	first, err := NewEvent(Attributes{ID: "1", Source: "/source", Type: "one"}, firstData)
+	first, err := NewEvent(Attributes{
+		ID: "1", Source: "/source", Type: "one", DataContentType: "text/plain",
+	}, firstData)
 	if err != nil {
 		t.Fatalf("create first event: %v", err)
 	}
@@ -215,7 +217,7 @@ func TestJSONBatchRoundTripAndLimits(t *testing.T) {
 	if err != nil {
 		t.Fatalf("EncodeJSONBatch() error = %v", err)
 	}
-	want := `[{"data":"first","id":"1","source":"/source","specversion":"1.0","type":"one"},{"data":null,"id":"2","source":"/source","specversion":"1.0","type":"two"}]`
+	want := `[{"data":"first","datacontenttype":"text/plain","id":"1","source":"/source","specversion":"1.0","type":"one"},{"data":null,"id":"2","source":"/source","specversion":"1.0","type":"two"}]`
 	if string(encoded) != want {
 		t.Fatalf("EncodeJSONBatch() = %s, want %s", encoded, want)
 	}

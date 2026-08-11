@@ -35,40 +35,54 @@ type HTTPMessage struct {
 	Events []Event
 }
 
-// EncodeHTTP maps events to HTTP headers and an owned body. Binary and
-// structured modes require exactly one event; batch mode accepts zero or more.
-// The caller owns the returned values.
+// EncodeHTTP maps events without implicit representation loss. Use
+// EncodeHTTPWithReport to accept and inspect target-binding changes.
 func EncodeHTTP(events []Event, mode ContentMode) (http.Header, []byte, error) {
+	header, body, report, err := EncodeHTTPWithReport(events, mode)
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := rejectConversionLoss(report); err != nil {
+		return nil, nil, err
+	}
+	return header, body, nil
+}
+
+// EncodeHTTPWithReport maps events to HTTP headers and an owned body while
+// reporting every representation change. Binary and structured modes require
+// exactly one event; batch mode accepts zero or more events.
+func EncodeHTTPWithReport(events []Event, mode ContentMode) (http.Header, []byte, ConversionReport, error) {
 	switch mode {
 	case BinaryMode:
 		if len(events) != 1 {
-			return nil, nil, fmt.Errorf("%w: binary event count", ErrUnsupportedMode)
+			return nil, nil, ConversionReport{}, fmt.Errorf("%w: binary event count", ErrUnsupportedMode)
 		}
 		if err := events[0].Validate(); err != nil {
-			return nil, nil, err
+			return nil, nil, ConversionReport{}, err
 		}
-		return encodeHTTPBinary(events[0])
+		header, body, err := encodeHTTPBinary(events[0])
+		return header, body, httpBinaryConversionReport(events[0]), err
 	case StructuredMode:
 		if len(events) != 1 {
-			return nil, nil, fmt.Errorf("%w: structured event count", ErrUnsupportedMode)
+			return nil, nil, ConversionReport{}, fmt.Errorf("%w: structured event count", ErrUnsupportedMode)
 		}
-		body, err := EncodeJSON(events[0])
+		body, report, err := EncodeJSONWithReport(events[0])
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, ConversionReport{}, err
 		}
 		header := make(http.Header)
 		header.Set("Content-Type", JSONMediaType)
-		return header, body, nil
+		return header, body, report, nil
 	case BatchMode:
-		body, err := EncodeJSONBatch(events)
+		body, report, err := EncodeJSONBatchWithReport(events)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, ConversionReport{}, err
 		}
 		header := make(http.Header)
 		header.Set("Content-Type", JSONBatchMediaType)
-		return header, body, nil
+		return header, body, report, nil
 	default:
-		return nil, nil, ErrUnsupportedMode
+		return nil, nil, ConversionReport{}, ErrUnsupportedMode
 	}
 }
 
@@ -96,9 +110,7 @@ func encodeHTTPBinary(event Event) (http.Header, []byte, error) {
 	if event.dataContentType != "" {
 		header.Set("Content-Type", event.dataContentType)
 	} else if event.data.present {
-		if event.data.kind == DataJSON {
-			header.Set("Content-Type", "application/json")
-		}
+		header.Set("Content-Type", implicitDataContentType(event.data.kind))
 	}
 	if !event.data.present {
 		return header, nil, nil
@@ -129,7 +141,7 @@ func DecodeHTTP(ctx context.Context, header http.Header, body io.Reader, limits 
 	if err := ctx.Err(); err != nil {
 		return HTTPMessage{}, err
 	}
-	mode, contentType, err := detectHTTPMode(header)
+	mode, contentType, err := detectHTTPMode(header, limits)
 	if err != nil {
 		return HTTPMessage{}, err
 	}
@@ -193,27 +205,27 @@ func validateStructuredHTTPMetadata(header http.Header, event Event, limits Limi
 	}
 	seen := make(map[string]struct{})
 	for headerName, values := range header {
-		lowerName := strings.ToLower(headerName)
-		if strings.HasPrefix(lowerName, "ce-") {
-			if err := validateStructuredHTTPHeader(lowerName, values, seen, expected, limits); err != nil {
-				return err
-			}
+		rawName, present := cloudEventsHTTPAttributeName(headerName)
+		if !present {
+			continue
+		}
+		if limits.MaxAttributeNameBytes <= 0 || len(rawName) > limits.MaxAttributeNameBytes {
+			return ErrLimitExceeded
+		}
+		if err := validateStructuredHTTPHeader(strings.ToLower(rawName), values, seen, expected, limits); err != nil {
+			return err
 		}
 	}
 	return nil
 }
 
 func validateStructuredHTTPHeader(
-	lowerName string,
+	name string,
 	values []string,
 	seen map[string]struct{},
 	expected map[string]string,
 	limits Limits,
 ) error {
-	name := strings.TrimPrefix(lowerName, "ce-")
-	if limits.MaxAttributeNameBytes <= 0 || len(name) > limits.MaxAttributeNameBytes {
-		return ErrLimitExceeded
-	}
 	if _, duplicate := seen[name]; duplicate || len(values) != 1 {
 		return fmt.Errorf("%w: duplicate ce-%s", ErrInvalidEvent, name)
 	}
@@ -234,35 +246,38 @@ func validateStructuredHTTPHeader(
 
 func hasCloudEventsHTTPHeader(header http.Header) bool {
 	for name := range header {
-		if strings.HasPrefix(strings.ToLower(name), "ce-") {
+		if _, present := cloudEventsHTTPAttributeName(name); present {
 			return true
 		}
 	}
 	return false
 }
 
-func detectHTTPMode(header http.Header) (ContentMode, string, error) {
-	values := headerValues(header, "Content-Type")
-	if len(values) > 1 {
+func detectHTTPMode(header http.Header, limits Limits) (ContentMode, string, error) {
+	contentType, count := singleHeaderValue(header, "Content-Type")
+	if count > 1 {
 		return 0, "", fmt.Errorf("%w: duplicate content-type", ErrInvalidEvent)
 	}
-	if len(values) == 0 || values[0] == "" {
+	if count == 0 || contentType == "" {
 		return BinaryMode, "", nil
 	}
-	mediaType, _, err := mime.ParseMediaType(values[0])
+	if len(contentType) > limits.MaxAttributeValueBytes {
+		return 0, "", ErrLimitExceeded
+	}
+	mediaType, _, err := mime.ParseMediaType(contentType)
 	if err != nil {
 		return 0, "", fmt.Errorf("%w: content-type", ErrInvalidEvent)
 	}
 	switch strings.ToLower(mediaType) {
 	case JSONMediaType:
-		return StructuredMode, values[0], nil
+		return StructuredMode, contentType, nil
 	case JSONBatchMediaType:
-		return BatchMode, values[0], nil
+		return BatchMode, contentType, nil
 	default:
 		if strings.HasPrefix(strings.ToLower(mediaType), "application/cloudevents") {
 			return 0, "", ErrUnsupportedMode
 		}
-		return BinaryMode, values[0], nil
+		return BinaryMode, contentType, nil
 	}
 }
 
@@ -288,40 +303,39 @@ func readHTTPBody(ctx context.Context, body io.Reader, limit int64) ([]byte, err
 }
 
 func decodeHTTPBinary(header http.Header, contentType string, body []byte, limits Limits) (Event, error) {
-	encodedAttributes := make(map[string][]string)
+	decodedAttributes := make(map[string]string)
 	for name, values := range header {
-		lowerName := strings.ToLower(name)
-		if !strings.HasPrefix(lowerName, "ce-") {
+		rawAttributeName, present := cloudEventsHTTPAttributeName(name)
+		if !present {
 			continue
 		}
-		attributeName := strings.TrimPrefix(lowerName, "ce-")
-		encodedAttributes[attributeName] = append(encodedAttributes[attributeName], values...)
-	}
-	if _, present := encodedAttributes["datacontenttype"]; present {
-		return Event{}, fmt.Errorf("%w: ce-datacontenttype", ErrInvalidEvent)
-	}
-	decodedAttributes := make(map[string]string, len(encodedAttributes))
-	for name, values := range encodedAttributes {
-		if limits.MaxAttributeNameBytes <= 0 || len(name) > limits.MaxAttributeNameBytes {
+		if limits.MaxAttributeNameBytes <= 0 || len(rawAttributeName) > limits.MaxAttributeNameBytes {
 			return Event{}, ErrLimitExceeded
 		}
+		attributeName := strings.ToLower(rawAttributeName)
 		if len(values) != 1 {
-			return Event{}, fmt.Errorf("%w: duplicate ce-%s", ErrInvalidEvent, name)
+			return Event{}, fmt.Errorf("%w: duplicate ce-%s", ErrInvalidEvent, attributeName)
+		}
+		if _, present := decodedAttributes[attributeName]; present {
+			return Event{}, fmt.Errorf("%w: duplicate ce-%s", ErrInvalidEvent, attributeName)
+		}
+		if len(decodedAttributes) >= limits.MaxAttributes {
+			return Event{}, ErrLimitExceeded
+		}
+		if attributeName == "datacontenttype" {
+			return Event{}, fmt.Errorf("%w: ce-datacontenttype", ErrInvalidEvent)
 		}
 		if exceedsHTTPEncodedAttributeLimit(values[0], limits.MaxAttributeValueBytes) {
 			return Event{}, ErrLimitExceeded
 		}
 		decoded, err := decodeHTTPAttribute(values[0])
 		if err != nil {
-			return Event{}, fmt.Errorf("%w: ce-%s", ErrInvalidEvent, name)
+			return Event{}, fmt.Errorf("%w: ce-%s", ErrInvalidEvent, attributeName)
 		}
 		if len(decoded) > limits.MaxAttributeValueBytes {
 			return Event{}, ErrLimitExceeded
 		}
-		decodedAttributes[name] = decoded
-	}
-	if len(decodedAttributes) > limits.MaxAttributes {
-		return Event{}, ErrLimitExceeded
+		decodedAttributes[attributeName] = decoded
 	}
 	if decodedAttributes["specversion"] != specVersion {
 		return Event{}, fmt.Errorf("%w: specversion", ErrInvalidEvent)
@@ -347,13 +361,20 @@ func decodeHTTPBinary(header http.Header, contentType string, body []byte, limit
 	}
 	data := Data{}
 	if len(body) > 0 || contentType != "" {
-		if isJSONMediaType(contentType) {
+		switch {
+		case isJSONMediaType(contentType):
 			jsonData, err := NewJSONData(body)
 			if err != nil {
 				return Event{}, err
 			}
 			data = jsonData
-		} else {
+		case isTextMediaType(contentType):
+			textData, err := NewTextData(string(body))
+			if err != nil {
+				return Event{}, err
+			}
+			data = textData
+		default:
 			data = NewBinaryData(body)
 		}
 	}
@@ -369,6 +390,13 @@ func decodeHTTPBinary(header http.Header, contentType string, body []byte, limit
 	}, data)
 }
 
+func cloudEventsHTTPAttributeName(name string) (string, bool) {
+	if len(name) < len("ce-") || !strings.EqualFold(name[:len("ce-")], "ce-") {
+		return "", false
+	}
+	return name[len("ce-"):], true
+}
+
 func exceedsHTTPEncodedAttributeLimit(value string, limit int) bool {
 	if limit <= 0 {
 		return true
@@ -377,14 +405,22 @@ func exceedsHTTPEncodedAttributeLimit(value string, limit int) bool {
 	return high == 0 && uint(len(value)) > maximum
 }
 
-func headerValues(header http.Header, name string) []string {
-	var values []string
+func singleHeaderValue(header http.Header, name string) (string, int) {
+	value := ""
+	count := 0
 	for candidate, candidateValues := range header {
 		if strings.EqualFold(candidate, name) {
-			values = append(values, candidateValues...)
+			for _, candidateValue := range candidateValues {
+				count++
+				if count == 1 {
+					value = candidateValue
+					continue
+				}
+				return "", count
+			}
 		}
 	}
-	return values
+	return value, count
 }
 
 func decodeHTTPAttribute(value string) (string, error) {

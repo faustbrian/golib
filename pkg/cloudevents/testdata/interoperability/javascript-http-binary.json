@@ -1,0 +1,1 @@
+{"headers":{"content-type":"application/json","ce-id":"javascript-1","ce-time":"2026-08-09T00:00:00.000Z","ce-type":"com.example.javascript","ce-source":"/javascript","ce-specversion":"1.0","ce-tenantid":"tenant-a","ce-traceparent":"00-4bf92f3577b34da6a3ce929d0e0e4736-00f067aa0ba902b7-01","ce-partitionkey":"partition-a","ce-opaqueext":"opaque-value"},"body":"{\"value\":42}"}

@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"mime"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -105,7 +106,7 @@ func CloudEventToEventSourcing(
 	if err := event.Validate(); err != nil || state.Stream.IsZero() || state.StreamVersion == 0 || state.EventVersion == 0 || state.RecordedAt.IsZero() {
 		return eventsourcing.Message{}, Report{}, fmt.Errorf("%w: event-sourcing target", ErrInvalidAdapterInput)
 	}
-	if subject, present := event.Subject(); present && subject != encodeStreamSubject(state.Stream) {
+	if subject, present := event.Subject(); !present || subject != encodeStreamSubject(state.Stream) {
 		return eventsourcing.Message{}, Report{}, fmt.Errorf("%w: subject", ErrMetadataCollision)
 	}
 	version, _, _ := stringExtension(event, eventSchemaExtension)
@@ -154,6 +155,7 @@ func CloudEventToEventSourcing(
 		Pending: pending, StreamVersion: state.StreamVersion, GlobalPosition: state.GlobalPosition,
 	})
 	report := Report{Losses: []Loss{{Field: "source", Reason: "not represented by event-sourcing"}}}
+	appendDataKindLoss(event, &report, "event-sourcing", true)
 	if _, present := event.DataSchema(); present {
 		report.Losses = append(report.Losses, Loss{Field: "dataschema", Reason: "not represented by event-sourcing"})
 	}
@@ -219,7 +221,7 @@ func CloudEventToOutbox(
 	}
 	state = cloneEnvelope(state)
 	state.ID = event.ID()
-	state.Payload = event.Data().Bytes()
+	state.Payload = restoreRetainedNil(event.Data(), state.Payload == nil)
 	report := Report{Losses: []Loss{
 		{Field: "source", Reason: "not represented by outbox"},
 		{Field: "type", Reason: "outbox topic is transport-owned"},
@@ -227,6 +229,7 @@ func CloudEventToOutbox(
 	if _, present := event.DataContentType(); present {
 		report.Losses = append(report.Losses, Loss{Field: "datacontenttype", Reason: "not represented by outbox"})
 	}
+	appendDataKindLoss(event, &report, "outbox", false)
 	appendOptionalContextLosses(event, &report, "outbox")
 	appendExtensionLosses(event, &report, "outbox", nil)
 	return state, report, nil
@@ -304,14 +307,19 @@ func CloudEventToQueue(
 	if state.Metadata.JobType != "" && state.Metadata.JobType != event.Type() {
 		return job.Message{}, Report{}, fmt.Errorf("%w: queue job type", ErrMetadataCollision)
 	}
-	state.Body = event.Data().Bytes()
+	state.Body = restoreRetainedNil(event.Data(), state.Body == nil)
 	state.Metadata.OriginalID = event.ID()
 	state.Metadata.JobType = event.Type()
-	state.Metadata.ContentType, _ = event.DataContentType()
+	contentType, _ := event.DataContentType()
+	if state.Metadata.ContentType != "" && state.Metadata.ContentType != contentType {
+		return job.Message{}, Report{}, fmt.Errorf("%w: queue content type", ErrMetadataCollision)
+	}
+	state.Metadata.ContentType = contentType
 	if err := verifyQueueExtensions(event, state.Metadata); err != nil {
 		return job.Message{}, Report{}, err
 	}
 	report := Report{Losses: []Loss{{Field: "source", Reason: "not represented by queue"}}}
+	appendDataKindLoss(event, &report, "queue", true)
 	appendOptionalContextLosses(event, &report, "queue")
 	appendExtensionLosses(event, &report, "queue", map[string]struct{}{
 		correlationIDExtension: {}, requestIDExtension: {}, causationIDExtension: {},
@@ -340,6 +348,9 @@ type WorkflowState struct {
 	DueAt          time.Time
 	Code           string
 	Retryable      bool
+	// DataWasNil preserves nil versus present-empty workflow data across the
+	// portable CloudEvents representation, where both have zero wire bytes.
+	DataWasNil bool
 }
 
 // WorkflowToCloudEvent maps one durable decision without inventing an ID.
@@ -361,7 +372,7 @@ func WorkflowToCloudEvent(
 		StableID: options.StableID, Sequence: history.Sequence(), Definition: history.Definition(),
 		SuccessorID: history.SuccessorID(), StepName: history.StepName(), Attempt: history.Attempt(),
 		IdempotencyKey: history.IdempotencyKey(), DueAt: history.DueAt(), Code: history.Code(),
-		Retryable: history.Retryable(),
+		Retryable: history.Retryable(), DataWasNil: history.Data() == nil,
 	}, Report{}, nil
 }
 
@@ -387,12 +398,23 @@ func CloudEventToWorkflow(
 		Sequence: state.Sequence, InstanceID: instanceID, Kind: kind, OccurredAt: occurredAt,
 		Definition: state.Definition, SuccessorID: state.SuccessorID, StepName: state.StepName,
 		Attempt: state.Attempt, IdempotencyKey: state.IdempotencyKey, DueAt: state.DueAt,
-		Code: state.Code, Retryable: state.Retryable, Data: event.Data().Bytes(),
+		Code: state.Code, Retryable: state.Retryable, Data: restoreRetainedNil(event.Data(), state.DataWasNil),
 	})
 	if err != nil {
 		return workflow.HistoryEvent{}, Report{}, err
 	}
 	report := Report{Losses: []Loss{{Field: "source", Reason: "not represented by workflow history"}}}
+	if _, present := event.DataContentType(); present {
+		report.Losses = append(report.Losses, Loss{
+			Field: "datacontenttype", Reason: "not represented by workflow history",
+		})
+	}
+	if _, present := event.DataSchema(); present {
+		report.Losses = append(report.Losses, Loss{
+			Field: "dataschema", Reason: "not represented by workflow history",
+		})
+	}
+	appendDataKindLoss(event, &report, "workflow history", false)
 	appendExtensionLosses(event, &report, "workflow history", nil)
 	return history, report, nil
 }
@@ -423,6 +445,14 @@ func dataFromPayload(contentType string, payload []byte) (cloudevents.Data, erro
 	return cloudevents.NewBinaryData(payload), nil
 }
 
+func restoreRetainedNil(data cloudevents.Data, retainedNil bool) []byte {
+	value := data.Bytes()
+	if retainedNil && len(value) == 0 {
+		return nil
+	}
+	return value
+}
+
 func putStringExtension(extensions map[string]cloudevents.Attribute, name, value string) error {
 	attribute, err := cloudevents.NewStringAttribute(value)
 	if err != nil {
@@ -445,6 +475,9 @@ func mappedString(event cloudevents.Event, name, retained string, trusted bool) 
 			return "", fmt.Errorf("%w: %s", ErrUntrustedMetadata, name)
 		}
 		return value, nil
+	}
+	if retained != "" {
+		return "", fmt.Errorf("%w: missing %s", ErrMetadataCollision, name)
 	}
 	return retained, nil
 }
@@ -537,18 +570,51 @@ func appendOptionalContextLosses(event cloudevents.Event, report *Report, target
 	}
 }
 
+func appendDataKindLoss(event cloudevents.Event, report *Report, target string, contentTypePreserved bool) {
+	data := event.Data()
+	if !data.Present() {
+		return
+	}
+	targetKind := cloudevents.DataBinary
+	if contentTypePreserved {
+		if contentType, present := event.DataContentType(); present {
+			mediaType, _, err := mime.ParseMediaType(contentType)
+			if err == nil {
+				mediaType = strings.ToLower(mediaType)
+				switch {
+				case mediaType == "application/json" || strings.HasSuffix(mediaType, "+json"):
+					targetKind = cloudevents.DataJSON
+				case strings.HasPrefix(mediaType, "text/"):
+					targetKind = cloudevents.DataText
+				}
+			}
+		}
+	}
+	if data.Kind() != targetKind {
+		report.Losses = append(report.Losses, Loss{
+			Field: "data.kind", Reason: "not represented by " + target,
+		})
+	}
+}
+
 func appendExtensionLosses(
 	event cloudevents.Event,
 	report *Report,
 	target string,
 	represented map[string]struct{},
 ) {
-	for name := range event.Extensions() {
+	extensions := event.Extensions()
+	names := make([]string, 0, len(extensions))
+	for name := range extensions {
 		if _, present := represented[name]; !present {
-			report.Losses = append(report.Losses, Loss{
-				Field: "extensions." + name, Reason: "not represented by " + target,
-			})
+			names = append(names, name)
 		}
+	}
+	sort.Strings(names)
+	for _, name := range names {
+		report.Losses = append(report.Losses, Loss{
+			Field: "extensions." + name, Reason: "not represented by " + target,
+		})
 	}
 }
 
@@ -556,26 +622,26 @@ func verifyQueueExtensions(event cloudevents.Event, metadata *job.Metadata) erro
 	if _, err := validatedTenant(metadata.TenantID); err != nil {
 		return err
 	}
-	expected := map[string]string{
-		correlationIDExtension: metadata.Correlation[correlationIDExtension],
-		requestIDExtension:     metadata.Correlation[requestIDExtension],
-		causationIDExtension:   metadata.Correlation[causationIDExtension],
-		"traceparent":          metadata.TraceContext["traceparent"],
-		"tracestate":           metadata.TraceContext["tracestate"],
-		tenantIDExtension:      metadata.TenantID,
+	expected := []struct{ name, retained string }{
+		{correlationIDExtension, metadata.Correlation[correlationIDExtension]},
+		{requestIDExtension, metadata.Correlation[requestIDExtension]},
+		{causationIDExtension, metadata.Correlation[causationIDExtension]},
+		{"traceparent", metadata.TraceContext["traceparent"]},
+		{"tracestate", metadata.TraceContext["tracestate"]},
+		{tenantIDExtension, metadata.TenantID},
 	}
-	for name, retained := range expected {
-		value, present, err := stringExtension(event, name)
+	for _, mapping := range expected {
+		value, present, err := stringExtension(event, mapping.name)
 		if err != nil {
 			return err
 		}
-		if name == tenantIDExtension && present {
+		if mapping.name == tenantIDExtension && present {
 			if _, err := validatedTenant(value); err != nil {
 				return err
 			}
 		}
-		if present && retained != value {
-			return fmt.Errorf("%w: queue extension %s", ErrMetadataCollision, name)
+		if (!present && mapping.retained != "") || (present && mapping.retained != value) {
+			return fmt.Errorf("%w: queue extension %s", ErrMetadataCollision, mapping.name)
 		}
 	}
 	return nil
@@ -605,5 +671,9 @@ func parseWorkflowEventType(value string) (workflow.EventKind, error) {
 	if err != nil {
 		return 0, fmt.Errorf("%w: workflow type: %w", ErrInvalidAdapterInput, err)
 	}
-	return workflow.EventKind(parsed), nil
+	kind := workflow.EventKind(parsed)
+	if value != workflowEventType(kind) {
+		return 0, fmt.Errorf("%w: non-canonical workflow type", ErrInvalidAdapterInput)
+	}
+	return kind, nil
 }
