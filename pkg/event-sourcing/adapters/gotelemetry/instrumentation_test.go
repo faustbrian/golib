@@ -126,6 +126,87 @@ func TestInstrumentationIsolatesRuntimePanics(t *testing.T) {
 	}
 }
 
+func TestInstrumentationPreservesCallerContextFromHostileTracer(t *testing.T) {
+	type contextKey struct{}
+	key := contextKey{}
+	wantValue := &struct{}{}
+	wantCause := errors.New("caller canceled")
+	ctx, cancel := context.WithCancelCause(
+		context.WithValue(context.Background(), key, wantValue),
+	)
+	cancel(wantCause)
+
+	instrumentation, err := New(testRuntime{
+		tracer: panickingTracerProvider{
+			TracerProvider: tracenoop.NewTracerProvider(),
+			tracer: replacingContextTracer{
+				Tracer: tracenoop.NewTracerProvider().Tracer("hostile"),
+			},
+		},
+		meter:      metricnoop.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	dispatcher, err := instrumentation.WrapDispatcher(dispatcherFunc(func(
+		downstream context.Context,
+		_ []eventsourcing.Delivery,
+	) error {
+		if downstream.Value(key) != wantValue {
+			return errors.New("caller context value was replaced")
+		}
+		if context.Cause(downstream) != wantCause {
+			return errors.New("caller cancellation cause was replaced")
+		}
+		return nil
+	}))
+	if err != nil {
+		t.Fatalf("WrapDispatcher() error = %v", err)
+	}
+	if err := dispatcher.Dispatch(ctx, nil); err != nil {
+		t.Fatalf("Dispatch() error = %v", err)
+	}
+}
+
+func TestInstrumentationPreservesCallerContextWhenTracerReturnsNilSpan(t *testing.T) {
+	parentProvider := sdktrace.NewTracerProvider()
+	ctx, parent := parentProvider.Tracer("caller").Start(
+		context.Background(),
+		"parent",
+	)
+	defer parent.End()
+	instrumentation, err := New(testRuntime{
+		tracer: panickingTracerProvider{
+			TracerProvider: tracenoop.NewTracerProvider(),
+			tracer: nilSpanTracer{
+				Tracer: tracenoop.NewTracerProvider().Tracer("hostile"),
+			},
+		},
+		meter:      metricnoop.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	want := errors.New("downstream")
+	dispatcher, err := instrumentation.WrapDispatcher(dispatcherFunc(func(
+		downstream context.Context,
+		_ []eventsourcing.Delivery,
+	) error {
+		if trace.SpanFromContext(downstream) != parent {
+			return errors.New("caller span was replaced")
+		}
+		return want
+	}))
+	if err != nil {
+		t.Fatalf("WrapDispatcher() error = %v", err)
+	}
+	if got := dispatcher.Dispatch(ctx, nil); got != want {
+		t.Fatalf("Dispatch() error = %v, want exact %v", got, want)
+	}
+}
+
 func TestInstrumentationRedactsConstructionPanics(t *testing.T) {
 	t.Parallel()
 
@@ -660,6 +741,30 @@ type panickingTracer struct {
 	trace.Tracer
 	span       trace.Span
 	panicStart bool
+}
+
+type replacingContextTracer struct {
+	trace.Tracer
+}
+
+type nilSpanTracer struct {
+	trace.Tracer
+}
+
+func (tracer nilSpanTracer) Start(
+	ctx context.Context,
+	_ string,
+	_ ...trace.SpanStartOption,
+) (context.Context, trace.Span) {
+	return ctx, nil
+}
+
+func (tracer replacingContextTracer) Start(
+	_ context.Context,
+	_ string,
+	_ ...trace.SpanStartOption,
+) (context.Context, trace.Span) {
+	return context.Background(), trace.SpanFromContext(context.Background())
 }
 
 func (tracer panickingTracer) Start(

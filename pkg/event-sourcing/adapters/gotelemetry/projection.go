@@ -217,7 +217,6 @@ func (instrumentation *Instrumentation) RecordProjectionLag(
 	instrumentation.projectionLag.Record(
 		ctx,
 		int64(lag),
-		metric.WithAttributes(attributes[0]),
 	)
 
 	return nil
@@ -268,7 +267,7 @@ func (instrumentation *Instrumentation) recordProjectionResult(
 
 func (instrumentation *Instrumentation) recordProjectionMessageCount(
 	ctx context.Context,
-	name string,
+	_ string,
 	result string,
 	outcome string,
 	count int64,
@@ -280,7 +279,6 @@ func (instrumentation *Instrumentation) recordProjectionMessageCount(
 		ctx,
 		count,
 		metric.WithAttributes(
-			attribute.String("event_sourcing.projection.name", name),
 			attribute.String("event_sourcing.projection.result", result),
 			attribute.String("event_sourcing.outcome", outcome),
 		),

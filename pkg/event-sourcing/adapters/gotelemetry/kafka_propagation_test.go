@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/faustbrian/golib/pkg/kafka"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
@@ -24,9 +25,11 @@ func TestKafkaPublisherInjectsOwnedTraceContext(t *testing.T) {
 		t.Fatalf("WrapKafkaPublisher() error = %v", err)
 	}
 	message := kafka.Message{
-		Topic: "events",
-		Key:   []byte("aggregate-1"),
-		Value: []byte("payload"),
+		Topic:     "events",
+		Partition: kafka.ExplicitPartition(7),
+		Key:       []byte("aggregate-1"),
+		Value:     []byte("payload"),
+		Timestamp: time.Date(2026, time.August, 11, 12, 13, 14, 15, time.UTC),
 		Headers: []kafka.Header{
 			{Key: "traceparent", Value: []byte("stale")},
 			{Key: "es.event_name", Value: []byte("order.placed")},
@@ -51,6 +54,12 @@ func TestKafkaPublisherInjectsOwnedTraceContext(t *testing.T) {
 	}
 	if got := kafkaHeaderValue(downstream.message.Headers, "es.event_name"); got != "order.placed" {
 		t.Fatalf("event name = %q", got)
+	}
+	if downstream.message.Partition != message.Partition {
+		t.Fatalf("partition = %#v, want %#v", downstream.message.Partition, message.Partition)
+	}
+	if !downstream.message.Timestamp.Equal(message.Timestamp) {
+		t.Fatalf("timestamp = %v, want %v", downstream.message.Timestamp, message.Timestamp)
 	}
 	downstream.message.Key[0] = 'X'
 	downstream.message.Value[0] = 'X'
@@ -88,6 +97,51 @@ func TestKafkaPublisherRemovesUntrustedPropagationWithoutContext(t *testing.T) {
 	}
 }
 
+func TestKafkaPublisherRemovesUndeclaredW3CPropagation(t *testing.T) {
+	tests := map[string]propagation.TextMapPropagator{
+		"no declared fields": fieldPropagator{},
+		"tracestate only": fieldPropagator{
+			fields: []string{"tracestate"},
+			setKey: "tracestate",
+			value:  "vendor=fresh",
+		},
+	}
+	for name, propagator := range tests {
+		t.Run(name, func(t *testing.T) {
+			instrumentation := newKafkaTestInstrumentation(t, propagator)
+			downstream := &recordingKafkaPublisher{}
+			publisher, err := instrumentation.WrapKafkaPublisher(
+				downstream,
+				KafkaPropagationConfig{},
+			)
+			if err != nil {
+				t.Fatalf("WrapKafkaPublisher() error = %v", err)
+			}
+
+			err = publisher.Publish(context.Background(), kafka.Message{
+				Topic: "events",
+				Headers: []kafka.Header{
+					{Key: "traceparent", Value: []byte("stale-parent")},
+					{Key: "tracestate", Value: []byte("vendor=stale")},
+				},
+			})
+			if err != nil {
+				t.Fatalf("Publish() error = %v", err)
+			}
+			if got := kafkaHeaderValue(downstream.message.Headers, "traceparent"); got != "" {
+				t.Fatalf("traceparent = %q, want removed", got)
+			}
+			wantState := ""
+			if name == "tracestate only" {
+				wantState = "vendor=fresh"
+			}
+			if got := kafkaHeaderValue(downstream.message.Headers, "tracestate"); got != wantState {
+				t.Fatalf("tracestate = %q, want %q", got, wantState)
+			}
+		})
+	}
+}
+
 func TestKafkaHandlerExtractsRemoteParentWithoutMutatingMessage(t *testing.T) {
 	instrumentation := newKafkaTestInstrumentation(t, propagation.TraceContext{})
 	var received trace.SpanContext
@@ -119,6 +173,58 @@ func TestKafkaHandlerExtractsRemoteParentWithoutMutatingMessage(t *testing.T) {
 	if value[0] != '0' {
 		t.Fatal("Handle() transferred caller-owned header storage")
 	}
+}
+
+func TestKafkaHandlerPreservesCallerContextFromHostilePropagator(t *testing.T) {
+	type contextKey struct{}
+	key := contextKey{}
+	wantValue := &struct{}{}
+	wantCause := errors.New("caller canceled")
+	ctx, cancel := context.WithCancelCause(
+		context.WithValue(context.Background(), key, wantValue),
+	)
+	cancel(wantCause)
+	remote := trace.NewSpanContext(trace.SpanContextConfig{
+		TraceID:    trace.TraceID{1},
+		SpanID:     trace.SpanID{2},
+		TraceFlags: trace.FlagsSampled,
+		Remote:     true,
+	})
+	instrumentation := newKafkaTestInstrumentation(
+		t,
+		replacingContextPropagator{remote: remote},
+	)
+	handler, err := instrumentation.WrapKafkaHandler(
+		kafka.HandlerFunc(func(downstream context.Context, _ kafka.ConsumedMessage) error {
+			if downstream.Value(key) != wantValue {
+				return errors.New("caller context value was replaced")
+			}
+			if context.Cause(downstream) != wantCause {
+				return errors.New("caller cancellation cause was replaced")
+			}
+			if got := trace.SpanContextFromContext(downstream); !sameSpanContext(got, remote) {
+				return errors.New("remote span context was not extracted")
+			}
+			return nil
+		}),
+		KafkaPropagationConfig{},
+	)
+	if err != nil {
+		t.Fatalf("WrapKafkaHandler() error = %v", err)
+	}
+	if err := handler.Handle(ctx, kafka.ConsumedMessage{
+		Headers: []kafka.Header{{Key: "traceparent", Value: []byte("bounded")}},
+	}); err != nil {
+		t.Fatalf("Handle() error = %v", err)
+	}
+}
+
+func sameSpanContext(left, right trace.SpanContext) bool {
+	return left.TraceID() == right.TraceID() &&
+		left.SpanID() == right.SpanID() &&
+		left.TraceFlags() == right.TraceFlags() &&
+		left.TraceState().String() == right.TraceState().String() &&
+		left.IsRemote() == right.IsRemote()
 }
 
 func TestKafkaHandlerIgnoresInvalidPropagationBounds(t *testing.T) {
@@ -296,6 +402,8 @@ func TestKafkaPropagationRejectsRuntimeAndUnsafeDeclaredFields(t *testing.T) {
 	tests := map[string]propagation.TextMapPropagator{
 		"empty":      fieldPropagator{fields: []string{""}},
 		"uppercase":  fieldPropagator{fields: []string{"TraceParent"}},
+		"credential": fieldPropagator{fields: []string{"authorization"}},
+		"baggage":    fieldPropagator{fields: []string{"baggage"}},
 		"reserved":   fieldPropagator{fields: []string{"es.event_name"}},
 		"invalid":    fieldPropagator{fields: []string{"trace parent"}},
 		"duplicate":  fieldPropagator{fields: []string{"traceparent", "traceparent"}},
@@ -312,6 +420,96 @@ func TestKafkaPropagationRejectsRuntimeAndUnsafeDeclaredFields(t *testing.T) {
 				t.Fatalf("error = %v", err)
 			}
 		})
+	}
+}
+
+func TestKafkaPropagationHonorsExactDeclaredFieldLimits(t *testing.T) {
+	tests := []struct {
+		name      string
+		fields    []string
+		configure func(*kafka.MessageLimits)
+		wantError bool
+	}{
+		{
+			name:   "header count exact",
+			fields: []string{"traceparent", "tracestate"},
+			configure: func(limits *kafka.MessageLimits) {
+				limits.MaxHeaders = 2
+			},
+		},
+		{
+			name:   "header count exceeded",
+			fields: []string{"traceparent", "tracestate"},
+			configure: func(limits *kafka.MessageLimits) {
+				limits.MaxHeaders = 1
+			},
+			wantError: true,
+		},
+		{
+			name:   "header key exact",
+			fields: []string{"traceparent"},
+			configure: func(limits *kafka.MessageLimits) {
+				limits.MaxHeaderKeyBytes = len("traceparent")
+			},
+		},
+		{
+			name:   "header key exceeded",
+			fields: []string{"traceparent"},
+			configure: func(limits *kafka.MessageLimits) {
+				limits.MaxHeaderKeyBytes = len("traceparent") - 1
+			},
+			wantError: true,
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			limits := tinyKafkaLimits()
+			test.configure(&limits)
+			instrumentation := newKafkaTestInstrumentation(t, fieldPropagator{
+				fields: test.fields,
+			})
+			_, err := instrumentation.WrapKafkaPublisher(
+				&recordingKafkaPublisher{},
+				KafkaPropagationConfig{Limits: limits},
+			)
+			if test.wantError && !errors.Is(err, ErrInvalidKafkaPropagation) {
+				t.Fatalf("WrapKafkaPublisher() error = %v, want invalid propagation", err)
+			}
+			if !test.wantError && err != nil {
+				t.Fatalf("WrapKafkaPublisher() error = %v", err)
+			}
+		})
+	}
+}
+
+func TestKafkaPublisherPreservesUnicodeConfusableApplicationHeaders(t *testing.T) {
+	instrumentation := newKafkaTestInstrumentation(t, fieldPropagator{
+		fields: []string{"tracestate"},
+		setKey: "tracestate",
+		value:  "vendor=value",
+	})
+	downstream := &recordingKafkaPublisher{}
+	publisher, err := instrumentation.WrapKafkaPublisher(
+		downstream,
+		KafkaPropagationConfig{},
+	)
+	if err != nil {
+		t.Fatalf("WrapKafkaPublisher() error = %v", err)
+	}
+	const confusable = "traceſtate"
+	if err := publisher.Publish(context.Background(), kafka.Message{
+		Headers: []kafka.Header{{Key: confusable, Value: []byte("application")}},
+	}); err != nil {
+		t.Fatalf("Publish() error = %v", err)
+	}
+	got := ""
+	for _, header := range downstream.message.Headers {
+		if header.Key == confusable {
+			got = string(header.Value)
+		}
+	}
+	if got != "application" {
+		t.Fatalf("confusable application header = %q, want preserved", got)
 	}
 }
 
@@ -563,6 +761,7 @@ func TestKafkaMessageAndHeaderBounds(t *testing.T) {
 	fields := map[string]struct{}{"traceparent": {}}
 	if validKafkaPropagationHeaders(
 		[]kafka.Header{
+			{Key: string([]byte{0x80}), Value: []byte("unrelated")},
 			{Key: "traceparent", Value: []byte("one")},
 			{Key: "TraceParent", Value: []byte("two")},
 		},
@@ -584,6 +783,32 @@ func TestKafkaMessageAndHeaderBounds(t *testing.T) {
 		limits,
 	) {
 		t.Fatal("validKafkaPropagationHeaders() accepted invalid bounds")
+	}
+}
+
+func TestCanonicalKafkaHeaderKeyAcceptsOnlyASCII(t *testing.T) {
+	for value := range 256 {
+		input := string([]byte{byte(value)})
+		got, canonical := canonicalKafkaHeaderKey(input)
+		if value >= 0x80 {
+			if canonical || got != "" {
+				t.Fatalf("canonicalKafkaHeaderKey(%#x) = %q, %t", value, got, canonical)
+			}
+			continue
+		}
+		want := input
+		if value >= 'A' && value <= 'Z' {
+			want = string([]byte{byte(value + ('a' - 'A'))})
+		}
+		if !canonical || got != want {
+			t.Fatalf(
+				"canonicalKafkaHeaderKey(%#x) = %q, %t; want %q, true",
+				value,
+				got,
+				canonical,
+				want,
+			)
+		}
 	}
 }
 
@@ -613,6 +838,23 @@ func (hostilePropagator) Extract(
 
 func (hostilePropagator) Fields() []string {
 	return []string{"es.event_name"}
+}
+
+type replacingContextPropagator struct {
+	remote trace.SpanContext
+}
+
+func (replacingContextPropagator) Inject(context.Context, propagation.TextMapCarrier) {}
+
+func (propagator replacingContextPropagator) Extract(
+	_ context.Context,
+	_ propagation.TextMapCarrier,
+) context.Context {
+	return trace.ContextWithRemoteSpanContext(context.Background(), propagator.remote)
+}
+
+func (replacingContextPropagator) Fields() []string {
+	return []string{"traceparent"}
 }
 
 type panickingPropagator struct {

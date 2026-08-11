@@ -71,7 +71,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18 |
 | 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md` | 18, 24, 25 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 28 |
-| 35 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | 18, 28, 33, 34 |
 | 47 | Durable orchestration | `pending` | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 27-35, 43, 44, 46 |
 | 48 | Search | `pending` | `pkg/search/.ai/GOAL_HARDEN.md` | 3-18, 29-32, 43 |
 | 50 | Ecosystem cohesion | `pending` | `.ai/GOAL_COHESION.md` | 3-49 |
@@ -125,6 +124,8 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/kafka/kafkaservice/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 26 has current scoped evidence for explicit producer and consumer lifecycle ownership, readiness, bounded drain and shutdown, panic-safe concurrency, Kafka error preservation, real-broker interoperability, documentation, exact coverage and mutation, and every mandatory module gate; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 29 has current scoped implementation and mandatory gate evidence. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 29. Current scoped evidence verifies transactional atomicity, commit-ambiguity recovery, stable retry and publication identity, concurrent and replica writers, process and database failure handling, hostile envelope boundaries, and equivalent-durability performance; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/event-sourcing/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 35 has current scoped evidence for failure-isolated instrumentation, privacy-bounded traces and metrics, Kafka propagation, exact pass-through behavior, documentation, exact coverage and mutation, and every mandatory module gate; its separate `GOAL_HARDEN.md` is verified below. |
+| `pkg/event-sourcing/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 35. Current scoped evidence verifies exact event-processing pass-through, privacy-bounded W3C propagation, fixed metric cardinality, cooperative-provider lifecycle and backpressure behavior, concurrency and context retention safety, sampling and semantic-schema compatibility, fuzzing, performance, exact statement and mutation coverage, and every mandatory scoped module gate; requeue only when affected inputs or requirements change. |
 | `pkg/event-sourcing/postgres/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 28. Current scoped evidence verifies durable ordering, commit reconciliation, transaction and iterator ownership, snapshots and projections, failure and process-death recovery, rolling deployment, PostgreSQL 14 through 18, exact coverage and mutation, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/knapsack/objective/gomoney/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 36. Current scoped evidence verifies exact-money behavior, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/rule-engine/adapters/gomath/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 37. Current scoped evidence verifies exact decimal persistence and comparison behavior, hostile-input and concurrency hardening, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -270,6 +271,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded run and digest-pinned Valkey Streams 9.1.0 containers removed after integration and benchmarking. |
 | Observed | 2026-08-11 |
 | Gaps | Conformance is cataloged as not applicable. The supported interoperability matrix is deliberately limited to in-memory Ring and Valkey Streams 9.1.0; no stronger claim is made for other queue implementations. The aggregate repository wrapper was not run because unrelated concurrent work changes root manifests and workspace state; no scoped module gate remains unresolved. |
+
+### Event sourcing OpenTelemetry adapter hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/event-sourcing/adapters/gotelemetry/.ai/GOAL_HARDEN.md` |
+| Scope | Exact event-processing pass-through and Kafka record ownership; payload, metadata, identity, diagnostic, header, and credential privacy; bounded metric cardinality; W3C propagation collision and sampling behavior; cooperative tracer, meter, exporter, shutdown, context-retention, and iterator lifecycle; all wrapper races; hostile-input fuzzing; semantic-schema migration; and no-op, sampled-out, recording, and direct performance. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/event-sourcing/adapters/gotelemetry` against the final scoped snapshot, including exact statement and mutation gates, five 10,000-execution fuzz targets, race, analyzers, security and supply-chain checks, API and documentation checks, benchmarks, goal audit, and independent final requirements and code review. |
+| Result | Passed exact 706/706 production statements; killed 221/221 viable mutants with 100.00% efficacy and mutator coverage; passed race, all five fuzz targets, lint, Staticcheck, vulnerability, secrets, licenses, SBOM, API, documentation, goal traceability, and direct, no-op, sampled-out, recording, and wrapper benchmarks. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after every bounded run; the repository wrapper supplied isolated verification snapshots and local sibling-module proxies. |
+| Observed | 2026-08-11 |
+| Gaps | NilAway remains advisory with one test-only diagnostic whose error is proven non-nil by `errors.As` or the terminating `t.Fatalf` branch. Conformance and catalog interoperability are not applicable. Real Kafka broker transactions, deployed Kubernetes drain configuration, live collector/backend version behavior, and non-cooperative in-process providers remain outside the verified local adapter boundary. |
 
 ### HTTP message signatures evidence
 

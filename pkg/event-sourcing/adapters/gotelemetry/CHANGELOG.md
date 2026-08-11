@@ -13,6 +13,19 @@ and this project adheres to
 - Isolate OpenTelemetry runtime and propagation panics from wrapped operations,
   discard invalid propagation output without failing bounded publication, and
   preserve downstream nil-iterator return pairs exactly.
+- Preserve explicit Kafka partition selection and record timestamps while
+  replacing propagation headers.
+- Preserve caller values, cancellation, deadlines, and causes when hostile
+  tracer or propagator implementations return replacement contexts.
+- Restrict Kafka propagation to W3C trace-context fields and use ASCII-only
+  matching so credentials, baggage, and Unicode-confusable application headers
+  cannot be injected, removed, or treated as trace context.
+- Remove projection names from metrics so valid dynamic names cannot create
+  unbounded series, while retaining bounded names on projection spans. This
+  advances the module-owned semantic schema from version 1 to version 2;
+  metric consumers must remove projection-name grouping and filters.
+- Release caller contexts and spans when instrumented iterators complete while
+  preserving the underlying iterator and its terminal error behavior.
 - Document the module-owned semantic-convention schema, compatibility,
   migration, provider-failure boundary, and canonical repository gate.
 

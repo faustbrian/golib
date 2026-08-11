@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"testing"
+	"time"
 
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
 	"go.opentelemetry.io/otel/attribute"
@@ -313,6 +315,67 @@ func TestInstrumentedIteratorPreservesErrorsCloseAndPanics(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestCompletedIteratorReleasesCallerContext(t *testing.T) {
+	released := make(chan struct{})
+	iterator, err := completedIteratorWithCallerState(released)
+	if err != nil {
+		t.Fatalf("completedIteratorWithCallerState() error = %v", err)
+	}
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		runtime.GC()
+		runtime.Gosched()
+		select {
+		case <-released:
+			runtime.KeepAlive(iterator)
+			return
+		default:
+		}
+		runtime.KeepAlive(iterator)
+	}
+	t.Fatal("completed iterator retained caller context while reachable")
+}
+
+func completedIteratorWithCallerState(
+	released chan<- struct{},
+) (eventsourcing.MessageIterator, error) {
+	instrumentation, err := New(testRuntime{
+		tracer:     sdktrace.NewTracerProvider(),
+		meter:      sdkmetric.NewMeterProvider(),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		return nil, err
+	}
+	store, err := instrumentation.WrapEventStore(
+		&telemetryStore{iterator: &telemetryIterator{}},
+	)
+	if err != nil {
+		return nil, err
+	}
+	type contextKey struct{}
+	type callerState struct {
+		_ [1024]byte
+	}
+	state := &callerState{}
+	runtime.AddCleanup(state, func(done chan<- struct{}) { close(done) }, released)
+	ctx := context.WithValue(context.Background(), contextKey{}, state)
+	iterator, err := store.ReadStream(
+		ctx,
+		eventsourcing.StreamID{},
+		eventsourcing.ReadStreamOptions{},
+	)
+	if err != nil {
+		return nil, err
+	}
+	if err := iterator.Close(); err != nil {
+		return nil, err
+	}
+	runtime.KeepAlive(state)
+	return iterator, nil
 }
 
 func TestStoreInstrumentationValidatesDependenciesAndContexts(t *testing.T) {

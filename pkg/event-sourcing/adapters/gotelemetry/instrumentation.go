@@ -47,6 +47,8 @@ var (
 
 // Runtime is the standard-provider surface implemented by telemetry.Runtime.
 // Keeping the interface here prevents telemetry from entering the core module.
+// Provider and propagator methods invoked by this adapter must return promptly;
+// use bounded asynchronous SDK processors and exporters for blocking IO.
 type Runtime interface {
 	TracerProvider() trace.TracerProvider
 	MeterProvider() metric.MeterProvider

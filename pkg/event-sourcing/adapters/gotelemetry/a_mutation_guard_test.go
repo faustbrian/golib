@@ -17,7 +17,7 @@ func TestKafkaPropagationAcceptsExactConfigurationAndMessageLimits(t *testing.T)
 	t.Parallel()
 
 	instrumentation := newKafkaTestInstrumentation(t, fieldPropagator{
-		fields: []string{"one", "two", "three", "four"},
+		fields: []string{"traceparent", "tracestate"},
 	})
 	if _, _, err := instrumentation.kafkaPropagation(KafkaPropagationConfig{
 		Limits: tinyKafkaLimits(),
@@ -53,25 +53,6 @@ func TestKafkaPropagationAcceptsExactConfigurationAndMessageLimits(t *testing.T)
 		len(carrier.headers) != 1 ||
 		len(carrier.headers[0].Value) != limits.MaxHeaderValueBytes {
 		t.Fatalf("Set() rejected exact value limit: %#v", carrier)
-	}
-}
-
-func TestKafkaPropagationFieldAlphabetAndLengthBoundaries(t *testing.T) {
-	t.Parallel()
-
-	for _, field := range []string{"a", "z", "0", "9", ".", "_", "-"} {
-		if !validPropagationField(field, 1) {
-			t.Fatalf("validPropagationField(%q) = false", field)
-		}
-	}
-	exact := strings.Repeat("x", 128)
-	if !validPropagationField(exact, len(exact)) {
-		t.Fatal("validPropagationField() rejected exact length limit")
-	}
-	for _, field := range []string{"`", "{", "/", ":"} {
-		if validPropagationField(field, 1) {
-			t.Fatalf("validPropagationField(%q) = true", field)
-		}
 	}
 }
 
@@ -113,6 +94,7 @@ func TestKafkaPropagationKeyScanningPreservesOrderAndDetectsLateDuplicates(
 	}
 	headers := []kafka.Header{
 		{Key: "unrelated"},
+		{Key: "traceſtate"},
 		{Key: "TraceParent"},
 		{Key: "traceparent"},
 		{Key: "tracestate"},
@@ -123,6 +105,13 @@ func TestKafkaPropagationKeyScanningPreservesOrderAndDetectsLateDuplicates(
 	}
 	if validKafkaPropagationHeaders(headers, fields, tinyKafkaLimits()) {
 		t.Fatal("validKafkaPropagationHeaders() accepted a duplicate after an unrelated header")
+	}
+	if !validKafkaPropagationHeaders(
+		[]kafka.Header{{Key: "traceſtate"}},
+		fields,
+		tinyKafkaLimits(),
+	) {
+		t.Fatal("validKafkaPropagationHeaders() rejected a non-ASCII application header")
 	}
 }
 

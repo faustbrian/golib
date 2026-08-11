@@ -6,9 +6,7 @@ import (
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/kafka"
-	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
-	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
 
 func FuzzKafkaPropagationBoundaries(f *testing.F) {
@@ -67,20 +65,4 @@ func FuzzKafkaPropagationBoundaries(f *testing.F) {
 			t.Fatal("Handle() mutated caller-owned header")
 		}
 	})
-}
-
-func newKafkaTestInstrumentationForFuzz(
-	f *testing.F,
-	propagator propagation.TextMapPropagator,
-) *Instrumentation {
-	f.Helper()
-	instrumentation, err := New(testRuntime{
-		tracer:     tracenoop.NewTracerProvider(),
-		meter:      metricnoop.NewMeterProvider(),
-		propagator: propagator,
-	})
-	if err != nil {
-		f.Fatalf("New() error = %v", err)
-	}
-	return instrumentation
 }

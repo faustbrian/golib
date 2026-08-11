@@ -237,6 +237,58 @@ func TestProjectionRunnerInstrumentationMeasuresSkippedPoison(t *testing.T) {
 	)
 }
 
+func TestProjectionLagMetricCardinalityIsIndependentOfProjectionNames(t *testing.T) {
+	reader := sdkmetric.NewManualReader()
+	instrumentation, err := New(testRuntime{
+		tracer:     sdktrace.NewTracerProvider(),
+		meter:      sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)),
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+
+	const observations = 1024
+	for index := range observations {
+		if err := instrumentation.RecordProjectionLag(
+			context.Background(),
+			fmt.Sprintf("projection-%d", index),
+			0,
+			1,
+		); err != nil {
+			t.Fatalf("RecordProjectionLag(%d) error = %v", index, err)
+		}
+	}
+
+	var metrics metricdata.ResourceMetrics
+	if err := reader.Collect(context.Background(), &metrics); err != nil {
+		t.Fatalf("Collect() error = %v", err)
+	}
+	for _, scope := range metrics.ScopeMetrics {
+		for _, item := range scope.Metrics {
+			if item.Name != "event_sourcing.projection.lag" {
+				continue
+			}
+			histogram, ok := item.Data.(metricdata.Histogram[int64])
+			if !ok {
+				t.Fatalf("projection lag data = %T", item.Data)
+			}
+			if len(histogram.DataPoints) != 1 {
+				t.Fatalf("projection lag point cardinality = %d, want 1", len(histogram.DataPoints))
+			}
+			point := histogram.DataPoints[0]
+			if point.Count != observations || point.Sum != observations {
+				t.Fatalf("projection lag aggregate = %d/%d, want %d/%d", point.Count, point.Sum, observations, observations)
+			}
+			if point.Attributes.Len() != 0 {
+				t.Fatalf("projection lag metric attributes = %v, want none", point.Attributes)
+			}
+			return
+		}
+	}
+	t.Fatal("projection lag metric is missing")
+}
+
 func TestProjectionRunnerInstrumentationPreservesErrorsAndPanics(
 	t *testing.T,
 ) {
@@ -503,12 +555,8 @@ func assertProjectionMessageMetric(
 			for _, point := range sum.DataPoints {
 				if attributeValue(
 					point.Attributes,
-					"event_sourcing.projection.name",
-				) == name &&
-					attributeValue(
-						point.Attributes,
-						"event_sourcing.projection.result",
-					) == kind {
+					"event_sourcing.projection.result",
+				) == kind {
 					if point.Value != want {
 						t.Fatalf(
 							"projection message count = %d, want %d",
@@ -543,10 +591,7 @@ func assertProjectionLagMetric(
 				t.Fatalf("projection lag data = %T", item.Data)
 			}
 			for _, point := range histogram.DataPoints {
-				if attributeValue(
-					point.Attributes,
-					"event_sourcing.projection.name",
-				) == name {
+				if point.Attributes.Len() == 0 {
 					if point.Count != 1 || point.Sum != want {
 						t.Fatalf(
 							"projection lag = %d/%d, want 1/%d",

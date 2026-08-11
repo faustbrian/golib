@@ -212,8 +212,8 @@ The adapter emits:
 | counter | `event_sourcing.operations` | operation and outcome |
 | histogram | `event_sourcing.operation.duration` | operation and outcome |
 | counter | `event_sourcing.deliveries` | delivery mode and outcome |
-| counter | `event_sourcing.projection.messages` | static projection name, result kind, and batch outcome |
-| histogram | `event_sourcing.projection.lag` | static projection name |
+| counter | `event_sourcing.projection.messages` | result kind and batch outcome |
+| histogram | `event_sourcing.projection.lag` | no attributes |
 
 Operation values are `dispatch`, `consume`, `append`, `read_stream`,
 `read_global`, `snapshot_load`, `snapshot_save`, `snapshot_delete`,
@@ -243,11 +243,13 @@ values are the complete metric-cardinality policy.
 
 ## Semantic conventions
 
-The adapter uses module-owned event-sourcing conventions, schema version 1.
+The adapter uses module-owned event-sourcing conventions, schema version 2.
 It does not claim an upstream OpenTelemetry semantic-convention schema URL or
 version. The span, metric, and attribute tables above are the complete schema;
 changes to their names or meanings are compatibility changes recorded in this
-module's changelog.
+module's changelog. Version 2 removes `event_sourcing.projection.name` from the
+`event_sourcing.projection.messages` and `event_sourcing.projection.lag` metric
+series; spans retain the bounded name.
 
 ## Privacy and security
 
@@ -266,10 +268,12 @@ Snapshot instrumentation does not record aggregate IDs or types, snapshot
 state, metadata, schema or aggregate versions, timestamps, or failure
 diagnostics.
 
-Projection instrumentation records only its explicitly configured bounded
-name, aggregate counts, durable numeric checkpoint, and caller-supplied numeric
-lag. It does not record messages, event identities, filters, handler or
-poison-policy diagnostics, or read-model state.
+Projection spans record only their explicitly configured bounded name,
+aggregate counts, durable numeric checkpoint, and caller-supplied numeric lag.
+Projection metrics omit projection names so their series cardinality remains
+independent of runtime name diversity. Instrumentation does not record messages,
+event identities, filters, handler or poison-policy diagnostics, or read-model
+state.
 Checkpoint-store instrumentation records canonical projection names plus exact
 expected and resulting positions. Applications must keep the set of projection
 names bounded and must not derive them from tenants or customers.
@@ -289,17 +293,18 @@ instrumentation records only a successful output count and never event
 identity, schema version, payload, metadata, transformed values, errors, or
 panic values.
 
-Kafka propagation is limited to the explicit fields declared by the supplied
-propagator. Declared fields must be lowercase Kafka-safe names and cannot use
-the event adapter's reserved `es.` prefix. Existing declared fields are
-replaced rather than duplicated. Baggage is propagated only when the supplied
-runtime explicitly enables it; the repository telemetry runtime disables
-baggage by default.
+Kafka propagation is limited to the W3C `traceparent` and `tracestate` fields
+declared by the supplied propagator. Propagators declaring baggage,
+authorization, application, or other fields are rejected before wrapper
+creation. Existing trace-context fields are replaced rather than duplicated;
+non-ASCII lookalikes remain unrelated application headers.
 
 ## Ownership and concurrency
 
 `Instrumentation` is immutable and safe for concurrent use when the supplied
-standard providers are. Wrappers hold no locks across downstream calls and
+standard providers are. The `Runtime` contract requires tracer, meter, span,
+instrument, and propagator API calls to return promptly. Wrappers hold no locks
+across downstream calls and
 start no goroutines. Kafka publisher inputs are fully copied before downstream
 publication. Bounded consumed headers are copied before extraction; keys and
 values retain `kafka.ConsumedMessage`'s handler-call lifetime. The application
@@ -312,8 +317,10 @@ A failed observation is dropped; downstream values, errors, and panic values
 remain the operation result. The adapter does not start timeout goroutines and
 therefore cannot preempt a provider that blocks inside the synchronous
 OpenTelemetry API.
-Applications must configure bounded, non-blocking SDK processors and exporters;
-their flush and shutdown remain caller-owned.
+Applications must configure bounded, asynchronous SDK processors, exporter
+timeouts, and shutdown deadlines; their flush and shutdown remain caller-owned.
+A runtime that blocks inside a synchronous API call violates the supported
+`Runtime` contract and cannot be preempted safely by this in-process adapter.
 
 ## Adoption
 
@@ -340,6 +347,26 @@ explicit runtime and manage its lifecycle in the application.
 acknowledgements, retries, duplicates, and offset settlement retain the
 underlying Kafka contracts.
 
+## Performance
+
+The dispatcher benchmark compares one equivalent synchronous one-delivery call
+through the direct downstream contract, no-op OpenTelemetry providers, an SDK
+with tracing sampled out, and a recording SDK with a synchronous discard
+exporter. On Apple M4 Max, Darwin arm64 27.0, Go 1.26.5, five independent
+500 ms samples produced these medians:
+
+| Path | Median latency | Bytes/op | Allocations/op |
+| --- | ---: | ---: | ---: |
+| direct | 9.825 ns | 0 | 0 |
+| no-op | 7.459 µs | 904 | 16 |
+| sampled out | 9.918 µs | 1,128 | 18 |
+| recording | 14.624 µs | 2,072 | 21 |
+
+The raw latency samples varied materially on the shared developer machine, so
+these figures are a reproducible comparison baseline rather than a stable CI
+threshold. The canonical benchmark gate publishes every adapter benchmark with
+latency and allocation results.
+
 ## Compatibility and migration
 
 The module is pre-v1 and follows the repository's directory-prefixed semantic
@@ -352,7 +379,15 @@ from event envelopes and event identity. After upgrading, invalid or panicking
 propagator output is dropped instead of failing an otherwise bounded publish,
 and store wrappers preserve a downstream nil iterator with a nil error. Remove
 any caller logic that depended on the deprecated `ErrMessageIteratorRequired`
-wrapper error.
+wrapper error. Kafka propagators must now declare only `traceparent` and
+`tracestate`; replace baggage or application-header propagation with an
+explicit application-owned transport boundary before upgrading.
+Metric consumers must migrate from semantic schema version 1 to version 2:
+remove projection-name grouping and filters from the
+`event_sourcing.projection.messages` and `event_sourcing.projection.lag`
+queries, dashboards, and alerts. Version 2 aggregates those series across all
+projection names to keep cardinality bounded; use spans for per-projection
+diagnosis.
 
 ## Development
 

@@ -7,6 +7,7 @@ import (
 
 	"github.com/faustbrian/golib/pkg/kafka"
 	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/trace"
 )
 
 var (
@@ -133,7 +134,8 @@ func (instrumentation *Instrumentation) kafkaPropagation(
 	}
 	fields := make(map[string]struct{}, len(propagationFields))
 	for _, field := range propagationFields {
-		if !validPropagationField(field, limits.MaxHeaderKeyBytes) {
+		if !supportedPropagationField(field) ||
+			len(field) > limits.MaxHeaderKeyBytes {
 			return nil, kafka.MessageLimits{}, ErrInvalidKafkaPropagation
 		}
 		if _, exists := fields[field]; exists {
@@ -174,7 +176,7 @@ func (publisher kafkaPublisher) Publish(
 	if !validKafkaMessage(message, publisher.limits) {
 		return kafkaPropagationFailure(kafka.ErrInvalidMessageLimits)
 	}
-	owned := cloneKafkaMessage(message, publisher.fields)
+	owned := cloneKafkaMessage(message)
 	carrier := &kafkaInjectCarrier{
 		headers: owned.Headers,
 		fields:  publisher.fields,
@@ -187,7 +189,7 @@ func (publisher kafkaPublisher) Publish(
 	)
 	owned.Headers = carrier.headers
 	if !injected || carrier.rejected || !validKafkaMessage(owned, publisher.limits) {
-		owned = cloneKafkaMessage(message, publisher.fields)
+		owned = cloneKafkaMessage(message)
 	}
 
 	return publisher.next.Publish(ctx, owned)
@@ -257,7 +259,11 @@ func extractKafkaContext(
 	if extracted == nil {
 		return ctx
 	}
-	return extracted
+	spanContext := trace.SpanContextFromContext(extracted)
+	if !spanContext.IsValid() {
+		return ctx
+	}
+	return trace.ContextWithRemoteSpanContext(ctx, spanContext)
 }
 
 type kafkaInjectCarrier struct {
@@ -307,14 +313,16 @@ func (carrier kafkaExtractCarrier) Get(key string) string {
 	}
 	for index := len(carrier.headers) - 1; index >= 0; index-- {
 		header := carrier.headers[index]
-		if strings.EqualFold(header.Key, key) {
+		if kafkaHeaderKeyMatches(header.Key, key) {
 			return string(header.Value)
 		}
 	}
 	return ""
 }
 
-func (kafkaExtractCarrier) Set(string, string) {}
+func (kafkaExtractCarrier) Set(key, value string) {
+	_, _ = key, value
+}
 
 func (carrier kafkaExtractCarrier) Keys() []string {
 	return propagationKeys(carrier.headers, carrier.fields)
@@ -327,7 +335,10 @@ func propagationKeys(
 	keys := make([]string, 0, len(fields))
 	seen := make(map[string]struct{}, len(fields))
 	for _, header := range headers {
-		key := strings.ToLower(header.Key)
+		key, canonical := canonicalKafkaHeaderKey(header.Key)
+		if !canonical {
+			continue
+		}
 		if _, allowed := fields[key]; allowed {
 			if _, duplicate := seen[key]; !duplicate {
 				keys = append(keys, key)
@@ -338,13 +349,11 @@ func propagationKeys(
 	return keys
 }
 
-func cloneKafkaMessage(
-	message kafka.Message,
-	propagationFields map[string]struct{},
-) kafka.Message {
+func cloneKafkaMessage(message kafka.Message) kafka.Message {
 	headers := make([]kafka.Header, 0, len(message.Headers))
 	for _, header := range message.Headers {
-		if _, replaced := propagationFields[strings.ToLower(header.Key)]; replaced {
+		key, canonical := canonicalKafkaHeaderKey(header.Key)
+		if canonical && supportedPropagationField(key) {
 			continue
 		}
 		headers = append(headers, kafka.Header{
@@ -353,10 +362,12 @@ func cloneKafkaMessage(
 		})
 	}
 	return kafka.Message{
-		Topic:   message.Topic,
-		Key:     append([]byte(nil), message.Key...),
-		Value:   append([]byte(nil), message.Value...),
-		Headers: headers,
+		Topic:     message.Topic,
+		Partition: message.Partition,
+		Key:       append([]byte(nil), message.Key...),
+		Value:     append([]byte(nil), message.Value...),
+		Headers:   headers,
+		Timestamp: message.Timestamp,
 	}
 }
 
@@ -375,31 +386,33 @@ func cloneConsumedHeaders(message kafka.ConsumedMessage) kafka.ConsumedMessage {
 func removeKafkaHeaders(headers []kafka.Header, key string) []kafka.Header {
 	filtered := headers[:0]
 	for _, header := range headers {
-		if !strings.EqualFold(header.Key, key) {
+		if !kafkaHeaderKeyMatches(header.Key, key) {
 			filtered = append(filtered, header)
 		}
 	}
 	return filtered
 }
 
-func validPropagationField(field string, maxBytes int) bool {
-	if field == "" ||
-		field != strings.ToLower(field) ||
-		len(field) > maxBytes ||
-		strings.HasPrefix(field, "es.") {
-		return false
-	}
-	for _, character := range field {
-		if (character >= 'a' && character <= 'z') ||
-			(character >= '0' && character <= '9') ||
-			character == '.' ||
-			character == '_' ||
-			character == '-' {
-			continue
+func supportedPropagationField(field string) bool {
+	return field == "traceparent" || field == "tracestate"
+}
+
+func canonicalKafkaHeaderKey(key string) (string, bool) {
+	bytes := []byte(key)
+	for index, character := range bytes {
+		if character >= 0x80 {
+			return "", false
 		}
-		return false
+		if character >= 'A' && character <= 'Z' {
+			bytes[index] = character + ('a' - 'A')
+		}
 	}
-	return true
+	return string(bytes), true
+}
+
+func kafkaHeaderKeyMatches(header, canonical string) bool {
+	key, valid := canonicalKafkaHeaderKey(header)
+	return valid && key == canonical
 }
 
 func validKafkaMessage(
@@ -448,7 +461,10 @@ func validKafkaPropagationHeaders(
 	}
 	seen := make(map[string]struct{}, len(fields))
 	for _, header := range headers {
-		key := strings.ToLower(header.Key)
+		key, canonical := canonicalKafkaHeaderKey(header.Key)
+		if !canonical {
+			continue
+		}
 		if _, propagationField := fields[key]; propagationField {
 			if _, duplicate := seen[key]; duplicate {
 				return false

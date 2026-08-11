@@ -7,26 +7,16 @@ import (
 	eventsourcing "github.com/faustbrian/golib/pkg/event-sourcing"
 	"github.com/faustbrian/golib/pkg/event-sourcing/processmanager"
 	"github.com/faustbrian/golib/pkg/event-sourcing/projection"
+	"go.opentelemetry.io/otel/metric"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	"go.opentelemetry.io/otel/trace"
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
 
 func BenchmarkDispatcher(b *testing.B) {
-	instrumentation, err := New(testRuntime{
-		tracer:     tracenoop.NewTracerProvider(),
-		meter:      metricnoop.NewMeterProvider(),
-		propagator: propagation.TraceContext{},
-	})
-	if err != nil {
-		b.Fatal(err)
-	}
-	dispatcher, err := instrumentation.WrapDispatcher(
-		eventsourcing.Dispatcher(discardDispatcher{}),
-	)
-	if err != nil {
-		b.Fatal(err)
-	}
 	delivery := telemetryDelivery(
 		b,
 		"benchmark-message",
@@ -34,13 +24,84 @@ func BenchmarkDispatcher(b *testing.B) {
 	)
 	deliveries := []eventsourcing.Delivery{delivery}
 	ctx := context.Background()
-	b.ReportAllocs()
-	b.ResetTimer()
-	for range b.N {
-		if err := dispatcher.Dispatch(ctx, deliveries); err != nil {
-			b.Fatal(err)
-		}
+	cases := []struct {
+		name  string
+		build func(*testing.B) eventsourcing.Dispatcher
+	}{
+		{name: "direct", build: func(*testing.B) eventsourcing.Dispatcher {
+			return discardDispatcher{}
+		}},
+		{name: "noop", build: func(b *testing.B) eventsourcing.Dispatcher {
+			return benchmarkDispatcher(b, tracenoop.NewTracerProvider(), metricnoop.NewMeterProvider())
+		}},
+		{name: "sampled_out", build: func(b *testing.B) eventsourcing.Dispatcher {
+			tracerProvider := sdktrace.NewTracerProvider(sdktrace.WithSampler(sdktrace.NeverSample()))
+			meterProvider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewManualReader()))
+			b.Cleanup(func() {
+				_ = tracerProvider.Shutdown(context.Background())
+				_ = meterProvider.Shutdown(context.Background())
+			})
+			return benchmarkDispatcher(b, tracerProvider, meterProvider)
+		}},
+		{name: "recording", build: func(b *testing.B) eventsourcing.Dispatcher {
+			tracerProvider := sdktrace.NewTracerProvider(
+				sdktrace.WithSampler(sdktrace.AlwaysSample()),
+				sdktrace.WithSpanProcessor(sdktrace.NewSimpleSpanProcessor(discardSpanExporter{})),
+			)
+			meterProvider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(sdkmetric.NewManualReader()))
+			b.Cleanup(func() {
+				_ = tracerProvider.Shutdown(context.Background())
+				_ = meterProvider.Shutdown(context.Background())
+			})
+			return benchmarkDispatcher(b, tracerProvider, meterProvider)
+		}},
 	}
+	for _, test := range cases {
+		b.Run(test.name, func(b *testing.B) {
+			dispatcher := test.build(b)
+			b.ReportAllocs()
+			if err := dispatcher.Dispatch(ctx, deliveries); err != nil {
+				b.Fatal(err)
+			}
+			b.ResetTimer()
+			for b.Loop() {
+				if err := dispatcher.Dispatch(ctx, deliveries); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
+	}
+}
+
+func benchmarkDispatcher(
+	b *testing.B,
+	tracerProvider trace.TracerProvider,
+	meterProvider metric.MeterProvider,
+) eventsourcing.Dispatcher {
+	b.Helper()
+	instrumentation, err := New(testRuntime{
+		tracer:     tracerProvider,
+		meter:      meterProvider,
+		propagator: propagation.TraceContext{},
+	})
+	if err != nil {
+		b.Fatal(err)
+	}
+	dispatcher, err := instrumentation.WrapDispatcher(discardDispatcher{})
+	if err != nil {
+		b.Fatal(err)
+	}
+	return dispatcher
+}
+
+type discardSpanExporter struct{}
+
+func (discardSpanExporter) ExportSpans(context.Context, []sdktrace.ReadOnlySpan) error {
+	return nil
+}
+
+func (discardSpanExporter) Shutdown(context.Context) error {
+	return nil
 }
 
 func BenchmarkConsumer(b *testing.B) {

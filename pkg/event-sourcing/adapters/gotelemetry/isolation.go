@@ -43,9 +43,12 @@ func (tracer isolatedTracer) Start(
 			spanContext = ctx
 		}
 	}()
-	spanContext, span = tracer.Tracer.Start(ctx, name, options...)
-	span = isolatedSpan{Span: span}
-	spanContext = trace.ContextWithSpan(spanContext, span)
+	_, providerSpan := tracer.Tracer.Start(ctx, name, options...)
+	if providerSpan == nil {
+		return spanContext, span
+	}
+	span = isolatedSpan{Span: providerSpan}
+	spanContext = trace.ContextWithSpan(ctx, span)
 	return spanContext, span
 }
 

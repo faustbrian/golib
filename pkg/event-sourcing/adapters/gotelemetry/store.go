@@ -314,6 +314,9 @@ func (iterator *storeIterator) finish(operationErr error, panicValue any) {
 		operationErr,
 		panicValue,
 	)
+	iterator.instrumentation = nil
+	iterator.ctx = context.Background()
+	iterator.span = trace.SpanFromContext(iterator.ctx)
 }
 
 func (iterator *storeIterator) finishOnPanic() {
