@@ -37,6 +37,25 @@ func TestFailFastTreeProofSuffixHalfGroupingProgresses(t *testing.T) {
 	}
 }
 
+func TestFailFastTreeProofMergeCopiesSortedValues(t *testing.T) {
+	values := []int{3, 4, 1, 2}
+	if err := sortTreeProofValues(
+		&markerBudgetContext{
+			Context:          context.Background(),
+			successfulChecks: 64,
+		},
+		values,
+		func(left int, right int) int {
+			return left - right
+		},
+	); err != nil {
+		t.Fatalf("sortTreeProofValues() error = %v", err)
+	}
+	if !slices.Equal(values, []int{1, 2, 3, 4}) {
+		t.Fatalf("sorted values = %v, want [1 2 3 4]", values)
+	}
+}
+
 func TestFailFastAggregateVerifierQueryCapacityBoundsTopology(t *testing.T) {
 	paths := []StemPath{
 		PresentStemPath(Stem{1}, 3),
@@ -726,22 +745,6 @@ func TestFailFastStemDepthUsesNeighborAfterMultiSuffixStem(t *testing.T) {
 	)
 	if err != nil || !found || depth != 3 {
 		t.Fatalf("multi-suffix stem depth = %d, found %v, error %v", depth, found, err)
-	}
-}
-
-func TestFailFastTreeProofMergeCopiesSortedValues(t *testing.T) {
-	values := []int{2, 1}
-	if err := sortTreeProofValues(
-		context.Background(),
-		values,
-		func(left int, right int) int {
-			return left - right
-		},
-	); err != nil {
-		t.Fatalf("sortTreeProofValues() error = %v", err)
-	}
-	if !slices.Equal(values, []int{1, 2}) {
-		t.Fatalf("sorted values = %v, want [1 2]", values)
 	}
 }
 
