@@ -648,9 +648,13 @@ func mustAppendFile(t *testing.T, path, contents string) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer file.Close()
-	if _, err := file.WriteString(contents); err != nil {
-		t.Fatal(err)
+	_, writeErr := file.WriteString(contents)
+	closeErr := file.Close()
+	if writeErr != nil {
+		t.Fatal(writeErr)
+	}
+	if closeErr != nil {
+		t.Fatal(closeErr)
 	}
 }
 

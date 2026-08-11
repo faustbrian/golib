@@ -737,7 +737,7 @@ func validateMarkdownAnchor(path, fragment string) error {
 			return nil
 		}
 	}
-	return fmt.Errorf("Markdown anchor %q does not exist", fragment)
+	return fmt.Errorf("markdown anchor %q does not exist", fragment)
 }
 
 func markdownAnchor(heading string) string {
