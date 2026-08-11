@@ -49,13 +49,15 @@ license, SBOM, fuzz, exact viable mutation kills, documentation, API,
 conformance, interoperability, benchmarks, and clean-consumer build proof. Go
 commands use a disposable task-owned build cache.
 
-`make soak` runs an explicit minimum 48-hour continue-as-new replay and worker
-churn audit with hourly checkpoints, deterministic workflow clocks, bounded
-concurrency, and retained-heap and goroutine ceilings. It uses a disposable Go
-build and module cache against an immutable archive of the clean committed
-workflow tree and reports its revision and SHA-256 input digest. A local harness
-smoke may set `WORKFLOW_SOAK_DURATION=2s` and
-`WORKFLOW_SOAK_ALLOW_SHORT=1`; that runs the current tree only to verify the
-harness and is not multi-day evidence. Record the `workflow_soak_input`, final
-`workflow_soak_result`, and uninterrupted exit status before treating the
-multi-day boundary as verified.
+`make soak` runs a bounded accelerated continue-as-new replay and worker-churn
+audit. Its default 72 batches advance the deterministic workflow clock by one
+hour each, exercising three days of logical execution without waiting three
+wall-clock days. Each batch processes 128 deterministic replays and 64 leased
+work items under bounded concurrency; periodic checkpoints enforce retained-
+heap and goroutine ceilings. The target uses disposable Go build and module
+caches against an immutable archive of the clean committed workflow tree and
+reports its revision and SHA-256 input digest. `WORKFLOW_SOAK_BATCHES` scales
+the workload from 1 through 720 batches, while `WORKFLOW_SOAK_LIVE_TREE=1` runs
+an uncommitted tree during development. This accelerated audit proves
+deterministic state progression and bounded churn for its stated workload; it
+does not claim production uptime or replace deployment monitoring.

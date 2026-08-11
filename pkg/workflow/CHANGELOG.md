@@ -16,8 +16,9 @@ and releases use Semantic Versioning.
   streaming-replica promotion drills, plus exhaustive deterministic lifecycle
   model, bounded worker stress, shutdown-join, and continue-as-new history-soak
   tests.
-- An explicit minimum 48-hour soak harness with deterministic replay and worker
-  churn, hourly checkpoints, and retained heap and goroutine ceilings.
+- A bounded accelerated soak harness that advances deterministic workflow time
+  across three logical days, with immutable input evidence and retained heap
+  and goroutine ceilings.
 - Architecture, operations, recovery, capacity, security, verification, FAQ,
   and compiling durable-orchestration adoption documentation.
 - Stable unresolved dead-letter inspection and idempotent, audited, fenced

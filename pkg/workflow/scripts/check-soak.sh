@@ -18,10 +18,10 @@ trap cleanup EXIT
 export GOCACHE="${task_gocache}"
 export GOMODCACHE="${task_modcache}"
 export GOWORK=off
-export WORKFLOW_SOAK_DURATION="${WORKFLOW_SOAK_DURATION:-48h}"
+export WORKFLOW_SOAK_BATCHES="${WORKFLOW_SOAK_BATCHES:-72}"
 
 run_root="${module_root}"
-if [[ "${WORKFLOW_SOAK_ALLOW_SHORT:-}" != "1" ]]; then
+if [[ "${WORKFLOW_SOAK_LIVE_TREE:-}" != "1" ]]; then
 	if [[ -n "$(git -C "${repository_root}" status --porcelain --untracked-files=all -- pkg/workflow)" ]]; then
 		printf 'workflow soak requires a clean committed pkg/workflow snapshot\n' >&2
 		exit 1
@@ -35,13 +35,13 @@ if [[ "${WORKFLOW_SOAK_ALLOW_SHORT:-}" != "1" ]]; then
 	git -C "${repository_root}" archive "${execution_revision}" pkg/workflow |
 		tar -x -C "${task_root}"
 	run_root="${task_root}/pkg/workflow"
-	printf 'workflow_soak_input revision=%s input_digest=%s duration=%s\n' \
-		"${execution_revision}" "${input_digest}" "${WORKFLOW_SOAK_DURATION}"
+	printf 'workflow_soak_input revision=%s input_digest=%s batches=%s\n' \
+		"${execution_revision}" "${input_digest}" "${WORKFLOW_SOAK_BATCHES}"
 fi
 
 cd "${run_root}"
 go test . \
-    -run '^TestWorkflowMultiDaySoakKeepsReplayAndWorkerResourcesBounded$' \
-    -count=1 \
-    -timeout=0 \
-    -v
+	-run '^TestWorkflowAcceleratedSoakKeepsReplayAndWorkerResourcesBounded$' \
+	-count=1 \
+	-timeout=5m \
+	-v

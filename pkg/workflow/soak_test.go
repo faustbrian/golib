@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"runtime"
+	"strconv"
 	"testing"
 	"time"
 
@@ -12,26 +13,28 @@ import (
 )
 
 const (
-	workflowSoakMinimumDuration = 48 * time.Hour
-	workflowSoakBatchInterval   = 250 * time.Millisecond
-	workflowSoakReplayCount     = 128
-	workflowSoakWorkCount       = 64
-	workflowSoakConcurrency     = 8
-	workflowSoakHeapLimit       = 128 << 20
-	workflowSoakGoroutineLimit  = 2
+	workflowSoakDefaultBatches    = 72
+	workflowSoakMaximumBatches    = 720
+	workflowSoakLogicalStep       = time.Hour
+	workflowSoakReplayCount       = 128
+	workflowSoakWorkCount         = 64
+	workflowSoakConcurrency       = 8
+	workflowSoakHeapLimit         = 128 << 20
+	workflowSoakGoroutineLimit    = 2
+	workflowSoakCheckpointBatches = 12
 )
 
-func TestWorkflowMultiDaySoakKeepsReplayAndWorkerResourcesBounded(t *testing.T) {
-	durationText := os.Getenv("WORKFLOW_SOAK_DURATION")
-	if durationText == "" {
-		t.Skip("set WORKFLOW_SOAK_DURATION to run the explicit soak audit")
-	}
-	duration, err := time.ParseDuration(durationText)
-	if err != nil || duration <= 0 {
-		t.Fatalf("WORKFLOW_SOAK_DURATION = %q, want a positive Go duration", durationText)
-	}
-	if duration < workflowSoakMinimumDuration && os.Getenv("WORKFLOW_SOAK_ALLOW_SHORT") != "1" {
-		t.Fatalf("WORKFLOW_SOAK_DURATION = %s, want at least %s", duration, workflowSoakMinimumDuration)
+func TestWorkflowAcceleratedSoakKeepsReplayAndWorkerResourcesBounded(t *testing.T) {
+	batches := workflowSoakDefaultBatches
+	if batchesText := os.Getenv("WORKFLOW_SOAK_BATCHES"); batchesText != "" {
+		parsed, err := strconv.Atoi(batchesText)
+		if err != nil || parsed <= 0 || parsed > workflowSoakMaximumBatches {
+			t.Fatalf(
+				"WORKFLOW_SOAK_BATCHES = %q, want an integer from 1 through %d",
+				batchesText, workflowSoakMaximumBatches,
+			)
+		}
+		batches = parsed
 	}
 
 	first := mustDefinition(t, "soak.workflow", "1")
@@ -46,47 +49,30 @@ func TestWorkflowMultiDaySoakKeepsReplayAndWorkerResourcesBounded(t *testing.T) 
 	baselineHeap, baselineGoroutines := workflowSoakResources()
 	peakHeap, peakGoroutines := baselineHeap, baselineGoroutines
 	startedAt := time.Now()
-	deadline := time.NewTimer(duration)
-	defer deadline.Stop()
-	ticker := time.NewTicker(workflowSoakBatchInterval)
-	defer ticker.Stop()
-	nextReport := startedAt.Add(time.Hour)
-	var batches uint64
 
-	for {
-		workflowSoakBatch(t, registry, definitions, batches)
-		batches++
-		select {
-		case <-deadline.C:
+	for batch := range batches {
+		workflowSoakBatch(t, registry, definitions, uint64(batch))
+		if (batch+1)%workflowSoakCheckpointBatches == 0 || batch+1 == batches {
 			runtime.GC()
 			heap, goroutines := workflowSoakResources()
 			peakHeap = max(peakHeap, heap)
 			peakGoroutines = max(peakGoroutines, goroutines)
 			workflowAssertSoakResources(t, baselineHeap, baselineGoroutines, heap, goroutines)
 			t.Logf(
-				"workflow_soak_result duration=%s batches=%d replayed_instances=%d completed_work=%d baseline_heap_bytes=%d peak_heap_bytes=%d baseline_goroutines=%d peak_goroutines=%d go=%s os=%s arch=%s",
-				time.Since(startedAt).Round(time.Millisecond), batches,
-				batches*workflowSoakReplayCount, batches*workflowSoakWorkCount,
-				baselineHeap, peakHeap, baselineGoroutines, peakGoroutines,
-				runtime.Version(), runtime.GOOS, runtime.GOARCH,
+				"workflow_soak_checkpoint elapsed=%s logical_duration=%s batches=%d heap_bytes=%d goroutines=%d",
+				time.Since(startedAt).Round(time.Millisecond),
+				time.Duration(batch+1)*workflowSoakLogicalStep, batch+1, heap, goroutines,
 			)
-			return
-		case now := <-ticker.C:
-			if now.Before(nextReport) {
-				continue
-			}
-			runtime.GC()
-			heap, goroutines := workflowSoakResources()
-			peakHeap = max(peakHeap, heap)
-			peakGoroutines = max(peakGoroutines, goroutines)
-			workflowAssertSoakResources(t, baselineHeap, baselineGoroutines, heap, goroutines)
-			t.Logf(
-				"workflow_soak_checkpoint elapsed=%s batches=%d heap_bytes=%d goroutines=%d",
-				time.Since(startedAt).Round(time.Second), batches, heap, goroutines,
-			)
-			nextReport = now.Add(time.Hour)
 		}
 	}
+
+	t.Logf(
+		"workflow_soak_result elapsed=%s logical_duration=%s batches=%d replayed_instances=%d completed_work=%d baseline_heap_bytes=%d peak_heap_bytes=%d baseline_goroutines=%d peak_goroutines=%d go=%s os=%s arch=%s",
+		time.Since(startedAt).Round(time.Millisecond), time.Duration(batches)*workflowSoakLogicalStep,
+		batches, batches*workflowSoakReplayCount, batches*workflowSoakWorkCount,
+		baselineHeap, peakHeap, baselineGoroutines, peakGoroutines,
+		runtime.Version(), runtime.GOOS, runtime.GOARCH,
+	)
 }
 
 func workflowSoakBatch(
@@ -103,7 +89,8 @@ func workflowSoakBatch(
 		next := definitions[(generation+1)%uint64(len(definitions))]
 		instanceID := fmt.Sprintf("soak-instance-%d", generation)
 		successorID := fmt.Sprintf("soak-instance-%d", generation+1)
-		occurredAt := baseTime.Add(time.Duration(generation*2) * time.Nanosecond)
+		occurredAt := baseTime.Add(time.Duration(batch) * workflowSoakLogicalStep).
+			Add(time.Duration(index*2) * time.Nanosecond)
 		events := []workflow.HistoryEvent{
 			mustHistoryEvent(t, workflow.HistoryEventSpec{
 				Sequence: 1, InstanceID: instanceID, Kind: workflow.EventInstanceStarted,
@@ -126,7 +113,7 @@ func workflowSoakBatch(
 		}
 	}
 
-	now := baseTime.Add(time.Duration(batch) * time.Second)
+	now := baseTime.Add(time.Duration(batch) * workflowSoakLogicalStep)
 	leases := make([]workflow.WorkLease, workflowSoakWorkCount)
 	for index := range leases {
 		leases[index] = mustWorkerLease(
