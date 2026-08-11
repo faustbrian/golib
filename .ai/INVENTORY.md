@@ -70,7 +70,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/GOAL_HARDEN.md` | 13, 19 |
 | 50 | Ecosystem cohesion | `implemented-unverified` | `.ai/GOAL_COHESION.md` | 3-49 |
 | 51 | Resilience audit | `pending` | `.ai/GOAL_RESILIENCE_HARDEN.md` | 3-50 |
-| 52 | Repository audit | `pending-reexecution` | `.ai/GOAL_COMPATIBILITY.md` | 3-51 |
+| 52 | Repository audit | `implemented-unverified` | `.ai/GOAL_COMPATIBILITY.md` | 3-51 |
 | 53 | Repository audit | `pending-reexecution` | `.ai/GOAL_SECURITY.md` | 3-52 |
 | 54 | Repository audit | `pending-reexecution` | `.ai/GOAL_SUPPLY_CHAIN.md` | 3-53 |
 | 55 | Repository audit | `pending-reexecution` | `.ai/GOAL_BENCHMARKS.md` | 3-54 |
@@ -886,6 +886,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run. |
 | Observed | 2026-08-11T19:21:02Z |
 | Gaps | Complete and revalidate the currently active Kafka and OpenSearch specialist scopes, then rerun the root cohesion and specification checks against their affected content. |
+
+### Repository compatibility audit
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_COMPATIBILITY.md` |
+| Scope | Catalog-selected exported API compatibility for all 134 modules, including module-specific behavioral compatibility commands and explicit not-applicable classifications for harnesses and internal tooling. |
+| Status | `pending-reexecution` to `implemented-unverified` |
+| Evidence | `./scripts/run-modules.sh api --jobs 8 --all` against eight immutable verification snapshots. |
+| Result | Every public-module API gate passed or reused current content-bound evidence, and every non-API module reported the cataloged not-applicable outcome. The post-snapshot root audit rejected only the root module's not-applicable checkpoint after concurrently changing identity-platform planning inputs changed the broad root fingerprint; no library API compatibility gate failed. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run. |
+| Observed | 2026-08-11T19:58:43Z |
+| Gaps | Final verification still requires the supported Go and platform matrix, resolution of the open specification-governance findings, and a stable root execution-unit checkpoint; no package campaign needs to restart unless its compatibility-relevant content changes. |
 
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
