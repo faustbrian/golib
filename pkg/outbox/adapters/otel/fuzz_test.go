@@ -1,4 +1,4 @@
-package gotelemetry_test
+package outboxotel_test
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/faustbrian/golib/pkg/outbox"
-	"github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry"
+	"github.com/faustbrian/golib/pkg/outbox/adapters/otel"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -33,7 +33,7 @@ func FuzzTelemetryLifecycle(f *testing.F) {
 		int64(0),
 	)
 
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer:     tracenoop.NewTracerProvider(),
 		meter:      metricnoop.NewMeterProvider(),
 		propagator: propagation.TraceContext{},
@@ -142,7 +142,7 @@ func FuzzWrappedPublicationIsolation(f *testing.F) {
 			tracer = invalidStartTracerProvider{TracerProvider: tracer, nilSpan: true}
 		}
 		metricReader := sdkmetric.NewManualReader()
-		telemetry, err := gotelemetry.New(testRuntime{
+		telemetry, err := outboxotel.New(testRuntime{
 			tracer: tracer,
 			meter:  sdkmetric.NewMeterProvider(sdkmetric.WithReader(metricReader)), propagator: propagator,
 		})

@@ -114,7 +114,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/event-sourcing/adapters/queue/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 34 has current scoped evidence for canonical bounded queue envelopes, stable event and ordering identity, explicit enqueue ambiguity, post-consumer settlement, durable redelivery and dead-letter behavior, documentation, exact statement and mutation coverage, and every mandatory scoped module gate; its separate `GOAL_HARDEN.md` is verified below. |
 | `pkg/event-sourcing/adapters/queue/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 34. Current scoped evidence verifies hostile wire handling, enqueue ambiguity, duplicate and process-death recovery windows, supported-backend ordering identities, lifecycle and race safety, diagnostic redaction, fuzzing, performance, exact 268/268 statement coverage, 103/103 viable mutants killed, and every mandatory scoped module gate; requeue only when affected inputs or requirements change. |
 | `pkg/outbox/adapters/queue/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 31. Current scoped evidence verifies canonical synchronous publication, explicit acceptance ambiguity, stable duplicate identity, durable Redis and Valkey relay windows, exact 104/104 statement coverage, 71/71 viable mutants killed, hardening requirements, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/outbox/adapters/gotelemetry/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 32. Current scoped evidence verifies payload-safe propagation and telemetry, exact relay publication and settlement semantics, bounded cooperative-provider lifecycle, concurrency and retention safety, convention mapping, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/outbox/adapters/otel/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 32. Current scoped evidence verifies payload-safe propagation and telemetry, exact relay publication and settlement semantics, bounded cooperative-provider lifecycle, concurrency and retention safety, convention mapping, exact 134/134 statement coverage, 45/45 viable mutants killed, performance, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 30 has current scoped implementation and mandatory gate evidence. |
 | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 30. Current scoped evidence verifies deterministic Kafka records, bounded hostile-envelope handling, safe relay classification, broker failure and acknowledgement ambiguity, executable process-death duplicate and reconciliation boundaries, keyed-partition ordering, diagnostic redaction, real-Kafka interoperability, exact coverage and mutation, and every catalog-selected scoped package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/queue/queueservice/.ai/GOAL.md` | `verified` | Former pending order 27. Current scoped evidence verifies the lifecycle adapter contract, exact coverage and mutation, API, documentation, safety, Redis and Valkey backend integration, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
@@ -691,6 +691,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with Redis and Valkey configured to equivalent 16-entry stream capacity and a task-owned disposable `GOCACHE`. |
 | Observed | 2026-08-09T04:53:58Z |
 | Gaps | NilAway advisory diagnostics remain visible under repository policy. The outer live-worktree audit saw unrelated concurrent `modules.json` input drift after the isolated snapshot had verified both goal files; it did not invalidate the scoped snapshot result. |
+
+### Outbox OpenTelemetry adapter evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/outbox/adapters/otel/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Payload-safe OpenTelemetry propagation, fixed-cardinality relay and store instrumentation, exact publication settlement semantics, provider failure isolation, cooperative lifecycle ownership, concurrency and retention safety, documentation, and equivalent-work performance. |
+| Status | Verified under the target-oriented pre-v1 module path. |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/outbox/adapters/otel` against the renamed module and regenerated API baseline. |
+| Result | Every mandatory scoped gate passed, including exact 134/134 production statements, 45/45 viable mutants killed with 100% efficacy and mutator coverage, race detection, two 10,000-execution fuzz targets, API, documentation, analyzers, vulnerability, secrets, licenses, SBOM, and benchmarks. Conformance and interoperability are cataloged as not applicable. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after the bounded run. |
+| Observed | 2026-08-11 |
+| Gaps | NilAway passed without diagnostics. The SBOM gate retained its non-failing isolated-snapshot main-module-version warning; no mandatory scoped gate remains unresolved. |
 
 ### Sequencer fleet resilience evidence
 

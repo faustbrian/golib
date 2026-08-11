@@ -1,4 +1,4 @@
-package gotelemetry_test
+package outboxotel_test
 
 import (
 	"context"
@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"github.com/faustbrian/golib/pkg/outbox"
-	"github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry"
+	"github.com/faustbrian/golib/pkg/outbox/adapters/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/metric"
@@ -27,7 +27,7 @@ func TestTelemetryLinksPublishToInjectedProducerTrace(t *testing.T) {
 	recorder := tracetest.NewSpanRecorder()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
 	runtime := testRuntime{tracer: provider, meter: metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{}}
-	telemetry, err := gotelemetry.New(runtime)
+	telemetry, err := outboxotel.New(runtime)
 	if err != nil {
 		t.Fatalf("new telemetry: %v", err)
 	}
@@ -67,7 +67,7 @@ func TestTelemetryRecordsPayloadSafeMetricsAndPublishFailure(t *testing.T) {
 	reader := sdkmetric.NewManualReader()
 	provider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader))
 	runtime := testRuntime{tracer: sdktrace.NewTracerProvider(), meter: provider, propagator: propagation.TraceContext{}}
-	telemetry, err := gotelemetry.New(runtime)
+	telemetry, err := outboxotel.New(runtime)
 	if err != nil {
 		t.Fatalf("new telemetry: %v", err)
 	}
@@ -113,7 +113,7 @@ func TestWrappedPublisherDoesNotExportEnvelopeContents(t *testing.T) {
 
 	recorder := tracetest.NewSpanRecorder()
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: provider, meter: metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
 	if err != nil {
@@ -156,7 +156,7 @@ func TestWrappedPublisherDoesNotExportEnvelopeContents(t *testing.T) {
 func TestWrappedPublisherContainsPropagationPanic(t *testing.T) {
 	t.Parallel()
 
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer:     sdktrace.NewTracerProvider(),
 		meter:      metricnoop.NewMeterProvider(),
 		propagator: panickingPropagator{},
@@ -179,7 +179,7 @@ func TestWrappedPublisherContainsPropagationPanic(t *testing.T) {
 func TestWrappedPublisherPreservesCancellationFromHostilePropagator(t *testing.T) {
 	t.Parallel()
 
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: replacingPropagator{},
 	})
 	if err != nil {
@@ -214,7 +214,7 @@ func TestWrappedPublisherPreservesContextWhenProviderReturnsNil(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			telemetry, err := gotelemetry.New(testRuntime{
+			telemetry, err := outboxotel.New(testRuntime{
 				tracer: tracer, meter: metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 			})
 			if err != nil {
@@ -236,7 +236,7 @@ func TestWrappedPublisherPreservesContextWhenProviderReturnsNil(t *testing.T) {
 		})
 	}
 
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: nilContextPropagator{},
 	})
 	if err != nil {
@@ -260,7 +260,7 @@ func TestWrappedPublisherPreservesContextWhenProviderReturnsNil(t *testing.T) {
 func TestWrappedPublisherPreservesCallerContextWhenTracerReplacesIt(t *testing.T) {
 	t.Parallel()
 
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: replacingStartTracerProvider{TracerProvider: sdktrace.NewTracerProvider()},
 		meter:  metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
@@ -286,7 +286,7 @@ func TestWrappedPublisherPreservesCallerContextWhenTracerReplacesIt(t *testing.T
 func TestInjectContainsPropagationPanicAndPreservesMetadata(t *testing.T) {
 	t.Parallel()
 
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: panickingPropagator{},
 	})
 	if err != nil {
@@ -304,7 +304,7 @@ func TestPropagationCannotInspectOrAddArbitraryMetadata(t *testing.T) {
 	t.Parallel()
 
 	propagator := &recordingPropagator{}
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: propagator,
 	})
 	if err != nil {
@@ -346,7 +346,7 @@ func TestObservationContainsInstrumentPanics(t *testing.T) {
 	t.Parallel()
 
 	base := metricnoop.NewMeterProvider().Meter("test")
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(),
 		meter: panickingMeterProvider{
 			MeterProvider: metricnoop.NewMeterProvider(),
@@ -374,7 +374,7 @@ func TestObservationBoundsCallerConstructedDimensions(t *testing.T) {
 	t.Parallel()
 
 	reader := sdkmetric.NewManualReader()
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer:     sdktrace.NewTracerProvider(),
 		meter:      sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)),
 		propagator: propagation.TraceContext{},
@@ -415,7 +415,7 @@ func TestObservationMapsEveryDeclaredOutboxConvention(t *testing.T) {
 
 	operations, outcomes := declaredOutboxConventions(t)
 	reader := sdkmetric.NewManualReader()
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer:     sdktrace.NewTracerProvider(),
 		meter:      sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)),
 		propagator: propagation.TraceContext{},
@@ -471,7 +471,7 @@ func TestObservationNormalizesCounts(t *testing.T) {
 	t.Parallel()
 
 	reader := sdkmetric.NewManualReader()
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer:     sdktrace.NewTracerProvider(),
 		meter:      sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)),
 		propagator: propagation.TraceContext{},
@@ -523,7 +523,7 @@ func TestBacklogAgeNeverBecomesNegative(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
 			reader := sdkmetric.NewManualReader()
-			telemetry, err := gotelemetry.New(testRuntime{
+			telemetry, err := outboxotel.New(testRuntime{
 				tracer:     sdktrace.NewTracerProvider(),
 				meter:      sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)),
 				propagator: propagation.TraceContext{},
@@ -557,7 +557,7 @@ func TestPublishRetryStateUsesFixedBoundaryBuckets(t *testing.T) {
 	t.Parallel()
 
 	recorder := tracetest.NewSpanRecorder()
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)),
 		meter:  metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
@@ -593,7 +593,7 @@ func TestTelemetryScopesAreVersioned(t *testing.T) {
 
 	recorder := tracetest.NewSpanRecorder()
 	reader := sdkmetric.NewManualReader()
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer:     sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)),
 		meter:      sdkmetric.NewMeterProvider(sdkmetric.WithReader(reader)),
 		propagator: propagation.TraceContext{},
@@ -613,7 +613,7 @@ func TestTelemetryScopesAreVersioned(t *testing.T) {
 	})
 
 	spans := recorder.Ended()
-	if len(spans) != 1 || spans[0].InstrumentationScope().Version != gotelemetry.InstrumentationVersion {
+	if len(spans) != 1 || spans[0].InstrumentationScope().Version != outboxotel.InstrumentationVersion {
 		t.Fatalf("span scope = %#v", spans)
 	}
 	var metrics metricdata.ResourceMetrics
@@ -621,7 +621,7 @@ func TestTelemetryScopesAreVersioned(t *testing.T) {
 		t.Fatalf("collect metrics: %v", err)
 	}
 	if len(metrics.ScopeMetrics) != 1 ||
-		metrics.ScopeMetrics[0].Scope.Version != gotelemetry.InstrumentationVersion {
+		metrics.ScopeMetrics[0].Scope.Version != outboxotel.InstrumentationVersion {
 		t.Fatalf("metric scope = %#v", metrics.ScopeMetrics)
 	}
 }
@@ -630,7 +630,7 @@ func TestWrappedPublisherPreservesCompletionSemantics(t *testing.T) {
 	t.Parallel()
 
 	recorder := tracetest.NewSpanRecorder()
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder)),
 		meter:  metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
@@ -706,7 +706,7 @@ func TestWrappedPublisherPreservesCompletionSemantics(t *testing.T) {
 func TestWrappedPublisherPreservesOptionalHealthContract(t *testing.T) {
 	t.Parallel()
 
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
 	if err != nil {
@@ -752,7 +752,7 @@ func TestWrappedPublisherContainsTracerStartPanic(t *testing.T) {
 	t.Parallel()
 
 	base := sdktrace.NewTracerProvider()
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: panickingTracerProvider{TracerProvider: base},
 		meter:  metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
@@ -774,7 +774,7 @@ func TestWrappedPublisherContainsSpanCompletionPanic(t *testing.T) {
 	t.Parallel()
 
 	base := sdktrace.NewTracerProvider()
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: completingPanicTracerProvider{TracerProvider: base},
 		meter:  metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
@@ -795,7 +795,7 @@ func TestWrappedPublisherContainsSpanStatusPanic(t *testing.T) {
 	t.Parallel()
 
 	base := sdktrace.NewTracerProvider()
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: completingPanicTracerProvider{TracerProvider: base},
 		meter:  metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
@@ -816,10 +816,10 @@ func TestWrappedPublisherContainsSpanStatusPanic(t *testing.T) {
 func TestTelemetryRejectsMissingDependencies(t *testing.T) {
 	t.Parallel()
 
-	if _, err := gotelemetry.New(nil); !errors.Is(err, gotelemetry.ErrRuntimeRequired) {
+	if _, err := outboxotel.New(nil); !errors.Is(err, outboxotel.ErrRuntimeRequired) {
 		t.Fatalf("nil runtime error = %v", err)
 	}
-	if _, err := gotelemetry.New(panickingRuntime{}); !errors.Is(err, gotelemetry.ErrRuntimeRequired) {
+	if _, err := outboxotel.New(panickingRuntime{}); !errors.Is(err, outboxotel.ErrRuntimeRequired) {
 		t.Fatalf("panicking runtime error = %v", err)
 	}
 	for name, runtime := range map[string]testRuntime{
@@ -829,22 +829,22 @@ func TestTelemetryRejectsMissingDependencies(t *testing.T) {
 	} {
 		t.Run(name, func(t *testing.T) {
 			t.Parallel()
-			if _, err := gotelemetry.New(runtime); !errors.Is(err, gotelemetry.ErrRuntimeRequired) {
+			if _, err := outboxotel.New(runtime); !errors.Is(err, outboxotel.ErrRuntimeRequired) {
 				t.Fatalf("incomplete runtime error = %v", err)
 			}
 		})
 	}
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
 	if err != nil {
 		t.Fatalf("new telemetry: %v", err)
 	}
-	if _, err := telemetry.WrapPublisher(nil); !errors.Is(err, gotelemetry.ErrPublisherRequired) {
+	if _, err := telemetry.WrapPublisher(nil); !errors.Is(err, outboxotel.ErrPublisherRequired) {
 		t.Fatalf("nil publisher error = %v", err)
 	}
-	var missing *gotelemetry.Telemetry
-	if _, err := missing.WrapPublisher(&recordingPublisher{}); !errors.Is(err, gotelemetry.ErrRuntimeRequired) {
+	var missing *outboxotel.Telemetry
+	if _, err := missing.WrapPublisher(&recordingPublisher{}); !errors.Is(err, outboxotel.ErrRuntimeRequired) {
 		t.Fatalf("nil telemetry error = %v", err)
 	}
 }
@@ -869,8 +869,8 @@ func TestTelemetryPreservesInstrumentConstructionFailures(t *testing.T) {
 				meter:      failingMeterProvider{MeterProvider: metricnoop.NewMeterProvider(), meter: meter},
 				propagator: propagation.TraceContext{},
 			}
-			if _, err := gotelemetry.New(runtime); !errors.Is(err, failure) ||
-				!errors.Is(err, gotelemetry.ErrInstrumentCreation) {
+			if _, err := outboxotel.New(runtime); !errors.Is(err, failure) ||
+				!errors.Is(err, outboxotel.ErrInstrumentCreation) {
 				t.Fatalf("new error = %v, want provider cause and instrument category", err)
 			}
 		})
@@ -880,12 +880,12 @@ func TestTelemetryPreservesInstrumentConstructionFailures(t *testing.T) {
 func TestTelemetryContainsProviderConstructionPanic(t *testing.T) {
 	t.Parallel()
 
-	_, err := gotelemetry.New(testRuntime{
+	_, err := outboxotel.New(testRuntime{
 		tracer:     sdktrace.NewTracerProvider(),
 		meter:      constructorPanicMeterProvider{MeterProvider: metricnoop.NewMeterProvider()},
 		propagator: propagation.TraceContext{},
 	})
-	if !errors.Is(err, gotelemetry.ErrInstrumentCreation) {
+	if !errors.Is(err, outboxotel.ErrInstrumentCreation) {
 		t.Fatalf("new error = %v", err)
 	}
 }
@@ -893,11 +893,11 @@ func TestTelemetryContainsProviderConstructionPanic(t *testing.T) {
 func TestTelemetryRejectsNilConstructedInstrument(t *testing.T) {
 	t.Parallel()
 
-	_, err := gotelemetry.New(testRuntime{
+	_, err := outboxotel.New(testRuntime{
 		tracer: nilTracerProvider{TracerProvider: sdktrace.NewTracerProvider()},
 		meter:  metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
-	if !errors.Is(err, gotelemetry.ErrInstrumentCreation) {
+	if !errors.Is(err, outboxotel.ErrInstrumentCreation) {
 		t.Fatalf("new error = %v", err)
 	}
 }

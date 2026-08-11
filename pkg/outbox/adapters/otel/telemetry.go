@@ -1,6 +1,6 @@
-// Package gotelemetry links outbox publications and operations to the
+// Package outboxotel links outbox publications and operations to the
 // standard providers exposed by github.com/faustbrian/golib/pkg/telemetry.
-package gotelemetry
+package outboxotel
 
 import (
 	"context"
@@ -26,11 +26,11 @@ const (
 
 var (
 	// ErrRuntimeRequired reports a missing or incomplete telemetry runtime.
-	ErrRuntimeRequired = errors.New("outbox/gotelemetry: runtime is required")
+	ErrRuntimeRequired = errors.New("outbox/otel: runtime is required")
 	// ErrPublisherRequired reports a missing downstream publisher.
-	ErrPublisherRequired = errors.New("outbox/gotelemetry: publisher is required")
+	ErrPublisherRequired = errors.New("outbox/otel: publisher is required")
 	// ErrInstrumentCreation categorizes provider construction failures.
-	ErrInstrumentCreation = errors.New("outbox/gotelemetry: instrument creation failed")
+	ErrInstrumentCreation = errors.New("outbox/otel: instrument creation failed")
 )
 
 // Runtime is the standard-provider surface implemented by telemetry's

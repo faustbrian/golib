@@ -2,7 +2,7 @@
 
 Before v1, exported APIs and schema may change and every change belongs in
 `CHANGELOG.md`. After v1, SemVer applies independently to core, `outboxqueue`, and
-`gotelemetry`. Compatibility surfaces include canonical encoding, migrations,
+`outboxotel`. Compatibility surfaces include canonical encoding, migrations,
 delivery semantics, errors, metrics, observer events, and publisher behavior.
 
 | Surface | Versions | Evidence and boundary |
@@ -19,7 +19,7 @@ delivery semantics, errors, metrics, observer events, and publisher behavior.
 |---|---|---|---|
 | Application implementation | `Publish` returns `nil` | Must honor cancellation according to its transport contract | Outbox classifies returned errors and caps its retry delay at one minute |
 | `outboxqueue.Publisher` | synchronous `Queue` returns `nil` | Rejects an already-canceled context; pinned `queue` has no context parameter, so an in-flight call cannot be interrupted | A queue error uses outbox retry policy; retries performed by a job worker after queue acceptance are downstream and do not cause outbox republish |
-| `gotelemetry` wrapper | delegates the wrapped publisher result unchanged | Extracts context and passes the relay context through | Adds no retry; generic span failure status does not classify the error |
+| `outboxotel` wrapper | delegates the wrapped publisher result unchanged | Extracts context and passes the relay context through | Adds no retry; generic span failure status does not classify the error |
 
 A malformed publisher response is structurally impossible: `Publisher`
 returns only `error`. `nil` means accepted and every non-nil value enters the

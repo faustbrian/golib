@@ -52,7 +52,7 @@ descriptions, signatures, and wire interoperability.
 `event-sourcing/adapters/queue`, `event-sourcing/adapters/gotelemetry`,
 `event-sourcing/postgres`, `feature-flags`, `idempotency`, `lease`,
 `migrations`, `outbox`, `outbox/adapters/gokafka`,
-`outbox/adapters/queue`, `outbox/adapters/gotelemetry`, `postgres`, `queue`,
+`outbox/adapters/queue`, `outbox/adapters/otel`, `postgres`, `queue`,
 `queue-control-plane`, `queue/queueservice`, `scheduler`, `sequencer`,
 `settings`, `state-machine`, and `workflow` own durable state, delivery,
 coordination, recovery, and operational lifecycle.
@@ -156,7 +156,7 @@ specialist work has finished:
 | `kafka/kafkaservice` | `kafka/adapters/service` | Layout debt; specialist-owned scope |
 | `outbox/adapters/gokafka` | `outbox/adapters/kafka` | Naming debt |
 | `outbox/adapters/goqueue` | `outbox/adapters/queue` | Resolved before v1; no published tag depended on the old path. |
-| `outbox/adapters/gotelemetry` | `outbox/adapters/otel` | Naming debt |
+| `outbox/adapters/gotelemetry` | `outbox/adapters/otel` | Resolved before v1; no published tag depended on the old path. |
 | `queue/queueservice` | `queue/adapters/service` | Layout debt |
 | `rule-engine/adapters/gomath` | `rule-engine/adapters/math` | Resolved before v1; no tags or Track, Postal, Location, Mono, or API consumers used the old path. |
 | `rule-engine/adapters/gomeasurement` | `rule-engine/adapters/measurement` | Resolved before v1; no tags or Track, Postal, Location, Mono, or API consumers used the old path. |

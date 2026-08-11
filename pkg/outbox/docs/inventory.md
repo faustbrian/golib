@@ -78,12 +78,13 @@ zero time and never changes a relay transition.
 | Module | Exported surface |
 |---|---|
 | `adapters/queue` | `Queue`; `Publisher`; `New`; `Publish`; `ErrQueueRequired` |
-| `adapters/gotelemetry` | `Runtime`; `Publisher`; `Telemetry`; `New`; `Inject`; `Observe`; `RecordBacklog`; `WrapPublisher`; `ErrRuntimeRequired`; `ErrPublisherRequired` |
+| `adapters/otel` | `Runtime`; `Publisher`; `Telemetry`; `New`; `Inject`; `Observe`; `RecordBacklog`; `WrapPublisher`; `ErrRuntimeRequired`; `ErrPublisherRequired` |
 
 Telemetry instruments `outbox.operations`, `outbox.operation.duration`,
 `outbox.backlog.depth`, and `outbox.backlog.oldest_pending_age`. Metric
-attributes are only operation, outcome, and backlog state. Publish spans add
-destination, message ID, and attempt count; no payload or error text is added.
+attributes are limited to operation, outcome, retry state, and backlog state.
+Publish spans expose only bounded operation, outcome, and retry-state values;
+destination, message identity, payload, metadata, and error text are excluded.
 
 ## Persistent schema
 

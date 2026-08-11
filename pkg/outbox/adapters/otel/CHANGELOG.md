@@ -12,6 +12,8 @@ All notable changes to this module are documented here.
 
 ### Changed
 
+- Rename the unpublished module from `adapters/gotelemetry` to
+  `adapters/otel` and use `outboxotel` as its Go package identifier.
 - Version the instrumentation scope and replace raw attempt counts with fixed
   retry-state buckets.
 - Preserve caller cancellation, exact publication results, downstream panics,

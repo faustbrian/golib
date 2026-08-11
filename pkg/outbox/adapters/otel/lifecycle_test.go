@@ -1,4 +1,4 @@
-package gotelemetry_test
+package outboxotel_test
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"weak"
 
 	"github.com/faustbrian/golib/pkg/outbox"
-	"github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry"
+	"github.com/faustbrian/golib/pkg/outbox/adapters/otel"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -27,7 +27,7 @@ func TestPublicationSurvivesSamplingAndSDKShutdown(t *testing.T) {
 		sdktrace.WithSampler(sdktrace.NeverSample()),
 	)
 	meterProvider := sdkmetric.NewMeterProvider()
-	instrumentation, err := gotelemetry.New(testRuntime{
+	instrumentation, err := outboxotel.New(testRuntime{
 		tracer: tracerProvider, meter: meterProvider, propagator: propagation.TraceContext{},
 	})
 	if err != nil {
@@ -65,7 +65,7 @@ func TestTelemetryIsSafeForConcurrentPublicationAndObservation(t *testing.T) {
 
 	tracerProvider := sdktrace.NewTracerProvider()
 	meterProvider := sdkmetric.NewMeterProvider()
-	instrumentation, err := gotelemetry.New(testRuntime{
+	instrumentation, err := outboxotel.New(testRuntime{
 		tracer: tracerProvider, meter: meterProvider, propagator: propagation.TraceContext{},
 	})
 	if err != nil {
@@ -106,7 +106,7 @@ func TestPublicationCompletionIsExactlyOnceDuringCancellationAndSDKShutdown(t *t
 	base := sdktrace.NewTracerProvider()
 	meterProvider := sdkmetric.NewMeterProvider()
 	var ended atomic.Int64
-	instrumentation, err := gotelemetry.New(testRuntime{
+	instrumentation, err := outboxotel.New(testRuntime{
 		tracer: countingTracerProvider{TracerProvider: base, ended: &ended},
 		meter:  meterProvider, propagator: propagation.TraceContext{},
 	})
@@ -182,7 +182,7 @@ func TestBatchExporterBudgetBoundsPublishAndShutdown(t *testing.T) {
 		sdktrace.WithExportTimeout(20*time.Millisecond),
 	)
 	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(processor))
-	instrumentation, err := gotelemetry.New(testRuntime{
+	instrumentation, err := outboxotel.New(testRuntime{
 		tracer: provider, meter: sdkmetric.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
 	if err != nil {
@@ -226,7 +226,7 @@ func TestCallerDeadlineBoundsCooperativeSlowProvider(t *testing.T) {
 	t.Parallel()
 
 	propagator := deadlinePropagator{called: make(chan struct{}, 1)}
-	instrumentation, err := gotelemetry.New(testRuntime{
+	instrumentation, err := outboxotel.New(testRuntime{
 		tracer: tracenoop.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: propagator,
 	})
 	if err != nil {
@@ -263,7 +263,7 @@ func TestCallerDeadlineBoundsCooperativeSlowProvider(t *testing.T) {
 }
 
 func TestNoOpProviderStartsNoGoroutines(t *testing.T) {
-	instrumentation, err := gotelemetry.New(testRuntime{
+	instrumentation, err := outboxotel.New(testRuntime{
 		tracer: tracenoop.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
 	if err != nil {
@@ -287,7 +287,7 @@ func TestNoOpProviderStartsNoGoroutines(t *testing.T) {
 }
 
 func TestWrappedPublisherDoesNotRetainEnvelopePayload(t *testing.T) {
-	instrumentation, err := gotelemetry.New(testRuntime{
+	instrumentation, err := outboxotel.New(testRuntime{
 		tracer: sdktrace.NewTracerProvider(), meter: sdkmetric.NewMeterProvider(), propagator: propagation.TraceContext{},
 	})
 	if err != nil {
@@ -311,7 +311,7 @@ func TestWrappedPublisherDoesNotRetainEnvelopePayload(t *testing.T) {
 
 type retainedPayload [64 << 10]byte
 
-func publishPayload(t *testing.T, publisher gotelemetry.Publisher) weak.Pointer[retainedPayload] {
+func publishPayload(t *testing.T, publisher outboxotel.Publisher) weak.Pointer[retainedPayload] {
 	t.Helper()
 
 	payload := new(retainedPayload)

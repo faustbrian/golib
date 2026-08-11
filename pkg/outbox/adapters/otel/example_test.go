@@ -1,18 +1,18 @@
-package gotelemetry_test
+package outboxotel_test
 
 import (
 	"context"
 	"fmt"
 
 	"github.com/faustbrian/golib/pkg/outbox"
-	"github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry"
+	"github.com/faustbrian/golib/pkg/outbox/adapters/otel"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	tracenoop "go.opentelemetry.io/otel/trace/noop"
 )
 
 func ExampleTelemetry_WrapPublisher() {
-	instrumentation, err := gotelemetry.New(testRuntime{
+	instrumentation, err := outboxotel.New(testRuntime{
 		tracer:     tracenoop.NewTracerProvider(),
 		meter:      metricnoop.NewMeterProvider(),
 		propagator: propagation.TraceContext{},

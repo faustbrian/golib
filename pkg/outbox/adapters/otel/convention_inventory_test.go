@@ -1,4 +1,4 @@
-package gotelemetry_test
+package outboxotel_test
 
 import (
 	"encoding/json"

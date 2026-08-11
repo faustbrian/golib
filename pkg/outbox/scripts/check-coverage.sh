@@ -22,12 +22,12 @@ if [[ "$adapter" != "100.0%" ]]; then
   exit 1
 fi
 
-cd "$root/adapters/gotelemetry"
-go test -coverprofile="$tmp/gotelemetry.out" ./...
-telemetry="$(go tool cover -func="$tmp/gotelemetry.out" | awk '/^total:/ {print $3}')"
+cd "$root/adapters/otel"
+go test -coverprofile="$tmp/outboxotel.out" ./...
+telemetry="$(go tool cover -func="$tmp/outboxotel.out" | awk '/^total:/ {print $3}')"
 if [[ "$telemetry" != "100.0%" ]]; then
   echo "telemetry adapter production coverage is $telemetry, want 100.0%" >&2
   exit 1
 fi
 
-echo "meaningful production coverage: core=$core outboxqueue=$adapter gotelemetry=$telemetry"
+echo "meaningful production coverage: core=$core outboxqueue=$adapter outboxotel=$telemetry"

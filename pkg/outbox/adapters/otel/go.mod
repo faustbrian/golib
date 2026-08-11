@@ -1,4 +1,4 @@
-module github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry
+module github.com/faustbrian/golib/pkg/outbox/adapters/otel
 
 go 1.26.5
 

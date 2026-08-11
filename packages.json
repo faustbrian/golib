@@ -5119,10 +5119,10 @@
       "build_tags": []
     },
     {
-      "module_directory": "pkg/outbox/adapters/gotelemetry",
+      "module_directory": "pkg/outbox/adapters/otel",
       "directory": ".",
-      "name": "gotelemetry",
-      "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry",
+      "name": "outboxotel",
+      "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
       "kind": "public",
       "production": true,
       "executable": true,

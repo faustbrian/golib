@@ -1,4 +1,4 @@
-package gotelemetry_test
+package outboxotel_test
 
 import (
 	"context"
@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/faustbrian/golib/pkg/outbox"
-	"github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry"
+	"github.com/faustbrian/golib/pkg/outbox/adapters/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/propagation"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
@@ -42,7 +42,7 @@ func TestCapturedTelemetryExcludesEveryEnvelopeAndFailureField(t *testing.T) {
 	tracerProvider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(spanRecorder))
 	metricReader := sdkmetric.NewManualReader()
 	meterProvider := sdkmetric.NewMeterProvider(sdkmetric.WithReader(metricReader))
-	instrumentation, err := gotelemetry.New(testRuntime{
+	instrumentation, err := outboxotel.New(testRuntime{
 		tracer: tracerProvider, meter: meterProvider, propagator: propagation.TraceContext{},
 	})
 	if err != nil {

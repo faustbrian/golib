@@ -2528,7 +2528,7 @@
       "report_sha256": "c767f1b6f568b1b04ab4b1f9cf285ec2d5837b64b67fe8f5f373087c3c0bc1b7"
     },
     {
-      "module": "pkg/outbox/adapters/gotelemetry",
+      "module": "pkg/outbox/adapters/otel",
       "package": ".",
       "execution_revision": "ec8589307cac453899e2b7057e887895d3b3a107",
       "gate_input_digest": "a6de92ad6f45668c94b7d4d6bbb789d45f914c58b7ff283055156d559764b48b",

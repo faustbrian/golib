@@ -15767,7 +15767,7 @@
         "github.com/faustbrian/golib/pkg/event-sourcing/adapters/outbox",
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
         "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
-        "github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry",
+        "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
         "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
         "github.com/faustbrian/golib/pkg/webhook"
       ],
@@ -16017,15 +16017,15 @@
       }
     },
     {
-      "directory": "pkg/outbox/adapters/gotelemetry",
-      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry",
+      "directory": "pkg/outbox/adapters/otel",
+      "module_path": "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
       "go_version": "1.26.5",
       "packages": [
         {
-          "module_directory": "pkg/outbox/adapters/gotelemetry",
+          "module_directory": "pkg/outbox/adapters/otel",
           "directory": ".",
-          "name": "gotelemetry",
-          "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry",
+          "name": "outboxotel",
+          "import_path": "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
           "kind": "public",
           "production": true,
           "executable": true,
@@ -16034,7 +16034,7 @@
           "build_tags": []
         }
       ],
-      "purpose": "`gotelemetry` adds optional OpenTelemetry spans and metrics to [`github.com/faustbrian/golib/pkg/outbox`](../..). The core outbox module stays independent of OpenTelemetry, and exporter lifecycle remains caller-owned.",
+      "purpose": "`outboxotel` adds optional OpenTelemetry spans and metrics to [`github.com/faustbrian/golib/pkg/outbox`](../..). The core outbox module stays independent of OpenTelemetry, and exporter lifecycle remains caller-owned.",
       "lifecycle": "pre-v1",
       "kind": "adapter",
       "releasable": true,
@@ -16043,7 +16043,7 @@
       "family_description": "Durable state, delivery, coordination, recovery, and operational lifecycle.",
       "family_order": 4,
       "version": "unreleased",
-      "tag_prefix": "pkg/outbox/adapters/gotelemetry/v",
+      "tag_prefix": "pkg/outbox/adapters/otel/v",
       "owned_dependencies": [
         "github.com/faustbrian/golib/pkg/outbox"
       ],
@@ -16065,17 +16065,17 @@
       "conformance_corpora": [],
       "provenance": [],
       "goal_files": [
-        "pkg/outbox/adapters/gotelemetry/.ai/GOAL.md",
-        "pkg/outbox/adapters/gotelemetry/.ai/GOAL_HARDEN.md"
+        "pkg/outbox/adapters/otel/.ai/GOAL.md",
+        "pkg/outbox/adapters/otel/.ai/GOAL_HARDEN.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
         {
-          "file": "pkg/outbox/adapters/gotelemetry/.ai/GOAL.md",
+          "file": "pkg/outbox/adapters/otel/.ai/GOAL.md",
           "requirements_sha256": "8eb9a5c82bff1be4287f8da231019859c016025192dc8c802893501aa53fd190",
           "implementation_evidence": [
-            "pkg/outbox/adapters/gotelemetry/CHANGELOG.md",
-            "pkg/outbox/adapters/gotelemetry/README.md"
+            "pkg/outbox/adapters/otel/CHANGELOG.md",
+            "pkg/outbox/adapters/otel/README.md"
           ],
           "verification_gates": [
             "format-check",
@@ -16103,11 +16103,11 @@
           "implementation_status": "implemented-requires-fresh-verification"
         },
         {
-          "file": "pkg/outbox/adapters/gotelemetry/.ai/GOAL_HARDEN.md",
+          "file": "pkg/outbox/adapters/otel/.ai/GOAL_HARDEN.md",
           "requirements_sha256": "b7bb6f51a4882f9523aacc5d1f618f079ea4b5d250ae6292728fa04c60cc7fff",
           "implementation_evidence": [
-            "pkg/outbox/adapters/gotelemetry/CHANGELOG.md",
-            "pkg/outbox/adapters/gotelemetry/README.md"
+            "pkg/outbox/adapters/otel/CHANGELOG.md",
+            "pkg/outbox/adapters/otel/README.md"
           ],
           "verification_gates": [
             "format-check",

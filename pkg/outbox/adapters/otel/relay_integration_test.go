@@ -1,4 +1,4 @@
-package gotelemetry_test
+package outboxotel_test
 
 import (
 	"context"
@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/faustbrian/golib/pkg/outbox"
-	"github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry"
+	"github.com/faustbrian/golib/pkg/outbox/adapters/otel"
 	"github.com/faustbrian/golib/pkg/outbox/postgres"
 	"github.com/faustbrian/golib/pkg/outbox/relay"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
@@ -24,7 +24,7 @@ func TestTelemetryCannotAmplifyRelayPublicationOrTransitions(t *testing.T) {
 	panicValue := &privacyPanic{value: "publisher panic"}
 	tests := []struct {
 		name              string
-		runtime           func(*testing.T) gotelemetry.Runtime
+		runtime           func(*testing.T) outboxotel.Runtime
 		publisher         *recordingPublisher
 		wantResult        relay.Result
 		wantTransition    string
@@ -32,7 +32,7 @@ func TestTelemetryCannotAmplifyRelayPublicationOrTransitions(t *testing.T) {
 	}{
 		{
 			name: "no-op success",
-			runtime: func(*testing.T) gotelemetry.Runtime {
+			runtime: func(*testing.T) outboxotel.Runtime {
 				return testRuntime{
 					tracer: tracenoop.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
 				}
@@ -43,7 +43,7 @@ func TestTelemetryCannotAmplifyRelayPublicationOrTransitions(t *testing.T) {
 		},
 		{
 			name: "panicking provider failure",
-			runtime: func(*testing.T) gotelemetry.Runtime {
+			runtime: func(*testing.T) outboxotel.Runtime {
 				baseMeter := metricnoop.NewMeterProvider().Meter("relay-proof")
 				return testRuntime{
 					tracer: tracenoop.NewTracerProvider(),
@@ -61,7 +61,7 @@ func TestTelemetryCannotAmplifyRelayPublicationOrTransitions(t *testing.T) {
 		},
 		{
 			name: "sampled shutdown provider panic",
-			runtime: func(t *testing.T) gotelemetry.Runtime {
+			runtime: func(t *testing.T) outboxotel.Runtime {
 				tracerProvider := sdktrace.NewTracerProvider(sdktrace.WithSampler(sdktrace.NeverSample()))
 				meterProvider := sdkmetric.NewMeterProvider()
 				if err := tracerProvider.Shutdown(context.Background()); err != nil {
@@ -86,7 +86,7 @@ func TestTelemetryCannotAmplifyRelayPublicationOrTransitions(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
 
-			instrumentation, err := gotelemetry.New(test.runtime(t))
+			instrumentation, err := outboxotel.New(test.runtime(t))
 			if err != nil {
 				t.Fatalf("new telemetry: %v", err)
 			}

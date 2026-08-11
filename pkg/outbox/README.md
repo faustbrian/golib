@@ -34,7 +34,7 @@ transactions or exactly-once delivery.
 - `github.com/faustbrian/golib/pkg/outbox/relay`: bounded embedded relay.
 - `github.com/faustbrian/golib/pkg/outbox/adapters/queue`: separately versioned
   `queue` publisher adapter; importing core does not add `queue`.
-- `github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry`: separately versioned
+- `github.com/faustbrian/golib/pkg/outbox/adapters/otel`: separately versioned
   metrics and trace-linkage integration compatible with `telemetry`.
 
 ## Quick start

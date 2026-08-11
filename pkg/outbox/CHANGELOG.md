@@ -15,6 +15,7 @@ publisher contracts are public compatibility surfaces.
 
 ### Compatibility
 
+- Rename the unpublished OpenTelemetry adapter module to `adapters/otel`.
 - Added a pinned module export baseline so incompatible public API changes
   fail the canonical repository gate.
 

@@ -1,4 +1,4 @@
-package gotelemetry_test
+package outboxotel_test
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/faustbrian/golib/pkg/outbox"
-	"github.com/faustbrian/golib/pkg/outbox/adapters/gotelemetry"
+	"github.com/faustbrian/golib/pkg/outbox/adapters/otel"
 	metricnoop "go.opentelemetry.io/otel/metric/noop"
 	"go.opentelemetry.io/otel/propagation"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -14,7 +14,7 @@ import (
 )
 
 func BenchmarkObserve(b *testing.B) {
-	telemetry, err := gotelemetry.New(testRuntime{
+	telemetry, err := outboxotel.New(testRuntime{
 		tracer:     tracenoop.NewTracerProvider(),
 		meter:      metricnoop.NewMeterProvider(),
 		propagator: propagation.TraceContext{},
@@ -51,7 +51,7 @@ func BenchmarkPublish(b *testing.B) {
 
 	benchmarks := []struct {
 		name    string
-		runtime gotelemetry.Runtime
+		runtime outboxotel.Runtime
 	}{
 		{name: "no-op", runtime: testRuntime{
 			tracer: tracenoop.NewTracerProvider(), meter: metricnoop.NewMeterProvider(), propagator: propagation.TraceContext{},
@@ -67,7 +67,7 @@ func BenchmarkPublish(b *testing.B) {
 	}
 	for _, benchmark := range benchmarks {
 		b.Run(benchmark.name, func(b *testing.B) {
-			instrumentation, err := gotelemetry.New(benchmark.runtime)
+			instrumentation, err := outboxotel.New(benchmark.runtime)
 			if err != nil {
 				b.Fatal(err)
 			}

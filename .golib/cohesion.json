@@ -77,7 +77,7 @@
         "pkg/migrations",
         "pkg/outbox",
         "pkg/outbox/adapters/gokafka",
-        "pkg/outbox/adapters/gotelemetry",
+        "pkg/outbox/adapters/otel",
         "pkg/outbox/adapters/queue",
         "pkg/postgres",
         "pkg/queue",

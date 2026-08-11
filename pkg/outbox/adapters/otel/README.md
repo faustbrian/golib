@@ -1,13 +1,13 @@
 # Outbox OpenTelemetry adapter
 
-`gotelemetry` adds optional OpenTelemetry spans and metrics to
+`outboxotel` adds optional OpenTelemetry spans and metrics to
 [`github.com/faustbrian/golib/pkg/outbox`](../..). The core outbox module stays
 independent of OpenTelemetry, and exporter lifecycle remains caller-owned.
 
 ## Quick start
 
 ```go
-instrumentation, err := gotelemetry.New(telemetryRuntime)
+instrumentation, err := outboxotel.New(telemetryRuntime)
 if err != nil {
     return err
 }
@@ -22,7 +22,7 @@ relay, err := outboxrelay.New(store, publisher, outboxrelay.Config{
 })
 ```
 
-`telemetryRuntime` implements `gotelemetry.Runtime` with standard
+`telemetryRuntime` implements `outboxotel.Runtime` with standard
 OpenTelemetry tracer, meter, and text-map propagation providers. Use
 `Inject` while creating an envelope when publication spans should continue an
 ambient producer trace. Register the same `Telemetry` as the relay or store
@@ -156,7 +156,7 @@ returns its exact result; defensive containment also handles provider panics.
 From the repository root, run:
 
 ```sh
-make check MODULES=pkg/outbox/adapters/gotelemetry
+make check MODULES=pkg/outbox/adapters/otel
 ```
 
 The module contract includes tests, race detection, exact statement coverage,

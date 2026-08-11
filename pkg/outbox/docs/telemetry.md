@@ -1,6 +1,6 @@
 # Telemetry integration
 
-The optional `adapters/gotelemetry` module accepts the standard providers
+The optional `adapters/otel` module accepts the standard providers
 exposed by `telemetry.Runtime`. Core and the `queue` adapter do not depend
 on OpenTelemetry.
 
@@ -11,7 +11,7 @@ if err != nil {
 }
 defer runtime.Shutdown(context.Background())
 
-instrumentation, err := gotelemetry.New(runtime)
+instrumentation, err := outboxotel.New(runtime)
 if err != nil {
     return err
 }
