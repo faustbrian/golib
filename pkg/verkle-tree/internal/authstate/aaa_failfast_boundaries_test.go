@@ -423,6 +423,39 @@ func TestFailFastStatelessNoOpDoesNotStopLaterStemUpdate(t *testing.T) {
 	assertSameBackendRoot(t, got, want)
 }
 
+func TestFailFastStatelessMissingInsertionClassifiesChildShape(t *testing.T) {
+	existing := testKey(0x00, 0x00)
+	neighbor := testKey(0x02, 0xff)
+	inserted := testKey(0x01, 0x01)
+	snapshot := newTestSnapshot(t, []Entry{
+		{Key: existing, Value: testValue(1)},
+		{Key: neighbor, Value: testValue(2)},
+	})
+	proof, updater := newStatelessTestProof(t, snapshot, []Key{inserted})
+	paths, commitments := statelessTestMaterial(proof)
+	stem := Stem(inserted[:31])
+	path := paths[stem]
+	if path.kind != StemPathMissing {
+		t.Fatalf("inserted stem path kind = %d, want missing", path.kind)
+	}
+	changed, err := updater.updateStems(
+		context.Background(),
+		proof.claims,
+		paths,
+		commitments,
+		[]Update{Set(inserted, testValue(3))},
+		&statelessUpdateBudget{limits: testStatelessUpdateLimits()},
+	)
+	if err != nil {
+		t.Fatalf("classify missing-stem insertion: %v", err)
+	}
+	stemPath := makeStatelessPath(stem[:path.depth])
+	change, found := changed[stemPath]
+	if !found || len(changed) != 1 || change.kind != statelessChangedStem {
+		t.Fatalf("missing-stem change = (%#v, %t), changes = %d", change, found, len(changed))
+	}
+}
+
 func TestFailFastUpdateProofClassifiesWholeStemTransitions(t *testing.T) {
 	first := testKey(5, 1)
 	second := testKey(5, 2)
