@@ -138,6 +138,10 @@ append_module_files() {
     local directory="$1"
     local include_documentation=0
     local include_secret_policy=0
+    local include_tests=0
+    if [[ "${directory}" == "${module}" ]]; then
+        include_tests=1
+    fi
     case "${gate}" in
         docs)
             include_documentation=1
@@ -161,6 +165,7 @@ append_module_files() {
         awk \
             -v include_documentation="${include_documentation}" \
             -v include_secret_policy="${include_secret_policy}" \
+            -v include_tests="${include_tests}" \
             -v module_directory="${directory}" '
             FILENAME != "-" {
                 nested[++count] = $0
@@ -179,12 +184,16 @@ append_module_files() {
                 is_generated_documentation = relative == "llms.txt" || relative == "llms-full.txt"
                 is_repository_catalog = relative == "modules.json" || relative == "packages.json"
                 is_secret_policy = relative == ".gitleaks.toml"
+                is_test_source = relative ~ /_test\.go$/
                 skip_documentation = !include_documentation && (is_generated_documentation || (is_markdown && (in_documentation || (!in_test_data && is_named_documentation))))
                 skip_secret_policy = !include_secret_policy && is_secret_policy
                 if (is_repository_catalog) {
                     next
                 }
                 if (skip_secret_policy) {
+                    next
+                }
+                if (!include_tests && is_test_source) {
                     next
                 }
                 for (position = 1; position <= count; position++) {

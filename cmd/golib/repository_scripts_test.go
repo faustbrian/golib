@@ -396,6 +396,86 @@ func TestGateInputDigestExcludesIndependentlyVersionedNestedModules(t *testing.T
 	}
 }
 
+func TestGateInputDigestExcludesOwnedDependencyTests(t *testing.T) {
+	repositoryRoot := testRepositoryRoot(t)
+	root := t.TempDir()
+	for _, directory := range []string{
+		filepath.Join(root, "pkg", "dependency"),
+		filepath.Join(root, "pkg", "owner"),
+	} {
+		if err := os.MkdirAll(directory, 0o700); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeTestFile(t, filepath.Join(root, "modules.json"), `{
+  "modules": [
+    {
+      "directory": "pkg/dependency",
+      "module_path": "example.test/dependency",
+      "owned_dependencies": [],
+      "required_services": [],
+      "packages": []
+    },
+    {
+      "directory": "pkg/owner",
+      "module_path": "example.test/owner",
+      "owned_dependencies": ["example.test/dependency"],
+      "required_services": [],
+      "packages": []
+    }
+  ]
+}
+`)
+	writeTestFile(t, filepath.Join(root, "packages.json"), `{"packages":[]}`)
+	dependencySource := filepath.Join(root, "pkg", "dependency", "dependency.go")
+	dependencyTest := filepath.Join(root, "pkg", "dependency", "dependency_test.go")
+	writeTestFile(t, dependencySource, "package dependency\n\nconst Value = 1\n")
+	writeTestFile(t, dependencyTest, "package dependency\n\nconst expected = 1\n")
+	writeTestFile(t, filepath.Join(root, "pkg", "owner", "owner.go"), "package owner\n")
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = root
+	if result, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, result)
+	}
+	add := exec.Command("git", "add", ".")
+	add.Dir = root
+	if result, err := add.CombinedOutput(); err != nil {
+		t.Fatalf("stage fixture repository: %v\n%s", err, result)
+	}
+
+	digest := func(module string) string {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+			"format-check",
+			module,
+		)
+		command.Dir = root
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", root)
+		result, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("digest %s: %v\n%s", module, err, result)
+		}
+
+		return strings.TrimSpace(string(result))
+	}
+
+	dependencyBefore := digest("pkg/dependency")
+	ownerBefore := digest("pkg/owner")
+	writeTestFile(t, dependencyTest, "package dependency\n\nconst expected = 2\n")
+	if current := digest("pkg/dependency"); current == dependencyBefore {
+		t.Fatal("dependency test did not change its own gate inputs")
+	}
+	if current := digest("pkg/owner"); current != ownerBefore {
+		t.Fatalf("dependency test changed owner gate inputs: %s != %s", current, ownerBefore)
+	}
+	writeTestFile(t, dependencySource, "package dependency\n\nconst Value = 2\n")
+	if current := digest("pkg/owner"); current == ownerBefore {
+		t.Fatal("dependency source did not change owner gate inputs")
+	}
+}
+
 func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T) {
 	sourceRoot := testRepositoryRoot(t)
 	root := cleanRepositorySnapshot(t, sourceRoot)

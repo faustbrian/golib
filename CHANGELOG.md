@@ -19,6 +19,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Exclude owned-dependency test source from downstream gate fingerprints while
+  retaining dependency production inputs, so tests that a consumer never
+  compiles cannot invalidate its content-identical evidence.
 - Scope `.gitleaks.toml` to secret-scan fingerprints so unrelated secret-policy
   edits do not invalidate format, test, race, coverage, mutation, or other
   content-identical gate evidence.
