@@ -322,6 +322,26 @@ func TestFailFastStatelessDeleteScratchAccountsForWholeVector(t *testing.T) {
 	}
 }
 
+func TestFailFastStatelessScratchAccountsForEveryComponent(t *testing.T) {
+	proof := TreeProof{
+		commitments: make([]PathCommitment, 2),
+		stemPaths: []StemPath{
+			{kind: StemPathPresent},
+			{kind: StemPathMissing},
+			{kind: StemPathDifferent},
+		},
+	}
+	const updateCount = uint64(4)
+	want := updateCount*statelessUpdateWorkingBytes +
+		2*statelessCommitmentPathWorkingBytes +
+		3*statelessStemPathWorkingBytes +
+		updateCount*uint64(maxProofPathLength)*statelessPropagationLevelWorkingBytes +
+		uint64(maxProofPathLength*len(backend.Vector{})*len(backend.Vector{}[0]))
+	if got := statelessTemporaryBytes(proof, updateCount, false); got != want {
+		t.Fatalf("stateless scratch bytes = %d, want %d", got, want)
+	}
+}
+
 func TestFailFastUpdateProofClassifiesWholeStemTransitions(t *testing.T) {
 	first := testKey(5, 1)
 	second := testKey(5, 2)

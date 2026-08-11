@@ -298,16 +298,6 @@ func statelessTemporaryBytes(
 	updateCount uint64,
 	deletion bool,
 ) uint64 {
-	insertionBytes := uint64(0)
-	for index := range proof.stemPaths {
-		if proof.stemPaths[index].kind == StemPathMissing ||
-			proof.stemPaths[index].kind == StemPathDifferent {
-			insertionBytes = statelessInsertionVectorWorkingBytes
-
-			break
-		}
-	}
-
 	deletionBytes := uint64(0)
 	if deletion {
 		deletionBytes = statelessTopologyVectorWorkingBytes
@@ -317,7 +307,18 @@ func statelessTemporaryBytes(
 		uint64(len(proof.commitments))*statelessCommitmentPathWorkingBytes +
 		uint64(len(proof.stemPaths))*statelessStemPathWorkingBytes +
 		updateCount*uint64(maxProofPathLength)*statelessPropagationLevelWorkingBytes +
-		insertionBytes + deletionBytes
+		statelessInsertionTemporaryBytes(proof.stemPaths) + deletionBytes
+}
+
+func statelessInsertionTemporaryBytes(paths []StemPath) uint64 {
+	for index := range paths {
+		if paths[index].kind == StemPathMissing ||
+			paths[index].kind == StemPathDifferent {
+			return statelessInsertionVectorWorkingBytes
+		}
+	}
+
+	return 0
 }
 
 func statelessUpdatesContainDelete(updates []Update) bool {
