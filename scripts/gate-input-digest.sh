@@ -354,15 +354,18 @@ append_verification_tool_files() {
     fi
 }
 
+verification_module_policy() {
+    local directory="$1"
+    jq -S -c --arg directory "${directory}" '
+        .modules[]
+        | select(.directory == $directory)
+        | del(.family, .family_label, .family_description, .family_order)
+    ' "${root}/modules.json"
+}
+
 verification_digest() {
     local directory file
-    local repository_paths=(
-        .github/workflows/ci.yml
-        .go-version
-        Makefile
-        go.mod
-        go.sum
-    )
+    local repository_paths=()
     append_value gate "${gate}"
     append_value module "${module}"
     append_verification_environment
@@ -388,9 +391,7 @@ verification_digest() {
     while IFS= read -r directory; do
         [[ -n "${directory}" ]] || continue
         append_value "module-policy:${directory}" "$(
-            jq -S -c --arg directory "${directory}" \
-                '.modules[] | select(.directory == $directory)' \
-                "${root}/modules.json"
+            verification_module_policy "${directory}"
         )"
         append_value "package-policy:${directory}" "$(
             jq -S -c --arg directory "${directory}" \
@@ -408,8 +409,10 @@ verification_digest() {
             repository_paths+=(go.work)
             ;;
     esac
-    git -C "${root}" ls-files -co --exclude-standard -- \
-        "${repository_paths[@]}" >>"${input_files}"
+    if [[ "${#repository_paths[@]}" -gt 0 ]]; then
+        git -C "${root}" ls-files -co --exclude-standard -- \
+            "${repository_paths[@]}" >>"${input_files}"
+    fi
 
     LC_ALL=C sort -u "${input_files}" | append_repository_files
 }

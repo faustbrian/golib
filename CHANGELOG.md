@@ -29,6 +29,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Exclude catalog presentation metadata and root-only orchestration files from
+  nested-module gate fingerprints, so unrelated repository catalog and Makefile
+  changes no longer invalidate content-identical module evidence.
 - Exclude owned-dependency test source from downstream gate fingerprints while
   retaining dependency production inputs, so tests that a consumer never
   compiles cannot invalidate its content-identical evidence.

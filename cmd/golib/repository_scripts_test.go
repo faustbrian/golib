@@ -476,6 +476,104 @@ func TestGateInputDigestExcludesOwnedDependencyTests(t *testing.T) {
 	}
 }
 
+func TestGateInputDigestExcludesNonExecutableRepositoryMetadata(t *testing.T) {
+	repositoryRoot := testRepositoryRoot(t)
+	root := t.TempDir()
+	moduleDirectory := filepath.Join(root, "pkg", "example")
+	if err := os.MkdirAll(moduleDirectory, 0o700); err != nil {
+		t.Fatal(err)
+	}
+
+	writeManifest := func(familyLabel string, testTags []string) {
+		t.Helper()
+		manifest := map[string]any{
+			"modules": []map[string]any{
+				{
+					"directory":          ".",
+					"module_path":        "example.test/repository",
+					"owned_dependencies": []string{},
+					"required_services":  []string{},
+					"releasable":         false,
+					"test_tags":          []string{},
+					"gates":              map[string]bool{"tests": true},
+					"packages":           []any{},
+				},
+				{
+					"directory":          "pkg/example",
+					"module_path":        "example.test/example",
+					"owned_dependencies": []string{},
+					"required_services":  []string{},
+					"releasable":         true,
+					"family":             "foundations",
+					"family_label":       familyLabel,
+					"family_description": "Catalog navigation metadata.",
+					"family_order":       1,
+					"test_tags":          testTags,
+					"gates":              map[string]bool{"tests": true},
+					"packages":           []any{},
+				},
+			},
+		}
+		contents, err := json.Marshal(manifest)
+		if err != nil {
+			t.Fatal(err)
+		}
+		writeTestFile(t, filepath.Join(root, "modules.json"), string(contents))
+	}
+
+	writeManifest("Foundations", []string{})
+	writeTestFile(t, filepath.Join(root, "packages.json"), `{"packages":[]}`)
+	makefile := filepath.Join(root, "Makefile")
+	writeTestFile(t, makefile, "inventory:\n\t@true\n")
+	writeTestFile(t, filepath.Join(moduleDirectory, "example.go"), "package example\n")
+
+	initialize := exec.Command("git", "init", "--quiet")
+	initialize.Dir = root
+	if result, err := initialize.CombinedOutput(); err != nil {
+		t.Fatalf("initialize fixture repository: %v\n%s", err, result)
+	}
+	add := exec.Command("git", "add", ".")
+	add.Dir = root
+	if result, err := add.CombinedOutput(); err != nil {
+		t.Fatalf("stage fixture repository: %v\n%s", err, result)
+	}
+
+	digest := func(module string) string {
+		t.Helper()
+		command := exec.Command(
+			filepath.Join(repositoryRoot, "scripts", "gate-input-digest.sh"),
+			"test",
+			module,
+		)
+		command.Dir = root
+		command.Env = environmentWithValues(os.Environ(), "GOLIB_ROOT", root)
+		result, err := command.CombinedOutput()
+		if err != nil {
+			t.Fatalf("digest test inputs: %v\n%s", err, result)
+		}
+
+		return strings.TrimSpace(string(result))
+	}
+
+	before := digest("pkg/example")
+	writeManifest("Core Foundations", []string{})
+	if current := digest("pkg/example"); current != before {
+		t.Fatalf("catalog presentation metadata changed gate inputs: %s != %s", current, before)
+	}
+	rootBefore := digest(".")
+	writeTestFile(t, makefile, "cohesion:\n\t@true\n")
+	if current := digest("pkg/example"); current != before {
+		t.Fatalf("root Makefile changed nested-module gate inputs: %s != %s", current, before)
+	}
+	if current := digest("."); current == rootBefore {
+		t.Fatal("root Makefile did not change root-module gate inputs")
+	}
+	writeManifest("Core Foundations", []string{"integration"})
+	if current := digest("pkg/example"); current == before {
+		t.Fatal("test tags did not change gate inputs")
+	}
+}
+
 func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T) {
 	sourceRoot := testRepositoryRoot(t)
 	root := cleanRepositorySnapshot(t, sourceRoot)
