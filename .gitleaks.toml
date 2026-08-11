@@ -31,6 +31,11 @@ targetRules = ["generic-api-key"]
 paths = ['''^(?:pkg/webhook/)?testdata/vectors/v1\.json$''']
 
 [[allowlists]]
+description = "HTTP signature differential tests use a deterministic public HMAC key."
+targetRules = ["generic-api-key"]
+paths = ['''^(?:pkg/http-signature/)?differential/shared-corpus/corpus_test\.go$''']
+
+[[allowlists]]
 description = "Capability interoperability fixture is a public signed token, not a JWT credential."
 targetRules = ["jwt"]
 paths = ['''^(?:pkg/capability/)?testdata/v1-hmac\.token$''']
