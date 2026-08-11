@@ -96,10 +96,11 @@ configure durable retry/backoff on the outbox relay. Do not let both layers
 perform unbounded retries.
 
 Set `relay.Config.ClassifyError` to `gokafka.ClassifyError`. Locally rejected
-malformed envelopes and authorization, fencing, oversized-record, permanent,
-and producer-fatal categories are sent directly to the relay's dead-letter
-transition. Retryable, timeout, cancellation, shutdown, unknown, and ambiguous
-categories remain transient.
+malformed envelopes and record-permanent or oversized-record categories are
+sent directly to the relay's dead-letter transition. Authorization, fencing,
+producer-fatal, retryable, timeout, cancellation, shutdown, unknown, and
+ambiguous categories remain transient because credentials, ownership, or the
+producer can recover without changing the envelope.
 Ambiguous outcomes are retried because Kafka may already contain the record;
 consumers must deduplicate the stable event identity.
 

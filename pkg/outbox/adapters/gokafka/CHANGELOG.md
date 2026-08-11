@@ -6,10 +6,11 @@ All notable changes to this module are documented here.
 
 ### Changed
 
-- expose `ClassifyError` for relay wiring so malformed envelopes and
-  authorization, fencing, oversized-record, permanent, and producer-fatal
-  failures dead-letter without exhausting transient retries; ambiguous and
-  unknown outcomes remain retryable and may duplicate an accepted record
+- expose `ClassifyError` for relay wiring so malformed envelopes and definite
+  record-permanent or oversized failures dead-letter without exhausting
+  transient retries; authorization, fencing, producer-fatal, ambiguous, and
+  unknown outcomes remain retryable because infrastructure or client recovery
+  can make the unchanged envelope publishable
 - redact arbitrary client publish and health error text while preserving error
   identity and Kafka delivery categories for programmatic recovery; callers
   that rendered wrapped client diagnostics must switch to structured category

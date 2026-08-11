@@ -455,10 +455,10 @@ func TestClassifyErrorMapsKafkaFailuresToRelayPolicy(t *testing.T) {
 		{name: "shutdown", err: categorizedError{category: kafka.ErrorShutdown}, want: relay.ErrorTransient},
 		{name: "ambiguous", err: categorizedError{category: kafka.ErrorAmbiguous}, want: relay.ErrorTransient},
 		{name: "permanent", err: categorizedError{category: kafka.ErrorPermanent}, want: relay.ErrorPermanent},
-		{name: "authorization", err: categorizedError{category: kafka.ErrorAuthorization}, want: relay.ErrorPermanent},
-		{name: "fenced", err: categorizedError{category: kafka.ErrorFenced}, want: relay.ErrorPermanent},
+		{name: "authorization", err: categorizedError{category: kafka.ErrorAuthorization}, want: relay.ErrorTransient},
+		{name: "fenced", err: categorizedError{category: kafka.ErrorFenced}, want: relay.ErrorTransient},
 		{name: "oversized", err: categorizedError{category: kafka.ErrorOversized}, want: relay.ErrorPermanent},
-		{name: "fatal", err: categorizedError{category: kafka.ErrorFatal}, want: relay.ErrorPermanent},
+		{name: "fatal", err: categorizedError{category: kafka.ErrorFatal}, want: relay.ErrorTransient},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

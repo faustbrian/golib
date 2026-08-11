@@ -159,9 +159,11 @@ func (err publishError) Error() string { return "outbox/gokafka: publish failed"
 func (err publishError) Unwrap() error { return err.cause }
 
 // ClassifyError maps Kafka delivery categories to the outbox relay policy.
-// Definite input, authorization, ownership, and producer-fatal failures are
-// permanent. Unknown or ambiguous outcomes remain transient because retrying
-// may reconcile a lost acknowledgement but can duplicate an accepted record.
+// Definite record-input failures are permanent. Authorization, ownership, and
+// producer-fatal failures remain transient because replacing credentials,
+// ownership, or the producer can make the unchanged envelope publishable.
+// Unknown or ambiguous outcomes remain transient because retrying may reconcile
+// a lost acknowledgement but can duplicate an accepted record.
 func ClassifyError(err error) relay.ErrorClass {
 	if errors.Is(err, ErrInvalidEnvelope) {
 		return relay.ErrorPermanent
@@ -172,8 +174,7 @@ func ClassifyError(err error) relay.ErrorClass {
 	}
 
 	switch categorized.Category() {
-	case kafka.ErrorPermanent, kafka.ErrorAuthorization, kafka.ErrorFenced,
-		kafka.ErrorOversized, kafka.ErrorFatal:
+	case kafka.ErrorPermanent, kafka.ErrorOversized:
 		return relay.ErrorPermanent
 	default:
 		return relay.ErrorTransient
