@@ -623,3 +623,18 @@ func TestFailFastTreeProofMergeCopiesSortedValues(t *testing.T) {
 		t.Fatalf("sorted values = %v, want [1 2]", values)
 	}
 }
+
+func TestFailFastMergeExistingStemIntoEmptyInsertion(t *testing.T) {
+	existing := statelessInsertedStem{stem: Stem{1}}
+	merged, err := mergeStatelessExistingStem(
+		context.Background(),
+		existing,
+		nil,
+	)
+	if err != nil {
+		t.Fatalf("merge existing stem into empty insertion: %v", err)
+	}
+	if len(merged) != 1 || merged[0] != existing {
+		t.Fatalf("merged stems = %#v, want only %#v", merged, existing)
+	}
+}
