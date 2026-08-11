@@ -69,7 +69,6 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 2 | Architecture | `pending` | `.ai/GOAL_RESILIENCE.md` | 1 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/{GOAL.md,GOAL_HARDEN.md}` | 13, 19 |
 | 25 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/gotelemetry/.ai/GOAL_HARDEN.md` | 18 |
-| 26 | Kafka | `pending-reexecution` | `pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md` | 18, 24, 25 |
 | 33 | Event sourcing | `pending-reexecution` | `pkg/event-sourcing/adapters/gokafka/.ai/GOAL_HARDEN.md` | 24-26, 28 |
 | 47 | Durable orchestration | `pending` | `pkg/workflow/.ai/{GOAL.md,GOAL_HARDEN.md}` | 3-18, 27-35, 43, 44, 46 |
 | 48 | Search | `pending` | `pkg/search/.ai/GOAL_HARDEN.md` | 3-18, 29-32, 43 |
@@ -121,7 +120,8 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/outbox/adapters/gokafka/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 30. Current scoped evidence verifies deterministic Kafka records, bounded hostile-envelope handling, safe relay classification, broker failure and acknowledgement ambiguity, executable process-death duplicate and reconciliation boundaries, keyed-partition ordering, diagnostic redaction, real-Kafka interoperability, exact coverage and mutation, and every catalog-selected scoped package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/queue/queueservice/.ai/GOAL.md` | `verified` | Former pending order 27. Current scoped evidence verifies the lifecycle adapter contract, exact coverage and mutation, API, documentation, safety, Redis and Valkey backend integration, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/queue/queueservice/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 27. Current scoped evidence verifies lifecycle transitions, bounded termination, duplicate windows, Redis and Valkey recovery, process and pod termination, scaling, exact coverage and mutation, and every mandatory module gate; requeue only when that evidence becomes stale or requirements change. |
-| `pkg/kafka/kafkaservice/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 26 has current scoped evidence for explicit producer and consumer lifecycle ownership, readiness, bounded drain and shutdown, panic-safe concurrency, Kafka error preservation, real-broker interoperability, documentation, exact coverage and mutation, and every mandatory module gate; its separate `GOAL_HARDEN.md` remains pending. |
+| `pkg/kafka/kafkaservice/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 26 has current scoped evidence for explicit producer and consumer lifecycle ownership, readiness, bounded drain and shutdown, panic-safe concurrency, Kafka error preservation, real-broker interoperability, documentation, exact coverage and mutation, and every mandatory module gate; its separate `GOAL_HARDEN.md` is verified below. |
+| `pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 26. Current scoped evidence verifies admission fencing, total-budget drain and shutdown, failure and panic containment, repeated signals, secret-safe diagnostics, partial-startup recovery, broker loss and delivery ambiguity, commit-timeout redelivery, overlapping-member rebalance, OAuth credential expiry and recovery, exact statement and mutation coverage, race behavior, benchmarks, and every mandatory module gate; requeue only when affected inputs or requirements change. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 29 has current scoped implementation and mandatory gate evidence. |
 | `pkg/event-sourcing/adapters/gooutbox/.ai/GOAL_HARDEN.md` | `verified` | Former pending order 29. Current scoped evidence verifies transactional atomicity, commit-ambiguity recovery, stable retry and publication identity, concurrent and replica writers, process and database failure handling, hostile envelope boundaries, and equivalent-durability performance; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/event-sourcing/adapters/gotelemetry/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 35 has current scoped evidence for failure-isolated instrumentation, privacy-bounded traces and metrics, Kafka propagation, exact pass-through behavior, documentation, exact coverage and mutation, and every mandatory module gate; its separate `GOAL_HARDEN.md` is verified below. |
@@ -420,14 +420,14 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 
 | Field | Record |
 | --- | --- |
-| Goal | `pkg/kafka/kafkaservice/.ai/GOAL.md` |
-| Scope | Explicit producer and consumer ownership; startup, readiness, run, drain, settlement, shutdown, duplicate-stop and concurrent-stop behavior; panic containment; correlation boundaries; Kafka error preservation; Kubernetes and migration documentation. |
-| Status | `pending-reexecution` to `verified`; `pkg/kafka/kafkaservice/.ai/GOAL_HARDEN.md` remains pending. |
-| Evidence | `GOLIB_VERIFICATION_SNAPSHOT=1 ./scripts/run-modules.sh check --jobs 1 --modules pkg/kafka/kafkaservice` against the completed base-goal inputs. |
-| Result | Passed every mandatory module gate, including exact 348/348 statements, 109/109 viable mutants killed with 100.00% efficacy and mutator coverage, race, 10,000-execution fuzz, API, documentation, security, supply-chain, benchmark, and pinned Apache Kafka 4.3.1 interoperability evidence. |
-| Environment | Go 1.26.5 on darwin/arm64 with a task-owned disposable `GOCACHE` removed after the bounded run and an isolated digest-pinned Kafka fixture. |
-| Observed | 2026-08-11T01:33:12Z |
-| Gaps | NilAway advisory diagnostics remain visible under repository policy; no gap remains within the scoped base-goal contract. The separate hardening campaign remains pending. |
+| Goal | `pkg/kafka/kafkaservice/.ai/{GOAL.md,GOAL_HARDEN.md}` |
+| Scope | Explicit producer and consumer lifecycle ownership; startup rollback, readiness, run, admission fencing, drain, settlement, shutdown, repeated signals, one total termination budget, callback panic and failure containment, diagnostic redaction, Kafka delivery ambiguity and redelivery, rebalance, credential expiry and recovery, Kubernetes replacement, and lifecycle performance. |
+| Status | `pending-reexecution` to `verified` |
+| Evidence | `./scripts/run-modules.sh check --jobs 1 --modules pkg/kafka/kafkaservice` and `make release-dry-run MODULES=pkg/kafka/kafkaservice` against the final package inputs, including pinned Apache Kafka 4.3.1 interoperability under the race detector. |
+| Result | Passed every mandatory module and release gate with exact 368/368 statement coverage, 113/113 viable mutants killed with 100.00% efficacy and mutant coverage, race, 10,000-execution fuzz, API, documentation, security, supply-chain, benchmark, and real-broker lifecycle evidence. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` directories removed after each bounded run and isolated digest-pinned Kafka fixtures. |
+| Observed | 2026-08-11 |
+| Gaps | NilAway advisory diagnostics remain visible under repository policy; no mandatory gap remains within the scoped base and hardening contracts. |
 
 ### Queue service lifecycle adapter evidence
 
