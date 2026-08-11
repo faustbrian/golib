@@ -86,6 +86,17 @@ jq -r --arg selected "${selected}" '
     | @tsv
 ' "${root}/modules.json" >"${selection_file}"
 if [[ ! -s "${selection_file}" ]]; then
+    if [[ -n "${selected}" ]] && jq -e --arg selected "${selected}" '
+        . as $catalog
+        | ($selected | split(",")) as $directories
+        | all(
+            $directories[];
+            . as $directory
+            | any($catalog.modules[]; .directory == $directory)
+        )
+    ' "${root}/modules.json" >/dev/null; then
+        exit 0
+    fi
     printf 'local proxy module selection is empty: %s\n' "${selected}" >&2
     exit 1
 fi

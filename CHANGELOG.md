@@ -29,6 +29,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Permit cataloged non-releasable fixture modules to use an intentionally empty
+  local proxy so their not-applicable verification gates can be recorded while
+  unknown module selections still fail closed.
 - Make evidence-gate locks atomic and recover legacy ownerless locks so an
   interrupted runner cannot stall later verification indefinitely.
 - Isolate the snapshot lifecycle fixture from an inherited nested-run marker so

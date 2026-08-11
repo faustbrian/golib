@@ -718,6 +718,25 @@ func TestLocalProxyBuildsSelectedDependencyClosureDeterministically(t *testing.T
 		}
 	}
 
+	nonReleasableSelection := t.TempDir()
+	command = exec.Command(
+		script,
+		nonReleasableSelection,
+		"v0.0.0",
+		"pkg/analysis/testdata/coverage",
+	)
+	command.Dir = root
+	if result, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("build empty proxy for cataloged fixture module: %v\n%s", err, result)
+	}
+	entries, err := os.ReadDir(nonReleasableSelection)
+	if err != nil {
+		t.Fatalf("read fixture module proxy: %v", err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("fixture module proxy contains %d entries, want none", len(entries))
+	}
+
 	manifestPath := filepath.Join(root, "modules.json")
 	var rootSelectionCatalog catalog
 	if err := json.Unmarshal([]byte(mustReadFile(t, manifestPath)), &rootSelectionCatalog); err != nil {
