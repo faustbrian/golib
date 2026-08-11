@@ -66,7 +66,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Order | Phase | Status | Execution unit | Depends on |
 | ---: | --- | --- | --- | --- |
 | 1 | Decisions | `pending-reexecution` | `.ai/GOAL_SPECIFICATION_DECISIONS.md` | Current specifications and package inventory |
-| 2 | Architecture | `pending` | `.ai/GOAL_RESILIENCE.md` | 1 |
+| 2 | Architecture | `implemented-unverified` | `.ai/GOAL_RESILIENCE.md` | 1 |
 | 24 | Kafka | `pending-reexecution` | `pkg/kafka/adapters/mskiam/.ai/GOAL_HARDEN.md` | 13, 19 |
 | 48 | Search | `pending` | `pkg/search/.ai/GOAL_HARDEN.md` | 3-18, 29-32, 43 |
 | 50 | Ecosystem cohesion | `pending` | `.ai/GOAL_COHESION.md` | 3-49 |
@@ -168,6 +168,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; rate-limit interoperability used PostgreSQL and Valkey containers with explicit Valkey policy isolation. |
 | Observed | 2026-08-10T11:05:52Z |
 | Gaps | NilAway remains advisory and its diagnostics remain visible where reported; no mandatory gate gap remains in these execution units. |
+
+### Cohesive resilience architecture evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_RESILIENCE.md` |
+| Scope | Repository-wide ownership, composition, amplification, Kubernetes lifecycle, observability, failure, and shutdown contracts across the verified resilience modules and their integration harnesses. |
+| Status | `pending` to `implemented-unverified` |
+| Evidence | The repository resilience guide and entry-point links; individually verified resilience modules and integration harnesses recorded in this inventory; and immutable root-gate evidence for format, tidy, safety, vet, tests, lint, Staticcheck, vulnerability, licenses, SBOM, NilAway, and documentation. The root test contract passed after separating snapshot startup and cleanup timeouts. |
+| Result | The architecture deliverables and every independently owned resilience package are implemented and verified. All currently runnable root gates above pass. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after every bounded run. |
+| Observed | 2026-08-11T14:42:39Z |
+| Gaps | Aggregate specification-decision validation still fails in active Kafka and Search specialist scope. Root secret scanning still reports two findings in active identity-platform planning documents. These scoped failures prevent `verified` status but do not invalidate completed resilience package evidence. |
 
 ### Queue worker balancing evidence
 
