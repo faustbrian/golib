@@ -60,6 +60,62 @@ func TestFailFastCanonicalEmptyRootStemPath(t *testing.T) {
 	}
 }
 
+func TestFailFastEmptyRootTreeProofShape(t *testing.T) {
+	firstKey := testKey(1, 1)
+	secondKey := testKey(2, 2)
+	firstClaim := Absence(firstKey)
+	secondClaim := Absence(secondKey)
+	firstPath := MissingStemPath(stemFromKey(firstKey), 1)
+	secondPath := MissingStemPath(stemFromKey(secondKey), 1)
+
+	for name, test := range map[string]struct {
+		claims      []Claim
+		paths       []StemPath
+		commitments []PathCommitment
+		want        bool
+	}{
+		"canonical": {
+			claims: []Claim{firstClaim, secondClaim},
+			paths:  []StemPath{firstPath, secondPath},
+			want:   true,
+		},
+		"empty claims": {paths: []StemPath{firstPath}},
+		"empty paths":  {claims: []Claim{firstClaim}},
+		"commitment": {
+			claims: []Claim{firstClaim}, paths: []StemPath{firstPath},
+			commitments: []PathCommitment{{}},
+		},
+		"present path": {
+			claims: []Claim{firstClaim},
+			paths:  []StemPath{PresentStemPath(stemFromKey(firstKey), 1)},
+		},
+		"path without claim": {
+			claims: []Claim{firstClaim},
+			paths:  []StemPath{firstPath, secondPath},
+		},
+		"mismatched stem": {
+			claims: []Claim{firstClaim},
+			paths:  []StemPath{secondPath},
+		},
+		"membership": {
+			claims: []Claim{Membership(firstKey, testValue(1))},
+			paths:  []StemPath{firstPath},
+		},
+		"claim without path": {
+			claims: []Claim{firstClaim, secondClaim},
+			paths:  []StemPath{firstPath},
+		},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := validEmptyRootTreeProofShape(
+				test.claims, test.paths, test.commitments,
+			); got != test.want {
+				t.Fatalf("valid empty-root tree-proof shape = %t, want %t", got, test.want)
+			}
+		})
+	}
+}
+
 func TestFailFastClaimAccessorsPreservePresenceAndAbsence(t *testing.T) {
 	key := testKey(1, 2)
 	value := testValue(3)

@@ -599,7 +599,10 @@ func validEmptyRootTreeProofShape(
 	paths []StemPath,
 	commitments []PathCommitment,
 ) bool {
-	if len(claims) == 0 || len(paths) == 0 || len(commitments) != 0 {
+	if len(claims) == 0 {
+		return false
+	}
+	if len(commitments) != 0 {
 		return false
 	}
 	claimIndex := 0
