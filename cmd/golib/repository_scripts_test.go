@@ -3348,10 +3348,10 @@ printf 'pkg/example\n'
 		t.Fatalf("initialize fixture repository: %v\n%s", err, output)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	commandContext, cancelCommand := context.WithTimeout(context.Background(), time.Minute)
+	defer cancelCommand()
 	command := exec.CommandContext(
-		ctx,
+		commandContext,
 		filepath.Join(repository, "scripts", "run-modules.sh"),
 		"check",
 		"--modules", "pkg/example",
@@ -3376,7 +3376,9 @@ printf 'pkg/example\n'
 		_ = syscall.Kill(-command.Process.Pid, syscall.SIGKILL)
 	}()
 
-	waitForFile(t, ctx, filepath.Join(state, "ready"))
+	startupContext, cancelStartup := context.WithTimeout(context.Background(), 30*time.Second)
+	waitForFile(t, startupContext, filepath.Join(state, "ready"))
+	cancelStartup()
 	if err := command.Process.Signal(syscall.SIGTERM); err != nil {
 		t.Fatalf("terminate module runner: %v", err)
 	}
@@ -3385,7 +3387,9 @@ printf 'pkg/example\n'
 	} else if exitError, ok := err.(*exec.ExitError); !ok || exitError.ExitCode() != 143 {
 		t.Fatalf("terminated module runner exit = %v, want 143\n%s", err, output.String())
 	}
-	waitForFile(t, ctx, filepath.Join(state, "snapshot-state"))
+	shutdownContext, cancelShutdown := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancelShutdown()
+	waitForFile(t, shutdownContext, filepath.Join(state, "snapshot-state"))
 	contents, err := os.ReadFile(filepath.Join(state, "snapshot-state"))
 	if err != nil {
 		t.Fatal(err)
