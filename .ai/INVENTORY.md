@@ -130,6 +130,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `pkg/http-signature/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 41. Current scoped evidence verifies RFC 9421 and RFC 9530 conformance, bounded signing and verification profiles, digest and replay behavior, HTTP integration, legacy isolation, interoperability, hardening requirements, and every mandatory affected-module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/feature-flags/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 15. Current scoped evidence verifies bounded fleet bootstrap, refresh, invalidation, degraded evaluation, provider resilience composition, Kubernetes lifecycle behavior, and every mandatory feature-flags module gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/sequencer/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 17. Current scoped evidence verifies leaderless fleet lifecycle, fenced renewal and takeover recovery, mixed-binary registry compatibility, bounded shared retry ownership, Kubernetes operational semantics, and every mandatory sequencer module gate; requeue only when that evidence becomes stale or requirements change. |
+| `pkg/sequencer/.ai/GOAL_HARDEN.md` | `verified` | Current scoped evidence verifies durable operation ordering, persistence, ownership and fencing, crash recovery, retries, transaction boundaries, asynchronous settlement, reconciliation, administrative controls, PostgreSQL migration safety, fuzzing, mutation, race behavior, and benchmarks; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/search/.ai/GOAL.md` | `verified` | The base goal formerly included in pending order 48 has current scoped evidence for backend-neutral contracts, bounded indexing and pagination, migration and reconciliation, the deterministic fake, OpenSearch production adoption, and every mandatory affected-package gate; its separate `GOAL_HARDEN.md` remains pending. |
 | `pkg/search/adapters/opensearch/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Former pending order 49. Current scoped evidence verifies the production OpenSearch adapter, hardening requirements, OpenSearch 2.19.3 and 3.6.0 compatibility, exact coverage and mutation, and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
 | `pkg/settings/.ai/{GOAL_RESILIENCE.md,GOAL_RESILIENCE_HARDEN.md}` | `verified` | Former pending order 16. Current scoped evidence verifies immutable bounded snapshots, explicit per-class degradation, monotonic writes and reads, bounded fleet convergence and lifecycle, PostgreSQL and Valkey interoperability, and every mandatory affected-package gate; requeue only when that evidence becomes stale or requirements change. |
@@ -499,6 +500,19 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | Environment | Go 1.26.5 on darwin/arm64 with a separate task-owned disposable `GOCACHE` removed after every bounded Go or mutation run and gate-managed PostgreSQL 18 interoperability. |
 | Observed | 2026-08-09T18:22:59Z |
 | Gaps | The Kubernetes lifecycle contract is proved by package model and operational tests rather than a disposable cluster; the package catalog declares conformance not applicable. |
+
+### Durable operation sequencing hardening evidence
+
+| Field | Record |
+| --- | --- |
+| Goal | `pkg/sequencer/.ai/GOAL_HARDEN.md` |
+| Scope | Deterministic operation graphs, durable PostgreSQL and memory ledgers, state transitions, replica claims, fencing and leases, crash and failover recovery, retry budgets, local transaction truthfulness, asynchronous queue settlement, unknown-outcome reconciliation, administrative reset and resume, compensation, migration deployment, hostile persisted inputs, and scaling behavior. |
+| Status | `verified` |
+| Evidence | Sequencer-only gate evidence keyed by current input fingerprints, including unit and PostgreSQL integration, race, exact coverage, fuzz, mutation, API, documentation, safety, interoperability, and benchmark gates. |
+| Result | Every mandatory sequencer gate passed. Production statement coverage is exactly 1682/1682 across all ten packages; all 1132 viable mutants were killed with 100% efficacy and mutant coverage; nine fuzz targets passed 10,000 executions each; PostgreSQL 18 integration and race coverage, crash and replica-failover suites, queue, lease, idempotency, retry, transaction, reconciliation, migration, and equivalent-work benchmark suites passed. |
+| Environment | Go 1.26.5 on darwin/arm64 with a pinned PostgreSQL 18 container and task-owned disposable Go build caches. |
+| Observed | 2026-08-11T01:19:45Z |
+| Gaps | NilAway remains advisory under repository policy and conformance is cataloged as not applicable; no mandatory gate gap remains for this goal. |
 
 ### Exact temporal rule operator evidence
 
