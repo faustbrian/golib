@@ -22,6 +22,25 @@ func TestFailFastAggregateVerifierQueryCapacityBoundsTopology(t *testing.T) {
 	}
 }
 
+func TestFailFastStatelessWitnessStemPathLookup(t *testing.T) {
+	paths := []StemPath{
+		PresentStemPath(Stem{1}, 1),
+		MissingStemPath(Stem{2}, 1),
+		DifferentStemPath(Stem{3}, 1, Stem{4}),
+	}
+	for index, stem := range []Stem{{1}, {2}, {3}} {
+		got, found := statelessWitnessStemPath(paths, stem)
+		if !found || got != paths[index] {
+			t.Fatalf("stem %x lookup = %#v/%t, want %#v/true", stem, got, found, paths[index])
+		}
+	}
+	for _, stem := range []Stem{{0}, {2, 1}, {4}} {
+		if got, found := statelessWitnessStemPath(paths, stem); found || got != (StemPath{}) {
+			t.Fatalf("missing stem %x lookup = %#v/%t", stem, got, found)
+		}
+	}
+}
+
 func TestFailFastClaimAccessorsPreservePresenceAndAbsence(t *testing.T) {
 	key := testKey(1, 2)
 	value := testValue(3)
