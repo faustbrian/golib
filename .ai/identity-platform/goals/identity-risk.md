@@ -14,7 +14,7 @@ appear in all capitals, as shown here.
 - Canonical goal after scaffolding: `pkg/identity/risk/.ai/GOAL.md`
 - Requires: `identity`
 - Consumes existing primitives: `rate-limit`, `audit`, `telemetry`, `identifier`
-- Unlocks after verification: `identity/risk/postgres`, `identity/risk/valkey`, `identity/risk/captcha`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`
+- Unlocks after verification: `identity/risk/postgres`, `identity/risk/valkey`, `identity/risk/captcha`, `identity/risk/hibp`, `identity/password`, `identity/magiclink`, `identity/otp`, `identity/mfa`, `passkey`, `identity/oauth`, `identity/impersonation`, `sso`, `oauth-server`
 
 ## Start gate
 

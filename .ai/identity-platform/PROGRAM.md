@@ -37,7 +37,10 @@ coherent batch.
 - CAPTCHA support includes a provider-neutral contract plus Google reCAPTCHA
   and Cloudflare Turnstile adapters. Provider response semantics remain
   isolated in adapters; hCaptcha is not in current scope.
-- Billing, SIWE, MCP authentication, agent authentication, HIBP, and other
+- HIBP Pwned Passwords support is in scope as a k-anonymity adapter under
+  `identity/risk`. It supplies a breach signal; it does not own password
+  policy or send complete password hashes to the provider.
+- Billing, SIWE, MCP authentication, agent authentication, and unspecified
   speculative provider integrations are outside this program.
 
 ## Existing primitives
@@ -54,8 +57,9 @@ clients, grants, consent, discovery, and JWKS publication belong to
 
 The program is complete only when every in-scope unit is `verified`, the DAG
 is acyclic, every module is independently releasable, and the composed
-reference journeys pass: password signup/signin/logout/reset; email and phone
-verification; magic-link and OTP signin; MFA; passkey signup/signin; social
+reference journeys pass: password signup/signin/logout/reset and
+breached-password assessment; email and phone verification; magic-link and
+OTP signin; MFA; passkey signup/signin; social
 OAuth linking; managed API keys; organization invitations and membership;
 enterprise SSO; SCIM provisioning; and OAuth/OIDC authorization-server flows.
 

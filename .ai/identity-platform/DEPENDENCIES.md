@@ -26,6 +26,7 @@ flowchart TD
   captcha[identity/risk/captcha]
   recaptcha[identity/risk/captcha/recaptcha]
   turnstile[identity/risk/captcha/turnstile]
+  hibp[identity/risk/hibp]
   email[identity/email]
   password[identity/password]
   magiclink[identity/magiclink]
@@ -48,6 +49,7 @@ flowchart TD
   risk --> captcha
   captcha --> recaptcha
   captcha --> turnstile
+  risk --> hibp
   identity --> email
   delivery --> email
   identity --> password

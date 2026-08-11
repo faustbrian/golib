@@ -17,6 +17,7 @@ status rules in `DEPENDENCIES.md`. An agent MUST NOT claim a `proposed` unit.
 | `identity/risk/captcha` | `pkg/identity/risk/captcha` | `identity/risk` | proposed | — | `goals/identity-risk-captcha.md` |
 | `identity/risk/captcha/recaptcha` | `pkg/identity/risk/captcha/recaptcha` | `identity/risk/captcha` | proposed | — | `goals/identity-risk-captcha-recaptcha.md` |
 | `identity/risk/captcha/turnstile` | `pkg/identity/risk/captcha/turnstile` | `identity/risk/captcha` | proposed | — | `goals/identity-risk-captcha-turnstile.md` |
+| `identity/risk/hibp` | `pkg/identity/risk/hibp` | `identity/risk` | proposed | — | `goals/identity-risk-hibp.md` |
 | `identity/password` | `pkg/identity/password` | `identity`<br>`identity/session`<br>`identity/risk`<br>`identity/delivery` | proposed | — | `goals/identity-password.md` |
 | `identity/email` | `pkg/identity/email` | `identity`<br>`identity/delivery` | proposed | — | `goals/identity-email.md` |
 | `identity/magiclink` | `pkg/identity/magiclink` | `identity`<br>`identity/session`<br>`identity/email`<br>`identity/risk` | proposed | — | `goals/identity-magiclink.md` |
