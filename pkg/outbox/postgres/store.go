@@ -290,22 +290,28 @@ func newStore(pool database, config StoreConfig) (*Store, error) {
 	if config.Table == "" {
 		config.Table = "outbox_messages"
 	}
-	if config.MaxClaimBatch == 0 {
+	switch {
+	case config.MaxClaimBatch < 0:
+		return nil, ErrInvalidClaimLimit
+	case config.MaxClaimBatch == 0:
 		config.MaxClaimBatch = defaultMaxClaimBatch
-	}
-	if config.MaxClaimBatch < 0 || config.MaxClaimBatch > maximumStoreBatch {
+	case config.MaxClaimBatch > maximumStoreBatch:
 		return nil, ErrInvalidClaimLimit
 	}
-	if config.MaxAdminBatch == 0 {
+	switch {
+	case config.MaxAdminBatch < 0:
+		return nil, ErrInvalidAdminLimit
+	case config.MaxAdminBatch == 0:
 		config.MaxAdminBatch = defaultMaxAdminBatch
-	}
-	if config.MaxAdminBatch < 0 || config.MaxAdminBatch > maximumStoreBatch {
+	case config.MaxAdminBatch > maximumStoreBatch:
 		return nil, ErrInvalidAdminLimit
 	}
-	if config.MaxLeaseDuration == 0 {
+	switch {
+	case config.MaxLeaseDuration < 0:
+		return nil, ErrInvalidLeaseDuration
+	case config.MaxLeaseDuration == 0:
 		config.MaxLeaseDuration = defaultMaxLeaseDuration
-	}
-	if config.MaxLeaseDuration < 0 || config.MaxLeaseDuration > maximumLeaseDuration {
+	case config.MaxLeaseDuration > maximumLeaseDuration:
 		return nil, ErrInvalidLeaseDuration
 	}
 	if config.LeaseTokenGenerator == nil {

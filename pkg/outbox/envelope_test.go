@@ -144,8 +144,75 @@ func TestEnvelopeValidateForInsertRejectsOversizedID(t *testing.T) {
 func TestEnvelopeValidateForInsertRejectsInvalidLimits(t *testing.T) {
 	t.Parallel()
 
-	if err := (outbox.Envelope{}).ValidateForInsert(outbox.Limits{}); !errors.Is(err, outbox.ErrInvalidLimits) {
-		t.Fatalf("error = %v, want %v", err, outbox.ErrInvalidLimits)
+	valid := outbox.Limits{
+		MaxIDBytes: 1, MaxTopicBytes: 1, MaxPayloadBytes: 1,
+		MaxMetadataEntries: 1, MaxMetadataBytes: 1,
+		MaxOrderingKeyBytes: 1, MaxIdempotencyKeyBytes: 1,
+	}
+	mutations := []func(*outbox.Limits){
+		func(limits *outbox.Limits) { limits.MaxIDBytes = 0 },
+		func(limits *outbox.Limits) { limits.MaxTopicBytes = 0 },
+		func(limits *outbox.Limits) { limits.MaxPayloadBytes = 0 },
+		func(limits *outbox.Limits) { limits.MaxMetadataEntries = 0 },
+		func(limits *outbox.Limits) { limits.MaxMetadataBytes = 0 },
+		func(limits *outbox.Limits) { limits.MaxOrderingKeyBytes = 0 },
+		func(limits *outbox.Limits) { limits.MaxIdempotencyKeyBytes = 0 },
+	}
+	for index, mutate := range mutations {
+		limits := valid
+		mutate(&limits)
+		if err := limits.Validate(); !errors.Is(err, outbox.ErrInvalidLimits) {
+			t.Fatalf("invalid limit %d error = %v", index, err)
+		}
+	}
+	if err := valid.Validate(); err != nil {
+		t.Fatalf("minimum valid limits error = %v", err)
+	}
+}
+
+func TestEnvelopeExactSizeAndTimestampBoundaries(t *testing.T) {
+	t.Parallel()
+
+	limits := outbox.Limits{
+		MaxIDBytes: 2, MaxTopicBytes: 2, MaxPayloadBytes: 2,
+		MaxMetadataEntries: 2, MaxMetadataBytes: 4,
+		MaxOrderingKeyBytes: 2, MaxIdempotencyKeyBytes: 2,
+	}
+	valid := outbox.Envelope{
+		ID: "12", Topic: "12", Payload: []byte("12"), PayloadVersion: 1,
+		Metadata:    map[string]string{"a": "b", "c": "d"},
+		OrderingKey: "12", IdempotencyKey: "12",
+		AvailableAt: time.Date(0, 1, 1, 0, 0, 0, 0, time.UTC),
+		CreatedAt:   time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC),
+	}
+	if err := valid.ValidateForInsert(limits); err != nil {
+		t.Fatalf("exact boundary envelope error = %v", err)
+	}
+
+	tests := []struct {
+		name   string
+		mutate func(*outbox.Envelope)
+		want   error
+	}{
+		{name: "id", mutate: func(value *outbox.Envelope) { value.ID = "123" }, want: outbox.ErrIDTooLarge},
+		{name: "topic", mutate: func(value *outbox.Envelope) { value.Topic = "123" }, want: outbox.ErrTopicTooLarge},
+		{name: "payload", mutate: func(value *outbox.Envelope) { value.Payload = []byte("123") }, want: outbox.ErrPayloadTooLarge},
+		{name: "metadata entries", mutate: func(value *outbox.Envelope) { value.Metadata["e"] = "" }, want: outbox.ErrMetadataEntriesTooLarge},
+		{name: "metadata bytes", mutate: func(value *outbox.Envelope) { value.Metadata["c"] = "de" }, want: outbox.ErrMetadataTooLarge},
+		{name: "ordering key", mutate: func(value *outbox.Envelope) { value.OrderingKey = "123" }, want: outbox.ErrOrderingKeyTooLarge},
+		{name: "idempotency key", mutate: func(value *outbox.Envelope) { value.IdempotencyKey = "123" }, want: outbox.ErrIdempotencyKeyTooLarge},
+		{name: "negative year", mutate: func(value *outbox.Envelope) { value.AvailableAt = time.Date(-1, 1, 1, 0, 0, 0, 0, time.UTC) }, want: outbox.ErrTimestampOutOfRange},
+		{name: "extended year", mutate: func(value *outbox.Envelope) { value.CreatedAt = time.Date(10_000, 1, 1, 0, 0, 0, 0, time.UTC) }, want: outbox.ErrTimestampOutOfRange},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			value := valid
+			value.Metadata = map[string]string{"a": "b", "c": "d"}
+			test.mutate(&value)
+			if err := value.ValidateForInsert(limits); !errors.Is(err, test.want) {
+				t.Fatalf("error = %v, want %v", err, test.want)
+			}
+		})
 	}
 }
 

@@ -57,10 +57,12 @@ func NewWriter(config WriterConfig) (*Writer, error) {
 	if err := config.Limits.Validate(); err != nil {
 		return nil, fmt.Errorf("outbox/postgres: validate writer limits: %w", err)
 	}
-	if config.MaxBatchSize == 0 {
+	switch {
+	case config.MaxBatchSize < 0:
+		return nil, ErrInvalidBatchLimit
+	case config.MaxBatchSize == 0:
 		config.MaxBatchSize = defaultMaxInsertBatch
-	}
-	if config.MaxBatchSize < 0 || config.MaxBatchSize > maximumInsertBatch {
+	case config.MaxBatchSize > maximumInsertBatch:
 		return nil, ErrInvalidBatchLimit
 	}
 
@@ -137,15 +139,13 @@ func (w *Writer) insertQuery(envelopes []outbox.Envelope) (string, []any) {
 		"idempotency_key, attempts, available_at, created_at)"
 
 	var query strings.Builder
-	query.Grow(len(envelopes)*64 + len(w.table) + len(columns) + 20)
 	query.WriteString("INSERT INTO ")
 	query.WriteString(w.table)
 	query.WriteByte(' ')
 	query.WriteString(columns)
 	query.WriteString(" VALUES ")
 
-	arguments := make([]any, 0, len(envelopes)*10)
-	placeholder := 1
+	var arguments []any
 	for index, envelope := range envelopes {
 		metadata := []byte("{}")
 		if envelope.Metadata != nil {
@@ -155,17 +155,7 @@ func (w *Writer) insertQuery(envelopes []outbox.Envelope) (string, []any) {
 			query.WriteByte(',')
 		}
 		query.WriteByte('(')
-		for column := 0; column < 10; column++ {
-			if column > 0 {
-				query.WriteByte(',')
-			}
-			query.WriteByte('$')
-			query.WriteString(strconv.Itoa(placeholder))
-			placeholder++
-		}
-		query.WriteByte(')')
-
-		arguments = append(arguments,
+		values := [...]any{
 			envelope.ID,
 			envelope.Topic,
 			envelope.Payload,
@@ -176,7 +166,16 @@ func (w *Writer) insertQuery(envelopes []outbox.Envelope) (string, []any) {
 			envelope.Attempts,
 			envelope.AvailableAt,
 			envelope.CreatedAt,
-		)
+		}
+		for column, value := range values {
+			if column > 0 {
+				query.WriteByte(',')
+			}
+			query.WriteByte('$')
+			query.WriteString(strconv.Itoa(len(arguments) + 1))
+			arguments = append(arguments, value)
+		}
+		query.WriteByte(')')
 	}
 
 	return query.String(), arguments
