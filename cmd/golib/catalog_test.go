@@ -639,6 +639,39 @@ func TestHTTPSignatureSpecificationCatalogMetadata(t *testing.T) {
 	}
 }
 
+func TestVerkleTreeSpecificationCatalogMetadata(t *testing.T) {
+	t.Parallel()
+
+	if got := interoperabilityTools("pkg/verkle-tree"); !slices.Equal(got, []string{
+		"ethereum/go-verkle at aa0a270c0ed03faa6c502e0d96bf26189d1d6542",
+		"crate-crypto/rust-verkle at e27b8b4edf1992b4afa636c2fc7983bcc27ddb88",
+		"Rust 1.97.0",
+	}) {
+		t.Fatalf("interoperabilityTools(pkg/verkle-tree) = %v", got)
+	}
+	if got := specifications("pkg/verkle-tree"); !slices.Equal(got, []string{
+		"verkletree-bandersnatch-ipa-256-v0 package-owned pre-v1 profile",
+		"Ethereum Verkle EIPs 4762, 6800, 7612, and 7748 at c55786f4242e5324afd14c6bca890a369a771d7f (research only; not implemented)",
+	}) {
+		t.Fatalf("specifications(pkg/verkle-tree) = %v", got)
+	}
+	if got := conformanceCorpora("pkg/verkle-tree"); !slices.Equal(got, []string{
+		"Pinned go-verkle tree and aggregate-proof corpus at aa0a270c0ed03faa6c502e0d96bf26189d1d6542",
+		"Pinned rust-verkle encoding, generator, vector-commitment, multiproof, tree-root, topology, and transition corpora at e27b8b4edf1992b4afa636c2fc7983bcc27ddb88",
+		"Package-owned verkletree-bandersnatch-ipa-256-v0 positive and hostile-input evidence",
+	}) {
+		t.Fatalf("conformanceCorpora(pkg/verkle-tree) = %v", got)
+	}
+
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "pkg/verkle-tree/specification/sources.json"), "{}\n")
+	if got := provenanceFiles(root, "pkg/verkle-tree"); !slices.Equal(got, []string{
+		"pkg/verkle-tree/specification/sources.json",
+	}) {
+		t.Fatalf("provenanceFiles() = %v", got)
+	}
+}
+
 func TestProvenanceFilesIncludesSpecificationSourceLocks(t *testing.T) {
 	t.Parallel()
 
