@@ -225,11 +225,11 @@ baseline.
 
 Environment:
 
-- Date: 2026-08-01; public API, bound proof-engine, stateless-witness,
-  canonical whole-snapshot, and storage-recovery rows refreshed 2026-08-03;
-  stateless-engine initialization, trusted-expectation verification,
-  topology-transition rows, and cold/warm caller-store rows added or refreshed
-  2026-08-08
+- Date: 2026-08-01; public API, bound proof-engine, stateless-witness, and
+  canonical whole-snapshot rows refreshed 2026-08-03; stateless-engine
+  initialization, trusted-expectation verification, and topology-transition
+  rows added or refreshed 2026-08-08; cold/warm caller-store, storage-audit,
+  storage-maintenance, and storage-recovery rows refreshed 2026-08-12
 - Go: `go1.26.5`
 - OS: macOS 27.0 (`26A5388g`)
 - Architecture: `darwin/arm64`
@@ -352,11 +352,11 @@ presented as the incremental memory cost of the named operation.
 | Encode and content-address four-entry storage image | 9049, 9001, 10835, 13112, 13058 | 1440 | 8 |
 | Encode canonical two-entry whole snapshot | 1429, 1358, 1543, 1520, 1478 | 320 | 2 |
 | Decode and independently rebuild two-entry whole snapshot | 9041426, 10959098, 10006862, 8807812, 8367261 | 168125-168148 | 3574-3575 |
-| Warm caller store: load and independently reconstruct four-entry persisted snapshot | 9068857, 9136988, 8882273, 10631216, 9858963 | 174869-174961 | 3631 |
-| Cold caller store: materialize, load, and independently reconstruct four-entry persisted snapshot | 8863793, 10989141, 8653620, 10485814, 8739793 | 176004-176027 | 3635-3636 |
-| Audit current and retained snapshots plus one unreachable node | 16357921, 16179517, 16582373, 16343247, 16242461 | 338996-339098 | 7178-7179 |
-| Drop one retained snapshot and plan pruning plus atomic handoff | 17571147, 18097936, 16915685, 18563534, 18791243 | 339257-339375 | 7180-7181 |
-| Preserve all publications and plan interrupted-write cleanup | 19377604, 21950949, 19936596, 20412821, 23103113 | 335112-335206 | 7141-7142 |
+| Warm caller store: load and independently reconstruct four-entry persisted snapshot | 8443332, 8408506, 10614097, 8393489, 8371986 | 174873-174935 | 3630-3631 |
+| Cold caller store: materialize, load, and independently reconstruct four-entry persisted snapshot | 8694073, 9045159, 8255835, 8693603, 9582935 | 175967-176041 | 3635-3636 |
+| Audit current and retained snapshots plus one unreachable node | 16053079, 16160084, 16058963, 16020784, 16218618 | 338952-339101 | 7178-7179 |
+| Drop one retained snapshot and plan pruning plus atomic handoff | 17443835, 17336738, 16890330, 19827156, 16562481 | 339268-339331 | 7180-7181 |
+| Preserve all publications and plan interrupted-write cleanup | 17170816, 20442187, 16197336, 17251313, 19039382 | 335119-335154 | 7141-7142 |
 | Get one present snapshot value | 22.06, 23.42, 22.77, 21.85, 20.84 | 0 | 0 |
 | Replace one value and rebuild its committed root | 355831, 219311, 199943, 165296, 152352 | 2860 | 37 |
 | Canonicalize sixteen tree claims | 2886, 1112, 1013, 1374, 1169 | 2304 | 2 |
