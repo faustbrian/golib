@@ -87,18 +87,17 @@ func newFileResolver(
 		if err != nil {
 			return nil, errors.Join(fileAccessError("canonicalize allowed root"), closeFileRoots(roots))
 		}
-		if _, exists := seen[rootPath]; exists {
-			continue
+		if _, exists := seen[rootPath]; !exists {
+			handle, err := openRoot(rootPath)
+			if err != nil {
+				return nil, errors.Join(
+					fileAccessError("open allowed root"),
+					closeFileRoots(roots),
+				)
+			}
+			seen[rootPath] = struct{}{}
+			roots = append(roots, fileRoot{path: rootPath, handle: handle})
 		}
-		handle, err := openRoot(rootPath)
-		if err != nil {
-			return nil, errors.Join(
-				fileAccessError("open allowed root"),
-				closeFileRoots(roots),
-			)
-		}
-		seen[rootPath] = struct{}{}
-		roots = append(roots, fileRoot{path: rootPath, handle: handle})
 	}
 	limits := options.ParseLimits
 	limits.MaxBytes = min(options.MaxBytes, limits.MaxBytes)
@@ -216,13 +215,26 @@ func (resolver *FileResolver) Close() error {
 func (resolver *FileResolver) authorized(path string) (*fileRoot, string, bool) {
 	for index := range resolver.roots {
 		root := &resolver.roots[index]
-		relative, err := filepath.Rel(root.path, path)
-		if err == nil && relative != ".." &&
-			!strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		relative, authorized := authorizedRelativePath(root.path, path)
+		if authorized {
 			return root, relative, true
 		}
 	}
 	return nil, "", false
+}
+
+func authorizedRelativePath(root string, path string) (string, bool) {
+	relative, err := filepath.Rel(root, path)
+	if err != nil {
+		return "", false
+	}
+	if relative == ".." {
+		return "", false
+	}
+	if strings.HasPrefix(relative, ".."+string(filepath.Separator)) {
+		return "", false
+	}
+	return relative, true
 }
 
 func (resolver *FileResolver) reserveDocument() error {
@@ -281,10 +293,28 @@ func fileAccessError(operation string) error {
 }
 
 func validParseLimits(limits parse.Limits) error {
-	if limits.MaxBytes < 1 || limits.MaxBytes == math.MaxInt64 ||
-		limits.MaxTokens < 1 || limits.MaxDepth < 1 ||
-		limits.MaxObjectMembers < 1 || limits.MaxArrayItems < 1 ||
-		limits.MaxScalarBytes < 1 || limits.MaxTotalValues < 1 {
+	if limits.MaxBytes < 1 {
+		return fmt.Errorf("file resolver: %w: invalid parse limits", ErrResourceLimitExceeded)
+	}
+	if limits.MaxBytes == math.MaxInt64 {
+		return fmt.Errorf("file resolver: %w: invalid parse limits", ErrResourceLimitExceeded)
+	}
+	if limits.MaxTokens < 1 {
+		return fmt.Errorf("file resolver: %w: invalid parse limits", ErrResourceLimitExceeded)
+	}
+	if limits.MaxDepth < 1 {
+		return fmt.Errorf("file resolver: %w: invalid parse limits", ErrResourceLimitExceeded)
+	}
+	if limits.MaxObjectMembers < 1 {
+		return fmt.Errorf("file resolver: %w: invalid parse limits", ErrResourceLimitExceeded)
+	}
+	if limits.MaxArrayItems < 1 {
+		return fmt.Errorf("file resolver: %w: invalid parse limits", ErrResourceLimitExceeded)
+	}
+	if limits.MaxScalarBytes < 1 {
+		return fmt.Errorf("file resolver: %w: invalid parse limits", ErrResourceLimitExceeded)
+	}
+	if limits.MaxTotalValues < 1 {
 		return fmt.Errorf("file resolver: %w: invalid parse limits", ErrResourceLimitExceeded)
 	}
 	return nil

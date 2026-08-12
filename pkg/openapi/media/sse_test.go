@@ -149,6 +149,22 @@ func TestParseServerSentEventsValidatesInputsAndReaderFailures(t *testing.T) {
 		{name: "nil reader", ctx: context.Background(), limits: limits},
 		{name: "invalid limits", ctx: context.Background(),
 			reader: strings.NewReader(""), limits: media.ServerSentEventLimits{}},
+		{name: "invalid byte limit", ctx: context.Background(),
+			reader: strings.NewReader(""), limits: media.ServerSentEventLimits{
+				MaxLineBytes: 1, MaxDataBytes: 1, MaxEvents: 1,
+			}},
+		{name: "invalid line limit", ctx: context.Background(),
+			reader: strings.NewReader(""), limits: media.ServerSentEventLimits{
+				MaxBytes: 1, MaxDataBytes: 1, MaxEvents: 1,
+			}},
+		{name: "invalid data limit", ctx: context.Background(),
+			reader: strings.NewReader(""), limits: media.ServerSentEventLimits{
+				MaxBytes: 1, MaxLineBytes: 1, MaxEvents: 1,
+			}},
+		{name: "invalid event limit", ctx: context.Background(),
+			reader: strings.NewReader(""), limits: media.ServerSentEventLimits{
+				MaxBytes: 1, MaxLineBytes: 1, MaxDataBytes: 1,
+			}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()

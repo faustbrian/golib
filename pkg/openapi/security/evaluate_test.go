@@ -151,6 +151,33 @@ func TestSatisfiedRejectsMalformedAndBoundedRequirements(t *testing.T) {
 	}); !errors.Is(err, security.ErrLimitExceeded) {
 		t.Fatalf("scope limit error = %v", err)
 	}
+	cumulativeSchemes := arrayValue(t,
+		objectValue(t,
+			jsonvalue.Member{Name: "First", Value: arrayValue(t)},
+		),
+		objectValue(t,
+			jsonvalue.Member{Name: "Second", Value: arrayValue(t)},
+			jsonvalue.Member{Name: "Third", Value: arrayValue(t)},
+		),
+	)
+	if _, err := security.Satisfied(cumulativeSchemes, nil, security.Limits{
+		MaxAlternatives: 2, MaxSchemes: 2, MaxScopes: 3,
+	}); !errors.Is(err, security.ErrLimitExceeded) {
+		t.Fatalf("cumulative scheme limit error = %v", err)
+	}
+	cumulativeScopes := arrayValue(t, objectValue(t,
+		jsonvalue.Member{Name: "First", Value: arrayValue(t,
+			stringValue(t, "read"),
+		)},
+		jsonvalue.Member{Name: "Second", Value: arrayValue(t,
+			stringValue(t, "write"), stringValue(t, "admin"),
+		)},
+	))
+	if _, err := security.Satisfied(cumulativeScopes, nil, security.Limits{
+		MaxAlternatives: 1, MaxSchemes: 2, MaxScopes: 2,
+	}); !errors.Is(err, security.ErrLimitExceeded) {
+		t.Fatalf("cumulative scope limit error = %v", err)
+	}
 }
 
 func TestSatisfiedAppliesZeroValueDefaultLimits(t *testing.T) {

@@ -3,6 +3,7 @@ package media_test
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 
 	"github.com/faustbrian/golib/pkg/openapi/jsonvalue"
@@ -86,6 +87,22 @@ func TestSelectSerializationDataTypeReportsAmbiguousTypeLists(t *testing.T) {
 	)
 	if err != nil || got != media.SerializationDataTypeNumber {
 		t.Fatalf("numeric serialization type = %q, %v", got, err)
+	}
+}
+
+func TestSelectSerializationDataTypeTreatsAnExplicitUniversalTypeAsAny(t *testing.T) {
+	t.Parallel()
+
+	got, err := media.SelectSerializationDataType(
+		context.Background(),
+		reference.Resource{Root: mustMediaValue(t, `{}`)},
+		mustMediaValue(t, `{
+			"type":["null","boolean","number","string","array","object"]
+		}`),
+		media.SerializationTypeOptions{},
+	)
+	if err != nil || got != media.SerializationDataTypeAny {
+		t.Fatalf("universal serialization type = %q, %v", got, err)
 	}
 }
 
@@ -257,6 +274,21 @@ func TestSelectSerializationDataTypeRejectsInvalidInputs(t *testing.T) {
 			options: media.SerializationTypeOptions{
 				ReferenceLimits: reference.Limits{MaxTraversalDepth: 1},
 			}, want: media.ErrInvalidSerializationDataType},
+		{name: "invalid traversal depth", ctx: context.Background(),
+			resource: validResource, schema: validSchema,
+			options: media.SerializationTypeOptions{ReferenceLimits: reference.Limits{
+				MaxTraversalNodes: 1, MaxReferenceDepth: 1,
+			}}, want: media.ErrInvalidSerializationDataType},
+		{name: "invalid traversal nodes", ctx: context.Background(),
+			resource: validResource, schema: validSchema,
+			options: media.SerializationTypeOptions{ReferenceLimits: reference.Limits{
+				MaxTraversalDepth: 1, MaxReferenceDepth: 1,
+			}}, want: media.ErrInvalidSerializationDataType},
+		{name: "invalid reference depth", ctx: context.Background(),
+			resource: validResource, schema: validSchema,
+			options: media.SerializationTypeOptions{ReferenceLimits: reference.Limits{
+				MaxTraversalDepth: 1, MaxTraversalNodes: 1,
+			}}, want: media.ErrInvalidSerializationDataType},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			t.Parallel()
@@ -319,6 +351,10 @@ func TestSelectSerializationDataTypeRejectsInvalidSchemaTraversal(t *testing.T) 
 			)
 			if !errors.Is(err, test.want) {
 				t.Fatalf("error = %v, want %v", err, test.want)
+			}
+			if test.name == "empty type" &&
+				!strings.Contains(err.Error(), "non-empty array") {
+				t.Fatalf("empty type diagnostic = %v", err)
 			}
 		})
 	}

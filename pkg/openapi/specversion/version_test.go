@@ -38,7 +38,7 @@ func TestParseCoversEveryPinnedVersionAndSyntaxClass(t *testing.T) {
 			t.Fatalf("Parse(%q) error = %v", value, err)
 		}
 	}
-	for _, value := range []string{"1.2", "2.1", "3.3.0"} {
+	for _, value := range []string{"1.2", "2.1", "3.3.0", "3.9.0"} {
 		if _, err := specversion.Parse(value); !errors.Is(err, specversion.ErrUnsupportedVersion) {
 			t.Fatalf("Parse(%q) error = %v", value, err)
 		}

@@ -13,6 +13,7 @@ func TestHeaderParameterRecognitionRespectsQuotedStrings(t *testing.T) {
 		{value: "value;\tname \t=value", want: true},
 		{value: `"ignored; name=value"`},
 		{value: `"escaped \"; ignored=value"`},
+		{value: `"escaped \"; ignored=value"; real=value`, want: true},
 		{value: `"ignored"; real=value`, want: true},
 		{value: "value; name value"},
 		{value: "value; =value"},
@@ -36,7 +37,9 @@ func TestHeaderURISafetyAndHexadecimalBoundaries(t *testing.T) {
 			t.Errorf("headerValueIsURISafe(%q) = false", value)
 		}
 	}
-	for _, value := range []string{"%", "%2", "a%2", "%GG", "%GF", "%FG"} {
+	for _, value := range []string{
+		"%", "%2", "a%2", "%GG", "%GF", "%FG", "%20 ",
+	} {
 		if headerValueIsURISafe(value) {
 			t.Errorf("headerValueIsURISafe(%q) = true", value)
 		}

@@ -191,7 +191,10 @@ func withOpenAPI32Self(resource Resource) Resource {
 		return resource
 	}
 	rawVersion, valid := version.Text()
-	if !valid || rawVersion != "3.2.0" {
+	if !valid {
+		return resource
+	}
+	if rawVersion != "3.2.0" {
 		return resource
 	}
 	self, exists := resource.Root.Lookup("$self")

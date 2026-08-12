@@ -360,7 +360,10 @@ func (encoder valueEncoder) token(value string) string {
 }
 
 func (encoder valueEncoder) name(value string) string {
-	if encoder.options.Style == Cookie || rawHeaderValue(encoder.options) {
+	if encoder.options.Style == Cookie {
+		return value
+	}
+	if rawHeaderValue(encoder.options) {
 		return value
 	}
 	return percentEncode(value, false, encoder.options.Location == Query)

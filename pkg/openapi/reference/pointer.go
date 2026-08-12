@@ -118,11 +118,22 @@ func decodePointerToken(value string) (string, error) {
 }
 
 func arrayIndex(token string) (int, bool) {
-	if token == "" || token == "-" || (len(token) > 1 && token[0] == '0') {
+	if token == "" {
 		return 0, false
 	}
+	if token == "-" {
+		return 0, false
+	}
+	if len(token) > 1 {
+		if token[0] == '0' {
+			return 0, false
+		}
+	}
 	for _, character := range token {
-		if character < '0' || character > '9' {
+		if character < '0' {
+			return 0, false
+		}
+		if character > '9' {
 			return 0, false
 		}
 	}

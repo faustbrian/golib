@@ -160,19 +160,17 @@ func LinksetHeaderValue(document []byte, maxBytes int) (string, error) {
 		character := document[index]
 		if character == '\r' {
 			value.WriteByte(' ')
-			continue
-		}
-		if character == '\n' {
+		} else if character == '\n' {
 			if index > 0 && document[index-1] == '\r' {
 				continue
 			}
 			value.WriteByte(' ')
-			continue
+		} else {
+			if character != '\t' && (character < 0x20 || character > 0x7e) {
+				return "", ErrInvalidLinksetHeader
+			}
+			value.WriteByte(character)
 		}
-		if character != '\t' && (character < 0x20 || character > 0x7e) {
-			return "", ErrInvalidLinksetHeader
-		}
-		value.WriteByte(character)
 	}
 	return value.String(), nil
 }

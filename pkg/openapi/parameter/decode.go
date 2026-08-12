@@ -180,8 +180,13 @@ func (decoder valueDecoder) deepObject(name string, raw string) (jsonvalue.Value
 			return jsonvalue.Value{}, ErrMalformedEncoding
 		}
 		decodedName, err := decoder.token(rawName)
-		if err != nil || !strings.HasPrefix(decodedName, name+"[") ||
-			!strings.HasSuffix(decodedName, "]") {
+		if err != nil {
+			return jsonvalue.Value{}, ErrMalformedEncoding
+		}
+		if !strings.HasPrefix(decodedName, name+"[") {
+			return jsonvalue.Value{}, ErrMalformedEncoding
+		}
+		if !strings.HasSuffix(decodedName, "]") {
 			return jsonvalue.Value{}, ErrMalformedEncoding
 		}
 		property := strings.TrimSuffix(strings.TrimPrefix(decodedName, name+"["), "]")
@@ -320,7 +325,8 @@ func (decoder valueDecoder) parts(
 		return jsonvalue.Value{}, ErrMalformedEncoding
 	}
 	var members []jsonvalue.Member
-	for index := 0; index < len(parts); index += 2 {
+	for pairIndex := range len(parts) / 2 {
+		index := pairIndex * 2
 		name, err := decoder.token(parts[index])
 		if err != nil || name == "" {
 			return jsonvalue.Value{}, ErrMalformedEncoding

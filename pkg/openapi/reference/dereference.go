@@ -302,8 +302,10 @@ func (dereferencer *objectDereferencer) replaceReference(
 	targetTokens := tokens
 	if _, known := knownBundleTargetLocation(
 		dereferencer.dialect, target.Fragment,
-	); known && target.Fragment.Kind() == FragmentPointer {
-		targetTokens = target.Fragment.Pointer().Tokens()
+	); known {
+		if target.Fragment.Kind() == FragmentPointer {
+			targetTokens = target.Fragment.Pointer().Tokens()
+		}
 	}
 	transformed, err := dereferencer.rewrite(
 		target.Resource, target.Value, targetTokens,
@@ -357,15 +359,15 @@ func (dereferencer *objectDereferencer) applyReferenceOverlays(
 				escapeBundlePointer(sibling.Name),
 			)
 		}
-		replaced := false
+		replacedIndex := -1
 		for index := range targetMembers {
 			if targetMembers[index].Name == sibling.Name {
-				targetMembers[index].Value = sibling.Value
-				replaced = true
-				break
+				replacedIndex = index
 			}
 		}
-		if !replaced {
+		if replacedIndex >= 0 {
+			targetMembers[replacedIndex].Value = sibling.Value
+		} else {
 			targetMembers = append(targetMembers, sibling)
 		}
 	}
@@ -385,17 +387,27 @@ func (dereferencer *objectDereferencer) pathItemReferenceHasMeaningfulSiblings(
 	if len(members) < 2 {
 		return false
 	}
-	componentReference := len(tokens) == 3 && tokens[0] == "components" &&
-		tokens[1] == "pathItems" &&
-		(dereferencer.dialect == specversion.DialectOAS31 ||
-			dereferencer.dialect == specversion.DialectOAS32)
+	componentReference := len(tokens) == 3
+	if componentReference {
+		componentReference = tokens[0] == "components"
+	}
+	if componentReference {
+		componentReference = tokens[1] == "pathItems"
+	}
+	if componentReference {
+		switch dereferencer.dialect {
+		case specversion.DialectOAS31, specversion.DialectOAS32:
+			componentReference = true
+		default:
+			componentReference = false
+		}
+	}
 	if !componentReference {
 		return true
 	}
 	for _, member := range members {
 		switch member.Name {
 		case "$ref", "summary", "description":
-			continue
 		case "get", "put", "post", "delete", "options", "head", "patch",
 			"trace", "query", "servers", "parameters", "additionalOperations":
 			return true

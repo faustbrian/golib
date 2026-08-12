@@ -219,7 +219,10 @@ func validInternationalLinkAttribute(value jsonvalue.Value) bool {
 		return false
 	}
 	members, _ := value.Members()
-	if len(members) < 1 || len(members) > 2 {
+	if len(members) < 1 {
+		return false
+	}
+	if len(members) > 2 {
 		return false
 	}
 	content, exists := linksetStringMember(value, "value")

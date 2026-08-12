@@ -457,8 +457,16 @@ func encodingMediaTypeMatches(pattern string, concrete string) bool {
 	}
 	patternParts := strings.Split(pattern, "/")
 	concreteParts := strings.Split(concrete, "/")
-	return len(patternParts) == 2 && len(concreteParts) == 2 &&
-		patternParts[0] == concreteParts[0] && patternParts[1] == "*"
+	if len(patternParts) != 2 {
+		return false
+	}
+	if len(concreteParts) != 2 {
+		return false
+	}
+	if patternParts[0] != concreteParts[0] {
+		return false
+	}
+	return patternParts[1] == "*"
 }
 
 func defaultEncodingContentType(schema jsonvalue.Value) string {
@@ -538,8 +546,17 @@ func ApplyEncoding(
 		return EncodingApplication{}, ErrInvalidEncodingSerialization
 	}
 	base, _, err := mime.ParseMediaType(mediaType)
+	if err != nil {
+		return EncodingApplication{}, ErrInvalidEncodingSerialization
+	}
 	major, subtype, structured := strings.Cut(base, "/")
-	if err != nil || !structured || major == "" || subtype == "" {
+	if !structured {
+		return EncodingApplication{}, ErrInvalidEncodingSerialization
+	}
+	if major == "" {
+		return EncodingApplication{}, ErrInvalidEncodingSerialization
+	}
+	if subtype == "" {
 		return EncodingApplication{}, ErrInvalidEncodingSerialization
 	}
 	contentType, err := SelectEncodingContentType(

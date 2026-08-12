@@ -54,7 +54,10 @@ func optionsFor(
 	}
 	locationValue, exists := value.Lookup("in")
 	locationText, valid := locationValue.Text()
-	if !exists || !valid {
+	if !exists {
+		return Options{}, fmt.Errorf("%w: parameter location", ErrInvalidOptions)
+	}
+	if !valid {
 		return Options{}, fmt.Errorf("%w: parameter location", ErrInvalidOptions)
 	}
 	location := Location(locationText)
@@ -122,7 +125,10 @@ func allowEmptyValueApplies(
 	exists bool,
 	options Options,
 ) bool {
-	if !exists || schema.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return true
+	}
+	if schema.Kind() != jsonvalue.ObjectKind {
 		return true
 	}
 	typeValue, exists := schema.Lookup("type")

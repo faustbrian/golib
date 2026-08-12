@@ -183,9 +183,13 @@ func TestBoundedContextWriterTracksCancellationAndUnderlyingFailures(t *testing.
 	}
 	var output bytes.Buffer
 	writer = &boundedContextWriter{ctx: context.Background(), writer: &output, remaining: 10}
-	written, err := writer.Write([]byte("value"))
-	if err != nil || written != 5 || output.String() != "value" || writer.remaining != 5 {
+	written, err := writer.Write([]byte("data"))
+	if err != nil || written != 4 || output.String() != "data" || writer.remaining != 6 {
 		t.Fatalf("successful writer = %d, %v, %q, %d", written, err, output.String(), writer.remaining)
+	}
+	written, err = writer.Write([]byte("1234567"))
+	if !errors.Is(err, ErrLimitExceeded) || written != 6 || output.String() != "data123456" {
+		t.Fatalf("cumulative limit = %d, %v, %q", written, err, output.String())
 	}
 }
 

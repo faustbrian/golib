@@ -73,17 +73,20 @@ func UnescapeAmbiguousDelimiters(
 	reverse["25"] = '%'
 	var output strings.Builder
 	output.Grow(len(value))
-	for index := 0; index < len(value); {
+	skipUntil := 0
+	for index := range len(value) {
+		if index < skipUntil {
+			continue
+		}
 		if value[index] == '%' && index+2 < len(value) {
 			code := strings.ToUpper(value[index+1 : index+3])
 			if character, escaped := reverse[code]; escaped {
 				output.WriteByte(character)
-				index += 3
+				skipUntil = index + 3
 				continue
 			}
 		}
 		output.WriteByte(value[index])
-		index++
 	}
 	return output.String(), nil
 }

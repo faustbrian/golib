@@ -50,15 +50,12 @@ func hasHeaderParameter(value string) bool {
 	for index := 0; index < len(value); index++ {
 		character := value[index]
 		if quoted {
-			if escaped {
+			switch {
+			case escaped:
 				escaped = false
-				continue
-			}
-			if character == '\\' {
+			case character == '\\':
 				escaped = true
-				continue
-			}
-			if character == '"' {
+			case character == '"':
 				quoted = false
 			}
 			continue
@@ -95,14 +92,13 @@ func hasHeaderParameter(value string) bool {
 func headerValueIsURISafe(value string) bool {
 	const safe = "ABCDEFGHIJKLMNOPQRSTUVWXYZ" +
 		"abcdefghijklmnopqrstuvwxyz0123456789-._~:/?#[]@!$&'()*+,;="
-	for index := 0; index < len(value); index++ {
+	for index := range len(value) {
 		character := value[index]
 		if strings.IndexByte(safe, character) >= 0 {
 			continue
 		}
 		if character == '%' && index+2 < len(value) &&
 			hexDigit(value[index+1]) && hexDigit(value[index+2]) {
-			index += 2
 			continue
 		}
 		return false

@@ -148,9 +148,19 @@ func (options BundleOptions) validate() error {
 	default:
 		return err
 	}
-	if options.MaxReferences < 1 || options.MaxComponents < 1 ||
-		options.MaxNodes < 1 || options.MaxDepth < 1 ||
-		options.MaxComponentNameBytes < 1 {
+	if options.MaxReferences < 1 {
+		return ErrLimitExceeded
+	}
+	if options.MaxComponents < 1 {
+		return ErrLimitExceeded
+	}
+	if options.MaxNodes < 1 {
+		return ErrLimitExceeded
+	}
+	if options.MaxDepth < 1 {
+		return ErrLimitExceeded
+	}
+	if options.MaxComponentNameBytes < 1 {
 		return ErrLimitExceeded
 	}
 	return nil
@@ -265,7 +275,10 @@ func (bundler *componentBundler) inventoryRegistry(
 	registry string,
 ) error {
 	value, exists := container.Lookup(registry)
-	if !exists || value.Kind() != jsonvalue.ObjectKind {
+	if !exists {
+		return nil
+	}
+	if value.Kind() != jsonvalue.ObjectKind {
 		return nil
 	}
 	memberCount, _ := value.Length()
@@ -275,7 +288,8 @@ func (bundler *componentBundler) inventoryRegistry(
 		return ErrLimitExceeded
 	}
 	members, _ := value.Members()
-	bundler.components += memberCount
+	nextComponentCount := bundler.components + memberCount
+	bundler.components = nextComponentCount
 	occupied := bundler.registryNames(registry)
 	for _, member := range members {
 		occupied[member.Name] = true
@@ -336,12 +350,12 @@ func (bundler *componentBundler) rewriteValue(
 		members, _ := value.Members()
 		for index := range members {
 			memberPointer := pointer + "/" + escapeBundlePointer(members[index].Name)
-			if bundler.opaqueMember(
+			opaque := bundler.opaqueMember(
 				pointer, members[index].Name, registryHint,
-			) {
-				continue
-			}
-			if members[index].Name == "$ref" {
+			)
+			if opaque {
+				// Opaque payloads are copied without traversing reference-shaped data.
+			} else if members[index].Name == "$ref" {
 				raw, ok := members[index].Value.Text()
 				if !ok {
 					return jsonvalue.Value{}, fmt.Errorf(
@@ -355,16 +369,16 @@ func (bundler *componentBundler) rewriteValue(
 					return jsonvalue.Value{}, err
 				}
 				members[index].Value, _ = jsonvalue.String(localized)
-				continue
+			} else {
+				transformed, err := bundler.rewriteValue(
+					resource, members[index].Value, memberPointer, depth+1,
+					registryHint,
+				)
+				if err != nil {
+					return jsonvalue.Value{}, err
+				}
+				members[index].Value = transformed
 			}
-			transformed, err := bundler.rewriteValue(
-				resource, members[index].Value, memberPointer, depth+1,
-				registryHint,
-			)
-			if err != nil {
-				return jsonvalue.Value{}, err
-			}
-			members[index].Value = transformed
 		}
 		result, _ := jsonvalue.Object(members)
 		return result, nil
@@ -379,8 +393,10 @@ func (bundler *componentBundler) opaqueMember(
 	registryHint string,
 ) bool {
 	current, err := ParsePointer(pointer)
-	if err == nil && bundleMapNamesMayStartWithX(current.Tokens()) {
-		return false
+	if err == nil {
+		if bundleMapNamesMayStartWithX(current.Tokens()) {
+			return false
+		}
 	}
 	if bundleExtensionMember(pointer, name) {
 		return true
@@ -389,15 +405,25 @@ func (bundler *componentBundler) opaqueMember(
 		return true
 	}
 	objectRegistry := bundler.sourceRegistry(pointer+"/$ref", registryHint)
-	if objectRegistry == "examples" && (name == "value" || name == "dataValue") {
-		return true
+	if objectRegistry == "examples" {
+		if name == "value" {
+			return true
+		}
+		if name == "dataValue" {
+			return true
+		}
 	}
-	if objectRegistry == "links" && name == "requestBody" {
-		return true
+	if objectRegistry == "links" {
+		if name == "requestBody" {
+			return true
+		}
 	}
-	if bundler.dialect == specversion.DialectSwagger20 &&
-		objectRegistry == "responses" && name == "examples" {
-		return true
+	if bundler.dialect == specversion.DialectSwagger20 {
+		if objectRegistry == "responses" {
+			if name == "examples" {
+				return true
+			}
+		}
 	}
 	if !schemaReferencePointer(
 		mustBundlePointerTokens(pointer + "/" + escapeBundlePointer(name) + "/$ref"),
@@ -630,9 +656,10 @@ func (bundler *componentBundler) sourceRegistry(
 		if tokens[0] != "paths" && tokens[0] != "webhooks" {
 			break
 		}
-		if bundler.dialect != specversion.DialectSwagger20 &&
-			oasBundleRegistries[bundler.dialect]["pathItems"] {
-			return "pathItems"
+		if bundler.dialect != specversion.DialectSwagger20 {
+			if oasBundleRegistries[bundler.dialect]["pathItems"] {
+				return "pathItems"
+			}
 		}
 		return ""
 	}

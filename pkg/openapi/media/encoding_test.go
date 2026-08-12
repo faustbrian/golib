@@ -364,6 +364,45 @@ func TestNamedEncodingValuesHandlesMissingAndUnionProperties(t *testing.T) {
 	}
 }
 
+func TestNamedEncodingValuesContinuesPastMissingMappings(t *testing.T) {
+	t.Parallel()
+
+	for _, test := range []struct {
+		name       string
+		properties string
+		instance   string
+	}{
+		{
+			name:       "object value",
+			properties: `{"missing":{},"present":{}}`,
+			instance:   `{"present":2}`,
+		},
+		{
+			name:       "array property",
+			properties: `{"present":{}}`,
+			instance:   `[{"present":2}]`,
+		},
+		{
+			name:       "array value",
+			properties: `{"missing":{},"present":{}}`,
+			instance:   `[{"present":2}]`,
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+			applied, err := media.NamedEncodingValues(
+				mustMediaValue(t, test.properties),
+				mustMediaValue(t, `{"missing":{},"present":{}}`),
+				mustMediaValue(t, test.instance),
+				1,
+			)
+			if err != nil || len(applied) != 1 || applied[0].Name != "present" {
+				t.Fatalf("applied = %#v, %v", applied, err)
+			}
+		})
+	}
+}
+
 func TestMultipartFormDataDispositionMapsTheEncodingName(t *testing.T) {
 	t.Parallel()
 
@@ -504,6 +543,12 @@ func TestApplyEncodingPropagatesFieldErrors(t *testing.T) {
 			maxHeaders: 1, maxBytes: 1},
 		{name: "media type", encoding: `{}`, mediaType: "invalid",
 			maxHeaders: 1, maxBytes: 1},
+		{name: "media type parse error", encoding: `{}`,
+			mediaType: "multipart/form-data; boundary", maxHeaders: 1, maxBytes: 1},
+		{name: "media type missing major", encoding: `{}`, mediaType: "/plain",
+			maxHeaders: 1, maxBytes: 1},
+		{name: "media type missing subtype", encoding: `{}`, mediaType: "text/",
+			maxHeaders: 1, maxBytes: 1},
 		{name: "content type", encoding: `{"contentType":"image/*, text/*"}`,
 			mediaType: "multipart/form-data", maxHeaders: 1, maxBytes: 1},
 		{name: "headers", encoding: `{}`, mediaType: "multipart/form-data",
@@ -589,6 +634,7 @@ func TestSelectEncodingContentTypeRejectsInvalidInputs(t *testing.T) {
 		{encoding: `{"contentType":1}`, schema: `{}`},
 		{encoding: `{"contentType":""}`, schema: `{}`},
 		{encoding: `{"contentType":"not a media type"}`, schema: `{}`},
+		{encoding: `{"contentType":"text/plain; charset"}`, schema: `{}`},
 		{encoding: `{"contentType":"*/json"}`, schema: `{}`},
 		{encoding: `{"contentType":","}`, schema: `{}`},
 		{encoding: `{"contentType":"image/*"}`, schema: `{}`,
@@ -622,6 +668,10 @@ func TestSelectEncodingContentTypeMatchesExactAndUniversalChoices(t *testing.T) 
 			selected: "application/json"},
 		{encoding: `{"contentType":"*/*"}`,
 			selected: "application/json"},
+		{encoding: `{"contentType":"text/*, application/json"}`,
+			selected: "application/json"},
+		{encoding: `{"contentType":"text/*, application/json"}`,
+			selected: "text/plain"},
 	} {
 		got, err := media.SelectEncodingContentType(
 			mustMediaValue(t, test.encoding), mustMediaValue(t, `{}`),

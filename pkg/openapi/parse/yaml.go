@@ -142,9 +142,19 @@ func (parser *yamlParser) scalar(node *yaml.Node) (jsonvalue.Value, error) {
 			return jsonvalue.Value{}, parser.nodeError("non_json_boolean", node, ErrUnsupportedYAMLFeature, nil)
 		}
 	case "!!int", "!!float":
-		if strings.Contains(node.Value, "_") || strings.EqualFold(node.Value, ".nan") ||
-			strings.EqualFold(node.Value, ".inf") || strings.EqualFold(node.Value, "+.inf") ||
-			strings.EqualFold(node.Value, "-.inf") {
+		if strings.Contains(node.Value, "_") {
+			return jsonvalue.Value{}, parser.nodeError("non_json_number", node, ErrUnsupportedYAMLFeature, nil)
+		}
+		if strings.EqualFold(node.Value, ".nan") {
+			return jsonvalue.Value{}, parser.nodeError("non_json_number", node, ErrUnsupportedYAMLFeature, nil)
+		}
+		if strings.EqualFold(node.Value, ".inf") {
+			return jsonvalue.Value{}, parser.nodeError("non_json_number", node, ErrUnsupportedYAMLFeature, nil)
+		}
+		if strings.EqualFold(node.Value, "+.inf") {
+			return jsonvalue.Value{}, parser.nodeError("non_json_number", node, ErrUnsupportedYAMLFeature, nil)
+		}
+		if strings.EqualFold(node.Value, "-.inf") {
 			return jsonvalue.Value{}, parser.nodeError("non_json_number", node, ErrUnsupportedYAMLFeature, nil)
 		}
 		number, err := jsonvalue.Number(node.Value)

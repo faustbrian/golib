@@ -240,6 +240,11 @@ func TestResponseHelpersAcceptEveryExactBoundary(t *testing.T) {
 	) {
 		t.Fatalf("cumulative Set-Cookie limit error = %v", err)
 	}
+	if _, err := response.SetCookieValues(
+		[]string{"a", "b", "bb"}, 3, 3,
+	); !errors.Is(err, response.ErrSetCookieLimit) {
+		t.Fatalf("multi-value cumulative Set-Cookie limit error = %v", err)
+	}
 	for _, document := range [][]byte{
 		{' '},
 		{'~'},
