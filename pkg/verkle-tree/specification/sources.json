@@ -260,6 +260,7 @@
       },
       "compiled_constant": {
         "path": "internal/backend/commitment_engine.go",
+        "sha256": "fa827b92f192a5decba20a35e0fdb27c3188bea7a68181e7601e8754cdd4f6b6",
         "name": "pinnedGeneratorDigest",
         "value": "1fcaea10bf24f750200e06fa473c76ff0468007291fa548e2d99f09ba9256fdb",
         "source": "the commitments_sha256 field in rust-verkle-generators.tsv",
@@ -590,7 +591,7 @@
         "width": 256,
         "key_layout": "32-byte keys split into a 31-byte stem and one-byte suffix",
         "root": "an internal node at depth zero",
-        "path": "one stem byte selects each internal child",
+        "path_selection": "one stem byte selects each internal child",
         "depth": "one through 31, identifying the stem attachment or missing child opening",
         "outcomes": "Present, DifferentStem, and None map to present stem, different stem, and missing child",
         "corpus": "empty, single-stem, byte-one collision, and maximum byte-30 collision paths"
@@ -968,6 +969,7 @@
       "license_sha256": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
       "audit": {
         "path": "audits/Audit of PeerDAS KZG libraries.pdf",
+        "sha256": "8ce41caa50f52ddc282ebd7d285bf09913cea41818d76dde93424b67c12f963b",
         "git_blob": "44fcbc6ca2488bdc52499beb9f6fec4bd1f17140",
         "size": 1726737,
         "status": "reviewed-upstream-artifact-not-imported"

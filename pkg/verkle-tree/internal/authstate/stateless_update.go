@@ -262,18 +262,9 @@ func (updater *StatelessUpdater) Apply(
 	}
 
 	root, _ := proof.root.Commitment()
-	commitments := make(map[statelessPath]backend.VectorCommitment)
-	commitments[statelessPath{}] = root
-	for index := range proof.commitments {
-		path := statelessPath{
-			path:   proof.commitments[index].path,
-			length: proof.commitments[index].length,
-		}
-		commitments[path] = proof.commitments[index].commitment
-	}
-	paths := make(map[Stem]StemPath, len(proof.stemPaths))
-	for index := range proof.stemPaths {
-		paths[proof.stemPaths[index].stem] = proof.stemPaths[index]
+	commitments, paths, err := buildStatelessProofIndexes(ctx, proof, root)
+	if err != nil {
+		return backend.Root{}, err
 	}
 	budget := statelessUpdateBudget{limits: limits}
 	changed, err := updater.updateStems(ctx, proof.claims, paths, commitments, ordered, &budget)
@@ -291,6 +282,40 @@ func (updater *StatelessUpdater) Apply(
 	}
 
 	return backend.NewRoot(ctx, proof.profile, postRoot)
+}
+
+func buildStatelessProofIndexes(
+	ctx context.Context,
+	proof TreeProof,
+	root backend.VectorCommitment,
+) (map[statelessPath]backend.VectorCommitment, map[Stem]StemPath, error) {
+	if err := checkTreeProofContext(ctx); err != nil {
+		return nil, nil, err
+	}
+	commitments := make(
+		map[statelessPath]backend.VectorCommitment,
+		len(proof.commitments)+1,
+	)
+	commitments[statelessPath{}] = root
+	for index := range proof.commitments {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return nil, nil, err
+		}
+		path := statelessPath{
+			path:   proof.commitments[index].path,
+			length: proof.commitments[index].length,
+		}
+		commitments[path] = proof.commitments[index].commitment
+	}
+	paths := make(map[Stem]StemPath, len(proof.stemPaths))
+	for index := range proof.stemPaths {
+		if err := checkTreeProofContext(ctx); err != nil {
+			return nil, nil, err
+		}
+		paths[proof.stemPaths[index].stem] = proof.stemPaths[index]
+	}
+
+	return commitments, paths, nil
 }
 
 func statelessTemporaryBytes(

@@ -140,8 +140,9 @@ because each stage has different hostile-input amplification.
 For a stateless transition, the producer calls `ProofEngine.ProveUpdates` to
 derive and prove the complete canonical pre-state key set, obtains the expected
 post-root from its stateful transition, and calls `NewWitness`. The receiver
-calls `DecodeWitness`, creates a fixed-profile `StatelessEngine`, and calls
-`Apply` with independent proof and update budgets. Only a successful
+calls `DecodeWitness`, creates a fixed-profile `StatelessEngine`, obtains the
+expected pre-state root from a caller-trusted source, and calls `ApplyForRoot`
+with that root plus independent proof and update budgets. Only a successful
 `StatelessResult` exposes the verified pre-root and independently derived,
 witness-matched post-root. Decoding alone does not verify either root.
 `Witness.Updates` returns an owned canonical copy; `Update.Kind`, `Update.Key`,
@@ -479,6 +480,7 @@ responsibilities.
 - [API and ownership boundaries](docs/api-boundaries.md)
 - [Threat model](docs/threat-model.md)
 - [Compatibility matrix](docs/compatibility.md)
+- [Specification decisions](docs/specification-decisions.md)
 - [Backend audit](docs/backend-audit.md)
 - [Benchmark method and raw samples](docs/benchmarks.md)
 

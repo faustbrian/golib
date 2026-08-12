@@ -14,6 +14,15 @@ All notable changes to `verkle-tree` will be documented in this file.
   than a cryptographic profile property.
 - Pin the module's initial release plan to `v0.1.0` without changing the
   repository-wide `v1.0.0` default for modules without an explicit policy.
+- Reject aggregate-opening settings when the IPA auxiliary generator differs
+  from the profile-pinned value, even when the structured reference string is
+  otherwise unchanged.
+- Reject initial-entry and batch-update resource overages before copying
+  caller-owned slices at the public snapshot boundary.
+- Honor cancellation while materializing authenticated commitment and stem-path
+  indexes after stateless proof verification, without exposing partial results.
+- Require the stateless receiver workflow to supply a caller-trusted pre-state
+  root through `ApplyForRoot` instead of relying on a self-contained witness.
 
 ### Documentation
 
@@ -45,6 +54,9 @@ All notable changes to `verkle-tree` will be documented in this file.
   bounded-execution surface.
 - Audit the complete pre-v1 exported API and document every public limit
   field, ownership rule, error, concurrency contract, cost, and caveat.
+- Register the profile, pinned reference implementations, conformance corpora,
+  provenance lock, and explicit pre-v1 interoperability decision with the
+  repository specification gate.
 
 ### Added
 

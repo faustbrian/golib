@@ -5,6 +5,8 @@ The package conforms to its normative
 External interoperability is claim-by-claim: agreement with a pinned reference
 proves the listed behavior for the listed corpus and does not silently extend
 to another wire format, operation, revision, or Ethereum protocol rule.
+The [specification decision register](specification-decisions.md) records the
+selected profile and interoperability boundary.
 
 Package tests prove deterministic state transitions, canonical encodings,
 proof verification, hostile-input rejection, and resource contracts against
