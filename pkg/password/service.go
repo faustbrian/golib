@@ -92,7 +92,12 @@ func isNilInterface(value any) bool {
 	}
 	reflected := reflect.ValueOf(value)
 	kind := reflected.Kind()
-	return (kind == reflect.Chan || kind == reflect.Func || kind == reflect.Interface || kind == reflect.Map || kind == reflect.Pointer || kind == reflect.Slice) && reflected.IsNil()
+	switch kind { //nolint:exhaustive // Only nilable concrete kinds require handling.
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
+	}
 }
 
 // Hash copies the password, obtains admission and entropy, and returns a new
@@ -112,7 +117,9 @@ func (s *Service) hash(ctx context.Context, password []byte) (EncodedHash, error
 		return EncodedHash{}, newError(ErrResourceRejected, "hash password", nil)
 	}
 	release, err := s.admission.Acquire(ctx)
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		return EncodedHash{}, classifyAcquire("hash password", err)
 	}
 	defer release()
@@ -203,7 +210,10 @@ func (s *Service) NeedsRehash(hash EncodedHash) bool {
 	}
 	want := s.policy.config.Argon2id
 	got := hash.argon2id
-	if got.Version != want.Version || got.Time > want.Time || got.MemoryKiB > want.MemoryKiB || got.SaltLength > want.SaltLength || got.OutputLength > want.OutputLength {
+	if got.Version != want.Version {
+		return false
+	}
+	if got.Time > want.Time || got.MemoryKiB > want.MemoryKiB || got.SaltLength > want.SaltLength || got.OutputLength > want.OutputLength {
 		return false
 	}
 	return got.Time < want.Time || got.MemoryKiB < want.MemoryKiB || got.Parallelism != want.Parallelism || got.SaltLength < want.SaltLength || got.OutputLength < want.OutputLength

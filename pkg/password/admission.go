@@ -42,7 +42,9 @@ func (a *Admission) Acquire(ctx context.Context) (func(), error) {
 		a.mu.Unlock()
 		return nil, newError(ErrClosed, "acquire", nil)
 	}
-	if a.active < a.capacity {
+	switch a.capacity - a.active {
+	case 0:
+	default:
 		a.active++
 		a.mu.Unlock()
 		return a.release(), nil

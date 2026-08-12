@@ -106,7 +106,12 @@ func nilLookup(lookup Lookup) bool {
 	}
 	reflected := reflect.ValueOf(lookup)
 	kind := reflected.Kind()
-	return (kind == reflect.Chan || kind == reflect.Func || kind == reflect.Interface || kind == reflect.Map || kind == reflect.Pointer || kind == reflect.Slice) && reflected.IsNil()
+	switch kind { //nolint:exhaustive // Only nilable concrete kinds require handling.
+	case reflect.Chan, reflect.Func, reflect.Map, reflect.Pointer, reflect.Slice:
+		return reflected.IsNil()
+	default:
+		return false
+	}
 }
 
 // Upgrade is an immutable optimistic compare-and-swap pair.

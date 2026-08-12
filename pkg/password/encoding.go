@@ -4,7 +4,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 )
@@ -104,21 +103,24 @@ func parseArgon2id(encoded string, limits Limits) (EncodedHash, error) {
 		}
 		return EncodedHash{}, newError(ErrMalformedHash, "parse argon2id", nil)
 	}
-	if m < 8*p || m > uint64(limits.MemoryKiB) || p < 1 || p > math.MaxUint8 ||
+	if m < 8*p || m > uint64(limits.MemoryKiB) || p < 1 ||
 		p > uint64(limits.Parallelism) || t < 1 || t > uint64(limits.Argon2Time) {
 		return EncodedHash{}, newError(ErrResourceRejected, "parse argon2id", nil)
 	}
 	if uint64(len(parts[4])) > rawBase64EncodedLength(limits.SaltBytes) || uint64(len(parts[5])) > rawBase64EncodedLength(limits.OutputBytes) {
 		return EncodedHash{}, newError(ErrResourceRejected, "parse argon2id", nil)
 	}
-	salt, e1 := base64.RawStdEncoding.Strict().DecodeString(parts[4])
-	out, e2 := base64.RawStdEncoding.Strict().DecodeString(parts[5])
-	if e1 != nil || e2 != nil || len(salt) < 8 || len(out) < 16 {
+	salt, saltErr := base64.RawStdEncoding.Strict().DecodeString(parts[4])
+	if saltErr != nil {
 		return EncodedHash{}, newError(ErrMalformedHash, "parse argon2id", nil)
 	}
-	memory := uint32(m)   //nolint:gosec // ParseUint above is explicitly limited to 32 bits.
-	timeCost := uint32(t) //nolint:gosec // ParseUint above is explicitly limited to 32 bits.
-	parallelism := uint8(p)
+	out, outputErr := base64.RawStdEncoding.Strict().DecodeString(parts[5])
+	if outputErr != nil || len(salt) < 8 || len(out) < 16 {
+		return EncodedHash{}, newError(ErrMalformedHash, "parse argon2id", nil)
+	}
+	memory := uint32(m)              //nolint:gosec // ParseUint above is explicitly limited to 32 bits.
+	timeCost := uint32(t)            //nolint:gosec // ParseUint above is explicitly limited to 32 bits.
+	parallelism := uint8(p)          //nolint:gosec // Bounded above by the uint8 policy limit.
 	saltLength := uint32(len(salt))  //nolint:gosec // Decoded length is bounded by the uint32 policy limit.
 	outputLength := uint32(len(out)) //nolint:gosec // Decoded length is bounded by the uint32 policy limit.
 	return EncodedHash{encoded: encoded, algorithm: Argon2id, argon2id: Argon2idParameters{Version: 19, Time: timeCost, MemoryKiB: memory, Parallelism: parallelism, SaltLength: saltLength, OutputLength: outputLength}, salt: salt, digest: out}, nil
@@ -137,9 +139,12 @@ func parseBcrypt(encoded string, limits Limits) (EncodedHash, error) {
 			return EncodedHash{}, newError(ErrMalformedHash, "parse bcrypt", nil)
 		}
 	}
-	salt, saltErr := bcryptBase64.Strict().DecodeString(encoded[7:29])
-	digest, digestErr := bcryptBase64.Strict().DecodeString(encoded[29:])
-	if saltErr != nil || digestErr != nil || len(salt) != 16 || len(digest) != 23 {
+	_, saltErr := bcryptBase64.Strict().DecodeString(encoded[7:29])
+	if saltErr != nil {
+		return EncodedHash{}, newError(ErrMalformedHash, "parse bcrypt", nil)
+	}
+	_, digestErr := bcryptBase64.Strict().DecodeString(encoded[29:])
+	if digestErr != nil {
 		return EncodedHash{}, newError(ErrMalformedHash, "parse bcrypt", nil)
 	}
 	return EncodedHash{encoded: encoded, algorithm: Bcrypt, bcryptCost: cost}, nil
