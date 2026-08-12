@@ -1002,6 +1002,19 @@ assurance scope.
 | Observed | 2026-08-12T17:48:14Z |
 | Gaps | Release dry-runs remain for Kafka, OpenSearch, Verkle, and four releasable adapters whose dependency closure includes Kafka. Public proxy resolution, operational assurance, release signing and attestations, and explicit release authority remain outstanding; no tag or release was created. |
 
+### Operational assurance register
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_OPERATIONAL_ASSURANCE.md` and the assurance prerequisite in `.ai/GOAL_RELEASE.md`. |
+| Scope | All 107 releasable modules and the eleven mandatory reference-service, platform, failure/recovery, deployment, performance, security/privacy/supply-chain, operations, consistency, and release-consumer scenarios. |
+| Status | Remains `pending`; machine-readable governance and release enforcement are implemented, but scenario execution has not started. |
+| Evidence | `operational-assurance.json`, `cmd/golib/assurance.go`, focused hostile-record and release-guard regression tests, `make operational-assurance`, and `docs/operational-assurance.md`. |
+| Result | The repository now validates exact releasable-module scope, required scenarios, statuses, evidence paths, content digests, current gate-input fingerprints for scoped modules and releasable reverse dependants, UTC observations, environment and module coverage, residual risks, and explicit named acceptances. Release plans expose the verdict and future mutating release execution fails before package work when the verdict is not ready. The current register truthfully reports `not ready`, 0/11 passed scenarios, six residual risks, and zero accepted risks. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run. |
+| Observed | 2026-08-12T18:10:00Z |
+| Gaps | Every operational scenario still requires real composed evidence. No reference-service, Linux platform matrix, ECS-compatible container, failure/recovery, rolling deployment, load/soak, operator drill, public-proxy, signing, or attestation result is claimed by this governance batch. |
+
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
 or explicit audit finding moves them to `pending-reexecution` or

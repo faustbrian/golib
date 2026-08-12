@@ -12,7 +12,7 @@ else
 SELECT := --modules $(MODULES)
 endif
 
-.PHONY: manifests inventory cohesion specification-decisions select select-changed repository-check root-test \
+.PHONY: manifests inventory cohesion specification-decisions operational-assurance select select-changed repository-check root-test \
 	workflow-lint format format-check tidy tidy-check \
 	test workspace-test race coverage mutation fuzz lint staticcheck nilaway vet \
 	safety vulnerability secrets licenses sbom docs api interoperability benchmark \
@@ -30,6 +30,9 @@ cohesion:
 specification-decisions:
 	go run ./cmd/golib specifications $(SELECT)
 
+operational-assurance:
+	go run ./cmd/golib assurance
+
 select:
 	go run ./cmd/golib select $(SELECT)
 
@@ -43,7 +46,7 @@ workflow-lint:
 	go run github.com/rhysd/actionlint/cmd/actionlint@$(ACTIONLINT_VERSION) \
 		.github/workflows/ci.yml
 
-repository-check: inventory cohesion specification-decisions root-test workflow-lint
+repository-check: inventory cohesion specification-decisions operational-assurance root-test workflow-lint
 
 format:
 	./scripts/run-modules.sh format --jobs $(JOBS) $(SELECT)

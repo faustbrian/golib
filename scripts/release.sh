@@ -93,6 +93,10 @@ dependency_release_order="$(
     go run ./cmd/golib select \
         --modules "${module}" --dependencies --order dependency --format json
 )"
+operational_assurance="$(
+    cd "${root}"
+    go run ./cmd/golib assurance --format json
+)"
 plan="$(jq -n \
         --arg module "${module}" \
         --arg module_path "$(jq -r '.module_path' <<<"${entry}")" \
@@ -101,12 +105,14 @@ plan="$(jq -n \
         --arg tag "${tag}" \
         --argjson dependency_release_order "${dependency_release_order}" \
         --argjson owned_dependencies "$(jq '.owned_dependencies' <<<"${entry}")" \
+        --argjson operational_assurance "${operational_assurance}" \
         '{
             module: $module,
             module_path: $module_path,
             current_version: $current_version,
             proposed_version: $proposed_version,
             tag: $tag,
+            operational_assurance: $operational_assurance,
             dependency_release_order: $dependency_release_order,
             owned_dependencies: $owned_dependencies,
             commands: [
@@ -120,6 +126,13 @@ if [[ "${plan_only}" -eq 1 ]]; then
     exit 0
 fi
 printf '%s\n' "${plan}"
+
+if [[ "${dry_run}" -eq 0 ]]; then
+    (
+        cd "${root}"
+        go run ./cmd/golib assurance --require-ready >/dev/null
+    )
+fi
 
 "${root}/scripts/check-module.sh" "${module}" tidy-check
 "${root}/scripts/check-module.sh" "${module}" test

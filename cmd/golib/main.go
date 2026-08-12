@@ -111,7 +111,7 @@ type modFile struct {
 
 func main() {
 	if len(os.Args) < 2 {
-		fatal("usage: golib <manifest|validate|cohesion|specifications|select|safety>")
+		fatal("usage: golib <manifest|validate|cohesion|specifications|assurance|select|safety>")
 	}
 
 	root, err := repositoryRoot()
@@ -128,6 +128,8 @@ func main() {
 		validateCohesion(root)
 	case "specifications":
 		validateSpecifications(root, os.Args[2:])
+	case "assurance":
+		assurance(root, os.Args[2:])
 	case "select":
 		selectModules(root, os.Args[2:])
 	case "safety":
@@ -240,6 +242,13 @@ func validate(root string) {
 		fatal("validate mutation thresholds: %v", err)
 	}
 	validatePaths(root)
+	contents, err := os.ReadFile(filepath.Join(root, operationalAssuranceFile))
+	if err != nil {
+		fatal("read operational assurance: %v", err)
+	}
+	if err := validateOperationalAssurance(root, wanted, contents); err != nil {
+		fatal("validate operational assurance: %v", err)
+	}
 	fmt.Printf("validated %d modules and %d packages\n", len(wanted.Modules), packageCount(wanted))
 }
 

@@ -397,6 +397,7 @@
             "README.md",
             "docs/architecture.md",
             "docs/hardening-report.md",
+            "docs/operational-assurance.md",
             "docs/performance.md",
             "docs/security/threat-model.md"
           ],

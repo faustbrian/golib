@@ -16,7 +16,8 @@ workspace with no replacement.
 
 `scripts/release.sh --plan pkg/<module>` prints the current version, proposed
 version, exact tag, transitive dependency release order, owned dependencies,
-and verification commands without running checks or mutating Git.
+the current operational-assurance verdict, and verification commands without
+running checks or mutating Git.
 `make release-dry-run MODULES=pkg/<module>` expands the selection to the same
 dependency closure, then validates each module in dependency order through
 catalog policy, isolated module checks, tag shape, and clean consumer
@@ -29,3 +30,9 @@ benchmark, interoperability, and internal-tool modules are not releasable.
 
 Release automation must consume the same quality contract as CI. It may not
 create a tag from a commit whose complete required matrix is absent or stale.
+The machine-readable [operational-assurance register](../operational-assurance.json)
+is validated during repository checks. A mutating release path fails before
+package verification or publication unless that register has a `ready` or
+fully documented `ready with named accepted risks` verdict. Dry-runs remain
+available while the verdict is `not ready` because they create evidence rather
+than publishing artifacts.

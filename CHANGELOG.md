@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Add a content-addressed operational-assurance register and validator that
+  inventories every releasable module and required composition scenario while
+  keeping the current incomplete verdict explicitly `not ready`.
 - Add one root Dependabot policy for all Go modules and GitHub Actions, plus a
   dependency governance guide covering admission, update review, ownership,
   detection, and compromise response.
@@ -44,6 +47,9 @@ documented in each module's changelog.
 
 ### Fixed
 
+- Make release plans report operational readiness and make every future
+  mutating release path fail before verification or publication when assurance
+  is not ready.
 - Remove inert package-local Dependabot configurations and reject future
   nested update policies so dependency automation cannot silently diverge.
 - Permit cataloged non-releasable fixture modules to use an intentionally empty

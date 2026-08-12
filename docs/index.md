@@ -53,6 +53,7 @@ to package-owned contracts and examples.
 - [Source documentation audit](source-documentation-audit.md)
 - [Specification governance](specification-governance.md)
 - [Dependency governance](dependency-governance.md)
+- [Operational assurance](operational-assurance.md)
 - [Repository threat model](security/threat-model.md)
 - [Security matrix](security/security-matrix.md)
 - [Residual-risk register](security/residual-risks.md)
@@ -64,6 +65,7 @@ to package-owned contracts and examples.
 - [Quality contract](quality.md)
 - [Continuous integration](ci.md)
 - [Release policy](releases.md)
+- [Operational assurance](operational-assurance.md)
 - [Migration](migration.md)
 - [Troubleshooting](troubleshooting.md)
 

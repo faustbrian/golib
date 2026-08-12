@@ -13,6 +13,7 @@ public version of each ready module is `v1.0.0`.
 | Specification governance | Implemented with unresolved package findings | [Specification governance](specification-governance.md) |
 | Benchmark execution | Required modules have gate evidence; comparative program incomplete | [Benchmark catalog](benchmark-catalog.md) and [performance](performance.md) |
 | Source documentation | Inventory implemented; package and API comment pass incomplete | [Source documentation audit](source-documentation-audit.md) |
+| Operational assurance | Not ready; register and release guard implemented, 0/11 scenarios passed | [Operational assurance](operational-assurance.md) |
 | Public releases | Not started | [Release policy](releases.md) |
 
 Generated catalogs report implementation inputs and evidence contracts. They

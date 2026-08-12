@@ -876,6 +876,57 @@ func TestReleasePlanDefaultsUnreleasedModulesToV1(t *testing.T) {
 	}
 }
 
+func TestReleasePlanReportsOperationalAssuranceVerdict(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	command := exec.Command(
+		"bash",
+		filepath.Join(root, "scripts", "release.sh"),
+		"--plan",
+		"pkg/retry",
+	)
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("plan release with assurance: %v\n%s", err, output)
+	}
+
+	var plan struct {
+		OperationalAssurance struct {
+			Verdict string `json:"verdict"`
+		} `json:"operational_assurance"`
+	}
+	if err := json.Unmarshal(output, &plan); err != nil {
+		t.Fatalf("decode release plan: %v\n%s", err, output)
+	}
+	if plan.OperationalAssurance.Verdict != "not ready" {
+		t.Fatalf(
+			"operational assurance verdict = %q, want not ready",
+			plan.OperationalAssurance.Verdict,
+		)
+	}
+}
+
+func TestReleaseCreationRequiresOperationalAssurance(t *testing.T) {
+	t.Parallel()
+
+	root := testRepositoryRoot(t)
+	command := exec.Command(
+		"bash",
+		filepath.Join(root, "scripts", "release.sh"),
+		"pkg/retry",
+	)
+	command.Dir = root
+	output, err := command.CombinedOutput()
+	if err == nil {
+		t.Fatalf("release creation accepted a not-ready assurance verdict:\n%s", output)
+	}
+	if !strings.Contains(string(output), "operational assurance verdict is not ready") {
+		t.Fatalf("release creation returned the wrong assurance failure:\n%s", output)
+	}
+}
+
 func TestReleasePlanDefaultsVerkleTreeInitialReleaseToV1(t *testing.T) {
 	t.Parallel()
 
@@ -3301,7 +3352,7 @@ func TestRootDocumentationGateDoesNotDelegateToRootMakefile(t *testing.T) {
 	}
 }
 
-func TestRepositoryCheckIncludesSpecificationDecisionValidation(t *testing.T) {
+func TestRepositoryCheckIncludesGovernanceValidation(t *testing.T) {
 	t.Parallel()
 
 	root := testRepositoryRoot(t)
@@ -3311,9 +3362,9 @@ func TestRepositoryCheckIncludesSpecificationDecisionValidation(t *testing.T) {
 	}
 	if !strings.Contains(
 		string(contents),
-		"repository-check: inventory cohesion specification-decisions root-test workflow-lint",
+		"repository-check: inventory cohesion specification-decisions operational-assurance root-test workflow-lint",
 	) {
-		t.Fatal("repository-check does not enforce cohesion and specification decision validation")
+		t.Fatal("repository-check does not enforce cohesion, specification, and assurance validation")
 	}
 }
 

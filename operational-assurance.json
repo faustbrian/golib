@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "verdict": "not ready",
+  "modules": [
+    "pkg/adaptive-throttle",
+    "pkg/analysis",
+    "pkg/api-query",
+    "pkg/audit",
+    "pkg/audit/postgres",
+    "pkg/authentication",
+    "pkg/authentication/authotel",
+    "pkg/authentication/jwt",
+    "pkg/authentication/oidc",
+    "pkg/authorization",
+    "pkg/barcode",
+    "pkg/bulkhead",
+    "pkg/cache",
+    "pkg/calendar",
+    "pkg/capability",
+    "pkg/circuit-breaker",
+    "pkg/cli",
+    "pkg/clock",
+    "pkg/cloudevents",
+    "pkg/cloudevents/adapters/golib",
+    "pkg/concurrency-limit",
+    "pkg/config",
+    "pkg/config/adapters/awssecretsmanager",
+    "pkg/correlation",
+    "pkg/ecma-regexp",
+    "pkg/event-sourcing",
+    "pkg/event-sourcing/adapters/gokafka",
+    "pkg/event-sourcing/adapters/gotelemetry",
+    "pkg/event-sourcing/adapters/outbox",
+    "pkg/event-sourcing/adapters/queue",
+    "pkg/event-sourcing/postgres",
+    "pkg/external-sort",
+    "pkg/fault-injection",
+    "pkg/feature-flags",
+    "pkg/filesystem",
+    "pkg/geo",
+    "pkg/hedge",
+    "pkg/http-client",
+    "pkg/http-middleware",
+    "pkg/http-signature",
+    "pkg/idempotency",
+    "pkg/identifier",
+    "pkg/international",
+    "pkg/json-schema",
+    "pkg/jsonapi",
+    "pkg/jsonrpc",
+    "pkg/kafka",
+    "pkg/kafka/adapters/gotelemetry",
+    "pkg/kafka/adapters/mskiam",
+    "pkg/kafka/kafkaservice",
+    "pkg/keyphrase",
+    "pkg/knapsack",
+    "pkg/knapsack/objective/gomoney",
+    "pkg/lease",
+    "pkg/localized",
+    "pkg/log",
+    "pkg/math",
+    "pkg/measurement",
+    "pkg/merkle-patricia-trie",
+    "pkg/merkle-tree",
+    "pkg/migrations",
+    "pkg/money",
+    "pkg/openapi",
+    "pkg/opening-hours",
+    "pkg/openrpc",
+    "pkg/outbox",
+    "pkg/outbox/adapters/gokafka",
+    "pkg/outbox/adapters/otel",
+    "pkg/outbox/adapters/queue",
+    "pkg/password",
+    "pkg/postgres",
+    "pkg/prompts",
+    "pkg/queue",
+    "pkg/queue-control-plane",
+    "pkg/queue/queueservice",
+    "pkg/rate-limit",
+    "pkg/resilience",
+    "pkg/retry",
+    "pkg/router",
+    "pkg/rule-engine",
+    "pkg/rule-engine/adapters/math",
+    "pkg/rule-engine/adapters/measurement",
+    "pkg/rule-engine/adapters/temporal",
+    "pkg/scheduler",
+    "pkg/schema-registry",
+    "pkg/schema-registry/providers/confluent",
+    "pkg/schema-registry/providers/glue",
+    "pkg/search",
+    "pkg/search/adapters/opensearch",
+    "pkg/secret-envelope",
+    "pkg/secret-store/adapters/awssecretsmanager",
+    "pkg/semaphore",
+    "pkg/sequencer",
+    "pkg/service",
+    "pkg/settings",
+    "pkg/state-machine",
+    "pkg/tabular",
+    "pkg/telemetry",
+    "pkg/temporal",
+    "pkg/tenancy",
+    "pkg/validation",
+    "pkg/verkle-tree",
+    "pkg/webhook",
+    "pkg/wire",
+    "pkg/workflow",
+    "pkg/wsdl",
+    "pkg/xsd"
+  ],
+  "scenarios": [
+    {
+      "id": "OA-REFERENCE-HTTP",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    },
+    {
+      "id": "OA-REFERENCE-DURABILITY",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    },
+    {
+      "id": "OA-REFERENCE-EXTERNAL",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    },
+    {
+      "id": "OA-PLATFORM-MATRIX",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    },
+    {
+      "id": "OA-FAILURE-RECOVERY",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    },
+    {
+      "id": "OA-DEPLOYMENT-COMPATIBILITY",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    },
+    {
+      "id": "OA-RESOURCE-PERFORMANCE",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    },
+    {
+      "id": "OA-SECURITY-PRIVACY-SUPPLY-CHAIN",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    },
+    {
+      "id": "OA-OBSERVABILITY-OPERATIONS",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    },
+    {
+      "id": "OA-CROSS-PACKAGE-CONSISTENCY",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    },
+    {
+      "id": "OA-RELEASE-CONSUMER",
+      "status": "pending",
+      "affected_modules": [
+        "*"
+      ],
+      "evidence": [],
+      "accepted_risks": []
+    }
+  ],
+  "residual_risks": [
+    "GL-RISK-001",
+    "GL-RISK-002",
+    "GL-RISK-003",
+    "GL-RISK-004",
+    "GL-RISK-005",
+    "GL-RISK-006"
+  ],
+  "risk_acceptances": []
+}
