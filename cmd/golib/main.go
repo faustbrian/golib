@@ -1139,6 +1139,13 @@ func requiredServices(directory string) []string {
 }
 
 func interoperabilityTools(directory string) []string {
+	if directory == "pkg/verkle-tree" {
+		return []string{
+			"ethereum/go-verkle at aa0a270c0ed03faa6c502e0d96bf26189d1d6542",
+			"crate-crypto/rust-verkle at e27b8b4edf1992b4afa636c2fc7983bcc27ddb88",
+			"Rust 1.97.0",
+		}
+	}
 	if directory == "pkg/cloudevents" {
 		return []string{
 			"cloudevents/sdk-go v2.16.2",
@@ -1223,6 +1230,12 @@ func interoperabilityTools(directory string) []string {
 }
 
 func specifications(directory string) []string {
+	if directory == "pkg/verkle-tree" {
+		return []string{
+			"verkletree-bandersnatch-ipa-256-v0 package-owned pre-v1 profile",
+			"Ethereum Verkle EIPs 4762, 6800, 7612, and 7748 at c55786f4242e5324afd14c6bca890a369a771d7f (research only; not implemented)",
+		}
+	}
 	if directory == "pkg/cloudevents" {
 		return []string{
 			"CloudEvents specification 1.0.2",
@@ -1438,6 +1451,13 @@ func specifications(directory string) []string {
 }
 
 func conformanceCorpora(directory string) []string {
+	if directory == "pkg/verkle-tree" {
+		return []string{
+			"Pinned go-verkle tree and aggregate-proof corpus at aa0a270c0ed03faa6c502e0d96bf26189d1d6542",
+			"Pinned rust-verkle encoding, generator, vector-commitment, multiproof, tree-root, topology, and transition corpora at e27b8b4edf1992b4afa636c2fc7983bcc27ddb88",
+			"Package-owned verkletree-bandersnatch-ipa-256-v0 positive and hostile-input evidence",
+		}
+	}
 	if directory == "pkg/kafka" {
 		return []string{
 			"Apache Kafka 3.7.2 and 4.3.1 multi-broker KRaft matrix",
@@ -1589,6 +1609,7 @@ func libraryName(directory string) string {
 func provenanceFiles(root, directory string) []string {
 	candidates := []string{
 		"spec/sources.lock.json",
+		"specification/sources.json",
 		"specification/manifest.json",
 		"specification/manifest.tsv",
 		"specification/provenance.json",
