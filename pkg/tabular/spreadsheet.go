@@ -3,6 +3,7 @@ package tabular
 import (
 	"errors"
 	"io"
+	"slices"
 
 	internalxls "github.com/faustbrian/golib/pkg/tabular/internal/xls"
 )
@@ -163,13 +164,9 @@ func OpenSpreadsheet(source io.ReaderAt, size int64, config SpreadsheetConfig) (
 	}
 	sheetIndex := 0
 	if config.Sheet != "" {
-		sheetIndex = -1
-		for index, sheet := range workbook.Sheets {
-			if sheet.Name == config.Sheet {
-				sheetIndex = index
-				break
-			}
-		}
+		sheetIndex = slices.IndexFunc(workbook.Sheets, func(sheet internalxls.Sheet) bool {
+			return sheet.Name == config.Sheet
+		})
 		if sheetIndex < 0 {
 			return nil, &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.sheet", Format: string(config.Format), Err: errors.New("sheet not found")}
 		}
@@ -276,7 +273,7 @@ func (reader *SpreadsheetReader) readHeader() {
 		return
 	}
 	reader.header, reader.headerErr = NormalizeHeader(row, *reader.headerConfig)
-	if reader.headerErr == nil && reader.fields == 0 && !reader.variable {
+	if reader.fields == 0 && !reader.variable {
 		reader.fields = len(reader.header)
 	}
 }
@@ -318,18 +315,16 @@ func (reader *SpreadsheetReader) readSpreadsheetCells() (
 		if len(sourceRow.cells) > reader.fields {
 			return spreadsheetSourceRow{}, &Error{Kind: ErrorMalformedRow, Op: "spreadsheet.read", Format: string(reader.format), Row: reader.index, Err: errors.New("unexpected field count")}
 		}
-		if len(sourceRow.cells) < reader.fields {
-			missing := reader.fields - len(sourceRow.cells)
-			sourceRow.cells = append(
-				sourceRow.cells,
-				make([]spreadsheetCell, missing)...,
+		missing := reader.fields - len(sourceRow.cells)
+		sourceRow.cells = append(
+			sourceRow.cells,
+			make([]spreadsheetCell, missing)...,
+		)
+		if reader.preservePresence {
+			sourceRow.presence = append(
+				sourceRow.presence,
+				make([]bool, missing)...,
 			)
-			if reader.preservePresence {
-				sourceRow.presence = append(
-					sourceRow.presence,
-					make([]bool, missing)...,
-				)
-			}
 		}
 	}
 	return sourceRow, nil

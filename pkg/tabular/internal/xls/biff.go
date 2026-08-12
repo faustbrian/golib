@@ -67,7 +67,8 @@ func parseBIFF8State(data []byte, preservePresence bool) (*Workbook, error) {
 	}
 	var sheets []boundSheet
 	var shared []string
-	for offset := 0; offset < len(data); {
+globals:
+	for offset := 0; ; {
 		rec, recErr := readRecord(data, offset)
 		if recErr != nil {
 			return nil, recErr
@@ -82,9 +83,12 @@ func parseBIFF8State(data []byte, preservePresence bool) (*Workbook, error) {
 		case 0x00fc:
 			segments := [][]byte{rec.payload}
 			next := rec.next
-			for next < len(data) {
+			for {
 				continuation, continuationErr := readRecord(data, next)
-				if continuationErr != nil || continuation.id != 0x003c {
+				if continuationErr != nil {
+					break
+				}
+				if continuation.id != 0x003c {
 					break
 				}
 				segments = append(segments, continuation.payload)
@@ -96,8 +100,7 @@ func parseBIFF8State(data []byte, preservePresence bool) (*Workbook, error) {
 			}
 			rec.next = next
 		case 0x000a:
-			offset = len(data)
-			continue
+			break globals
 		}
 		offset = rec.next
 	}
@@ -176,7 +179,7 @@ func parseSheetState(
 	rows := make(map[int]map[int]Cell)
 	widths := make(map[int]int)
 	maxRow := -1
-	for offset < len(data) {
+	for {
 		rec, recErr := readRecord(data, offset)
 		if recErr != nil {
 			return nil, nil, recErr
@@ -220,7 +223,7 @@ func parseSheetState(
 			setCell(rows, widths, row, column, Cell{Value: decodeRK(binary.LittleEndian.Uint32(rec.payload[6:10]))})
 			maxRow = max(maxRow, row)
 		case 0x00bd:
-			if len(rec.payload) < 12 || (len(rec.payload)-6)%6 != 0 {
+			if len(rec.payload) < 12 || len(rec.payload)%6 != 0 {
 				return nil, nil, errors.New("invalid MULRK record")
 			}
 			row := int(binary.LittleEndian.Uint16(rec.payload[:2]))
@@ -249,7 +252,7 @@ func parseSheetState(
 			if !preservePresence {
 				break
 			}
-			if len(rec.payload) < 8 || (len(rec.payload)-6)%2 != 0 {
+			if len(rec.payload) < 8 || len(rec.payload)%2 != 0 {
 				return nil, nil, errors.New("invalid MULBLANK record")
 			}
 			row := int(binary.LittleEndian.Uint16(rec.payload[:2]))
@@ -345,8 +348,8 @@ func decodeBIFFString(data []byte, count int, wide bool) (string, int, error) {
 	}
 	if !wide {
 		runes := make([]rune, count)
-		for index := range runes {
-			runes[index] = rune(data[index])
+		for index, value := range data[:count] {
+			runes[index] = rune(value)
 		}
 		return string(runes), count, nil
 	}
@@ -370,7 +373,7 @@ func parseSST(segments [][]byte) ([]string, error) {
 		return nil, errors.New("xls: truncated SST header")
 	}
 	count := binary.LittleEndian.Uint32(header[4:8])
-	if uint64(count) > uint64(reader.remaining())/3+1 {
+	if uint64(count) > uint64(reader.remaining())/3 {
 		return nil, errors.New("xls: invalid SST string count")
 	}
 	strings := make([]string, 0, count)
@@ -470,16 +473,12 @@ func (reader *segmentedReader) atBoundary() bool {
 }
 
 func (reader *segmentedReader) remaining() int {
-	remaining := 0
-	for index, segment := range reader.segments {
-		if index < reader.segment {
-			continue
-		}
-		if index == reader.segment {
-			remaining += len(segment) - reader.offset
-		} else {
-			remaining += len(segment)
-		}
+	if reader.segment >= len(reader.segments) {
+		return 0
+	}
+	remaining := len(reader.segments[reader.segment]) - reader.offset
+	for _, segment := range reader.segments[reader.segment+1:] {
+		remaining += len(segment)
 	}
 	return remaining
 }

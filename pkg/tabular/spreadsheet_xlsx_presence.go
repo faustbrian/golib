@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"path"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -86,53 +87,21 @@ func selectedXLSXSheetReference(
 	}
 	defer func() { _ = reader.Close() }()
 
-	decoder := xml.NewDecoder(reader)
-	depth := 0
-	sheetsDepth := 0
-	for {
-		token, tokenErr := decoder.Token()
-		if errors.Is(tokenErr, io.EOF) {
-			break
+	var workbook struct {
+		Sheets []struct {
+			Name           string `xml:"name,attr"`
+			RelationshipID string `xml:"id,attr"`
+		} `xml:"sheets>sheet"`
+	}
+	if err = xml.NewDecoder(reader).Decode(&workbook); err != nil {
+		return xlsxSheetReference{}, xlsxPresenceError(err)
+	}
+	for _, sheet := range workbook.Sheets {
+		if sheet.Name == "" || sheet.RelationshipID == "" {
+			return xlsxSheetReference{}, xlsxPresenceError(errors.New("worksheet declaration is invalid"))
 		}
-		if tokenErr != nil {
-			return xlsxSheetReference{}, xlsxPresenceError(tokenErr)
-		}
-		switch element := token.(type) {
-		case xml.StartElement:
-			depth++
-			if sheetsDepth == 0 &&
-				depth == 2 &&
-				element.Name.Local == "sheets" {
-				sheetsDepth = depth
-				continue
-			}
-			if sheetsDepth == 0 ||
-				depth != sheetsDepth+1 ||
-				element.Name.Local != "sheet" {
-				continue
-			}
-			reference := xlsxSheetReference{}
-			for _, attribute := range element.Attr {
-				switch attribute.Name.Local {
-				case "name":
-					reference.name = attribute.Value
-				case "id":
-					reference.relationshipID = attribute.Value
-				}
-			}
-			if reference.name == "" || reference.relationshipID == "" {
-				return xlsxSheetReference{}, xlsxPresenceError(errors.New(
-					"worksheet declaration is invalid",
-				))
-			}
-			if requested == "" || reference.name == requested {
-				return reference, nil
-			}
-		case xml.EndElement:
-			if depth == sheetsDepth {
-				sheetsDepth = 0
-			}
-			depth--
+		if requested == "" || sheet.Name == requested {
+			return xlsxSheetReference{name: sheet.Name, relationshipID: sheet.RelationshipID}, nil
 		}
 	}
 	return xlsxSheetReference{}, xlsxPresenceError(errors.New(
@@ -150,52 +119,27 @@ func xlsxWorksheetTarget(
 	}
 	defer func() { _ = reader.Close() }()
 
-	decoder := xml.NewDecoder(reader)
-	depth := 0
-	for {
-		token, tokenErr := decoder.Token()
-		if errors.Is(tokenErr, io.EOF) {
-			break
+	var relationships struct {
+		Entries []struct {
+			ID         string `xml:"Id,attr"`
+			Target     string `xml:"Target,attr"`
+			Type       string `xml:"Type,attr"`
+			TargetMode string `xml:"TargetMode,attr"`
+		} `xml:"Relationship"`
+	}
+	if err = xml.NewDecoder(reader).Decode(&relationships); err != nil {
+		return "", xlsxPresenceError(err)
+	}
+	for _, relationship := range relationships.Entries {
+		if relationship.ID != relationshipID {
+			continue
 		}
-		if tokenErr != nil {
-			return "", xlsxPresenceError(tokenErr)
+		if relationship.Target == "" ||
+			strings.EqualFold(relationship.TargetMode, "External") ||
+			!strings.HasSuffix(strings.ToLower(relationship.Type), "/worksheet") {
+			return "", xlsxPresenceError(errors.New("worksheet relationship is invalid"))
 		}
-		switch element := token.(type) {
-		case xml.StartElement:
-			depth++
-			if depth != 2 || element.Name.Local != "Relationship" {
-				continue
-			}
-			var id, target, relationshipType, targetMode string
-			for _, attribute := range element.Attr {
-				switch attribute.Name.Local {
-				case "Id":
-					id = attribute.Value
-				case "Target":
-					target = attribute.Value
-				case "Type":
-					relationshipType = attribute.Value
-				case "TargetMode":
-					targetMode = attribute.Value
-				}
-			}
-			if id != relationshipID {
-				continue
-			}
-			if target == "" ||
-				strings.EqualFold(targetMode, "External") ||
-				!strings.HasSuffix(
-					strings.ToLower(relationshipType),
-					"/worksheet",
-				) {
-				return "", xlsxPresenceError(errors.New(
-					"worksheet relationship is invalid",
-				))
-			}
-			return target, nil
-		case xml.EndElement:
-			depth--
-		}
+		return relationship.Target, nil
 	}
 	return "", xlsxPresenceError(errors.New(
 		"worksheet relationship was not found",
@@ -248,38 +192,34 @@ func (source *xlsxPresenceSource) nextDeclaredRow() (
 		}
 		switch element := token.(type) {
 		case xml.StartElement:
-			if element.Name.Local != "row" {
-				continue
-			}
-			row := source.lastDeclaredRow + 1
-			for _, attribute := range element.Attr {
-				if attribute.Name.Local != "r" {
-					continue
-				}
-				row, err = strconv.Atoi(attribute.Value)
-				if err != nil || row <= 0 {
-					return 0, nil, errors.New(
-						"worksheet row reference is invalid",
-					)
-				}
-			}
-			if row <= source.lastDeclaredRow {
-				return 0, nil, errors.New(
-					"worksheet rows are not ordered",
-				)
-			}
-			cells, err := source.readDeclaredRow(row)
-			if err != nil {
-				return 0, nil, err
-			}
-			source.lastDeclaredRow = row
-			return row, cells, nil
-		case xml.EndElement:
-			if element.Name.Local == "sheetData" {
-				return 0, nil, io.EOF
+			if element.Name.Local == "row" {
+				return source.readDeclaredRowElement(element)
 			}
 		}
 	}
+}
+
+func (source *xlsxPresenceSource) readDeclaredRowElement(element xml.StartElement) (int, []bool, error) {
+	row := source.lastDeclaredRow + 1
+	if reference, ok := xlsxAttribute(element.Attr, "r"); ok {
+		parsed, err := strconv.Atoi(reference)
+		if err != nil {
+			return 0, nil, errors.New("worksheet row reference is invalid")
+		}
+		row = parsed
+		if row <= 0 {
+			return 0, nil, errors.New("worksheet row reference is invalid")
+		}
+	}
+	if row <= source.lastDeclaredRow {
+		return 0, nil, errors.New("worksheet rows are not ordered")
+	}
+	cells, err := source.readDeclaredRow(row)
+	if err != nil {
+		return 0, nil, err
+	}
+	source.lastDeclaredRow = row
+	return row, cells, nil
 }
 
 func (source *xlsxPresenceSource) readDeclaredRow(row int) ([]bool, error) {
@@ -296,34 +236,21 @@ func (source *xlsxPresenceSource) readDeclaredRow(row int) ([]bool, error) {
 				if err = source.decoder.Skip(); err != nil {
 					return nil, err
 				}
-				continue
-			}
-			column := nextColumn
-			for _, attribute := range element.Attr {
-				if attribute.Name.Local != "r" {
-					continue
+			} else {
+				column := nextColumn
+				if reference, ok := xlsxAttribute(element.Attr, "r"); ok {
+					var referencedRow int
+					column, referencedRow, err = excelize.CellNameToCoordinates(reference)
+					if err != nil || referencedRow != row {
+						return nil, errors.New("worksheet cell reference is invalid")
+					}
 				}
-				var referencedRow int
-				column, referencedRow, err =
-					excelize.CellNameToCoordinates(attribute.Value)
-				if err != nil || referencedRow != row {
-					return nil, errors.New(
-						"worksheet cell reference is invalid",
-					)
+				presence = append(presence, make([]bool, max(0, column-len(presence)))...)
+				presence[column-1] = true
+				nextColumn = max(nextColumn, column+1)
+				if err = source.decoder.Skip(); err != nil {
+					return nil, err
 				}
-			}
-			if len(presence) < column {
-				presence = append(
-					presence,
-					make([]bool, column-len(presence))...,
-				)
-			}
-			presence[column-1] = true
-			if column >= nextColumn {
-				nextColumn = column + 1
-			}
-			if err = source.decoder.Skip(); err != nil {
-				return nil, err
 			}
 		case xml.EndElement:
 			if element.Name.Local == "row" {
@@ -331,6 +258,16 @@ func (source *xlsxPresenceSource) readDeclaredRow(row int) ([]bool, error) {
 			}
 		}
 	}
+}
+
+func xlsxAttribute(attributes []xml.Attr, localName string) (string, bool) {
+	index := slices.IndexFunc(attributes, func(attribute xml.Attr) bool {
+		return attribute.Name.Local == localName
+	})
+	if index < 0 {
+		return "", false
+	}
+	return attributes[index].Value, true
 }
 
 func (source *xlsxPresenceSource) Close() error {

@@ -615,7 +615,6 @@ func TestDelimitedRecordLimitReaderBoundsBeforeParserAllocation(t *testing.T) {
 	observer := delimitedRecordLimitReader{
 		delimiter:    []byte(","),
 		atFieldStart: true,
-		atLineStart:  true,
 	}
 	for _, value := range []byte{'"', 'a', '"', '"', '"', ',', '\n'} {
 		observer.observe(value)

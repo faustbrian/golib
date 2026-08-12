@@ -71,7 +71,7 @@ func NewFixedWidthReader(source io.Reader, config FixedWidthConfig) (*FixedWidth
 		maxRecordBytes = defaultMaxRecordBytes
 	}
 	scanner := bufio.NewScanner(source)
-	scanner.Buffer(make([]byte, min(64*1024, maxRecordBytes)), maxRecordBytes)
+	scanner.Buffer(nil, maxRecordBytes)
 
 	return &FixedWidthReader{
 		scanner:             scanner,
@@ -118,12 +118,8 @@ func (reader *FixedWidthReader) Read() (Row, error) {
 
 	row := make(Row, len(reader.fields))
 	for index, field := range reader.fields {
-		start, end := field.Start, field.End
-		if start >= len(record) {
-			start, end = len(record), len(record)
-		} else if end > len(record) {
-			end = len(record)
-		}
+		start := min(field.Start, len(record))
+		end := min(field.End, len(record))
 		value, err := DecodeBytes(record[start:end], reader.encoding)
 		if err != nil {
 			return nil, reader.rowError(ErrorInvalidEncoding, index+1, err)

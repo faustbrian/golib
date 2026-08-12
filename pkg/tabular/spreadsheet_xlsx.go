@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"slices"
 	"strings"
 
 	"github.com/xuri/excelize/v2"
@@ -41,14 +42,8 @@ func openXLSXRows(source io.ReaderAt, size int64, config SpreadsheetConfig) (spr
 	if err = validateXLSXWorksheets(archive); err != nil {
 		return nil, err
 	}
-	maxTotal := config.ZIP.MaxTotalBytes
-	if maxTotal == 0 {
-		maxTotal = defaultMaxZIPTotalBytes
-	}
-	maxEntry := config.ZIP.MaxEntryBytes
-	if maxEntry == 0 {
-		maxEntry = defaultMaxZIPEntryBytes
-	}
+	maxTotal := zipLimitOrDefault(config.ZIP.MaxTotalBytes, defaultMaxZIPTotalBytes)
+	maxEntry := zipLimitOrDefault(config.ZIP.MaxEntryBytes, defaultMaxZIPEntryBytes)
 	if maxTotal > math.MaxInt64 || maxEntry > math.MaxInt64 {
 		return nil, &Error{Kind: ErrorInvalidConfig, Op: "spreadsheet.open", Format: string(FormatXLSX), Err: errors.New("ZIP limits exceed supported integer range")}
 	}
@@ -67,17 +62,12 @@ func openXLSXRows(source io.ReaderAt, size int64, config SpreadsheetConfig) (spr
 	}
 	sheet := sheets[0]
 	if config.Sheet != "" {
-		sheet = ""
-		for _, candidate := range sheets {
-			if candidate == config.Sheet {
-				sheet = candidate
-				break
-			}
-		}
-		if sheet == "" {
+		index := slices.Index(sheets, config.Sheet)
+		if index < 0 {
 			_ = workbook.Close()
 			return nil, &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.sheet", Format: string(FormatXLSX), Err: errors.New("sheet not found")}
 		}
+		sheet = sheets[index]
 	}
 	rows, err := workbook.Rows(sheet)
 	if err != nil {
@@ -101,6 +91,15 @@ func openXLSXRows(source io.ReaderAt, size int64, config SpreadsheetConfig) (spr
 	}, nil
 }
 
+func zipLimitOrDefault(value, fallback uint64) uint64 {
+	switch value {
+	case 0:
+		return fallback
+	default:
+		return value
+	}
+}
+
 func validateXLSXSheetLimit(archive *ZIPArchive, maximum int) error {
 	if maximum == 0 {
 		return nil
@@ -111,54 +110,21 @@ func validateXLSXSheetLimit(archive *ZIPArchive, maximum int) error {
 	}
 	defer func() { _ = reader.Close() }()
 
-	decoder := xml.NewDecoder(reader)
-	depth := 0
-	sheetsDepth := 0
-	count := 0
-	for {
-		token, tokenErr := decoder.Token()
-		if errors.Is(tokenErr, io.EOF) {
-			return nil
-		}
-		if tokenErr != nil {
-			return &Error{
-				Kind:   ErrorSpreadsheet,
-				Op:     "spreadsheet.validate",
-				Format: string(FormatXLSX),
-				Err:    tokenErr,
-			}
-		}
-		switch element := token.(type) {
-		case xml.StartElement:
-			depth++
-			if sheetsDepth == 0 &&
-				depth == 2 &&
-				element.Name.Local == "sheets" {
-				sheetsDepth = depth
-				continue
-			}
-			if sheetsDepth != 0 &&
-				depth == sheetsDepth+1 &&
-				element.Name.Local == "sheet" {
-				count++
-				if count > maximum {
-					return &Error{
-						Kind:   ErrorLimitExceeded,
-						Op:     "spreadsheet.open",
-						Format: string(FormatXLSX),
-						Err: errors.New(
-							"workbook contains too many worksheets",
-						),
-					}
-				}
-			}
-		case xml.EndElement:
-			if depth == sheetsDepth {
-				sheetsDepth = 0
-			}
-			depth--
+	var manifest struct {
+		Sheets []struct{} `xml:"sheets>sheet"`
+	}
+	if err = xml.NewDecoder(reader).Decode(&manifest); err != nil {
+		return &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.validate", Format: string(FormatXLSX), Err: err}
+	}
+	if len(manifest.Sheets) > maximum {
+		return &Error{
+			Kind:   ErrorLimitExceeded,
+			Op:     "spreadsheet.open",
+			Format: string(FormatXLSX),
+			Err:    errors.New("workbook contains too many worksheets"),
 		}
 	}
+	return nil
 }
 
 func validateXLSXWorksheets(archive *ZIPArchive) error {
@@ -170,14 +136,9 @@ func validateXLSXWorksheets(archive *ZIPArchive) error {
 		if err != nil {
 			return err
 		}
-		decoder := xml.NewDecoder(reader)
-		for {
-			if _, err = decoder.Token(); err != nil {
-				break
-			}
-		}
+		err = xml.NewDecoder(reader).Decode(&struct{}{})
 		_ = reader.Close()
-		if err != nil && !errors.Is(err, io.EOF) {
+		if err != nil {
 			return &Error{Kind: ErrorSpreadsheet, Op: "spreadsheet.validate", Format: string(FormatXLSX), Err: err}
 		}
 	}

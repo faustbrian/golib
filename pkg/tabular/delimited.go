@@ -70,19 +70,14 @@ func newDelimitedReader(source io.Reader, config DelimitedConfig, format string)
 
 	parserSource := source
 	if config.MaxRecordBytes > 0 {
-		var comment []byte
-		if config.Comment != 0 {
-			comment = []byte(string(config.Comment))
-		}
+		// The CSV parser owns comment skipping. A comment marker is ordinary
+		// unquoted content here, so later quotes cannot open a multiline record.
 		parserSource = &delimitedRecordLimitReader{
 			source:       source,
 			maximum:      config.MaxRecordBytes,
-			lazyQuotes:   config.LazyQuotes,
 			trimLeading:  config.TrimLeadingSpace,
 			delimiter:    []byte(string(config.Delimiter)),
-			comment:      comment,
 			atFieldStart: true,
-			atLineStart:  true,
 		}
 	}
 	parser := csv.NewReader(bufio.NewReaderSize(parserSource, delimitedReadBufferSize))
@@ -176,7 +171,7 @@ func (reader *DelimitedReader) readRecord() (Row, error) {
 
 	row := reader.row + 1
 	var parseErr *csv.ParseError
-	if errors.As(err, &parseErr) && parseErr.Line > 0 {
+	if errors.As(err, &parseErr) {
 		row = parseErr.Line
 	}
 	if reader.maxFieldBytes > 0 {
@@ -221,15 +216,10 @@ type delimitedRecordLimitReader struct {
 	quoteCarriage    bool
 	quoteDelimiterAt int
 	limitErr         error
-	lazyQuotes       bool
 	trimLeading      bool
 	delimiter        []byte
 	delimiterAt      int
-	comment          []byte
-	commentAt        int
-	inComment        bool
 	atFieldStart     bool
-	atLineStart      bool
 	leadingBytes     [utf8.UTFMax]byte
 	leadingBytesAt   int
 }
@@ -258,24 +248,14 @@ func (reader *delimitedRecordLimitReader) observeBytes(values []byte) (int, bool
 			}
 			continue
 		}
-		if reader.inQuotes && !reader.quotePending &&
-			!reader.quoteCarriage && reader.quoteDelimiterAt == 0 {
-			quoteAt := bytes.IndexByte(values[index:], '"')
-			length := len(values) - index
-			if quoteAt >= 0 {
-				length = quoteAt + 1
-			}
-			consumed, exceeded := reader.advance(length)
+		if reader.canObserveQuotedRun() {
+			consumed, exceeded := reader.observeQuotedRun(values[index:])
 			index += consumed
 			if exceeded {
 				return index, true
 			}
-			if quoteAt >= 0 {
-				reader.quotePending = true
-			}
 			continue
 		}
-
 		consumed, exceeded := reader.advance(1)
 		index += consumed
 		if exceeded {
@@ -286,10 +266,36 @@ func (reader *delimitedRecordLimitReader) observeBytes(values []byte) (int, bool
 	return index, false
 }
 
+func (reader *delimitedRecordLimitReader) canObserveQuotedRun() bool {
+	switch {
+	case !reader.inQuotes:
+		return false
+	case reader.quotePending:
+		return false
+	case reader.quoteCarriage:
+		return false
+	case reader.quoteDelimiterAt != 0:
+		return false
+	default:
+		return true
+	}
+}
+
+func (reader *delimitedRecordLimitReader) observeQuotedRun(values []byte) (int, bool) {
+	quoteAt := bytes.IndexByte(values, '"')
+	length := len(values)
+	if quoteAt >= 0 {
+		length = quoteAt + 1
+	}
+	consumed, exceeded := reader.advance(length)
+	if !exceeded && quoteAt >= 0 {
+		reader.quotePending = true
+	}
+	return consumed, exceeded
+}
+
 func (reader *delimitedRecordLimitReader) canObserveSimple() bool {
-	return !reader.inQuotes && !reader.inComment &&
-		!reader.trimLeading && len(reader.comment) == 0 &&
-		len(reader.delimiter) == 1
+	return !reader.inQuotes && !reader.trimLeading && len(reader.delimiter) == 1
 }
 
 func (reader *delimitedRecordLimitReader) observeSimple(values []byte) (int, bool) {
@@ -345,7 +351,7 @@ func (reader *delimitedRecordLimitReader) observePlain(values []byte) (int, bool
 func (reader *delimitedRecordLimitReader) advance(length int) (int, bool) {
 	remaining := reader.maximum - reader.recordBytes
 	if length > remaining {
-		reader.recordBytes += remaining
+		reader.recordBytes = reader.maximum
 		return remaining, true
 	}
 	reader.recordBytes += length
@@ -353,9 +359,6 @@ func (reader *delimitedRecordLimitReader) advance(length int) (int, bool) {
 }
 
 func (reader *delimitedRecordLimitReader) observe(value byte) {
-	if reader.observeComment(value) {
-		return
-	}
 	if reader.inQuotes {
 		reader.observeQuoted(value)
 		return
@@ -364,40 +367,15 @@ func (reader *delimitedRecordLimitReader) observe(value byte) {
 		reader.resetRecord()
 		return
 	}
-	if reader.atFieldStart && reader.trimLeading {
+	if reader.atFieldStart {
+		if !reader.trimLeading {
+			reader.observeUnquoted(value)
+			return
+		}
 		reader.observeLeading(value)
 		return
 	}
 	reader.observeUnquoted(value)
-}
-
-func (reader *delimitedRecordLimitReader) observeComment(value byte) bool {
-	if reader.inComment {
-		if value == '\n' {
-			reader.resetRecord()
-		}
-		return true
-	}
-	if !reader.atLineStart || len(reader.comment) == 0 {
-		return false
-	}
-	if value == reader.comment[reader.commentAt] {
-		reader.commentAt++
-		if reader.commentAt == len(reader.comment) {
-			reader.inComment = true
-			reader.commentAt = 0
-		}
-		return true
-	}
-
-	reader.atLineStart = false
-	prefixLength := reader.commentAt
-	reader.commentAt = 0
-	for index := range prefixLength {
-		reader.observe(reader.comment[index])
-	}
-	reader.observe(value)
-	return true
 }
 
 func (reader *delimitedRecordLimitReader) observeQuoted(value byte) {
@@ -444,7 +422,7 @@ func (reader *delimitedRecordLimitReader) observeQuoted(value byte) {
 	case '\r':
 		reader.quoteCarriage = true
 	default:
-		if len(reader.delimiter) > 0 && value == reader.delimiter[0] {
+		if value == reader.delimiter[0] {
 			reader.quoteDelimiterAt = 1
 			if len(reader.delimiter) == 1 {
 				reader.inQuotes = false
@@ -475,8 +453,10 @@ func (reader *delimitedRecordLimitReader) observeLeading(value byte) {
 	}
 
 	runeValue, size := utf8.DecodeRune(bytes)
-	if runeValue != utf8.RuneError && size == reader.leadingBytesAt &&
-		unicode.IsSpace(runeValue) {
+	switch {
+	case runeValue == utf8.RuneError:
+	case size != reader.leadingBytesAt:
+	case unicode.IsSpace(runeValue):
 		reader.leadingBytesAt = 0
 		return
 	}
@@ -487,10 +467,10 @@ func (reader *delimitedRecordLimitReader) observeLeading(value byte) {
 }
 
 func (reader *delimitedRecordLimitReader) observeUnquoted(value byte) {
-	if reader.delimiterAt > 0 && reader.observeDelimiter(value) {
-		return
-	}
 	if value == '"' {
+		if reader.delimiterAt != 0 {
+			_ = reader.observeDelimiter(value)
+		}
 		if reader.atFieldStart {
 			reader.inQuotes = true
 			reader.quotePending = false
@@ -517,13 +497,11 @@ func (reader *delimitedRecordLimitReader) observeDelimiter(value byte) bool {
 		}
 		return true
 	}
-	if reader.delimiterAt > 0 {
-		reader.atFieldStart = false
-		reader.delimiterAt = 0
-		if value == reader.delimiter[0] {
-			reader.delimiterAt = 1
-			return true
-		}
+	reader.atFieldStart = false
+	reader.delimiterAt = 0
+	if value == reader.delimiter[0] {
+		reader.delimiterAt = 1
+		return true
 	}
 	return false
 }
@@ -535,10 +513,7 @@ func (reader *delimitedRecordLimitReader) resetRecord() {
 	reader.quoteCarriage = false
 	reader.quoteDelimiterAt = 0
 	reader.delimiterAt = 0
-	reader.commentAt = 0
-	reader.inComment = false
 	reader.atFieldStart = true
-	reader.atLineStart = true
 	reader.leadingBytesAt = 0
 }
 
