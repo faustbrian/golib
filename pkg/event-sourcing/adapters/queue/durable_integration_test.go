@@ -203,7 +203,12 @@ func TestValkeyStreamFailuresRemainEligibleForRedelivery(t *testing.T) {
 				queuepkg.WithWorker(failedWorker),
 				queuepkg.WithWorkerCount(1),
 				queuepkg.WithLogger(queuepkg.NewEmptyLogger()),
-				queuepkg.WithAfterFn(func() { failedDone <- struct{}{} }),
+				queuepkg.WithAfterFn(func() {
+					select {
+					case failedDone <- struct{}{}:
+					default:
+					}
+				}),
 			)
 			if queueErr != nil {
 				t.Fatalf("NewQueue(failing) error = %v", queueErr)
@@ -251,7 +256,12 @@ func TestValkeyStreamFailuresRemainEligibleForRedelivery(t *testing.T) {
 				queuepkg.WithWorker(recoveryWorker),
 				queuepkg.WithWorkerCount(1),
 				queuepkg.WithLogger(queuepkg.NewEmptyLogger()),
-				queuepkg.WithAfterFn(func() { recoveryDone <- struct{}{} }),
+				queuepkg.WithAfterFn(func() {
+					select {
+					case recoveryDone <- struct{}{}:
+					default:
+					}
+				}),
 			)
 			if queueErr != nil {
 				t.Fatalf("NewQueue(recovery) error = %v", queueErr)
