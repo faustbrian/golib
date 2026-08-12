@@ -1430,6 +1430,7 @@
           "identity/magiclink",
           "identity/oauth",
           "identity/oauth/onetap",
+          "identity/oauth/postgres",
           "identity/oauth/proxy",
           "identity/password",
           "identity/session",
@@ -1438,6 +1439,7 @@
           "oauth-server/oidc",
           "organization",
           "sso/domain-verification",
+          "sso/postgres",
           "sso/saml",
           "webauthn"
         ],
@@ -11904,8 +11906,8 @@
       "public_contracts_org_scim.json": "sha256:314a51efa7df060d01984894d149af19883bd85a806bd7c95148c859aa293f83",
       "public_contracts_risk_delivery.json": "sha256:bb755ec68d49827b72ba27d9e496d98fe957f7b468c2455b32883dd49830806b"
     },
-    "public_contracts.rb": "sha256:89809c29f9e47ed03377fb6ff4934e3d197cc5232295fb0c283a1b20c7e5293d",
-    "public_contracts_meta.json": "sha256:c7488bd2ffdd8e920e9e634b40d9508c1e36b5d7583c2886cef6ccfd60fa8136"
+    "public_contracts.rb": "sha256:6382dde49786aacc5a0aeba818d1c047a72bd9079ebfb87e546c34aa4024259d",
+    "public_contracts_meta.json": "sha256:a32a4bcb2574e0e1fb0c5d366a66caddfe9e2f66c740b592405f8f2472ba237b"
   },
   "types": [
     {

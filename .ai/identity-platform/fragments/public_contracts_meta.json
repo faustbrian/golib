@@ -300,6 +300,7 @@
           "identity/magiclink",
           "identity/oauth",
           "identity/oauth/onetap",
+          "identity/oauth/postgres",
           "identity/oauth/proxy",
           "identity/password",
           "identity/session",
@@ -308,6 +309,7 @@
           "oauth-server/oidc",
           "organization",
           "sso/domain-verification",
+          "sso/postgres",
           "sso/saml",
           "webauthn"
         ],
@@ -327,7 +329,17 @@
           "capability"
         ],
         "consumers": [
+          "identity/magiclink",
+          "identity/mfa/postgres",
           "identity/oauth/postgres",
+          "identity/otp",
+          "identity/reference",
+          "identity/session",
+          "oauth-server",
+          "oauth-server/device",
+          "oauth-server/postgres",
+          "organization",
+          "sso",
           "sso/postgres"
         ],
         "required_contract_sha256": "sha256:670937908b9793ccb7fae6865dbe35291a2474356829a27f19a8749bdd1ada7b",

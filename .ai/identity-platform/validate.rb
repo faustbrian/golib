@@ -3110,6 +3110,9 @@ def primitive_extension_inventory_errors(public_contracts:, rows:, goal_bodies:,
     end
     errors << "primitive extension #{authority} required digest is invalid" unless requirement["required_contract_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
     derived_consumers = derived_primitive_consumers(public_contracts, requirement)
+    dependent_consumers = extension_requirements.select { |candidate| candidate.fetch("depends_on").include?(authority) }
+      .flat_map { |candidate| candidate.fetch("consumers") }
+    derived_consumers = (derived_consumers + dependent_consumers).sort_by(&:b).uniq
     derived_consumers_by_authority[authority] = derived_consumers
     errors << "primitive extension #{authority} consumer derivation drifted" unless requirement["consumers"] == derived_consumers
   end

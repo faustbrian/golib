@@ -665,7 +665,10 @@ def validate_required_extensions!(meta, external, units, fragments)
       end
     end
     derived_consumers = derived_consumers.uniq.sort
-    fail_contract("#{authority} consumer closure drifted: declared #{consumers}, derived #{derived_consumers}") unless consumers == derived_consumers
+    dependent_authorities = schedule.select { |candidate| candidate.fetch("depends_on").include?(authority) }
+    derived_consumers = (derived_consumers + dependent_authorities.flat_map { |candidate| candidate.fetch("consumers") }).uniq.sort
+    missing_derived_consumers = derived_consumers - consumers
+    fail_contract("#{authority} consumer closure omits symbol-derived consumers #{missing_derived_consumers}") unless missing_derived_consumers.empty?
   end
 
   capability_extensions = schedule.select { |row| %w[capability capability/postgres].include?(row.fetch("unit")) }
