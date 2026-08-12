@@ -133,6 +133,28 @@ and verification, and the pinned proof corpus exercised here. It is not
 evidence that untested hostile-input behavior, dependency-level cancellation,
 side-channel behavior, or production suitability remain compatible.
 
+The cryptographic-definition trace was refreshed on 2026-08-12 against the
+exact resolved graph and the pinned Rust revision. Both lineages agree on the
+numeric base and scalar moduli, twisted-Edwards equation, cofactor, base
+generator, Banderwagon equivalence relation and subgroup predicate, canonical
+point/scalar encodings, generator try-and-increment procedure, `Q`, transcript
+byte state, multiproof labels and order, and eight-round IPA operations. The
+normative profile now states those values and algorithms directly rather than
+requiring readers to infer them from dependency code. Exact source-file hashes
+and Rust crate checksums are recorded in `specification/sources.json`.
+
+That trace also identified an unresolved proof-soundness boundary. Challenge
+derivation reduces one SHA-256 digest into the scalar field without rejection
+sampling. The Go field implementation maps inverse zero to zero; the Rust
+prover unwraps and panics for a zero IPA folding challenge; and neither
+reference defines one checked failure result for zero `r` or `w`, or for `t`
+equal to an opening-domain point. These are negligible-probability transcript
+events in the random-oracle model, not known practical preimages, but their
+failure behavior is not interoperable or proven sound. The v0 profile records
+the exact divergence. Stable profile freeze and complete proof-soundness claims
+remain blocked until a versioned reject-or-retry rule is implemented and
+independently reproduced.
+
 ## Evidence
 
 At the pinned revision:
@@ -268,6 +290,11 @@ Proof APIs accept pointer-rich inputs without package-level nil, size, work,
 or cancellation budgets. The tree boundary must validate every count and
 encoding before invoking proof verification and must convert malformed input
 into typed errors without panic.
+
+The backend also exposes no challenge hook or failure result for degenerate
+Fiat-Shamir outputs. A stable backend must reject or retry every zero challenge
+or challenge-derived zero opening denominator according to the future profile
+without panic, transcript ambiguity, or prover/verifier divergence.
 
 ### Side-channel and maintenance evidence
 

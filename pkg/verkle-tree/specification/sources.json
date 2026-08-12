@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "captured_on": "2026-08-04",
+  "captured_on": "2026-08-12",
   "profile_status": "not-frozen",
   "imports": [
     {
@@ -16,7 +16,11 @@
           "revision": "49879afc0859220afd5165bc6cafc1ee0a6e987a",
           "sum": "h1:PXDUBvk8AzhvWowHLWBEAfUQcV1/aZgWIqD6eMpXmDg=",
           "license": "Apache-2.0",
-          "compatibility_scope": "internal canonical point and scalar encodings plus the bounded serial vector-commitment corpus"
+          "compatibility_scope": "internal canonical point and scalar encodings plus the bounded serial vector-commitment corpus",
+          "source_files": {
+            "ecc/bls12-381/bandersnatch/curve.go": "ee18e94e1356dc0934c4ad00dcbcb8f04eb1e04c28afdb053bf079df3ba4e9bd",
+            "ecc/bls12-381/fr/element.go": "ba61a4f958b9bd8dda0d41a9927c12ea46df57f2e33c7b8cb410bd43c828fb02"
+          }
         },
         {
           "module": "golang.org/x/sync",
@@ -1127,7 +1131,12 @@
         "Apache-2.0": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
       },
       "source_files": {
+        "bandersnatch/bandersnatch.go": "a5807753b36e627a3efc63f2f18f8cb7c5fd11064761066789d96a7b0b6d9766",
+        "bandersnatch/fp/fp.go": "887ffbae0eb3b0a3239dfdff0d74da4a6dc6ff3c9093bd833d6bf43010f0cf0e",
+        "bandersnatch/fr/doc.go": "0ed329bcbfd8ee2ab697e8d6a7c8aa1652507a42cfc344a74809955ab70ce2c4",
+        "banderwagon/element.go": "d3ad86470a4c0b66b5bc4636aabdae43804d0711395c8c5ef8d85fcfa2e67314",
         "common/parallel/execute.go": "693ee8aa7dcbc7333410ac5e2d7e4d900821bbb98a8a2933b959d6bfb15f3c26",
+        "common/transcript.go": "27551941dc3b492f918912054e4761b6ffbea5916f64880f37d35a2061f3f74e",
         "multiproof.go": "fdbb6b5a544efd852a94b78690354b6e02e25ac0c10bec9ad36a18be8a699906",
         "bandersnatch/multiexp.go": "fb86629fdc225ac9879cfea01de89c05ac464e64c8355c842708af5e4654a6d0",
         "banderwagon/precomp.go": "fbdc4c6b00008b1af1b8a049ea0f0d7a907b64b87b4800713c31a346d10d0a4e",
@@ -1182,6 +1191,22 @@
       "license_files": {
         "MIT": "72163b4ed5befd0843f7c968c7fcb69816bde7e57b0600c6eaa44ee3f7af979f",
         "Apache-2.0": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4"
+      },
+      "source_files": {
+        "banderwagon/docs/1-understand-banderwagon-high-level.md": "ed9aff41f9058c5d5ba92b12b9bdf20cfd0b4f4d0624800aa8e19250df4e9cdd",
+        "banderwagon/docs/3-understand-banderwagon-point-halving.md": "acf9203b4c95480fd2e85a4cd4b9caf3740ff6a735c919ee2a083583096bc2ab",
+        "banderwagon/src/element.rs": "92bb2c5cdc7bfce34224d35b029f9dff5aaa868c7b66394efa80e60d0e6ec442",
+        "banderwagon/src/lib.rs": "0c77175e767fedd16f15b24e2e406c532ec668478e69aa966ad653942a76e510",
+        "ipa-multipoint/src/crs.rs": "2e65ca470354985d435acf7b8863e02142e81e0eea8d8a962c70fe266239fcc2",
+        "ipa-multipoint/src/ipa.rs": "97d0f11b86cc99b91c84016d39981f1ab2bdcfb684e730d4204d817ae64547c7",
+        "ipa-multipoint/src/multiproof.rs": "d9948f452872d755f42a4d8653bef7b6eeb2e77ed0b3aa39c56dc0e202fdbd57",
+        "ipa-multipoint/src/transcript.rs": "6e006650b2c7efb14ceee8aabe7f24f343480ee5c471953a2b7533689b2e114d"
+      },
+      "resolved_cryptographic_crates": {
+        "ark-bls12-381@0.4.0": "c775f0d12169cba7aae4caeb547bb6a50781c7449a8aa53793827c9ec4abf488",
+        "ark-ed-on-bls12-381-bandersnatch@0.4.0": "f9cde0f2aa063a2a5c28d39b47761aa102bda7c13c84fc118a61b87c7b2f785c",
+        "ark-ff@0.4.2": "ec847af850f44ad29048935519032c33da8aa03340876d351dfab5660d2966ba",
+        "sha2@0.9.9": "4d58a1e1bf39749807d89cf2d98ac2dfa0ff1cb3faa38fbb64dd88ac8013d800"
       },
       "reproducible": true,
       "review_status": "research-only-upstream-warns-unsafe"

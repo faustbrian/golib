@@ -59,6 +59,144 @@ they are not registries for independently configurable cryptographic
 components. An implementation MUST reject the zero profile and any internally
 inconsistent representation before cryptographic work.
 
+## Fixed Field, Curve, And Quotient Group
+
+All arithmetic below uses two different prime fields:
+
+| Symbol | Meaning | Modulus |
+| --- | --- | --- |
+| `Fp` | Bandersnatch base field | `52435875175126190479447740508185965837690552500527637822603658699938581184513` |
+| `Fr` | Bandersnatch scalar field and Banderwagon group order | `13108968793781547619861935127046491459309155893440570251786403306729687672801` |
+
+An implementation MUST NOT exchange these fields. A canonical `Fp` or `Fr`
+integer MUST be in the half-open interval from zero through one less than its
+respective modulus.
+
+Bandersnatch is the twisted Edwards curve over `Fp`:
+
+```
+-5*x^2 + y^2 = 1 + d*x^2*y^2
+d = 45022363124591815672509500913686876175488063829319466900776701791074614335719
+```
+
+Both `-5` and `d` are quadratic nonresidues in `Fp`.
+
+The complete curve has cofactor four and prime subgroup order `Fr`. The fixed
+prime-subgroup generator has affine coordinates:
+
+```
+x = 18886178867200960497001835917649091219057080094937609519140440539760939937304
+y = 19188667384257783945677642223292697773471335439753913231509108946878080696678
+```
+
+Banderwagon is the prime-order quotient used for commitments. Accepted affine
+representatives MUST be on Bandersnatch and MUST satisfy that
+`1 - (-5)*x^2` is a nonzero quadratic residue in `Fp`. The identity class
+satisfies this condition: the rational two-torsion point `(0,-1)` and the
+Edwards identity `(0,1)` are representatives of that one quotient element.
+Representatives `(x,y)` and `(-x,-y)` denote the same Banderwagon element; no
+other sign substitution does. Group equality MUST therefore compare
+`x1*y2 == x2*y1`, not raw affine coordinates.
+
+Projective points with `Z = 0`, malformed affine pairs, exceptional points,
+off-curve points, and representatives failing the subgroup condition MUST NOT
+enter a commitment, generator set, transcript, proof, node, or root. The
+mathematical Banderwagon group has order `Fr`; scalar multiplication MUST use
+canonical `Fr` scalars.
+
+### Canonical Scalar And Point Encodings
+
+An `Fr` scalar MUST be encoded as exactly 32 little-endian bytes. Decoding MUST
+interpret those bytes without reduction and reject integers greater than or
+equal to the `Fr` modulus. Encoding MUST emit the unique canonical bytes.
+
+A Banderwagon point MUST be encoded as exactly 32 big-endian bytes. For a
+representative `(x,y)`, let `positive(y)` mean that the canonical integer for
+`y` is strictly greater than the canonical integer for `-y`. The encoded
+integer is `x` when `positive(y)` is true and `-x mod Fp` otherwise. It MUST be
+canonical in `Fp`.
+
+Decoding a point MUST:
+
+1. parse the 32 bytes as one canonical big-endian `Fp` integer `x` without
+   reduction;
+2. compute `y^2 = ((-5)*x^2 - 1) / (d*x^2 - 1)` in `Fp` and reject a
+   nonsquare result; `d*x^2 - 1` cannot be zero for any `x` in `Fp` because
+   `d` is a quadratic nonresidue;
+3. choose the square root whose canonical integer is strictly greater than
+   its negation;
+4. enforce the Banderwagon subgroup condition above; and
+5. re-encode the result and require byte-for-byte equality with the input.
+
+The unique compressed identity encoding is 32 zero bytes. Profile containers
+MUST handle it only in the explicit contexts that permit an identity; roots,
+stored non-identity commitments, path commitments, and standalone commitments
+MUST reject it. A point at infinity has no canonical encoding.
+
+## Fixed Generators And Setup
+
+The profile has no secret or ceremony-generated setup. Its ordered generator
+vector `G[0..255]` MUST be produced by this deterministic try-and-increment
+procedure:
+
+1. set the ASCII seed to `eth_verkle_oct_2021` and the unsigned counter to
+   zero;
+2. compute `SHA-256(seed || uint64_be(counter))`;
+3. interpret the digest as a big-endian integer and reduce it modulo `Fp`;
+4. encode the result as a canonical 32-byte big-endian `Fp` integer and apply
+   the checked Banderwagon point decoder above;
+5. append the decoded element only when decoding succeeds;
+6. increment the counter after every attempt; and
+7. stop only after exactly 256 elements have been appended.
+
+The resulting elements MUST be distinct and in attempt order. Their canonical
+encodings MUST begin with
+`01587ad1336675eb912550ec2a28eb8923b824b490dd2ba82e48f14590a298a0`,
+end with
+`3de2be346b539395b0c0de56a5ccca54a317f1b5c80107b0802af9a62276a4d8`,
+and have SHA-256 digest
+`1fcaea10bf24f750200e06fa473c76ff0468007291fa548e2d99f09ba9256fdb`
+when all 256 canonical encodings are concatenated in order.
+
+The IPA auxiliary generator `Q` is not derived from that seed. It MUST be the
+fixed prime-subgroup generator above, whose canonical Banderwagon encoding is
+`4a2c7486fd924882bf02c6908de395122843e3e05264d7991e18e7985dad51e9`.
+An implementation MUST reject a substituted, reordered, duplicated, short, or
+surplus generator set and a substituted `Q` before proof work.
+
+## Transcript Byte State
+
+The transcript is an unframed byte transcript using SHA-256. It has one byte
+state `T` and MUST be initialized to the exact ASCII bytes `verkle`. Appending
+a message `M` under label `L` replaces `T` with `T || L || M`. Appending a
+domain separator `L` replaces `T` with `T || L`. Labels carry no terminator or
+length prefix, so their exact spelling and message lengths below are part of
+the profile.
+
+To derive a challenge under label `L`, an implementation MUST:
+
+1. set `digest = SHA-256(T || L)`;
+2. interpret `digest` as a 256-bit little-endian integer and reduce it modulo
+   `Fr` to obtain scalar `c`; and
+3. replace `T` with `L || scalar_le32(c)` before returning `c`.
+
+The previous byte state is therefore summarized only by the digest-derived
+challenge. Point messages use the canonical 32-byte point encoding above;
+scalar messages use canonical 32-byte little-endian `Fr` encoding. Challenge
+derivation performs exactly one hash and reduction and does not use rejection
+sampling.
+
+The pinned Go implementation defines inverse zero as zero. The pinned Rust
+prover instead panics when an IPA folding challenge `x` is zero, while its
+batch inversion leaves zero denominators unchanged. Neither reference rejects
+`r = 0`, `w = 0`, or `t` equal to an opening-domain point before continuing.
+These events have negligible probability under the random-oracle model but do
+not have one interoperable failure contract. The v0 research profile records
+that divergence and MUST NOT be promoted to stable or claimed to have complete
+proof-soundness semantics until a new profile version specifies and proves
+reject-or-retry behavior. Implementations MUST NOT silently change transcript
+bytes or rejection behavior while retaining the v0 identity.
+
 ## Out-of-scope semantics
 
 The following semantics are not part of this profile:
@@ -755,6 +893,62 @@ The internal pre-v1 aggregate-opening engine MUST bind width 256, the
 `eth_verkle_oct_2021` generator set, and the transcript label `verkle`. Callers
 MUST NOT select or replace the curve, field, width, generators, transcript, or
 proof encoding at runtime.
+
+For ordered queries `(C_i, f_i, z_i, y_i)`, `f_i` MUST be a complete vector of
+256 `Fr` evaluations over the domain `0..255`, `C_i = VC(f_i)`, and
+`y_i = f_i[z_i]`. The multiproof transcript MUST append domain separator
+`multiproof`, then append for each query in order:
+
+1. `C_i` under label `C`;
+2. scalar `Fr(z_i)` under label `z`; and
+3. `y_i` under label `y`.
+
+It MUST derive `r` under label `r` and use coefficients `r^i`, beginning with
+`r^0 = 1`. In polynomial notation over the evaluation domain, it MUST define:
+
+```
+g(X) = sum(r^i * (f_i(X) - y_i) / (X - z_i))
+D    = VC(g)
+```
+
+The prover MUST append `D` under label `D` and derive `t` under label `t`. It
+MUST then define:
+
+```
+h(X) = sum(r^i * f_i(X) / (t - z_i))
+E    = VC(h)
+q    = sum(r^i * y_i / (t - z_i))
+```
+
+The verifier MUST derive the same `E` directly as
+`sum(C_i * r^i / (t-z_i))`. Both sides MUST append `E` under label `E` and
+invoke the IPA for vector `h-g`, commitment `E-D`, evaluation point `t`, and
+claimed evaluation `q`.
+
+The IPA transcript MUST append domain separator `ipa`, then append `E-D` under
+label `C`, `t` under label `input point`, and `q` under label `output point`.
+It MUST derive `w` under label `w` and use `w*Q` as the auxiliary generator.
+For each of exactly eight folding rounds, the prover MUST split the current
+scalar, barycentric, and generator vectors into equal left and right halves and
+compute the following, where `MSM(B,s) = sum(s[j] * B[j])`:
+
+```
+L = MSM(G_left, a_right) + inner(a_right, b_left) * (w*Q)
+R = MSM(G_right, a_left) + inner(a_left, b_right) * (w*Q)
+```
+
+It MUST append `L` under label `L`, append `R` under label `R`, and derive `x`
+under label `x`. It MUST fold `a_left + x*a_right`,
+`b_left + inverse(x)*b_right`, and
+`G_left + inverse(x)*G_right`. After eight rounds, the sole remaining `a`
+scalar is proof scalar `A`. The verifier MUST reconstruct the same challenges
+and require the standard folded IPA equation represented by these operations;
+accepting only a subset of rounds or queries is forbidden.
+
+No labels, vector length, query count, or message lengths are separately
+framed by this raw protocol. Canonical query order, fixed-width encodings, the
+fixed eight-round proof shape, and the package-owned statement binding below
+are therefore REQUIRED to prevent ambiguous composition.
 
 Package-owned tree proofs MUST compute a statement binding as SHA-256 over the
 following concatenation, with no omitted or optional fields:

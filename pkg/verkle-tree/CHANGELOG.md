@@ -59,6 +59,10 @@ All notable changes to `verkle-tree` will be documented in this file.
 - Register the profile, pinned reference implementations, conformance corpora,
   provenance lock, and explicit pre-v1 interoperability decision with the
   repository specification gate.
+- Publish the exact field, curve, quotient-group, canonical encoding,
+  generator, auxiliary-generator, transcript, multiproof, and IPA definition,
+  while retaining degenerate Fiat-Shamir failure semantics as a stable-release
+  blocker.
 
 ### Added
 

@@ -38,7 +38,7 @@ claims require separate evidence and are not implied by profile conformance.
 
 ## Evidence Date
 
-This decision uses sources captured through 2026-08-04. Supplemental reviews
+This decision uses sources captured through 2026-08-12. Supplemental reviews
 pinned the EthereumJS-owned WASM wrapper and its npm package, Geth's binary-tree
 direction, the exact removal of an independent TypeScript Verkle
 implementation, and the active MALT Go IPA wrapper without changing the
@@ -47,6 +47,15 @@ package and exposes different transcript and cell-encoding rules without the
 required canonical scalar, ownership, cancellation, or resource boundary.
 Exact commits, content digests, license data, and source classifications are in
 [`sources.json`](sources.json).
+
+The 2026-08-12 cryptographic-definition trace fixed the ordinary-case field,
+curve, quotient-group, generator, auxiliary-generator, encoding, transcript,
+multiproof, and IPA algorithms directly in the v0 specification. It also found
+that zero challenges or challenge-derived zero opening denominators have no
+common failure contract: the Go and Rust references differ for a zero IPA
+folding challenge, and neither implements explicit rejection sampling. This
+ambiguity remains a stable-profile and complete proof-soundness blocker even
+though the events are negligible under the random-oracle model.
 
 ## Candidate Research Target
 
