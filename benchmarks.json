@@ -13,6 +13,7 @@
       "documentation": [
         ".ai/GOAL_BENCHMARKS.md",
         ".ai/GOAL_PERFORMANCE.md",
+        "docs/assurance/evidence/OA-RESOURCE-PERFORMANCE-CONSTRAINED.md",
         "docs/performance.md"
       ],
       "baseline_artifacts": [],

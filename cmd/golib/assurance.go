@@ -56,6 +56,7 @@ type operationalEvidence struct {
 	ObservedUTC  string            `json:"observed_utc"`
 	Environment  string            `json:"environment"`
 	ModuleScope  []string          `json:"module_scope"`
+	InputModules []string          `json:"input_modules,omitempty"`
 	InputDigests map[string]string `json:"input_digests"`
 }
 
@@ -316,6 +317,9 @@ func validateOperationalEvidence(
 	if err := validateAssuranceModuleScope(evidence.ModuleScope, modules); err != nil {
 		return fmt.Errorf("evidence module scope: %w", err)
 	}
+	if err := validateAssuranceInputModuleScope(current, evidence.InputModules); err != nil {
+		return err
+	}
 	if strings.TrimSpace(evidence.Environment) == "" {
 		return errors.New("evidence environment is empty")
 	}
@@ -361,6 +365,7 @@ func validateOperationalEvidence(
 		root,
 		current,
 		evidence.ModuleScope,
+		evidence.InputModules,
 		evidence.InputDigests,
 		currentInputDigests,
 	); err != nil {
@@ -373,10 +378,11 @@ func validateAssuranceInputDigests(
 	root string,
 	current catalog,
 	scope []string,
+	inputModules []string,
 	recorded map[string]string,
 	cache map[string]string,
 ) error {
-	required := assuranceInputModules(current, scope)
+	required := assuranceInputModules(current, scope, inputModules)
 	if len(recorded) != len(required) {
 		return fmt.Errorf("input digest scope has %d modules, want %d", len(recorded), len(required))
 	}
@@ -420,8 +426,9 @@ func validateAssuranceInputDigests(
 	return nil
 }
 
-func assuranceInputModules(current catalog, scope []string) []string {
-	selected := make(map[string]bool, len(scope))
+func assuranceInputModules(current catalog, scope, inputModules []string) []string {
+	selected := make(map[string]bool, len(scope)+len(inputModules))
+	explicitInputs := make(map[string]bool, len(inputModules))
 	if slices.Contains(scope, "*") {
 		for _, item := range current.Modules {
 			if item.Releasable {
@@ -433,15 +440,37 @@ func assuranceInputModules(current catalog, scope []string) []string {
 			selected[directory] = true
 		}
 	}
+	for _, directory := range inputModules {
+		selected[directory] = true
+		explicitInputs[directory] = true
+	}
 	expandReverseDependencies(current, selected)
 	required := make([]string, 0, len(selected))
 	for _, item := range current.Modules {
-		if item.Releasable && selected[item.Directory] {
+		if selected[item.Directory] && (item.Releasable || explicitInputs[item.Directory]) {
 			required = append(required, item.Directory)
 		}
 	}
 	sort.Strings(required)
 	return required
+}
+
+func validateAssuranceInputModuleScope(current catalog, inputModules []string) error {
+	known := make(map[string]bool, len(current.Modules))
+	for _, item := range current.Modules {
+		known[item.Directory] = true
+	}
+	seen := make(map[string]bool, len(inputModules))
+	for _, directory := range inputModules {
+		if directory == "*" || !known[directory] {
+			return fmt.Errorf("unknown evidence input module %s", directory)
+		}
+		if seen[directory] {
+			return fmt.Errorf("duplicate evidence input module %s", directory)
+		}
+		seen[directory] = true
+	}
+	return nil
 }
 
 func isUTCRFC3339(value string) bool {

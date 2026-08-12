@@ -6,7 +6,7 @@ This inventory reports discoverable benchmark assets. A passing benchmark gate p
 
 | Module | Gate | Assets | Benchmark files | Documentation | Baselines | Harnesses | Services |
 | --- | --- | --- | ---: | ---: | ---: | ---: | --- |
-| `.` | not required | missing | 0 | 3 | 0 | 0 | - |
+| `.` | not required | missing | 0 | 4 | 0 | 0 | - |
 | `pkg/adaptive-throttle` | required | present | 1 | 1 | 0 | 0 | - |
 | `pkg/analysis` | required | present | 2 | 0 | 0 | 0 | - |
 | `pkg/analysis/testdata/coverage` | not required | missing | 0 | 0 | 0 | 0 | - |

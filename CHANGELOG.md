@@ -7,6 +7,10 @@ documented in each module's changelog.
 
 ### Added
 
+- Add a constrained native-Linux service load campaign with explicit latency,
+  throughput, heap, goroutine, descriptor, and error budgets while preserving
+  soak and production capacity as open assurance work, and bind its proof to
+  the exact non-releasable harness input.
 - Add a maintained PostgreSQL and Valkey durability reference that proves
   transactional business, idempotency, outbox, relay, acknowledgement, replay,
   and unacknowledged-task recovery through public module APIs.

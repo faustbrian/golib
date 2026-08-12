@@ -10,9 +10,9 @@
       "documented_packages": 0,
       "missing_package_comments": 1,
       "duplicate_package_comments": 0,
-      "exported_declarations": 120,
+      "exported_declarations": 121,
       "documented_declarations": 0,
-      "missing_declaration_comments": 120,
+      "missing_declaration_comments": 121,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
@@ -141,41 +141,48 @@
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
           "line": 59,
+          "symbol": "InputModules",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 60,
           "symbol": "InputDigests",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 63,
+          "line": 64,
           "symbol": "ID",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 64,
+          "line": 65,
           "symbol": "AcceptedBy",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 65,
+          "line": 66,
           "symbol": "AcceptedUTC",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 66,
+          "line": 67,
           "symbol": "Rationale",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "cmd/golib/assurance.go",
-          "line": 67,
+          "line": 68,
           "symbol": "Scenarios",
           "message": "exported declaration has no documentation comment"
         },
@@ -84027,13 +84034,13 @@
     {
       "directory": "pkg/service/integration/reference-platform",
       "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-platform",
-      "packages": 3,
+      "packages": 4,
       "documented_packages": 0,
-      "missing_package_comments": 2,
+      "missing_package_comments": 3,
       "duplicate_package_comments": 1,
-      "exported_declarations": 20,
-      "documented_declarations": 5,
-      "missing_declaration_comments": 15,
+      "exported_declarations": 49,
+      "documented_declarations": 6,
+      "missing_declaration_comments": 43,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
@@ -84072,6 +84079,181 @@
           "path": "pkg/service/integration/reference-platform/cmd/platform-fixture/main.go",
           "line": 71,
           "symbol": "PrivateKeyPath",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-package-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 1,
+          "symbol": "main",
+          "message": "package has no canonical Package main comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 23,
+          "symbol": "Endpoint",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 24,
+          "symbol": "ResourcesEndpoint",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 25,
+          "symbol": "Requests",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 26,
+          "symbol": "Concurrency",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 27,
+          "symbol": "RequestTimeout",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 28,
+          "symbol": "SampleInterval",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 32,
+          "symbol": "HeapAllocBytes",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 33,
+          "symbol": "HeapSysBytes",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 34,
+          "symbol": "Goroutines",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 35,
+          "symbol": "OpenFileDescriptors",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 39,
+          "symbol": "Requested",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 40,
+          "symbol": "Completed",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 41,
+          "symbol": "Failed",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 42,
+          "symbol": "SampleFailures",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 43,
+          "symbol": "MaxInFlight",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 44,
+          "symbol": "Duration",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 45,
+          "symbol": "RequestsPerSecond",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 46,
+          "symbol": "P50",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 47,
+          "symbol": "P95",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 48,
+          "symbol": "P99",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 49,
+          "symbol": "MaxHeapAllocBytes",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 50,
+          "symbol": "MaxHeapSysBytes",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 51,
+          "symbol": "MaxGoroutines",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-load/main.go",
+          "line": 52,
+          "symbol": "MaxOpenFileDescriptors",
           "message": "exported declaration has no documentation comment"
         },
         {
@@ -84163,6 +84345,34 @@
           "path": "pkg/service/integration/reference-platform/reference.go",
           "line": 45,
           "symbol": "TemporaryStorage",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 52,
+          "symbol": "HeapAllocBytes",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 53,
+          "symbol": "HeapSysBytes",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 54,
+          "symbol": "Goroutines",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 55,
+          "symbol": "OpenFileDescriptors",
           "message": "exported declaration has no documentation comment"
         }
       ]

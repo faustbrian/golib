@@ -221,6 +221,37 @@ func TestValidateOperationalAssurance(t *testing.T) {
 			wantSubstr: "input digest scope has 1 modules, want 2",
 		},
 		{
+			name: "evidence binds non-releasable input module",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["input_modules"] = []string{"pkg/fixture"}
+				evidence[0]["input_digests"].(map[string]string)["pkg/fixture"] =
+					strings.Repeat("c", 64)
+			},
+		},
+		{
+			name: "non-releasable input module requires digest",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["input_modules"] = []string{"pkg/fixture"}
+			},
+			wantSubstr: "input digest scope has 2 modules, want 3",
+		},
+		{
+			name: "unknown evidence input module",
+			mutate: func(t *testing.T, root string, record map[string]any) {
+				markScenariosPassed(t, root, record)
+				scenarios := record["scenarios"].([]map[string]any)
+				evidence := scenarios[0]["evidence"].([]map[string]any)
+				evidence[0]["input_modules"] = []string{"pkg/unknown"}
+			},
+			wantSubstr: "unknown evidence input module pkg/unknown",
+		},
+		{
 			name: "ready with current evidence",
 			mutate: func(t *testing.T, root string, record map[string]any) {
 				markScenariosPassed(t, root, record)
@@ -307,6 +338,7 @@ func markScenariosPassed(t *testing.T, root string, record map[string]any) {
 case "$2" in
   pkg/a) printf '%s\n' '`+digestA+`' ;;
   pkg/b) printf '%s\n' '`+digestB+`' ;;
+  pkg/fixture) printf '%s\n' '`+strings.Repeat("c", 64)+`' ;;
   *) exit 2 ;;
 esac
 `), 0o700); err != nil {

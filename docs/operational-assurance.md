@@ -26,6 +26,12 @@ clean-consumer proof. It remains pending for the complete module matrix,
 public proxy and checksum resolution, signatures, attestations, and release
 authorization.
 
+`OA-RESOURCE-PERFORMANCE` now retains a passing constrained native-Linux
+service campaign with explicit throughput, latency, heap, goroutine,
+descriptor, and error budgets. It remains pending for soak, stress-to-failure,
+realistic dependency load, fleet behavior, exhaustion recovery, and production
+capacity proof.
+
 `operational-assurance.json` is the machine-readable authority. It catalogs
 every releasable module, every mandatory scenario, evidence paths and SHA-256
 digests, complete current-input fingerprints, environments, UTC observation
@@ -68,11 +74,13 @@ A `passed` scenario requires at least one repository-relative regular evidence
 file, an exact SHA-256 digest, a UTC RFC 3339 observation time, an environment
 description, and coverage of every affected module. Each evidence item also
 records the canonical gate-input fingerprint for every scoped releasable
-module and releasable reverse dependant. A current input change invalidates
-only evidence whose expanded scope contains that module; a Git-history-only
-change does not. Absolute paths, traversal, symlink escapes, stale artifact or
-input digests, unknown modules, missing scenarios, duplicate records, and
-unsupported statuses fail validation.
+module and releasable reverse dependant. Evidence produced by a non-releasable
+harness records that harness as an explicit input module, so harness changes
+also invalidate the proof. A current input change invalidates only evidence
+whose expanded scope contains that module; a Git-history-only change does not.
+Absolute paths, traversal, symlink escapes, stale artifact or input digests,
+unknown modules, missing scenarios, duplicate records, and unsupported statuses
+fail validation.
 
 Only the user may accept a residual production risk. A `ready with named
 accepted risks` verdict requires a complete acceptance naming the decision

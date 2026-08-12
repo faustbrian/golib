@@ -7068,6 +7068,18 @@
     },
     {
       "module_directory": "pkg/service/integration/reference-platform",
+      "directory": "cmd/platform-load",
+      "name": "main",
+      "import_path": "github.com/faustbrian/golib/pkg/service/integration/reference-platform/cmd/platform-load",
+      "kind": "harness",
+      "production": false,
+      "executable": true,
+      "coverage_required": false,
+      "build_required": true,
+      "build_tags": []
+    },
+    {
+      "module_directory": "pkg/service/integration/reference-platform",
       "directory": "cmd/reference-platform",
       "name": "main",
       "import_path": "github.com/faustbrian/golib/pkg/service/integration/reference-platform/cmd/reference-platform",
