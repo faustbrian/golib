@@ -1457,7 +1457,17 @@
       },
       {
         "consumers": [
+          "identity/magiclink",
+          "identity/mfa/postgres",
           "identity/oauth/postgres",
+          "identity/otp",
+          "identity/reference",
+          "identity/session",
+          "oauth-server",
+          "oauth-server/device",
+          "oauth-server/postgres",
+          "organization",
+          "sso",
           "sso/postgres"
         ],
         "depends_on": [
@@ -11906,8 +11916,8 @@
       "public_contracts_org_scim.json": "sha256:314a51efa7df060d01984894d149af19883bd85a806bd7c95148c859aa293f83",
       "public_contracts_risk_delivery.json": "sha256:bb755ec68d49827b72ba27d9e496d98fe957f7b468c2455b32883dd49830806b"
     },
-    "public_contracts.rb": "sha256:6382dde49786aacc5a0aeba818d1c047a72bd9079ebfb87e546c34aa4024259d",
-    "public_contracts_meta.json": "sha256:a32a4bcb2574e0e1fb0c5d366a66caddfe9e2f66c740b592405f8f2472ba237b"
+    "public_contracts.rb": "sha256:6ba3d14b5fa8bed834f6268f6fa1b493e23a37b6042d2d09950ee107e6bcba3e",
+    "public_contracts_meta.json": "sha256:e4b8bc656b4f17ecc8f5435d880d3f84a2c457f66f7f4ca92cdf9570dc3c2570"
   },
   "types": [
     {

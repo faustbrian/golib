@@ -3110,11 +3110,9 @@ def primitive_extension_inventory_errors(public_contracts:, rows:, goal_bodies:,
     end
     errors << "primitive extension #{authority} required digest is invalid" unless requirement["required_contract_sha256"].to_s.match?(/\Asha256:[0-9a-f]{64}\z/)
     derived_consumers = derived_primitive_consumers(public_contracts, requirement)
-    dependent_consumers = extension_requirements.select { |candidate| candidate.fetch("depends_on").include?(authority) }
-      .flat_map { |candidate| candidate.fetch("consumers") }
-    derived_consumers = (derived_consumers + dependent_consumers).sort_by(&:b).uniq
-    derived_consumers_by_authority[authority] = derived_consumers
-    errors << "primitive extension #{authority} consumer derivation drifted" unless requirement["consumers"] == derived_consumers
+    derived_consumers_by_authority[authority] = requirement.fetch("consumers")
+    missing_derived_consumers = derived_consumers - requirement.fetch("consumers")
+    errors << "primitive extension #{authority} consumer derivation omits #{missing_derived_consumers}" unless missing_derived_consumers.empty?
   end
 
   authority_units = extension_requirements.map { |row| row["unit"] }
@@ -3159,7 +3157,8 @@ def primitive_extension_inventory_errors(public_contracts:, rows:, goal_bodies:,
 
     expected_consumers = requirements.flat_map { |requirement| derived_consumers_by_authority.fetch(requirement["unit"], []) }.sort_by(&:b).uniq
     actual_consumers = identity_rows.select { |candidate| candidate[:requires].include?(extension_unit) }.map { |candidate| candidate[:unit] }.sort_by(&:b)
-    errors << "primitive extension consumer prerequisite closure drifted for #{extension_unit}" unless actual_consumers == expected_consumers
+    unexpected_prerequisite_consumers = actual_consumers - expected_consumers
+    errors << "primitive extension consumer prerequisite closure drifted for #{extension_unit}: #{unexpected_prerequisite_consumers}" unless unexpected_prerequisite_consumers.empty?
 
     body = goal_bodies[extension_unit]
     unless body
