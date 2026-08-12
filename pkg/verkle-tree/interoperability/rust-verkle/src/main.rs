@@ -343,6 +343,10 @@ enum TreeUpdate {
     Delete([u8; 32]),
 }
 
+const TRANSITION_TRACE_COUNT: usize = 2_048;
+const CURATED_TRANSITION_TRACE_COUNT: usize = 10;
+const GENERATED_TRANSITION_SEED: u64 = 0x7665_726b_6c65_7630;
+
 fn tree_root(entries: &[([u8; 32], [u8; 32])]) -> Element {
     let mut trie = Trie::new(VerkleConfig::new(MemoryDb::new()));
     trie.insert(entries.iter().copied());
@@ -399,6 +403,96 @@ fn print_transition_row(
         encode_hex(&pre_root.to_bytes()),
         encode_hex(&post_root.to_bytes()),
     );
+}
+
+fn next_transition_word(state: &mut u64) -> u64 {
+    *state ^= *state << 13;
+    *state ^= *state >> 7;
+    *state ^= *state << 17;
+    *state
+}
+
+fn generated_transition_value(state: &mut u64, zero: bool) -> [u8; 32] {
+    if zero {
+        return [0_u8; 32];
+    }
+    let mut value = [0_u8; 32];
+    for chunk in value.chunks_exact_mut(8) {
+        chunk.copy_from_slice(&next_transition_word(state).to_le_bytes());
+    }
+    value
+}
+
+fn generated_transition_keys(state: &mut u64) -> [[u8; 32]; 6] {
+    let mut base = [0_u8; 32];
+    for chunk in base[..24].chunks_exact_mut(8) {
+        chunk.copy_from_slice(&next_transition_word(state).to_le_bytes());
+    }
+    base[24..31].copy_from_slice(&next_transition_word(state).to_le_bytes()[..7]);
+    base[31] = 0x11;
+
+    let collision_depth = (next_transition_word(state) % 31) as usize;
+    let mut keys = [base; 6];
+    keys[1][31] = 0xee;
+    keys[2][collision_depth] ^= 0x80;
+    keys[2][31] = 0x22;
+    keys[3][collision_depth] ^= 0x40;
+    keys[3][31] = 0x33;
+    keys[4][0] ^= 0x20;
+    keys[4][31] = 0x44;
+    keys[5] = keys[2];
+    keys[5][31] = 0xdd;
+    keys
+}
+
+fn print_generated_transitions() {
+    for case_index in 0..(TRANSITION_TRACE_COUNT - CURATED_TRANSITION_TRACE_COUNT) {
+        let case_seed = GENERATED_TRANSITION_SEED
+            ^ (case_index as u64).wrapping_mul(0x9e37_79b9_7f4a_7c15);
+        let mut state = case_seed;
+        let keys = generated_transition_keys(&mut state);
+        let pre_count = (next_transition_word(&mut state) % 5) as usize;
+        let mut pre_entries = Vec::with_capacity(pre_count);
+        for (entry_index, key) in keys.iter().copied().take(pre_count).enumerate() {
+            pre_entries.push((
+                key,
+                generated_transition_value(
+                    &mut state,
+                    (case_index + entry_index) % 37 == 0,
+                ),
+            ));
+        }
+        if case_index % 2 == 1 {
+            pre_entries.reverse();
+        }
+
+        let update_count = 1 + (next_transition_word(&mut state) % 3) as usize;
+        let update_offset = (next_transition_word(&mut state) % 4) as usize;
+        let mut updates = Vec::with_capacity(update_count);
+        for update_index in 0..update_count {
+            let key = keys[update_offset + update_index];
+            if next_transition_word(&mut state) & 1 == 0 {
+                updates.push(TreeUpdate::Set(
+                    key,
+                    generated_transition_value(
+                        &mut state,
+                        (case_index + update_index) % 41 == 0,
+                    ),
+                ));
+            } else {
+                updates.push(TreeUpdate::Delete(key));
+            }
+        }
+        if case_index % 3 == 2 {
+            updates.reverse();
+        }
+
+        print_transition_row(
+            &format!("generated-{case_index:04}-{case_seed:016x}"),
+            pre_entries,
+            updates,
+        );
+    }
 }
 
 fn print_transitions() {
@@ -507,6 +601,8 @@ fn print_transitions() {
             TreeUpdate::Set(present_zero, [0_u8; 32]),
         ],
     );
+
+    print_generated_transitions();
 }
 
 fn topology_key(stem: [u8; 31]) -> [u8; 32] {

@@ -11,14 +11,16 @@ import (
 	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 )
 
+const rustTransitionTraceCount = 2_048
+
 func TestStatelessUpdaterMatchesPinnedRustRebuiltTransitions(t *testing.T) {
 	contents, err := os.ReadFile("testdata/rust-verkle-transitions.tsv")
 	if err != nil {
 		t.Fatalf("read Rust transition roots: %v", err)
 	}
 	lines := strings.Split(strings.TrimSuffix(string(contents), "\n"), "\n")
-	if len(lines) != 11 {
-		t.Fatalf("fixture rows = %d, want 11", len(lines))
+	if len(lines) != rustTransitionTraceCount+1 {
+		t.Fatalf("fixture rows = %d, want %d", len(lines), rustTransitionTraceCount+1)
 	}
 	const header = "case\tpre_entries\tupdates\tpre_root_commitment_be\tpost_root_commitment_be"
 	if lines[0] != header {
