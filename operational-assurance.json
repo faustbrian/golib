@@ -208,11 +208,55 @@
     },
     {
       "id": "OA-REFERENCE-EXTERNAL",
-      "status": "pending",
+      "status": "passed",
       "affected_modules": [
-        "*"
+        "pkg/adaptive-throttle",
+        "pkg/bulkhead",
+        "pkg/circuit-breaker",
+        "pkg/concurrency-limit",
+        "pkg/filesystem",
+        "pkg/hedge",
+        "pkg/http-client",
+        "pkg/rate-limit",
+        "pkg/retry",
+        "pkg/secret-envelope",
+        "pkg/webhook"
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "path": "docs/assurance/evidence/OA-REFERENCE-EXTERNAL.md",
+          "sha256": "41328d228c116a9710ec28ec2af784a5a7af24e539a4a771a76c65041d637a79",
+          "observed_utc": "2026-08-12T19:15:20Z",
+          "environment": "darwin/arm64; Go 1.26.5; loopback HTTP and S3-compatible protocol fixtures; in-memory keyring and policy stores",
+          "module_scope": [
+            "pkg/adaptive-throttle",
+            "pkg/bulkhead",
+            "pkg/circuit-breaker",
+            "pkg/concurrency-limit",
+            "pkg/filesystem",
+            "pkg/hedge",
+            "pkg/http-client",
+            "pkg/rate-limit",
+            "pkg/retry",
+            "pkg/secret-envelope",
+            "pkg/webhook"
+          ],
+          "input_digests": {
+            "pkg/adaptive-throttle": "65595d1fdc9713826e0e6ceebf1239249ce2af8991309e0b292cfc5f6e95e6f5",
+            "pkg/bulkhead": "6ad0add9a5d2bd325473b8ee393f21618e3e6c77e508ed9a16f5da959207c075",
+            "pkg/circuit-breaker": "67ca601c4659c6759dd454eafdcca60c2e1b271f40476135ae9a411803a7f117",
+            "pkg/concurrency-limit": "6aef88abd165d0d4d625fc9c3979c0d05563085709c9357c32be74f61d28eb85",
+            "pkg/filesystem": "eeb9c78685f78526fc801a2bae5a2a3d9507f726432b5a3dc7a7eaa12370a2fc",
+            "pkg/hedge": "883b9827fe4eddb17e7dba1b37e529d69e2957f0ed21c6c024c1856f9f01d874",
+            "pkg/http-client": "62971a3864caee25d159f2e1c7976adfd26846fcff1a7953c33c412ee0344ba7",
+            "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
+            "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
+            "pkg/retry": "f479b58871b1ed27d1a159dadabb19ec0cb8b270241a498bf302cce0080dc21d",
+            "pkg/secret-envelope": "a39fdfec974dfc3256a33b656b2db942ff5fa73ad211cf459bf60aa69bc69661",
+            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+          }
+        }
+      ],
       "accepted_risks": []
     },
     {

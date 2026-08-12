@@ -396,6 +396,8 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
+            "docs/assurance/evidence/OA-REFERENCE-EXTERNAL.md",
+            "docs/assurance/evidence/OA-REFERENCE-HTTP.md",
             "docs/hardening-report.md",
             "docs/operational-assurance.md",
             "docs/performance.md",
@@ -801,7 +803,8 @@
       "tag_prefix": "pkg/adaptive-throttle/v",
       "owned_dependencies": [],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
       ],
       "external_runtime_dependencies": [
         "github.com/failsafe-go/failsafe-go",
@@ -3352,7 +3355,8 @@
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/bulkhead/benchmarks/comparison",
         "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience",
-        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
       ],
       "external_runtime_dependencies": [
         "github.com/failsafe-go/failsafe-go",
@@ -4413,7 +4417,8 @@
         "github.com/faustbrian/golib/pkg/http-client",
         "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
         "github.com/faustbrian/golib/pkg/localized",
-        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
       ],
       "external_runtime_dependencies": [],
       "required_services": [],
@@ -4725,6 +4730,7 @@
         "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-http",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "external_runtime_dependencies": [],
@@ -4937,7 +4943,8 @@
         "github.com/faustbrian/golib/pkg/opening-hours",
         "github.com/faustbrian/golib/pkg/queue-control-plane",
         "github.com/faustbrian/golib/pkg/scheduler",
-        "github.com/faustbrian/golib/pkg/service/compatibility"
+        "github.com/faustbrian/golib/pkg/service/compatibility",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-http"
       ],
       "external_runtime_dependencies": [],
       "required_services": [],
@@ -5357,7 +5364,8 @@
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/concurrency-limit/benchmarks/comparison",
         "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience",
-        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
       ],
       "external_runtime_dependencies": [],
       "required_services": [],
@@ -8163,7 +8171,9 @@
       "version": "unreleased",
       "tag_prefix": "pkg/filesystem/v",
       "owned_dependencies": [],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
+      ],
       "external_runtime_dependencies": [
         "github.com/aws/aws-sdk-go-v2",
         "github.com/aws/aws-sdk-go-v2/config",
@@ -8635,7 +8645,8 @@
         "github.com/faustbrian/golib/pkg/resilience"
       ],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience"
+        "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
       ],
       "external_runtime_dependencies": [
         "github.com/failsafe-go/failsafe-go"
@@ -8771,7 +8782,8 @@
       ],
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/http-middleware/integration/siblings",
-        "github.com/faustbrian/golib/pkg/localized"
+        "github.com/faustbrian/golib/pkg/localized",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
       ],
       "external_runtime_dependencies": [
         "go.uber.org/goleak",
@@ -10136,6 +10148,7 @@
         "github.com/faustbrian/golib/pkg/service/benchmarks/platform",
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-http",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "external_runtime_dependencies": [
@@ -18274,7 +18287,8 @@
         "github.com/faustbrian/golib/pkg/migrations"
       ],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
       ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
@@ -18503,7 +18517,8 @@
         "github.com/faustbrian/golib/pkg/fault-injection/integration/resilience",
         "github.com/faustbrian/golib/pkg/hedge",
         "github.com/faustbrian/golib/pkg/retry",
-        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
       ],
       "external_runtime_dependencies": [
         "github.com/failsafe-go/failsafe-go"
@@ -18701,7 +18716,8 @@
         "github.com/faustbrian/golib/pkg/bulkhead/integration/resilience",
         "github.com/faustbrian/golib/pkg/concurrency-limit/integration/resilience",
         "github.com/faustbrian/golib/pkg/fault-injection/integration/resilience",
-        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
       ],
       "external_runtime_dependencies": [
         "github.com/avast/retry-go/v4",
@@ -20656,7 +20672,9 @@
       "version": "unreleased",
       "tag_prefix": "pkg/secret-envelope/v",
       "owned_dependencies": [],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
+      ],
       "external_runtime_dependencies": [
         "github.com/aws/aws-sdk-go-v2",
         "github.com/aws/aws-sdk-go-v2/service/kms"
@@ -22179,6 +22197,73 @@
       }
     },
     {
+      "directory": "pkg/service/integration/reference-external",
+      "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-external",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/service/integration/reference-external",
+          "directory": ".",
+          "name": "referenceexternal",
+          "import_path": "github.com/faustbrian/golib/pkg/service/integration/reference-external",
+          "kind": "harness",
+          "production": false,
+          "executable": true,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This non-production module proves that Golib's public outbound-integration APIs compose without a private framework layer. It covers bounded HTTP calls, standalone resilience controls, signed webhook delivery, filesystem storage, and authenticated secret envelopes.",
+      "lifecycle": "internal",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/adaptive-throttle",
+        "github.com/faustbrian/golib/pkg/bulkhead",
+        "github.com/faustbrian/golib/pkg/circuit-breaker",
+        "github.com/faustbrian/golib/pkg/concurrency-limit",
+        "github.com/faustbrian/golib/pkg/filesystem",
+        "github.com/faustbrian/golib/pkg/hedge",
+        "github.com/faustbrian/golib/pkg/http-client",
+        "github.com/faustbrian/golib/pkg/rate-limit",
+        "github.com/faustbrian/golib/pkg/resilience",
+        "github.com/faustbrian/golib/pkg/retry",
+        "github.com/faustbrian/golib/pkg/secret-envelope",
+        "github.com/faustbrian/golib/pkg/webhook"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/aws/aws-sdk-go-v2",
+        "github.com/aws/aws-sdk-go-v2/credentials",
+        "github.com/aws/aws-sdk-go-v2/service/s3"
+      ],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
       "directory": "pkg/service/integration/reference-http",
       "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-http",
       "go_version": "1.26.5",
@@ -22206,10 +22291,13 @@
         "github.com/faustbrian/golib/pkg/authentication",
         "github.com/faustbrian/golib/pkg/authorization",
         "github.com/faustbrian/golib/pkg/capability",
+        "github.com/faustbrian/golib/pkg/cli",
+        "github.com/faustbrian/golib/pkg/clock",
         "github.com/faustbrian/golib/pkg/config",
         "github.com/faustbrian/golib/pkg/correlation",
         "github.com/faustbrian/golib/pkg/http-middleware",
         "github.com/faustbrian/golib/pkg/http-signature",
+        "github.com/faustbrian/golib/pkg/identifier",
         "github.com/faustbrian/golib/pkg/jsonrpc",
         "github.com/faustbrian/golib/pkg/router",
         "github.com/faustbrian/golib/pkg/service",
@@ -24271,7 +24359,8 @@
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "reverse_owned_dependencies": [
-        "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem"
+        "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-external"
       ],
       "external_runtime_dependencies": [
         "go.opentelemetry.io/otel",
