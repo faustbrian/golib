@@ -5128,7 +5128,8 @@ http_row = rows.find { |row| row[:unit] == "identity/http" }
 reference_row = rows.find { |row| row[:unit] == "identity/reference" }
 fail_check("identity/http feature dependency set drifted") unless http_row[:requires].to_set == HTTP_FEATURES
 expected_reference = REFERENCE_ADAPTERS | Set[
-  "identity/http", "sso/domain-verification", "primitive/authorization-identity-contracts"
+  "identity/http", "sso/domain-verification", "primitive/authorization-identity-contracts",
+  "primitive/capability-postgres-identity-contracts"
 ]
 fail_check("identity/reference adapter dependency set drifted") unless reference_row[:requires].to_set == expected_reference
 fail_check("identity/http imports a concrete reference adapter") unless (http_row[:requires].to_set & REFERENCE_ADAPTERS).empty?

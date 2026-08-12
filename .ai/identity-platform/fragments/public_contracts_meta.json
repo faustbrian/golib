@@ -160,6 +160,11 @@
         "package_path": "github.com/faustbrian/golib/pkg/passkey"
       },
       {
+        "alias": "pgx",
+        "authority": "module:github.com/jackc/pgx/v5@v5.10.0",
+        "package_path": "github.com/jackc/pgx/v5"
+      },
+      {
         "alias": "pgxpool",
         "authority": "module:github.com/jackc/pgx/v5@v5.10.0",
         "package_path": "github.com/jackc/pgx/v5/pgxpool"
@@ -340,6 +345,7 @@
           "identity/magiclink",
           "identity/otp",
           "identity/password",
+          "identity/risk/captcha",
           "identity/username",
           "passkey",
           "webauthn"
@@ -361,6 +367,7 @@
           "identity/otp",
           "identity/password",
           "identity/phone",
+          "identity/risk/hibp",
           "identity/username"
         ],
         "required_contract_sha256": "sha256:d16e6923889a4a30acc0a22e489815ecac57e913213d0bad51010b97c18b20b9",

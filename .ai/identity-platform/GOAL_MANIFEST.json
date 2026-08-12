@@ -17,7 +17,7 @@
       "unit": "primitive/capability-identity-contracts",
       "planning_path": "goals/primitive-capability-identity-contracts.md",
       "canonical_path": "pkg/capability/.ai/GOAL_IDENTITY_CONTRACTS.md",
-      "sha256": "12c0a7f48ffc2e05ac6ae14a00f6a89fcaaec36bd92fe825df5987a7cf3ddd7e"
+      "sha256": "a28ef81086d2858db6a0208e41420418ccbbb04212da9d55cc4e1b4edd4139b9"
     },
     {
       "unit": "primitive/capability-postgres-identity-contracts",

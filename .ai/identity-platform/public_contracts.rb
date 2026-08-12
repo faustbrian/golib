@@ -561,6 +561,7 @@ LOCAL_ALIASES = {
 }.freeze
 STDLIB_ALIASES = %w[context errors http io netip sql testing time url].freeze
 THIRD_PARTY = {
+  "pgx"=>{"module"=>"github.com/jackc/pgx/v5", "package_path"=>"github.com/jackc/pgx/v5", "version"=>"v5.10.0"},
   "pgxpool"=>{"module"=>"github.com/jackc/pgx/v5", "package_path"=>"github.com/jackc/pgx/v5/pgxpool", "version"=>"v5.10.0"},
   "valkeyclient"=>{"module"=>"github.com/valkey-io/valkey-go", "package_path"=>"github.com/valkey-io/valkey-go", "version"=>"v1.0.76"}
 }.freeze
