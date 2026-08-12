@@ -984,18 +984,7 @@ func TestPoolRecoversAfterPostgreSQLRestart(t *testing.T) {
 	if version == "" {
 		version = "18"
 	}
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	if err != nil {
-		t.Fatalf("reserve restart port: %v", err)
-	}
-	hostPort := fmt.Sprint(listener.Addr().(*net.TCPAddr).Port)
-	if err := listener.Close(); err != nil {
-		t.Fatalf("release restart port: %v", err)
-	}
-	database, err := postgrestest.Start(ctx, postgrestest.Config{
-		Image:    "postgres:" + version + "-alpine",
-		HostPort: hostPort,
-	})
+	database, err := startRestartDatabase(ctx, "postgres:"+version+"-alpine")
 	if err != nil {
 		t.Fatalf("start restart database: %v", err)
 	}
@@ -1034,6 +1023,30 @@ func TestPoolRecoversAfterPostgreSQLRestart(t *testing.T) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func startRestartDatabase(ctx context.Context, image string) (*postgrestest.Database, error) {
+	var startErr error
+	for range 10 {
+		listener, err := net.Listen("tcp", "127.0.0.1:0")
+		if err != nil {
+			return nil, fmt.Errorf("reserve restart port: %w", err)
+		}
+		hostPort := fmt.Sprint(listener.Addr().(*net.TCPAddr).Port)
+		if err := listener.Close(); err != nil {
+			return nil, fmt.Errorf("release restart port: %w", err)
+		}
+		database, err := postgrestest.Start(ctx, postgrestest.Config{Image: image, HostPort: hostPort})
+		if err == nil {
+			return database, nil
+		}
+		startErr = err
+		if !strings.Contains(err.Error(), "port is already allocated") {
+			return nil, err
+		}
+	}
+
+	return nil, startErr
 }
 
 func TestPoolAndTransactionHelpersReleaseConnections(t *testing.T) {
