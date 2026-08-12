@@ -1109,6 +1109,9 @@ func tagPrefix(directory string, releasable bool) string {
 }
 
 func requiredServices(directory string) []string {
+	if directory == "pkg/service/integration/reference-durability" {
+		return []string{"postgresql", "valkey"}
+	}
 	if directory == "pkg/search/adapters/opensearch" {
 		return []string{"opensearch"}
 	}

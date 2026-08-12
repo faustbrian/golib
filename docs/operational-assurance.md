@@ -16,6 +16,11 @@ evidence, but remains pending for native Graviton, live ECS task IAM and
 lifecycle, bit-for-bit artifact reproducibility, and production network
 boundaries.
 
+`OA-REFERENCE-DURABILITY` now retains passing PostgreSQL and Valkey evidence
+for transaction rollback, atomic business/idempotency/outbox commit, relay,
+unacknowledged-task reclamation, acknowledgement, and command replay. It
+remains pending for the other required durability systems and recovery cases.
+
 `operational-assurance.json` is the machine-readable authority. It catalogs
 every releasable module, every mandatory scenario, evidence paths and SHA-256
 digests, complete current-input fingerprints, environments, UTC observation

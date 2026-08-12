@@ -2084,6 +2084,21 @@
       "required_services": []
     },
     {
+      "directory": "pkg/service/integration/reference-durability",
+      "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-durability",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "benchmark_required": false,
+      "benchmark_files": [],
+      "documentation": [],
+      "baseline_artifacts": [],
+      "harness_modules": [],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ]
+    },
+    {
       "directory": "pkg/service/integration/reference-external",
       "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-external",
       "kind": "interoperability harness",

@@ -6,7 +6,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 
 | Module | Packages | Package gaps | Exported declarations | Missing comments | Malformed comments | Generated gaps | Markers |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `.` | 1 | 1 | 98 | 98 | 0 | 0 | 0 |
+| `.` | 1 | 1 | 120 | 120 | 0 | 0 | 0 |
 | `pkg/adaptive-throttle` | 1 | 0 | 106 | 66 | 0 | 0 | 0 |
 | `pkg/analysis` | 28 | 1 | 442 | 283 | 0 | 0 | 0 |
 | `pkg/analysis/testdata/coverage` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
@@ -53,7 +53,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/fault-injection/benchmarks/comparison` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | `pkg/fault-injection/integration/resilience` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | `pkg/feature-flags` | 5 | 0 | 701 | 580 | 0 | 0 | 0 |
-| `pkg/filesystem` | 11 | 0 | 516 | 159 | 0 | 0 | 0 |
+| `pkg/filesystem` | 11 | 0 | 527 | 170 | 0 | 0 | 0 |
 | `pkg/geo` | 18 | 9 | 317 | 73 | 0 | 0 | 0 |
 | `pkg/hedge` | 1 | 0 | 145 | 69 | 0 | 0 | 0 |
 | `pkg/http-client` | 1 | 0 | 1295 | 628 | 0 | 0 | 0 |
@@ -102,7 +102,7 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/prompts` | 3 | 1 | 776 | 530 | 0 | 0 | 0 |
 | `pkg/prompts/benchmarks/comparison` | 5 | 5 | 0 | 0 | 0 | 0 | 0 |
 | `pkg/queue` | 21 | 14 | 1158 | 561 | 3 | 0 | 0 |
-| `pkg/queue-control-plane` | 18 | 4 | 988 | 632 | 0 | 0 | 0 |
+| `pkg/queue-control-plane` | 17 | 3 | 984 | 632 | 0 | 0 | 0 |
 | `pkg/queue/queueservice` | 1 | 0 | 101 | 0 | 0 | 0 | 0 |
 | `pkg/rate-limit` | 11 | 0 | 307 | 19 | 0 | 0 | 0 |
 | `pkg/resilience` | 1 | 0 | 173 | 67 | 0 | 0 | 0 |
@@ -127,6 +127,10 @@ Counts are objective AST findings, not prose-quality scores. Generated-source ga
 | `pkg/service/benchmarks/platform` | 12 | 8 | 122 | 41 | 0 | 0 | 0 |
 | `pkg/service/compatibility` | 0 | 0 | 0 | 0 | 0 | 0 | 0 |
 | `pkg/service/integration/adoption` | 1 | 0 | 39 | 0 | 0 | 0 | 0 |
+| `pkg/service/integration/reference-durability` | 1 | 0 | 17 | 0 | 0 | 0 | 0 |
+| `pkg/service/integration/reference-external` | 1 | 0 | 24 | 10 | 0 | 0 | 0 |
+| `pkg/service/integration/reference-http` | 1 | 1 | 32 | 22 | 0 | 0 | 0 |
+| `pkg/service/integration/reference-platform` | 3 | 3 | 20 | 15 | 0 | 0 | 0 |
 | `pkg/settings` | 7 | 0 | 479 | 325 | 0 | 0 | 0 |
 | `pkg/state-machine` | 7 | 0 | 375 | 230 | 0 | 0 | 0 |
 | `pkg/tabular` | 2 | 0 | 149 | 76 | 0 | 0 | 0 |

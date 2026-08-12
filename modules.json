@@ -397,6 +397,7 @@
             "README.md",
             "docs/architecture.md",
             "docs/assurance/evidence/OA-PLATFORM-MATRIX-LOCAL.md",
+            "docs/assurance/evidence/OA-REFERENCE-DURABILITY-POSTGRES-VALKEY.md",
             "docs/assurance/evidence/OA-REFERENCE-EXTERNAL.md",
             "docs/assurance/evidence/OA-REFERENCE-HTTP.md",
             "docs/hardening-report.md",
@@ -9858,6 +9859,7 @@
       "reverse_owned_dependencies": [
         "github.com/faustbrian/golib/pkg/idempotency/compatibility/ecosystem",
         "github.com/faustbrian/golib/pkg/scheduler",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-durability",
         "github.com/faustbrian/golib/pkg/webhook"
       ],
       "external_runtime_dependencies": [
@@ -14205,7 +14207,8 @@
         "github.com/faustbrian/golib/pkg/postgres/examples/migrations",
         "github.com/faustbrian/golib/pkg/queue-control-plane",
         "github.com/faustbrian/golib/pkg/rate-limit",
-        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-durability"
       ],
       "external_runtime_dependencies": [
         "github.com/DATA-DOG/go-sqlmock",
@@ -15839,6 +15842,7 @@
         "github.com/faustbrian/golib/pkg/outbox/adapters/gokafka",
         "github.com/faustbrian/golib/pkg/outbox/adapters/otel",
         "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-durability",
         "github.com/faustbrian/golib/pkg/webhook"
       ],
       "external_runtime_dependencies": [
@@ -16251,7 +16255,9 @@
         "github.com/faustbrian/golib/pkg/outbox",
         "github.com/faustbrian/golib/pkg/queue"
       ],
-      "reverse_owned_dependencies": null,
+      "reverse_owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/service/integration/reference-durability"
+      ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
         "github.com/testcontainers/testcontainers-go/modules/postgres"
@@ -16668,7 +16674,8 @@
         "github.com/faustbrian/golib/pkg/audit/postgres",
         "github.com/faustbrian/golib/pkg/postgres/examples/migrations",
         "github.com/faustbrian/golib/pkg/queue-control-plane",
-        "github.com/faustbrian/golib/pkg/service/integration/adoption"
+        "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-durability"
       ],
       "external_runtime_dependencies": [
         "github.com/jackc/pgx/v5",
@@ -17399,6 +17406,7 @@
         "github.com/faustbrian/golib/pkg/scheduler",
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-durability",
         "github.com/faustbrian/golib/pkg/webhook"
       ],
       "external_runtime_dependencies": [
@@ -22197,6 +22205,70 @@
         "lint": true,
         "mutation": false,
         "race": true,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/service/integration/reference-durability",
+      "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-durability",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/service/integration/reference-durability",
+          "directory": ".",
+          "name": "referencedurability",
+          "import_path": "github.com/faustbrian/golib/pkg/service/integration/reference-durability",
+          "kind": "harness",
+          "production": false,
+          "executable": true,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This maintained non-production module exercises Golib's PostgreSQL and Valkey durability stack through public APIs. It is assurance infrastructure, not a deployable product or an application dependency.",
+      "lifecycle": "internal",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/idempotency",
+        "github.com/faustbrian/golib/pkg/migrations",
+        "github.com/faustbrian/golib/pkg/outbox",
+        "github.com/faustbrian/golib/pkg/outbox/adapters/queue",
+        "github.com/faustbrian/golib/pkg/postgres",
+        "github.com/faustbrian/golib/pkg/queue"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [
+        "github.com/jackc/pgx/v5"
+      ],
+      "required_services": [
+        "postgresql",
+        "valkey"
+      ],
+      "build_tags": [],
+      "test_tags": [
+        "integration"
+      ],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
         "security": true,
         "tests": true
       }

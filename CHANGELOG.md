@@ -7,6 +7,9 @@ documented in each module's changelog.
 
 ### Added
 
+- Add a maintained PostgreSQL and Valkey durability reference that proves
+  transactional business, idempotency, outbox, relay, acknowledgement, replay,
+  and unacknowledged-task recovery through public module APIs.
 - Add a content-addressed operational-assurance register and validator that
   inventories every releasable module and required composition scenario while
   keeping the current incomplete verdict explicitly `not ready`.

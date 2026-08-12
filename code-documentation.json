@@ -10,9 +10,9 @@
       "documented_packages": 0,
       "missing_package_comments": 1,
       "duplicate_package_comments": 0,
-      "exported_declarations": 98,
+      "exported_declarations": 120,
       "documented_declarations": 0,
-      "missing_declaration_comments": 98,
+      "missing_declaration_comments": 120,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
@@ -20,10 +20,164 @@
       "issues": [
         {
           "code": "missing-package-comment",
-          "path": "cmd/golib/benchmarks.go",
+          "path": "cmd/golib/assurance.go",
           "line": 1,
           "symbol": "main",
           "message": "package has no canonical Package main comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 37,
+          "symbol": "SchemaVersion",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 38,
+          "symbol": "Verdict",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 39,
+          "symbol": "Modules",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 40,
+          "symbol": "Scenarios",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 41,
+          "symbol": "ResidualRisks",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 42,
+          "symbol": "RiskAcceptances",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 46,
+          "symbol": "ID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 47,
+          "symbol": "Status",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 48,
+          "symbol": "AffectedModules",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 49,
+          "symbol": "Evidence",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 50,
+          "symbol": "AcceptedRisks",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 54,
+          "symbol": "Path",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 55,
+          "symbol": "SHA256",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 56,
+          "symbol": "ObservedUTC",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 57,
+          "symbol": "Environment",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 58,
+          "symbol": "ModuleScope",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 59,
+          "symbol": "InputDigests",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 63,
+          "symbol": "ID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 64,
+          "symbol": "AcceptedBy",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 65,
+          "symbol": "AcceptedUTC",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 66,
+          "symbol": "Rationale",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "cmd/golib/assurance.go",
+          "line": 67,
+          "symbol": "Scenarios",
+          "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
@@ -30157,9 +30311,9 @@
       "documented_packages": 11,
       "missing_package_comments": 0,
       "duplicate_package_comments": 0,
-      "exported_declarations": 516,
+      "exported_declarations": 527,
       "documented_declarations": 357,
-      "missing_declaration_comments": 159,
+      "missing_declaration_comments": 170,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
@@ -30301,28 +30455,28 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/decorator/decorator.go",
-          "line": 420,
+          "line": 413,
           "symbol": "Next",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/decorator/decorator.go",
-          "line": 435,
+          "line": 428,
           "symbol": "Entry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/decorator/decorator.go",
-          "line": 437,
+          "line": 430,
           "symbol": "Err",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/decorator/decorator.go",
-          "line": 444,
+          "line": 437,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
@@ -30448,140 +30602,217 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 665,
+          "line": 672,
           "symbol": "Read",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 672,
+          "line": 681,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 686,
+          "line": 695,
           "symbol": "Write",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 697,
+          "line": 706,
           "symbol": "Read",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 710,
+          "line": 722,
           "symbol": "Next",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 718,
+          "line": 732,
           "symbol": "Entry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 725,
+          "line": 739,
           "symbol": "Err",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 727,
+          "line": 741,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 737,
+          "line": 752,
           "symbol": "Retrieve",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 740,
+          "line": 753,
           "symbol": "Store",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 743,
-          "symbol": "Stat",
+          "line": 754,
+          "symbol": "MLStat",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 776,
+          "line": 755,
           "symbol": "List",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 815,
+          "line": 756,
+          "symbol": "ModTime",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 757,
+          "symbol": "MLList",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 758,
           "symbol": "MakeDir",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 816,
+          "line": 759,
           "symbol": "Delete",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 817,
+          "line": 760,
           "symbol": "Rename",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 820,
+          "line": 761,
           "symbol": "Abort",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 821,
+          "line": 762,
           "symbol": "Quit",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/ftp/ftp.go",
-          "line": 822,
+          "line": 765,
+          "symbol": "Retrieve",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 768,
+          "symbol": "Store",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 771,
+          "symbol": "Stat",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 792,
+          "symbol": "List",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 840,
+          "symbol": "MakeDir",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 841,
+          "symbol": "Delete",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 842,
+          "symbol": "Rename",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 845,
+          "symbol": "Abort",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 846,
+          "symbol": "Quit",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/ftp/ftp.go",
+          "line": 847,
           "symbol": "MachineListings",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/internal/redact/redact.go",
-          "line": 40,
+          "line": 43,
           "symbol": "Error",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/internal/redact/redact.go",
-          "line": 42,
+          "line": 45,
           "symbol": "Unwrap",
           "message": "exported declaration has no documentation comment"
         },
@@ -30707,273 +30938,273 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
-          "line": 62,
+          "line": 64,
           "symbol": "Stat",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
-          "line": 63,
+          "line": 65,
           "symbol": "Sync",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
-          "line": 67,
-          "symbol": "Open",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 68,
-          "symbol": "OpenFile",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
           "line": 69,
-          "symbol": "Stat",
+          "symbol": "Open",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
           "line": 70,
-          "symbol": "Lstat",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 71,
-          "symbol": "MkdirAll",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 72,
-          "symbol": "Remove",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 73,
-          "symbol": "Link",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 74,
-          "symbol": "Rename",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 75,
-          "symbol": "FS",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 76,
-          "symbol": "Close",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 80,
-          "symbol": "MkdirAll",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 81,
-          "symbol": "OpenRoot",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 543,
-          "symbol": "Read",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 555,
-          "symbol": "Read",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 562,
-          "symbol": "Close",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 569,
-          "symbol": "Close",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 577,
-          "symbol": "Next",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 585,
-          "symbol": "Entry",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 592,
-          "symbol": "Err",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 594,
-          "symbol": "Close",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 608,
-          "symbol": "MkdirAll",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 612,
-          "symbol": "OpenRoot",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 622,
-          "symbol": "Open",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/filesystem/local/local.go",
-          "line": 626,
           "symbol": "OpenFile",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
-          "line": 630,
+          "line": 71,
           "symbol": "Stat",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
-          "line": 631,
+          "line": 72,
           "symbol": "Lstat",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
-          "line": 632,
+          "line": 73,
           "symbol": "MkdirAll",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
-          "line": 635,
+          "line": 74,
           "symbol": "Remove",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
-          "line": 636,
+          "line": 75,
           "symbol": "Link",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
-          "line": 637,
+          "line": 76,
           "symbol": "Rename",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
-          "line": 638,
+          "line": 77,
           "symbol": "FS",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/local/local.go",
+          "line": 78,
+          "symbol": "Close",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 82,
+          "symbol": "MkdirAll",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 83,
+          "symbol": "OpenRoot",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 549,
+          "symbol": "Read",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 563,
+          "symbol": "Read",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 572,
+          "symbol": "Close",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 579,
+          "symbol": "Close",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 588,
+          "symbol": "Next",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 598,
+          "symbol": "Entry",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 605,
+          "symbol": "Err",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 607,
+          "symbol": "Close",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 621,
+          "symbol": "MkdirAll",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 625,
+          "symbol": "OpenRoot",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 635,
+          "symbol": "Open",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
           "line": 639,
+          "symbol": "OpenFile",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 643,
+          "symbol": "Stat",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 644,
+          "symbol": "Lstat",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 645,
+          "symbol": "MkdirAll",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 648,
+          "symbol": "Remove",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 649,
+          "symbol": "Link",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 650,
+          "symbol": "Rename",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 651,
+          "symbol": "FS",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/filesystem/local/local.go",
+          "line": 652,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/memory/memory.go",
-          "line": 370,
+          "line": 371,
           "symbol": "Read",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/memory/memory.go",
-          "line": 383,
+          "line": 387,
           "symbol": "Next",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/memory/memory.go",
-          "line": 391,
+          "line": 397,
           "symbol": "Entry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/memory/memory.go",
-          "line": 398,
+          "line": 411,
           "symbol": "Err",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/memory/memory.go",
-          "line": 400,
+          "line": 413,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
@@ -31029,28 +31260,28 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/s3/s3.go",
-          "line": 507,
+          "line": 512,
           "symbol": "Next",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/s3/s3.go",
-          "line": 515,
+          "line": 522,
           "symbol": "Entry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/s3/s3.go",
-          "line": 522,
+          "line": 529,
           "symbol": "Err",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/s3/s3.go",
-          "line": 524,
+          "line": 531,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
@@ -31148,133 +31379,133 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 593,
+          "line": 599,
           "symbol": "Open",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 594,
+          "line": 600,
           "symbol": "OpenFile",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 597,
+          "line": 603,
           "symbol": "Stat",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 598,
+          "line": 604,
           "symbol": "Lstat",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 599,
+          "line": 605,
           "symbol": "ReadDirContext",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 602,
+          "line": 608,
           "symbol": "Remove",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 603,
+          "line": 609,
           "symbol": "MkdirAll",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 604,
+          "line": 610,
           "symbol": "Rename",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 605,
+          "line": 611,
           "symbol": "PosixRename",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 608,
+          "line": 614,
           "symbol": "HasExtension",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 609,
+          "line": 615,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 623,
+          "line": 629,
           "symbol": "Read",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 650,
+          "line": 658,
           "symbol": "Read",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 657,
+          "line": 667,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 670,
+          "line": 680,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 678,
+          "line": 689,
           "symbol": "Next",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 686,
+          "line": 699,
           "symbol": "Entry",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 693,
+          "line": 706,
           "symbol": "Err",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/filesystem/sftp/sftp.go",
-          "line": 695,
+          "line": 708,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         }
@@ -66588,25 +66819,18 @@
     {
       "directory": "pkg/queue-control-plane",
       "module_path": "github.com/faustbrian/golib/pkg/queue-control-plane",
-      "packages": 18,
+      "packages": 17,
       "documented_packages": 14,
-      "missing_package_comments": 4,
+      "missing_package_comments": 3,
       "duplicate_package_comments": 0,
-      "exported_declarations": 988,
-      "documented_declarations": 356,
+      "exported_declarations": 984,
+      "documented_declarations": 352,
       "missing_declaration_comments": 632,
       "malformed_comments": 0,
       "generated_files": 0,
       "generated_missing_comments": 0,
       "markers": 0,
       "issues": [
-        {
-          "code": "missing-package-comment",
-          "path": "pkg/queue-control-plane/_browser/node_modules/flatted/golang/pkg/flatted/flatted.go",
-          "line": 1,
-          "symbol": "flatted",
-          "message": "package has no canonical Package flatted comment"
-        },
         {
           "code": "missing-package-comment",
           "path": "pkg/queue-control-plane/_browser/testserver/main.go",
@@ -83520,6 +83744,430 @@
       "issues": []
     },
     {
+      "directory": "pkg/service/integration/reference-durability",
+      "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-durability",
+      "packages": 1,
+      "documented_packages": 1,
+      "missing_package_comments": 0,
+      "duplicate_package_comments": 0,
+      "exported_declarations": 17,
+      "documented_declarations": 17,
+      "missing_declaration_comments": 0,
+      "malformed_comments": 0,
+      "generated_files": 0,
+      "generated_missing_comments": 0,
+      "markers": 0,
+      "issues": []
+    },
+    {
+      "directory": "pkg/service/integration/reference-external",
+      "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-external",
+      "packages": 1,
+      "documented_packages": 1,
+      "missing_package_comments": 0,
+      "duplicate_package_comments": 0,
+      "exported_declarations": 24,
+      "documented_declarations": 14,
+      "missing_declaration_comments": 10,
+      "malformed_comments": 0,
+      "generated_files": 0,
+      "generated_missing_comments": 0,
+      "markers": 0,
+      "issues": [
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-external/reference.go",
+          "line": 48,
+          "symbol": "Storage",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-external/reference.go",
+          "line": 49,
+          "symbol": "Envelopes",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-external/reference.go",
+          "line": 50,
+          "symbol": "WebhookEndpoint",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-external/reference.go",
+          "line": 51,
+          "symbol": "WebhookSigner",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-external/reference.go",
+          "line": 52,
+          "symbol": "WebhookPolicy",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-external/reference.go",
+          "line": 58,
+          "symbol": "Body",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-external/reference.go",
+          "line": 59,
+          "symbol": "Attempts",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-external/reference.go",
+          "line": 60,
+          "symbol": "Bulkhead",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-external/reference.go",
+          "line": 61,
+          "symbol": "Breaker",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-external/reference.go",
+          "line": 62,
+          "symbol": "Concurrency",
+          "message": "exported declaration has no documentation comment"
+        }
+      ]
+    },
+    {
+      "directory": "pkg/service/integration/reference-http",
+      "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-http",
+      "packages": 1,
+      "documented_packages": 0,
+      "missing_package_comments": 0,
+      "duplicate_package_comments": 1,
+      "exported_declarations": 32,
+      "documented_declarations": 10,
+      "missing_declaration_comments": 22,
+      "malformed_comments": 0,
+      "generated_files": 0,
+      "generated_missing_comments": 0,
+      "markers": 0,
+      "issues": [
+        {
+          "code": "duplicate-package-comment",
+          "path": "pkg/service/integration/reference-http/doc.go",
+          "line": 1,
+          "symbol": "referencehttp",
+          "message": "package has more than one canonical package comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 55,
+          "symbol": "ServiceName",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 56,
+          "symbol": "Version",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 57,
+          "symbol": "Environment",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 58,
+          "symbol": "BearerToken",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 59,
+          "symbol": "PrincipalID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 60,
+          "symbol": "TenantID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 61,
+          "symbol": "BusinessListener",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 62,
+          "symbol": "ManagementListener",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 63,
+          "symbol": "TrustTenant",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 64,
+          "symbol": "Readiness",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 68,
+          "symbol": "ServiceName",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 69,
+          "symbol": "Version",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 70,
+          "symbol": "Environment",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 317,
+          "symbol": "Now",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 321,
+          "symbol": "SigningKey",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 334,
+          "symbol": "Resolve",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 533,
+          "symbol": "Data",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 539,
+          "symbol": "Message",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 540,
+          "symbol": "Principal",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 541,
+          "symbol": "Tenant",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 542,
+          "symbol": "CorrelationID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-http/reference.go",
+          "line": 543,
+          "symbol": "RequestID",
+          "message": "exported declaration has no documentation comment"
+        }
+      ]
+    },
+    {
+      "directory": "pkg/service/integration/reference-platform",
+      "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-platform",
+      "packages": 3,
+      "documented_packages": 0,
+      "missing_package_comments": 2,
+      "duplicate_package_comments": 1,
+      "exported_declarations": 20,
+      "documented_declarations": 5,
+      "missing_declaration_comments": 15,
+      "malformed_comments": 0,
+      "generated_files": 0,
+      "generated_missing_comments": 0,
+      "markers": 0,
+      "issues": [
+        {
+          "code": "missing-package-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-fixture/main.go",
+          "line": 1,
+          "symbol": "main",
+          "message": "package has no canonical Package main comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-fixture/main.go",
+          "line": 68,
+          "symbol": "CertificatePEM",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-fixture/main.go",
+          "line": 69,
+          "symbol": "CertificatePath",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-fixture/main.go",
+          "line": 70,
+          "symbol": "Directory",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/platform-fixture/main.go",
+          "line": 71,
+          "symbol": "PrivateKeyPath",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-package-comment",
+          "path": "pkg/service/integration/reference-platform/cmd/reference-platform/main.go",
+          "line": 1,
+          "symbol": "main",
+          "message": "package has no canonical Package main comment"
+        },
+        {
+          "code": "duplicate-package-comment",
+          "path": "pkg/service/integration/reference-platform/doc.go",
+          "line": 1,
+          "symbol": "referenceplatform",
+          "message": "package has more than one canonical package comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 30,
+          "symbol": "BusinessAddress",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 31,
+          "symbol": "ManagementAddress",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 32,
+          "symbol": "BusinessListener",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 33,
+          "symbol": "ManagementListener",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 34,
+          "symbol": "DependencyURL",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 35,
+          "symbol": "Client",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 41,
+          "symbol": "GOOS",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 42,
+          "symbol": "GOARCH",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 43,
+          "symbol": "EffectiveUserID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 44,
+          "symbol": "EffectiveGroupID",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/service/integration/reference-platform/reference.go",
+          "line": 45,
+          "symbol": "TemporaryStorage",
+          "message": "exported declaration has no documentation comment"
+        }
+      ]
+    },
+    {
       "directory": "pkg/settings",
       "module_path": "github.com/faustbrian/golib/pkg/settings",
       "packages": 7,
@@ -87575,7 +88223,7 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/delimited.go",
-          "line": 237,
+          "line": 227,
           "symbol": "Read",
           "message": "exported declaration has no documentation comment"
         },
@@ -87813,175 +88461,175 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 24,
+          "line": 25,
           "symbol": "Format",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 25,
+          "line": 26,
           "symbol": "Sheet",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 26,
+          "line": 27,
           "symbol": "Header",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 27,
+          "line": 28,
           "symbol": "Normalize",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 28,
+          "line": 29,
           "symbol": "FieldsPerRecord",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 29,
+          "line": 30,
           "symbol": "AllowVariableFields",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 30,
+          "line": 31,
           "symbol": "PreserveCellErrors",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 34,
+          "line": 35,
           "symbol": "MaxWorkbookBytes",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 44,
+          "line": 45,
           "symbol": "ZIP",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 96,
-          "symbol": "Read",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/tabular/spreadsheet.go",
           "line": 97,
-          "symbol": "Close",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/tabular/spreadsheet.go",
-          "line": 106,
           "symbol": "Read",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet.go",
-          "line": 127,
+          "line": 98,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
-          "path": "pkg/tabular/spreadsheet_xlsx.go",
-          "line": 22,
-          "symbol": "GetCellType",
+          "path": "pkg/tabular/spreadsheet.go",
+          "line": 107,
+          "symbol": "Read",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/tabular/spreadsheet.go",
+          "line": 128,
+          "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet_xlsx.go",
           "line": 23,
-          "symbol": "Close",
+          "symbol": "GetCellType",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet_xlsx.go",
-          "line": 27,
-          "symbol": "Next",
+          "line": 24,
+          "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet_xlsx.go",
           "line": 28,
-          "symbol": "Error",
+          "symbol": "Next",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet_xlsx.go",
           "line": 29,
-          "symbol": "Columns",
+          "symbol": "Error",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet_xlsx.go",
           "line": 30,
+          "symbol": "Columns",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/tabular/spreadsheet_xlsx.go",
+          "line": 31,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet_xlsx.go",
-          "line": 193,
+          "line": 154,
           "symbol": "Read",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet_xlsx.go",
-          "line": 238,
+          "line": 199,
           "symbol": "Close",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/tabular/spreadsheet_xlsx_presence.go",
-          "line": 15,
-          "symbol": "Read",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet_xlsx_presence.go",
           "line": 16,
-          "symbol": "Close",
-          "message": "exported declaration has no documentation comment"
-        },
-        {
-          "code": "missing-exported-comment",
-          "path": "pkg/tabular/spreadsheet_xlsx_presence.go",
-          "line": 205,
           "symbol": "Read",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/tabular/spreadsheet_xlsx_presence.go",
-          "line": 336,
+          "line": 17,
+          "symbol": "Close",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/tabular/spreadsheet_xlsx_presence.go",
+          "line": 149,
+          "symbol": "Read",
+          "message": "exported declaration has no documentation comment"
+        },
+        {
+          "code": "missing-exported-comment",
+          "path": "pkg/tabular/spreadsheet_xlsx_presence.go",
+          "line": 273,
           "symbol": "Close",
           "message": "exported declaration has no documentation comment"
         }
@@ -93469,112 +94117,112 @@
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 532,
+          "line": 533,
           "symbol": "XMLName",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 533,
+          "line": 534,
           "symbol": "FaultCode",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 534,
+          "line": 535,
           "symbol": "FaultText",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 535,
+          "line": 536,
           "symbol": "FaultActor",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 536,
+          "line": 537,
           "symbol": "Detail11",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 537,
+          "line": 538,
           "symbol": "Code",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 538,
+          "line": 539,
           "symbol": "Reason",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 539,
+          "line": 540,
           "symbol": "Node",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 540,
+          "line": 541,
           "symbol": "Role",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 541,
+          "line": 542,
           "symbol": "Detail12",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 545,
+          "line": 546,
           "symbol": "Value",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 546,
+          "line": 547,
           "symbol": "Subcode",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 550,
+          "line": 551,
           "symbol": "Texts",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 554,
+          "line": 555,
           "symbol": "Language",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 555,
+          "line": 556,
           "symbol": "Text",
           "message": "exported declaration has no documentation comment"
         },
         {
           "code": "missing-exported-comment",
           "path": "pkg/wire/soap/soap.go",
-          "line": 559,
+          "line": 560,
           "symbol": "Inner",
           "message": "exported declaration has no documentation comment"
         },

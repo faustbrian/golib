@@ -121,6 +121,7 @@ use (
 	./pkg/service/benchmarks/platform
 	./pkg/service/compatibility
 	./pkg/service/integration/adoption
+	./pkg/service/integration/reference-durability
 	./pkg/service/integration/reference-external
 	./pkg/service/integration/reference-http
 	./pkg/service/integration/reference-platform
@@ -342,6 +343,8 @@ replace github.com/faustbrian/golib/pkg/service v0.0.0 => ./pkg/service
 replace github.com/faustbrian/golib/pkg/service/benchmarks/platform v0.0.0 => ./pkg/service/benchmarks/platform
 
 replace github.com/faustbrian/golib/pkg/service/integration/adoption v0.0.0 => ./pkg/service/integration/adoption
+
+replace github.com/faustbrian/golib/pkg/service/integration/reference-durability v0.0.0 => ./pkg/service/integration/reference-durability
 
 replace github.com/faustbrian/golib/pkg/service/integration/reference-external v0.0.0 => ./pkg/service/integration/reference-external
 
