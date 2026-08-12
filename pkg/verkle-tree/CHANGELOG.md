@@ -63,6 +63,9 @@ All notable changes to `verkle-tree` will be documented in this file.
   generator, auxiliary-generator, transcript, multiproof, and IPA definition,
   while retaining degenerate Fiat-Shamir failure semantics as a stable-release
   blocker.
+- Withdraw the previous pre-v1 completion classification because the pinned Go
+  and Rust implementations do not share fail-closed semantics for degenerate
+  Fiat-Shamir challenges and challenge-derived zero opening denominators.
 
 ### Added
 
