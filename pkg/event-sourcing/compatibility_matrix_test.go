@@ -121,8 +121,8 @@ func TestEventSauceCompatibilityBaselineIsPinnedAndComplete(t *testing.T) {
 		"Synchronous core dispatch",
 		"PostgreSQL",
 		"gokafka",
-		"goqueue",
-		"gooutbox",
+		"eventqueue",
+		"eventoutbox",
 		"gotelemetry",
 	} {
 		if adapterStatuses[adapter] != "Implemented" {
@@ -291,8 +291,8 @@ func TestPrimaryWorkflowsHaveExecutableArtifacts(t *testing.T) {
 		"eventtest/store_conformance_test.go",
 		"postgres/integration_test.go",
 		"adapters/gokafka/integration_test.go",
-		"adapters/goqueue/durable_integration_test.go",
-		"adapters/gooutbox/stager_integration_test.go",
+		"adapters/queue/durable_integration_test.go",
+		"adapters/outbox/stager_integration_test.go",
 		"../outbox/adapters/gokafka/publisher_test.go",
 		"adapters/gotelemetry/instrumentation_test.go",
 	} {
