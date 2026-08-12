@@ -23941,7 +23941,8 @@
       ],
       "goal_files": [
         "pkg/verkle-tree/.ai/GOAL.md",
-        "pkg/verkle-tree/.ai/GOAL_HARDEN.md"
+        "pkg/verkle-tree/.ai/GOAL_HARDEN.md",
+        "pkg/verkle-tree/.ai/GOAL_SECURITY.md"
       ],
       "goal_status": "implementation-evidence-inventoried",
       "goal_evidence": [
@@ -23981,7 +23982,41 @@
         },
         {
           "file": "pkg/verkle-tree/.ai/GOAL_HARDEN.md",
-          "requirements_sha256": "e7e3cbabb4169ddb2c026736054faec98a36c80c88fca2ff46c482528e20481a",
+          "requirements_sha256": "09ae7ce7eb8c942afb327c5d9251d9b26ef185d1d84aa88f49e2475100e61404",
+          "implementation_evidence": [
+            "pkg/verkle-tree/CHANGELOG.md",
+            "pkg/verkle-tree/README.md",
+            "pkg/verkle-tree/docs/compatibility.md",
+            "pkg/verkle-tree/docs/threat-model.md"
+          ],
+          "verification_gates": [
+            "format-check",
+            "tidy-check",
+            "safety",
+            "vet",
+            "test",
+            "race",
+            "coverage",
+            "lint",
+            "staticcheck",
+            "vulnerability",
+            "secrets",
+            "licenses",
+            "sbom",
+            "fuzz",
+            "mutation",
+            "nilaway",
+            "docs",
+            "api",
+            "conformance",
+            "interoperability",
+            "benchmark"
+          ],
+          "implementation_status": "implemented-requires-fresh-verification"
+        },
+        {
+          "file": "pkg/verkle-tree/.ai/GOAL_SECURITY.md",
+          "requirements_sha256": "7f7bd387c5ef36ebbe92e1badbef74bced66a7d4665c7b016a23c560d0598f8a",
           "implementation_evidence": [
             "pkg/verkle-tree/CHANGELOG.md",
             "pkg/verkle-tree/README.md",

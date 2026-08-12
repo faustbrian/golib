@@ -84,6 +84,16 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 63 | Operational assurance | `pending` | `.ai/GOAL_OPERATIONAL_ASSURANCE.md` | 3-62 |
 | 64 | Release | `pending` | `.ai/GOAL_RELEASE.md` | 3-63 and explicit release authority |
 
+## Deferred Future Goals
+
+These goals are intentionally outside the ordered release campaign above and
+do not block an execution unit unless that unit explicitly claims their
+assurance scope.
+
+| Goal | Status | Treatment |
+| --- | --- | --- |
+| `pkg/verkle-tree/.ai/GOAL_SECURITY.md` | `pending` | Execute only as a separately authorized cryptographic-security campaign. It does not block the verified non-security Verkle hardening goal. |
+
 ## Recurring And Previously Executed Goals
 
 | Goal | Status | Treatment |
@@ -155,7 +165,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | `.ai/GOAL_QUEUE_WORKER_BALANCING.md` | `verified` | Current scoped evidence verifies priority-aware local allocation, audited desired-state control, fleet visibility, Kubernetes integration, exact coverage and mutation, and every mandatory queue and queue-control-plane gate; requeue only when affected content or requirements change. |
 | `pkg/merkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies RFC 9162 behavior, persistence and proof boundaries, hostile-input hardening, independent interoperability, exact coverage and mutation, fuzzing, performance, and every mandatory module gate; requeue only when affected content or requirements change. |
 | `pkg/merkle-patricia-trie/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies Ethereum-compatible state transitions, proofs, persistence and recovery, hostile-input hardening, independent client interoperability, exact coverage and mutation, fuzzing, performance, and every mandatory module gate; requeue only when affected content or requirements change. |
-| `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies the package-owned Bandersnatch IPA profile, deterministic immutable transitions, aggregate proofs, stateless witnesses, caller-owned storage and recovery, hostile-input bounds, independent Go and Rust interoperability, exact coverage and mutation, fuzzing, race behavior, benchmarks, documentation, and every mandatory Verkle module gate; requeue only when affected content or requirements change. |
+| `pkg/verkle-tree/.ai/{GOAL.md,GOAL_HARDEN.md}` | `verified` | Current scoped evidence verifies the package-owned pre-v1 research profile's ordinary behavior, deterministic immutable transitions, aggregate proofs, stateless witnesses, caller-owned storage and recovery contracts, resource bounds, ordinary pinned interoperability, exact coverage and mutation, fuzzing, race behavior, portability evidence, benchmarks, documentation, and every mandatory non-security hardening gate; requeue only when affected content or requirements change. |
 
 ### Resilience primitives evidence
 

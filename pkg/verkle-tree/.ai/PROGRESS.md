@@ -3,7 +3,7 @@
 ## Selected release target
 
 As of 2026-08-12, progress against the selected **profile-conformant pre-v1**
-release target is **81/100**.
+non-security hardening target is **81/81**.
 
 This is a delivery-planning score, not a cryptographic security rating. The
 allocation below is fixed and binary. An item earns all of its points only when
@@ -11,17 +11,12 @@ its complete exit criterion is satisfied. A completed item can reopen only when
 fresh evidence proves that its criterion no longer holds; any decrease must
 name that item and evidence.
 
-This score replaces the earlier production-grade denominator because the
-maintainer explicitly selected a pre-v1 release target. It is a scope change,
-not a 27-point implementation jump. Production-backend audit, stable-v1 API
-guarantees, and Ethereum protocol readiness are not silently counted as done;
-they are outside this release target.
-
-The previous `100/100` classification is withdrawn. The 2026-08-12
-cryptographic-definition trace proved that degenerate Fiat-Shamir challenges
-and challenge-derived zero opening denominators have no canonical failure
-contract across the pinned Go and Rust implementations. That evidence reopens
-the exact-profile, fail-closed-proof, and final-release criteria below.
+This score replaces the earlier 100-point security-inclusive denominator
+because the maintainer explicitly moved cryptographic and adversarial security
+assurance into the future [`GOAL_SECURITY.md`](GOAL_SECURITY.md). This is a
+scope change, not implementation evidence for the excluded 19 points.
+Production-backend audit, stable-v1 API guarantees, cryptographic security,
+and Ethereum protocol readiness are not silently counted as done.
 
 ## Earned: 81 points
 
@@ -33,23 +28,25 @@ the exact-profile, fail-closed-proof, and final-release criteria below.
 | Stateless witnesses | 10 | Canonical bounded Set and Delete witnesses cover present, missing, different-stem, empty-root, and topology-collapse paths with verified pre/post roots |
 | Snapshot and caller-owned storage contracts | 10 | Canonical snapshot encoding, atomic commit, isolated load, audit, retention/pruning maintenance, and unpublished-write recovery are implemented |
 | Resource, ownership, determinism, and concurrency contracts | 7 | Public operations have explicit budgets, cancellation, defensive ownership, deterministic output, bounded worker admission, and immutable concurrent-read semantics |
-| Test and hostile-input baseline | 8 | Production packages have exact statement coverage and the current boundary has race, fuzz, malformed-input, crash-lifecycle, static-analysis, vulnerability, secret, license, and SBOM evidence |
+| Test and reliability baseline | 8 | Production packages have exact statement coverage and the current boundary has race, bounded fuzz, malformed-container, crash-lifecycle, static-analysis, license, and SBOM evidence |
 | Pinned conformance and provenance evidence | 8 | Exact Go and Rust revisions, licenses, generators, checksums, and procedures are recorded; the compatibility matrix identifies every positive and negative differential claim without generalizing beyond its corpus |
 | Documentation, API audit, and benchmarks | 6 | Quick start, normative profile, conformance matrix, threat model, usage, storage, adoption, complete exported-API audit, benchmark method, caveats, and raw samples are published |
 | Exact mutation gate | 2 | Every production package has exact 100% mutation coverage and efficacy; the final segmented `internal/authstate` campaign has no surviving or uncovered viable mutant |
 | **Total earned** | **81** | |
 
-## Remaining: 19 points
+## Excluded future security work: 19 former points
 
-| Item | Points | Reopened exit criterion |
+| Item | Former points | Future security criterion |
 | --- | ---: | --- |
 | Exact named profile | 8 | Define one versioned reject-or-retry result for zero `r`, zero `w`, zero IPA folding challenges, and `t` equal to an opened position; reproduce it independently without retaining incompatible behavior under one profile identity |
 | Canonical proof and transcript boundary | 8 | Prove generation and verification fail closed for every degenerate challenge and denominator without panic, subset acceptance, transcript ambiguity, or prover/verifier divergence |
-| Final pre-v1 release evidence | 3 | Resolve both cryptographic criteria, rerun every affected gate against the final inputs, and complete a fresh final-diff review |
-| **Total remaining** | **19** | |
+| Security release evidence | 3 | Resolve both cryptographic criteria, rerun every affected security gate against the final inputs, and complete a fresh final-diff review |
+| **Total moved to `GOAL_SECURITY.md`** | **19** | |
 
-Stable-v1, external-audit, production-suitability, and Ethereum-protocol claims
-remain separate future decisions and are not implied by this score.
+These points are not requirements of `GOAL_HARDEN.md` and do not reduce its
+81/81 result. Stable-v1, security-audit, production-suitability, and
+Ethereum-protocol claims remain separate future decisions and are not implied
+by this score.
 
 ## Current report
 
@@ -74,16 +71,17 @@ remain separate future decisions and are not implied by this score.
   [`docs/adoption.md`](../docs/adoption.md).
 - **Verification:** The earlier Go 1.26.5 darwin/arm64 campaign passed all 21
   mandatory scoped gates, exact 6348/6348 statement coverage, exact mutation,
-  bounded fuzz, race, crash/recovery, security, API, documentation,
+  bounded fuzz, race, crash/recovery, API, documentation, ordinary pinned
   interoperability, benchmark, and clean-consumer checks. Those gates did not
-  exercise degenerate transcript outputs and do not prove the reopened
+  exercise degenerate transcript outputs and do not prove the future security
   criteria. The 2026-08-12 specification gate and internal conformance suite
   pass for the corrected documentation and ordinary-case corpus.
-- **Cryptographic and protocol limits:** Degenerate challenge soundness,
+- **Future security work:** Degenerate challenge soundness,
   backend audit status, side-channel scope, uncancellable dependency work, and
   maintenance risks remain explicit in [`docs/backend-audit.md`](../docs/backend-audit.md)
-  and [`docs/threat-model.md`](../docs/threat-model.md). No Ethereum profile or
-  mainnet-readiness claim is made.
+  and [`docs/threat-model.md`](../docs/threat-model.md), and are now governed by
+  [`GOAL_SECURITY.md`](GOAL_SECURITY.md). No security-audit, Ethereum-profile,
+  or mainnet-readiness claim is made.
 - **Platforms:** Native darwin/arm64 and Rosetta darwin/amd64 backend paths pass
   the recorded default and generic-path checks. Linux amd64, Linux arm64,
   Linux 386, Windows amd64, and darwin amd64 cross-compilation passes. Native
@@ -100,8 +98,8 @@ latency, memory, allocation, throughput, and encoded size for stated workloads;
 they do not establish cryptographic conformance.
 
 The evidence does not establish a universal Verkle standard, Ethereum mainnet
-compatibility, an external audit, or production suitability of the pinned
-cryptographic backend. The degenerate-challenge failure contract is inside the
-selected pre-v1 target and blocks describing that target as complete.
+compatibility, an external security audit, or production suitability of the
+pinned cryptographic backend. The degenerate-challenge failure contract is
+outside the non-security hardening target and remains future security work.
 
-The selected target is complete only at **100/100**.
+The selected non-security hardening target is complete at **81/81**.
