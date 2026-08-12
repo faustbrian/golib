@@ -1009,6 +1009,46 @@ func TestStatelessUpdateProofCountAndScratchBoundaries(t *testing.T) {
 	}
 }
 
+func TestStatelessProofIndexesHonorCancellation(t *testing.T) {
+	t.Parallel()
+
+	root := backend.EmptyVectorCommitment()
+	tests := map[string]struct {
+		proof            TreeProof
+		successfulChecks int
+	}{
+		"commitments": {
+			proof: TreeProof{
+				commitments: []PathCommitment{{}, {}},
+			},
+			successfulChecks: 2,
+		},
+		"stem paths": {
+			proof: TreeProof{
+				stemPaths: []StemPath{{}, {}},
+			},
+			successfulChecks: 2,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			commitments, paths, err := buildStatelessProofIndexes(
+				&stepContext{successfulChecks: test.successfulChecks},
+				test.proof,
+				root,
+			)
+			if !errors.Is(err, context.Canceled) {
+				t.Fatalf("buildStatelessProofIndexes() error = %v, want cancellation", err)
+			}
+			if commitments != nil || paths != nil {
+				t.Fatal("cancelled proof indexes exposed partial maps")
+			}
+		})
+	}
+}
+
 func TestStatelessUpdaterHonorsCancellationAndConcurrentUse(t *testing.T) {
 	t.Parallel()
 
