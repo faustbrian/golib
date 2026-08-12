@@ -21,6 +21,11 @@ for transaction rollback, atomic business/idempotency/outbox commit, relay,
 unacknowledged-task reclamation, acknowledgement, and command replay. It
 remains pending for the other required durability systems and recovery cases.
 
+`OA-RELEASE-CONSUMER` now retains one current local `v1.0.0` source-proxy and
+clean-consumer proof. It remains pending for the complete module matrix,
+public proxy and checksum resolution, signatures, attestations, and release
+authorization.
+
 `operational-assurance.json` is the machine-readable authority. It catalogs
 every releasable module, every mandatory scenario, evidence paths and SHA-256
 digests, complete current-input fingerprints, environments, UTC observation

@@ -401,7 +401,20 @@
       "affected_modules": [
         "*"
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "path": "docs/assurance/evidence/OA-RELEASE-CONSUMER-LOCAL.md",
+          "sha256": "76c4f0f6693a725e1408d66b9a73c68905d2c601d8a8cef979441f17d99d08c7",
+          "observed_utc": "2026-08-12T20:16:39Z",
+          "environment": "darwin/arm64; Go 1.26.5; task-owned local module proxy; clean GOWORK=off consumer",
+          "module_scope": [
+            "pkg/external-sort"
+          ],
+          "input_digests": {
+            "pkg/external-sort": "50afbc2668f70b46ca515b453ec94899eab05d5d382f95c32a508c618e38fe2d"
+          }
+        }
+      ],
       "accepted_risks": []
     }
   ],

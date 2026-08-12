@@ -10,6 +10,8 @@ documented in each module's changelog.
 - Add a maintained PostgreSQL and Valkey durability reference that proves
   transactional business, idempotency, outbox, relay, acknowledgement, replay,
   and unacknowledged-task recovery through public module APIs.
+- Record bounded current `v1.0.0` planning, local proxy, and clean-consumer
+  release evidence without implying public publication or release readiness.
 - Add a content-addressed operational-assurance register and validator that
   inventories every releasable module and required composition scenario while
   keeping the current incomplete verdict explicitly `not ready`.
