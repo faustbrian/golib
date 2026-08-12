@@ -844,6 +844,8 @@ Changelog principles, and releases use semantic versioning.
 
 ### Changed
 
+- Link authoritative specification inputs directly to the canonical decision
+  register.
 - Report bounded Draft 7 regular-expression timeouts as resource-limit errors
   instead of ordinary pattern mismatches, and give checksum-pinned OpenRPC
   meta-schema patterns the maximum bounded validation window.
