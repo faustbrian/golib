@@ -989,6 +989,19 @@ assurance scope.
 | Observed | 2026-08-11T21:17:39Z |
 | Gaps | Final documentation verification still requires complete runnable recipe modules, structured Laravel and standalone migration guides, Kubernetes and local operations guides, fair comparison pages, a central limitations register, package README consistency and root backlinks for all releasable modules, compiled snippets, deterministic external-link and orphan-page checks, terminology and stale-claim enforcement, adoption walkthroughs for every target audience, and final rendered-document review. |
 
+### Independent module release dry-run audit
+
+| Field | Record |
+| --- | --- |
+| Goal | `.ai/GOAL_RELEASE.md` and repository normalization Phase 10 clean-consumer proof. |
+| Scope | All 96 releasable modules whose owned dependency closure excludes the active Kafka, OpenSearch, and Verkle specialist scopes. |
+| Status | Release dry-run evidence complete for the unaffected release set; the repository release goal remains `pending`. |
+| Evidence | `./scripts/run-modules.sh release-dry-run --jobs 8 --modules <96-unaffected-releasable-modules>` after isolating each module's generated service environment in its own process. |
+| Result | All 96 modules passed isolated tidy, test, API compatibility, dependency-order, `v1.0.0` tag planning, local module-proxy publication, and clean external-consumer resolution. The run first reproduced cross-module environment leakage when `pkg/audit/postgres` inherited `POSTGRES_VERSION=18.4`; a focused regression failed before the root runner fix and passed afterward, and the original release dry-run then passed. |
+| Environment | Go 1.26.5 on darwin/arm64 with task-owned disposable `GOCACHE` and `GOMODCACHE` directories removed after each bounded run; gate-managed PostgreSQL, Valkey, Redis, NATS, NSQ, and RabbitMQ services where cataloged. |
+| Observed | 2026-08-12T17:48:14Z |
+| Gaps | Release dry-runs remain for Kafka, OpenSearch, Verkle, and four releasable adapters whose dependency closure includes Kafka. Public proxy resolution, operational assurance, release signing and attestations, and explicit release authority remain outstanding; no tag or release was created. |
+
 All other historical package goals remain outside the pending queue unless a
 requirement change, implementation change, failed gate, stale external claim,
 or explicit audit finding moves them to `pending-reexecution` or
