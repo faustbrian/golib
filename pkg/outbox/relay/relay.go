@@ -140,13 +140,7 @@ func New(store Store, publisher Publisher, config Config) (*Relay, error) {
 	if config.TransitionTimeout == 0 {
 		config.TransitionTimeout = defaultTransitionTimeout
 	}
-	if config.BatchSize < 0 || config.BatchSize > maximumBatchSize ||
-		config.Workers < 0 || config.Workers > maximumWorkers ||
-		config.LeaseDuration < 0 || config.LeaseDuration > maximumLeaseDuration ||
-		config.LeaseRenewalInterval < 0 ||
-		config.LeaseRenewalInterval >= config.LeaseDuration || config.MaxAttempts < 0 ||
-		config.MaxAttempts > maximumAttempts ||
-		config.PollInterval < 0 || config.TransitionTimeout < 0 {
+	if invalidConfig(config) {
 		return nil, ErrInvalidConfig
 	}
 	if config.Serialization > postgres.SerializeByTopic {
@@ -172,6 +166,16 @@ func New(store Store, publisher Publisher, config Config) (*Relay, error) {
 	return &Relay{store: store, publisher: publisher, config: config}, nil
 }
 
+func invalidConfig(config Config) bool {
+	return config.BatchSize < 0 || config.BatchSize > maximumBatchSize ||
+		config.Workers < 0 || config.Workers > maximumWorkers ||
+		config.LeaseDuration > maximumLeaseDuration ||
+		config.LeaseRenewalInterval < 0 ||
+		config.LeaseRenewalInterval >= config.LeaseDuration || config.MaxAttempts < 0 ||
+		config.MaxAttempts > maximumAttempts ||
+		config.PollInterval < 0 || config.TransitionTimeout < 0
+}
+
 func containClockPanic(clock func() time.Time) func() time.Time {
 	return func() (value time.Time) {
 		defer func() { _ = recover() }()
@@ -188,16 +192,22 @@ func (relay *Relay) Run(ctx context.Context) error {
 			return nil
 		}
 		result, err := relay.RunOnce(ctx)
-		if err != nil {
+		switch err {
+		case nil:
+		default:
 			return err
 		}
 		if ctx.Err() != nil {
 			return nil
 		}
-		if result.Claimed == relay.config.BatchSize {
+		switch relay.config.BatchSize - result.Claimed {
+		case 0:
 			continue
 		}
-		if err := relay.config.Wait(ctx, relay.config.PollInterval); err != nil {
+		err = relay.config.Wait(ctx, relay.config.PollInterval)
+		switch err {
+		case nil:
+		default:
 			if ctx.Err() != nil {
 				return nil
 			}
@@ -218,7 +228,9 @@ func (relay *Relay) RunOnce(ctx context.Context) (Result, error) {
 		LeaseDuration: relay.config.LeaseDuration,
 		Serialization: relay.config.Serialization,
 	})
-	if err != nil {
+	switch err {
+	case nil:
+	default:
 		relay.observe(ctx, outbox.Event{Operation: outbox.OperationClaim, Outcome: outbox.OutcomeFailure,
 			Duration: relay.durationSince(startedAt)})
 		return Result{}, fmt.Errorf("outbox/relay: claim: %w", err)
@@ -227,7 +239,9 @@ func (relay *Relay) RunOnce(ctx context.Context) (Result, error) {
 		Count: len(claims), Duration: relay.durationSince(startedAt)})
 
 	result := Result{Claimed: len(claims)}
-	if len(claims) > relay.config.BatchSize {
+	switch min(len(claims), relay.config.BatchSize) {
+	case len(claims):
+	default:
 		return result, fmt.Errorf("%w: got %d, requested %d",
 			ErrClaimBatchOverflow, len(claims), relay.config.BatchSize)
 	}
@@ -301,7 +315,9 @@ func (relay *Relay) process(ctx context.Context, claim postgres.Claim) (bool, tr
 				startedAt := relay.config.Clock()
 				_, err := relay.store.ExtendLease(heartbeatContext, lease, relay.config.LeaseDuration)
 				outcome := outbox.OutcomeSuccess
-				if err != nil {
+				switch err {
+				case nil:
+				default:
 					outcome = outbox.OutcomeFailure
 				}
 				relay.observeEnvelope(heartbeatContext, claim.Envelope, outbox.OperationExtendLease, outcome, startedAt)
@@ -310,7 +326,7 @@ func (relay *Relay) process(ctx context.Context, claim postgres.Claim) (bool, tr
 			},
 		)
 		afterPublishFinished := publishFinished.Load()
-		if heartbeatErr != nil && !afterPublishFinished {
+		if heartbeatShouldCancelPublish(heartbeatErr, afterPublishFinished) {
 			cancelPublish()
 		}
 		heartbeatDone <- heartbeatResult{
@@ -323,10 +339,7 @@ func (relay *Relay) process(ctx context.Context, claim postgres.Claim) (bool, tr
 	publishFinished.Store(true)
 	cancelPublish()
 	heartbeat := <-heartbeatDone
-	expectedHeartbeatStop := heartbeat.afterPublishFinished && errors.Is(heartbeat.err, context.Canceled)
-	if ctx.Err() != nil && errors.Is(heartbeat.err, ctx.Err()) {
-		expectedHeartbeatStop = true
-	}
+	expectedHeartbeatStop := heartbeatStopExpected(ctx.Err(), heartbeat.err, heartbeat.afterPublishFinished)
 	if heartbeat.err != nil && !expectedHeartbeatStop {
 		relay.observeEnvelope(ctx, claim.Envelope, outbox.OperationPublish, outbox.OutcomeFailure, publishStartedAt)
 
@@ -344,7 +357,7 @@ func (relay *Relay) process(ctx context.Context, claim postgres.Claim) (bool, tr
 		return true, transitionDelivered, nil
 	}
 	relay.observeEnvelope(ctx, claim.Envelope, outbox.OperationPublish, outbox.OutcomeFailure, publishStartedAt)
-	if ctx.Err() != nil && (errors.Is(publishErr, context.Canceled) || errors.Is(publishErr, context.DeadlineExceeded)) {
+	if canceledPublish(ctx.Err(), publishErr) {
 		cleanupContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), relay.config.TransitionTimeout)
 		defer cancel()
 		transitionStartedAt := relay.config.Clock()
@@ -431,10 +444,14 @@ func boundedBackoff(backoff func(int) time.Duration, attempt int) (delay time.Du
 
 func maintainLease(ctx context.Context, interval time.Duration, extend func(context.Context) error) error {
 	for {
-		if err := waitContext(ctx, interval); err != nil {
+		switch err := waitContext(ctx, interval); err {
+		case nil:
+		default:
 			return nil
 		}
-		if err := extend(ctx); err != nil {
+		switch err := extend(ctx); err {
+		case nil:
+		default:
 			return err
 		}
 	}
@@ -447,7 +464,9 @@ func invokeHeartbeat(
 	extend func(context.Context) error,
 ) (err error) {
 	defer func() {
-		if recover() != nil {
+		switch recover() {
+		case nil:
+		default:
 			err = ErrHeartbeatPanic
 		}
 	}()
@@ -527,11 +546,7 @@ func containDiagnosticPanic(callback func()) {
 
 func (relay *Relay) durationSince(startedAt time.Time) time.Duration {
 	duration := relay.config.Clock().Sub(startedAt)
-	if duration < 0 {
-		return 0
-	}
-
-	return duration
+	return max(duration, 0)
 }
 
 func waitContext(ctx context.Context, duration time.Duration) error {
@@ -547,14 +562,34 @@ func waitContext(ctx context.Context, duration time.Duration) error {
 }
 
 func exponentialBackoff(attempt int) time.Duration {
-	if attempt < 1 {
-		attempt = 1
-	}
-	exponent := min(attempt-1, 10)
-	ceiling := 100 * time.Millisecond * time.Duration(1<<exponent)
-	if ceiling > maximumBackoff {
-		ceiling = maximumBackoff
+	ceiling := backoffCeiling(attempt)
+
+	return time.Duration(rand.Int64N(int64(ceiling)))
+}
+
+func heartbeatStopExpected(parentErr, heartbeatErr error, afterPublish bool) bool {
+	if afterPublish && errors.Is(heartbeatErr, context.Canceled) {
+		return true
 	}
 
-	return time.Duration(rand.Int64N(int64(ceiling) + 1))
+	return parentErr != nil && errors.Is(heartbeatErr, parentErr)
+}
+
+func heartbeatShouldCancelPublish(heartbeatErr error, afterPublish bool) bool {
+	return heartbeatErr != nil && !afterPublish
+}
+
+func canceledPublish(parentErr, publishErr error) bool {
+	if parentErr == nil {
+		return false
+	}
+
+	return errors.Is(publishErr, context.Canceled) || errors.Is(publishErr, context.DeadlineExceeded)
+}
+
+func backoffCeiling(attempt int) time.Duration {
+	attempt = max(attempt, 1)
+	exponent := min(attempt-1, 10)
+
+	return min(100*time.Millisecond*time.Duration(1<<exponent), maximumBackoff)
 }

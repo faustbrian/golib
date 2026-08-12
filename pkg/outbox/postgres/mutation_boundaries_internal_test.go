@@ -29,6 +29,15 @@ func TestStoreAcceptsExactConfigurationLimits(t *testing.T) {
 	}
 }
 
+func TestEnvelopeValidationPropagatesInvalidLimits(t *testing.T) {
+	limits := outbox.DefaultLimits()
+	limits.MaxIDBytes = 0
+	err := (outbox.Envelope{ID: "message", Topic: "topic", PayloadVersion: 1}).ValidateForInsert(limits)
+	if !errors.Is(err, outbox.ErrInvalidLimits) {
+		t.Fatalf("invalid envelope limits error = %v", err)
+	}
+}
+
 func TestStoreOperationsAcceptExactRequestLimits(t *testing.T) {
 	queryFailure := errors.New("query reached")
 	identifier := strings.Repeat("x", maxIdentifierBytes)
@@ -164,6 +173,12 @@ func TestMaintenanceAcceptsExactBatchLimit(t *testing.T) {
 		ArchiveFunc(func(context.Context, []DeliveredMessage) error { return nil }),
 	); err != nil {
 		t.Fatalf("exact archive limit: %v", err)
+	}
+	if _, err := store.ArchiveAndPruneDelivered(
+		context.Background(), time.Now(), 0,
+		ArchiveFunc(func(context.Context, []DeliveredMessage) error { return nil }),
+	); !errors.Is(err, ErrInvalidAdminLimit) {
+		t.Fatalf("zero archive limit error = %v", err)
 	}
 }
 

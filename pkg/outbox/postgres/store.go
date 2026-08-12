@@ -860,10 +860,7 @@ func (s *Store) observe(ctx context.Context, operation outbox.Operation, count i
 	if err != nil {
 		outcome = outbox.OutcomeFailure
 	}
-	duration := s.clock().Sub(startedAt)
-	if duration < 0 {
-		duration = 0
-	}
+	duration := max(s.clock().Sub(startedAt), 0)
 	containObserverPanic(func() {
 		s.observer.Observe(ctx, outbox.Event{
 			Operation: operation,
