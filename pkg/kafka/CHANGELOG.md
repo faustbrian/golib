@@ -186,6 +186,9 @@ All notable changes to this module are documented here.
 
 ### Fixed
 
+- align the event-sourcing compatibility contract with the target-oriented
+  queue and outbox adapter names so Kafka reverse-dependency clean-consumer
+  release checks resolve the committed modules
 - distinguish the directly tested Kafka 3.7.2 client-compatibility floor from
   Apache's archived broker lifecycle so production guidance cannot imply that
   package compatibility extends upstream security or maintenance support
