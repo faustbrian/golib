@@ -501,7 +501,7 @@ func (provider *Provider) requestForSchema(schema schemaregistry.Schema) ([]byte
 	}
 	references := make([]schemaReference, 0, len(definition.References))
 	for _, reference := range definition.References {
-		if reference.Name == "" || reference.Subject == "" || reference.Version == 0 {
+		if reference.Subject == "" || reference.Version == 0 {
 			return nil, fmt.Errorf("%w: Confluent reference coordinates", schemaregistry.ErrInvalidRequest)
 		}
 		references = append(references, schemaReference{Name: reference.Name, Subject: reference.Subject, Version: reference.Version})

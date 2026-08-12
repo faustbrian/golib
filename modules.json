@@ -20188,9 +20188,7 @@
       ],
       "required_services": [],
       "build_tags": [],
-      "test_tags": [
-        "integration"
-      ],
+      "test_tags": [],
       "interoperability_tools": [],
       "specifications": [],
       "conformance_corpora": [],

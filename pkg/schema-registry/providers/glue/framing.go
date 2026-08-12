@@ -83,11 +83,10 @@ func decodeUUID(value string) ([16]byte, error) {
 	if len(value) != 36 || value[8] != '-' || value[13] != '-' || value[18] != '-' || value[23] != '-' {
 		return uuid, fmt.Errorf("%w: schema version UUID", ErrInvalidFrame)
 	}
-	decoded, err := hex.DecodeString(strings.ReplaceAll(value, "-", ""))
-	if err != nil || len(decoded) != len(uuid) {
+	_, err := hex.Decode(uuid[:], []byte(strings.ReplaceAll(value, "-", "")))
+	if err != nil {
 		return uuid, fmt.Errorf("%w: schema version UUID", ErrInvalidFrame)
 	}
-	copy(uuid[:], decoded)
 	return uuid, nil
 }
 

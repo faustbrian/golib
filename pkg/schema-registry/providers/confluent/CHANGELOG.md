@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- Replace the obsolete JSON Schema pseudo-version with the canonical monorepo
+  dependency version used by clean local and CI resolution.
+- Keep the real Confluent service suite behind its dedicated explicit tag and
+  interoperability gate so default tests remain hermetic without weakening
+  release proof.
+- Validate endpoint policy, deletion coordinates, frame identities, and schema
+  references independently while relying on the core schema invariant for
+  reference names.
 - Reject reference responses whose subject or version does not match the
   requested dependency coordinate.
 - Preserve caller cancellation when a retry delay expires concurrently.

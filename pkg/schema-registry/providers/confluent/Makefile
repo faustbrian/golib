@@ -41,7 +41,7 @@ fuzz:
 	../../scripts/with-provider-gocache.sh $(GO) test . -run '^$$' -fuzz '^FuzzWireFrames$$' -fuzztime="$(FUZZ_TIME)"
 integration:
 	./scripts/check-confluent.sh
-interoperability:
+interoperability: integration
 	./scripts/check-wire-reference.sh
 conformance: integration interoperability
 mutation:

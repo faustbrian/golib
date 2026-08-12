@@ -1,4 +1,4 @@
-//go:build integration
+//go:build confluentintegration
 
 package confluent_test
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Refresh owned-module checksums so clean local and CI dependency resolution
+  uses the canonical monorepo versions.
+- Exercise provider, scope, registry, and schema-name validation independently
+  and simplify exact-length UUID decoding.
 - Reject by-ID responses whose returned schema-version UUID differs from the
   requested provider identity.
 - Refresh AWS Smithy Go to 1.27.7; the Glue SDK remains current at 1.152.0.

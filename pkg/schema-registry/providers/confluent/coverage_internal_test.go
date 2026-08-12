@@ -210,7 +210,13 @@ func TestFramingBoundaryFailures(t *testing.T) {
 	if _, _, err := classic.Unframe(canceled, nil); !errors.Is(err, context.Canceled) {
 		t.Fatalf("Unframe(canceled) error = %v", err)
 	}
-	badIDs := []schemaregistry.ProviderID{{}, {Provider: ProviderName, Scope: "scope", Value: "0"}, {Provider: ProviderName, Scope: "scope", Value: "x"}}
+	badIDs := []schemaregistry.ProviderID{
+		{},
+		{Provider: "other", Scope: "scope", Value: "1"},
+		{Provider: ProviderName, Scope: "other", Value: "1"},
+		{Provider: ProviderName, Scope: "scope", Value: "0"},
+		{Provider: ProviderName, Scope: "scope", Value: "x"},
+	}
 	for _, badID := range badIDs {
 		if _, err := classic.Frame(context.Background(), badID, nil); !errors.Is(err, ErrInvalidFrame) {
 			t.Fatalf("Frame(%+v) error = %v", badID, err)
@@ -273,11 +279,10 @@ func TestFramingBoundaryFailures(t *testing.T) {
 	if err != nil || gotID != id || len(indexes) != 1 || indexes[0] != 1 || len(payload) != 0 {
 		t.Fatalf("UnframeMessage(one index) = (%+v, %v, %v, %v)", gotID, indexes, payload, err)
 	}
-	if _, err := protobuf.FrameMessage(context.Background(), badIDs[0], []int{0}, nil); !errors.Is(err, ErrInvalidFrame) {
-		t.Fatalf("FrameMessage(bad scope) error = %v", err)
-	}
-	if _, err := protobuf.FrameMessage(context.Background(), badIDs[1], []int{0}, nil); !errors.Is(err, ErrInvalidFrame) {
-		t.Fatalf("FrameMessage(zero ID) error = %v", err)
+	for _, badID := range badIDs {
+		if _, err := protobuf.FrameMessage(context.Background(), badID, []int{0}, nil); !errors.Is(err, ErrInvalidFrame) {
+			t.Fatalf("FrameMessage(%+v) error = %v", badID, err)
+		}
 	}
 	if _, _, _, err := protobuf.UnframeMessage(canceled, nil); !errors.Is(err, context.Canceled) {
 		t.Fatalf("UnframeMessage(canceled) error = %v", err)
@@ -371,6 +376,8 @@ func TestProviderOperationBoundaries(t *testing.T) {
 		schemaregistry.ByProviderID(schemaregistry.ProviderID{Provider: ProviderName, Scope: "scope", Value: "0"}),
 		schemaregistry.ByProviderID(schemaregistry.ProviderID{Provider: ProviderName, Scope: "scope", Value: "x"}),
 		schemaregistry.AtVersion(schemaregistry.Subject{}, schemaregistry.Version{Number: 1}),
+		schemaregistry.AtVersion(schemaregistry.Subject{Name: "s"}, schemaregistry.Version{}),
+		schemaregistry.AtVersion(schemaregistry.Subject{Name: "s"}, schemaregistry.Version{Number: 1, Opaque: "v"}),
 		schemaregistry.AtVersion(schemaregistry.Subject{Name: "s"}, schemaregistry.Version{Opaque: "v"}),
 		{},
 	}
@@ -515,12 +522,26 @@ func TestDeletionAndReferenceCompilationBoundaries(t *testing.T) {
 		return nil, nil
 	})
 	provider := internalProvider(t, noCall)
-	if _, err := provider.Delete(context.Background(), schemaregistry.DeleteRequest{}); !errors.Is(err, schemaregistry.ErrInvalidRequest) {
-		t.Fatalf("Delete(invalid) error = %v", err)
-	}
 	request := schemaregistry.DeleteRequest{
 		Subject: schemaregistry.Subject{Name: "s"}, Version: schemaregistry.Version{Number: 1},
 		Policy: schemaregistry.DeletionPolicy{Mode: schemaregistry.DeleteSoft, ExpectedFingerprint: schema.Fingerprint()},
+	}
+	invalidRequests := []schemaregistry.DeleteRequest{
+		{},
+		func() schemaregistry.DeleteRequest { value := request; value.Subject.Name = ""; return value }(),
+		func() schemaregistry.DeleteRequest { value := request; value.Subject.Registry = "r"; return value }(),
+		func() schemaregistry.DeleteRequest { value := request; value.Version.Number = 0; return value }(),
+		func() schemaregistry.DeleteRequest { value := request; value.Version.Opaque = "v"; return value }(),
+		func() schemaregistry.DeleteRequest {
+			value := request
+			value.Policy.ExpectedFingerprint = schemaregistry.Fingerprint{}
+			return value
+		}(),
+	}
+	for _, invalidRequest := range invalidRequests {
+		if _, err := provider.Delete(context.Background(), invalidRequest); !errors.Is(err, schemaregistry.ErrInvalidRequest) || !strings.Contains(err.Error(), "Confluent deletion") {
+			t.Fatalf("Delete(%+v) error = %v", invalidRequest, err)
+		}
 	}
 	provider = internalProvider(t, sequentialTransport(response(404, "")))
 	if _, err := provider.Delete(context.Background(), request); !errors.Is(err, schemaregistry.ErrNotFound) {
@@ -588,10 +609,19 @@ func TestDeletionAndReferenceCompilationBoundaries(t *testing.T) {
 	if err := compile(provider, base, coordinate, map[schemaregistry.ReferenceCoordinate]uint8{coordinate: 1}, 0, 0, 1); !errors.Is(err, schemaregistry.ErrReferenceCycle) {
 		t.Fatalf("compileResponse(cycle) error = %v", err)
 	}
+	partialCoordinate := schemaregistry.ReferenceCoordinate{Subject: schemaregistry.Subject{Name: "s"}}
+	if err := compile(provider, base, partialCoordinate, map[schemaregistry.ReferenceCoordinate]uint8{partialCoordinate: 1}, 0, 0, 1); err != nil {
+		t.Fatalf("compileResponse(partial coordinate) error = %v", err)
+	}
 	if err := compile(provider, base, coordinate, map[schemaregistry.ReferenceCoordinate]uint8{coordinate: 2}, 0, 0, 1); err != nil {
 		t.Fatalf("compileResponse(shared DAG) error = %v", err)
 	}
-	invalidReferences := []schemaReference{{}, {Name: "x"}, {Name: "x", Subject: "s"}}
+	invalidReferences := []schemaReference{
+		{},
+		{Subject: "s", Version: 1},
+		{Name: "x", Version: 1},
+		{Name: "x", Subject: "s"},
+	}
 	for _, reference := range invalidReferences {
 		value := base
 		value.References = []schemaReference{reference}
@@ -660,17 +690,21 @@ func TestDeletionAndReferenceCompilationBoundaries(t *testing.T) {
 		t.Fatalf("compileResponse(canonical error) error = %v", err)
 	}
 
-	badReferenceSchema, err := schemaregistry.Compile(context.Background(), schemaregistry.Definition{
-		Format: schemaregistry.FormatAvro, Content: []byte("string"),
-		References: []schemaregistry.Reference{{Name: "x", Fingerprint: schema.Fingerprint()}},
-	}, canonicalizerFunction(func(_ context.Context, definition schemaregistry.Definition) ([]byte, error) {
-		return definition.Content, nil
-	}))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, err := provider.requestForSchema(badReferenceSchema); !errors.Is(err, schemaregistry.ErrInvalidRequest) {
-		t.Fatalf("requestForSchema(bad reference) error = %v", err)
+	for _, reference := range []schemaregistry.Reference{
+		{Name: "x", Version: 1, Fingerprint: schema.Fingerprint()},
+		{Name: "x", Subject: "s", Fingerprint: schema.Fingerprint()},
+	} {
+		badReferenceSchema, err := schemaregistry.Compile(context.Background(), schemaregistry.Definition{
+			Format: schemaregistry.FormatAvro, Content: []byte("string"), References: []schemaregistry.Reference{reference},
+		}, canonicalizerFunction(func(_ context.Context, definition schemaregistry.Definition) ([]byte, error) {
+			return definition.Content, nil
+		}))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, err := provider.requestForSchema(badReferenceSchema); !errors.Is(err, schemaregistry.ErrInvalidRequest) {
+			t.Fatalf("requestForSchema(%+v) error = %v", reference, err)
+		}
 	}
 	validReferenceSchema, err := schemaregistry.Compile(context.Background(), schemaregistry.Definition{
 		Format: schemaregistry.FormatAvro, Content: []byte("string"),
@@ -771,6 +805,23 @@ func TestNewAndMappingBoundaries(t *testing.T) {
 	endpointPolicy.Endpoint = "ftp://example.test"
 	if _, err := New(endpointPolicy); err == nil || err.Error() != "confluent endpoint must use HTTPS" {
 		t.Fatalf("New(unsupported endpoint) error = %v", err)
+	}
+	for _, endpointPolicy := range []Config{
+		func() Config {
+			config := internalConfig(transport)
+			config.Endpoint = "http://example.test"
+			return config
+		}(),
+		func() Config {
+			config := internalConfig(transport)
+			config.Endpoint = "ftp://example.test"
+			config.AllowHTTPForTesting = true
+			return config
+		}(),
+	} {
+		if _, err := New(endpointPolicy); err == nil {
+			t.Fatalf("New(endpoint policy %+v) error = nil", endpointPolicy)
+		}
 	}
 	for _, endpoint := range []string{"%", "https:///missing", "https://user@example.test", "https://example.test?q=1", "https://example.test#fragment", "ftp://example.test"} {
 		config := internalConfig(transport)

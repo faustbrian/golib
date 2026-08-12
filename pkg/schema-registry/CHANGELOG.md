@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Replace the obsolete JSON Schema pseudo-version with the canonical monorepo
+  dependency version used by clean local and CI resolution.
 - Fence cache invalidation and explicit priming against older in-flight loads.
 - Reject substituted provider/reference identities, excessive Avro nesting,
   aggregate Protobuf import bytes, and oversized reference or metadata text.

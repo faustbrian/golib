@@ -181,7 +181,13 @@ func TestConfigurationMappingsErrorsAndFramingBoundaries(t *testing.T) {
 	for _, test := range []struct {
 		id      schemaregistry.ProviderID
 		payload []byte
-	}{{schemaregistry.ProviderID{}, nil}, {id, []byte{1, 2}}, {schemaregistry.ProviderID{Provider: ProviderName, Scope: "scope", Value: "bad"}, nil}} {
+	}{
+		{schemaregistry.ProviderID{}, nil},
+		{schemaregistry.ProviderID{Provider: "other", Scope: "scope", Value: internalVersionID}, nil},
+		{schemaregistry.ProviderID{Provider: ProviderName, Scope: "other", Value: internalVersionID}, nil},
+		{id, []byte{1, 2}},
+		{schemaregistry.ProviderID{Provider: ProviderName, Scope: "scope", Value: "bad"}, nil},
+	} {
 		if _, err := framer.Frame(context.Background(), test.id, test.payload); !errors.Is(err, ErrInvalidFrame) {
 			t.Fatalf("Frame(%+v) error = %v", test, err)
 		}
@@ -222,8 +228,10 @@ func TestRegisterBoundaries(t *testing.T) {
 
 	schema := internalSchema(t, "string")
 	provider := internalProvider(t, noCallAPI(t))
-	if _, err := provider.Register(context.Background(), schemaregistry.RegisterRequest{}); !errors.Is(err, schemaregistry.ErrInvalidRequest) {
-		t.Fatalf("Register(subject) error = %v", err)
+	for _, subject := range []schemaregistry.Subject{{}, {Registry: "r"}, {Name: "s"}} {
+		if _, err := provider.Register(context.Background(), schemaregistry.RegisterRequest{Subject: subject}); !errors.Is(err, schemaregistry.ErrInvalidRequest) {
+			t.Fatalf("Register(subject %+v) error = %v", subject, err)
+		}
 	}
 	if _, err := provider.Register(context.Background(), schemaregistry.RegisterRequest{Subject: schemaregistry.Subject{Registry: "r", Name: "s"}}); !errors.Is(err, schemaregistry.ErrLimitExceeded) {
 		t.Fatalf("Register(empty schema) error = %v", err)
@@ -341,6 +349,8 @@ func TestResolveBoundaries(t *testing.T) {
 		schemaregistry.ByProviderID(schemaregistry.ProviderID{Provider: "other", Scope: "scope", Value: internalVersionID}),
 		schemaregistry.ByProviderID(schemaregistry.ProviderID{Provider: ProviderName, Scope: "scope", Value: "bad"}),
 		schemaregistry.AtVersion(schemaregistry.Subject{}, schemaregistry.Version{Number: 1}),
+		schemaregistry.AtVersion(schemaregistry.Subject{Registry: "r"}, schemaregistry.Version{Number: 1}),
+		schemaregistry.AtVersion(schemaregistry.Subject{Name: "s"}, schemaregistry.Version{Number: 1}),
 		schemaregistry.AtVersion(schemaregistry.Subject{Registry: "r", Name: "s"}, schemaregistry.Version{}),
 		schemaregistry.AtVersion(schemaregistry.Subject{Registry: "r", Name: "s"}, schemaregistry.Version{Opaque: "v"}),
 		schemaregistry.AtVersion(schemaregistry.Subject{Registry: "r", Name: "s"}, schemaregistry.Version{Number: ^uint64(0)}),
