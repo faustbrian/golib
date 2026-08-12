@@ -77,7 +77,7 @@ The pair notation `path/{A,B}` means both named files in the listed order.
 | 56 | Repository audit | `implemented-unverified` | `.ai/GOAL_PERFORMANCE.md` | 55 |
 | 57 | Repository audit | `implemented-unverified` | `.ai/GOAL_CODE_DOCUMENTATION.md` | 3-56 |
 | 58 | Repository audit | `implemented-unverified` | `.ai/GOAL_DOCUMENTATION.md` | 50, 57 |
-| 59 | Repository audit | `pending-reexecution` | `.ai/GOAL_POLISH.md` | 3-58 |
+| 59 | Repository audit | `implemented-unverified` | `.ai/GOAL_POLISH.md` | 3-58 |
 | 60 | Repository audit | `pending-reexecution` | `.ai/GOAL_MONOREPO_REMEDIATION.md` | 3-59 |
 | 61 | Repository audit | `pending-reexecution` | `.ai/GOAL_HARDEN.md` | 3-60 |
 | 62 | Repository audit | `pending-reexecution` | `.ai/GOAL.md` | 3-61 |
