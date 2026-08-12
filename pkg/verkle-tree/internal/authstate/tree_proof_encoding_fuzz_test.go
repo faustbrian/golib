@@ -3,7 +3,10 @@ package authstate
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
+
+	"github.com/faustbrian/golib/pkg/verkle-tree/internal/backend"
 )
 
 func FuzzDecodeTreeProof(f *testing.F) {
@@ -70,7 +73,33 @@ func FuzzVerifyTreeProof(f *testing.F) {
 	if err != nil {
 		f.Fatalf("encode seed proof: %v", err)
 	}
+	if err := engine.Verify(
+		context.Background(),
+		proof,
+		testProofVerificationLimits(),
+	); err != nil {
+		f.Fatalf("verify canonical seed proof: %v", err)
+	}
+	tampered := bytes.Clone(canonical)
+	openingOffset := len(tampered) - (treeProofFixedBytes - treeProofHeaderBytes)
+	clear(tampered[openingOffset : openingOffset+backend.CommitmentSize])
+	tamperedProof, err := DecodeTreeProof(
+		context.Background(),
+		tampered,
+		testTreeProofDecodingLimits(),
+	)
+	if err != nil {
+		f.Fatalf("decode tampered seed proof: %v", err)
+	}
+	if err := engine.Verify(
+		context.Background(),
+		tamperedProof,
+		testProofVerificationLimits(),
+	); !IsProofVerificationError(err) {
+		f.Fatalf("tampered seed verification error: %v", err)
+	}
 	f.Add(canonical)
+	f.Add(tampered)
 	f.Add([]byte{})
 
 	f.Fuzz(func(t *testing.T, encoded []byte) {
@@ -83,10 +112,16 @@ func FuzzVerifyTreeProof(f *testing.F) {
 			return
 		}
 
-		_ = engine.Verify(
+		verifyErr := engine.Verify(
 			context.Background(),
 			decoded,
 			testProofVerificationLimits(),
 		)
+		if verifyErr != nil &&
+			!IsProofVerificationError(verifyErr) &&
+			!IsInvalidProofError(verifyErr) &&
+			!errors.Is(verifyErr, errInvalidProofMaterial) {
+			t.Fatalf("decoded proof produced unclassified verification error: %v", verifyErr)
+		}
 	})
 }
