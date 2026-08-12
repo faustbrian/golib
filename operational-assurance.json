@@ -268,8 +268,8 @@
       "evidence": [
         {
           "path": "docs/assurance/evidence/OA-PLATFORM-MATRIX-LOCAL.md",
-          "sha256": "0cafcd12af2b40d014793e352832e2a18b5db71762793a3cc8a6126ad84682dc",
-          "observed_utc": "2026-08-12T19:30:47Z",
+          "sha256": "25181b5564e8e87067366bd7e595710065d113dc1ef386805d2f36f88e35bdcd",
+          "observed_utc": "2026-08-12T19:36:13Z",
           "environment": "Docker Engine 29.6.2 linux/arm64; BuildKit 0.31.2; Go 1.26.5; emulated linux/amd64 and native linux/arm64 containers",
           "module_scope": [
             "pkg/service"

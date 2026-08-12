@@ -1,6 +1,6 @@
 # OA-PLATFORM-MATRIX Local Evidence
 
-Observed at `2026-08-12T19:30:47Z` on Docker Engine `29.6.2` running
+Observed at `2026-08-12T19:36:13Z` on Docker Engine `29.6.2` running
 `linux/arm64`, with BuildKit `0.31.2` and Go `1.26.5`.
 
 ## Executed Proof
@@ -24,11 +24,14 @@ Observed at `2026-08-12T19:30:47Z` on Docker Engine `29.6.2` running
 - The canonical module check and a separate race-enabled module execution
   passed. The disposable containers, images, builder, fixture, and Go caches
   were removed after the run.
+- The complete matrix also passed from a task-owned extraction of the committed
+  Git archive, without `.git`, sibling checkouts, dirty files, warm Go caches,
+  ambient credentials, or developer-specific paths.
 
 ## Claim Boundary
 
 This proves the local ECS-compatible container shape and emulated Linux
 architecture matrix. It does not prove native Graviton execution, live ECS
 task lifecycle, task IAM credentials, ECS DNS or network policy, production
-certificate roots, clean-checkout reproducibility, deployment, load, soak, or
-production readiness. `OA-PLATFORM-MATRIX` therefore remains pending.
+certificate roots, bit-for-bit artifact reproducibility, deployment, load,
+soak, or production readiness. `OA-PLATFORM-MATRIX` therefore remains pending.
