@@ -265,7 +265,44 @@
       "affected_modules": [
         "*"
       ],
-      "evidence": [],
+      "evidence": [
+        {
+          "path": "docs/assurance/evidence/OA-PLATFORM-MATRIX-LOCAL.md",
+          "sha256": "0cafcd12af2b40d014793e352832e2a18b5db71762793a3cc8a6126ad84682dc",
+          "observed_utc": "2026-08-12T19:30:47Z",
+          "environment": "Docker Engine 29.6.2 linux/arm64; BuildKit 0.31.2; Go 1.26.5; emulated linux/amd64 and native linux/arm64 containers",
+          "module_scope": [
+            "pkg/service"
+          ],
+          "input_digests": {
+            "pkg/audit/postgres": "85f015e88fe53ea8f8ea2edbb16527bdfcdc6ff4a4e3ddd18b5e4c3fba4fb41e",
+            "pkg/authorization": "9af6e2da11c2d3a5437157d093cb72c66d9dfff96036ec53fdfd550045534556",
+            "pkg/cache": "66d7c84a7e1dfddab97c83d46b3dbc23456e03d2178de649aad947abe1c63ea1",
+            "pkg/cloudevents/adapters/golib": "841f6354d5eb2115787a1df411a216443e027c5732ab1c95e43569e905b87805",
+            "pkg/config": "177b8d97d7fe2cdb8e475b06ddb0c2b0a75d06e9e34fdd4282d97e07bc861bf9",
+            "pkg/config/adapters/awssecretsmanager": "0b2e328a145f6626fb110ed3d3127ace06e2e3c9bb8129a64ecea1369236b630",
+            "pkg/idempotency": "35ac11e79a818ec3f72f98262cb80acec22edc313e87993e4a8534d7093d2d04",
+            "pkg/international": "7d3b6ea010688e433e37fa52643dffa6aec6c3ad52c252bca763f07711804da3",
+            "pkg/kafka/kafkaservice": "c78394df4c1c072bb44227c9da275565d7a5db6dae19e664ca77911188da8b61",
+            "pkg/knapsack/objective/gomoney": "e8f60d0f259b92bd190f398cdc55758262a52d9d7fb15af4df4feb3d7604d52b",
+            "pkg/lease": "607211c70c0faf76497cc468f5128adf279055c559e206cdaf8a8784481f5f18",
+            "pkg/localized": "cc2bdbab26c1490e62ba948e89797c398d377771f91db74c19da66b7cec80064",
+            "pkg/migrations": "b81a23b09192155f3e5d8649c5f857bc978afa8abae15409dddc3ea5395d9483",
+            "pkg/money": "d6caa052ab763b0c4be676394544ace2384aaf036a5a53f82fb8e614df8ac00f",
+            "pkg/opening-hours": "d7e7348c2b6954f3f50088fc4322bf5d56271701323c763ac29d42e51442beb8",
+            "pkg/postgres": "409077008c36b6b87b38e507ba90867e1f858089b45c781870bcf09ea0f8604a",
+            "pkg/queue-control-plane": "0207f12c6344b55153ccfee41b4018b8b3e852bef2e78c97d334d18f319b8135",
+            "pkg/queue/queueservice": "5e58a79aa24873b9f57d9df96a08f42655992e3c0d489219cf227ed1b6c2e472",
+            "pkg/rate-limit": "0b946e3035576c3594e43326dccc6cd941e93533e038ba69da89ffff1cc336ba",
+            "pkg/rule-engine/adapters/temporal": "16ae218566e6865baab52e40ad90792edaed631c57cf761e20c401892cd1b231",
+            "pkg/scheduler": "84abed96d055f563be4569a7847821990440a412fd4c501bcbaa8e71c29bbbfd",
+            "pkg/service": "e917f70b11bc54e0d1befb425c608bd5edc3e70aa73d8c5553ac81b7fde0baa0",
+            "pkg/telemetry": "ce9b6d01a57095278c2e1e3117d0a910420174190d1ded8b7524eac433a14565",
+            "pkg/temporal": "86592237fd08d722c4c460f92f25c7d78398a8de5ed75221cacf41558490bb7b",
+            "pkg/webhook": "40f825729cb593a2b3d0fbdcd9807c31e453477d7c625bd939c54db604616788"
+          }
+        }
+      ],
       "accepted_risks": []
     },
     {

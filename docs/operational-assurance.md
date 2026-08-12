@@ -11,6 +11,10 @@ scenarios have final evidence, nine remain pending, and six named residual risks
 remain open. This is an honest release boundary, not a package-quality
 regression and not a reason to rerun content-identical package campaigns.
 
+`OA-PLATFORM-MATRIX` now retains passing local Linux amd64/arm64 container
+evidence, but remains pending for native Graviton, live ECS task IAM and
+lifecycle, clean-checkout reproducibility, and production network boundaries.
+
 `operational-assurance.json` is the machine-readable authority. It catalogs
 every releasable module, every mandatory scenario, evidence paths and SHA-256
 digests, complete current-input fingerprints, environments, UTC observation

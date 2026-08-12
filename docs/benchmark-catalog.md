@@ -129,6 +129,7 @@ This inventory reports discoverable benchmark assets. A passing benchmark gate p
 | `pkg/service/integration/adoption` | not required | present | 1 | 0 | 0 | 0 | - |
 | `pkg/service/integration/reference-external` | not required | missing | 0 | 0 | 0 | 0 | - |
 | `pkg/service/integration/reference-http` | not required | missing | 0 | 0 | 0 | 0 | - |
+| `pkg/service/integration/reference-platform` | not required | missing | 0 | 0 | 0 | 0 | - |
 | `pkg/settings` | required | present | 3 | 1 | 0 | 0 | `postgresql`<br>`valkey` |
 | `pkg/state-machine` | required | present | 3 | 0 | 0 | 0 | `postgresql` |
 | `pkg/tabular` | required | present | 6 | 1 | 0 | 0 | - |

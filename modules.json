@@ -396,6 +396,7 @@
             "CHANGELOG.md",
             "README.md",
             "docs/architecture.md",
+            "docs/assurance/evidence/OA-PLATFORM-MATRIX-LOCAL.md",
             "docs/assurance/evidence/OA-REFERENCE-EXTERNAL.md",
             "docs/assurance/evidence/OA-REFERENCE-HTTP.md",
             "docs/hardening-report.md",
@@ -4731,6 +4732,7 @@
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/service/integration/reference-http",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-platform",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "external_runtime_dependencies": [],
@@ -6188,6 +6190,7 @@
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/service/integration/reference-http",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-platform",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "external_runtime_dependencies": [
@@ -10149,6 +10152,7 @@
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/service/integration/reference-http",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-platform",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "external_runtime_dependencies": [
@@ -21576,6 +21580,7 @@
         "github.com/faustbrian/golib/pkg/service/compatibility",
         "github.com/faustbrian/golib/pkg/service/integration/adoption",
         "github.com/faustbrian/golib/pkg/service/integration/reference-http",
+        "github.com/faustbrian/golib/pkg/service/integration/reference-platform",
         "github.com/faustbrian/golib/pkg/telemetry"
       ],
       "external_runtime_dependencies": [],
@@ -22304,6 +22309,85 @@
         "github.com/faustbrian/golib/pkg/telemetry",
         "github.com/faustbrian/golib/pkg/tenancy",
         "github.com/faustbrian/golib/pkg/validation"
+      ],
+      "reverse_owned_dependencies": null,
+      "external_runtime_dependencies": [],
+      "required_services": [],
+      "build_tags": [],
+      "test_tags": [],
+      "interoperability_tools": [],
+      "specifications": [],
+      "conformance_corpora": [],
+      "provenance": [],
+      "goal_files": [],
+      "goal_status": "not-applicable",
+      "goal_evidence": [],
+      "gates": {
+        "api_compatibility": false,
+        "benchmarks": false,
+        "conformance": false,
+        "coverage": false,
+        "documentation": true,
+        "fuzz": false,
+        "lint": true,
+        "mutation": false,
+        "race": false,
+        "security": true,
+        "tests": true
+      }
+    },
+    {
+      "directory": "pkg/service/integration/reference-platform",
+      "module_path": "github.com/faustbrian/golib/pkg/service/integration/reference-platform",
+      "go_version": "1.26.5",
+      "packages": [
+        {
+          "module_directory": "pkg/service/integration/reference-platform",
+          "directory": ".",
+          "name": "referenceplatform",
+          "import_path": "github.com/faustbrian/golib/pkg/service/integration/reference-platform",
+          "kind": "harness",
+          "production": false,
+          "executable": true,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/service/integration/reference-platform",
+          "directory": "cmd/platform-fixture",
+          "name": "main",
+          "import_path": "github.com/faustbrian/golib/pkg/service/integration/reference-platform/cmd/platform-fixture",
+          "kind": "harness",
+          "production": false,
+          "executable": true,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        },
+        {
+          "module_directory": "pkg/service/integration/reference-platform",
+          "directory": "cmd/reference-platform",
+          "name": "main",
+          "import_path": "github.com/faustbrian/golib/pkg/service/integration/reference-platform/cmd/reference-platform",
+          "kind": "harness",
+          "production": false,
+          "executable": true,
+          "coverage_required": false,
+          "build_required": true,
+          "build_tags": []
+        }
+      ],
+      "purpose": "This non-production module verifies the public `service` process model in disposable Linux containers. Its platform harness builds and runs both `linux/amd64` and `linux/arm64` images with `CGO_ENABLED=0`, a non-root user, a read-only root filesystem, a bounded writable temporary filesystem, dropped capabilities, process and descriptor limits, health probes, DNS, private TLS trust, and graceful `SIGTERM` handling.",
+      "lifecycle": "internal",
+      "kind": "interoperability harness",
+      "releasable": false,
+      "version": "unreleased",
+      "owned_dependencies": [
+        "github.com/faustbrian/golib/pkg/cli",
+        "github.com/faustbrian/golib/pkg/correlation",
+        "github.com/faustbrian/golib/pkg/identifier",
+        "github.com/faustbrian/golib/pkg/service"
       ],
       "reverse_owned_dependencies": null,
       "external_runtime_dependencies": [],

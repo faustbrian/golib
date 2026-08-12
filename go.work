@@ -123,6 +123,7 @@ use (
 	./pkg/service/integration/adoption
 	./pkg/service/integration/reference-external
 	./pkg/service/integration/reference-http
+	./pkg/service/integration/reference-platform
 	./pkg/settings
 	./pkg/state-machine
 	./pkg/tabular
@@ -345,6 +346,8 @@ replace github.com/faustbrian/golib/pkg/service/integration/adoption v0.0.0 => .
 replace github.com/faustbrian/golib/pkg/service/integration/reference-external v0.0.0 => ./pkg/service/integration/reference-external
 
 replace github.com/faustbrian/golib/pkg/service/integration/reference-http v0.0.0 => ./pkg/service/integration/reference-http
+
+replace github.com/faustbrian/golib/pkg/service/integration/reference-platform v0.0.0 => ./pkg/service/integration/reference-platform
 
 replace github.com/faustbrian/golib/pkg/settings v0.0.0 => ./pkg/settings
 
