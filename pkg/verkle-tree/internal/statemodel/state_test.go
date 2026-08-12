@@ -445,6 +445,30 @@ func TestSnapshotAcceptsExactTemporaryBudget(t *testing.T) {
 	}
 }
 
+func TestSnapshotAccountsForOwnedUpdateAndSortScratch(t *testing.T) {
+	t.Parallel()
+
+	snapshot, err := NewSnapshot(Limits{
+		MaxBatchUpdates:   1,
+		MaxEntries:        1,
+		MaxTemporaryBytes: 129,
+	})
+	if err != nil {
+		t.Fatalf("new snapshot: %v", err)
+	}
+
+	_, err = snapshot.Apply(
+		context.Background(),
+		[]Update{Set(Key{1}, Value{1})},
+	)
+	var resourceErr *ResourceError
+	if !errors.As(err, &resourceErr) ||
+		resourceErr.Kind != ResourceTemporaryBytes ||
+		resourceErr.Actual != 130 {
+		t.Fatalf("apply error = %v, want temporary-byte actual 130", err)
+	}
+}
+
 func TestSnapshotCountsReplacementAndDeletionIndependently(t *testing.T) {
 	t.Parallel()
 
@@ -533,6 +557,32 @@ func TestSnapshotStopsDuringBoundedLoops(t *testing.T) {
 	); !errors.Is(err, context.Canceled) {
 		t.Fatalf("merge error = %v, want context.Canceled", err)
 	}
+
+	sortContext := &stepContext{successfulChecks: 3}
+	if _, err := snapshot.Apply(sortContext, []Update{
+		Set(Key{2}, Value{2}),
+		Set(Key{2}, Value{3}),
+	}); !errors.Is(err, context.Canceled) {
+		t.Fatalf("sort error = %v, want context.Canceled", err)
+	}
+
+	completed := false
+	for successfulChecks := 0; successfulChecks < 1_000; successfulChecks++ {
+		_, err := snapshot.Apply(
+			&stepContext{successfulChecks: successfulChecks},
+			[]Update{Set(Key{2}, Value{2})},
+		)
+		if err == nil {
+			completed = true
+			break
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancellation after %d checks = %v", successfulChecks, err)
+		}
+	}
+	if !completed {
+		t.Fatal("cancellation sweep did not reach a completed apply")
+	}
 }
 
 func TestEmptyApplyReturnsEquivalentSnapshot(t *testing.T) {
@@ -557,6 +607,41 @@ func TestEmptyApplyReturnsEquivalentSnapshot(t *testing.T) {
 	}
 	if len(keys) != 0 {
 		t.Fatalf("keys = %x, want empty", keys)
+	}
+}
+
+func TestSortUpdatesHonorsEveryCancellationBoundary(t *testing.T) {
+	t.Parallel()
+
+	original := []Update{
+		Set(Key{8}, Value{8}),
+		Set(Key{7}, Value{7}),
+		Set(Key{6}, Value{6}),
+		Set(Key{5}, Value{5}),
+		Set(Key{4}, Value{4}),
+		Set(Key{3}, Value{3}),
+		Set(Key{2}, Value{2}),
+		Set(Key{1}, Value{1}),
+	}
+	completed := false
+	for successfulChecks := 0; successfulChecks < 1_000; successfulChecks++ {
+		got := append([]Update(nil), original...)
+		err := sortUpdates(&stepContext{successfulChecks: successfulChecks}, got)
+		if err == nil {
+			for index := range got {
+				if got[index].key != (Key{byte(index + 1)}) {
+					t.Fatalf("sorted updates = %#v", got)
+				}
+			}
+			completed = true
+			break
+		}
+		if !errors.Is(err, context.Canceled) {
+			t.Fatalf("cancellation after %d checks = %v", successfulChecks, err)
+		}
+	}
+	if !completed {
+		t.Fatal("cancellation sweep did not reach a completed sort")
 	}
 }
 

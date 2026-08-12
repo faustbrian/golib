@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	stemWorkingBytes      = uint64(31)
+	stemWorkingBytes      = uint64(62)
 	nodeWorkingBytes      = uint64(64)
 	edgeWorkingBytes      = uint64(8)
 	maxSupportedStemCount = uint32(2_147_483_647)
@@ -571,9 +571,55 @@ func sortStems(ctx context.Context, stems []Stem) error {
 	if err := checkContext(ctx); err != nil {
 		return err
 	}
-	slices.SortFunc(stems, func(left, right Stem) int {
-		return bytes.Compare(left[:], right[:])
-	})
+	if len(stems) < 2 {
+		return nil
+	}
+	scratch := make([]Stem, len(stems))
 
-	return checkContext(ctx)
+	return mergeSortStems(ctx, stems, scratch, 0, len(stems))
+}
+
+func mergeSortStems(
+	ctx context.Context,
+	stems []Stem,
+	scratch []Stem,
+	start int,
+	end int,
+) error {
+	if err := checkContext(ctx); err != nil {
+		return err
+	}
+	if end-start < 2 {
+		return nil
+	}
+	middle := start + (end-start)/2
+	if err := mergeSortStems(ctx, stems, scratch, start, middle); err != nil {
+		return err
+	}
+	if err := mergeSortStems(ctx, stems, scratch, middle, end); err != nil {
+		return err
+	}
+	left := start
+	right := middle
+	for output := start; output < end; output++ {
+		if err := checkContext(ctx); err != nil {
+			return err
+		}
+		if right == end ||
+			(left < middle && bytes.Compare(stems[left][:], stems[right][:]) <= 0) {
+			scratch[output] = stems[left]
+			left++
+		} else {
+			scratch[output] = stems[right]
+			right++
+		}
+	}
+	for index := start; index < end; index++ {
+		if err := checkContext(ctx); err != nil {
+			return err
+		}
+		stems[index] = scratch[index]
+	}
+
+	return nil
 }

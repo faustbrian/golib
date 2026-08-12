@@ -21,6 +21,8 @@ All notable changes to `verkle-tree` will be documented in this file.
   caller-owned slices at the public snapshot boundary.
 - Honor cancellation while materializing authenticated commitment and stem-path
   indexes after stateless proof verification, without exposing partial results.
+- Honor cancellation during topology and reference-model sorting, and include
+  owned merge-sort scratch in their hostile-input temporary-byte budgets.
 - Require the stateless receiver workflow to supply a caller-trusted pre-state
   root through `ApplyForRoot` instead of relying on a self-contained witness.
 

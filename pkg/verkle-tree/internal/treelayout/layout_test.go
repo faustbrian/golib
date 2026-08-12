@@ -377,7 +377,7 @@ func TestLayoutReportsDeterministicConstructionBytes(t *testing.T) {
 	t.Parallel()
 
 	layout := buildLayout(t, []Stem{{0x10, 0x20}, {0x10, 0x30}})
-	want := 2*stemWorkingBytes + 4*nodeWorkingBytes + 3*edgeWorkingBytes
+	want := 2*2*uint64(len(Stem{})) + 4*nodeWorkingBytes + 3*edgeWorkingBytes
 	if got := layout.TemporaryBytes(); got != want {
 		t.Fatalf("temporary bytes = %d, want %d", got, want)
 	}
@@ -614,6 +614,29 @@ func TestLayoutChecksCancellationDuringBoundedWork(t *testing.T) {
 		}
 	})
 
+	t.Run("complete build sweep", func(t *testing.T) {
+		t.Parallel()
+
+		completed := false
+		for cancelAt := 1; cancelAt < 1_000; cancelAt++ {
+			_, err := Build(
+				&cancelAfterContext{cancelAt: cancelAt},
+				stems,
+				testLimits(),
+			)
+			if err == nil {
+				completed = true
+				break
+			}
+			if !errors.Is(err, errCancelled) {
+				t.Fatalf("cancellation at check %d = %v", cancelAt, err)
+			}
+		}
+		if !completed {
+			t.Fatal("cancellation sweep did not reach a completed build")
+		}
+	})
+
 	t.Run("owned child construction", func(t *testing.T) {
 		t.Parallel()
 
@@ -667,6 +690,18 @@ func TestLayoutChecksCancellationDuringBoundedWork(t *testing.T) {
 			values,
 		); !errors.Is(err, errCancelled) {
 			t.Fatalf("sort error = %v, want cancellation", err)
+		}
+	})
+
+	t.Run("sort work", func(t *testing.T) {
+		t.Parallel()
+
+		values := []Stem{{0x04}, {0x03}, {0x02}, {0x01}}
+		if err := sortStems(
+			&cancelAfterContext{cancelAt: 3},
+			values,
+		); !errors.Is(err, errCancelled) {
+			t.Fatalf("sort error = %v, want cancellation during sorting", err)
 		}
 	})
 
@@ -780,6 +815,32 @@ func TestSortStemsMatchesCanonicalOrderForSmallPermutations(t *testing.T) {
 		}
 	}
 	verify(0)
+}
+
+func TestSortStemsHonorsEveryCancellationBoundary(t *testing.T) {
+	t.Parallel()
+
+	original := []Stem{{0x08}, {0x07}, {0x06}, {0x05}, {0x04}, {0x03}, {0x02}, {0x01}}
+	completed := false
+	for cancelAt := 1; cancelAt < 1_000; cancelAt++ {
+		got := append([]Stem(nil), original...)
+		err := sortStems(&cancelAfterContext{cancelAt: cancelAt}, got)
+		if err == nil {
+			for index := range got {
+				if got[index][0] != uint8(index+1) {
+					t.Fatalf("sorted stems = %x", got)
+				}
+			}
+			completed = true
+			break
+		}
+		if !errors.Is(err, errCancelled) {
+			t.Fatalf("cancellation at check %d = %v", cancelAt, err)
+		}
+	}
+	if !completed {
+		t.Fatal("cancellation sweep did not reach a completed sort")
+	}
 }
 
 func buildLayout(t *testing.T, stems []Stem) Layout {

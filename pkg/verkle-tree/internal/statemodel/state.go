@@ -10,7 +10,7 @@ const (
 	// These architecture-independent upper bounds cover each owned scratch
 	// element. Counts are capped at MaxInt32, so every product and sum below
 	// fits in uint64 before any allocation.
-	workingUpdateBytes = uint64(128)
+	workingUpdateBytes = uint64(130)
 	workingEntryBytes  = uint64(64)
 	maxSupportedCount  = uint32(2_147_483_647)
 )
@@ -182,9 +182,9 @@ func (snapshot Snapshot) Apply(
 	}
 
 	ordered := append([]Update(nil), updates...)
-	slices.SortFunc(ordered, func(left, right Update) int {
-		return compareKey(left.key, right.key)
-	})
+	if err := sortUpdates(ctx, ordered); err != nil {
+		return Snapshot{}, err
+	}
 	for index := range ordered {
 		if err := checkContext(ctx); err != nil {
 			return Snapshot{}, err
@@ -307,6 +307,63 @@ func checkContext(ctx context.Context) error {
 
 func compareKey(left, right Key) int {
 	return bytes.Compare(left[:], right[:])
+}
+
+func sortUpdates(ctx context.Context, updates []Update) error {
+	if err := checkContext(ctx); err != nil {
+		return err
+	}
+	if len(updates) < 2 {
+		return nil
+	}
+	scratch := make([]Update, len(updates))
+
+	return mergeSortUpdates(ctx, updates, scratch, 0, len(updates))
+}
+
+func mergeSortUpdates(
+	ctx context.Context,
+	updates []Update,
+	scratch []Update,
+	start int,
+	end int,
+) error {
+	if err := checkContext(ctx); err != nil {
+		return err
+	}
+	if end-start < 2 {
+		return nil
+	}
+	middle := start + (end-start)/2
+	if err := mergeSortUpdates(ctx, updates, scratch, start, middle); err != nil {
+		return err
+	}
+	if err := mergeSortUpdates(ctx, updates, scratch, middle, end); err != nil {
+		return err
+	}
+	left := start
+	right := middle
+	for output := start; output < end; output++ {
+		if err := checkContext(ctx); err != nil {
+			return err
+		}
+		if right == end ||
+			(left < middle && compareKey(updates[left].key, updates[right].key) <= 0) {
+			scratch[output] = updates[left]
+			left++
+		} else {
+			scratch[output] = updates[right]
+			right++
+		}
+	}
+	for index := start; index < end; index++ {
+		if err := checkContext(ctx); err != nil {
+			return err
+		}
+		updates[index] = scratch[index]
+	}
+
+	return nil
 }
 
 func findEntry(entries []entry, key Key) (int, bool) {
